@@ -5,7 +5,6 @@ import {
   Users,
   Plus,
   CheckCircle2,
-  Sparkles,
   ChevronRight,
   Check,
   Award
@@ -837,7 +836,6 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
               <div className="p-3 bg-indigo-50/50 border border-indigo-200 rounded-xl space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-indigo-900 flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
                     <span>Attach a Test</span>
                   </span>
                   <label className={`flex items-center gap-1.5 text-xs text-indigo-800 font-medium cursor-pointer ${newJobAttachedTestId ? '' : 'opacity-40 pointer-events-none'}`}>

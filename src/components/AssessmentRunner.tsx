@@ -10,8 +10,6 @@ import {
   Clock,
   Eye,
   CheckCircle2,
-  Table,
-  Terminal,
   ShieldAlert,
   ArrowRight,
   Crown,
@@ -271,7 +269,6 @@ export const AssessmentRunner: React.FC<AssessmentRunnerProps> = ({ test, onClos
             {currentQ.contextData && (
               <div className="space-y-2">
                 <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                  <Table className="w-3.5 h-3.5 text-indigo-600" />
                   <span>Schema Reference</span>
                 </div>
                 <div className="p-3 bg-indigo-50/50 border border-indigo-200 rounded-lg text-xs font-mono text-indigo-950 overflow-x-auto shadow-2xs">
@@ -387,7 +384,6 @@ export const AssessmentRunner: React.FC<AssessmentRunnerProps> = ({ test, onClos
                   activeTab === 'output' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
-                <Terminal className="w-3.5 h-3.5" />
                 <span>Execution Output</span>
               </button>
               <button
@@ -396,7 +392,6 @@ export const AssessmentRunner: React.FC<AssessmentRunnerProps> = ({ test, onClos
                   activeTab === 'testcases' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
-                <CheckCircle2 className="w-3.5 h-3.5" />
                 <span>Test Cases {runResults?.testCaseResults ? `(${runResults.testCaseResults.filter((r: any) => r.passed).length}/${runResults.testCaseResults.length})` : ''}</span>
               </button>
             </div>

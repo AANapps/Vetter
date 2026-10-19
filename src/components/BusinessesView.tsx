@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Business, JobPosting, AssessmentTest } from '../types';
-import { Briefcase, Award, Search } from 'lucide-react';
+import { Award, Search } from 'lucide-react';
 
 interface BusinessesViewProps {
   businesses: Business[];
@@ -127,7 +127,6 @@ export const BusinessesView: React.FC<BusinessesViewProps> = ({
                 <div className="space-y-2 pt-2 border-t border-slate-200">
                   <div className="flex items-center justify-between text-xs font-semibold text-slate-800">
                     <span className="flex items-center gap-1.5">
-                      <Briefcase className="w-3.5 h-3.5 text-indigo-600" />
                       <span>Open Jobs ({bizJobs.length})</span>
                     </span>
                   </div>

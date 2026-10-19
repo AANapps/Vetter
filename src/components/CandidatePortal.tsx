@@ -11,7 +11,6 @@ import {
   MapPin,
   DollarSign,
   Search,
-  Sparkles,
   ShieldCheck,
   Send,
   Crown
@@ -153,7 +152,6 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
         <div className="pt-4 border-t border-slate-200/80 space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs gap-2">
             <span className="text-xs font-bold text-slate-900 tracking-tight flex items-center gap-1.5">
-              <Award className="w-4 h-4 text-amber-600" />
               <span>Earned Verified Skill Badges</span>
             </span>
             <div className="flex items-center gap-3 text-[11px] text-slate-500 font-mono font-medium">
@@ -241,7 +239,6 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
           {candidate.verifiedSkills.some((s) => s.score >= 95) && (
             <div className="space-y-2">
               <div className="text-xs font-semibold text-amber-700 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-amber-600" />
                 <span>Featured High-Scoring Assessment (Top 1% Global Standing)</span>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

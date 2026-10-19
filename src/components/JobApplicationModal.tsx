@@ -3,8 +3,6 @@ import { User, JobPosting, AssessmentTest } from '../types';
 import { getBestTestScore } from '../lib/matchingAlgorithm';
 import {
   X,
-  Building,
-  Briefcase,
   Play,
   CheckCircle2,
   AlertTriangle,
@@ -81,7 +79,6 @@ export const JobApplicationModal: React.FC<JobApplicationModalProps> = ({
           <div className="space-y-1">
             <span className="text-[10px] font-mono uppercase text-slate-400 font-bold">Company</span>
             <div className="font-bold text-slate-900 flex items-center gap-1.5">
-              <Building className="w-3.5 h-3.5 text-indigo-600" />
               <span>{job.companyName}</span>
             </div>
             <p className="text-[11px] text-slate-500">{job.location} &middot; {job.workType}</p>
@@ -91,7 +88,6 @@ export const JobApplicationModal: React.FC<JobApplicationModalProps> = ({
             <span className="text-[10px] font-mono uppercase text-slate-400 font-bold">Job</span>
             <div className="flex items-center justify-between">
               <div className="font-bold text-slate-900 text-sm flex items-center gap-2">
-                <Briefcase className="w-4 h-4 text-indigo-600" />
                 <span>{job.title}</span>
               </div>
               <div className="text-xs font-mono font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded">
