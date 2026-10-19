@@ -1,0 +1,6 @@
+{
+  "name": "Vetted - Skills-Based Hiring & Assessment Platform",
+  "description": "Full-stack skills-based hiring platform with standardized assessments, automated scoring, candidate vector matching, custom test builder, and recruiter pipelines.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
