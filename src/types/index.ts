@@ -38,6 +38,7 @@ export interface TestResult {
   testId: string;
   score: number;
   completedAt: string;
+  durationSeconds?: number;
 }
 
 export type QuestionType = 'sql' | 'code' | 'scenario';
@@ -78,8 +79,6 @@ export interface AssessmentTest {
   totalQuestions: number;
   questions: Question[];
   skillsTested: string[];
-  testTakersCount: number;
-  avgScore: number;
 }
 
 export interface SubmissionResult {

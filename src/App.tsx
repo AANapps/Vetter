@@ -1,19 +1,15 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { User, UserRole, AssessmentTest, JobPosting, VerifiedSkill, Business } from './types';
-import {
-  INITIAL_CANDIDATE,
-  OTHER_CANDIDATES,
-  INITIAL_RECRUITER,
-  STANDARD_ASSESSMENTS,
-  COMPANY_ASSESSMENTS,
-  INITIAL_JOBS,
-  INITIAL_BUSINESSES,
-} from './data/mockData';
+import { INITIAL_RECRUITER, INITIAL_BUSINESSES } from './data/mockData';
+import { loadData, saveData, clearData } from './lib/store';
+import { getPercentile } from './lib/leaderboard';
+import { levelForScore, withComputedPercentiles } from './data/seedCandidates';
 import { Navigation, AppTab, NAV_TABS } from './components/Navigation';
 import { CandidatePortal, CandidateSection } from './components/CandidatePortal';
 import { RecruiterPortal, BusinessSection } from './components/RecruiterPortal';
 import { BusinessesView } from './components/BusinessesView';
 import { AssessmentRunner } from './components/AssessmentRunner';
+import { TestPage } from './components/TestPage';
 import { CheckCircle2 } from 'lucide-react';
 
 const CANDIDATE_SECTIONS: Partial<Record<AppTab, CandidateSection>> = {
@@ -30,16 +26,35 @@ const BUSINESS_SECTIONS: Partial<Record<AppTab, BusinessSection>> = {
 
 const today = () => new Date().toISOString().split('T')[0];
 
+// Test pages live at #/tests/<id> so they can be linked to and the back button works
+const testIdFromHash = () => {
+  const match = window.location.hash.match(/^#\/tests\/(.+)$/);
+  return match ? decodeURIComponent(match[1]) : null;
+};
+
 export default function App() {
   const [activeRole, setActiveRole] = useState<UserRole>('candidate');
   const [currentTab, setCurrentTab] = useState<AppTab>('profile');
 
-  // Core data: candidates, jobs, tests and companies
-  const [candidate, setCandidate] = useState<User>(INITIAL_CANDIDATE);
+  // Core data: candidates, jobs, tests and companies, loaded from the store and saved on every change
+  const [initialData] = useState(loadData);
+  const [candidate, setCandidate] = useState<User>(initialData.candidate);
+  const [otherCandidates, setOtherCandidates] = useState<User[]>(initialData.otherCandidates);
   const [recruiter] = useState<User>(INITIAL_RECRUITER);
-  const [jobs, setJobs] = useState<JobPosting[]>(INITIAL_JOBS);
-  const [tests, setTests] = useState<AssessmentTest[]>([...STANDARD_ASSESSMENTS, ...COMPANY_ASSESSMENTS]);
+  const [jobs, setJobs] = useState<JobPosting[]>(initialData.jobs);
+  const [tests, setTests] = useState<AssessmentTest[]>(initialData.tests);
   const [businesses] = useState<Business[]>(INITIAL_BUSINESSES);
+
+  useEffect(() => {
+    saveData({ candidate, otherCandidates, jobs, tests });
+  }, [candidate, otherCandidates, jobs, tests]);
+
+  const [testPageId, setTestPageId] = useState<string | null>(testIdFromHash);
+  useEffect(() => {
+    const onHashChange = () => setTestPageId(testIdFromHash());
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
 
   // When a candidate takes a job's attached test, the job they're applying to
   const [activeTestJobId, setActiveTestJobId] = useState<string | null>(null);
@@ -53,11 +68,30 @@ export default function App() {
     setTimeout(() => setToast(null), 4000);
   };
 
+  const goToTab = (tab: AppTab) => {
+    if (window.location.hash) {
+      history.pushState(null, '', window.location.pathname + window.location.search);
+      setTestPageId(null);
+    }
+    setCurrentTab(tab);
+  };
+
+  const openTestPage = (testId: string) => {
+    setCurrentTab(activeRole === 'candidate' ? 'tests' : 'business-tests');
+    window.location.hash = `/tests/${encodeURIComponent(testId)}`;
+    window.scrollTo(0, 0);
+  };
+
   // Switch between Candidate & Business views
   const handleRoleToggle = () => {
     const nextRole: UserRole = activeRole === 'candidate' ? 'recruiter' : 'candidate';
     setActiveRole(nextRole);
-    setCurrentTab(NAV_TABS[nextRole === 'candidate' ? 'candidate' : 'recruiter'][0].id);
+    goToTab(NAV_TABS[nextRole === 'candidate' ? 'candidate' : 'recruiter'][0].id);
+  };
+
+  const handleResetData = () => {
+    clearData();
+    window.location.reload();
   };
 
   // When candidate applies for a job
@@ -76,56 +110,58 @@ export default function App() {
   };
 
   // Complete a test in the runner
-  const handleCompleteAssessment = (testId: string, finalScore: number, percentile: number) => {
+  const handleCompleteAssessment = (testId: string, finalScore: number, durationSeconds: number) => {
     const completedTest = tests.find((t) => t.id === testId);
     if (!completedTest) return;
 
-    setCandidate((prev) => {
-      const testResults = [...prev.testResults, { testId, score: finalScore, completedAt: today() }];
+    const testResults = [...candidate.testResults, { testId, score: finalScore, completedAt: today(), durationSeconds }];
+    let updatedCandidate: User = { ...candidate, testResults };
 
-      // Only Vetter-made tests become verified skills; company tests are scored for their own jobs
-      if (completedTest.type !== 'standard') {
-        return { ...prev, testResults };
-      }
-
-      const existingSkillIndex = prev.verifiedSkills.findIndex(
-        (s) => s.testId === testId || s.skillName === completedTest.skillsTested[0]
+    // Only Vetter-made tests become verified skills; company tests are scored for their own jobs
+    if (completedTest.type === 'standard') {
+      const bestScore = Math.max(...testResults.filter((r) => r.testId === testId).map((r) => r.score));
+      const skillName = completedTest.skillsTested[0] || completedTest.title;
+      const historyEntry = { date: today(), score: finalScore, testName: completedTest.title };
+      const existingSkillIndex = candidate.verifiedSkills.findIndex(
+        (s) => s.testId === testId || s.skillName === skillName
       );
 
-      const skillName = completedTest.skillsTested[0] || completedTest.title;
-      const category = completedTest.category;
-      const level = finalScore >= 90 ? 'Staff / Lead' : finalScore >= 80 ? 'Senior' : 'Mid';
-
       let updatedSkills: VerifiedSkill[];
-
       if (existingSkillIndex >= 0) {
-        updatedSkills = [...prev.verifiedSkills];
+        updatedSkills = [...candidate.verifiedSkills];
         const existing = updatedSkills[existingSkillIndex];
+        const skillBest = Math.max(existing.score, bestScore);
         updatedSkills[existingSkillIndex] = {
           ...existing,
-          score: Math.max(existing.score, finalScore),
-          percentile: Math.max(existing.percentile, percentile),
-          verifiedAt: today(),
-          level,
-          history: [...existing.history, { date: today(), score: finalScore, testName: completedTest.title }],
+          testId,
+          score: skillBest,
+          verifiedAt: skillBest > existing.score ? today() : existing.verifiedAt,
+          level: levelForScore(skillBest),
+          history: [...existing.history, historyEntry],
         };
       } else {
-        const newSkill: VerifiedSkill = {
-          skillId: `skill-${Date.now()}`,
-          skillName,
-          category,
-          score: finalScore,
-          percentile,
-          verifiedAt: today(),
-          testId: completedTest.id,
-          level,
-          history: [{ date: today(), score: finalScore, testName: completedTest.title }],
-        };
-        updatedSkills = [...prev.verifiedSkills, newSkill];
+        updatedSkills = [
+          ...candidate.verifiedSkills,
+          {
+            skillId: `skill-${Date.now()}`,
+            skillName,
+            category: completedTest.category,
+            score: bestScore,
+            percentile: 0,
+            verifiedAt: today(),
+            testId,
+            level: levelForScore(bestScore),
+            history: [historyEntry],
+          },
+        ];
       }
+      updatedCandidate = { ...updatedCandidate, verifiedSkills: updatedSkills };
+    }
 
-      return { ...prev, testResults, verifiedSkills: updatedSkills };
-    });
+    // A new score shifts everyone's standing on this test
+    const everyone = withComputedPercentiles([updatedCandidate, ...otherCandidates]);
+    setCandidate(everyone[0]);
+    setOtherCandidates(everyone.slice(1));
 
     // If the test was taken to apply for a job, submit the application when the candidate passes
     const job = activeTestJobId ? jobs.find((j) => j.id === activeTestJobId) : undefined;
@@ -137,9 +173,10 @@ export default function App() {
       } else {
         showToast(`You scored ${finalScore}/100. ${job.title} needs ${passMark} to apply. You can retake the test.`);
       }
-      setCurrentTab('jobs');
-    } else {
-      setCurrentTab(completedTest.type === 'standard' ? 'profile' : 'jobs');
+      goToTab('jobs');
+    } else if (!testPageId) {
+      // Started from a test page: stay there so the candidate sees where they now rank
+      goToTab(completedTest.type === 'standard' ? 'profile' : 'jobs');
     }
 
     setActiveTestJobId(null);
@@ -158,7 +195,8 @@ export default function App() {
     setTests((prev) => [newTest, ...prev]);
   };
 
-  const allCandidates = [candidate, ...OTHER_CANDIDATES];
+  const allCandidates = [candidate, ...otherCandidates];
+  const testPageTest = testPageId ? tests.find((t) => t.id === testPageId) : undefined;
   const candidateSection = CANDIDATE_SECTIONS[currentTab];
   const businessSection = BUSINESS_SECTIONS[currentTab];
 
@@ -166,7 +204,7 @@ export default function App() {
     <div className="min-h-screen bg-white text-slate-900 flex flex-col font-sans selection:bg-indigo-600 selection:text-white">
       <Navigation
         currentTab={currentTab}
-        onTabChange={setCurrentTab}
+        onTabChange={goToTab}
         activeRole={activeRole}
         onRoleToggle={handleRoleToggle}
         userAvatar={activeRole === 'candidate' ? candidate.avatarUrl : recruiter.avatarUrl}
@@ -174,11 +212,25 @@ export default function App() {
       />
 
       <main className="flex-1 pb-16 bg-white">
-        {activeRole === 'candidate' && candidateSection && (
+        {testPageTest && (
+          <TestPage
+            test={testPageTest}
+            candidates={allCandidates}
+            jobs={jobs}
+            viewerRole={activeRole}
+            currentCandidateId={activeRole === 'candidate' ? candidate.id : undefined}
+            onStartTest={(test) => setActiveTest(test)}
+            onBack={() => goToTab(activeRole === 'candidate' ? 'tests' : 'business-tests')}
+          />
+        )}
+
+        {!testPageTest && activeRole === 'candidate' && candidateSection && (
           <CandidatePortal
             section={candidateSection}
-            onNavigate={(section) => setCurrentTab(section)}
+            onNavigate={(section) => goToTab(section)}
             candidate={candidate}
+            allCandidates={allCandidates}
+            onOpenTest={openTestPage}
             tests={tests}
             jobs={jobs}
             onStartTest={(test) => setActiveTest(test)}
@@ -190,19 +242,20 @@ export default function App() {
           />
         )}
 
-        {activeRole === 'candidate' && currentTab === 'companies' && (
+        {!testPageTest && activeRole === 'candidate' && currentTab === 'companies' && (
           <BusinessesView
             businesses={businesses}
             jobs={jobs}
             tests={tests}
-            onSelectJob={() => setCurrentTab('jobs')}
+            onSelectJob={() => goToTab('jobs')}
           />
         )}
 
-        {activeRole === 'recruiter' && businessSection && (
+        {!testPageTest && activeRole === 'recruiter' && businessSection && (
           <RecruiterPortal
             section={businessSection}
-            onNavigate={(section) => setCurrentTab(`business-${section}`)}
+            onNavigate={(section) => goToTab(`business-${section}`)}
+            onOpenTest={openTestPage}
             recruiter={recruiter}
             business={recruiterBusiness}
             jobs={jobs}
@@ -223,6 +276,7 @@ export default function App() {
             setActiveTestJobId(null);
           }}
           onComplete={handleCompleteAssessment}
+          getPercentileFor={(score) => getPercentile(score, activeTest.id, allCandidates, candidate.id)}
         />
       )}
 
@@ -237,6 +291,9 @@ export default function App() {
         <div className="max-w-7xl mx-auto flex items-center gap-2">
           <span className="font-bold text-slate-900 tracking-tight">VETTER</span>
           <span>&middot; Skills-based hiring</span>
+          <button onClick={handleResetData} className="ml-auto text-slate-400 hover:text-slate-700 transition-colors">
+            Reset demo data
+          </button>
         </div>
       </footer>
     </div>

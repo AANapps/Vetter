@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { User, JobPosting, AssessmentTest, CandidateJobMatch, Business } from '../types';
 import { rankCandidatesForJob } from '../lib/matchingAlgorithm';
+import { getTestStats } from '../lib/leaderboard';
 import {
   Users,
   Plus,
@@ -15,6 +16,7 @@ export type BusinessSection = 'jobs' | 'tests' | 'candidates';
 interface RecruiterPortalProps {
   section: BusinessSection;
   onNavigate: (section: BusinessSection) => void;
+  onOpenTest: (testId: string) => void;
   recruiter: User;
   business: Business;
   jobs: JobPosting[];
@@ -28,6 +30,7 @@ interface RecruiterPortalProps {
 export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   section,
   onNavigate,
+  onOpenTest,
   recruiter,
   business,
   jobs: allJobs,
@@ -166,8 +169,6 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
       // Copy the draft so later edits in the builder don't change the saved test
       questions: customQuestions.map((q) => ({ ...q, testCases: q.testCases.map((tc) => ({ ...tc })) })),
       skillsTested: [customTestCategory, 'High Concurrency', 'Production Readiness'],
-      testTakersCount: 0,
-      avgScore: 0,
     };
 
     onCreateCustomAssessment(newAssessment);
@@ -589,7 +590,13 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {companyTests.map((t) => (
-                  <TestSummaryCard key={t.id} test={t} usedBy={jobs.filter((j) => j.attachedTestId === t.id)} />
+                  <TestSummaryCard
+                    key={t.id}
+                    test={t}
+                    usedBy={jobs.filter((j) => j.attachedTestId === t.id)}
+                    ranked={getTestStats(t, allCandidates).candidatesRanked}
+                    onOpen={() => onOpenTest(t.id)}
+                  />
                 ))}
               </div>
             )}
@@ -605,7 +612,13 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {vetterTests.map((t) => (
-                <TestSummaryCard key={t.id} test={t} usedBy={jobs.filter((j) => j.attachedTestId === t.id)} />
+                <TestSummaryCard
+                  key={t.id}
+                  test={t}
+                  usedBy={jobs.filter((j) => j.attachedTestId === t.id)}
+                  ranked={getTestStats(t, allCandidates).candidatesRanked}
+                  onOpen={() => onOpenTest(t.id)}
+                />
               ))}
             </div>
           </div>
@@ -907,8 +920,16 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   );
 };
 
-const TestSummaryCard: React.FC<{ test: AssessmentTest; usedBy: JobPosting[] }> = ({ test, usedBy }) => (
-  <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-3 shadow-2xs">
+const TestSummaryCard: React.FC<{ test: AssessmentTest; usedBy: JobPosting[]; ranked: number; onOpen: () => void }> = ({
+  test,
+  usedBy,
+  ranked,
+  onOpen,
+}) => (
+  <div
+    onClick={onOpen}
+    className="bg-white border border-slate-200 rounded-xl p-5 space-y-3 shadow-2xs cursor-pointer hover:border-indigo-300 transition-colors"
+  >
     <div className="flex items-center justify-between">
       <span className="text-[11px] font-mono uppercase tracking-wider text-indigo-700 font-bold">{test.category}</span>
       <span className="text-xs text-slate-500 font-medium">{test.difficulty}</span>
@@ -920,7 +941,7 @@ const TestSummaryCard: React.FC<{ test: AssessmentTest; usedBy: JobPosting[] }> 
         ~{test.estimatedMinutes} mins &middot; {test.totalQuestions} {test.totalQuestions === 1 ? 'task' : 'tasks'} &middot; pass {test.passingScore}
       </span>
       <span>
-        {usedBy.length > 0 ? `On ${usedBy.length} of your jobs` : 'Not on your jobs'}
+        {ranked} ranked &middot; {usedBy.length > 0 ? `on ${usedBy.length} of your jobs` : 'not on your jobs'}
       </span>
     </div>
   </div>

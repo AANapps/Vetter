@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { User, AssessmentTest, JobPosting, CandidateJobMatch } from '../types';
 import { rankJobsForCandidate, getBestTestScore } from '../lib/matchingAlgorithm';
+import { getLeaderboard, getTestStats } from '../lib/leaderboard';
 import {
   Award,
   CheckCircle2,
@@ -24,6 +25,8 @@ interface CandidatePortalProps {
   section: CandidateSection;
   onNavigate: (section: CandidateSection) => void;
   candidate: User;
+  allCandidates: User[];
+  onOpenTest: (testId: string) => void;
   tests: AssessmentTest[];
   jobs: JobPosting[];
   onStartTest: (test: AssessmentTest) => void;
@@ -35,6 +38,8 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   section,
   onNavigate,
   candidate,
+  allCandidates,
+  onOpenTest,
   tests,
   jobs,
   onStartTest,
@@ -239,7 +244,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
           {candidate.verifiedSkills.some((s) => s.score >= 95) && (
             <div className="space-y-2">
               <div className="text-xs font-semibold text-amber-700 flex items-center gap-1.5">
-                <span>Featured High-Scoring Assessment (Top 1% Global Standing)</span>
+                <span>Featured High-Scoring Assessment</span>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {candidate.verifiedSkills
@@ -262,6 +267,9 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                 key={skill.skillId}
                 skill={skill}
                 variant="card"
+                topPerformers={getLeaderboard(skill.testId, allCandidates).slice(0, 3)}
+                currentCandidateId={candidate.id}
+                onViewLeaderboard={() => onOpenTest(skill.testId)}
               />
             ))}
 
@@ -618,6 +626,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {filteredTests.map((t) => {
               const bestScore = getBestTestScore(candidate, t.id);
+              const stats = getTestStats(t, allCandidates);
 
               return (
                 <div
@@ -632,7 +641,11 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                       <span className="text-xs text-slate-500 font-medium">{t.difficulty}</span>
                     </div>
 
-                    <h3 className="text-base font-bold text-slate-900">{t.title}</h3>
+                    <h3 className="text-base font-bold text-slate-900">
+                      <button onClick={() => onOpenTest(t.id)} className="text-left hover:text-indigo-700 transition-colors">
+                        {t.title}
+                      </button>
+                    </h3>
                     <p className="text-xs text-slate-600 leading-relaxed">{t.description}</p>
 
                     <div className="flex flex-wrap items-center gap-2 pt-1">
@@ -650,7 +663,9 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                   <div className="pt-4 border-t border-slate-200 space-y-4">
                     <div className="flex items-center justify-between text-xs text-slate-500 font-mono">
                       <span>~{t.estimatedMinutes} mins &middot; {t.totalQuestions} tasks</span>
-                      <span className="tabular-nums">{t.testTakersCount.toLocaleString()} engineers evaluated</span>
+                      <span className="tabular-nums">
+                        {stats.candidatesRanked} ranked &middot; avg {stats.averageScore}
+                      </span>
                     </div>
 
                     <div className="flex items-center justify-between pt-1">
@@ -665,13 +680,21 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                         </div>
                       )}
 
-                      <button
-                        onClick={() => onStartTest(t)}
-                        className="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors flex items-center gap-2 shadow-xs"
-                      >
-                        <Play className="w-3.5 h-3.5 fill-current" />
-                        <span>{bestScore !== undefined ? 'Retake' : 'Start Test'}</span>
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => onOpenTest(t.id)}
+                          className="px-3.5 py-2 text-xs font-semibold text-slate-700 hover:text-indigo-700 bg-white hover:bg-indigo-50/70 border border-slate-200 hover:border-indigo-200 rounded-lg transition-colors"
+                        >
+                          Leaderboard
+                        </button>
+                        <button
+                          onClick={() => onStartTest(t)}
+                          className="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors flex items-center gap-2 shadow-xs"
+                        >
+                          <Play className="w-3.5 h-3.5 fill-current" />
+                          <span>{bestScore !== undefined ? 'Retake' : 'Start Test'}</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>

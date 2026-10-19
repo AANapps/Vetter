@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AssessmentTest, Question } from '../types';
-import { executeSqlQuery, MOCK_DATABASE } from '../lib/sqlEngine';
-import { runJavaScriptCode } from '../lib/codeEngine';
+import { MOCK_DATABASE } from '../lib/sqlEngine';
+import { runQuestion, gradeTest, QuestionRunResult } from '../lib/grading';
 import {
   Play,
   RotateCcw,
@@ -20,10 +20,11 @@ import { getBadgeTier } from './VerifiedSkillBadge';
 interface AssessmentRunnerProps {
   test: AssessmentTest;
   onClose: () => void;
-  onComplete: (testId: string, finalScore: number, percentile: number) => void;
+  onComplete: (testId: string, finalScore: number, durationSeconds: number) => void;
+  getPercentileFor: (score: number) => number;
 }
 
-export const AssessmentRunner: React.FC<AssessmentRunnerProps> = ({ test, onClose, onComplete }) => {
+export const AssessmentRunner: React.FC<AssessmentRunnerProps> = ({ test, onClose, onComplete, getPercentileFor }) => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [userCodes, setUserCodes] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {};
@@ -35,11 +36,19 @@ export const AssessmentRunner: React.FC<AssessmentRunnerProps> = ({ test, onClos
 
   const [isRunning, setIsRunning] = useState(false);
   const [activeTab, setActiveTab] = useState<'output' | 'testcases' | 'schema'>('output');
-  const [runResults, setRunResults] = useState<any>(null);
+  const [runResults, setRunResults] = useState<QuestionRunResult | null>(null);
   const [questionScores, setQuestionScores] = useState<Record<string, number>>({});
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [finalScore, setFinalScore] = useState(0);
   const [finalPercentile, setFinalPercentile] = useState(0);
+  const [finalDuration, setFinalDuration] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // The timer's auto-submit runs inside a long-lived interval, so it reads the latest code from a ref
+  const userCodesRef = useRef(userCodes);
+  userCodesRef.current = userCodes;
+  const startedAtRef = useRef(Date.now());
+  const submittedRef = useRef(false);
 
   // Timing and Integrity Proctor
   const [secondsRemaining, setSecondsRemaining] = useState(test.estimatedMinutes * 60);
@@ -48,6 +57,8 @@ export const AssessmentRunner: React.FC<AssessmentRunnerProps> = ({ test, onClos
 
   const currentQ: Question = test.questions[currentQuestionIndex];
   const currentCode = userCodes[currentQ.id] || '';
+  const sampleTableName = currentQ.contextData?.match(/Table:\s*(\w+)/)?.[1];
+  const sampleTable = sampleTableName ? MOCK_DATABASE[sampleTableName] : undefined;
 
   // Timer countdown
   useEffect(() => {
@@ -102,60 +113,33 @@ export const AssessmentRunner: React.FC<AssessmentRunnerProps> = ({ test, onClos
     setRunResults(null);
   };
 
-  const handleRunCode = () => {
+  const handleRunCode = async () => {
     setIsRunning(true);
     setRunResults(null);
-
-    setTimeout(() => {
-      if (currentQ.type === 'sql') {
-        const sqlRes = executeSqlQuery(currentCode);
-        setRunResults({
-          type: 'sql',
-          ...sqlRes,
-        });
-
-        // Score calculation for SQL
-        let qScore = 0;
-        if (sqlRes.success && sqlRes.rowCount > 0) {
-          qScore = 100;
-        } else if (sqlRes.success) {
-          qScore = 50;
-        }
-        setQuestionScores((prev) => ({ ...prev, [currentQ.id]: qScore }));
-      } else {
-        // Code runner
-        const codeRes = runJavaScriptCode(currentCode, currentQ.testCases);
-        setRunResults({
-          type: 'code',
-          ...codeRes,
-        });
-        setQuestionScores((prev) => ({ ...prev, [currentQ.id]: codeRes.score }));
-      }
-      setIsRunning(false);
-      setActiveTab('output');
-    }, 250);
+    const result = await runQuestion(currentQ, currentCode);
+    setRunResults(result);
+    setQuestionScores((prev) => ({ ...prev, [currentQ.id]: result.score }));
+    setIsRunning(false);
+    setActiveTab('output');
   };
 
-  const handleSubmitAssessment = () => {
-    let totalScore = 0;
-    let weightsSum = 0;
+  // Grade every task from the candidate's latest code, whether or not they pressed Run
+  const handleSubmitAssessment = async () => {
+    if (submittedRef.current) return;
+    submittedRef.current = true;
+    setIsSubmitting(true);
 
-    test.questions.forEach((q) => {
-      const qScore = questionScores[q.id] !== undefined ? questionScores[q.id] : 85;
-      totalScore += qScore * q.weight;
-      weightsSum += q.weight;
-    });
-
-    const calculatedScore = Math.round(totalScore / (weightsSum || 1));
-    const computedPercentile = Math.min(99.4, Math.max(45, Math.round((calculatedScore * 0.98 + (100 - calculatedScore) * 0.1) * 10) / 10));
-
-    setFinalScore(calculatedScore);
-    setFinalPercentile(computedPercentile);
+    const { score, perQuestion } = await gradeTest(test, userCodesRef.current);
+    setQuestionScores(perQuestion);
+    setFinalScore(score);
+    setFinalPercentile(getPercentileFor(score));
+    setFinalDuration(Math.round((Date.now() - startedAtRef.current) / 1000));
+    setIsSubmitting(false);
     setShowCompletionModal(true);
   };
 
   const handleConfirmFinish = () => {
-    onComplete(test.id, finalScore, finalPercentile);
+    onComplete(test.id, finalScore, finalDuration);
   };
 
   return (
@@ -227,9 +211,10 @@ export const AssessmentRunner: React.FC<AssessmentRunnerProps> = ({ test, onClos
 
           <button
             onClick={handleSubmitAssessment}
-            className="px-3.5 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs transition-colors"
+            disabled={isSubmitting}
+            className="px-3.5 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 rounded-lg shadow-xs transition-colors"
           >
-            Submit Assessment
+            {isSubmitting ? 'Grading...' : 'Submit Assessment'}
           </button>
         </div>
       </div>
@@ -293,7 +278,7 @@ export const AssessmentRunner: React.FC<AssessmentRunnerProps> = ({ test, onClos
             </div>
 
             {/* Sample Table Inspection for SQL */}
-            {currentQ.type === 'sql' && (
+            {currentQ.type === 'sql' && sampleTable && (
               <div className="space-y-2 pt-2">
                 <div className="text-xs font-bold text-slate-800">Database Sample Records</div>
                 <div className="border border-slate-200 rounded-lg overflow-hidden bg-white shadow-2xs">
@@ -301,24 +286,15 @@ export const AssessmentRunner: React.FC<AssessmentRunnerProps> = ({ test, onClos
                     <table className="w-full text-left text-xs">
                       <thead className="bg-slate-100 text-slate-600 sticky top-0 border-b border-slate-200">
                         <tr>
-                          {currentQ.id.includes('q-sql-1')
-                            ? MOCK_DATABASE.orders.columns.map((c) => (
-                                <th key={c} className="p-2 font-mono text-[11px] font-semibold">
-                                  {c}
-                                </th>
-                              ))
-                            : MOCK_DATABASE.employees.columns.map((c) => (
-                                <th key={c} className="p-2 font-mono text-[11px] font-semibold">
-                                  {c}
-                                </th>
-                              ))}
+                          {sampleTable.columns.map((c) => (
+                            <th key={c} className="p-2 font-mono text-[11px] font-semibold">
+                              {c}
+                            </th>
+                          ))}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 text-slate-700 font-mono text-[11px]">
-                        {(currentQ.id.includes('q-sql-1')
-                          ? MOCK_DATABASE.orders.rows.slice(0, 4)
-                          : MOCK_DATABASE.employees.rows.slice(0, 4)
-                        ).map((row, i) => (
+                        {sampleTable.rows.slice(0, 4).map((row, i) => (
                           <tr key={i} className="hover:bg-slate-50">
                             {Object.values(row).map((val: any, j) => (
                               <td key={j} className="p-2 truncate max-w-[140px]">
@@ -408,11 +384,13 @@ export const AssessmentRunner: React.FC<AssessmentRunnerProps> = ({ test, onClos
               {runResults && activeTab === 'output' && (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between text-slate-500 text-[11px] pb-2 border-b border-slate-200 font-semibold">
-                    <span>Status: {runResults.success || runResults.allPassed ? 'Success' : 'Check assertions'}</span>
-                    <span className="tabular-nums">Time: {runResults.executionTimeMs || runResults.totalExecutionTimeMs || 4}ms</span>
+                    <span>Status: {runResults.score === 100 ? 'All checks passed' : 'Check assertions'}</span>
+                    <span className="tabular-nums">
+                      Time: {runResults.type === 'sql' ? runResults.executionTimeMs : runResults.totalExecutionTimeMs}ms
+                    </span>
                   </div>
 
-                  {runResults.errorMessage && (
+                  {runResults.type === 'sql' && runResults.errorMessage && (
                     <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-lg text-xs font-medium">
                       {runResults.errorMessage}
                     </div>
@@ -446,11 +424,10 @@ export const AssessmentRunner: React.FC<AssessmentRunnerProps> = ({ test, onClos
                     </div>
                   )}
 
+                  <div className="text-indigo-700 font-bold">Score on this task: {runResults.score}/100</div>
+
                   {runResults.type === 'code' && (
                     <div className="space-y-2">
-                      <div className="text-indigo-700 font-bold">
-                        Score on this task: {runResults.score}/100
-                      </div>
                       {runResults.logs && runResults.logs.length > 0 && (
                         <div className="p-2 bg-slate-50 rounded-lg border border-slate-200 text-slate-700 text-xs">
                           <div className="text-slate-400 text-[10px] mb-1 font-semibold">STDOUT:</div>
@@ -466,32 +443,26 @@ export const AssessmentRunner: React.FC<AssessmentRunnerProps> = ({ test, onClos
 
               {runResults && activeTab === 'testcases' && (
                 <div className="space-y-3">
-                  {runResults.testCaseResults ? (
-                    runResults.testCaseResults.map((tc: any, i: number) => (
-                      <div
-                        key={tc.id || i}
-                        className={`p-3 rounded-lg border text-xs shadow-2xs ${
-                          tc.passed
-                            ? 'bg-emerald-50/80 border-emerald-200 text-emerald-900'
-                            : 'bg-rose-50/80 border-rose-200 text-rose-900'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between font-bold mb-1">
-                          <span>Case {i + 1}: {tc.description}</span>
-                          <span className="text-[11px] font-mono">{tc.passed ? 'PASSED' : 'FAILED'}</span>
-                        </div>
-                        <div className="text-[11px] space-y-1 text-slate-600 font-mono">
-                          <div>Input: <span className="text-slate-900">{tc.input}</span></div>
-                          <div>Expected: <span className="text-emerald-700 font-semibold">{tc.expected}</span></div>
-                          <div>Actual: <span className={tc.passed ? 'text-emerald-700 font-semibold' : 'text-rose-700 font-semibold'}>{tc.actual}</span></div>
-                        </div>
+                  {runResults.testCaseResults.map((tc, i) => (
+                    <div
+                      key={tc.id || i}
+                      className={`p-3 rounded-lg border text-xs shadow-2xs ${
+                        tc.passed
+                          ? 'bg-emerald-50/80 border-emerald-200 text-emerald-900'
+                          : 'bg-rose-50/80 border-rose-200 text-rose-900'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between font-bold mb-1">
+                        <span>Case {i + 1}: {tc.description}</span>
+                        <span className="text-[11px] font-mono">{tc.passed ? 'PASSED' : 'FAILED'}</span>
                       </div>
-                    ))
-                  ) : (
-                    <div className="text-slate-500">
-                      Standard query validated against relational benchmark assertions. Score: {questionScores[currentQ.id] || 100}%
+                      <div className="text-[11px] space-y-1 text-slate-600 font-mono">
+                        <div>Input: <span className="text-slate-900">{tc.input}</span></div>
+                        <div>Expected: <span className="text-emerald-700 font-semibold">{tc.expected}</span></div>
+                        <div>Actual: <span className={tc.passed ? 'text-emerald-700 font-semibold' : 'text-rose-700 font-semibold'}>{tc.actual}</span></div>
+                      </div>
                     </div>
-                  )}
+                  ))}
                 </div>
               )}
             </div>
@@ -513,7 +484,11 @@ export const AssessmentRunner: React.FC<AssessmentRunnerProps> = ({ test, onClos
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-slate-900">Assessment Complete!</h3>
-                  <p className="text-xs text-slate-500">Verified score generated and added to your skill profile</p>
+                  <p className="text-xs text-slate-500">
+                    {test.type === 'standard'
+                      ? 'Your score is saved to your profile and this test’s leaderboard'
+                      : `Your score is saved and shared with ${test.companyName}`}
+                  </p>
                 </div>
               </div>
 
@@ -550,27 +525,36 @@ export const AssessmentRunner: React.FC<AssessmentRunnerProps> = ({ test, onClos
                   <div className={`text-3xl font-extrabold font-mono tabular-nums ${earnedTier.badgeTextColor}`}>
                     {finalScore}
                   </div>
-                  <div className="text-[11px] text-emerald-700 mt-1 font-medium">Passing Grade (≥{test.passingScore})</div>
+                  {finalScore >= test.passingScore ? (
+                    <div className="text-[11px] text-emerald-700 mt-1 font-medium">Passed (pass mark {test.passingScore})</div>
+                  ) : (
+                    <div className="text-[11px] text-rose-700 mt-1 font-medium">Below pass mark of {test.passingScore}</div>
+                  )}
                 </div>
                 <div>
-                  <div className="text-xs text-slate-500 mb-1 font-medium">Global Percentile</div>
+                  <div className="text-xs text-slate-500 mb-1 font-medium">Percentile on this test</div>
                   <div className="text-3xl font-extrabold text-slate-900 font-mono tabular-nums">{finalPercentile}th</div>
                   <div className="text-[11px] text-indigo-700 mt-1 font-medium">{earnedTier.sublabel}</div>
                 </div>
               </div>
 
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600 space-y-1">
-                <div className="font-bold text-slate-900">Automated Vector Match Updates:</div>
-                <div>
-                  Your fit scores across {test.category} job openings have been dynamically recalculated with your new verified badge!
-                </div>
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600 space-y-1.5">
+                <div className="font-bold text-slate-900">Score by task</div>
+                {test.questions.map((q, idx) => (
+                  <div key={q.id} className="flex items-center justify-between gap-3">
+                    <span className="truncate">
+                      {idx + 1}. {q.title} <span className="text-slate-400">({q.weight}%)</span>
+                    </span>
+                    <span className="font-mono font-semibold tabular-nums text-slate-900">{questionScores[q.id] ?? 0}/100</span>
+                  </div>
+                ))}
               </div>
 
               <button
                 onClick={handleConfirmFinish}
                 className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-lg transition-colors flex items-center justify-center gap-2 shadow-xs"
               >
-                <span>Update Profile & View Matched Jobs</span>
+                <span>Save Result</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>

@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { VerifiedSkill } from '../types';
+import { LeaderboardEntry } from '../lib/leaderboard';
+import { RankDisc } from './RankDisc';
 import { Crown, Award, ShieldCheck, Shield, Sparkles, CheckCircle2, Copy, Check, ExternalLink, X } from 'lucide-react';
 
 export interface BadgeTierConfig {
@@ -90,12 +92,19 @@ interface VerifiedSkillBadgeProps {
   skill: VerifiedSkill;
   variant?: 'card' | 'compact' | 'showcase';
   onInspect?: () => void;
+  // Card variant: the test's top performers and a link to its full leaderboard
+  topPerformers?: LeaderboardEntry[];
+  currentCandidateId?: string;
+  onViewLeaderboard?: () => void;
 }
 
 export const VerifiedSkillBadge: React.FC<VerifiedSkillBadgeProps> = ({
   skill,
   variant = 'card',
   onInspect,
+  topPerformers,
+  currentCandidateId,
+  onViewLeaderboard,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
@@ -240,6 +249,39 @@ export const VerifiedSkillBadge: React.FC<VerifiedSkillBadgeProps> = ({
               <span>{tier.sublabel}</span>
             </div>
           </div>
+
+          {topPerformers && topPerformers.length > 0 && (
+            <div className="pt-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 font-semibold">Top performers</span>
+                {onViewLeaderboard && (
+                  <button onClick={onViewLeaderboard} className="text-[11px] font-semibold text-indigo-700 hover:underline">
+                    Leaderboard &rarr;
+                  </button>
+                )}
+              </div>
+              <ol className="space-y-1.5">
+                {topPerformers.map((entry) => {
+                  const isYou = entry.candidate.id === currentCandidateId;
+                  return (
+                    <li key={entry.candidate.id} className="flex items-center gap-2 text-xs">
+                      <RankDisc rank={entry.rank} size="sm" />
+                      <img
+                        src={entry.candidate.avatarUrl}
+                        alt=""
+                        referrerPolicy="no-referrer"
+                        className="w-5 h-5 rounded-full object-cover bg-slate-100 shrink-0"
+                      />
+                      <span className={`truncate ${isYou ? 'font-bold text-indigo-700' : 'text-slate-700'}`}>
+                        {isYou ? 'You' : entry.candidate.name}
+                      </span>
+                      <span className="ml-auto font-mono font-semibold tabular-nums text-slate-900">{entry.score}</span>
+                    </li>
+                  );
+                })}
+              </ol>
+            </div>
+          )}
         </div>
 
         {/* Card Footer & Credential Audit Trigger */}

@@ -219,8 +219,6 @@ export const STANDARD_ASSESSMENTS: AssessmentTest[] = [
     passingScore: 75,
     totalQuestions: 2,
     skillsTested: ['SQL & Databases', 'Query Optimization', 'Data Aggregation'],
-    testTakersCount: 14820,
-    avgScore: 72,
     questions: [
       {
         id: 'q-sql-1',
@@ -230,12 +228,9 @@ export const STANDARD_ASSESSMENTS: AssessmentTest[] = [
 
 Target columns: client_name, total_amount`,
         contextData: `Table: orders (id INT, client_id INT, client_name VARCHAR, amount INT, region VARCHAR, fulfilled INT)`,
-        starterCode: `SELECT client_name, SUM(amount) AS total_amount
-FROM orders
-WHERE fulfilled = 1
-GROUP BY client_name
-HAVING total_amount > 10000
-ORDER BY total_amount DESC;`,
+        starterCode: `-- Write your query here
+SELECT
+FROM orders;`,
         solutionCode: `SELECT client_name, SUM(amount) AS total_amount
 FROM orders
 WHERE fulfilled = 1
@@ -247,10 +242,7 @@ ORDER BY total_amount DESC;`,
             id: 'tc-sql-1',
             description: 'Returns clients exceeding $10,000 threshold',
             input: 'SELECT client_name, SUM(amount) AS total_amount FROM orders WHERE fulfilled = 1 GROUP BY client_name HAVING total_amount > 10000 ORDER BY total_amount DESC;',
-            expectedOutput: JSON.stringify([
-              { client_name: 'Stripe Global', total_amount: 27900 },
-              { client_name: 'Acme Corp', total_amount: 8000 }, // filtered if >10000
-            ]),
+            expectedOutput: JSON.stringify([{ client_name: 'Stripe Global', total_amount: 27900 }]),
           },
         ],
         timeLimitMinutes: 10,
@@ -264,7 +256,10 @@ ORDER BY total_amount DESC;`,
 
 Target columns: name, salary, rating`,
         contextData: `Table: employees (id INT, name VARCHAR, department VARCHAR, salary INT, rating FLOAT, hire_year INT)`,
-        starterCode: `SELECT name, salary, rating
+        starterCode: `-- Write your query here
+SELECT
+FROM employees;`,
+        solutionCode: `SELECT name, salary, rating
 FROM employees
 WHERE department = 'Engineering' AND salary >= 150000 AND rating >= 4.8
 ORDER BY salary DESC;`,
@@ -295,8 +290,6 @@ ORDER BY salary DESC;`,
     passingScore: 80,
     totalQuestions: 2,
     skillsTested: ['System Architecture', 'Distributed Systems', 'Fault Tolerance'],
-    testTakersCount: 9340,
-    avgScore: 68,
     questions: [
       {
         id: 'q-sys-1',
@@ -312,6 +305,9 @@ Arguments:
 
 Returns an array of booleans indicating whether each request was ALLOWED (true) or REJECTED (false). At t=0, the bucket starts full with tokens = capacity. Each request consumes 1 token.`,
         starterCode: `function solution(requests, capacity, refillRatePerSec) {
+  // Your code here
+}`,
+        solutionCode: `function solution(requests, capacity, refillRatePerSec) {
   let tokens = capacity;
   let lastTimestamp = requests[0] || 0;
   const results = [];
@@ -360,6 +356,9 @@ Returns an array of booleans indicating whether each request was ALLOWED (true) 
 Input: 'nums' (number[]), 'k' (number)
 Output: number[] of window maximums.`,
         starterCode: `function solution(nums, k) {
+  // Your code here
+}`,
+        solutionCode: `function solution(nums, k) {
   if (!nums || nums.length === 0 || k <= 0) return [];
   const result = [];
   
@@ -405,8 +404,6 @@ Output: number[] of window maximums.`,
     passingScore: 75,
     totalQuestions: 1,
     skillsTested: ['Frontend Engineering', 'State Machines', 'Performance'],
-    testTakersCount: 18450,
-    avgScore: 74,
     questions: [
       {
         id: 'q-fe-1',
@@ -417,6 +414,9 @@ Output: number[] of window maximums.`,
 
 Apply optimistic patches to server entities (by id). If an id is in rollbackIds, revert that item back to the original serverState. Return the final sorted items array by id.`,
         starterCode: `function solution(serverState, optimisticPatches, rollbackIds) {
+  // Your code here
+}`,
+        solutionCode: `function solution(serverState, optimisticPatches, rollbackIds) {
   const map = new Map();
   serverState.forEach(item => map.set(item.id, { ...item }));
 
@@ -444,6 +444,94 @@ Apply optimistic patches to server entities (by id). If an id is in rollbackIds,
       },
     ],
   },
+  {
+    id: 'test-be-01',
+    title: 'Robust REST & gRPC API Design',
+    category: 'Backend APIs',
+    difficulty: 'Advanced',
+    type: 'standard',
+    description: 'Core building blocks of production APIs: retry schedules for flaky upstreams and path routing with parameters.',
+    estimatedMinutes: 20,
+    passingScore: 75,
+    totalQuestions: 2,
+    skillsTested: ['Backend APIs', 'Resilience', 'HTTP Routing'],
+    questions: [
+      {
+        id: 'q-be-1',
+        title: 'Exponential Backoff Schedule',
+        type: 'code',
+        prompt: `Write 'function solution(attempts, baseMs, maxMs)'.
+
+Return the delay before each retry attempt, in order. The delay doubles each attempt starting at baseMs, and never exceeds maxMs.
+
+Example: solution(4, 100, 500) returns [100, 200, 400, 500].`,
+        starterCode: `function solution(attempts, baseMs, maxMs) {
+  // Your code here
+}`,
+        solutionCode: `function solution(attempts, baseMs, maxMs) {
+  const delays = [];
+  for (let i = 0; i < attempts; i++) delays.push(Math.min(maxMs, baseMs * 2 ** i));
+  return delays;
+}`,
+        testCases: [
+          { id: 'tc-be-1', description: 'Caps delays at maxMs', input: '[5, 100, 1000]', expectedOutput: '[100,200,400,800,1000]' },
+          { id: 'tc-be-2', description: 'Doubles from the base delay', input: '[3, 250, 10000]', expectedOutput: '[250,500,1000]' },
+          { id: 'tc-be-3', description: 'No attempts means no delays', input: '[0, 100, 1000]', expectedOutput: '[]' },
+        ],
+        timeLimitMinutes: 8,
+        weight: 40,
+      },
+      {
+        id: 'q-be-2',
+        title: 'Path Router with Parameters',
+        type: 'code',
+        prompt: `Write 'function solution(routes, path)'.
+
+'routes' is an array of patterns such as "/users/:id/orders". Segments starting with ':' match any value and are captured as params.
+
+Return the first matching route as { route, params }, or null if nothing matches.
+
+Example: solution(["/users/:id"], "/users/7") returns { route: "/users/:id", params: { id: "7" } }.`,
+        starterCode: `function solution(routes, path) {
+  // Your code here
+}`,
+        solutionCode: `function solution(routes, path) {
+  const parts = path.split('/').filter(Boolean);
+  for (const r of routes) {
+    const segs = r.split('/').filter(Boolean);
+    if (segs.length !== parts.length) continue;
+    const params = {};
+    if (segs.every((s, i) => (s.startsWith(':') ? ((params[s.slice(1)] = parts[i]), true) : s === parts[i]))) {
+      return { route: r, params };
+    }
+  }
+  return null;
+}`,
+        testCases: [
+          {
+            id: 'tc-be-4',
+            description: 'Captures a parameter in a nested route',
+            input: '[["/users/:id", "/users/:id/orders", "/health"], "/users/42/orders"]',
+            expectedOutput: '{"route":"/users/:id/orders","params":{"id":"42"}}',
+          },
+          {
+            id: 'tc-be-5',
+            description: 'Matches a static route',
+            input: '[["/users/:id", "/users/:id/orders", "/health"], "/health"]',
+            expectedOutput: '{"route":"/health","params":{}}',
+          },
+          {
+            id: 'tc-be-6',
+            description: 'Returns null when nothing matches',
+            input: '[["/users/:id", "/users/:id/orders", "/health"], "/orders/1"]',
+            expectedOutput: 'null',
+          },
+        ],
+        timeLimitMinutes: 12,
+        weight: 60,
+      },
+    ],
+  },
 ];
 
 // Company-made tests, written by a business for its own jobs
@@ -461,8 +549,6 @@ export const COMPANY_ASSESSMENTS: AssessmentTest[] = [
     passingScore: 75,
     totalQuestions: 1,
     skillsTested: ['Backend APIs', 'Idempotency'],
-    testTakersCount: 212,
-    avgScore: 70,
     questions: [
       {
         id: 'q-custom-1',
