@@ -161,7 +161,7 @@ export const AssessmentRunner: React.FC<AssessmentRunnerProps> = ({ test, onClos
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-50 flex flex-col overflow-hidden text-slate-900 font-sans">
+    <div className="fixed inset-0 z-50 glass-backdrop flex flex-col overflow-hidden text-white font-sans">
       {/* Top Header Bar */}
       <div className="h-14 border-b border-slate-200 bg-white px-6 flex items-center justify-between shrink-0 shadow-xs">
         <div className="flex items-center gap-4">
