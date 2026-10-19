@@ -1,9 +1,14 @@
-import { User, AssessmentTest, JobPosting, LeaderboardRank, Business } from '../types';
+import { User, AssessmentTest, JobPosting, Business } from '../types';
+import CANDIDATE_AVATAR from '../assets/images/candidate_avatar_dev_1792329815461.jpg';
+import RECRUITER_AVATAR from '../assets/images/recruiter_avatar_tech_1792329815454.jpg';
 
-export const CANDIDATE_AVATAR = '/src/assets/images/candidate_avatar_dev_1792329815461.jpg';
-export const RECRUITER_AVATAR = '/src/assets/images/recruiter_avatar_tech_1792329815454.jpg';
+// Seed each candidate's test history from the tests behind their verified skills
+const withTestResults = (user: Omit<User, 'testResults'>): User => ({
+  ...user,
+  testResults: user.verifiedSkills.map((s) => ({ testId: s.testId, score: s.score, completedAt: s.verifiedAt })),
+});
 
-export const INITIAL_CANDIDATE: User = {
+export const INITIAL_CANDIDATE: User = withTestResults({
   id: 'cand-001',
   name: 'Elena Rostova',
   email: 'elena.rostova@engineer.dev',
@@ -57,9 +62,9 @@ export const INITIAL_CANDIDATE: User = {
     },
   ],
   appliedJobIds: ['job-001'],
-};
+});
 
-export const OTHER_CANDIDATES: User[] = [
+export const OTHER_CANDIDATES: User[] = ([
   {
     id: 'cand-002',
     name: 'Marcus Chen',
@@ -182,7 +187,7 @@ export const OTHER_CANDIDATES: User[] = [
     ],
     appliedJobIds: ['job-003'],
   },
-];
+] satisfies Omit<User, 'testResults'>[]).map(withTestResults);
 
 export const INITIAL_RECRUITER: User = {
   id: 'rec-001',
@@ -191,15 +196,17 @@ export const INITIAL_RECRUITER: User = {
   role: 'recruiter',
   avatarUrl: RECRUITER_AVATAR,
   title: 'Head of Technical Talent',
-  company: 'PrismaScale AI',
+  businessId: 'biz-001',
   location: 'San Francisco, CA',
   yearsExperience: 9,
   workPreference: 'Hybrid',
   bio: 'Building the core engineering infrastructure team behind next-generation enterprise inference engines.',
   verifiedSkills: [],
+  testResults: [],
   appliedJobIds: [],
 };
 
+// Vetter-made tests, open to every candidate
 export const STANDARD_ASSESSMENTS: AssessmentTest[] = [
   {
     id: 'test-sql-01',
@@ -439,6 +446,73 @@ Apply optimistic patches to server entities (by id). If an id is in rollbackIds,
   },
 ];
 
+// Company-made tests, written by a business for its own jobs
+export const COMPANY_ASSESSMENTS: AssessmentTest[] = [
+  {
+    id: 'test-custom-01',
+    title: 'Idempotent Message Ingestion',
+    category: 'Backend APIs',
+    difficulty: 'Advanced',
+    type: 'custom',
+    businessId: 'biz-001',
+    companyName: 'PrismaScale AI',
+    description: 'Our ingestion layer receives retried messages from upstream queues. Detect duplicates the way our production deduplicator does.',
+    estimatedMinutes: 15,
+    passingScore: 75,
+    totalQuestions: 1,
+    skillsTested: ['Backend APIs', 'Idempotency'],
+    testTakersCount: 212,
+    avgScore: 70,
+    questions: [
+      {
+        id: 'q-custom-1',
+        title: 'Duplicate Message Detector',
+        type: 'code',
+        prompt: `Write 'function solution(messages, windowMs)'.
+
+'messages' is an array of { id, t } objects ordered by timestamp t (ms). A message is a duplicate if a message with the same id was last seen less than windowMs earlier.
+
+Return the ids of duplicate messages, in the order they arrive.`,
+        starterCode: `function solution(messages, windowMs) {
+  // Implementation here
+  return [];
+}`,
+        solutionCode: `function solution(messages, windowMs) {
+  const lastSeen = new Map();
+  const duplicates = [];
+  for (const { id, t } of messages) {
+    if (lastSeen.has(id) && t - lastSeen.get(id) < windowMs) duplicates.push(id);
+    lastSeen.set(id, t);
+  }
+  return duplicates;
+}`,
+        testCases: [
+          {
+            id: 'tc-custom-1',
+            description: 'Flags a retry inside the window',
+            input: '[[{"id":"m1","t":100},{"id":"m1","t":200}], 5000]',
+            expectedOutput: '["m1"]',
+          },
+          {
+            id: 'tc-custom-2',
+            description: 'Ignores a repeat outside the window',
+            input: '[[{"id":"a","t":0},{"id":"b","t":10},{"id":"a","t":6000}], 5000]',
+            expectedOutput: '[]',
+          },
+          {
+            id: 'tc-custom-3',
+            description: 'Flags every retry in a burst',
+            input: '[[{"id":"a","t":0},{"id":"a","t":1000},{"id":"a","t":2000}], 5000]',
+            expectedOutput: '["a","a"]',
+          },
+        ],
+        timeLimitMinutes: 15,
+        weight: 100,
+      },
+    ],
+  },
+];
+
 export const INITIAL_BUSINESSES: Business[] = [
   {
     id: 'biz-001',
@@ -448,11 +522,8 @@ export const INITIAL_BUSINESSES: Business[] = [
     headquarters: 'San Francisco, CA',
     companySize: '150 - 500 employees',
     websiteUrl: 'https://prismascale.io',
-    tier: 'tier_2_custom',
-    activeJobCount: 3,
     description: 'High-throughput enterprise infrastructure powering next-generation generative AI clusters and low-latency state machines.',
     techStack: ['Go', 'Rust', 'PostgreSQL', 'Kubernetes', 'CUDA'],
-    attachedTestCount: 2,
   },
   {
     id: 'biz-002',
@@ -462,11 +533,8 @@ export const INITIAL_BUSINESSES: Business[] = [
     headquarters: 'San Francisco, CA',
     companySize: '500 - 1000 employees',
     websiteUrl: 'https://fintechcore.dev',
-    tier: 'tier_1_standard',
-    activeJobCount: 2,
     description: 'Real-time financial reconciliation engines and multi-currency transaction clearing houses processing $12B+ monthly.',
     techStack: ['PostgreSQL', 'TypeScript', 'Node.js', 'dbt', 'Snowflake'],
-    attachedTestCount: 1,
   },
   {
     id: 'biz-003',
@@ -476,11 +544,8 @@ export const INITIAL_BUSINESSES: Business[] = [
     headquarters: 'Austin, TX',
     companySize: '50 - 200 employees',
     websiteUrl: 'https://cloudflow.io',
-    tier: 'tier_1_standard',
-    activeJobCount: 1,
     description: 'Real-time collaborative document and data engineering workflows with instantaneous synchronization across global teams.',
     techStack: ['React', 'TypeScript', 'GraphQL', 'Tailwind', 'Redis'],
-    attachedTestCount: 1,
   },
 ];
 
@@ -494,7 +559,6 @@ export const INITIAL_JOBS: JobPosting[] = [
     location: 'San Francisco, CA',
     workType: 'Remote',
     salaryRange: '$165,000 - $195,000',
-    tier: 'tier_1_standard',
     department: 'Data Platform',
     postedDate: '2026-10-12',
     description: 'Lead analytics engineering across real-time ledger records and trading streams. You will architect high-throughput ETL pipelines, implement dimensional dbt models, and optimize query latency on multi-terabyte data warehouses.',
@@ -503,7 +567,6 @@ export const INITIAL_JOBS: JobPosting[] = [
       { skillId: 'skill-backend', skillName: 'Backend APIs', minScore: 75, importance: 'preferred', weight: 0.3 },
       { skillId: 'skill-sys', skillName: 'System Architecture', minScore: 70, importance: 'preferred', weight: 0.2 },
     ],
-    // Attached Test for Job Post: Candidates take this test to complete application
     attachedTestId: 'test-sql-01',
     attachedTestTitle: 'Advanced SQL & Analytics Engineering',
     attachedTestPassingScore: 85,
@@ -520,7 +583,6 @@ export const INITIAL_JOBS: JobPosting[] = [
     location: 'San Francisco, CA',
     workType: 'Hybrid',
     salaryRange: '$210,000 - $260,000',
-    tier: 'tier_2_custom',
     department: 'Core Infrastructure',
     postedDate: '2026-10-14',
     description: 'Architect low-latency distributed state machines, consensus layers, and GPU cluster scheduling primitives for high-throughput AI inference pipelines.',
@@ -529,12 +591,10 @@ export const INITIAL_JOBS: JobPosting[] = [
       { skillId: 'skill-backend', skillName: 'Backend APIs', minScore: 82, importance: 'required', weight: 0.3 },
       { skillId: 'skill-sql', skillName: 'SQL & Databases', minScore: 75, importance: 'preferred', weight: 0.15 },
     ],
-    // Attached Test for Job Post: Candidates take this test to complete application
     attachedTestId: 'test-sys-01',
-    attachedTestTitle: 'Distributed System Architecture & Scalability',
+    attachedTestTitle: 'Distributed Systems & Concurrency',
     attachedTestPassingScore: 80,
     isAttachedTestMandatory: true,
-    customAssessmentId: 'test-custom-01',
     applicantCount: 8,
     status: 'active',
   },
@@ -547,7 +607,6 @@ export const INITIAL_JOBS: JobPosting[] = [
     location: 'Austin, TX',
     workType: 'Remote',
     salaryRange: '$175,000 - $215,000',
-    tier: 'tier_1_standard',
     department: 'Product Engineering',
     postedDate: '2026-10-15',
     description: 'Oversee full-stack product experiences across responsive collaborative workspaces. Direct performance tuning, bundle size governance, and resilient state synchronization.',
@@ -556,7 +615,6 @@ export const INITIAL_JOBS: JobPosting[] = [
       { skillId: 'skill-backend', skillName: 'Backend APIs', minScore: 78, importance: 'required', weight: 0.35 },
       { skillId: 'skill-sql', skillName: 'SQL & Databases', minScore: 70, importance: 'preferred', weight: 0.2 },
     ],
-    // Attached Test for Job Post: Candidates take this test to complete application
     attachedTestId: 'test-fe-01',
     attachedTestTitle: 'Modern Frontend & State Architecture',
     attachedTestPassingScore: 80,
@@ -564,67 +622,27 @@ export const INITIAL_JOBS: JobPosting[] = [
     applicantCount: 21,
     status: 'active',
   },
-];
-
-export const INITIAL_LEADERBOARD: LeaderboardRank[] = [
   {
-    rank: 1,
-    candidateId: 'cand-002',
-    candidateName: 'Marcus Chen',
-    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80',
-    skillName: 'System Architecture',
-    score: 97,
-    percentile: 99.4,
-    badges: ['Staff Specialist', 'Consensus Architect', 'Top 1%'],
-    totalAssessmentsPassed: 5,
-    lastActive: '2h ago',
-  },
-  {
-    rank: 2,
-    candidateId: 'cand-003',
-    candidateName: 'Chloe Dubois',
-    avatarUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=100&q=80',
-    skillName: 'SQL & Databases',
-    score: 96,
-    percentile: 99.1,
-    badges: ['SQL Wizard', 'Index Optimizer', 'Top 1%'],
-    totalAssessmentsPassed: 4,
-    lastActive: '4h ago',
-  },
-  {
-    rank: 3,
-    candidateId: 'cand-004',
-    candidateName: 'Liam O’Connor',
-    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80',
-    skillName: 'Frontend Engineering',
-    score: 95,
-    percentile: 98.7,
-    badges: ['State Master', 'Web Performance Lead'],
-    totalAssessmentsPassed: 3,
-    lastActive: '1d ago',
-  },
-  {
-    rank: 4,
-    candidateId: 'cand-001',
-    candidateName: 'Elena Rostova',
-    avatarUrl: CANDIDATE_AVATAR,
-    skillName: 'SQL & Databases',
-    score: 94,
-    percentile: 98.2,
-    badges: ['Senior Data Specialist', 'Query Speed Demon'],
-    totalAssessmentsPassed: 3,
-    lastActive: 'Active now',
-  },
-  {
-    rank: 5,
-    candidateId: 'cand-005',
-    candidateName: 'Dmitri Volkov',
-    avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=100&q=80',
-    skillName: 'Backend APIs',
-    score: 93,
-    percentile: 97.5,
-    badges: ['gRPC & Streaming', 'High Concurrency'],
-    totalAssessmentsPassed: 4,
-    lastActive: '2d ago',
+    id: 'job-004',
+    title: 'Senior Backend Engineer, Ingestion',
+    companyName: 'PrismaScale AI',
+    companyLogo: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=120&q=80',
+    businessId: 'biz-001',
+    location: 'San Francisco, CA',
+    workType: 'Remote',
+    salaryRange: '$180,000 - $220,000',
+    department: 'Data Ingestion',
+    postedDate: '2026-10-17',
+    description: 'Own the ingestion layer that feeds our inference clusters: exactly-once delivery, backpressure, and replay across regions.',
+    requirements: [
+      { skillId: 'skill-backend', skillName: 'Backend APIs', minScore: 80, importance: 'required', weight: 0.6 },
+      { skillId: 'skill-sys', skillName: 'System Architecture', minScore: 75, importance: 'preferred', weight: 0.4 },
+    ],
+    attachedTestId: 'test-custom-01',
+    attachedTestTitle: 'Idempotent Message Ingestion',
+    attachedTestPassingScore: 75,
+    isAttachedTestMandatory: true,
+    applicantCount: 5,
+    status: 'active',
   },
 ];

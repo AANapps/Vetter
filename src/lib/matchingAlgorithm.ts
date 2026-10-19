@@ -1,5 +1,11 @@
 import { JobPosting, SkillMatchBreakdown, CandidateJobMatch, User } from '../types';
 
+// Highest score the candidate has achieved on a given test, if they've taken it
+export function getBestTestScore(candidate: User, testId: string): number | undefined {
+  const scores = candidate.testResults.filter((r) => r.testId === testId).map((r) => r.score);
+  return scores.length > 0 ? Math.max(...scores) : undefined;
+}
+
 export function calculateCandidateJobMatch(candidate: User, job: JobPosting): CandidateJobMatch {
   const breakdown: SkillMatchBreakdown[] = [];
   let totalWeightedScore = 0;
@@ -83,14 +89,12 @@ export function calculateCandidateJobMatch(candidate: User, job: JobPosting): Ca
   let attachedTestScore: number | undefined = undefined;
 
   if (job.attachedTestId) {
-    const verifiedSkillForTest = candidate.verifiedSkills.find(
-      (vs) => vs.testId === job.attachedTestId || (job.attachedTestTitle && vs.skillName.toLowerCase() === job.attachedTestTitle.toLowerCase())
-    );
+    const bestScore = getBestTestScore(candidate, job.attachedTestId);
 
-    if (verifiedSkillForTest) {
-      attachedTestScore = verifiedSkillForTest.score;
+    if (bestScore !== undefined) {
+      attachedTestScore = bestScore;
       const passingScore = job.attachedTestPassingScore || 75;
-      attachedTestStatus = verifiedSkillForTest.score >= passingScore ? 'qualified' : 'test_taken_failed';
+      attachedTestStatus = bestScore >= passingScore ? 'qualified' : 'test_taken_failed';
     } else {
       attachedTestStatus = 'requires_test';
     }

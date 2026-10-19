@@ -1,50 +1,49 @@
 import React, { useState } from 'react';
-import { User, JobPosting, AssessmentTest, CandidateJobMatch } from '../types';
+import { User, JobPosting, AssessmentTest, CandidateJobMatch, Business } from '../types';
 import { rankCandidatesForJob } from '../lib/matchingAlgorithm';
 import {
-  Briefcase,
   Users,
   Plus,
-  Sliders,
-  Filter,
   CheckCircle2,
-  AlertCircle,
-  Code,
   Sparkles,
-  ExternalLink,
   ChevronRight,
-  ShieldCheck,
   Check,
-  Building,
-  DollarSign,
-  Clock,
-  Layers,
-  Crown,
   Award
 } from 'lucide-react';
 
+export type BusinessSection = 'jobs' | 'tests' | 'candidates';
+
 interface RecruiterPortalProps {
+  section: BusinessSection;
+  onNavigate: (section: BusinessSection) => void;
   recruiter: User;
+  business: Business;
   jobs: JobPosting[];
   allCandidates: User[];
   tests: AssessmentTest[];
   onCreateJob: (newJob: JobPosting) => void;
   onUpdateJobRequirements: (jobId: string, requirements: JobPosting['requirements']) => void;
   onCreateCustomAssessment: (newTest: AssessmentTest) => void;
-  onOpenPricingModal: () => void;
 }
 
 export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
+  section,
+  onNavigate,
   recruiter,
-  jobs,
+  business,
+  jobs: allJobs,
   allCandidates,
   tests,
   onCreateJob,
   onUpdateJobRequirements,
   onCreateCustomAssessment,
-  onOpenPricingModal,
 }) => {
-  const [activeTab, setActiveTab] = useState<'jobs' | 'pipeline' | 'custom_builder'>('jobs');
+  // A business only manages its own jobs and its own tests
+  const jobs = allJobs.filter((j) => j.businessId === business.id);
+  const companyTests = tests.filter((t) => t.type === 'custom' && t.businessId === business.id);
+  const vetterTests = tests.filter((t) => t.type === 'standard');
+  const attachableTests = [...companyTests, ...vetterTests];
+
   const [selectedJobId, setSelectedJobId] = useState<string>(jobs[0]?.id || '');
   const [filterMeetsHardOnly, setFilterMeetsHardOnly] = useState(false);
   const [filterAppliedOnly, setFilterAppliedOnly] = useState(false);
@@ -62,7 +61,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
     { skillId: 'skill-backend', skillName: 'Backend APIs', minScore: 75, importance: 'required' as const, weight: 0.3 },
     { skillId: 'skill-sql', skillName: 'SQL & Databases', minScore: 70, importance: 'preferred' as const, weight: 0.2 },
   ]);
-  const [newJobAttachedTestId, setNewJobAttachedTestId] = useState<string>(tests[0]?.id || 'test-sql-01');
+  const [newJobAttachedTestId, setNewJobAttachedTestId] = useState<string>(attachableTests[0]?.id || '');
   const [newJobAttachedPassingScore, setNewJobAttachedPassingScore] = useState<number>(80);
   const [newJobRequireTest, setNewJobRequireTest] = useState<boolean>(true);
 
@@ -118,25 +117,25 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
     e.preventDefault();
     if (!newJobTitle.trim()) return;
 
-    const attachedTest = tests.find((t) => t.id === newJobAttachedTestId);
+    const attachedTest = attachableTests.find((t) => t.id === newJobAttachedTestId);
 
     const newJob: JobPosting = {
       id: `job-${Date.now()}`,
       title: newJobTitle,
-      companyName: recruiter.company || 'PrismaScale AI',
-      companyLogo: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=120&q=80',
+      companyName: business.name,
+      companyLogo: business.logo,
+      businessId: business.id,
       location: newJobLocation,
       workType: newJobWorkType,
       salaryRange: newJobSalary,
-      tier: 'tier_2_custom',
-      description: newJobDesc || `We are seeking an outstanding ${newJobTitle} to scale our high-throughput distributed infrastructure.`,
+      description: newJobDesc || `We are hiring a ${newJobTitle} to join ${business.name}.`,
       department: newJobDept,
       postedDate: new Date().toISOString().split('T')[0],
       requirements: newJobSkills,
-      attachedTestId: newJobAttachedTestId,
+      attachedTestId: attachedTest?.id,
       attachedTestTitle: attachedTest?.title,
-      attachedTestPassingScore: newJobAttachedPassingScore,
-      isAttachedTestMandatory: newJobRequireTest,
+      attachedTestPassingScore: attachedTest ? newJobAttachedPassingScore : undefined,
+      isAttachedTestMandatory: attachedTest ? newJobRequireTest : undefined,
       applicantCount: 0,
       status: 'active',
     };
@@ -144,7 +143,9 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
     onCreateJob(newJob);
     setSelectedJobId(newJob.id);
     setIsCreatingJob(false);
-    setActiveTab('pipeline');
+    setNewJobTitle('');
+    setNewJobDesc('');
+    onNavigate('jobs');
   };
 
   const handleSaveCustomAssessment = (e: React.FormEvent) => {
@@ -157,20 +158,21 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
       category: customTestCategory,
       difficulty: 'Staff Specialist',
       type: 'custom',
-      companyId: recruiter.id,
-      companyName: recruiter.company,
-      description: customTestDesc || 'Custom assessment tailored for PrismaScale AI technical hiring bar.',
+      businessId: business.id,
+      companyName: business.name,
+      description: customTestDesc || `Test written by ${business.name} for its own hiring.`,
       estimatedMinutes: 25,
       passingScore: 80,
       totalQuestions: customQuestions.length,
-      questions: customQuestions,
+      // Copy the draft so later edits in the builder don't change the saved test
+      questions: customQuestions.map((q) => ({ ...q, testCases: q.testCases.map((tc) => ({ ...tc })) })),
       skillsTested: [customTestCategory, 'High Concurrency', 'Production Readiness'],
       testTakersCount: 0,
       avgScore: 0,
     };
 
     onCreateCustomAssessment(newAssessment);
-    setBuilderSuccessMessage(`Custom Assessment "${customTestTitle}" successfully deployed and attached to job requisition!`);
+    setBuilderSuccessMessage(`"${customTestTitle}" saved. You can now attach it to any of your jobs.`);
     setTimeout(() => setBuilderSuccessMessage(null), 4000);
     setCustomTestTitle('');
     setCustomTestDesc('');
@@ -178,36 +180,26 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
-      {/* Recruiter Workspace Header */}
+      {/* Company Header */}
       <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-xs">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-start sm:items-center gap-5">
             <div className="w-16 h-16 rounded-2xl overflow-hidden border border-slate-200 shrink-0 bg-slate-100 shadow-xs">
               <img
-                src={recruiter.avatarUrl}
-                alt={recruiter.name}
+                src={business.logo}
+                alt={business.name}
                 referrerPolicy="no-referrer"
                 className="w-full h-full object-cover"
               />
             </div>
             <div className="space-y-1">
-              <div className="flex items-center gap-3">
-                <h1 className="text-xl font-bold text-slate-900 tracking-tight">{recruiter.company}</h1>
-                <div className="flex items-center gap-1 text-xs text-indigo-800 bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 rounded-md font-mono font-semibold shadow-2xs">
-                  <Crown className="w-3.5 h-3.5 text-indigo-600" />
-                  <span>Tier 2: Custom Assessments Active</span>
-                </div>
-              </div>
+              <h1 className="text-xl font-bold text-slate-900 tracking-tight">{business.name}</h1>
               <p className="text-xs text-slate-700 font-medium">
                 {recruiter.name} &middot; {recruiter.title}
               </p>
-              <div className="flex items-center gap-2 text-xs text-slate-500">
-                <span>{jobs.length} Active Listings</span>
-                <span aria-hidden="true">&middot;</span>
-                <span>{allCandidates.length} Vetted Talent in Index</span>
-                <span aria-hidden="true">&middot;</span>
-                <span className="text-indigo-600 font-medium">Automated Vector Fit Scoring</span>
-              </div>
+              <p className="text-xs text-slate-500">
+                {business.industry} &middot; {business.headquarters}
+              </p>
             </div>
           </div>
 
@@ -217,98 +209,56 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
               className="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors flex items-center gap-2 shadow-xs"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>Post New Role</span>
+              <span>Post a Job</span>
             </button>
             <button
-              onClick={onOpenPricingModal}
+              onClick={() => onNavigate('tests')}
               className="px-3.5 py-2 text-xs font-semibold text-slate-700 hover:text-indigo-700 bg-white hover:bg-indigo-50/70 border border-slate-200 hover:border-indigo-200 rounded-lg transition-colors flex items-center gap-1.5 shadow-2xs"
             >
-              <Crown className="w-3.5 h-3.5 text-indigo-600" />
-              <span>Manage Tier Plans</span>
+              <Award className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Create a Test</span>
             </button>
           </div>
         </div>
 
-        {/* Recruiter Metric Strip */}
+        {/* Company Metric Strip */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-6 mt-6 border-t border-slate-200">
           <div>
-            <div className="text-xs text-slate-500 font-medium">Total Applicants</div>
+            <div className="text-xs text-slate-500 font-medium">Open Jobs</div>
             <div className="text-2xl font-bold text-slate-900 font-mono tabular-nums">
+              {jobs.filter((j) => j.status === 'active').length}
+            </div>
+          </div>
+          <div>
+            <div className="text-xs text-slate-500 font-medium">Total Applicants</div>
+            <div className="text-2xl font-bold text-indigo-600 font-mono tabular-nums">
               {jobs.reduce((acc, j) => acc + j.applicantCount, 0)}
             </div>
           </div>
           <div>
-            <div className="text-xs text-slate-500 font-medium">Average Match Fit</div>
-            <div className="text-2xl font-bold text-indigo-600 font-mono tabular-nums">84.2%</div>
+            <div className="text-xs text-slate-500 font-medium">Your Tests</div>
+            <div className="text-2xl font-bold text-emerald-600 font-mono tabular-nums">{companyTests.length}</div>
           </div>
           <div>
-            <div className="text-xs text-slate-500 font-medium">Custom Assessments</div>
-            <div className="text-2xl font-bold text-emerald-600 font-mono tabular-nums">2 Active</div>
-          </div>
-          <div>
-            <div className="text-xs text-slate-500 font-medium">Time-to-Hire Reduction</div>
-            <div className="text-2xl font-bold text-indigo-700 font-mono tabular-nums">-64%</div>
+            <div className="text-xs text-slate-500 font-medium">Candidates on Vetter</div>
+            <div className="text-2xl font-bold text-indigo-700 font-mono tabular-nums">{allCandidates.length}</div>
           </div>
         </div>
       </div>
 
-      {/* Navigation Tabs */}
-      <div className="flex items-center gap-1.5 p-1 bg-white border border-slate-200 rounded-xl w-fit shadow-xs">
-        <button
-          onClick={() => setActiveTab('jobs')}
-          className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 ${
-            activeTab === 'jobs'
-              ? 'bg-indigo-600 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-          }`}
-        >
-          <Briefcase className="w-3.5 h-3.5" />
-          <span>Active Listings & Thresholds</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('pipeline')}
-          className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 ${
-            activeTab === 'pipeline'
-              ? 'bg-indigo-600 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-          }`}
-        >
-          <Users className="w-3.5 h-3.5" />
-          <span>Candidate Match Pipeline</span>
-          <span
-            className={`px-1.5 py-0.5 text-[10px] rounded font-mono ${
-              activeTab === 'pipeline'
-                ? 'bg-indigo-700 text-white'
-                : 'bg-slate-100 text-slate-700'
-            }`}
-          >
-            {allCandidates.length}
-          </span>
-        </button>
-        <button
-          onClick={() => setActiveTab('custom_builder')}
-          className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 ${
-            activeTab === 'custom_builder'
-              ? 'bg-indigo-600 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-          }`}
-        >
-          <Code className="w-3.5 h-3.5" />
-          <span>Custom Assessment Builder (Tier 2)</span>
-        </button>
-      </div>
-
-      {/* TAB 1: ACTIVE JOBS & THRESHOLDS */}
-      {activeTab === 'jobs' && (
+      {/* SECTION 1: JOBS */}
+      {section === 'jobs' && (
         <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-bold text-slate-900">Requisition Threshold Governance</h2>
-              <p className="text-xs text-slate-500">
-                Adjust required minimum score thresholds. Candidates are automatically scored and ranked against these vectors.
-              </p>
-            </div>
+          <div>
+            <h2 className="text-base font-bold text-slate-900">Your Jobs</h2>
+            <p className="text-xs text-slate-500">
+              Set the minimum skill scores for each job. Candidates are ranked against them automatically.
+            </p>
           </div>
+
+          {jobs.length === 0 && (
+            <p className="text-xs text-slate-500">You haven't posted any jobs yet.</p>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left: Jobs list */}
@@ -360,14 +310,14 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                       <h3 className="text-base font-bold text-slate-900">{selectedJob.title}</h3>
                       {selectedJob.attachedTestId && (
                         <span className="text-[10px] font-mono uppercase bg-indigo-50 border border-indigo-200 text-indigo-700 px-2 py-0.5 rounded font-semibold">
-                          Test Attached to Application
+                          Test Attached
                         </span>
                       )}
                     </div>
                     <p className="text-xs text-slate-500 mt-1">{selectedJob.description}</p>
                   </div>
                   <button
-                    onClick={() => setActiveTab('pipeline')}
+                    onClick={() => onNavigate('candidates')}
                     className="px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:text-indigo-800 bg-indigo-50 border border-indigo-200 rounded-lg flex items-center gap-1.5 transition-colors shrink-0 shadow-2xs"
                   >
                     <span>View Ranked Candidates</span>
@@ -383,10 +333,10 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                         <Award className="w-4 h-4" />
                       </div>
                       <div>
-                        <span className="font-bold text-slate-900">Attached Application Assessment (Pillar 2):</span>{' '}
+                        <span className="font-bold text-slate-900">Attached test:</span>{' '}
                         <span className="text-indigo-900 font-semibold">{selectedJob.attachedTestTitle}</span>
                         <div className="text-[11px] text-slate-500 font-mono mt-0.5">
-                          Cutoff Bar: &ge;{selectedJob.attachedTestPassingScore || 75} pts &middot; {selectedJob.isAttachedTestMandatory ? 'Mandatory for application submission' : 'Recommended assessment'}
+                          {companyTests.some((t) => t.id === selectedJob.attachedTestId) ? 'Your test' : 'Vetter test'} &middot; Pass mark {selectedJob.attachedTestPassingScore || 75} &middot; {selectedJob.isAttachedTestMandatory ? 'Required to apply' : 'Optional'}
                         </div>
                       </div>
                     </div>
@@ -396,9 +346,9 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                      Live Assessment Cutoffs & Weights
+                      Minimum Skill Scores
                     </h4>
-                    <span className="text-[11px] text-slate-500">Drag slider to recalibrate candidate vector rankings</span>
+                    <span className="text-[11px] text-slate-500">Drag to change how candidates are ranked</span>
                   </div>
 
                   <div className="space-y-4">
@@ -448,21 +398,31 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
         </div>
       )}
 
-      {/* TAB 2: CANDIDATE MATCH PIPELINE */}
-      {activeTab === 'pipeline' && (
+      {/* SECTION 2: CANDIDATES */}
+      {section === 'candidates' && !selectedJob && (
+        <p className="text-xs text-slate-500">Post a job to start seeing ranked candidates.</p>
+      )}
+      {section === 'candidates' && selectedJob && (
         <div className="space-y-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h2 className="text-base font-bold text-slate-900">
-                Vetted Pipeline for {selectedJob?.title || 'Selected Role'}
-              </h2>
-              <p className="text-xs text-slate-500">
-                Sorted strictly by objective assessment fit percentage. Zero resume keyword fluff.
-              </p>
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+            <div className="space-y-2">
+              <h2 className="text-base font-bold text-slate-900">Candidates</h2>
+              <select
+                value={selectedJob.id}
+                onChange={(e) => setSelectedJobId(e.target.value)}
+                className="px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 font-semibold shadow-2xs max-w-full"
+              >
+                {jobs.map((j) => (
+                  <option key={j.id} value={j.id}>
+                    {j.title}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-slate-500">Ranked by how well their verified skills fit this job.</p>
             </div>
 
             {/* Filter controls */}
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer font-medium">
                 <input
                   type="checkbox"
@@ -470,7 +430,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                   onChange={(e) => setFilterMeetsHardOnly(e.target.checked)}
                   className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                 />
-                <span>Hard Thresholds Met Only</span>
+                <span>Meets all required scores</span>
               </label>
 
               <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer font-medium">
@@ -480,15 +440,18 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                   onChange={(e) => setFilterAppliedOnly(e.target.checked)}
                   className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                 />
-                <span>Direct Inbound Applied</span>
+                <span>Applied to this job</span>
               </label>
             </div>
           </div>
 
           {/* Candidate Match Table / Cards */}
           <div className="space-y-3">
+            {filteredCandidates.length === 0 && (
+              <p className="text-xs text-slate-500">No candidates match these filters.</p>
+            )}
             {filteredCandidates.map((c) => {
-              const fullCandidate = allCandidates.find((cand) => cand.id === c.candidateId)!;
+              const hasApplied = allCandidates.find((cand) => cand.id === c.candidateId)?.appliedJobIds?.includes(selectedJob.id);
               const currentStatus = candidateStatuses[c.candidateId] || 'review';
 
               return (
@@ -514,6 +477,11 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                           <span className="text-xs text-slate-500">{c.yearsExperience} yrs exp</span>
                           <span className="text-xs text-slate-400">&middot;</span>
                           <span className="text-xs text-indigo-700 font-semibold">{c.candidateLocation}</span>
+                          {hasApplied && (
+                            <span className="text-[10px] font-mono uppercase font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+                              Applied
+                            </span>
+                          )}
                         </div>
                         <p className="text-xs text-slate-600">{c.candidateTitle}</p>
                       </div>
@@ -574,26 +542,26 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                     </div>
                   </div>
 
-                  {/* Attached Test Verification Status (Pillar 2) */}
+                  {/* Attached test result */}
                   {selectedJob.attachedTestId && (
                     <div className="mt-3 pt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
                       <div className="flex items-center gap-1.5 text-slate-600">
                         <Award className="w-3.5 h-3.5 text-indigo-600" />
-                        <span>Attached Test Requirement ({selectedJob.attachedTestTitle}):</span>
+                        <span>Attached test ({selectedJob.attachedTestTitle}):</span>
                       </div>
                       <div>
                         {c.attachedTestStatus === 'qualified' ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-mono font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
                             <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                            <span>Verified Passed: {c.attachedTestScore}/100</span>
+                            <span>Passed: {c.attachedTestScore}/100</span>
                           </span>
                         ) : c.attachedTestStatus === 'test_taken_failed' ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-mono font-semibold bg-amber-50 text-amber-800 border border-amber-200">
-                            <span>Score Below Cutoff: {c.attachedTestScore}/100</span>
+                            <span>Below pass mark: {c.attachedTestScore}/100</span>
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-mono text-slate-500 bg-slate-50 border border-slate-200">
-                            <span>Assessment Incomplete</span>
+                            <span>Not taken</span>
                           </span>
                         )}
                       </div>
@@ -606,21 +574,48 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
         </div>
       )}
 
-      {/* TAB 3: CUSTOM ASSESSMENT BUILDER (TIER 2) */}
-      {activeTab === 'custom_builder' && (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
+      {/* SECTION 3: TESTS */}
+      {section === 'tests' && (
+        <div className="space-y-8">
+          {/* The company's own tests */}
+          <div className="space-y-4">
             <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-base font-bold text-slate-900">Tier 2 Custom Assessment Suite</h2>
-                <span className="text-[10px] font-mono uppercase bg-indigo-50 text-indigo-800 border border-indigo-200 px-2 py-0.5 rounded font-bold shadow-2xs">
-                  Included in PrismaScale Enterprise
-                </span>
-              </div>
+              <h2 className="text-base font-bold text-slate-900">Your Tests</h2>
               <p className="text-xs text-slate-500">
-                Author custom coding challenges, SQL queries, or architectural scenarios tailored to your company's proprietary tech stack.
+                Tests written by {business.name}. Only you can attach them to jobs.
               </p>
             </div>
+            {companyTests.length === 0 ? (
+              <p className="text-xs text-slate-500">You haven't created any tests yet. Use the form below.</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {companyTests.map((t) => (
+                  <TestSummaryCard key={t.id} test={t} usedBy={jobs.filter((j) => j.attachedTestId === t.id)} />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Vetter's library */}
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-base font-bold text-slate-900">Vetter Test Library</h2>
+              <p className="text-xs text-slate-500">
+                Standard tests made by Vetter. Candidates' scores on these appear as verified skills.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {vetterTests.map((t) => (
+                <TestSummaryCard key={t.id} test={t} usedBy={jobs.filter((j) => j.attachedTestId === t.id)} />
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h2 className="text-base font-bold text-slate-900">Create a Test</h2>
+            <p className="text-xs text-slate-500">
+              Write a coding challenge based on your own stack and attach it to any of your jobs.
+            </p>
           </div>
 
           {builderSuccessMessage && (
@@ -632,10 +627,10 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
 
           <form onSubmit={handleSaveCustomAssessment} className="space-y-6">
             <div className="bg-white border border-slate-200 rounded-xl p-6 space-y-4 shadow-xs">
-              <h3 className="text-sm font-bold text-slate-900">Assessment Parameters</h3>
+              <h3 className="text-sm font-bold text-slate-900">Details</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Assessment Title</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Test Title</label>
                   <input
                     type="text"
                     required
@@ -675,7 +670,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
             {/* Modular Question Authoring */}
             <div className="bg-white border border-slate-200 rounded-xl p-6 space-y-4 shadow-xs">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-slate-900">Modular Challenge Configuration</h3>
+                <h3 className="text-sm font-bold text-slate-900">Challenge</h3>
                 <span className="text-xs text-slate-500 font-mono">1 Question in Challenge</span>
               </div>
 
@@ -759,7 +754,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                 className="px-5 py-2.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors flex items-center gap-2 shadow-xs"
               >
                 <Check className="w-4 h-4" />
-                <span>Save & Deploy Custom Assessment</span>
+                <span>Save Test</span>
               </button>
             </div>
           </form>
@@ -771,7 +766,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white border border-slate-200 rounded-2xl max-w-xl w-full p-6 space-y-5 shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-              <h3 className="text-base font-bold text-slate-900">Create New Requisition</h3>
+              <h3 className="text-base font-bold text-slate-900">Post a Job at {business.name}</h3>
               <button
                 onClick={() => setIsCreatingJob(false)}
                 className="text-slate-400 hover:text-slate-700 text-xs font-medium"
@@ -838,14 +833,14 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                 />
               </div>
 
-              {/* Pillar 2: Attach Test to this Job Post */}
+              {/* Attach a test to this job */}
               <div className="p-3 bg-indigo-50/50 border border-indigo-200 rounded-xl space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-indigo-900 flex items-center gap-1.5">
                     <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                    <span>Attach Test to this Job Post (Pillar 2)</span>
+                    <span>Attach a Test</span>
                   </span>
-                  <label className="flex items-center gap-1.5 text-xs text-indigo-800 font-medium cursor-pointer">
+                  <label className={`flex items-center gap-1.5 text-xs text-indigo-800 font-medium cursor-pointer ${newJobAttachedTestId ? '' : 'opacity-40 pointer-events-none'}`}>
                     <input
                       type="checkbox"
                       checked={newJobRequireTest}
@@ -858,24 +853,37 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
 
                 <div className="grid grid-cols-3 gap-2">
                   <div className="col-span-2">
-                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">Select Assessment</label>
+                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">Test</label>
                     <select
                       value={newJobAttachedTestId}
                       onChange={(e) => setNewJobAttachedTestId(e.target.value)}
                       className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 font-medium"
                     >
-                      {tests.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.title} ({t.category})
-                        </option>
-                      ))}
+                      <option value="">No test</option>
+                      {companyTests.length > 0 && (
+                        <optgroup label="Your tests">
+                          {companyTests.map((t) => (
+                            <option key={t.id} value={t.id}>
+                              {t.title}
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                      <optgroup label="Vetter tests">
+                        {vetterTests.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.title} ({t.category})
+                          </option>
+                        ))}
+                      </optgroup>
                     </select>
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">Pass Bar (pts)</label>
+                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">Pass mark</label>
                     <input
                       type="number"
+                      disabled={!newJobAttachedTestId}
                       min={60}
                       max={100}
                       value={newJobAttachedPassingScore}
@@ -891,7 +899,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                 className="w-full py-2.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-xs"
               >
                 <Plus className="w-4 h-4" />
-                <span>Publish Requisition & Attach Assessment</span>
+                <span>Post Job</span>
               </button>
             </form>
           </div>
@@ -900,3 +908,22 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
     </div>
   );
 };
+
+const TestSummaryCard: React.FC<{ test: AssessmentTest; usedBy: JobPosting[] }> = ({ test, usedBy }) => (
+  <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-3 shadow-2xs">
+    <div className="flex items-center justify-between">
+      <span className="text-[11px] font-mono uppercase tracking-wider text-indigo-700 font-bold">{test.category}</span>
+      <span className="text-xs text-slate-500 font-medium">{test.difficulty}</span>
+    </div>
+    <h3 className="text-sm font-bold text-slate-900">{test.title}</h3>
+    <p className="text-xs text-slate-600 leading-relaxed">{test.description}</p>
+    <div className="pt-3 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500 font-mono">
+      <span>
+        ~{test.estimatedMinutes} mins &middot; {test.totalQuestions} {test.totalQuestions === 1 ? 'task' : 'tasks'} &middot; pass {test.passingScore}
+      </span>
+      <span>
+        {usedBy.length > 0 ? `On ${usedBy.length} of your jobs` : 'Not on your jobs'}
+      </span>
+    </div>
+  </div>
+);

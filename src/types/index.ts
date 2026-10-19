@@ -23,13 +23,21 @@ export interface User {
   role: UserRole;
   avatarUrl: string;
   title: string;
-  company?: string;
+  businessId?: string; // Set for business users: the company they hire for
   location: string;
   yearsExperience: number;
   workPreference: 'Remote' | 'Hybrid' | 'On-site';
   bio: string;
   verifiedSkills: VerifiedSkill[];
+  testResults: TestResult[];
   appliedJobIds: string[];
+}
+
+// Every test a candidate completes, Vetter-made or company-made
+export interface TestResult {
+  testId: string;
+  score: number;
+  completedAt: string;
 }
 
 export type QuestionType = 'sql' | 'code' | 'scenario';
@@ -60,8 +68,9 @@ export interface AssessmentTest {
   title: string;
   category: 'Databases' | 'Algorithms' | 'System Architecture' | 'Frontend' | 'Backend APIs';
   difficulty: 'Intermediate' | 'Advanced' | 'Staff Specialist';
+  // 'standard' tests are made by Vetter; 'custom' tests are made by a company for its own jobs
   type: 'standard' | 'custom';
-  companyId?: string;
+  businessId?: string;
   companyName?: string;
   description: string;
   estimatedMinutes: number;
@@ -109,11 +118,8 @@ export interface Business {
   headquarters: string;
   companySize: string;
   websiteUrl: string;
-  tier: 'tier_1_standard' | 'tier_2_custom';
-  activeJobCount: number;
   description: string;
   techStack: string[];
-  attachedTestCount: number;
 }
 
 export interface JobRequirement {
@@ -133,17 +139,15 @@ export interface JobPosting {
   location: string;
   workType: 'Remote' | 'Hybrid' | 'On-site';
   salaryRange: string;
-  tier: 'tier_1_standard' | 'tier_2_custom';
   description: string;
   department: string;
   postedDate: string;
   requirements: JobRequirement[];
-  // Pillar Connection: Tests can be attached to jobs as part of application
+  // A job may have one test attached (Vetter-made or the company's own)
   attachedTestId?: string;
   attachedTestTitle?: string;
   attachedTestPassingScore?: number;
   isAttachedTestMandatory?: boolean;
-  customAssessmentId?: string;
   applicantCount: number;
   status: 'active' | 'paused' | 'filled';
 }
@@ -172,22 +176,8 @@ export interface CandidateJobMatch {
   overallFitPercentage: number; // 0 - 100
   meetsAllHardRequirements: boolean;
   breakdown: SkillMatchBreakdown[];
-  // Pillar 2 Attachment Status
   attachedTestStatus?: 'qualified' | 'requires_test' | 'test_taken_failed';
   attachedTestScore?: number;
   applicationStatus?: 'none' | 'applied' | 'reviewing' | 'interview' | 'offer' | 'rejected';
   matchTier: 'Top Match' | 'Strong Fit' | 'Borderline' | 'Needs Upskilling';
-}
-
-export interface LeaderboardRank {
-  rank: number;
-  candidateId: string;
-  candidateName: string;
-  avatarUrl: string;
-  skillName: string;
-  score: number;
-  percentile: number;
-  badges: string[];
-  totalAssessmentsPassed: number;
-  lastActive: string;
 }

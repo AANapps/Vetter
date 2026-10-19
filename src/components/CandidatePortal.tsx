@@ -1,18 +1,16 @@
 import React, { useState } from 'react';
 import { User, AssessmentTest, JobPosting, CandidateJobMatch } from '../types';
-import { rankJobsForCandidate } from '../lib/matchingAlgorithm';
+import { rankJobsForCandidate, getBestTestScore } from '../lib/matchingAlgorithm';
 import {
   Award,
   CheckCircle2,
   Briefcase,
   Play,
-  TrendingUp,
-  SlidersHorizontal,
   ChevronDown,
   ChevronUp,
   MapPin,
-  Building,
   DollarSign,
+  Search,
   Sparkles,
   ShieldCheck,
   Send,
@@ -21,33 +19,61 @@ import {
 import { VerifiedSkillBadge } from './VerifiedSkillBadge';
 import { JobApplicationModal } from './JobApplicationModal';
 
+export type CandidateSection = 'profile' | 'jobs' | 'tests';
+
 interface CandidatePortalProps {
+  section: CandidateSection;
+  onNavigate: (section: CandidateSection) => void;
   candidate: User;
   tests: AssessmentTest[];
   jobs: JobPosting[];
   onStartTest: (test: AssessmentTest) => void;
   onStartAttachedTest?: (test: AssessmentTest, forJobId: string) => void;
   onApplyJob: (jobId: string) => void;
-  onViewLeaderboard: () => void;
 }
 
 export const CandidatePortal: React.FC<CandidatePortalProps> = ({
+  section,
+  onNavigate,
   candidate,
   tests,
   jobs,
   onStartTest,
   onStartAttachedTest,
   onApplyJob,
-  onViewLeaderboard,
 }) => {
-  const [activeSection, setActiveSection] = useState<'passport' | 'assessments' | 'matches'>('passport');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
   const [appliedNotification, setAppliedNotification] = useState<string | null>(null);
   const [selectedJobForApplication, setSelectedJobForApplication] = useState<JobPosting | null>(null);
+  const [jobSearch, setJobSearch] = useState('');
+  const [workTypeFilter, setWorkTypeFilter] = useState<'all' | JobPosting['workType']>('all');
+  const [jobSort, setJobSort] = useState<'newest' | 'fit'>('newest');
+
+  const activeJobs = jobs.filter((j) => j.status === 'active');
 
   // Compute live vector matches
-  const rankedJobs: CandidateJobMatch[] = rankJobsForCandidate(candidate, jobs);
+  const rankedJobs: CandidateJobMatch[] = rankJobsForCandidate(candidate, activeJobs);
+
+  // Job board: every active job, searchable, sorted by newest or best fit
+  const boardJobs = rankedJobs
+    .filter((match) => {
+      const job = activeJobs.find((j) => j.id === match.jobId)!;
+      if (workTypeFilter !== 'all' && job.workType !== workTypeFilter) return false;
+      const q = jobSearch.trim().toLowerCase();
+      if (q && ![job.title, job.companyName, job.department, job.location].some((f) => f.toLowerCase().includes(q))) {
+        return false;
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      if (jobSort === 'fit') return b.overallFitPercentage - a.overallFitPercentage;
+      const jobA = activeJobs.find((j) => j.id === a.jobId)!;
+      const jobB = activeJobs.find((j) => j.id === b.jobId)!;
+      return jobB.postedDate.localeCompare(jobA.postedDate);
+    });
+
+  const appliedJobs = jobs.filter((j) => candidate.appliedJobIds?.includes(j.id));
 
   const handleApply = (jobId: string, jobTitle: string) => {
     onApplyJob(jobId);
@@ -55,10 +81,10 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
     setTimeout(() => setAppliedNotification(null), 3500);
   };
 
-  const filteredTests = tests.filter((t) => {
-    if (categoryFilter === 'all') return true;
-    return t.category.toLowerCase().includes(categoryFilter.toLowerCase());
-  });
+  // Vetter-made tests are open to everyone; company tests are taken through the jobs they're attached to
+  const vetterTests = tests.filter((t) => t.type === 'standard');
+  const testCategories = ['all', ...Array.from(new Set(vetterTests.map((t) => t.category)))];
+  const filteredTests = vetterTests.filter((t) => categoryFilter === 'all' || t.category === categoryFilter);
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
@@ -71,6 +97,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
       )}
 
       {/* Hero: Candidate Profile & Verification Passport Overview */}
+      {section === 'profile' && (
       <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 space-y-6 shadow-xs">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-start sm:items-center gap-5">
@@ -106,18 +133,18 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
 
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setActiveSection('assessments')}
+              onClick={() => onNavigate('tests')}
               className="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors flex items-center gap-2 shadow-xs"
             >
               <Play className="w-3.5 h-3.5 fill-current" />
-              <span>Take New Assessment</span>
+              <span>Take a Test</span>
             </button>
             <button
-              onClick={onViewLeaderboard}
+              onClick={() => onNavigate('jobs')}
               className="px-3.5 py-2 text-xs font-semibold text-slate-700 hover:text-indigo-700 bg-white hover:bg-indigo-50/70 border border-slate-200 hover:border-indigo-200 rounded-lg transition-colors flex items-center gap-1.5 shadow-2xs"
             >
-              <TrendingUp className="w-3.5 h-3.5 text-amber-600" />
-              <span>Global Ranks</span>
+              <Briefcase className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Browse Jobs</span>
             </button>
           </div>
         </div>
@@ -178,61 +205,10 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
           </div>
         </div>
       </div>
-
-      {/* Segmented Section Switcher */}
-      <div className="flex items-center gap-1.5 p-1 bg-white border border-slate-200 rounded-xl w-fit shadow-xs">
-        <button
-          onClick={() => setActiveSection('passport')}
-          className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors ${
-            activeSection === 'passport'
-              ? 'bg-indigo-600 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-          }`}
-        >
-          Verified Skill Passport
-        </button>
-        <button
-          onClick={() => setActiveSection('matches')}
-          className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 ${
-            activeSection === 'matches'
-              ? 'bg-indigo-600 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-          }`}
-        >
-          <span>Matched Jobs</span>
-          <span
-            className={`px-1.5 py-0.5 text-[10px] rounded font-mono ${
-              activeSection === 'matches'
-                ? 'bg-indigo-700 text-white'
-                : 'bg-slate-100 text-slate-700'
-            }`}
-          >
-            {rankedJobs.length}
-          </span>
-        </button>
-        <button
-          onClick={() => setActiveSection('assessments')}
-          className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 ${
-            activeSection === 'assessments'
-              ? 'bg-indigo-600 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-          }`}
-        >
-          <span>Assessment Library</span>
-          <span
-            className={`px-1.5 py-0.5 text-[10px] rounded font-mono ${
-              activeSection === 'assessments'
-                ? 'bg-indigo-700 text-white'
-                : 'bg-slate-100 text-slate-700'
-            }`}
-          >
-            {tests.length}
-          </span>
-        </button>
-      </div>
+      )}
 
       {/* SECTION 1: VERIFIED SKILL PASSPORT */}
-      {activeSection === 'passport' && (
+      {section === 'profile' && (
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
@@ -305,7 +281,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                 onClick={() => {
                   const sysTest = tests.find((t) => t.category === 'System Architecture');
                   if (sysTest) onStartTest(sysTest);
-                  else setActiveSection('assessments');
+                  else onNavigate('tests');
                 }}
                 className="px-3.5 py-1.5 text-xs font-semibold text-indigo-700 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors"
               >
@@ -313,23 +289,94 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
               </button>
             </div>
           </div>
+
+          {/* My Applications */}
+          <div className="space-y-3">
+            <h2 className="text-base font-bold text-slate-900">My Applications</h2>
+            {appliedJobs.length === 0 ? (
+              <p className="text-xs text-slate-500">
+                You haven't applied to any jobs yet.{' '}
+                <button onClick={() => onNavigate('jobs')} className="text-indigo-600 font-semibold hover:underline">
+                  Browse the job board
+                </button>
+              </p>
+            ) : (
+              <div className="bg-white border border-slate-200 rounded-xl divide-y divide-slate-200 shadow-2xs">
+                {appliedJobs.map((job) => (
+                  <div key={job.id} className="p-4 flex flex-wrap items-center justify-between gap-3 text-xs">
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={job.companyLogo}
+                        alt={job.companyName}
+                        referrerPolicy="no-referrer"
+                        className="w-8 h-8 rounded-lg object-cover border border-slate-200"
+                      />
+                      <div>
+                        <div className="font-bold text-slate-900">{job.title}</div>
+                        <div className="text-slate-500">{job.companyName} &middot; {job.location}</div>
+                      </div>
+                    </div>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      Applied
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
-      {/* SECTION 2: MATCHED JOBS FEED */}
-      {activeSection === 'matches' && (
+      {/* SECTION 2: JOB BOARD */}
+      {section === 'jobs' && (
         <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
             <div>
-              <h2 className="text-base font-bold text-slate-900">Algorithmic Job Match Feed</h2>
+              <h1 className="text-xl font-bold text-slate-900 tracking-tight">Job Board</h1>
               <p className="text-xs text-slate-500">
-                Ranked dynamically by vector fit with your verified skill scores. Zero resume screening required.
+                {activeJobs.length} open jobs. Your fit score is based on your verified skills.
               </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search title, company, location..."
+                  value={jobSearch}
+                  onChange={(e) => setJobSearch(e.target.value)}
+                  className="pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 w-60 max-w-full shadow-2xs"
+                />
+              </div>
+              <select
+                value={workTypeFilter}
+                onChange={(e) => setWorkTypeFilter(e.target.value as typeof workTypeFilter)}
+                className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-700 font-medium shadow-2xs"
+              >
+                <option value="all">All work types</option>
+                <option value="Remote">Remote</option>
+                <option value="Hybrid">Hybrid</option>
+                <option value="On-site">On-site</option>
+              </select>
+              <select
+                value={jobSort}
+                onChange={(e) => setJobSort(e.target.value as typeof jobSort)}
+                className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-700 font-medium shadow-2xs"
+              >
+                <option value="newest">Newest first</option>
+                <option value="fit">Best fit first</option>
+              </select>
             </div>
           </div>
 
+          {boardJobs.length === 0 && (
+            <p className="text-xs text-slate-500">No jobs match your search.</p>
+          )}
+
           <div className="space-y-4">
-            {rankedJobs.map((match) => {
+            {boardJobs.map((match) => {
               const job = jobs.find((j) => j.id === match.jobId)!;
               const isExpanded = expandedJobId === match.jobId;
               const isApplied = candidate.appliedJobIds?.includes(match.jobId);
@@ -356,6 +403,8 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                             <span className="text-xs text-slate-500 font-medium">{match.companyName}</span>
                             <span aria-hidden="true">&middot;</span>
                             <span className="text-xs text-slate-500">{job.department}</span>
+                            <span aria-hidden="true">&middot;</span>
+                            <span className="text-xs text-slate-500">Posted {job.postedDate}</span>
                           </div>
                           <h3 className="text-base font-bold text-slate-900 tracking-tight">{match.jobTitle}</h3>
                           <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
@@ -377,7 +426,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                       {/* Match Fit Score & Apply CTA */}
                       <div className="flex items-center gap-4 shrink-0 justify-between md:justify-end border-t md:border-t-0 pt-4 md:pt-0 border-slate-200">
                         <div className="text-right">
-                          <div className="text-[11px] text-slate-500 font-medium">Vector Fit</div>
+                          <div className="text-[11px] text-slate-500 font-medium">Your Fit</div>
                           <div
                             className={`text-2xl font-extrabold font-mono tabular-nums ${
                               match.overallFitPercentage >= 85
@@ -395,7 +444,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                         {isApplied ? (
                           <div className="px-4 py-2 text-xs font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-1.5 shadow-2xs">
                             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                            <span>Applied with Passport</span>
+                            <span>Applied</span>
                           </div>
                         ) : (
                           <button
@@ -403,9 +452,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                             className="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors flex items-center gap-1.5 shadow-xs"
                           >
                             <Send className="w-3.5 h-3.5" />
-                            <span>
-                              {match.attachedTestStatus === 'qualified' ? 'Review & Apply' : 'Apply (Assessment Attached)'}
-                            </span>
+                            <span>Apply</span>
                           </button>
                         )}
 
@@ -444,16 +491,18 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                       ))}
                     </div>
 
-                    {/* Pillar 2: Attached Assessment for this Job Post */}
+                    {/* Test attached to this job */}
                     {job.attachedTestId && (
                       <div className="mt-3.5 p-3 bg-indigo-50/40 border border-indigo-200/80 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
                         <div className="flex items-center gap-2">
                           <Award className="w-4 h-4 text-indigo-600 shrink-0" />
                           <div>
-                            <span className="font-bold text-slate-900">Attached Assessment:</span>{' '}
+                            <span className="font-bold text-slate-900">
+                              {job.isAttachedTestMandatory ? 'Required test:' : 'Optional test:'}
+                            </span>{' '}
                             <span className="text-indigo-900 font-semibold">{job.attachedTestTitle || 'Technical Test'}</span>
                             <span className="text-slate-400 font-mono text-[11px] ml-1.5">
-                              (Required Bar: &ge;{job.attachedTestPassingScore || 75} pts)
+                              ({tests.find((t) => t.id === job.attachedTestId)?.type === 'custom' ? `by ${job.companyName}` : 'by Vetter'}, pass mark {job.attachedTestPassingScore || 75})
                             </span>
                           </div>
                         </div>
@@ -462,16 +511,16 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                           {match.attachedTestStatus === 'qualified' ? (
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-mono font-semibold bg-emerald-100/70 text-emerald-800 border border-emerald-200 shadow-2xs">
                               <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                              <span>Verified: {match.attachedTestScore}/100 (Qualified)</span>
+                              <span>Passed: {match.attachedTestScore}/100</span>
+                            </span>
+                          ) : match.attachedTestStatus === 'test_taken_failed' ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-mono font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                              <span>Best score {match.attachedTestScore}/100 (below pass mark)</span>
                             </span>
                           ) : (
-                            <button
-                              onClick={() => setSelectedJobForApplication(job)}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-mono font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-2xs transition-colors"
-                            >
-                              <Play className="w-3 h-3 fill-current" />
-                              <span>Take Attached Test to Apply</span>
-                            </button>
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-mono text-slate-500 bg-white border border-slate-200">
+                              Not taken yet
+                            </span>
                           )}
                         </div>
                       </div>
@@ -487,7 +536,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                       </div>
 
                       <div className="space-y-2 pt-2">
-                        <h4 className="text-xs font-bold text-slate-900">Automated Vector Scoring Analysis</h4>
+                        <h4 className="text-xs font-bold text-slate-900">How Your Skills Compare</h4>
                         <div className="space-y-2">
                           {match.breakdown.map((b) => (
                             <div
@@ -539,20 +588,21 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
         </div>
       )}
 
-      {/* SECTION 3: ASSESSMENT CATALOG */}
-      {activeSection === 'assessments' && (
+      {/* SECTION 3: VETTER TESTS */}
+      {section === 'tests' && (
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h2 className="text-base font-bold text-slate-900">Standard Interactive Assessments</h2>
+              <h1 className="text-xl font-bold text-slate-900 tracking-tight">Tests</h1>
               <p className="text-xs text-slate-500">
-                Standardized, practical challenges executed in live sandbox runtimes. Free for candidates.
+                Practical tests made by Vetter. Each score becomes a verified skill on your profile. Tests that
+                companies write for their own jobs are taken from the Job Board.
               </p>
             </div>
 
             {/* Category Filter */}
             <div className="flex items-center gap-1.5 p-1 bg-white border border-slate-200 rounded-lg shadow-2xs">
-              {['all', 'Databases', 'Algorithms', 'System Architecture', 'Frontend'].map((cat) => (
+              {testCategories.map((cat) => (
                 <button
                   key={cat}
                   onClick={() => setCategoryFilter(cat)}
@@ -562,7 +612,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  {cat === 'all' ? 'All Domains' : cat}
+                  {cat === 'all' ? 'All' : cat}
                 </button>
               ))}
             </div>
@@ -570,7 +620,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {filteredTests.map((t) => {
-              const userSkill = candidate.verifiedSkills.find((s) => s.testId === t.id);
+              const bestScore = getBestTestScore(candidate, t.id);
 
               return (
                 <div
@@ -607,11 +657,10 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                     </div>
 
                     <div className="flex items-center justify-between pt-1">
-                      {userSkill ? (
+                      {bestScore !== undefined ? (
                         <div className="text-xs">
-                          <span className="text-slate-500">Current Score: </span>
-                          <strong className="text-indigo-600 font-mono text-sm">{userSkill.score}/100</strong>
-                          <span className="text-slate-500 text-[11px]"> ({userSkill.percentile}th %ile)</span>
+                          <span className="text-slate-500">Your best: </span>
+                          <strong className="text-indigo-600 font-mono text-sm">{bestScore}/100</strong>
                         </div>
                       ) : (
                         <div className="text-xs text-slate-500">
@@ -624,7 +673,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                         className="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors flex items-center gap-2 shadow-xs"
                       >
                         <Play className="w-3.5 h-3.5 fill-current" />
-                        <span>{userSkill ? 'Retake to Climb' : 'Start Assessment'}</span>
+                        <span>{bestScore !== undefined ? 'Retake' : 'Start Test'}</span>
                       </button>
                     </div>
                   </div>
@@ -635,7 +684,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
         </div>
       )}
 
-      {/* Pillar 2 & 3: Job Application Modal with Attached Assessment */}
+      {/* Job application, including any attached test */}
       {selectedJobForApplication && (
         <JobApplicationModal
           isOpen={!!selectedJobForApplication}
