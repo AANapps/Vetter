@@ -163,7 +163,7 @@ export default function App() {
   const businessSection = BUSINESS_SECTIONS[currentTab];
 
   return (
-    <div className="min-h-screen text-white flex flex-col font-sans selection:bg-indigo-600 selection:text-white">
+    <div className="min-h-screen bg-white text-slate-900 flex flex-col font-sans selection:bg-indigo-600 selection:text-white">
       <Navigation
         currentTab={currentTab}
         onTabChange={setCurrentTab}
@@ -173,7 +173,7 @@ export default function App() {
         userName={activeRole === 'candidate' ? candidate.name : recruiter.name}
       />
 
-      <main className="flex-1 pb-16">
+      <main className="flex-1 pb-16 bg-white">
         {activeRole === 'candidate' && candidateSection && (
           <CandidatePortal
             section={candidateSection}
@@ -233,7 +233,7 @@ export default function App() {
         </div>
       )}
 
-      <footer className="border-t border-slate-200 py-6 px-6 text-xs text-slate-500">
+      <footer className="border-t border-slate-200 bg-white py-6 px-6 text-xs text-slate-500">
         <div className="max-w-7xl mx-auto flex items-center gap-2">
           <span className="font-bold text-slate-900 tracking-tight">VETTER</span>
           <span>&middot; Skills-based hiring</span>

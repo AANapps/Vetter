@@ -38,8 +38,8 @@
 
 @layer base {
   html, body {
-    background-color: #6d5ce0;
-    color: #ffffff;
+    background-color: #ffffff;
+    color: #0f172a;
     font-family: 'Source Sans 3', -apple-system, system-ui, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', 'Fira Sans', Ubuntu, Oxygen, 'Oxygen Sans', Cantarell, 'Droid Sans', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Lucida Grande', Helvetica, Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -70,207 +70,94 @@
 }
 
 /* ------------------------------------------------------------------
-   Pastel glass theme
-   Unlayered so it wins over Tailwind's utility layer: light surfaces
-   become frosted glass over a colourful backdrop and all text is white.
+   Glass finish for coloured elements (badges, tinted pills, buttons).
+   Unlayered so it layers over Tailwind's utilities; the page itself
+   stays white and text keeps its original colours.
    ------------------------------------------------------------------ */
 
 :root {
-  --glass-fill: rgba(255, 255, 255, 0.14);
-  --glass-fill-strong: rgba(255, 255, 255, 0.22);
-  --glass-border: rgba(255, 255, 255, 0.32);
-  --glass-shadow: 0 8px 32px rgba(49, 32, 120, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.35);
-  --glass-blur: blur(18px) saturate(160%);
-
-  --pastel-lavender: rgba(196, 186, 255, 0.34);
-  --pastel-mint: rgba(167, 243, 208, 0.26);
-  --pastel-butter: rgba(253, 230, 138, 0.26);
-  --pastel-blush: rgba(254, 205, 211, 0.28);
-
-  --text-strong: #ffffff;
-  --text-muted: rgba(255, 255, 255, 0.82);
-  --text-faint: rgba(255, 255, 255, 0.66);
+  --glass-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.65) 0%, rgba(255, 255, 255, 0.15) 48%, rgba(255, 255, 255, 0) 52%);
+  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 0 rgba(255, 255, 255, 0.25);
+  --glass-blur: blur(12px) saturate(170%);
 }
 
-html,
-.glass-backdrop {
-  background:
-    radial-gradient(circle at 12% 18%, rgba(255, 170, 214, 0.55), transparent 42%),
-    radial-gradient(circle at 88% 12%, rgba(130, 196, 255, 0.55), transparent 45%),
-    radial-gradient(circle at 70% 85%, rgba(172, 140, 255, 0.6), transparent 50%),
-    linear-gradient(135deg, #6d5ce0 0%, #9a6bd8 40%, #c86fae 70%, #5b8fd8 100%);
-  background-attachment: fixed;
-  color: var(--text-strong);
-}
-
-body {
-  background: transparent !important;
-  text-shadow: 0 1px 2px rgba(40, 20, 90, 0.18);
-}
-
-/* Cards & surfaces */
-.bg-white,
-.bg-white\/95,
-.bg-slate-50,
-.bg-slate-50\/70,
-.bg-slate-50\/80 {
-  background-color: var(--glass-fill) !important;
-  border-color: var(--glass-border) !important;
-  box-shadow: var(--glass-shadow);
+/* Tinted pills, badges and panels */
+.bg-indigo-50, .bg-indigo-50\/20, .bg-indigo-50\/40, .bg-indigo-50\/50,
+.bg-indigo-50\/60, .bg-indigo-50\/70, .bg-indigo-100, .bg-indigo-100\/70,
+.bg-emerald-50, .bg-emerald-50\/80, .bg-emerald-100\/70,
+.bg-amber-50, .bg-amber-50\/60, .bg-amber-100,
+.bg-rose-50, .bg-rose-50\/80 {
+  background-image: var(--glass-sheen);
   -webkit-backdrop-filter: var(--glass-blur);
   backdrop-filter: var(--glass-blur);
 }
-
-header.bg-white\/95 {
-  background-color: rgba(255, 255, 255, 0.12) !important;
-  box-shadow: 0 4px 24px rgba(49, 32, 120, 0.15);
-}
-
-.bg-slate-100,
-.bg-slate-200,
-.bg-slate-200\/60 {
-  background-color: rgba(255, 255, 255, 0.18) !important;
-}
-
-/* Pastel tinted glass */
 .bg-indigo-50, .bg-indigo-50\/20, .bg-indigo-50\/40, .bg-indigo-50\/50,
 .bg-indigo-50\/60, .bg-indigo-50\/70, .bg-indigo-100, .bg-indigo-100\/70 {
-  background-color: var(--pastel-lavender) !important;
+  background-color: rgba(196, 186, 255, 0.28);
+  box-shadow: var(--glass-highlight), 0 2px 10px rgba(91, 80, 229, 0.1);
 }
 .bg-emerald-50, .bg-emerald-50\/80, .bg-emerald-100\/70 {
-  background-color: var(--pastel-mint) !important;
+  background-color: rgba(167, 243, 208, 0.32);
+  box-shadow: var(--glass-highlight), 0 2px 10px rgba(16, 185, 129, 0.1);
 }
 .bg-amber-50, .bg-amber-50\/60, .bg-amber-100 {
-  background-color: var(--pastel-butter) !important;
+  background-color: rgba(253, 230, 138, 0.32);
+  box-shadow: var(--glass-highlight), 0 2px 10px rgba(217, 119, 6, 0.1);
 }
 .bg-rose-50, .bg-rose-50\/80 {
-  background-color: var(--pastel-blush) !important;
+  background-color: rgba(254, 205, 211, 0.34);
+  box-shadow: var(--glass-highlight), 0 2px 10px rgba(225, 29, 72, 0.1);
 }
 
-/* Light gradient cards (skill tier badges) */
-[class*="from-slate-50"],
-[class*="from-indigo-50"],
-[class*="from-amber-50"] {
-  background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.08)) !important;
+/* Skill tier badges (gold / silver / bronze gradients) */
+.bg-gradient-to-r[class*="via-white"],
+.bg-gradient-to-br[class*="via-white"] {
+  background-image: var(--glass-sheen), linear-gradient(to bottom right, var(--tw-gradient-stops));
+  box-shadow: var(--glass-highlight), 0 4px 16px rgba(91, 80, 229, 0.08);
   -webkit-backdrop-filter: var(--glass-blur);
   backdrop-filter: var(--glass-blur);
 }
-.from-amber-50 {
-  background-color: var(--pastel-butter) !important;
-}
-[class*="from-indigo-50"] {
-  background-color: var(--pastel-lavender) !important;
+.from-amber-50.bg-gradient-to-r,
+.from-amber-50.bg-gradient-to-br {
+  --tw-gradient-from: rgba(253, 230, 138, 0.45);
+  box-shadow: var(--glass-highlight), 0 4px 16px rgba(217, 119, 6, 0.12);
 }
 
-/* Buttons: pastel glass */
+/* Buttons */
 button.bg-indigo-600,
-a.bg-indigo-600,
-button.bg-slate-900,
-button.bg-amber-500 {
-  background-color: var(--pastel-lavender) !important;
-  border: 1px solid rgba(255, 255, 255, 0.45) !important;
-  box-shadow: 0 4px 18px rgba(80, 60, 200, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+a.bg-indigo-600 {
+  background-color: rgba(91, 80, 229, 0.82);
+  background-image: var(--glass-sheen);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 4px 14px rgba(91, 80, 229, 0.3);
   -webkit-backdrop-filter: var(--glass-blur);
   backdrop-filter: var(--glass-blur);
-  color: var(--text-strong) !important;
+}
+button.bg-indigo-600:not(:disabled):hover,
+a.bg-indigo-600:hover {
+  background-color: rgba(75, 62, 208, 0.9);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 6px 20px rgba(91, 80, 229, 0.38);
+}
+button.bg-slate-900 {
+  background-color: rgba(15, 23, 42, 0.82);
+  background-image: var(--glass-sheen);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 4px 14px rgba(15, 23, 42, 0.25);
 }
 button.bg-amber-500 {
-  background-color: rgba(253, 220, 140, 0.4) !important;
-}
-button:not(:disabled):hover.bg-indigo-600,
-a:hover.bg-indigo-600,
-button:not(:disabled):hover.bg-slate-900,
-button:not(:disabled):hover.bg-amber-500 {
-  background-color: rgba(214, 206, 255, 0.5) !important;
+  background-color: rgba(245, 158, 11, 0.85);
+  background-image: var(--glass-sheen);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 4px 14px rgba(217, 119, 6, 0.3);
 }
 button.bg-white,
 button.bg-slate-50,
 button.bg-slate-100 {
-  border: 1px solid var(--glass-border);
-}
-button:disabled {
-  opacity: 0.55;
-}
-
-/* Non-button brand fills (progress bars, dots, pills) become solid pastel */
-.bg-indigo-600:not(button):not(a) {
-  background-color: #cfc6ff !important;
-}
-.from-indigo-600 {
-  --tw-gradient-from: #d9d1ff !important;
-}
-.to-violet-500 {
-  --tw-gradient-to: #f4c6ec !important;
-}
-
-/* Hover surfaces */
-.hover\:bg-white:hover,
-.hover\:bg-slate-50:hover,
-.hover\:bg-slate-100:hover,
-.hover\:bg-slate-200:hover,
-.hover\:bg-indigo-50:hover,
-.hover\:bg-indigo-50\/40:hover,
-.hover\:bg-indigo-50\/70:hover,
-.hover\:bg-indigo-100:hover {
-  background-color: var(--glass-fill-strong) !important;
-}
-
-/* Text: everything white, with opacity tiers for hierarchy */
-[class*="text-slate-9"], [class*="text-slate-8"], [class*="text-slate-7"],
-[class*="text-indigo-"], [class*="text-violet-"],
-[class*="hover:text-"]:hover {
-  color: var(--text-strong) !important;
-}
-[class*="text-slate-6"], [class*="text-slate-5"] {
-  color: var(--text-muted) !important;
-}
-[class*="text-slate-4"], [class*="text-slate-3"] {
-  color: var(--text-faint) !important;
-}
-/* Status colours keep a pastel hint so pass/fail still reads */
-[class*="text-emerald-"] { color: #c9fbe0 !important; }
-[class*="text-amber-"] { color: #fff0bf !important; }
-[class*="text-rose-"] { color: #ffe0e5 !important; }
-
-/* Borders & dividers */
-[class*="border-slate-"], [class*="border-indigo-"], [class*="border-emerald-"],
-[class*="border-amber-"], [class*="border-rose-"],
-[class*="divide-slate-"] > * {
-  border-color: var(--glass-border) !important;
-}
-[class*="hover:border-"]:hover {
-  border-color: rgba(255, 255, 255, 0.6) !important;
-}
-
-/* Form fields */
-input, textarea, select {
-  color: var(--text-strong);
-}
-input::placeholder, textarea::placeholder {
-  color: rgba(255, 255, 255, 0.6) !important;
-}
-.focus\:bg-white:focus {
-  background-color: var(--glass-fill-strong) !important;
-}
-option {
-  color: #1f1a58;
-  background: #ffffff;
-}
-
-/* Code editors stay dark for readability */
-.bg-slate-950,
-textarea.bg-slate-900 {
-  background-color: rgba(20, 14, 50, 0.72) !important;
+  background-color: rgba(255, 255, 255, 0.6);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(241, 245, 249, 0.55));
+  box-shadow: inset 0 1px 0 #ffffff, 0 2px 8px rgba(15, 23, 42, 0.06);
   -webkit-backdrop-filter: var(--glass-blur);
   backdrop-filter: var(--glass-blur);
 }
-
-/* Modal scrims */
-.bg-slate-900\/60 {
-  background-color: rgba(40, 24, 100, 0.45) !important;
-}
-
-::selection {
-  background: rgba(255, 255, 255, 0.35);
-  color: #fff;
+button.bg-white:not(:disabled):hover,
+button.bg-slate-50:not(:disabled):hover {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(235, 232, 253, 0.7));
 }
