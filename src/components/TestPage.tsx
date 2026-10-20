@@ -11,6 +11,7 @@ interface TestPageProps {
   viewerRole: UserRole;
   currentCandidateId?: string;
   onStartTest: (test: AssessmentTest) => void;
+  onOpenJob?: (jobId: string) => void;
   onBack: () => void;
 }
 
@@ -23,6 +24,7 @@ export const TestPage: React.FC<TestPageProps> = ({
   viewerRole,
   currentCandidateId,
   onStartTest,
+  onOpenJob,
   onBack,
 }) => {
   const leaderboard = getLeaderboard(test.id, candidates);
@@ -149,7 +151,14 @@ export const TestPage: React.FC<TestPageProps> = ({
               <div className="font-semibold text-slate-900">Required by</div>
               {usedByJobs.map((j) => (
                 <div key={j.id} className="text-slate-600">
-                  {j.title} <span className="text-slate-400">&middot; {j.companyName}</span>
+                  {onOpenJob ? (
+                    <button onClick={() => onOpenJob(j.id)} className="hover:text-indigo-700 hover:underline text-left">
+                      {j.title}
+                    </button>
+                  ) : (
+                    j.title
+                  )}{' '}
+                  <span className="text-slate-400">&middot; {j.companyName}</span>
                 </div>
               ))}
             </div>

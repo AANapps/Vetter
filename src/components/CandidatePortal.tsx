@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { User, AssessmentTest, JobPosting, CandidateJobMatch, Business } from '../types';
-import { rankJobsForCandidate, getBestTestScore } from '../lib/matchingAlgorithm';
+import { rankJobsForCandidate, getBestTestScore, calculateCandidateJobMatch } from '../lib/matchingAlgorithm';
 import { getLeaderboard, getTestStats } from '../lib/leaderboard';
 import {
   Award,
@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { VerifiedSkillBadge } from './VerifiedSkillBadge';
 import { JobApplicationModal } from './JobApplicationModal';
-import { JobDetailsModal } from './JobDetails';
+import { JobDetailsModal, JobPage } from './JobDetails';
 
 export type CandidateSection = 'profile' | 'jobs' | 'tests';
 
@@ -32,6 +32,9 @@ interface CandidatePortalProps {
   onStartTest: (test: AssessmentTest) => void;
   onStartAttachedTest?: (test: AssessmentTest, forJobId: string) => void;
   onApplyJob: (jobId: string) => void;
+  // Set when the candidate is on a job's own page (#/jobs/<id>)
+  jobPageId?: string | null;
+  onOpenJob: (jobId: string) => void;
 }
 
 export const CandidatePortal: React.FC<CandidatePortalProps> = ({
@@ -46,6 +49,8 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   onStartTest,
   onStartAttachedTest,
   onApplyJob,
+  jobPageId,
+  onOpenJob,
 }) => {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [openJobId, setOpenJobId] = useState<string | null>(null);
@@ -79,8 +84,34 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
     });
 
   const openJob = openJobId ? jobs.find((j) => j.id === openJobId) : undefined;
-  const openJobMatch = rankedJobs.find((m) => m.jobId === openJobId);
   const closeJob = useCallback(() => setOpenJobId(null), []);
+  const jobPage = jobPageId ? jobs.find((j) => j.id === jobPageId) : undefined;
+  // On a job page the sections give way to the job
+  const view = jobPage ? 'job' : section;
+
+  // The pop-up and the job page do the same things; the pop-up closes itself first
+  const jobDetailsProps = (job: JobPosting, beforeLeaving: () => void = () => {}) => ({
+    job,
+    match: calculateCandidateJobMatch(candidate, job),
+    candidate,
+    allCandidates,
+    tests,
+    business: businesses.find((b) => b.id === job.businessId),
+    isApplied: !!candidate.appliedJobIds?.includes(job.id),
+    onApply: () => {
+      beforeLeaving();
+      setSelectedJobForApplication(job);
+    },
+    onStartAttachedTest: (test: AssessmentTest) => {
+      beforeLeaving();
+      if (onStartAttachedTest) onStartAttachedTest(test, job.id);
+      else onStartTest(test);
+    },
+    onOpenTest: (testId: string) => {
+      beforeLeaving();
+      onOpenTest(testId);
+    },
+  });
 
   const appliedJobs = jobs.filter((j) => candidate.appliedJobIds?.includes(j.id));
 
@@ -106,7 +137,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
       )}
 
       {/* Hero: Candidate Profile & Verification Passport Overview */}
-      {section === 'profile' && (
+      {view === 'profile' && (
       <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 space-y-6 shadow-xs">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-start sm:items-center gap-5">
@@ -216,7 +247,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
       )}
 
       {/* SECTION 1: VERIFIED SKILL PASSPORT */}
-      {section === 'profile' && (
+      {view === 'profile' && (
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
@@ -322,7 +353,9 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                         className="w-8 h-8 rounded-lg object-cover border border-slate-200"
                       />
                       <div>
-                        <div className="font-bold text-slate-900">{job.title}</div>
+                        <button onClick={() => onOpenJob(job.id)} className="font-bold text-slate-900 hover:text-indigo-700 transition-colors text-left">
+                          {job.title}
+                        </button>
                         <div className="text-slate-500">{job.companyName} &middot; {job.location}</div>
                       </div>
                     </div>
@@ -339,7 +372,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
       )}
 
       {/* SECTION 2: JOB BOARD */}
-      {section === 'jobs' && (
+      {view === 'jobs' && (
         <div className="space-y-6">
           <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
             <div>
@@ -550,7 +583,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
       )}
 
       {/* SECTION 3: VETTER TESTS */}
-      {section === 'tests' && (
+      {view === 'tests' && (
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
@@ -660,29 +693,16 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
         </div>
       )}
 
+      {jobPage && <JobPage {...jobDetailsProps(jobPage)} onBack={() => onNavigate('jobs')} />}
+
       {/* Full job listing pop-up */}
-      {openJob && openJobMatch && (
+      {openJob && (
         <JobDetailsModal
-          job={openJob}
-          match={openJobMatch}
-          candidate={candidate}
-          allCandidates={allCandidates}
-          tests={tests}
-          business={businesses.find((b) => b.id === openJob.businessId)}
-          isApplied={!!candidate.appliedJobIds?.includes(openJob.id)}
+          {...jobDetailsProps(openJob, closeJob)}
           onClose={closeJob}
-          onApply={() => {
+          onOpenPage={() => {
             closeJob();
-            setSelectedJobForApplication(openJob);
-          }}
-          onStartAttachedTest={(test) => {
-            closeJob();
-            if (onStartAttachedTest) onStartAttachedTest(test, openJob.id);
-            else onStartTest(test);
-          }}
-          onOpenTest={(testId) => {
-            closeJob();
-            onOpenTest(testId);
+            onOpenJob(openJob.id);
           }}
         />
       )}

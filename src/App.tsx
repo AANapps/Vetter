@@ -26,15 +26,17 @@ const BUSINESS_SECTIONS: Partial<Record<AppTab, BusinessSection>> = {
 
 const today = () => new Date().toISOString().split('T')[0];
 
-// Test pages live at #/tests/<id> so they can be linked to and the back button works
-const testIdFromHash = () => {
-  const match = window.location.hash.match(/^#\/tests\/(.+)$/);
+// Test and job pages live at #/tests/<id> and #/jobs/<id> so they can be linked to and the back button works
+const idFromHash = (kind: 'tests' | 'jobs') => {
+  const match = window.location.hash.match(new RegExp(`^#/${kind}/(.+)$`));
   return match ? decodeURIComponent(match[1]) : null;
 };
 
+const initialTab = (): AppTab => (idFromHash('jobs') ? 'jobs' : idFromHash('tests') ? 'tests' : 'profile');
+
 export default function App() {
   const [activeRole, setActiveRole] = useState<UserRole>('candidate');
-  const [currentTab, setCurrentTab] = useState<AppTab>('profile');
+  const [currentTab, setCurrentTab] = useState<AppTab>(initialTab);
 
   // Core data: candidates, jobs, tests and companies, loaded from the store and saved on every change
   const [initialData] = useState(loadData);
@@ -49,9 +51,13 @@ export default function App() {
     saveData({ candidate, otherCandidates, jobs, tests });
   }, [candidate, otherCandidates, jobs, tests]);
 
-  const [testPageId, setTestPageId] = useState<string | null>(testIdFromHash);
+  const [testPageId, setTestPageId] = useState<string | null>(() => idFromHash('tests'));
+  const [jobPageId, setJobPageId] = useState<string | null>(() => idFromHash('jobs'));
   useEffect(() => {
-    const onHashChange = () => setTestPageId(testIdFromHash());
+    const onHashChange = () => {
+      setTestPageId(idFromHash('tests'));
+      setJobPageId(idFromHash('jobs'));
+    };
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);
   }, []);
@@ -72,6 +78,7 @@ export default function App() {
     if (window.location.hash) {
       history.pushState(null, '', window.location.pathname + window.location.search);
       setTestPageId(null);
+      setJobPageId(null);
     }
     setCurrentTab(tab);
   };
@@ -79,6 +86,12 @@ export default function App() {
   const openTestPage = (testId: string) => {
     setCurrentTab(activeRole === 'candidate' ? 'tests' : 'business-tests');
     window.location.hash = `/tests/${encodeURIComponent(testId)}`;
+    window.scrollTo(0, 0);
+  };
+
+  const openJobPage = (jobId: string) => {
+    setCurrentTab('jobs');
+    window.location.hash = `/jobs/${encodeURIComponent(jobId)}`;
     window.scrollTo(0, 0);
   };
 
@@ -173,7 +186,8 @@ export default function App() {
       } else {
         showToast(`You scored ${finalScore}/100. ${job.title} needs ${passMark} to apply. You can retake the test.`);
       }
-      goToTab('jobs');
+      // Started from the job's own page: stay there
+      if (!jobPageId) goToTab('jobs');
     } else if (!testPageId) {
       // Started from a test page: stay there so the candidate sees where they now rank
       goToTab(completedTest.type === 'standard' ? 'profile' : 'jobs');
@@ -221,6 +235,7 @@ export default function App() {
               viewerRole={activeRole}
               currentCandidateId={activeRole === 'candidate' ? candidate.id : undefined}
               onStartTest={(test) => setActiveTest(test)}
+              onOpenJob={activeRole === 'candidate' ? openJobPage : undefined}
               onBack={() => goToTab(activeRole === 'candidate' ? 'tests' : 'business-tests')}
             />
           )}
@@ -241,6 +256,8 @@ export default function App() {
                 setActiveTestJobId(forJobId);
               }}
               onApplyJob={handleApplyJob}
+              jobPageId={jobPageId}
+              onOpenJob={openJobPage}
             />
           )}
 
@@ -249,7 +266,7 @@ export default function App() {
               businesses={businesses}
               jobs={jobs}
               tests={tests}
-              onSelectJob={() => goToTab('jobs')}
+              onSelectJob={openJobPage}
             />
           )}
 

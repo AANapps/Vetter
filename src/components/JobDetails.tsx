@@ -290,8 +290,48 @@ export const JobDetails: React.FC<JobDetailsProps> = ({
   );
 };
 
-// The full listing as a pop-up over the job board
-export const JobDetailsModal: React.FC<JobDetailsProps & { onClose: () => void }> = ({ onClose, ...props }) => {
+// Company, title, pay and fit: the top of both the pop-up and the job page
+const JobHeader: React.FC<{ job: JobPosting; match: CandidateJobMatch; titleAs: 'h1' | 'h2'; children?: React.ReactNode }> = ({
+  job,
+  match,
+  titleAs: Title,
+  children,
+}) => (
+  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="flex items-start gap-4 min-w-0">
+      <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-slate-100">
+        <img src={job.companyLogo} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
+      </div>
+      <div className="space-y-1 min-w-0">
+        <div className="text-xs text-slate-500">
+          {job.companyName} &middot; {job.department}
+        </div>
+        <Title className="text-lg font-bold text-slate-900 tracking-tight">{job.title}</Title>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
+          <span className="flex items-center gap-1">
+            <MapPin className="w-3 h-3 text-slate-400" />
+            {job.location} ({job.workType})
+          </span>
+          <span aria-hidden="true">&middot;</span>
+          <span className="font-mono text-slate-700 font-medium">{job.salaryRange}</span>
+        </div>
+        {children}
+      </div>
+    </div>
+    <div className="sm:text-right shrink-0">
+      <div className="text-[11px] text-slate-500 font-medium">Your Fit</div>
+      <div className="text-2xl font-extrabold font-mono tabular-nums text-indigo-600">{match.overallFitPercentage}%</div>
+      <div className="text-[10px] text-slate-500 font-medium">{match.matchTier}</div>
+    </div>
+  </div>
+);
+
+// The full listing as a pop-up over the job board: a quick view of the job page
+export const JobDetailsModal: React.FC<JobDetailsProps & { onClose: () => void; onOpenPage: () => void }> = ({
+  onClose,
+  onOpenPage,
+  ...props
+}) => {
   const { job, match } = props;
 
   useEffect(() => {
@@ -317,31 +357,12 @@ export const JobDetailsModal: React.FC<JobDetailsProps & { onClose: () => void }
         onClick={(e) => e.stopPropagation()}
         className="bg-white rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto shadow-2xl relative text-slate-900"
       >
-        <div className="sm:sticky top-0 z-10 bg-white border-b border-slate-200 p-6 pr-14 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-start gap-4 min-w-0">
-            <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-slate-100">
-              <img src={job.companyLogo} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
-            </div>
-            <div className="space-y-1 min-w-0">
-              <div className="text-xs text-slate-500">
-                {job.companyName} &middot; {job.department}
-              </div>
-              <h2 className="text-lg font-bold text-slate-900 tracking-tight">{job.title}</h2>
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
-                <span className="flex items-center gap-1">
-                  <MapPin className="w-3 h-3 text-slate-400" />
-                  {job.location} ({job.workType})
-                </span>
-                <span aria-hidden="true">&middot;</span>
-                <span className="font-mono text-slate-700 font-medium">{job.salaryRange}</span>
-              </div>
-            </div>
-          </div>
-          <div className="sm:text-right shrink-0">
-            <div className="text-[11px] text-slate-500 font-medium">Your Fit</div>
-            <div className="text-2xl font-extrabold font-mono tabular-nums text-indigo-600">{match.overallFitPercentage}%</div>
-            <div className="text-[10px] text-slate-500 font-medium">{match.matchTier}</div>
-          </div>
+        <div className="sm:sticky top-0 z-10 bg-white border-b border-slate-200 p-6 pr-14">
+          <JobHeader job={job} match={match} titleAs="h2">
+            <button onClick={onOpenPage} className="text-xs font-semibold text-indigo-700 hover:underline">
+              Open job page &rarr;
+            </button>
+          </JobHeader>
           <button
             onClick={onClose}
             aria-label="Close"
@@ -356,3 +377,18 @@ export const JobDetailsModal: React.FC<JobDetailsProps & { onClose: () => void }
     </div>
   );
 };
+
+// The job's own page, linkable at #/jobs/<id>
+export const JobPage: React.FC<JobDetailsProps & { onBack: () => void }> = ({ onBack, ...props }) => (
+  <div className="space-y-6">
+    <button onClick={onBack} className="text-xs font-semibold text-slate-500 hover:text-indigo-700 transition-colors">
+      &larr; Job Board
+    </button>
+    <div className="bg-white rounded-2xl overflow-hidden">
+      <div className="p-6 border-b border-slate-200">
+        <JobHeader job={props.job} match={props.match} titleAs="h1" />
+      </div>
+      <JobDetails {...props} />
+    </div>
+  </div>
+);
