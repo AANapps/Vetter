@@ -674,7 +674,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                           onClick={() => onOpenTest(t.id)}
                           className="px-3.5 py-2 text-xs font-semibold text-slate-700 hover:text-indigo-700 bg-white hover:bg-indigo-50/70 border border-slate-200 hover:border-indigo-200 rounded-lg transition-colors"
                         >
-                          Leaderboard
+                          More info
                         </button>
                         <button
                           onClick={() => onStartTest(t)}
