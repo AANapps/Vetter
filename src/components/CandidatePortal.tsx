@@ -17,6 +17,7 @@ import {
 import { VerifiedSkillBadge } from './VerifiedSkillBadge';
 import { JobApplicationModal } from './JobApplicationModal';
 import { JobDetailsModal, JobPage } from './JobDetails';
+import { DiscoverSidebar } from './DiscoverSidebar';
 
 export type CandidateSection = 'profile' | 'jobs' | 'tests';
 
@@ -35,6 +36,9 @@ interface CandidatePortalProps {
   // Set when the candidate is on a job's own page (#/jobs/<id>)
   jobPageId?: string | null;
   onOpenJob: (jobId: string) => void;
+  // Follows, for the right-hand column beside the profile
+  following: string[];
+  onToggleFollow: (id: string) => void;
 }
 
 export const CandidatePortal: React.FC<CandidatePortalProps> = ({
@@ -51,6 +55,8 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   onApplyJob,
   jobPageId,
   onOpenJob,
+  following,
+  onToggleFollow,
 }) => {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [openJobId, setOpenJobId] = useState<string | null>(null);
@@ -127,8 +133,8 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   const filteredTests = vetterTests.filter((t) => categoryFilter === 'all' || t.category === categoryFilter);
 
   return (
-    // The profile reads like a LinkedIn profile: one narrow column (~804px); the boards use the full width
-    <div className={`${view === 'profile' ? 'max-w-[804px]' : 'max-w-7xl'} mx-auto px-6 py-8 space-y-8`}>
+    // The profile reads like a LinkedIn profile: an ~804px column beside the Discover sidebar; the boards use the full width
+    <div className={`${view === 'profile' ? 'max-w-[1196px]' : 'max-w-7xl'} mx-auto px-6 py-8 space-y-8`}>
       {/* Toast Notification */}
       {appliedNotification && (
         <div className="fixed bottom-6 right-6 z-50 p-4 bg-slate-900 border border-slate-800 text-white rounded-xl shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-bottom-3 duration-200">
@@ -137,8 +143,10 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
         </div>
       )}
 
-      {/* Hero: Candidate Profile & Verification Passport Overview */}
       {view === 'profile' && (
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-6 items-start">
+      <div className="min-w-0 space-y-8">
+      {/* Hero: Candidate Profile & Verification Passport Overview */}
       <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 space-y-6 shadow-xs">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-start sm:items-center gap-5">
@@ -245,10 +253,8 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
           </div>
         </div>
       </div>
-      )}
 
       {/* SECTION 1: VERIFIED SKILL PASSPORT */}
-      {view === 'profile' && (
         <div className="space-y-6">
           <div className="flex flex-col gap-3">
             <div>
@@ -370,6 +376,18 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
             )}
           </div>
         </div>
+      </div>
+
+      <DiscoverSidebar
+        viewer={candidate}
+        allCandidates={allCandidates}
+        tests={tests}
+        businesses={businesses}
+        following={following}
+        onToggleFollow={onToggleFollow}
+        onOpenTest={onOpenTest}
+      />
+      </div>
       )}
 
       {/* SECTION 2: JOB BOARD */}

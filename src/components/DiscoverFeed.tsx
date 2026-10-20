@@ -6,12 +6,11 @@ import {
   buildFeed,
   matchesFilter,
   seededKudos,
-  suggestedPeople,
   timeAgo,
-  trendingTests,
 } from '../lib/feed';
 import { getBestTestScore } from '../lib/matchingAlgorithm';
 import { Heart, MessageCircle } from 'lucide-react';
+import { DiscoverSidebar, FollowButton } from './DiscoverSidebar';
 
 interface DiscoverFeedProps {
   candidate: User;
@@ -68,8 +67,6 @@ export const DiscoverFeed: React.FC<DiscoverFeedProps> = ({
 
   // Results the candidate can attach to a post: Vetter tests they've taken
   const shareableTests = tests.filter((t) => t.type === 'standard' && getBestTestScore(candidate, t.id) !== undefined);
-  const people = suggestedPeople(allCandidates, candidate.id, social.following);
-  const trending = trendingTests(allCandidates, tests);
 
   const toggleFollow = (id: string) =>
     onSocialChange((prev) => ({
@@ -129,8 +126,8 @@ export const DiscoverFeed: React.FC<DiscoverFeedProps> = ({
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-        <div className="lg:col-span-2 space-y-4 min-w-0">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-6 items-start">
+        <div className="space-y-4 min-w-0">
           {/* Composer */}
           <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3 shadow-xs">
             <div className="flex gap-3">
@@ -228,87 +225,19 @@ export const DiscoverFeed: React.FC<DiscoverFeedProps> = ({
           )}
         </div>
 
-        {/* Side rail */}
-        <div className="space-y-4">
-          <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-4 shadow-xs">
-            <h2 className="text-sm font-bold text-slate-900">People to follow</h2>
-            {people.length === 0 ? (
-              <p className="text-xs text-slate-500">You follow everyone. Impressive.</p>
-            ) : (
-              <ul className="space-y-3">
-                {people.map(({ candidate: person, best }) => (
-                  <li key={person.id} className="flex items-center gap-3">
-                    <Avatar src={person.avatarUrl} size="sm" />
-                    <div className="min-w-0 flex-1">
-                      <div className="text-xs font-semibold text-slate-900 truncate">{person.name}</div>
-                      <div className="text-[11px] text-slate-500 truncate">
-                        {person.title} &middot; best <span className="font-mono">{best}</span>
-                      </div>
-                    </div>
-                    <FollowButton following={false} onClick={() => toggleFollow(person.id)} />
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-4 shadow-xs">
-            <h2 className="text-sm font-bold text-slate-900">Companies</h2>
-            <ul className="space-y-3">
-              {businesses.map((biz) => (
-                <li key={biz.id} className="flex items-center gap-3">
-                  <Avatar src={biz.logo} size="sm" />
-                  <div className="min-w-0 flex-1">
-                    <div className="text-xs font-semibold text-slate-900 truncate">{biz.name}</div>
-                    <div className="text-[11px] text-slate-500 truncate">{biz.industry}</div>
-                  </div>
-                  <FollowButton following={social.following.includes(biz.id)} onClick={() => toggleFollow(biz.id)} />
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {trending.length > 0 && (
-            <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-3 shadow-xs">
-              <h2 className="text-sm font-bold text-slate-900">Trending tests</h2>
-              <ol className="space-y-2.5">
-                {trending.map(({ test, attempts }, i) => (
-                  <li key={test.id} className="flex items-baseline gap-2.5 text-xs">
-                    <span className="font-mono text-slate-400 tabular-nums">{i + 1}</span>
-                    <div className="min-w-0">
-                      <button
-                        onClick={() => onOpenTest(test.id)}
-                        className="font-semibold text-slate-900 hover:text-indigo-700 text-left"
-                      >
-                        {test.title}
-                      </button>
-                      <div className="text-[11px] text-slate-500">
-                        {attempts} {attempts === 1 ? 'attempt' : 'attempts'} this month
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            </div>
-          )}
-        </div>
+        <DiscoverSidebar
+          viewer={candidate}
+          allCandidates={allCandidates}
+          tests={tests}
+          businesses={businesses}
+          following={social.following}
+          onToggleFollow={toggleFollow}
+          onOpenTest={onOpenTest}
+        />
       </div>
     </div>
   );
 };
-
-const FollowButton: React.FC<{ following: boolean; onClick: () => void }> = ({ following, onClick }) => (
-  <button
-    onClick={onClick}
-    className={`px-2.5 py-1 text-[11px] font-semibold rounded-md border transition-colors shrink-0 ${
-      following
-        ? 'text-slate-600 bg-slate-50 border-slate-200 hover:text-rose-700 hover:border-rose-200'
-        : 'text-indigo-700 bg-white border-indigo-200 hover:bg-indigo-50'
-    }`}
-  >
-    {following ? 'Following' : 'Follow'}
-  </button>
-);
 
 interface FeedCardProps {
   item: FeedItem;
