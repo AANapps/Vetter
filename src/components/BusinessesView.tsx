@@ -6,7 +6,10 @@ interface BusinessesViewProps {
   businesses: Business[];
   jobs: JobPosting[];
   tests: AssessmentTest[];
-  onSelectJob: (jobId: string) => void;
+  // Left out in the business view, which has no job pages to open
+  onSelectJob?: (jobId: string) => void;
+  // Opened from search: start filtered to this company
+  initialQuery?: string;
 }
 
 export const BusinessesView: React.FC<BusinessesViewProps> = ({
@@ -14,8 +17,9 @@ export const BusinessesView: React.FC<BusinessesViewProps> = ({
   jobs,
   tests,
   onSelectJob,
+  initialQuery = '',
 }) => {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [selectedIndustry, setSelectedIndustry] = useState('all');
 
   const industries = ['all', ...Array.from(new Set(businesses.map((b) => b.industry)))];
@@ -136,8 +140,10 @@ export const BusinessesView: React.FC<BusinessesViewProps> = ({
                       return (
                         <div
                           key={j.id}
-                          className="p-3 bg-slate-50/70 hover:bg-indigo-50/40 border border-slate-200 rounded-lg text-xs space-y-1.5 transition-colors cursor-pointer"
-                          onClick={() => onSelectJob(j.id)}
+                          className={`p-3 bg-slate-50/70 border border-slate-200 rounded-lg text-xs space-y-1.5 transition-colors ${
+                            onSelectJob ? 'hover:bg-indigo-50/40 cursor-pointer' : ''
+                          }`}
+                          onClick={onSelectJob ? () => onSelectJob(j.id) : undefined}
                         >
                           <div className="flex items-center justify-between font-semibold text-slate-900">
                             <span className="truncate">{j.title}</span>

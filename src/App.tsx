@@ -11,6 +11,8 @@ import { BusinessesView } from './components/BusinessesView';
 import { AssessmentRunner } from './components/AssessmentRunner';
 import { TestPage } from './components/TestPage';
 import { DiscoverFeed } from './components/DiscoverFeed';
+import { GlobalSearch } from './components/GlobalSearch';
+import { PersonProfileModal } from './components/PersonProfileModal';
 import { CheckCircle2 } from 'lucide-react';
 
 const CANDIDATE_SECTIONS: Partial<Record<AppTab, CandidateSection>> = {
@@ -68,6 +70,9 @@ export default function App() {
   const [activeTestJobId, setActiveTestJobId] = useState<string | null>(null);
   const [activeTest, setActiveTest] = useState<AssessmentTest | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  // Opened from search
+  const [profilePersonId, setProfilePersonId] = useState<string | null>(null);
+  const [companiesQuery, setCompaniesQuery] = useState('');
 
   const recruiterBusiness = businesses.find((b) => b.id === recruiter.businessId)!;
 
@@ -96,6 +101,19 @@ export default function App() {
     window.location.hash = `/jobs/${encodeURIComponent(jobId)}`;
     window.scrollTo(0, 0);
   };
+
+  // A company from search: the Companies page, filtered to it
+  const openCompany = (businessId: string) => {
+    setCompaniesQuery(businesses.find((b) => b.id === businessId)?.name ?? '');
+    goToTab('companies');
+    window.scrollTo(0, 0);
+  };
+
+  const toggleFollow = (id: string) =>
+    setSocial((prev) => ({
+      ...prev,
+      following: prev.following.includes(id) ? prev.following.filter((f) => f !== id) : [...prev.following, id],
+    }));
 
   // Switch between Candidate & Business views
   const handleRoleToggle = () => {
@@ -214,20 +232,37 @@ export default function App() {
   const allCandidates = [candidate, ...otherCandidates];
   const testPageTest = testPageId ? tests.find((t) => t.id === testPageId) : undefined;
   const candidateSection = CANDIDATE_SECTIONS[currentTab];
+  const profilePerson = profilePersonId ? allCandidates.find((c) => c.id === profilePersonId) : undefined;
   const businessSection = BUSINESS_SECTIONS[currentTab];
 
   return (
-    <div className="min-h-screen bg-white text-slate-900 flex flex-col lg:flex-row font-sans selection:bg-indigo-600 selection:text-white">
+    <div className="min-h-screen bg-white text-slate-900 flex flex-col font-sans selection:bg-indigo-600 selection:text-white">
       <Navigation
         currentTab={currentTab}
-        onTabChange={goToTab}
+        onTabChange={(tab) => {
+          setCompaniesQuery('');
+          goToTab(tab);
+        }}
         activeRole={activeRole}
         onRoleToggle={handleRoleToggle}
         userAvatar={activeRole === 'candidate' ? candidate.avatarUrl : recruiter.avatarUrl}
         userName={activeRole === 'candidate' ? candidate.name : recruiter.name}
+        userTitle={activeRole === 'candidate' ? candidate.title : `${recruiter.title} · ${recruiterBusiness.name}`}
+        renderSearch={(mobile) => (
+          <GlobalSearch
+            people={allCandidates}
+            tests={tests}
+            businesses={businesses}
+            onOpenPerson={setProfilePersonId}
+            onOpenTest={openTestPage}
+            onOpenCompany={openCompany}
+            onClose={mobile?.onClose}
+            autoFocus={!!mobile}
+          />
+        )}
       />
 
-      <div className="flex-1 min-w-0 flex flex-col">
+      <div className="flex-1 min-w-0 flex flex-col pb-14 md:pb-0">
         <main className="flex-1 pb-16 bg-white">
           {testPageTest && (
             <TestPage
@@ -277,12 +312,14 @@ export default function App() {
             />
           )}
 
-          {!testPageTest && activeRole === 'candidate' && currentTab === 'companies' && (
+          {!testPageTest && currentTab === 'companies' && (
             <BusinessesView
+              key={companiesQuery}
               businesses={businesses}
               jobs={jobs}
               tests={tests}
-              onSelectJob={openJobPage}
+              onSelectJob={activeRole === 'candidate' ? openJobPage : undefined}
+              initialQuery={companiesQuery}
             />
           )}
 
@@ -323,6 +360,16 @@ export default function App() {
           }}
           onComplete={handleCompleteAssessment}
           getPercentileFor={(score) => getPercentile(score, activeTest.id, allCandidates, candidate.id)}
+        />
+      )}
+
+      {profilePerson && (
+        <PersonProfileModal
+          person={profilePerson}
+          isYou={activeRole === 'candidate' && profilePerson.id === candidate.id}
+          isFollowing={social.following.includes(profilePerson.id)}
+          onToggleFollow={activeRole === 'candidate' ? () => toggleFollow(profilePerson.id) : undefined}
+          onClose={() => setProfilePersonId(null)}
         />
       )}
 
