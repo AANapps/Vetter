@@ -187,11 +187,11 @@
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
-.tier-solid-gold { --tier-solid-from: #ffc400; --tier-solid-to: #ff7a00; }
-.tier-solid-silver { --tier-solid-from: rgb(var(--vivid-violet)); --tier-solid-to: rgb(var(--vivid-magenta)); }
-.tier-solid-bronze { --tier-solid-from: #f59a4a; --tier-solid-to: #c8561c; }
-.tier-solid-metal { --tier-solid-from: #a9b6c8; --tier-solid-to: #64748b; }
-.tier-solid-developing { --tier-solid-from: #94a3b8; --tier-solid-to: #64748b; }
+.tier-solid-gold { --tier-solid-from: #e5b94e; --tier-solid-to: #c98f2e; }
+.tier-solid-silver { --tier-solid-from: #8077d6; --tier-solid-to: #9a7cc9; }
+.tier-solid-bronze { --tier-solid-from: #cf9467; --tier-solid-to: #a8673f; }
+.tier-solid-metal { --tier-solid-from: #b3bdca; --tier-solid-to: #7f8ca0; }
+.tier-solid-developing { --tier-solid-from: #a3aebd; --tier-solid-to: #7b8799; }
 
 /* ---- Buttons ---- */
 button.bg-indigo-600,
