@@ -127,7 +127,8 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   const filteredTests = vetterTests.filter((t) => categoryFilter === 'all' || t.category === categoryFilter);
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
+    // The profile reads like a LinkedIn profile: one narrow column (~804px); the boards use the full width
+    <div className={`${view === 'profile' ? 'max-w-[804px]' : 'max-w-7xl'} mx-auto px-6 py-8 space-y-8`}>
       {/* Toast Notification */}
       {appliedNotification && (
         <div className="fixed bottom-6 right-6 z-50 p-4 bg-slate-900 border border-slate-800 text-white rounded-xl shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-bottom-3 duration-200">
@@ -249,7 +250,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
       {/* SECTION 1: VERIFIED SKILL PASSPORT */}
       {view === 'profile' && (
         <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex flex-col gap-3">
             <div>
               <h2 className="text-base font-bold text-slate-900">Verified Skill Credentials & Badges</h2>
               <p className="text-xs text-slate-500">
@@ -258,7 +259,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
             </div>
 
             {/* Threshold Guide Badge Ribbon */}
-            <div className="flex items-center gap-2 text-xs font-mono p-1 bg-white border border-slate-200 rounded-lg shadow-2xs">
+            <div className="self-start flex flex-wrap items-center gap-2 text-xs font-mono p-1 bg-white border border-slate-200 rounded-lg shadow-2xs whitespace-nowrap">
               <span className="px-2 py-1 text-amber-700 font-bold flex items-center gap-1">
                 <Crown className="w-3.5 h-3.5 text-amber-600" />
                 <span>95+ Gold</span>
@@ -297,7 +298,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
           )}
 
           {/* Grid of All Verified Skill Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {candidate.verifiedSkills.map((skill) => (
               <VerifiedSkillBadge
                 key={skill.skillId}
