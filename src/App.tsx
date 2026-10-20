@@ -201,7 +201,7 @@ export default function App() {
   const businessSection = BUSINESS_SECTIONS[currentTab];
 
   return (
-    <div className="min-h-screen bg-white text-slate-900 flex flex-col font-sans selection:bg-indigo-600 selection:text-white">
+    <div className="min-h-screen bg-white text-slate-900 flex flex-col lg:flex-row font-sans selection:bg-indigo-600 selection:text-white">
       <Navigation
         currentTab={currentTab}
         onTabChange={goToTab}
@@ -211,62 +211,74 @@ export default function App() {
         userName={activeRole === 'candidate' ? candidate.name : recruiter.name}
       />
 
-      <main className="flex-1 pb-16 bg-white">
-        {testPageTest && (
-          <TestPage
-            test={testPageTest}
-            candidates={allCandidates}
-            jobs={jobs}
-            viewerRole={activeRole}
-            currentCandidateId={activeRole === 'candidate' ? candidate.id : undefined}
-            onStartTest={(test) => setActiveTest(test)}
-            onBack={() => goToTab(activeRole === 'candidate' ? 'tests' : 'business-tests')}
-          />
-        )}
+      <div className="flex-1 min-w-0 flex flex-col">
+        <main className="flex-1 pb-16 bg-white">
+          {testPageTest && (
+            <TestPage
+              test={testPageTest}
+              candidates={allCandidates}
+              jobs={jobs}
+              viewerRole={activeRole}
+              currentCandidateId={activeRole === 'candidate' ? candidate.id : undefined}
+              onStartTest={(test) => setActiveTest(test)}
+              onBack={() => goToTab(activeRole === 'candidate' ? 'tests' : 'business-tests')}
+            />
+          )}
 
-        {!testPageTest && activeRole === 'candidate' && candidateSection && (
-          <CandidatePortal
-            section={candidateSection}
-            onNavigate={(section) => goToTab(section)}
-            candidate={candidate}
-            allCandidates={allCandidates}
-            onOpenTest={openTestPage}
-            tests={tests}
-            jobs={jobs}
-            onStartTest={(test) => setActiveTest(test)}
-            onStartAttachedTest={(test, forJobId) => {
-              setActiveTest(test);
-              setActiveTestJobId(forJobId);
-            }}
-            onApplyJob={handleApplyJob}
-          />
-        )}
+          {!testPageTest && activeRole === 'candidate' && candidateSection && (
+            <CandidatePortal
+              section={candidateSection}
+              onNavigate={(section) => goToTab(section)}
+              candidate={candidate}
+              allCandidates={allCandidates}
+              onOpenTest={openTestPage}
+              tests={tests}
+              jobs={jobs}
+              onStartTest={(test) => setActiveTest(test)}
+              onStartAttachedTest={(test, forJobId) => {
+                setActiveTest(test);
+                setActiveTestJobId(forJobId);
+              }}
+              onApplyJob={handleApplyJob}
+            />
+          )}
 
-        {!testPageTest && activeRole === 'candidate' && currentTab === 'companies' && (
-          <BusinessesView
-            businesses={businesses}
-            jobs={jobs}
-            tests={tests}
-            onSelectJob={() => goToTab('jobs')}
-          />
-        )}
+          {!testPageTest && activeRole === 'candidate' && currentTab === 'companies' && (
+            <BusinessesView
+              businesses={businesses}
+              jobs={jobs}
+              tests={tests}
+              onSelectJob={() => goToTab('jobs')}
+            />
+          )}
 
-        {!testPageTest && activeRole === 'recruiter' && businessSection && (
-          <RecruiterPortal
-            section={businessSection}
-            onNavigate={(section) => goToTab(`business-${section}`)}
-            onOpenTest={openTestPage}
-            recruiter={recruiter}
-            business={recruiterBusiness}
-            jobs={jobs}
-            allCandidates={allCandidates}
-            tests={tests}
-            onCreateJob={handleCreateJob}
-            onUpdateJobRequirements={handleUpdateJobRequirements}
-            onCreateCustomAssessment={handleCreateCustomAssessment}
-          />
-        )}
-      </main>
+          {!testPageTest && activeRole === 'recruiter' && businessSection && (
+            <RecruiterPortal
+              section={businessSection}
+              onNavigate={(section) => goToTab(`business-${section}`)}
+              onOpenTest={openTestPage}
+              recruiter={recruiter}
+              business={recruiterBusiness}
+              jobs={jobs}
+              allCandidates={allCandidates}
+              tests={tests}
+              onCreateJob={handleCreateJob}
+              onUpdateJobRequirements={handleUpdateJobRequirements}
+              onCreateCustomAssessment={handleCreateCustomAssessment}
+            />
+          )}
+        </main>
+
+        <footer className="border-t border-slate-200 bg-white py-6 px-6 text-xs text-slate-500">
+          <div className="max-w-7xl mx-auto flex items-center gap-2">
+            <span className="font-bold text-slate-900 tracking-tight">VETTER</span>
+            <span>&middot; Skills-based hiring</span>
+            <button onClick={handleResetData} className="ml-auto text-slate-400 hover:text-slate-700 transition-colors">
+              Reset demo data
+            </button>
+          </div>
+        </footer>
+      </div>
 
       {activeTest && (
         <AssessmentRunner
@@ -286,16 +298,6 @@ export default function App() {
           <div className="text-xs font-medium">{toast}</div>
         </div>
       )}
-
-      <footer className="border-t border-slate-200 bg-white py-6 px-6 text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto flex items-center gap-2">
-          <span className="font-bold text-slate-900 tracking-tight">VETTER</span>
-          <span>&middot; Skills-based hiring</span>
-          <button onClick={handleResetData} className="ml-auto text-slate-400 hover:text-slate-700 transition-colors">
-            Reset demo data
-          </button>
-        </div>
-      </footer>
     </div>
   );
 }
