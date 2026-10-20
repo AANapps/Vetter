@@ -126,47 +126,9 @@ export const JobDetails: React.FC<JobDetailsProps> = ({
   );
 
   return (
-    <div>
-      {/* Top: the tests for this job beside the at-a-glance details */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 border-b border-slate-200">
-        <section className="lg:col-span-2 p-6 space-y-3 lg:border-r border-slate-200">
-          <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-            <h3 className="text-sm font-bold text-slate-900">Tests for this job</h3>
-            <span className="text-[11px] text-slate-500">Your scores decide your fit</span>
-          </div>
-          {testRows}
-        </section>
-
-        <aside className="p-6 border-t lg:border-t-0 border-slate-200 text-xs space-y-5">
-          <div>
-            <h4 className="text-sm font-bold text-slate-900 mb-1">Job details</h4>
-            <dl className="divide-y divide-slate-100">
-              <Detail label="Pay" value={job.salaryRange} note="a year" />
-              {job.employmentType && <Detail label="Job type" value={job.employmentType} />}
-              <Detail label="Work setting" value={job.workType} />
-              <Detail label="Location" value={job.location} />
-              {job.experienceLevel && <Detail label="Experience" value={job.experienceLevel} />}
-              <Detail label="Department" value={job.department} />
-            </dl>
-          </div>
-
-          <div>
-            <h4 className="text-sm font-bold text-slate-900 mb-1">Dates</h4>
-            <dl className="divide-y divide-slate-100">
-              <Detail label="Posted" value={formatDate(job.postedDate)} note={postedAgo(job.postedDate)} />
-              {job.closingDate && (
-                <Detail label="Applications close" value={formatDate(job.closingDate)} note={closesIn(job.closingDate)} />
-              )}
-              {job.startDate && <Detail label="Start date" value={job.startDate} />}
-            </dl>
-          </div>
-
-          <div className="text-slate-500">{job.applicantCount} people have applied</div>
-        </aside>
-      </div>
-
-      {/* Below: the full description */}
-      <div className="p-6 space-y-7 max-w-3xl">
+    <div className="grid grid-cols-1 lg:grid-cols-3">
+      {/* Left: the full description */}
+      <div className="lg:col-span-2 p-6 space-y-7 lg:border-r border-slate-200">
         <div className="space-y-2">
           <h4 className="text-sm font-bold text-slate-900">Full job description</h4>
           <p className="text-xs text-slate-700 leading-relaxed">{job.description}</p>
@@ -207,6 +169,42 @@ export const JobDetails: React.FC<JobDetailsProps> = ({
           </div>
         )}
       </div>
+
+      {/* Right: job details, dates, then the tests for this job */}
+      <aside className="p-6 border-t lg:border-t-0 border-slate-200 text-xs space-y-5">
+          <div>
+            <h4 className="text-sm font-bold text-slate-900 mb-1">Job details</h4>
+            <dl className="divide-y divide-slate-100">
+              <Detail label="Pay" value={job.salaryRange} note="a year" />
+              {job.employmentType && <Detail label="Job type" value={job.employmentType} />}
+              <Detail label="Work setting" value={job.workType} />
+              <Detail label="Location" value={job.location} />
+              {job.experienceLevel && <Detail label="Experience" value={job.experienceLevel} />}
+              <Detail label="Department" value={job.department} />
+            </dl>
+          </div>
+
+          <div>
+            <h4 className="text-sm font-bold text-slate-900 mb-1">Dates</h4>
+            <dl className="divide-y divide-slate-100">
+              <Detail label="Posted" value={formatDate(job.postedDate)} note={postedAgo(job.postedDate)} />
+              {job.closingDate && (
+                <Detail label="Applications close" value={formatDate(job.closingDate)} note={closesIn(job.closingDate)} />
+              )}
+              {job.startDate && <Detail label="Start date" value={job.startDate} />}
+            </dl>
+          </div>
+
+          <div className="text-slate-500">{job.applicantCount} people have applied</div>
+
+        <section className="space-y-2 pt-1">
+          <div>
+            <h4 className="text-sm font-bold text-slate-900">Tests for this job</h4>
+            <p className="text-[11px] text-slate-500">Your scores decide your fit</p>
+          </div>
+          {testRows}
+        </section>
+      </aside>
     </div>
   );
 };
