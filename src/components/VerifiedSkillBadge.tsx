@@ -10,10 +10,11 @@ export interface BadgeTierConfig {
   sublabel: string;
   colorName: string;
   badgeTextColor: string;
-  accentBg: string;
   borderClass: string;
   gradientBg: string;
   glowClass: string;
+  // Solid bright gradient for the badge itself (pills and icon tiles); white text sits on it
+  solidClass: string;
   ringColor: string;
   icon: React.ComponentType<{ className?: string }>;
   minScore: number;
@@ -28,11 +29,11 @@ export function getBadgeTier(score: number): BadgeTierConfig {
       sublabel: 'Top 1% Global Benchmark',
       colorName: 'Gold',
       badgeTextColor: 'text-amber-700',
-      accentBg: 'bg-amber-100',
       borderClass: 'border-amber-300',
       gradientBg: 'from-amber-50 via-white to-amber-50/50',
       glowClass: 'shadow-xs hover:border-amber-400 hover:shadow-md',
       ringColor: '#D97706',
+      solidClass: 'tier-solid tier-solid-gold',
       icon: Crown,
       minScore: 95,
       description: 'Master-level technical benchmark. Exceptional algorithmic efficiency, architecture precision, and full edge-case coverage.',
@@ -44,11 +45,11 @@ export function getBadgeTier(score: number): BadgeTierConfig {
       sublabel: 'Top 8% Global Benchmark',
       colorName: 'Silver',
       badgeTextColor: 'text-indigo-700',
-      accentBg: 'bg-indigo-100',
       borderClass: 'border-indigo-200',
       gradientBg: 'from-indigo-50/60 via-white to-purple-50/40',
       glowClass: 'shadow-xs hover:border-indigo-400 hover:shadow-md',
       ringColor: '#5B50E5',
+      solidClass: 'tier-solid tier-solid-silver',
       icon: Award,
       minScore: 88,
       description: 'High distinction engineering benchmark. Consistently exceeds senior production requirements with clean code structures.',
@@ -60,11 +61,11 @@ export function getBadgeTier(score: number): BadgeTierConfig {
       sublabel: 'Top 25% Verified Pass',
       colorName: 'Bronze',
       badgeTextColor: 'text-slate-700',
-      accentBg: 'bg-slate-100',
       borderClass: 'border-slate-200',
       gradientBg: 'from-slate-50 via-white to-slate-100/60',
       glowClass: 'shadow-xs hover:border-slate-300 hover:shadow-md',
       ringColor: '#64748B',
+      solidClass: 'tier-solid tier-solid-bronze',
       icon: ShieldCheck,
       minScore: 75,
       description: 'Standard verified technical benchmark. Meets enterprise production engineering criteria.',
@@ -76,11 +77,11 @@ export function getBadgeTier(score: number): BadgeTierConfig {
       sublabel: 'Retake to Verify',
       colorName: 'Slate',
       badgeTextColor: 'text-slate-500',
-      accentBg: 'bg-slate-100',
       borderClass: 'border-slate-200',
       gradientBg: 'from-slate-50 via-white to-slate-50',
       glowClass: 'hover:border-slate-300',
       ringColor: '#94A3B8',
+      solidClass: 'tier-solid tier-solid-developing',
       icon: Shield,
       minScore: 0,
       description: 'Completed baseline evaluation. Practice and retake the assessment to unlock verified badge status.',
@@ -122,12 +123,12 @@ export const VerifiedSkillBadge: React.FC<VerifiedSkillBadgeProps> = ({
     return (
       <div
         onClick={() => setIsModalOpen(true)}
-        className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border bg-gradient-to-r ${tier.gradientBg} ${tier.borderClass} ${tier.glowClass} cursor-pointer transition-all shadow-xs`}
+        className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg ${tier.solidClass} cursor-pointer transition-all`}
         title={`Verified: ${skill.skillName} (${skill.score}/100) · Click to view certificate`}
       >
-        <Icon className={`w-3.5 h-3.5 ${tier.badgeTextColor} shrink-0`} />
-        <span className="text-xs font-semibold text-slate-800">{skill.skillName}</span>
-        <span className={`text-xs font-mono font-bold tabular-nums ${tier.badgeTextColor}`}>
+        <Icon className="w-3.5 h-3.5 text-white shrink-0" />
+        <span className="text-xs font-semibold text-white">{skill.skillName}</span>
+        <span className="text-xs font-mono font-bold tabular-nums text-white">
           {skill.score}
         </span>
       </div>
@@ -144,9 +145,9 @@ export const VerifiedSkillBadge: React.FC<VerifiedSkillBadgeProps> = ({
         >
           <div className="flex items-center gap-3.5">
             <div
-              className={`w-11 h-11 rounded-xl ${tier.accentBg} border ${tier.borderClass} flex items-center justify-center shrink-0 shadow-xs`}
+              className={`w-11 h-11 rounded-xl ${tier.solidClass} flex items-center justify-center shrink-0`}
             >
-              <Icon className={`w-6 h-6 ${tier.badgeTextColor}`} />
+              <Icon className="w-6 h-6 text-white" />
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -196,8 +197,8 @@ export const VerifiedSkillBadge: React.FC<VerifiedSkillBadgeProps> = ({
           {/* Header Row */}
           <div className="flex items-start justify-between gap-2">
             <div className="flex items-center gap-2.5">
-              <div className={`p-2 rounded-lg ${tier.accentBg} border ${tier.borderClass}`}>
-                <Icon className={`w-4 h-4 ${tier.badgeTextColor}`} />
+              <div className={`p-2 rounded-lg ${tier.solidClass}`}>
+                <Icon className="w-4 h-4 text-white" />
               </div>
               <div>
                 <span className={`text-[10px] font-mono uppercase tracking-wider font-bold ${tier.badgeTextColor}`}>
@@ -344,9 +345,9 @@ const CertificateModal: React.FC<CertificateModalProps> = ({
         {/* Certificate Emblem Header */}
         <div className="flex items-center gap-4">
           <div
-            className={`w-14 h-14 rounded-2xl ${tier.accentBg} border-2 ${tier.borderClass} flex items-center justify-center shrink-0 shadow-sm`}
+            className={`w-14 h-14 rounded-2xl ${tier.solidClass} flex items-center justify-center shrink-0`}
           >
-            <Icon className={`w-8 h-8 ${tier.badgeTextColor}`} />
+            <Icon className="w-8 h-8 text-white" />
           </div>
           <div>
             <div className="flex items-center gap-2">

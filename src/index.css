@@ -177,6 +177,22 @@
   --tier-glow: rgba(15, 23, 42, 0.06);
 }
 
+/* Solid tier badges: pills, icon tiles and podium discs. Bright gradient, no glow */
+.tier-solid {
+  color: #ffffff;
+  background-color: var(--tier-solid-to);
+  background-image: linear-gradient(135deg, var(--tier-solid-from), var(--tier-solid-to)) !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.tier-solid-gold { --tier-solid-from: #ffc400; --tier-solid-to: #ff7a00; }
+.tier-solid-silver { --tier-solid-from: rgb(var(--vivid-violet)); --tier-solid-to: rgb(var(--vivid-magenta)); }
+.tier-solid-bronze { --tier-solid-from: #f59a4a; --tier-solid-to: #c8561c; }
+.tier-solid-metal { --tier-solid-from: #a9b6c8; --tier-solid-to: #64748b; }
+.tier-solid-developing { --tier-solid-from: #94a3b8; --tier-solid-to: #64748b; }
+
 /* ---- Buttons ---- */
 button.bg-indigo-600,
 a.bg-indigo-600 {

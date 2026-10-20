@@ -152,8 +152,8 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
             <div className="space-y-1">
               <div className="flex items-center gap-3">
                 <h1 className="text-xl font-bold text-slate-900 tracking-tight">{candidate.name}</h1>
-                <div className="flex items-center gap-1.5 text-xs text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-md font-mono font-medium shadow-2xs">
-                  <Crown className="w-3.5 h-3.5 text-amber-600" />
+                <div className="flex items-center gap-1.5 text-xs text-white tier-solid tier-solid-gold px-2.5 py-0.5 rounded-md font-mono font-semibold">
+                  <Crown className="w-3.5 h-3.5 text-white" />
                   <span>Verified Gold Master</span>
                 </div>
               </div>

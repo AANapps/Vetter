@@ -520,9 +520,9 @@ export const AssessmentRunner: React.FC<AssessmentRunnerProps> = ({ test, onClos
               >
                 <div className="flex items-center gap-3">
                   <div
-                    className={`w-10 h-10 rounded-lg ${earnedTier.accentBg} border ${earnedTier.borderClass} flex items-center justify-center shrink-0 shadow-2xs`}
+                    className={`w-10 h-10 rounded-lg ${earnedTier.solidClass} flex items-center justify-center shrink-0`}
                   >
-                    <TierIcon className={`w-5 h-5 ${earnedTier.badgeTextColor}`} />
+                    <TierIcon className="w-5 h-5 text-white" />
                   </div>
                   <div>
                     <div className="text-[10px] font-mono uppercase tracking-wider text-slate-500 font-bold">
