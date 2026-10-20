@@ -295,8 +295,6 @@ export default function App() {
               onApplyJob={handleApplyJob}
               jobPageId={jobPageId}
               onOpenJob={openJobPage}
-              following={social.following}
-              onToggleFollow={toggleFollow}
             />
           )}
 

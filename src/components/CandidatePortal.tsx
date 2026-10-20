@@ -17,7 +17,10 @@ import {
 import { VerifiedSkillBadge } from './VerifiedSkillBadge';
 import { JobApplicationModal } from './JobApplicationModal';
 import { JobDetailsModal, JobPage } from './JobDetails';
-import { DiscoverSidebar } from './DiscoverSidebar';
+import { ProfileSidebar } from './ProfileSidebar';
+import { JobFilters } from './JobFilters';
+import { CITIES } from '../lib/geo';
+import { JobFilterState, countActiveFilters, defaultJobFilters, jobMatchesFilters } from '../lib/jobFilters';
 
 export type CandidateSection = 'profile' | 'jobs' | 'tests';
 
@@ -36,9 +39,6 @@ interface CandidatePortalProps {
   // Set when the candidate is on a job's own page (#/jobs/<id>)
   jobPageId?: string | null;
   onOpenJob: (jobId: string) => void;
-  // Follows, for the right-hand column beside the profile
-  following: string[];
-  onToggleFollow: (id: string) => void;
 }
 
 export const CandidatePortal: React.FC<CandidatePortalProps> = ({
@@ -55,15 +55,15 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   onApplyJob,
   jobPageId,
   onOpenJob,
-  following,
-  onToggleFollow,
 }) => {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [openJobId, setOpenJobId] = useState<string | null>(null);
   const [appliedNotification, setAppliedNotification] = useState<string | null>(null);
   const [selectedJobForApplication, setSelectedJobForApplication] = useState<JobPosting | null>(null);
-  const [jobSearch, setJobSearch] = useState('');
-  const [workTypeFilter, setWorkTypeFilter] = useState<'all' | JobPosting['workType']>('all');
+  // Radius searches start from where the candidate lives, when we can place it
+  const homeCity = CITIES[candidate.location] ? candidate.location : 'San Francisco, CA';
+  const [jobFilters, setJobFilters] = useState<JobFilterState>(() => defaultJobFilters(homeCity));
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [jobSort, setJobSort] = useState<'newest' | 'fit'>('newest');
 
   const activeJobs = jobs.filter((j) => j.status === 'active');
@@ -71,16 +71,12 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   // Compute live vector matches
   const rankedJobs: CandidateJobMatch[] = rankJobsForCandidate(candidate, activeJobs);
 
-  // Job board: every active job, searchable, sorted by newest or best fit
+  // Job board: every active job through the sidebar filters, sorted by newest or best fit
+  const activeFilterCount = countActiveFilters(jobFilters, defaultJobFilters(homeCity));
   const boardJobs = rankedJobs
     .filter((match) => {
       const job = activeJobs.find((j) => j.id === match.jobId)!;
-      if (workTypeFilter !== 'all' && job.workType !== workTypeFilter) return false;
-      const q = jobSearch.trim().toLowerCase();
-      if (q && ![job.title, job.companyName, job.department, job.location].some((f) => f.toLowerCase().includes(q))) {
-        return false;
-      }
-      return true;
+      return jobMatchesFilters(job, match, jobFilters, candidate.appliedJobIds ?? []);
     })
     .sort((a, b) => {
       if (jobSort === 'fit') return b.overallFitPercentage - a.overallFitPercentage;
@@ -133,7 +129,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   const filteredTests = vetterTests.filter((t) => categoryFilter === 'all' || t.category === categoryFilter);
 
   return (
-    // The profile reads like a LinkedIn profile: an ~804px column beside the Discover sidebar; the boards use the full width
+    // The profile reads like a LinkedIn profile: an ~804px column beside suggested tests and jobs; the boards use the full width
     <div className={`${view === 'profile' ? 'max-w-[1196px]' : 'max-w-7xl'} mx-auto px-6 py-8 space-y-8`}>
       {/* Toast Notification */}
       {appliedNotification && (
@@ -378,50 +374,64 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
         </div>
       </div>
 
-      <DiscoverSidebar
-        viewer={candidate}
-        allCandidates={allCandidates}
+      <ProfileSidebar
+        candidate={candidate}
         tests={tests}
-        businesses={businesses}
-        following={following}
-        onToggleFollow={onToggleFollow}
+        jobs={jobs}
+        rankedJobs={rankedJobs}
         onOpenTest={onOpenTest}
+        onOpenJob={setOpenJobId}
       />
       </div>
       )}
 
       {/* SECTION 2: JOB BOARD */}
       {view === 'jobs' && (
-        <div className="space-y-6">
-          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)] gap-6 items-start">
+          {/* Filters: a column on the left; on phones a full-screen sheet behind the Filters button */}
+          <div
+            className={`${
+              showMobileFilters ? 'fixed inset-0 z-50 bg-slate-50 overflow-y-auto p-4 pb-24' : 'hidden'
+            } lg:block lg:static lg:z-auto lg:bg-transparent lg:p-0 lg:pb-0 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto`}
+          >
+            <JobFilters
+              jobs={activeJobs}
+              filters={jobFilters}
+              onChange={setJobFilters}
+              onClear={() => setJobFilters(defaultJobFilters(homeCity))}
+              activeCount={activeFilterCount}
+            />
+            <div className="lg:hidden fixed bottom-0 inset-x-0 p-4 bg-white border-t border-slate-200">
+              <button
+                onClick={() => setShowMobileFilters(false)}
+                className="w-full py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg"
+              >
+                Show {boardJobs.length} {boardJobs.length === 1 ? 'job' : 'jobs'}
+              </button>
+            </div>
+          </div>
+
+        <div className="space-y-6 min-w-0">
+          <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <h1 className="text-xl font-bold text-slate-900 tracking-tight">Job Board</h1>
               <p className="text-xs text-slate-500">
-                {activeJobs.length} open jobs. Your fit score is based on your verified skills.
+                {boardJobs.length === activeJobs.length
+                  ? `${activeJobs.length} open jobs.`
+                  : `${boardJobs.length} of ${activeJobs.length} open jobs match your filters.`}{' '}
+                Your fit score is based on your verified skills.
               </p>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <div className="relative">
-                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Search title, company, location..."
-                  value={jobSearch}
-                  onChange={(e) => setJobSearch(e.target.value)}
-                  className="pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 w-60 max-w-full shadow-2xs"
-                />
-              </div>
-              <select
-                value={workTypeFilter}
-                onChange={(e) => setWorkTypeFilter(e.target.value as typeof workTypeFilter)}
-                className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-700 font-medium shadow-2xs"
+              <button
+                onClick={() => setShowMobileFilters((s) => !s)}
+                aria-expanded={showMobileFilters}
+                className="lg:hidden px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white rounded-lg"
               >
-                <option value="all">All work types</option>
-                <option value="Remote">Remote</option>
-                <option value="Hybrid">Hybrid</option>
-                <option value="On-site">On-site</option>
-              </select>
+                Filters
+                {activeFilterCount > 0 && ` (${activeFilterCount})`}
+              </button>
               <select
                 value={jobSort}
                 onChange={(e) => setJobSort(e.target.value as typeof jobSort)}
@@ -434,7 +444,12 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
           </div>
 
           {boardJobs.length === 0 && (
-            <p className="text-xs text-slate-500">No jobs match your search.</p>
+            <div className="bg-white border border-slate-200 rounded-xl p-8 text-center text-xs text-slate-500 shadow-xs space-y-2">
+              <p>No jobs match your filters.</p>
+              <button onClick={() => setJobFilters(defaultJobFilters(homeCity))} className="font-semibold text-indigo-700 hover:underline">
+                Clear all filters
+              </button>
+            </div>
           )}
 
           <div className="space-y-4">
@@ -598,6 +613,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
               );
             })}
           </div>
+        </div>
         </div>
       )}
 

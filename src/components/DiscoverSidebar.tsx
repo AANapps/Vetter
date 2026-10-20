@@ -12,7 +12,7 @@ interface DiscoverSidebarProps {
   onOpenTest: (testId: string) => void;
 }
 
-// The right-hand column shared by Discover and the profile: who to follow, companies and trending tests
+// Discover's right-hand column: who to follow, companies and trending tests
 export const DiscoverSidebar: React.FC<DiscoverSidebarProps> = ({
   viewer,
   allCandidates,
