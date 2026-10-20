@@ -2,7 +2,6 @@ import React, { useEffect } from 'react';
 import { CheckCircle2, MapPin, Play, Send, X } from 'lucide-react';
 import { AssessmentTest, Business, CandidateJobMatch, JobPosting, User } from '../types';
 import { getBestTestScore } from '../lib/matchingAlgorithm';
-import { getTestStats } from '../lib/leaderboard';
 import { SKILL_IDS } from '../data/seedCandidates';
 
 const DAY_MS = 86400000;
@@ -72,7 +71,6 @@ export const JobDetails: React.FC<JobDetailsProps> = ({
   job,
   match,
   candidate,
-  allCandidates,
   tests,
   business,
   onStartAttachedTest,
@@ -80,7 +78,6 @@ export const JobDetails: React.FC<JobDetailsProps> = ({
   onOpenTest,
 }) => {
   const attachedTest = tests.find((t) => t.id === job.attachedTestId);
-  const attachedStats = attachedTest ? getTestStats(attachedTest, allCandidates) : undefined;
   const attachedBest = attachedTest ? getBestTestScore(candidate, attachedTest.id) : undefined;
   const passMark = job.attachedTestPassingScore || attachedTest?.passingScore || 75;
 
@@ -93,62 +90,83 @@ export const JobDetails: React.FC<JobDetailsProps> = ({
     }))
     .filter(({ test }) => !test || test.id !== attachedTest?.id);
 
+  const testRows = (
+    <ul className="divide-y divide-slate-100 bg-white rounded-xl text-xs">
+      {attachedTest && (
+        <TestRow
+          label={job.isAttachedTestMandatory ? 'Required to apply' : 'Optional'}
+          labelTone={job.isAttachedTestMandatory ? 'required' : 'muted'}
+          test={attachedTest}
+          score={attachedBest}
+          target={passMark}
+          onStart={() => onStartAttachedTest(attachedTest)}
+          onOpenTest={onOpenTest}
+        />
+      )}
+      {skillTests.map(({ req, test, breakdown }) =>
+        test ? (
+          <TestRow
+            key={req.skillId}
+            label={req.importance === 'required' ? 'Required skill' : 'Preferred skill'}
+            labelTone={req.importance === 'required' ? 'required' : 'muted'}
+            test={test}
+            score={breakdown && breakdown.candidateScore > 0 ? breakdown.candidateScore : undefined}
+            target={req.minScore}
+            onStart={() => onStartTest(test)}
+            onOpenTest={onOpenTest}
+          />
+        ) : (
+          <li key={req.skillId} className="px-4 py-2.5 flex items-center justify-between gap-3">
+            <span className="font-semibold text-slate-900">{req.skillName}</span>
+            <span className="text-slate-500">No Vetter test yet</span>
+          </li>
+        )
+      )}
+    </ul>
+  );
+
   return (
     <div>
-      {/* Tests for this job, first: what's done and what's still to do */}
-      <section className="p-6 border-b border-slate-200 space-y-3">
-        <div>
-          <h3 className="text-sm font-bold text-slate-900">Tests for this job</h3>
-          <p className="text-xs text-slate-500">Your scores below decide your fit. Take any you haven&rsquo;t done yet.</p>
-        </div>
-        <ul className="divide-y divide-slate-100 bg-white rounded-xl text-xs">
-          {attachedTest && (
-            <TestRow
-              label={job.isAttachedTestMandatory ? 'Required to apply' : 'Optional'}
-              labelTone={job.isAttachedTestMandatory ? 'required' : 'muted'}
-              test={attachedTest}
-              meta={`${attachedTest.type === 'custom' ? `Made by ${attachedTest.companyName}` : 'Made by Vetter'} · ~${
-                attachedTest.estimatedMinutes
-              } min · ${attachedTest.questions.length} ${attachedTest.questions.length === 1 ? 'task' : 'tasks'}${
-                attachedStats && attachedStats.candidatesRanked > 0 ? ` · avg ${attachedStats.averageScore}` : ''
-              }`}
-              score={attachedBest}
-              target={passMark}
-              targetLabel="pass mark"
-              todo={job.isAttachedTestMandatory ? 'You need to pass this to apply.' : 'Taking it strengthens your application.'}
-              onStart={() => onStartAttachedTest(attachedTest)}
-              onOpenTest={onOpenTest}
-            />
-          )}
-          {skillTests.map(({ req, test, breakdown }) => {
-            const score = breakdown && breakdown.candidateScore > 0 ? breakdown.candidateScore : undefined;
-            return test ? (
-              <TestRow
-                key={req.skillId}
-                label={`${req.importance === 'required' ? 'Required skill' : 'Preferred skill'} · ${req.skillName}`}
-                labelTone={req.importance === 'required' ? 'required' : 'muted'}
-                test={test}
-                meta={`Made by Vetter · ~${test.estimatedMinutes} min`}
-                score={score}
-                target={req.minScore}
-                targetLabel="needed"
-                todo="Take it so this skill counts towards your fit."
-                onStart={() => onStartTest(test)}
-                onOpenTest={onOpenTest}
-              />
-            ) : (
-              <li key={req.skillId} className="px-4 py-3 flex items-center justify-between gap-3">
-                <span className="font-semibold text-slate-900">{req.skillName}</span>
-                <span className="text-slate-500">No Vetter test for this skill yet</span>
-              </li>
-            );
-          })}
-        </ul>
-      </section>
+      {/* Top: the tests for this job beside the at-a-glance details */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 border-b border-slate-200">
+        <section className="lg:col-span-2 p-6 space-y-3 lg:border-r border-slate-200">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+            <h3 className="text-sm font-bold text-slate-900">Tests for this job</h3>
+            <span className="text-[11px] text-slate-500">Your scores decide your fit</span>
+          </div>
+          {testRows}
+        </section>
 
-    <div className="grid grid-cols-1 lg:grid-cols-3">
-      {/* Full description */}
-      <div className="lg:col-span-2 p-6 space-y-7 lg:border-r border-slate-200">
+        <aside className="p-6 border-t lg:border-t-0 border-slate-200 text-xs space-y-5">
+          <div>
+            <h4 className="text-sm font-bold text-slate-900 mb-1">Job details</h4>
+            <dl className="divide-y divide-slate-100">
+              <Detail label="Pay" value={job.salaryRange} note="a year" />
+              {job.employmentType && <Detail label="Job type" value={job.employmentType} />}
+              <Detail label="Work setting" value={job.workType} />
+              <Detail label="Location" value={job.location} />
+              {job.experienceLevel && <Detail label="Experience" value={job.experienceLevel} />}
+              <Detail label="Department" value={job.department} />
+            </dl>
+          </div>
+
+          <div>
+            <h4 className="text-sm font-bold text-slate-900 mb-1">Dates</h4>
+            <dl className="divide-y divide-slate-100">
+              <Detail label="Posted" value={formatDate(job.postedDate)} note={postedAgo(job.postedDate)} />
+              {job.closingDate && (
+                <Detail label="Applications close" value={formatDate(job.closingDate)} note={closesIn(job.closingDate)} />
+              )}
+              {job.startDate && <Detail label="Start date" value={job.startDate} />}
+            </dl>
+          </div>
+
+          <div className="text-slate-500">{job.applicantCount} people have applied</div>
+        </aside>
+      </div>
+
+      {/* Below: the full description */}
+      <div className="p-6 space-y-7 max-w-3xl">
         <div className="space-y-2">
           <h4 className="text-sm font-bold text-slate-900">Full job description</h4>
           <p className="text-xs text-slate-700 leading-relaxed">{job.description}</p>
@@ -189,98 +207,53 @@ export const JobDetails: React.FC<JobDetailsProps> = ({
           </div>
         )}
       </div>
-
-      {/* At-a-glance details */}
-      <aside className="p-6 border-t lg:border-t-0 border-slate-200 text-xs space-y-6">
-        <div>
-          <h4 className="text-sm font-bold text-slate-900 mb-1">Job details</h4>
-          <dl className="divide-y divide-slate-100">
-            <Detail label="Pay" value={job.salaryRange} note="a year" />
-            {job.employmentType && <Detail label="Job type" value={job.employmentType} />}
-            <Detail label="Work setting" value={job.workType} />
-            <Detail label="Location" value={job.location} />
-            {job.experienceLevel && <Detail label="Experience" value={job.experienceLevel} />}
-            <Detail label="Department" value={job.department} />
-          </dl>
-        </div>
-
-        <div>
-          <h4 className="text-sm font-bold text-slate-900 mb-1">Dates</h4>
-          <dl className="divide-y divide-slate-100">
-            <Detail label="Posted" value={formatDate(job.postedDate)} note={postedAgo(job.postedDate)} />
-            {job.closingDate && (
-              <Detail label="Applications close" value={formatDate(job.closingDate)} note={closesIn(job.closingDate)} />
-            )}
-            {job.startDate && <Detail label="Start date" value={job.startDate} />}
-          </dl>
-        </div>
-
-        <div className="text-slate-500">{job.applicantCount} people have applied</div>
-      </aside>
-    </div>
     </div>
   );
 };
 
-// One test on the job: what it's for, and either your score or a nudge to take it
+// One test on the job, on one line: what it's for, then your score or a button to take it
 const TestRow: React.FC<{
   label: string;
   labelTone: 'required' | 'muted';
   test: AssessmentTest;
-  meta: string;
   score?: number;
   target: number;
-  targetLabel: string;
-  todo: string;
   onStart: () => void;
   onOpenTest: (testId: string) => void;
-}> = ({ label, labelTone, test, meta, score, target, targetLabel, todo, onStart, onOpenTest }) => {
+}> = ({ label, labelTone, test, score, target, onStart, onOpenTest }) => {
   const passed = score !== undefined && score >= target;
   return (
-    <li className="px-4 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-      <div className="min-w-0 space-y-0.5">
-        <div className={`text-[10px] font-mono uppercase tracking-wider font-bold ${labelTone === 'required' ? 'text-rose-700' : 'text-slate-500'}`}>
+    <li className="px-4 py-2.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+      <div className="min-w-0 flex items-baseline gap-2 flex-wrap">
+        <span className={`text-[10px] font-mono uppercase tracking-wider font-bold ${labelTone === 'required' ? 'text-rose-700' : 'text-slate-500'}`}>
           {label}
-        </div>
-        <button onClick={() => onOpenTest(test.id)} className="text-sm font-semibold text-slate-900 hover:text-indigo-700 text-left">
+        </span>
+        <button onClick={() => onOpenTest(test.id)} className="font-semibold text-slate-900 hover:text-indigo-700 text-left">
           {test.title}
         </button>
-        <div className="text-[11px] text-slate-500 font-mono">{meta}</div>
       </div>
 
-      <div className="flex items-center gap-3 shrink-0 sm:justify-end">
+      <div className="flex items-center gap-2.5 shrink-0 ml-auto">
         {score === undefined ? (
-          <>
-            <span className="text-[11px] text-amber-700 font-medium sm:text-right max-w-[14rem]">
-              Not taken yet. {todo}
-            </span>
-            <button
-              onClick={onStart}
-              className="px-3 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors flex items-center gap-1.5 shrink-0"
-            >
-              <Play className="w-3 h-3 fill-current" />
-              <span>Take test</span>
-            </button>
-          </>
+          <span className="text-[11px] font-medium text-amber-700">Not taken &middot; {target} needed</span>
         ) : (
-          <>
-            <div className="text-right">
-              <div className={`text-lg font-bold font-mono tabular-nums ${passed ? 'text-emerald-700' : 'text-amber-700'}`}>
-                {score}
-                <span className="text-xs text-slate-400 font-normal">/100</span>
-              </div>
-              <div className={`text-[11px] font-medium ${passed ? 'text-emerald-700' : 'text-amber-700'}`}>
-                {passed ? `Passed · ${target} ${targetLabel}` : `${target - score} short of ${target} ${targetLabel}`}
-              </div>
-            </div>
-            <button
-              onClick={onStart}
-              className="px-3 py-2 text-xs font-semibold text-slate-700 bg-white rounded-lg transition-colors shrink-0"
-            >
-              Retake
-            </button>
-          </>
+          <span className={`font-mono font-bold tabular-nums ${passed ? 'text-emerald-700' : 'text-amber-700'}`}>
+            {score}/100
+            <span className="font-sans font-medium text-[11px]">
+              {' '}
+              &middot; {passed ? 'Passed' : `${target - score} short`}
+            </span>
+          </span>
         )}
+        <button
+          onClick={onStart}
+          className={`px-2.5 py-1.5 text-[11px] font-semibold rounded-md transition-colors flex items-center gap-1 ${
+            score === undefined ? 'text-white bg-indigo-600 hover:bg-indigo-700' : 'text-slate-700 bg-white'
+          }`}
+        >
+          {score === undefined && <Play className="w-3 h-3 fill-current" />}
+          <span>{score === undefined ? 'Take test' : 'Retake'}</span>
+        </button>
       </div>
     </li>
   );

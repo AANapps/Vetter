@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from 'react';
-import { User, AssessmentTest, JobPosting, CandidateJobMatch, Business } from '../types';
+import { User, AssessmentTest, JobPosting, CandidateJobMatch, Business, TestRole } from '../types';
+import { ROLE_GROUPS } from '../lib/testRoles';
 import { rankJobsForCandidate, getBestTestScore, calculateCandidateJobMatch } from '../lib/matchingAlgorithm';
 import { getLeaderboard, getTestStats } from '../lib/leaderboard';
 import {
@@ -56,7 +57,10 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   jobPageId,
   onOpenJob,
 }) => {
-  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  // Tests page filters
+  const [roleFilter, setRoleFilter] = useState<TestRole | 'all'>('all');
+  const [difficultyFilter, setDifficultyFilter] = useState<AssessmentTest['difficulty'][]>([]);
+  const [testStatusFilter, setTestStatusFilter] = useState<'all' | 'not-taken' | 'taken'>('all');
   const [openJobId, setOpenJobId] = useState<string | null>(null);
   const [appliedNotification, setAppliedNotification] = useState<string | null>(null);
   const [selectedJobForApplication, setSelectedJobForApplication] = useState<JobPosting | null>(null);
@@ -129,8 +133,15 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
 
   // Vetter-made tests are open to everyone; company tests are taken through the jobs they're attached to
   const vetterTests = tests.filter((t) => t.type === 'standard');
-  const testCategories = ['all', ...Array.from(new Set(vetterTests.map((t) => t.category)))];
-  const filteredTests = vetterTests.filter((t) => categoryFilter === 'all' || t.category === categoryFilter);
+  const testDifficulties = Array.from(new Set(vetterTests.map((t) => t.difficulty)));
+  const filteredTests = vetterTests.filter((t) => {
+    if (roleFilter !== 'all' && !t.roles?.includes(roleFilter)) return false;
+    if (difficultyFilter.length > 0 && !difficultyFilter.includes(t.difficulty)) return false;
+    const taken = getBestTestScore(candidate, t.id) !== undefined;
+    if (testStatusFilter === 'taken' && !taken) return false;
+    if (testStatusFilter === 'not-taken' && taken) return false;
+    return true;
+  });
 
   return (
     // The profile reads like a LinkedIn profile: an ~804px column beside suggested tests and jobs; the boards use the full width
@@ -623,33 +634,82 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
 
       {/* SECTION 3: VETTER TESTS */}
       {view === 'tests' && (
-        <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h1 className="text-xl font-bold text-slate-900 tracking-tight">Tests</h1>
-              <p className="text-xs text-slate-500">
-                Practical tests made by Vetter. Each score becomes a verified skill on your profile. Tests that
-                companies write for their own jobs are taken from the Job Board.
-              </p>
+        <div className="grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)] gap-6 items-start">
+          {/* Browse by industry and role */}
+          <aside className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs space-y-5 lg:sticky lg:top-20">
+            <div className="space-y-1">
+              <h2 className="text-sm font-bold text-slate-900 mb-2">Browse by role</h2>
+              <RoleButton label="All tests" count={vetterTests.length} active={roleFilter === 'all'} onClick={() => setRoleFilter('all')} />
             </div>
+            {ROLE_GROUPS.map((group) => (
+              <div key={group.industry} className="space-y-1">
+                <h3 className="text-[10px] font-mono uppercase tracking-wider text-slate-400 font-semibold px-2">{group.industry}</h3>
+                {group.roles.map((role) => (
+                  <RoleButton
+                    key={role}
+                    label={role}
+                    count={vetterTests.filter((t) => t.roles?.includes(role)).length}
+                    active={roleFilter === role}
+                    onClick={() => setRoleFilter(role)}
+                  />
+                ))}
+              </div>
+            ))}
 
-            {/* Category Filter */}
-            <div className="flex items-center gap-1.5 p-1 bg-white border border-slate-200 rounded-lg shadow-2xs">
-              {testCategories.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setCategoryFilter(cat)}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-                    categoryFilter === cat
-                      ? 'bg-indigo-600 text-white shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  {cat === 'all' ? 'All' : cat}
-                </button>
+            <div className="pt-4 border-t border-slate-100 space-y-2">
+              <h3 className="text-xs font-bold text-slate-900">Difficulty</h3>
+              {testDifficulties.map((d) => (
+                <label key={d} className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={difficultyFilter.includes(d)}
+                    onChange={(e) =>
+                      setDifficultyFilter((prev) => (e.target.checked ? [...prev, d] : prev.filter((x) => x !== d)))
+                    }
+                    className="accent-indigo-600"
+                  />
+                  <span>{d}</span>
+                </label>
               ))}
             </div>
+
+            <div className="pt-4 border-t border-slate-100 space-y-2">
+              <h3 className="text-xs font-bold text-slate-900">Status</h3>
+              {([
+                ['all', 'All'],
+                ['not-taken', 'Not taken yet'],
+                ['taken', 'Taken'],
+              ] as const).map(([value, label]) => (
+                <label key={value} className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="test-status"
+                    checked={testStatusFilter === value}
+                    onChange={() => setTestStatusFilter(value)}
+                    className="accent-indigo-600"
+                  />
+                  <span>{label}</span>
+                </label>
+              ))}
+            </div>
+          </aside>
+
+        <div className="space-y-6 min-w-0">
+          <div>
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+              {roleFilter === 'all' ? 'Tests' : `Tests for ${roleFilter}s`}
+            </h1>
+            <p className="text-xs text-slate-500">
+              Practical tests made by Vetter for each kind of role. Each score becomes a verified skill on your
+              profile. Tests that companies write for their own jobs are taken from the Job Board.
+            </p>
           </div>
+
+          {filteredTests.length === 0 && (
+            <div className="bg-white border border-slate-200 rounded-xl p-8 text-center text-xs text-slate-500 shadow-xs">
+              No tests match these filters.
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {filteredTests.map((t) => {
@@ -675,6 +735,12 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                       </button>
                     </h3>
                     <p className="text-xs text-slate-600 leading-relaxed">{t.description}</p>
+
+                    {t.roles && t.roles.length > 0 && (
+                      <div className="text-[11px] text-slate-500">
+                        For: <span className="font-semibold text-slate-700">{t.roles.join(', ')}</span>
+                      </div>
+                    )}
 
                     <div className="flex flex-wrap items-center gap-2 pt-1">
                       {t.skillsTested.map((st) => (
@@ -730,6 +796,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
             })}
           </div>
         </div>
+        </div>
       )}
 
       {jobPage && <JobPage {...jobDetailsProps(jobPage)} onBack={() => onNavigate('jobs')} />}
@@ -772,3 +839,21 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
     </div>
   );
 };
+
+const RoleButton: React.FC<{ label: string; count: number; active: boolean; onClick: () => void }> = ({
+  label,
+  count,
+  active,
+  onClick,
+}) => (
+  <button
+    onClick={onClick}
+    aria-pressed={active}
+    className={`w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded-md text-xs text-left transition-colors ${
+      active ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-700 hover:bg-slate-50'
+    }`}
+  >
+    <span>{label}</span>
+    <span className="font-mono text-[11px] text-slate-400 tabular-nums">{count}</span>
+  </button>
+);

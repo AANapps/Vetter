@@ -16,6 +16,7 @@ import {
   Award
 } from 'lucide-react';
 import { getBadgeTier } from './VerifiedSkillBadge';
+import { QUESTION_TYPE_LABELS, describeChecks } from '../lib/testRoles';
 
 interface AssessmentRunnerProps {
   test: AssessmentTest;
@@ -191,7 +192,9 @@ export const AssessmentRunner: React.FC<AssessmentRunnerProps> = ({ test, onClos
         {/* Center: Question Navigation */}
         <div className="flex items-center gap-1.5 p-1 bg-white border border-slate-200 rounded-lg shadow-2xs">
           {test.questions.map((q, idx) => {
-            const isCompleted = questionScores[q.id] !== undefined;
+            // Multiple choice counts as done once answered; its result stays hidden until submit
+            const isCompleted =
+              questionScores[q.id] !== undefined || (q.type === 'choice' && (userCodes[q.id] ?? '') !== '');
             return (
               <button
                 key={q.id}
@@ -285,6 +288,7 @@ export const AssessmentRunner: React.FC<AssessmentRunnerProps> = ({ test, onClos
             )}
 
             {/* Test Cases preview */}
+            {currentQ.testCases.length > 0 && (
             <div className="space-y-2">
               <div className="text-xs font-bold text-slate-800">Target Assertions ({currentQ.testCases.length})</div>
               <div className="space-y-2">
@@ -298,6 +302,7 @@ export const AssessmentRunner: React.FC<AssessmentRunnerProps> = ({ test, onClos
                 ))}
               </div>
             </div>
+            )}
 
             {/* Sample Table Inspection for SQL */}
             {currentQ.type === 'sql' && sampleTable && (
@@ -334,7 +339,40 @@ export const AssessmentRunner: React.FC<AssessmentRunnerProps> = ({ test, onClos
           </div>
         </div>
 
-        {/* Right Pane: Code Editor & Execution Results */}
+        {/* Right Pane: answer options for multiple choice, otherwise the code editor & execution results */}
+        {currentQ.type === 'choice' ? (
+          <div className="w-1/2 flex flex-col bg-slate-50 overflow-y-auto p-6">
+            <fieldset className="space-y-3">
+              <legend className="text-xs font-bold text-slate-800 mb-3">Choose one answer</legend>
+              {(currentQ.options ?? []).map((option, i) => {
+                const selected = currentCode === String(i);
+                return (
+                  <label
+                    key={i}
+                    className={`flex items-start gap-3 p-4 rounded-lg bg-white cursor-pointer text-sm transition-colors ${
+                      selected ? 'ring-2 ring-indigo-500 text-slate-900' : 'text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name={`answer-${currentQ.id}`}
+                      checked={selected}
+                      onChange={() => handleCodeChange(String(i))}
+                      className="mt-0.5 accent-indigo-600"
+                    />
+                    <span>
+                      <span className="font-mono text-xs text-slate-400 mr-2">{String.fromCharCode(65 + i)}</span>
+                      {option}
+                    </span>
+                  </label>
+                );
+              })}
+            </fieldset>
+            <p className="text-[11px] text-slate-500 mt-4">
+              You can change your answer until you submit. Answers are marked when you submit the test.
+            </p>
+          </div>
+        ) : (
         <div className="w-1/2 flex flex-col bg-slate-50 overflow-hidden">
           {/* Editor Action Toolbar */}
           <div className="px-4 py-2 bg-slate-100 border-b border-slate-200 flex items-center justify-between shrink-0">
@@ -490,6 +528,7 @@ export const AssessmentRunner: React.FC<AssessmentRunnerProps> = ({ test, onClos
             </div>
           </div>
         </div>
+        )}
       </div>
 
       {/* Completion Modal */}
@@ -587,7 +626,6 @@ export const AssessmentRunner: React.FC<AssessmentRunnerProps> = ({ test, onClos
   );
 };
 
-const QUESTION_TYPE_LABELS = { sql: 'SQL', code: 'JavaScript', scenario: 'Scenario' } as const;
 
 const INTEGRITY_RULES = [
   'Stay on this tab for the whole test. Switching tabs, windows or apps is recorded and lowers your focus score.',
@@ -641,7 +679,7 @@ const AssessmentIntro: React.FC<AssessmentIntroProps> = ({ test, acceptedRules, 
                   {i + 1}. {q.title}
                 </div>
                 <div className="text-slate-500 font-mono text-[11px] mt-0.5">
-                  {QUESTION_TYPE_LABELS[q.type]} &middot; {q.testCases.length} {q.testCases.length === 1 ? 'check' : 'checks'}
+                  {QUESTION_TYPE_LABELS[q.type]} &middot; {describeChecks(q)}
                 </div>
               </div>
               <div className="text-right font-mono text-[11px] text-slate-500 shrink-0">
@@ -653,8 +691,15 @@ const AssessmentIntro: React.FC<AssessmentIntroProps> = ({ test, acceptedRules, 
         </ol>
         <ul className="text-xs text-slate-600 leading-relaxed space-y-1.5 list-disc pl-4">
           <li>Move between tasks freely using the tabs at the top. Do them in any order.</li>
-          <li>Press Run to check your answer against the test cases as often as you like.</li>
-          <li>Every task is graded on your latest code when you submit, whether or not you pressed Run.</li>
+          {test.questions.some((q) => q.type !== 'choice') && (
+            <>
+              <li>Press Run to check your answer against the test cases as often as you like.</li>
+              <li>Every task is graded on your latest code when you submit, whether or not you pressed Run.</li>
+            </>
+          )}
+          {test.questions.some((q) => q.type === 'choice') && (
+            <li>Multiple choice questions have one right answer. You can change it until you submit, and it&rsquo;s marked then.</li>
+          )}
           <li>
             You need <span className="font-semibold text-slate-900">{test.passingScore}/100</span> to pass.
           </li>

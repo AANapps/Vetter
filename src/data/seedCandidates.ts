@@ -55,7 +55,13 @@ export const SKILL_IDS: Record<AssessmentTest['category'], string> = {
   Frontend: 'skill-frontend',
   'Backend APIs': 'skill-backend',
   Algorithms: 'skill-algorithms',
+  'Data Analysis': 'skill-analytics',
+  Consulting: 'skill-consulting',
 };
+
+// Tests the seed was first generated with. They share one random stream, in this order, so existing
+// leaderboards stay the same; tests added later draw from their own stream per candidate.
+const ORIGINAL_SEED_TESTS = new Set(['test-sql-01', 'test-sys-01', 'test-fe-01', 'test-be-01', 'test-custom-01']);
 
 export const levelForScore = (score: number): VerifiedSkill['level'] =>
   score >= 90 ? 'Staff / Lead' : score >= 80 ? 'Senior' : 'Mid';
@@ -90,31 +96,34 @@ export function buildSeedCandidates(tests: AssessmentTest[]): User[] {
   const rand = mulberry32(20261019);
   const pick = <T,>(items: T[]) => items[Math.floor(rand() * items.length)];
   // Roughly bell-shaped scores around the low 70s
-  const score = () => {
-    const bell = (rand() + rand() + rand()) / 3;
+  const score = (r: () => number) => {
+    const bell = (r() + r() + r()) / 3;
     return Math.max(28, Math.min(100, Math.round(40 + bell * 62)));
   };
-  const dateBetween = (from: string, to: string) => {
+  const dateBetween = (r: () => number, from: string, to: string) => {
     const a = new Date(from).getTime();
     const b = new Date(to).getTime();
-    return isoDate(new Date(a + rand() * (b - a)));
+    return isoDate(new Date(a + r() * (b - a)));
   };
 
   return NAMES.map((name, i) => {
     const results: TestResult[] = [];
     tests.forEach((test) => {
-      const takesIt = test.type === 'standard' ? rand() < 0.62 : rand() < 0.3;
-      if (!takesIt) return;
-      const attempts = rand() < 0.25 ? 2 : 1;
-      let completedAt = dateBetween('2026-06-01', '2026-09-20');
+      const isOriginal = ORIGINAL_SEED_TESTS.has(test.id);
+      const r = isOriginal ? rand : mulberry32(hashString(`${name}:${test.id}`));
+      // Engineers make up most of the seed, so later tests for other roles are taken less often
+      const takeRate = test.type === 'custom' ? 0.3 : isOriginal ? 0.62 : 0.3;
+      if (!(r() < takeRate)) return;
+      const attempts = r() < 0.25 ? 2 : 1;
+      let completedAt = dateBetween(r, '2026-06-01', '2026-09-20');
       for (let a = 0; a < attempts; a++) {
         results.push({
           testId: test.id,
-          score: score(),
+          score: score(r),
           completedAt,
-          durationSeconds: Math.round(test.estimatedMinutes * 60 * (0.35 + rand() * 0.6)),
+          durationSeconds: Math.round(test.estimatedMinutes * 60 * (0.35 + r() * 0.6)),
         });
-        completedAt = dateBetween(completedAt, '2026-10-15');
+        completedAt = dateBetween(r, completedAt, '2026-10-15');
       }
     });
 

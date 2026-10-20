@@ -63,8 +63,15 @@ async function runSqlQuestion(q: Question, code: string): Promise<QuestionRunRes
   };
 }
 
+// Multiple choice: the answer is the chosen option's index, stored like code
+function gradeChoice(q: Question, answer: string): QuestionRunResult {
+  const passed = answer !== '' && Number(answer) === q.correctOption;
+  return { type: 'code', allPassed: passed, score: passed ? 100 : 0, testCaseResults: [], logs: [], totalExecutionTimeMs: 0 };
+}
+
 export async function runQuestion(q: Question, code: string): Promise<QuestionRunResult> {
   if (q.type === 'sql') return runSqlQuestion(q, code);
+  if (q.type === 'choice') return gradeChoice(q, code);
   return { type: 'code', ...runJavaScriptCode(code, q.testCases) };
 }
 

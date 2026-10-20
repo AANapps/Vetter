@@ -3,6 +3,7 @@ import { Play } from 'lucide-react';
 import { AssessmentTest, JobPosting, User, UserRole } from '../types';
 import { getLeaderboard, getTestStats } from '../lib/leaderboard';
 import { TestLeaderboard, formatDuration } from './TestLeaderboard';
+import { QUESTION_TYPE_LABELS, describeChecks } from '../lib/testRoles';
 
 interface TestPageProps {
   test: AssessmentTest;
@@ -15,7 +16,6 @@ interface TestPageProps {
   onBack: () => void;
 }
 
-const QUESTION_TYPE_LABELS = { sql: 'SQL', code: 'JavaScript', scenario: 'Scenario' } as const;
 
 export const TestPage: React.FC<TestPageProps> = ({
   test,
@@ -112,7 +112,7 @@ export const TestPage: React.FC<TestPageProps> = ({
                     {i + 1}. {q.title}
                   </div>
                   <div className="text-slate-500 font-mono text-[11px] mt-0.5">
-                    {QUESTION_TYPE_LABELS[q.type]} &middot; {q.testCases.length} {q.testCases.length === 1 ? 'check' : 'checks'}
+                    {QUESTION_TYPE_LABELS[q.type]} &middot; {describeChecks(q)}
                   </div>
                 </div>
                 <div className="text-right font-mono text-[11px] text-slate-500 shrink-0">

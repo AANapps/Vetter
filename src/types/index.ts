@@ -1,9 +1,30 @@
 export type UserRole = 'candidate' | 'recruiter' | 'admin';
 
+// The skill a test verifies
+export type SkillCategory =
+  | 'Databases'
+  | 'Algorithms'
+  | 'System Architecture'
+  | 'Frontend'
+  | 'Backend APIs'
+  | 'Data Analysis'
+  | 'Consulting';
+
+// The jobs a test is relevant to; grouped by industry on the Tests page
+export type TestRole =
+  | 'Frontend Engineer'
+  | 'Backend Engineer'
+  | 'Full Stack Engineer'
+  | 'Platform & DevOps'
+  | 'Data Analyst'
+  | 'Data Engineer'
+  | 'Consultant'
+  | 'Business Analyst';
+
 export interface VerifiedSkill {
   skillId: string;
   skillName: string;
-  category: 'Databases' | 'Algorithms' | 'System Architecture' | 'Frontend' | 'Backend APIs';
+  category: SkillCategory;
   score: number; // 0 - 100
   percentile: number; // e.g. 96th percentile
   verifiedAt: string;
@@ -41,7 +62,8 @@ export interface TestResult {
   durationSeconds?: number;
 }
 
-export type QuestionType = 'sql' | 'code' | 'scenario';
+// 'choice' is multiple choice, for roles where writing code isn't the job
+export type QuestionType = 'sql' | 'code' | 'scenario' | 'choice';
 
 export interface TestCase {
   id: string;
@@ -59,6 +81,9 @@ export interface Question {
   contextData?: string; // e.g., table schema or system architecture diagram description
   starterCode: string;
   solutionCode?: string;
+  // Multiple choice only: the answers to pick from and the index of the right one
+  options?: string[];
+  correctOption?: number;
   testCases: TestCase[];
   timeLimitMinutes: number;
   weight: number;
@@ -67,7 +92,7 @@ export interface Question {
 export interface AssessmentTest {
   id: string;
   title: string;
-  category: 'Databases' | 'Algorithms' | 'System Architecture' | 'Frontend' | 'Backend APIs';
+  category: SkillCategory;
   difficulty: 'Intermediate' | 'Advanced' | 'Staff Specialist';
   // 'standard' tests are made by Vetter; 'custom' tests are made by a company for its own jobs
   type: 'standard' | 'custom';
@@ -79,6 +104,7 @@ export interface AssessmentTest {
   totalQuestions: number;
   questions: Question[];
   skillsTested: string[];
+  roles?: TestRole[];
 }
 
 export interface SubmissionResult {

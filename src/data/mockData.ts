@@ -219,6 +219,7 @@ export const STANDARD_ASSESSMENTS: AssessmentTest[] = [
     passingScore: 75,
     totalQuestions: 2,
     skillsTested: ['SQL & Databases', 'Query Optimization', 'Data Aggregation'],
+    roles: ['Data Analyst', 'Data Engineer', 'Backend Engineer', 'Full Stack Engineer'],
     questions: [
       {
         id: 'q-sql-1',
@@ -290,6 +291,7 @@ ORDER BY salary DESC;`,
     passingScore: 80,
     totalQuestions: 2,
     skillsTested: ['System Architecture', 'Distributed Systems', 'Fault Tolerance'],
+    roles: ['Backend Engineer', 'Platform & DevOps', 'Data Engineer'],
     questions: [
       {
         id: 'q-sys-1',
@@ -404,6 +406,7 @@ Output: number[] of window maximums.`,
     passingScore: 75,
     totalQuestions: 1,
     skillsTested: ['Frontend Engineering', 'State Machines', 'Performance'],
+    roles: ['Frontend Engineer', 'Full Stack Engineer'],
     questions: [
       {
         id: 'q-fe-1',
@@ -455,6 +458,7 @@ Apply optimistic patches to server entities (by id). If an id is in rollbackIds,
     passingScore: 75,
     totalQuestions: 2,
     skillsTested: ['Backend APIs', 'Resilience', 'HTTP Routing'],
+    roles: ['Backend Engineer', 'Full Stack Engineer'],
     questions: [
       {
         id: 'q-be-1',
@@ -532,6 +536,229 @@ Example: solution(["/users/:id"], "/users/7") returns { route: "/users/:id", par
       },
     ],
   },
+  {
+    id: 'test-da-01',
+    title: 'Data Analysis & Business Metrics',
+    category: 'Data Analysis',
+    difficulty: 'Intermediate',
+    type: 'standard',
+    description: 'Turn raw numbers into decisions: conversion funnels, growth rates, averages that mislead, A/B test results and cohort retention.',
+    estimatedMinutes: 20,
+    passingScore: 75,
+    totalQuestions: 5,
+    skillsTested: ['Data Analysis', 'Metrics', 'Statistics'],
+    roles: ['Data Analyst', 'Business Analyst', 'Consultant'],
+    questions: [
+      {
+        id: 'q-da-1',
+        title: 'Funnel Conversion',
+        type: 'choice',
+        prompt: `A landing page had 12,000 visitors this month. 480 signed up and 120 of those went on to buy.
+
+What is the visitor-to-purchase conversion rate?`,
+        starterCode: '',
+        options: [
+          '4%',
+          '25%',
+          '1%',
+          '0.4%',
+        ],
+        correctOption: 2,
+        testCases: [],
+        timeLimitMinutes: 3,
+        weight: 20,
+      },
+      {
+        id: 'q-da-2',
+        title: 'Month-over-Month Change',
+        type: 'choice',
+        prompt: `Monthly revenue was $50,000 in January, $60,000 in February and $45,000 in March.
+
+What was the month-over-month change in March?`,
+        starterCode: '',
+        options: [
+          '+20%',
+          '-15%',
+          '-25%',
+          '-10%',
+        ],
+        correctOption: 2,
+        testCases: [],
+        timeLimitMinutes: 3,
+        weight: 20,
+      },
+      {
+        id: 'q-da-3',
+        title: 'Typical Order Value',
+        type: 'choice',
+        prompt: `This week’s order values were $20, $35, $35, $50 and $400.
+
+Which figure best describes a typical order, and why?`,
+        starterCode: '',
+        options: [
+          'The mean ($108), because it uses every order',
+          'The median ($35), because the $400 order skews the mean',
+          'The maximum ($400), because it shows what customers can spend',
+          'The total ($540), because it reflects the whole week',
+        ],
+        correctOption: 1,
+        testCases: [],
+        timeLimitMinutes: 4,
+        weight: 20,
+      },
+      {
+        id: 'q-da-4',
+        title: 'Reading an A/B Test',
+        type: 'choice',
+        prompt: `Variant A: 1,000 users, 50 conversions. Variant B: 1,000 users, 65 conversions. The test reports p = 0.17.
+
+What should you tell the product team?`,
+        starterCode: '',
+        options: [
+          'The difference isn’t statistically significant at the 5% level, so there’s no clear winner yet',
+          'B is 30% better, so ship B',
+          'A is better because its result is more stable',
+          'The test is broken because the p-value is above 0.05',
+        ],
+        correctOption: 0,
+        testCases: [],
+        timeLimitMinutes: 5,
+        weight: 20,
+      },
+      {
+        id: 'q-da-5',
+        title: 'Cohort Retention',
+        type: 'choice',
+        prompt: `200 users joined in January. 120 of them were active in February and 90 in March.
+
+What is the January cohort’s retention in March?`,
+        starterCode: '',
+        options: [
+          '60%',
+          '75%',
+          '90%',
+          '45%',
+        ],
+        correctOption: 3,
+        testCases: [],
+        timeLimitMinutes: 3,
+        weight: 20,
+      },
+    ],
+  },
+  {
+    id: 'test-cs-01',
+    title: 'Case Interview & Business Problem Solving',
+    category: 'Consulting',
+    difficulty: 'Intermediate',
+    type: 'standard',
+    description: 'The core of a consulting case: diagnosing profit problems, break-even maths, market sizing, structuring a problem and prioritising options.',
+    estimatedMinutes: 20,
+    passingScore: 75,
+    totalQuestions: 5,
+    skillsTested: ['Business Problem Solving', 'Market Sizing', 'Structured Thinking'],
+    roles: ['Consultant', 'Business Analyst'],
+    questions: [
+      {
+        id: 'q-cs-1',
+        title: 'Profit Decline',
+        type: 'choice',
+        prompt: `A retail client’s profits fell 20% this year while revenue stayed flat.
+
+Where should you look first?`,
+        starterCode: '',
+        options: [
+          'Costs: which fixed or variable costs rose',
+          'A new marketing campaign to grow revenue',
+          'Raising prices across the range',
+          'Competitors’ revenue growth',
+        ],
+        correctOption: 0,
+        testCases: [],
+        timeLimitMinutes: 4,
+        weight: 20,
+      },
+      {
+        id: 'q-cs-2',
+        title: 'Break-even Volume',
+        type: 'choice',
+        prompt: `A product sells for $50 a unit and costs $30 a unit to make. Fixed costs are $600,000 a year.
+
+How many units must the client sell each year to break even?`,
+        starterCode: '',
+        options: [
+          '12,000',
+          '20,000',
+          '30,000',
+          '60,000',
+        ],
+        correctOption: 2,
+        testCases: [],
+        timeLimitMinutes: 4,
+        weight: 20,
+      },
+      {
+        id: 'q-cs-3',
+        title: 'Market Sizing',
+        type: 'choice',
+        prompt: `A city has 2 million people, with 2.5 people per household on average. 30% of households own a dog, and each of those households buys 12 bags of dog food a year.
+
+How many bags of dog food does the city buy each year?`,
+        starterCode: '',
+        options: [
+          '2.88 million',
+          '7.2 million',
+          '1.2 million',
+          '960,000',
+        ],
+        correctOption: 0,
+        testCases: [],
+        timeLimitMinutes: 5,
+        weight: 20,
+      },
+      {
+        id: 'q-cs-4',
+        title: 'Structuring the Problem',
+        type: 'choice',
+        prompt: `A client asks why sales are falling. Which way of splitting the problem is mutually exclusive and collectively exhaustive (MECE)?`,
+        starterCode: '',
+        options: [
+          'Fewer customers buying, or each customer spending less',
+          'Marketing, competitors and the economy',
+          'Online sales, sales to new customers and discounted sales',
+          'Product quality, customer service and marketing',
+        ],
+        correctOption: 0,
+        testCases: [],
+        timeLimitMinutes: 4,
+        weight: 20,
+      },
+      {
+        id: 'q-cs-5',
+        title: 'Prioritising Initiatives',
+        type: 'choice',
+        prompt: `The client can fund one initiative this quarter:
+
+A: $2.0M impact, 8 weeks of effort
+B: $1.5M impact, 2 weeks
+C: $0.5M impact, 1 week
+D: $3.0M impact, 20 weeks
+
+Which gives the most impact per week of effort?`,
+        starterCode: '',
+        options: [
+          'A',
+          'B',
+          'C',
+          'D',
+        ],
+        correctOption: 1,
+        testCases: [],
+        timeLimitMinutes: 3,
+        weight: 20,
+      },
+    ],
+  },
 ];
 
 // Company-made tests, written by a business for its own jobs
@@ -549,6 +776,7 @@ export const COMPANY_ASSESSMENTS: AssessmentTest[] = [
     passingScore: 75,
     totalQuestions: 1,
     skillsTested: ['Backend APIs', 'Idempotency'],
+    roles: ['Backend Engineer', 'Data Engineer'],
     questions: [
       {
         id: 'q-custom-1',
