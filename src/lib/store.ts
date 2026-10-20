@@ -5,8 +5,10 @@ import {
   STANDARD_ASSESSMENTS,
   COMPANY_ASSESSMENTS,
   INITIAL_JOBS,
+  INITIAL_BUSINESSES,
 } from '../data/mockData';
 import { SEED_SOCIAL } from '../data/seedSocial';
+import { withFilterFields } from './jobFilters';
 import { buildSeedCandidates, withComputedPercentiles, withSeedDurations } from '../data/seedCandidates';
 
 /**
@@ -55,8 +57,11 @@ export function loadData(): AppData {
     return {
       candidate: withAvatar(saved.candidate),
       otherCandidates: saved.otherCandidates.map(withAvatar),
-      // Saved jobs keep their changes; listing details added in code since are filled in from the seed
-      jobs: saved.jobs.map((j) => ({ ...seed.jobs.find((s) => s.id === j.id), ...j })),
+      // Saved jobs keep their changes; listing details added in code since are filled in from the seed,
+      // and anything the job board filters need is filled in for jobs created before the form asked for it
+      jobs: saved.jobs.map((j) =>
+        withFilterFields({ ...seed.jobs.find((s) => s.id === j.id), ...j }, INITIAL_BUSINESSES.find((b) => b.id === j.businessId))
+      ),
       tests: [...SEED_TESTS, ...createdTests],
       // Saved before the feed existed: start from the seeded conversation
       social: saved.social ?? seed.social,

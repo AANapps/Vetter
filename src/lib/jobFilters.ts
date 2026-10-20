@@ -1,8 +1,39 @@
-import { CandidateJobMatch, JobPosting } from '../types';
-import { distanceMiles } from './geo';
+import { Business, CandidateJobMatch, JobPosting } from '../types';
+import { CITIES, distanceMiles } from './geo';
 
 export const MAX_RADIUS = 500; // miles; the slider's top end means "any distance"
 export const MAX_SALARY = 300000;
+
+// The values a job can take for each filter, so every job lands in a filter option
+export const EMPLOYMENT_TYPES: NonNullable<JobPosting['employmentType']>[] = ['Full-time', 'Part-time', 'Contract', 'Internship'];
+export const EXPERIENCE_LEVELS = [
+  'Junior (0-2 years)',
+  'Mid (3+ years)',
+  'Senior (5+ years)',
+  'Lead (7+ years)',
+  'Staff (8+ years)',
+];
+export const NOT_SPECIFIED = 'Not specified';
+
+// 165000, 195000 → "$165,000 - $195,000"
+export const formatSalaryRange = (min: number, max: number) =>
+  `$${min.toLocaleString('en-US')} - $${max.toLocaleString('en-US')}`;
+
+/**
+ * Fills in anything the filters need that a job is missing. Jobs created before the form asked
+ * for these (location defaulted to "Remote", no experience level) are placed at the company's HQ
+ * and marked "Not specified" rather than dropping out of every filter.
+ */
+export function withFilterFields(job: JobPosting, business?: Business): JobPosting {
+  const fallbackCity = business && CITIES[business.headquarters] ? business.headquarters : 'San Francisco, CA';
+  return {
+    ...job,
+    location: CITIES[job.location] ? job.location : fallbackCity,
+    department: job.department?.trim() || 'General',
+    employmentType: job.employmentType ?? 'Full-time',
+    experienceLevel: job.experienceLevel || NOT_SPECIFIED,
+  };
+}
 
 export interface JobFilterState {
   keyword: string;

@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { User, JobPosting, AssessmentTest, CandidateJobMatch, Business } from '../types';
 import { rankCandidatesForJob } from '../lib/matchingAlgorithm';
 import { getTestStats } from '../lib/leaderboard';
+import { CITIES } from '../lib/geo';
+import { EMPLOYMENT_TYPES, EXPERIENCE_LEVELS, formatSalaryRange } from '../lib/jobFilters';
 import {
   Users,
   Plus,
@@ -54,9 +56,13 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   const [isCreatingJob, setIsCreatingJob] = useState(false);
   const [newJobTitle, setNewJobTitle] = useState('');
   const [newJobDept, setNewJobDept] = useState('Core Engineering');
-  const [newJobLocation, setNewJobLocation] = useState('Remote');
+  // Every field the job board filters on is asked for here, so new jobs filter like the seeded ones
+  const [newJobLocation, setNewJobLocation] = useState(CITIES[business.headquarters] ? business.headquarters : 'San Francisco, CA');
   const [newJobWorkType, setNewJobWorkType] = useState<'Remote' | 'Hybrid' | 'On-site'>('Remote');
-  const [newJobSalary, setNewJobSalary] = useState('$170,000 - $210,000');
+  const [newJobSalaryMin, setNewJobSalaryMin] = useState(170000);
+  const [newJobSalaryMax, setNewJobSalaryMax] = useState(210000);
+  const [newJobEmploymentType, setNewJobEmploymentType] = useState<NonNullable<JobPosting['employmentType']>>('Full-time');
+  const [newJobExperience, setNewJobExperience] = useState(EXPERIENCE_LEVELS[2]);
   const [newJobDesc, setNewJobDesc] = useState('');
   const [newJobSkills, setNewJobSkills] = useState([
     { skillId: 'skill-sys', skillName: 'System Architecture', minScore: 80, importance: 'required' as const, weight: 0.5 },
@@ -117,7 +123,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
 
   const handleSaveJob = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newJobTitle.trim()) return;
+    if (!newJobTitle.trim() || !newJobDept.trim() || newJobSalaryMax < newJobSalaryMin) return;
 
     const attachedTest = attachableTests.find((t) => t.id === newJobAttachedTestId);
 
@@ -129,11 +135,12 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
       businessId: business.id,
       location: newJobLocation,
       workType: newJobWorkType,
-      salaryRange: newJobSalary,
+      salaryRange: formatSalaryRange(newJobSalaryMin, newJobSalaryMax),
       description: newJobDesc || `We are hiring a ${newJobTitle} to join ${business.name}.`,
-      department: newJobDept,
+      department: newJobDept.trim(),
       postedDate: new Date().toISOString().split('T')[0],
-      employmentType: 'Full-time',
+      employmentType: newJobEmploymentType,
+      experienceLevel: newJobExperience,
       closingDate: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
       requirements: newJobSkills,
       attachedTestId: attachedTest?.id,
@@ -807,6 +814,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Department</label>
                   <input
                     type="text"
+                    required
                     value={newJobDept}
                     onChange={(e) => setNewJobDept(e.target.value)}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-indigo-500"
@@ -827,13 +835,79 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Salary Range</label>
-                <input
-                  type="text"
-                  value={newJobSalary}
-                  onChange={(e) => setNewJobSalary(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 font-mono focus:outline-none focus:bg-white focus:border-indigo-500"
-                />
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Location</label>
+                <select
+                  value={newJobLocation}
+                  onChange={(e) => setNewJobLocation(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-indigo-500"
+                >
+                  {Object.keys(CITIES)
+                    .sort()
+                    .map((city) => (
+                      <option key={city} value={city}>
+                        {city}
+                      </option>
+                    ))}
+                </select>
+                <p className="text-[11px] text-slate-500 mt-1">For remote jobs, where the team is based.</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Job Type</label>
+                  <select
+                    value={newJobEmploymentType}
+                    onChange={(e) => setNewJobEmploymentType(e.target.value as typeof newJobEmploymentType)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-indigo-500"
+                  >
+                    {EMPLOYMENT_TYPES.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Experience Level</label>
+                  <select
+                    value={newJobExperience}
+                    onChange={(e) => setNewJobExperience(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-indigo-500"
+                  >
+                    {EXPERIENCE_LEVELS.map((level) => (
+                      <option key={level} value={level}>
+                        {level}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Salary Range (a year, USD)</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <input
+                    type="number"
+                    required
+                    min={0}
+                    step={5000}
+                    aria-label="Minimum salary"
+                    value={newJobSalaryMin}
+                    onChange={(e) => setNewJobSalaryMin(Number(e.target.value))}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 font-mono focus:outline-none focus:bg-white focus:border-indigo-500"
+                  />
+                  <input
+                    type="number"
+                    required
+                    min={newJobSalaryMin}
+                    step={5000}
+                    aria-label="Maximum salary"
+                    value={newJobSalaryMax}
+                    onChange={(e) => setNewJobSalaryMax(Number(e.target.value))}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 font-mono focus:outline-none focus:bg-white focus:border-indigo-500"
+                  />
+                </div>
+                <p className="text-[11px] text-slate-500 mt-1 font-mono">{formatSalaryRange(newJobSalaryMin, newJobSalaryMax)}</p>
               </div>
 
               <div>
