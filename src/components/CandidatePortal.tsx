@@ -109,6 +109,10 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
       if (onStartAttachedTest) onStartAttachedTest(test, job.id);
       else onStartTest(test);
     },
+    onStartTest: (test: AssessmentTest) => {
+      beforeLeaving();
+      onStartTest(test);
+    },
     onOpenTest: (testId: string) => {
       beforeLeaving();
       onOpenTest(testId);
