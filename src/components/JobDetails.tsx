@@ -1,5 +1,5 @@
-import React from 'react';
-import { CheckCircle2, Play, Send } from 'lucide-react';
+import React, { useEffect } from 'react';
+import { CheckCircle2, MapPin, Play, Send, X } from 'lucide-react';
 import { AssessmentTest, Business, CandidateJobMatch, JobPosting, User } from '../types';
 import { getBestTestScore } from '../lib/matchingAlgorithm';
 import { getTestStats } from '../lib/leaderboard';
@@ -91,7 +91,7 @@ export const JobDetails: React.FC<JobDetailsProps> = ({
   }));
 
   return (
-    <div className="border-t border-slate-200 grid grid-cols-1 lg:grid-cols-3">
+    <div className="grid grid-cols-1 lg:grid-cols-3">
       {/* Full description */}
       <div className="lg:col-span-2 p-6 space-y-7 lg:border-r border-slate-200">
         <div className="space-y-2">
@@ -286,6 +286,73 @@ export const JobDetails: React.FC<JobDetailsProps> = ({
           )}
         </div>
       </aside>
+    </div>
+  );
+};
+
+// The full listing as a pop-up over the job board
+export const JobDetailsModal: React.FC<JobDetailsProps & { onClose: () => void }> = ({ onClose, ...props }) => {
+  const { job, match } = props;
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
+      onClick={onClose}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={job.title}
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto shadow-2xl relative text-slate-900"
+      >
+        <div className="sm:sticky top-0 z-10 bg-white border-b border-slate-200 p-6 pr-14 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-4 min-w-0">
+            <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-slate-100">
+              <img src={job.companyLogo} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
+            </div>
+            <div className="space-y-1 min-w-0">
+              <div className="text-xs text-slate-500">
+                {job.companyName} &middot; {job.department}
+              </div>
+              <h2 className="text-lg font-bold text-slate-900 tracking-tight">{job.title}</h2>
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
+                <span className="flex items-center gap-1">
+                  <MapPin className="w-3 h-3 text-slate-400" />
+                  {job.location} ({job.workType})
+                </span>
+                <span aria-hidden="true">&middot;</span>
+                <span className="font-mono text-slate-700 font-medium">{job.salaryRange}</span>
+              </div>
+            </div>
+          </div>
+          <div className="sm:text-right shrink-0">
+            <div className="text-[11px] text-slate-500 font-medium">Your Fit</div>
+            <div className="text-2xl font-extrabold font-mono tabular-nums text-indigo-600">{match.overallFitPercentage}%</div>
+            <div className="text-[10px] text-slate-500 font-medium">{match.matchTier}</div>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="absolute top-5 right-5 p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <JobDetails {...props} />
+      </div>
     </div>
   );
 };

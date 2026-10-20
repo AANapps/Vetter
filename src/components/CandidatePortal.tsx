@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { User, AssessmentTest, JobPosting, CandidateJobMatch, Business } from '../types';
 import { rankJobsForCandidate, getBestTestScore } from '../lib/matchingAlgorithm';
 import { getLeaderboard, getTestStats } from '../lib/leaderboard';
@@ -7,8 +7,6 @@ import {
   CheckCircle2,
   Briefcase,
   Play,
-  ChevronDown,
-  ChevronUp,
   MapPin,
   DollarSign,
   Search,
@@ -18,7 +16,7 @@ import {
 } from 'lucide-react';
 import { VerifiedSkillBadge } from './VerifiedSkillBadge';
 import { JobApplicationModal } from './JobApplicationModal';
-import { JobDetails } from './JobDetails';
+import { JobDetailsModal } from './JobDetails';
 
 export type CandidateSection = 'profile' | 'jobs' | 'tests';
 
@@ -50,7 +48,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   onApplyJob,
 }) => {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
-  const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
+  const [openJobId, setOpenJobId] = useState<string | null>(null);
   const [appliedNotification, setAppliedNotification] = useState<string | null>(null);
   const [selectedJobForApplication, setSelectedJobForApplication] = useState<JobPosting | null>(null);
   const [jobSearch, setJobSearch] = useState('');
@@ -79,6 +77,10 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
       const jobB = activeJobs.find((j) => j.id === b.jobId)!;
       return jobB.postedDate.localeCompare(jobA.postedDate);
     });
+
+  const openJob = openJobId ? jobs.find((j) => j.id === openJobId) : undefined;
+  const openJobMatch = rankedJobs.find((m) => m.jobId === openJobId);
+  const closeJob = useCallback(() => setOpenJobId(null), []);
 
   const appliedJobs = jobs.filter((j) => candidate.appliedJobIds?.includes(j.id));
 
@@ -386,7 +388,6 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
           <div className="space-y-4">
             {boardJobs.map((match) => {
               const job = jobs.find((j) => j.id === match.jobId)!;
-              const isExpanded = expandedJobId === match.jobId;
               const isApplied = candidate.appliedJobIds?.includes(match.jobId);
 
               return (
@@ -416,7 +417,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                           </div>
                           <h3 className="text-base font-bold text-slate-900 tracking-tight">
                             <button
-                              onClick={() => setExpandedJobId(isExpanded ? null : match.jobId)}
+                              onClick={() => setOpenJobId(match.jobId)}
                               className="text-left hover:text-indigo-700 hover:underline transition-colors"
                             >
                               {match.jobTitle}
@@ -472,12 +473,10 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                         )}
 
                         <button
-                          onClick={() => setExpandedJobId(isExpanded ? null : match.jobId)}
-                          className="p-2 text-slate-500 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition-colors"
-                          aria-expanded={isExpanded}
-                          aria-label={isExpanded ? 'Hide full job description' : 'Show full job description'}
+                          onClick={() => setOpenJobId(match.jobId)}
+                          className="px-4 py-2 text-xs font-semibold text-slate-700 bg-white rounded-lg transition-colors"
                         >
-                          {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                          View job
                         </button>
                       </div>
                     </div>
@@ -543,23 +542,6 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                     )}
                   </div>
 
-                  {/* Full listing: description, details, dates and tests */}
-                  {isExpanded && (
-                    <JobDetails
-                      job={job}
-                      match={match}
-                      candidate={candidate}
-                      allCandidates={allCandidates}
-                      tests={tests}
-                      business={businesses.find((b) => b.id === job.businessId)}
-                      isApplied={!!isApplied}
-                      onApply={() => setSelectedJobForApplication(job)}
-                      onStartAttachedTest={(test) =>
-                        onStartAttachedTest ? onStartAttachedTest(test, job.id) : onStartTest(test)
-                      }
-                      onOpenTest={onOpenTest}
-                    />
-                  )}
                 </div>
               );
             })}
@@ -676,6 +658,33 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
             })}
           </div>
         </div>
+      )}
+
+      {/* Full job listing pop-up */}
+      {openJob && openJobMatch && (
+        <JobDetailsModal
+          job={openJob}
+          match={openJobMatch}
+          candidate={candidate}
+          allCandidates={allCandidates}
+          tests={tests}
+          business={businesses.find((b) => b.id === openJob.businessId)}
+          isApplied={!!candidate.appliedJobIds?.includes(openJob.id)}
+          onClose={closeJob}
+          onApply={() => {
+            closeJob();
+            setSelectedJobForApplication(openJob);
+          }}
+          onStartAttachedTest={(test) => {
+            closeJob();
+            if (onStartAttachedTest) onStartAttachedTest(test, openJob.id);
+            else onStartTest(test);
+          }}
+          onOpenTest={(testId) => {
+            closeJob();
+            onOpenTest(testId);
+          }}
+        />
       )}
 
       {/* Job application, including any attached test */}
