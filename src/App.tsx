@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { User, UserRole, AssessmentTest, JobPosting, VerifiedSkill, Business } from './types';
+import { User, UserRole, AssessmentTest, JobPosting, VerifiedSkill, Business, SocialState } from './types';
 import { INITIAL_RECRUITER, INITIAL_BUSINESSES } from './data/mockData';
 import { loadData, saveData, clearData } from './lib/store';
 import { getPercentile } from './lib/leaderboard';
@@ -10,6 +10,7 @@ import { RecruiterPortal, BusinessSection } from './components/RecruiterPortal';
 import { BusinessesView } from './components/BusinessesView';
 import { AssessmentRunner } from './components/AssessmentRunner';
 import { TestPage } from './components/TestPage';
+import { DiscoverFeed } from './components/DiscoverFeed';
 import { CheckCircle2 } from 'lucide-react';
 
 const CANDIDATE_SECTIONS: Partial<Record<AppTab, CandidateSection>> = {
@@ -46,10 +47,11 @@ export default function App() {
   const [jobs, setJobs] = useState<JobPosting[]>(initialData.jobs);
   const [tests, setTests] = useState<AssessmentTest[]>(initialData.tests);
   const [businesses] = useState<Business[]>(INITIAL_BUSINESSES);
+  const [social, setSocial] = useState<SocialState>(initialData.social);
 
   useEffect(() => {
-    saveData({ candidate, otherCandidates, jobs, tests });
-  }, [candidate, otherCandidates, jobs, tests]);
+    saveData({ candidate, otherCandidates, jobs, tests, social });
+  }, [candidate, otherCandidates, jobs, tests, social]);
 
   const [testPageId, setTestPageId] = useState<string | null>(() => idFromHash('tests'));
   const [jobPageId, setJobPageId] = useState<string | null>(() => idFromHash('jobs'));
@@ -257,6 +259,20 @@ export default function App() {
               }}
               onApplyJob={handleApplyJob}
               jobPageId={jobPageId}
+              onOpenJob={openJobPage}
+            />
+          )}
+
+          {!testPageTest && activeRole === 'candidate' && currentTab === 'discover' && (
+            <DiscoverFeed
+              candidate={candidate}
+              allCandidates={allCandidates}
+              tests={tests}
+              jobs={jobs}
+              businesses={businesses}
+              social={social}
+              onSocialChange={setSocial}
+              onOpenTest={openTestPage}
               onOpenJob={openJobPage}
             />
           )}

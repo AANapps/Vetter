@@ -12,7 +12,7 @@ function mulberry32(seed: number) {
   };
 }
 
-const hashString = (s: string) => [...s].reduce((h, c) => (Math.imul(h, 31) + c.charCodeAt(0)) | 0, 7);
+export const hashString = (s: string) => [...s].reduce((h, c) => (Math.imul(h, 31) + c.charCodeAt(0)) | 0, 7);
 
 const AVATAR_COLOURS = ['#6c47ff', '#c048ff', '#00a060', '#e88000', '#e41e54', '#0e8ce4', '#d67830', '#5834ff'];
 

@@ -1,4 +1,4 @@
-import { AssessmentTest, JobPosting, User } from '../types';
+import { AssessmentTest, JobPosting, SocialState, User } from '../types';
 import {
   INITIAL_CANDIDATE,
   OTHER_CANDIDATES,
@@ -6,6 +6,7 @@ import {
   COMPANY_ASSESSMENTS,
   INITIAL_JOBS,
 } from '../data/mockData';
+import { SEED_SOCIAL } from '../data/seedSocial';
 import { buildSeedCandidates, withComputedPercentiles, withSeedDurations } from '../data/seedCandidates';
 
 /**
@@ -20,6 +21,7 @@ export interface AppData {
   otherCandidates: User[];
   jobs: JobPosting[];
   tests: AssessmentTest[];
+  social: SocialState;
 }
 
 const SEED_TESTS = [...STANDARD_ASSESSMENTS, ...COMPANY_ASSESSMENTS];
@@ -32,6 +34,7 @@ export function createSeedData(): AppData {
     otherCandidates: everyone.slice(1),
     jobs: INITIAL_JOBS,
     tests: SEED_TESTS,
+    social: SEED_SOCIAL,
   };
 }
 
@@ -55,6 +58,8 @@ export function loadData(): AppData {
       // Saved jobs keep their changes; listing details added in code since are filled in from the seed
       jobs: saved.jobs.map((j) => ({ ...seed.jobs.find((s) => s.id === j.id), ...j })),
       tests: [...SEED_TESTS, ...createdTests],
+      // Saved before the feed existed: start from the seeded conversation
+      social: saved.social ?? seed.social,
     };
   } catch {
     return seed;

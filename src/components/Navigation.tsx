@@ -4,6 +4,7 @@ import { ArrowLeftRight, Menu, X } from 'lucide-react';
 
 export type AppTab =
   | 'profile'
+  | 'discover'
   | 'jobs'
   | 'tests'
   | 'companies'
@@ -14,6 +15,7 @@ export type AppTab =
 export const NAV_TABS: Record<'candidate' | 'recruiter', { id: AppTab; label: string }[]> = {
   candidate: [
     { id: 'profile', label: 'Profile' },
+    { id: 'discover', label: 'Discover' },
     { id: 'jobs', label: 'Job Board' },
     { id: 'tests', label: 'Tests' },
     { id: 'companies', label: 'Companies' },

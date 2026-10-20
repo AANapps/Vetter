@@ -189,3 +189,26 @@ export interface CandidateJobMatch {
   applicationStatus?: 'none' | 'applied' | 'reviewing' | 'interview' | 'offer' | 'rejected';
   matchTier: 'Top Match' | 'Strong Fit' | 'Borderline' | 'Needs Upskilling';
 }
+
+// Discovery feed: what candidates write, and how they react to each other's activity
+export interface FeedPost {
+  id: string;
+  authorId: string;
+  text: string;
+  createdAt: string; // ISO timestamp
+  sharedTestId?: string; // A Vetter test the author is sharing their result on
+}
+
+export interface FeedComment {
+  id: string;
+  authorId: string;
+  text: string;
+  createdAt: string;
+}
+
+export interface SocialState {
+  posts: FeedPost[];
+  comments: Record<string, FeedComment[]>; // keyed by feed item id
+  kudosGiven: string[]; // feed item ids the signed-in candidate gave kudos to
+  following: string[]; // candidate and company ids
+}
