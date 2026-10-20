@@ -52,7 +52,8 @@ export function loadData(): AppData {
     return {
       candidate: withAvatar(saved.candidate),
       otherCandidates: saved.otherCandidates.map(withAvatar),
-      jobs: saved.jobs,
+      // Saved jobs keep their changes; listing details added in code since are filled in from the seed
+      jobs: saved.jobs.map((j) => ({ ...seed.jobs.find((s) => s.id === j.id), ...j })),
       tests: [...SEED_TESTS, ...createdTests],
     };
   } catch {

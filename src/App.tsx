@@ -234,6 +234,7 @@ export default function App() {
               onOpenTest={openTestPage}
               tests={tests}
               jobs={jobs}
+              businesses={businesses}
               onStartTest={(test) => setActiveTest(test)}
               onStartAttachedTest={(test, forJobId) => {
                 setActiveTest(test);

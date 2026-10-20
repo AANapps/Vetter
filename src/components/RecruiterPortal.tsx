@@ -133,6 +133,8 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
       description: newJobDesc || `We are hiring a ${newJobTitle} to join ${business.name}.`,
       department: newJobDept,
       postedDate: new Date().toISOString().split('T')[0],
+      employmentType: 'Full-time',
+      closingDate: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
       requirements: newJobSkills,
       attachedTestId: attachedTest?.id,
       attachedTestTitle: attachedTest?.title,

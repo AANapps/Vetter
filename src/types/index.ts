@@ -141,6 +141,15 @@ export interface JobPosting {
   description: string;
   department: string;
   postedDate: string;
+  // Full listing details; optional so quickly created jobs still work
+  employmentType?: 'Full-time' | 'Part-time' | 'Contract' | 'Internship';
+  experienceLevel?: string;
+  closingDate?: string;
+  startDate?: string;
+  responsibilities?: string[];
+  qualifications?: string[];
+  niceToHave?: string[];
+  benefits?: string[];
   requirements: JobRequirement[];
   // A job may have one test attached (Vetter-made or the company's own)
   attachedTestId?: string;

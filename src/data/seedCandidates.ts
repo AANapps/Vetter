@@ -49,7 +49,7 @@ const LOCATIONS = [
   'Amsterdam, NL', 'Singapore, SG', 'Seattle, WA', 'Lagos, NG', 'Sydney, AU',
 ];
 
-const SKILL_IDS: Record<AssessmentTest['category'], string> = {
+export const SKILL_IDS: Record<AssessmentTest['category'], string> = {
   Databases: 'skill-sql',
   'System Architecture': 'skill-sys',
   Frontend: 'skill-frontend',

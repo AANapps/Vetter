@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, AssessmentTest, JobPosting, CandidateJobMatch } from '../types';
+import { User, AssessmentTest, JobPosting, CandidateJobMatch, Business } from '../types';
 import { rankJobsForCandidate, getBestTestScore } from '../lib/matchingAlgorithm';
 import { getLeaderboard, getTestStats } from '../lib/leaderboard';
 import {
@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { VerifiedSkillBadge } from './VerifiedSkillBadge';
 import { JobApplicationModal } from './JobApplicationModal';
+import { JobDetails } from './JobDetails';
 
 export type CandidateSection = 'profile' | 'jobs' | 'tests';
 
@@ -29,6 +30,7 @@ interface CandidatePortalProps {
   onOpenTest: (testId: string) => void;
   tests: AssessmentTest[];
   jobs: JobPosting[];
+  businesses: Business[];
   onStartTest: (test: AssessmentTest) => void;
   onStartAttachedTest?: (test: AssessmentTest, forJobId: string) => void;
   onApplyJob: (jobId: string) => void;
@@ -42,6 +44,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   onOpenTest,
   tests,
   jobs,
+  businesses,
   onStartTest,
   onStartAttachedTest,
   onApplyJob,
@@ -411,7 +414,14 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                             <span aria-hidden="true">&middot;</span>
                             <span className="text-xs text-slate-500">Posted {job.postedDate}</span>
                           </div>
-                          <h3 className="text-base font-bold text-slate-900 tracking-tight">{match.jobTitle}</h3>
+                          <h3 className="text-base font-bold text-slate-900 tracking-tight">
+                            <button
+                              onClick={() => setExpandedJobId(isExpanded ? null : match.jobId)}
+                              className="text-left hover:text-indigo-700 hover:underline transition-colors"
+                            >
+                              {match.jobTitle}
+                            </button>
+                          </h3>
                           <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
                             <span className="flex items-center gap-1">
                               <MapPin className="w-3 h-3 text-slate-400" />
@@ -464,7 +474,8 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                         <button
                           onClick={() => setExpandedJobId(isExpanded ? null : match.jobId)}
                           className="p-2 text-slate-500 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition-colors"
-                          title="Toggle skill requirements breakdown"
+                          aria-expanded={isExpanded}
+                          aria-label={isExpanded ? 'Hide full job description' : 'Show full job description'}
                         >
                           {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                         </button>
@@ -532,59 +543,22 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                     )}
                   </div>
 
-                  {/* Expanded Breakdown & Job Description */}
+                  {/* Full listing: description, details, dates and tests */}
                   {isExpanded && (
-                    <div className="p-6 bg-slate-50/80 border-t border-slate-200 space-y-4">
-                      <div>
-                        <h4 className="text-xs font-bold text-slate-900 mb-1">Role Description</h4>
-                        <p className="text-xs text-slate-600 leading-relaxed">{job.description}</p>
-                      </div>
-
-                      <div className="space-y-2 pt-2">
-                        <h4 className="text-xs font-bold text-slate-900">How Your Skills Compare</h4>
-                        <div className="space-y-2">
-                          {match.breakdown.map((b) => (
-                            <div
-                              key={b.skillName}
-                              className="p-3 bg-white border border-slate-200 rounded-lg text-xs space-y-2 shadow-2xs"
-                            >
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-semibold text-slate-900">{b.skillName}</span>
-                                  <span className="text-[10px] uppercase font-mono font-semibold text-slate-500">
-                                    {b.importance}
-                                  </span>
-                                </div>
-                                <div className="font-mono text-xs tabular-nums">
-                                  Your Score: <strong className={b.meetsThreshold ? 'text-indigo-600' : 'text-amber-700'}>{b.candidateScore}</strong> / Required: <strong>{b.requiredMinScore}</strong>
-                                </div>
-                              </div>
-                              <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                                <div
-                                  className={`h-full ${b.meetsThreshold ? 'bg-indigo-600' : 'bg-amber-500'}`}
-                                  style={{ width: `${Math.min(100, (b.candidateScore / (b.requiredMinScore || 1)) * 100)}%` }}
-                                />
-                              </div>
-                              <div className="text-[11px] text-slate-500">
-                                {b.candidateScore === 0 ? (
-                                  <span>
-                                    You have not taken this assessment yet. Taking it could increase your fit score significantly.
-                                  </span>
-                                ) : b.meetsThreshold ? (
-                                  <span>
-                                    Exceeds minimum recruiter score requirement by {b.candidateScore - b.requiredMinScore} points. Full weighting awarded.
-                                  </span>
-                                ) : (
-                                  <span className="text-amber-700">
-                                    Below threshold by {b.requiredMinScore - b.candidateScore} points. Retake assessment to qualify.
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
+                    <JobDetails
+                      job={job}
+                      match={match}
+                      candidate={candidate}
+                      allCandidates={allCandidates}
+                      tests={tests}
+                      business={businesses.find((b) => b.id === job.businessId)}
+                      isApplied={!!isApplied}
+                      onApply={() => setSelectedJobForApplication(job)}
+                      onStartAttachedTest={(test) =>
+                        onStartAttachedTest ? onStartAttachedTest(test, job.id) : onStartTest(test)
+                      }
+                      onOpenTest={onOpenTest}
+                    />
                   )}
                 </div>
               );
