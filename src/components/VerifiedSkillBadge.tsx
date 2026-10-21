@@ -1,93 +1,167 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { VerifiedSkill } from '../types';
 import { LeaderboardEntry } from '../lib/leaderboard';
 import { RankDisc } from './RankDisc';
-import { Crown, Award, ShieldCheck, Shield, Sparkles, CheckCircle2, Copy, Check, ExternalLink, X } from 'lucide-react';
+import { Copy, Check, X, BadgeCheck } from 'lucide-react';
+
+export type TierKey = 'gold' | 'silver' | 'bronze' | 'developing';
 
 export interface BadgeTierConfig {
-  tierKey: 'gold' | 'silver' | 'bronze' | 'developing';
+  tierKey: TierKey;
   label: string;
   sublabel: string;
   colorName: string;
+  // Tier-coloured text for scores and labels
   badgeTextColor: string;
-  borderClass: string;
-  gradientBg: string;
-  glowClass: string;
-  // Solid bright gradient for the badge itself (pills and icon tiles); white text sits on it
-  solidClass: string;
-  ringColor: string;
-  icon: React.ComponentType<{ className?: string }>;
+  // A small tinted chip naming the tier
+  chipClass: string;
+  // Fill for score bars
+  barClass: string;
   minScore: number;
   description: string;
 }
 
+const TIERS: BadgeTierConfig[] = [
+  {
+    tierKey: 'gold',
+    label: 'Gold',
+    sublabel: 'Top 1% benchmark',
+    colorName: 'Gold',
+    badgeTextColor: 'text-amber-700',
+    chipClass: 'bg-amber-50 text-amber-800 ring-amber-200',
+    barClass: 'medal-bar-gold',
+    minScore: 95,
+    description: 'Master-level result. Efficient, precise solutions with every edge case covered.',
+  },
+  {
+    tierKey: 'silver',
+    label: 'Silver',
+    sublabel: 'Top 8% benchmark',
+    colorName: 'Silver',
+    badgeTextColor: 'text-slate-600',
+    chipClass: 'bg-slate-100 text-slate-700 ring-slate-300',
+    barClass: 'medal-bar-silver',
+    minScore: 88,
+    description: 'High distinction. Consistently above what senior production work demands.',
+  },
+  {
+    tierKey: 'bronze',
+    label: 'Bronze',
+    sublabel: 'Top 25% verified pass',
+    colorName: 'Bronze',
+    badgeTextColor: 'text-orange-800',
+    chipClass: 'bg-orange-50 text-orange-800 ring-orange-200',
+    barClass: 'medal-bar-bronze',
+    minScore: 75,
+    description: 'Verified pass. Meets the bar for production engineering work.',
+  },
+  {
+    tierKey: 'developing',
+    label: 'Recorded',
+    sublabel: 'Retake to verify',
+    colorName: 'Unranked',
+    badgeTextColor: 'text-slate-500',
+    chipClass: 'bg-slate-50 text-slate-500 ring-slate-200',
+    barClass: 'medal-bar-developing',
+    minScore: 0,
+    description: 'Result recorded below the verified bar. Retake the test to earn a badge.',
+  },
+];
+
 export function getBadgeTier(score: number): BadgeTierConfig {
-  if (score >= 95) {
-    return {
-      tierKey: 'gold',
-      label: 'Gold Master',
-      sublabel: 'Top 1% Global Benchmark',
-      colorName: 'Gold',
-      badgeTextColor: 'text-amber-700',
-      borderClass: 'border-amber-300',
-      gradientBg: 'from-amber-50 via-white to-amber-50/50',
-      glowClass: 'shadow-xs hover:border-amber-400 hover:shadow-md',
-      ringColor: '#D97706',
-      solidClass: 'tier-solid tier-solid-gold',
-      icon: Crown,
-      minScore: 95,
-      description: 'Master-level technical benchmark. Exceptional algorithmic efficiency, architecture precision, and full edge-case coverage.',
-    };
-  } else if (score >= 88) {
-    return {
-      tierKey: 'silver',
-      label: 'Silver Distinction',
-      sublabel: 'Top 8% Global Benchmark',
-      colorName: 'Silver',
-      badgeTextColor: 'text-indigo-700',
-      borderClass: 'border-indigo-200',
-      gradientBg: 'from-indigo-50/60 via-white to-purple-50/40',
-      glowClass: 'shadow-xs hover:border-indigo-400 hover:shadow-md',
-      ringColor: '#5B50E5',
-      solidClass: 'tier-solid tier-solid-silver',
-      icon: Award,
-      minScore: 88,
-      description: 'High distinction engineering benchmark. Consistently exceeds senior production requirements with clean code structures.',
-    };
-  } else if (score >= 75) {
-    return {
-      tierKey: 'bronze',
-      label: 'Bronze Verified',
-      sublabel: 'Top 25% Verified Pass',
-      colorName: 'Bronze',
-      badgeTextColor: 'text-slate-700',
-      borderClass: 'border-slate-200',
-      gradientBg: 'from-slate-50 via-white to-slate-100/60',
-      glowClass: 'shadow-xs hover:border-slate-300 hover:shadow-md',
-      ringColor: '#64748B',
-      solidClass: 'tier-solid tier-solid-bronze',
-      icon: ShieldCheck,
-      minScore: 75,
-      description: 'Standard verified technical benchmark. Meets enterprise production engineering criteria.',
-    };
-  } else {
-    return {
-      tierKey: 'developing',
-      label: 'Assessment Recorded',
-      sublabel: 'Retake to Verify',
-      colorName: 'Slate',
-      badgeTextColor: 'text-slate-500',
-      borderClass: 'border-slate-200',
-      gradientBg: 'from-slate-50 via-white to-slate-50',
-      glowClass: 'hover:border-slate-300',
-      ringColor: '#94A3B8',
-      solidClass: 'tier-solid tier-solid-developing',
-      icon: Shield,
-      minScore: 0,
-      description: 'Completed baseline evaluation. Practice and retake the assessment to unlock verified badge status.',
-    };
-  }
+  return TIERS.find((t) => score >= t.minScore)!;
 }
+
+// Metallic colours for each medal: highlight, body, shadow, and the text that sits on it
+const MEDAL_COLOURS: Record<TierKey, { light: string; mid: string; dark: string; ink: string }> = {
+  gold: { light: '#FFF1BF', mid: '#E6B43C', dark: '#9C6A0E', ink: '#5A3B00' },
+  silver: { light: '#FFFFFF', mid: '#C3CCD8', dark: '#6F7C8F', ink: '#273445' },
+  bronze: { light: '#FFDCC0', mid: '#CD8550', dark: '#7F431C', ink: '#4A2307' },
+  developing: { light: '#F8FAFC', mid: '#CBD5E1', dark: '#94A3B8', ink: '#475569' },
+};
+
+const EMBLEM_SIZES = { xs: 18, sm: 24, md: 40, lg: 52, xl: 72 } as const;
+
+// A hexagonal medal in the tier's metal, with the score struck into it
+export const BadgeEmblem: React.FC<{ tier: TierKey; score?: number; size?: keyof typeof EMBLEM_SIZES; className?: string }> = ({
+  tier,
+  score,
+  size = 'md',
+  className = '',
+}) => {
+  const id = useId().replace(/:/g, '');
+  const c = MEDAL_COLOURS[tier];
+  const px = EMBLEM_SIZES[size];
+  const hex = (r: number) =>
+    Array.from({ length: 6 }, (_, i) => {
+      const a = (Math.PI / 3) * i - Math.PI / 2;
+      return `${50 + r * Math.cos(a)},${50 + r * Math.sin(a)}`;
+    }).join(' ');
+  const showScore = score !== undefined && px >= 24;
+
+  return (
+    <svg
+      width={px}
+      height={px}
+      viewBox="0 0 100 100"
+      className={`shrink-0 drop-shadow-sm ${className}`}
+      role="img"
+      aria-label={`${getBadgeTier(score ?? TIERS.find((t) => t.tierKey === tier)!.minScore).label} badge${score !== undefined ? `, ${score}` : ''}`}
+    >
+      <defs>
+        <linearGradient id={`rim-${id}`} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor={c.light} />
+          <stop offset="0.45" stopColor={c.mid} />
+          <stop offset="1" stopColor={c.dark} />
+        </linearGradient>
+        <linearGradient id={`face-${id}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor={c.mid} />
+          <stop offset="1" stopColor={c.light} />
+        </linearGradient>
+      </defs>
+      <polygon points={hex(48)} fill={`url(#rim-${id})`} />
+      <polygon points={hex(39)} fill={`url(#face-${id})`} stroke={c.dark} strokeOpacity="0.35" strokeWidth="1.5" />
+      {/* Sheen across the top */}
+      <path d={`M ${hex(39).split(' ')[5]} L ${hex(39).split(' ')[0]} L ${hex(39).split(' ')[1]} L 50 42 Z`} fill="#fff" opacity="0.28" />
+      {showScore ? (
+        <text
+          x="50"
+          y="52"
+          textAnchor="middle"
+          dominantBaseline="middle"
+          fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
+          fontWeight="800"
+          fontSize={score! >= 100 ? 28 : 34}
+          fill={c.ink}
+        >
+          {score}
+        </text>
+      ) : (
+        <path d="M34 51 l11 11 l22 -24" fill="none" stroke={c.ink} strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />
+      )}
+    </svg>
+  );
+};
+
+// The score bands, for legends
+export const TierLegend: React.FC = () => (
+  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-600">
+    {TIERS.slice(0, 3).map((t, i) => (
+      <span key={t.tierKey} className="flex items-center gap-1.5">
+        <BadgeEmblem tier={t.tierKey} size="xs" />
+        <span>
+          <span className="font-semibold text-slate-800">{t.label}</span> {i === 0 ? `${t.minScore}+` : `${t.minScore}–${TIERS[i - 1].minScore - 1}`}
+        </span>
+      </span>
+    ))}
+  </div>
+);
+
+const TierChip: React.FC<{ tier: BadgeTierConfig }> = ({ tier }) => (
+  <span className={`inline-flex items-center px-2 py-px rounded-full text-[11px] font-semibold ring-1 ring-inset ${tier.chipClass}`}>
+    {tier.label}
+  </span>
+);
 
 interface VerifiedSkillBadgeProps {
   skill: VerifiedSkill;
@@ -99,10 +173,12 @@ interface VerifiedSkillBadgeProps {
   onViewLeaderboard?: () => void;
 }
 
+const formatDate = (iso: string) =>
+  new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
 export const VerifiedSkillBadge: React.FC<VerifiedSkillBadgeProps> = ({
   skill,
   variant = 'card',
-  onInspect,
   topPerformers,
   currentCandidateId,
   onViewLeaderboard,
@@ -110,7 +186,6 @@ export const VerifiedSkillBadge: React.FC<VerifiedSkillBadgeProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const tier = getBadgeTier(skill.score);
-  const Icon = tier.icon;
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(`https://vetted.dev/verify/${skill.skillId}-${skill.score}`);
@@ -118,202 +193,124 @@ export const VerifiedSkillBadge: React.FC<VerifiedSkillBadgeProps> = ({
     setTimeout(() => setCopiedLink(false), 2000);
   };
 
-  // Compact Pill Emblem Variant
+  const modal = isModalOpen && (
+    <CertificateModal skill={skill} tier={tier} onClose={() => setIsModalOpen(false)} onCopy={handleCopyLink} copied={copiedLink} />
+  );
+
+  // A chip for rows of badges, like skills on a LinkedIn profile
   if (variant === 'compact') {
     return (
-      <div
-        onClick={() => setIsModalOpen(true)}
-        className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg ${tier.solidClass} cursor-pointer transition-all`}
-        title={`Verified: ${skill.skillName} (${skill.score}/100) · Click to view certificate`}
-      >
-        <Icon className="w-3.5 h-3.5 text-white shrink-0" />
-        <span className="text-xs font-semibold text-white">{skill.skillName}</span>
-        <span className="text-xs font-mono font-bold tabular-nums text-white">
-          {skill.score}
-        </span>
-      </div>
-    );
-  }
-
-  // Showcase Ribbon Emblem (for hero banners and featured credentials)
-  if (variant === 'showcase') {
-    return (
       <>
-        <div
+        <button
           onClick={() => setIsModalOpen(true)}
-          className={`group relative p-4 rounded-xl border bg-gradient-to-br ${tier.gradientBg} ${tier.borderClass} ${tier.glowClass} cursor-pointer transition-all duration-200 flex items-center justify-between gap-4 shadow-xs`}
+          className="badge-chip inline-flex items-center gap-2 pl-1 pr-3 py-1 rounded-full bg-white ring-1 ring-slate-200 hover:ring-slate-300 hover:shadow-sm transition-all"
+          title={`${tier.label} badge: ${skill.skillName}, ${skill.score}/100. View credential`}
         >
-          <div className="flex items-center gap-3.5">
-            <div
-              className={`w-11 h-11 rounded-xl ${tier.solidClass} flex items-center justify-center shrink-0`}
-            >
-              <Icon className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className={`text-[10px] font-mono uppercase tracking-wider font-bold ${tier.badgeTextColor}`}>
-                  {tier.label}
-                </span>
-                <span className="text-slate-400 text-xs">&middot;</span>
-                <span className="text-[11px] text-slate-500 font-mono">{skill.category}</span>
-              </div>
-              <h4 className="text-sm font-bold text-slate-900 group-hover:text-indigo-700 transition-colors">
-                {skill.skillName}
-              </h4>
-            </div>
-          </div>
-
-          <div className="text-right shrink-0">
-            <div className={`text-2xl font-extrabold font-mono tabular-nums ${tier.badgeTextColor}`}>
-              {skill.score}
-              <span className="text-xs text-slate-500 font-normal">/100</span>
-            </div>
-            <div className="text-[10px] text-slate-500 font-mono">
-              {skill.percentile}th Percentile
-            </div>
-          </div>
-        </div>
-
-        {isModalOpen && (
-          <CertificateModal
-            skill={skill}
-            tier={tier}
-            onClose={() => setIsModalOpen(false)}
-            onCopy={handleCopyLink}
-            copied={copiedLink}
-          />
-        )}
+          <BadgeEmblem tier={tier.tierKey} score={skill.score} size="sm" />
+          <span className="text-xs font-semibold text-slate-800">{skill.skillName}</span>
+          <span className={`text-[11px] font-semibold ${tier.badgeTextColor}`}>{tier.label}</span>
+        </button>
+        {modal}
       </>
     );
   }
 
-  // Full Card Variant
+  // A wide feature tile for standout results
+  if (variant === 'showcase') {
+    return (
+      <>
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="group w-full text-left p-4 rounded-xl bg-white border border-slate-200 hover:border-slate-300 hover:shadow-md transition-all flex items-center gap-4 shadow-xs"
+        >
+          <BadgeEmblem tier={tier.tierKey} score={skill.score} size="lg" />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <TierChip tier={tier} />
+              <span className="text-[11px] text-slate-500">{tier.sublabel}</span>
+            </div>
+            <h4 className="text-sm font-bold text-slate-900 mt-1 truncate group-hover:underline">{skill.skillName}</h4>
+            <p className="text-[11px] text-slate-500">
+              Vetter &middot; {skill.percentile}th percentile
+            </p>
+          </div>
+        </button>
+        {modal}
+      </>
+    );
+  }
+
+  // Full card: the credential, where it stands, and who leads the test
   return (
     <>
-      <div
-        className={`relative rounded-xl border bg-gradient-to-br ${tier.gradientBg} ${tier.borderClass} ${tier.glowClass} p-5 space-y-4 transition-all duration-200 flex flex-col justify-between shadow-xs`}
-      >
-        <div className="space-y-3">
-          {/* Header Row */}
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex items-center gap-2.5">
-              <div className={`p-2 rounded-lg ${tier.solidClass}`}>
-                <Icon className="w-4 h-4 text-white" />
-              </div>
-              <div>
-                <span className={`text-[10px] font-mono uppercase tracking-wider font-bold ${tier.badgeTextColor}`}>
-                  {tier.label}
-                </span>
-                <h3 className="text-sm font-bold text-slate-900 tracking-tight mt-0.5">{skill.skillName}</h3>
-              </div>
-            </div>
-
-            <div className="text-right">
-              <span className="text-[11px] text-slate-600 font-medium">{skill.level}</span>
-            </div>
+      <div className="rounded-xl bg-white border border-slate-200 p-5 flex flex-col gap-4 shadow-xs hover:shadow-md transition-shadow">
+        <div className="flex items-start gap-3.5">
+          <BadgeEmblem tier={tier.tierKey} score={skill.score} size="lg" />
+          <div className="min-w-0 flex-1">
+            <h3 className="text-sm font-bold text-slate-900 leading-snug">{skill.skillName}</h3>
+            <p className="text-xs text-slate-600 flex items-center gap-1 mt-0.5">
+              <BadgeCheck className="w-3.5 h-3.5 text-indigo-600" />
+              Verified by Vetter
+            </p>
+            <p className="text-[11px] text-slate-500 mt-0.5">Issued {formatDate(skill.verifiedAt)}</p>
           </div>
-
-          {/* Score & Percentile Figures */}
-          <div className="flex items-baseline justify-between pt-2">
-            <div>
-              <div className="text-[11px] text-slate-500">Verified Benchmark</div>
-              <div className={`text-3xl font-extrabold font-mono tabular-nums ${tier.badgeTextColor}`}>
-                {skill.score}
-                <span className="text-xs font-normal text-slate-400">/100</span>
-              </div>
-            </div>
-
-            <div className="text-right">
-              <div className="text-[11px] text-slate-500">Global Standing</div>
-              <div className="text-lg font-bold text-slate-900 font-mono tabular-nums">
-                {skill.percentile}th <span className="text-xs font-normal text-slate-400">%ile</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Score Bar with Dynamic Indicator */}
-          <div className="space-y-1 pt-1">
-            <div className="h-2 w-full bg-slate-100 border border-slate-200 rounded-full overflow-hidden p-0.5">
-              <div
-                className={`h-full rounded-full transition-all duration-500 ${
-                  tier.tierKey === 'gold'
-                    ? 'bg-gradient-to-r from-amber-500 to-amber-400'
-                    : tier.tierKey === 'silver'
-                    ? 'bg-gradient-to-r from-indigo-600 to-violet-500'
-                    : 'bg-gradient-to-r from-slate-600 to-slate-400'
-                }`}
-                style={{ width: `${skill.score}%` }}
-              />
-            </div>
-            <div className="flex items-center justify-between text-[10px] text-slate-500 font-mono">
-              <span>Threshold: 75</span>
-              <span>{tier.sublabel}</span>
-            </div>
-          </div>
-
-          {topPerformers && topPerformers.length > 0 && (
-            <div className="pt-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 font-semibold">Top performers</span>
-                {onViewLeaderboard && (
-                  <button onClick={onViewLeaderboard} className="text-[11px] font-semibold text-indigo-700 hover:underline">
-                    Leaderboard &rarr;
-                  </button>
-                )}
-              </div>
-              <ol className="space-y-1.5">
-                {topPerformers.map((entry) => {
-                  const isYou = entry.candidate.id === currentCandidateId;
-                  return (
-                    <li key={entry.candidate.id} className="flex items-center gap-2 text-xs">
-                      <RankDisc rank={entry.rank} size="sm" />
-                      <img
-                        src={entry.candidate.avatarUrl}
-                        alt=""
-                        referrerPolicy="no-referrer"
-                        className="w-5 h-5 rounded-full object-cover bg-slate-100 shrink-0"
-                      />
-                      <span className={`truncate ${isYou ? 'font-bold text-indigo-700' : 'text-slate-700'}`}>
-                        {isYou ? 'You' : entry.candidate.name}
-                      </span>
-                      <span className="ml-auto font-mono font-semibold tabular-nums text-slate-900">{entry.score}</span>
-                    </li>
-                  );
-                })}
-              </ol>
-            </div>
-          )}
+          <TierChip tier={tier} />
         </div>
 
-        {/* Card Footer & Credential Audit Trigger */}
-        <div className="pt-3 border-t border-slate-200/80 flex items-center justify-between text-xs">
-          <span className="text-[11px] text-slate-500 font-mono">
-            Verified {skill.verifiedAt}
-          </span>
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className={`text-xs font-semibold ${tier.badgeTextColor} hover:underline flex items-center gap-1 transition-colors`}
-          >
-            <span>Audit Credential</span>
-            <ExternalLink className="w-3 h-3" />
-          </button>
+        <div className="space-y-1.5">
+          <div className="flex items-baseline justify-between text-xs">
+            <span className="text-slate-600">
+              <span className={`font-bold font-mono tabular-nums text-base ${tier.badgeTextColor}`}>{skill.score}</span>
+              <span className="text-slate-400">/100</span> &middot; {skill.level}
+            </span>
+            <span className="text-slate-600">
+              <span className="font-semibold text-slate-900 tabular-nums">{skill.percentile}th</span> percentile
+            </span>
+          </div>
+          <div className="relative h-1.5 w-full bg-slate-100 rounded-full">
+            <div className={`h-full rounded-full ${tier.barClass}`} style={{ width: `${skill.score}%` }} />
+            <div className="absolute -top-0.5 -bottom-0.5 w-px bg-slate-400" style={{ left: '75%' }} title="Verified at 75" />
+          </div>
         </div>
+
+        {topPerformers && topPerformers.length > 0 && (
+          <div className="space-y-2 pt-3 border-t border-slate-100">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold text-slate-700">Top performers</span>
+              {onViewLeaderboard && (
+                <button onClick={onViewLeaderboard} className="text-[11px] font-semibold text-indigo-700 hover:underline">
+                  Leaderboard &rarr;
+                </button>
+              )}
+            </div>
+            <ol className="space-y-1.5">
+              {topPerformers.map((entry) => {
+                const isYou = entry.candidate.id === currentCandidateId;
+                return (
+                  <li key={entry.candidate.id} className="flex items-center gap-2 text-xs">
+                    <RankDisc rank={entry.rank} size="sm" />
+                    <img src={entry.candidate.avatarUrl} alt="" referrerPolicy="no-referrer" className="w-5 h-5 rounded-full object-cover bg-slate-100 shrink-0" />
+                    <span className={`truncate ${isYou ? 'font-bold text-indigo-700' : 'text-slate-700'}`}>{isYou ? 'You' : entry.candidate.name}</span>
+                    <span className="ml-auto font-mono font-semibold tabular-nums text-slate-900">{entry.score}</span>
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
+        )}
+
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="mt-auto self-start px-3.5 py-1.5 rounded-full text-xs font-semibold text-slate-700 ring-1 ring-slate-300 hover:ring-slate-500 hover:bg-slate-50 transition-colors"
+        >
+          Show credential
+        </button>
       </div>
-
-      {isModalOpen && (
-        <CertificateModal
-          skill={skill}
-          tier={tier}
-          onClose={() => setIsModalOpen(false)}
-          onCopy={handleCopyLink}
-          copied={copiedLink}
-        />
-      )}
+      {modal}
     </>
   );
 };
 
-// Modal providing cryptographic proof of verified assessment
 interface CertificateModalProps {
   skill: VerifiedSkill;
   tier: BadgeTierConfig;
@@ -322,115 +319,86 @@ interface CertificateModalProps {
   copied: boolean;
 }
 
-const CertificateModal: React.FC<CertificateModalProps> = ({
-  skill,
-  tier,
-  onClose,
-  onCopy,
-  copied,
-}) => {
-  const Icon = tier.icon;
+// The credential itself: what was verified, how, and a link to share
+const CertificateModal: React.FC<CertificateModalProps> = ({ skill, tier, onClose, onCopy, copied }) => {
   const credentialId = `VTD-${skill.skillId.replace('skill-', '').toUpperCase()}-${skill.score}-${skill.verifiedAt.replace(/-/g, '')}`;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-      <div className="bg-white border border-slate-200 rounded-2xl max-w-lg w-full p-6 sm:p-8 space-y-6 shadow-2xl relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in" onClick={onClose}>
+      <div
+        className="bg-white border border-slate-200 rounded-2xl max-w-md w-full overflow-hidden shadow-2xl relative"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-label={`${skill.skillName} credential`}
+      >
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors"
+          aria-label="Close"
+          className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors z-10"
         >
           <X className="w-5 h-5" />
         </button>
 
-        {/* Certificate Emblem Header */}
-        <div className="flex items-center gap-4">
-          <div
-            className={`w-14 h-14 rounded-2xl ${tier.solidClass} flex items-center justify-center shrink-0`}
-          >
-            <Icon className="w-8 h-8 text-white" />
-          </div>
+        <div className={`medal-banner medal-banner-${tier.tierKey} px-6 pt-8 pb-6 flex flex-col items-center text-center gap-3`}>
+          <BadgeEmblem tier={tier.tierKey} score={skill.score} size="xl" />
           <div>
-            <div className="flex items-center gap-2">
-              <span className={`text-xs font-mono uppercase font-bold tracking-wider ${tier.badgeTextColor}`}>
-                {tier.label}
-              </span>
-              <span className="text-xs text-slate-400">&middot;</span>
-              <span className="text-xs text-indigo-700 font-semibold">Audited & Active</span>
-            </div>
-            <h3 className="text-lg font-bold text-slate-900 mt-0.5">{skill.skillName}</h3>
-            <p className="text-xs text-slate-500 font-mono">Credential ID: {credentialId}</p>
+            <TierChip tier={tier} />
+            <h3 className="text-lg font-bold text-slate-900 mt-2">{skill.skillName}</h3>
+            <p className="text-xs text-slate-600 flex items-center justify-center gap-1 mt-0.5">
+              <BadgeCheck className="w-3.5 h-3.5 text-indigo-600" />
+              Verified by Vetter &middot; Issued {formatDate(skill.verifiedAt)}
+            </p>
           </div>
         </div>
 
-        {/* Score & Benchmark Grid */}
-        <div className="grid grid-cols-2 gap-3 p-4 bg-slate-50 border border-slate-200 rounded-xl">
-          <div>
-            <div className="text-[11px] text-slate-500">Verified Assessment Score</div>
-            <div className={`text-3xl font-extrabold font-mono tabular-nums ${tier.badgeTextColor}`}>
-              {skill.score}
-              <span className="text-xs text-slate-400 font-normal">/100</span>
+        <div className="p-6 space-y-5">
+          <dl className="grid grid-cols-3 gap-3 text-center">
+            <div>
+              <dt className="text-[11px] text-slate-500">Score</dt>
+              <dd className={`text-xl font-bold font-mono tabular-nums ${tier.badgeTextColor}`}>{skill.score}</dd>
             </div>
-            <div className="text-[11px] text-slate-500 mt-0.5">Passing bar: 75</div>
-          </div>
-          <div>
-            <div className="text-[11px] text-slate-500">Global Percentile Standing</div>
-            <div className="text-3xl font-extrabold font-mono tabular-nums text-slate-900">
-              {skill.percentile}th
+            <div>
+              <dt className="text-[11px] text-slate-500">Percentile</dt>
+              <dd className="text-xl font-bold font-mono tabular-nums text-slate-900">{skill.percentile}th</dd>
             </div>
-            <div className="text-[11px] text-indigo-600 font-medium mt-0.5">{tier.sublabel}</div>
-          </div>
-        </div>
+            <div>
+              <dt className="text-[11px] text-slate-500">Level</dt>
+              <dd className="text-sm font-bold text-slate-900 pt-1">{skill.level}</dd>
+            </div>
+          </dl>
 
-        {/* Verification Metadata Details */}
-        <div className="space-y-2 text-xs text-slate-700">
-          <div className="font-semibold text-slate-900">Assessment Proof Details:</div>
-          <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2 font-mono text-[11px]">
-            <div className="flex justify-between">
-              <span className="text-slate-500">Evaluation Mode:</span>
-              <span className="text-slate-800 font-medium">Interactive In-Browser Sandbox</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-500">Proctor Integrity Index:</span>
-              <span className="text-indigo-700 font-semibold">100% Focus (0 flags)</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-500">Verification Date:</span>
-              <span className="text-slate-800">{skill.verifiedAt}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-500">Assessed Level:</span>
-              <span className="text-slate-800">{skill.level}</span>
-            </div>
-          </div>
-          <p className="text-[11px] text-slate-500 leading-relaxed pt-1">
-            {tier.description}
-          </p>
-        </div>
+          <p className="text-xs text-slate-600 leading-relaxed">{tier.description}</p>
 
-        {/* Share & Copy Action */}
-        <div className="flex items-center gap-3 pt-2">
-          <button
-            onClick={onCopy}
-            className="flex-1 py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 shadow-xs transition-colors"
-          >
-            {copied ? (
-              <>
-                <Check className="w-4 h-4 text-white" />
-                <span>Link Copied!</span>
-              </>
-            ) : (
-              <>
-                <Copy className="w-4 h-4" />
-                <span>Copy Verifiable Proof Link</span>
-              </>
-            )}
-          </button>
-          <button
-            onClick={onClose}
-            className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold border border-slate-200 transition-colors"
-          >
-            Close
-          </button>
+          <dl className="text-[11px] space-y-1.5 border-t border-slate-100 pt-4">
+            <div className="flex justify-between gap-4">
+              <dt className="text-slate-500">Credential ID</dt>
+              <dd className="font-mono text-slate-800 truncate">{credentialId}</dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-slate-500">Assessed in</dt>
+              <dd className="text-slate-800">Proctored in-browser sandbox</dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-slate-500">Integrity</dt>
+              <dd className="text-slate-800">100% focus, no flags</dd>
+            </div>
+          </dl>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onCopy}
+              className="flex-1 py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full text-xs font-semibold flex items-center justify-center gap-2 transition-colors"
+            >
+              {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              <span>{copied ? 'Link copied' : 'Copy credential link'}</span>
+            </button>
+            <button
+              onClick={onClose}
+              className="px-4 py-2.5 rounded-full text-xs font-semibold text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50 transition-colors"
+            >
+              Close
+            </button>
+          </div>
         </div>
       </div>
     </div>

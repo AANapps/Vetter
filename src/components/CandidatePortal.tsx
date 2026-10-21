@@ -11,11 +11,9 @@ import {
   MapPin,
   DollarSign,
   Search,
-  ShieldCheck,
   Send,
-  Crown
 } from 'lucide-react';
-import { VerifiedSkillBadge } from './VerifiedSkillBadge';
+import { VerifiedSkillBadge, BadgeEmblem, TierLegend, getBadgeTier } from './VerifiedSkillBadge';
 import { JobApplicationModal } from './JobApplicationModal';
 import { JobDetailsModal, JobPage } from './JobDetails';
 import { ProfileSidebar } from './ProfileSidebar';
@@ -74,6 +72,8 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
 
   // Compute live vector matches
   const rankedJobs: CandidateJobMatch[] = rankJobsForCandidate(candidate, activeJobs);
+  const bestScore = Math.max(...candidate.verifiedSkills.map((s) => s.score), 0);
+  const bestTier = candidate.verifiedSkills.length ? getBadgeTier(bestScore) : undefined;
 
   // Job board: every active job through the sidebar filters, sorted by newest or best fit
   const activeFilterCount = countActiveFilters(jobFilters, defaultJobFilters(homeCity));
@@ -172,10 +172,12 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
             <div className="space-y-1">
               <div className="flex items-center gap-3">
                 <h1 className="text-xl font-bold text-slate-900 tracking-tight">{candidate.name}</h1>
-                <div className="flex items-center gap-1.5 text-xs text-white tier-solid tier-solid-gold px-2.5 py-0.5 rounded-md font-mono font-semibold">
-                  <Crown className="w-3.5 h-3.5 text-white" />
-                  <span>Verified Gold Master</span>
-                </div>
+                {bestTier && bestTier.tierKey !== 'developing' && (
+                  <span className="flex items-center gap-1 text-xs font-semibold text-slate-700" title={`Best verified result: ${bestTier.label}`}>
+                    <BadgeEmblem tier={bestTier.tierKey} size="xs" />
+                    <span>{bestTier.label} verified</span>
+                  </span>
+                )}
               </div>
               <p className="text-xs text-slate-700 font-medium">{candidate.title}</p>
               <div className="flex items-center gap-2 text-xs text-slate-500">
@@ -215,13 +217,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
             <span className="text-xs font-bold text-slate-900 tracking-tight flex items-center gap-1.5">
               <span>Earned Verified Skill Badges</span>
             </span>
-            <div className="flex items-center gap-3 text-[11px] text-slate-500 font-mono font-medium">
-              <span className="text-amber-700">95+ Gold Master</span>
-              <span aria-hidden="true">&middot;</span>
-              <span className="text-indigo-700">88–94 Silver</span>
-              <span aria-hidden="true">&middot;</span>
-              <span className="text-slate-700">75–87 Bronze</span>
-            </div>
+            <TierLegend />
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
@@ -245,9 +241,9 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
           </div>
           <div>
             <div className="text-xs text-slate-500 font-medium">Top Benchmark</div>
-            <div className="text-2xl font-bold text-amber-700 font-mono tabular-nums">
-              {Math.max(...candidate.verifiedSkills.map((s) => s.score), 0)}
-              <span className="text-xs font-normal text-slate-400">/100 (Gold)</span>
+            <div className={`text-2xl font-bold font-mono tabular-nums ${bestTier?.badgeTextColor ?? 'text-slate-900'}`}>
+              {bestScore}
+              <span className="text-xs font-normal text-slate-400">/100{bestTier ? ` (${bestTier.colorName})` : ''}</span>
             </div>
           </div>
           <div>
@@ -271,35 +267,17 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
             <div>
               <h2 className="text-base font-bold text-slate-900">Verified Skill Credentials & Badges</h2>
               <p className="text-xs text-slate-500">
-                Objective scores audited in live sandboxes with dynamic threshold color coding. Click any badge to view cryptographic proof.
+                Scores from proctored, auto-graded tests. Open any badge to see and share its credential.
               </p>
             </div>
 
-            {/* Threshold Guide Badge Ribbon */}
-            <div className="self-start flex flex-wrap items-center gap-2 text-xs font-mono p-1 bg-white border border-slate-200 rounded-lg shadow-2xs whitespace-nowrap">
-              <span className="px-2 py-1 text-amber-700 font-bold flex items-center gap-1">
-                <Crown className="w-3.5 h-3.5 text-amber-600" />
-                <span>95+ Gold</span>
-              </span>
-              <span className="text-slate-300">&middot;</span>
-              <span className="px-2 py-1 text-indigo-700 font-bold flex items-center gap-1">
-                <Award className="w-3.5 h-3.5 text-indigo-600" />
-                <span>88–94 Silver</span>
-              </span>
-              <span className="text-slate-300">&middot;</span>
-              <span className="px-2 py-1 text-slate-700 font-bold flex items-center gap-1">
-                <ShieldCheck className="w-3.5 h-3.5 text-slate-600" />
-                <span>75–87 Bronze</span>
-              </span>
-            </div>
+            <TierLegend />
           </div>
 
           {/* High-Scoring Showcase Banner (Highlights 95+ Gold Master credentials) */}
           {candidate.verifiedSkills.some((s) => s.score >= 95) && (
             <div className="space-y-2">
-              <div className="text-xs font-semibold text-amber-700 flex items-center gap-1.5">
-                <span>Featured High-Scoring Assessment</span>
-              </div>
+              <div className="text-xs font-semibold text-slate-700">Featured</div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {candidate.verifiedSkills
                   .filter((s) => s.score >= 95)

@@ -2,9 +2,9 @@ import React from 'react';
 
 // Gold, silver and bronze rank discs for the podium; plain numbers after that
 const PODIUM_STYLES: Record<number, string> = {
-  1: 'tier-solid tier-solid-gold',
-  2: 'tier-solid tier-solid-metal',
-  3: 'tier-solid tier-solid-bronze',
+  1: 'medal-disc medal-disc-gold',
+  2: 'medal-disc medal-disc-silver',
+  3: 'medal-disc medal-disc-bronze',
 };
 
 export const RankDisc: React.FC<{ rank: number; size?: 'sm' | 'md' }> = ({ rank, size = 'md' }) => {

@@ -15,7 +15,7 @@ import {
   Crown,
   Award
 } from 'lucide-react';
-import { getBadgeTier } from './VerifiedSkillBadge';
+import { BadgeEmblem, getBadgeTier } from './VerifiedSkillBadge';
 import { QUESTION_TYPE_LABELS, describeChecks } from '../lib/testRoles';
 import { ChartPreview, parseChartSpec } from './ChartPreview';
 
@@ -555,7 +555,6 @@ export const AssessmentRunner: React.FC<AssessmentRunnerProps> = ({ test, onClos
       {/* Completion Modal */}
       {showCompletionModal && (() => {
         const earnedTier = getBadgeTier(finalScore);
-        const TierIcon = earnedTier.icon;
 
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
@@ -574,29 +573,17 @@ export const AssessmentRunner: React.FC<AssessmentRunnerProps> = ({ test, onClos
                 </div>
               </div>
 
-              {/* Dynamic Earned Badge Banner */}
-              <div
-                className={`p-4 rounded-xl border bg-gradient-to-r ${earnedTier.gradientBg} ${earnedTier.borderClass} ${earnedTier.glowClass} flex items-center justify-between gap-4`}
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`w-10 h-10 rounded-lg ${earnedTier.solidClass} flex items-center justify-center shrink-0`}
-                  >
-                    <TierIcon className="w-5 h-5 text-white" />
+              {/* The badge this score earns */}
+              <div className={`medal-banner medal-banner-${earnedTier.tierKey} rounded-xl border border-slate-200 p-4 flex items-center gap-4`}>
+                <BadgeEmblem tier={earnedTier.tierKey} score={finalScore} size="lg" />
+                <div>
+                  <div className="text-sm font-bold text-slate-900">
+                    {earnedTier.tierKey === 'developing'
+                      ? 'No badge this time'
+                      : `${earnedTier.label} badge${test.type === 'standard' ? ` · ${test.skillsTested[0] ?? test.title}` : ''}`}
                   </div>
-                  <div>
-                    <div className="text-[10px] font-mono uppercase tracking-wider text-slate-500 font-bold">
-                      Earned Badge Award
-                    </div>
-                    <div className={`text-sm font-bold ${earnedTier.badgeTextColor}`}>
-                      {earnedTier.label} ({earnedTier.colorName} Tier)
-                    </div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <span className="text-[10px] font-mono text-slate-500">Score Cutoff</span>
-                  <div className={`text-sm font-mono font-bold ${earnedTier.badgeTextColor}`}>
-                    ≥{earnedTier.minScore} pts
+                  <div className="text-xs text-slate-600">
+                    {earnedTier.tierKey === 'developing' ? 'Score 75 or more to earn a verified badge.' : earnedTier.sublabel}
                   </div>
                 </div>
               </div>
