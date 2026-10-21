@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { User, UserRole, AssessmentTest, JobPosting, VerifiedSkill, Business, SocialState } from './types';
+import { User, UserRole, AssessmentTest, JobPosting, VerifiedSkill, Business, SocialState, Exam, AppNotification } from './types';
 import { INITIAL_RECRUITER, INITIAL_BUSINESSES } from './data/mockData';
 import { loadData, saveData, clearData } from './lib/store';
 import { getPercentile } from './lib/leaderboard';
@@ -13,6 +13,8 @@ import { TestPage } from './components/TestPage';
 import { DiscoverFeed } from './components/DiscoverFeed';
 import { GlobalSearch } from './components/GlobalSearch';
 import { PersonProfileModal } from './components/PersonProfileModal';
+import { ExamPage } from './components/ExamPage';
+import { ExamsManager } from './components/ExamsManager';
 import { CheckCircle2 } from 'lucide-react';
 
 const CANDIDATE_SECTIONS: Partial<Record<AppTab, CandidateSection>> = {
@@ -41,8 +43,8 @@ const VETTER_TEAM: User = {
 
 const today = () => new Date().toISOString().split('T')[0];
 
-// Test and job pages live at #/tests/<id> and #/jobs/<id> so they can be linked to and the back button works
-const idFromHash = (kind: 'tests' | 'jobs') => {
+// Test, job and exam pages live at #/tests/<id>, #/jobs/<id> and #/exams/<id> so they can be linked to and the back button works
+const idFromHash = (kind: 'tests' | 'jobs' | 'exams') => {
   const match = window.location.hash.match(new RegExp(`^#/${kind}/(.+)$`));
   return match ? decodeURIComponent(match[1]) : null;
 };
@@ -62,17 +64,21 @@ export default function App() {
   const [tests, setTests] = useState<AssessmentTest[]>(initialData.tests);
   const [businesses] = useState<Business[]>(INITIAL_BUSINESSES);
   const [social, setSocial] = useState<SocialState>(initialData.social);
+  const [exams, setExams] = useState<Exam[]>(initialData.exams);
+  const [notifications, setNotifications] = useState<AppNotification[]>(initialData.notifications);
 
   useEffect(() => {
-    saveData({ candidate, otherCandidates, jobs, tests, social });
-  }, [candidate, otherCandidates, jobs, tests, social]);
+    saveData({ candidate, otherCandidates, jobs, tests, social, exams, notifications });
+  }, [candidate, otherCandidates, jobs, tests, social, exams, notifications]);
 
   const [testPageId, setTestPageId] = useState<string | null>(() => idFromHash('tests'));
   const [jobPageId, setJobPageId] = useState<string | null>(() => idFromHash('jobs'));
+  const [examPageId, setExamPageId] = useState<string | null>(() => idFromHash('exams'));
   useEffect(() => {
     const onHashChange = () => {
       setTestPageId(idFromHash('tests'));
       setJobPageId(idFromHash('jobs'));
+      setExamPageId(idFromHash('exams'));
     };
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);
@@ -98,6 +104,7 @@ export default function App() {
       history.pushState(null, '', window.location.pathname + window.location.search);
       setTestPageId(null);
       setJobPageId(null);
+      setExamPageId(null);
     }
     setCurrentTab(tab);
   };
@@ -112,6 +119,41 @@ export default function App() {
     setCurrentTab('jobs');
     window.location.hash = `/jobs/${encodeURIComponent(jobId)}`;
     window.scrollTo(0, 0);
+  };
+
+  const openExamPage = (examId: string) => {
+    setCurrentTab('profile');
+    window.location.hash = `/exams/${encodeURIComponent(examId)}`;
+    window.scrollTo(0, 0);
+  };
+
+  // Inviting candidates to an exam puts it on their to-do list and notifies them
+  const handleInviteToExam = (examId: string, candidateIds: string[]) => {
+    const now = new Date();
+    setExams((prev) =>
+      prev.map((e) =>
+        e.id === examId
+          ? { ...e, invitations: [...e.invitations, ...candidateIds.map((candidateId) => ({ candidateId, invitedAt: today() }))] }
+          : e
+      )
+    );
+    setNotifications((prev) => [
+      ...candidateIds.map((userId, i) => ({
+        id: `note-${now.getTime()}-${i}`,
+        userId,
+        kind: 'exam-invite' as const,
+        examId,
+        createdAt: now.toISOString(),
+        read: false,
+      })),
+      ...prev,
+    ]);
+  };
+
+  const openNotification = (id: string) => {
+    const note = notifications.find((n) => n.id === id);
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    if (note) openExamPage(note.examId);
   };
 
   // A company from search: the Companies page, filtered to it
@@ -221,7 +263,7 @@ export default function App() {
       }
       // Started from the job's own page: stay there
       if (!jobPageId) goToTab('jobs');
-    } else if (!testPageId) {
+    } else if (!testPageId && !examPageId) {
       // Started from a test page: stay there so the candidate sees where they now rank
       goToTab(completedTest.type === 'standard' ? 'profile' : 'jobs');
     }
@@ -244,6 +286,25 @@ export default function App() {
 
   const allCandidates = [candidate, ...otherCandidates];
   const testPageTest = testPageId ? tests.find((t) => t.id === testPageId) : undefined;
+  const examPageExam = examPageId && activeRole === 'candidate' ? exams.find((e) => e.id === examPageId) : undefined;
+  // A test or exam page replaces the tab's own content
+  const detailPage = testPageTest || examPageExam;
+  const candidateNotifications = notifications
+    .filter((n) => n.userId === candidate.id)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .flatMap((n) => {
+      const exam = exams.find((e) => e.id === n.examId);
+      if (!exam) return [];
+      return [
+        {
+          id: n.id,
+          text: `${exam.companyName} invited you to take ${exam.title}`,
+          detail: `${exam.testIds.length} tests${exam.dueDate ? ` · due ${new Date(exam.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : ''}`,
+          when: new Date(n.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+          read: n.read,
+        },
+      ];
+    });
   const candidateSection = CANDIDATE_SECTIONS[currentTab];
   const profilePerson = profilePersonId ? allCandidates.find((c) => c.id === profilePersonId) : undefined;
   const businessSection = BUSINESS_SECTIONS[currentTab];
@@ -267,6 +328,8 @@ export default function App() {
             ? staffUser.title
             : `${recruiter.title} · ${recruiterBusiness.name}`
         }
+        notifications={activeRole === 'candidate' ? candidateNotifications : undefined}
+        onOpenNotification={openNotification}
         renderSearch={(mobile) => (
           <GlobalSearch
             people={allCandidates}
@@ -283,7 +346,18 @@ export default function App() {
 
       <div className="flex-1 min-w-0 flex flex-col pb-14 md:pb-0">
         <main className="flex-1 pb-16 bg-white">
-          {testPageTest && (
+          {examPageExam && (
+            <ExamPage
+              exam={examPageExam}
+              tests={tests}
+              candidate={candidate}
+              onStartTest={(test) => setActiveTest(test)}
+              onOpenTest={openTestPage}
+              onBack={() => goToTab('profile')}
+            />
+          )}
+
+          {!examPageExam && testPageTest && (
             <TestPage
               test={testPageTest}
               tests={tests}
@@ -298,7 +372,7 @@ export default function App() {
             />
           )}
 
-          {!testPageTest && activeRole === 'candidate' && candidateSection && (
+          {!detailPage && activeRole === 'candidate' && candidateSection && (
             <CandidatePortal
               section={candidateSection}
               onNavigate={(section) => goToTab(section)}
@@ -316,10 +390,12 @@ export default function App() {
               onApplyJob={handleApplyJob}
               jobPageId={jobPageId}
               onOpenJob={openJobPage}
+              exams={exams}
+              onOpenExam={openExamPage}
             />
           )}
 
-          {!testPageTest && activeRole === 'candidate' && currentTab === 'discover' && (
+          {!detailPage && activeRole === 'candidate' && currentTab === 'discover' && (
             <DiscoverFeed
               candidate={candidate}
               allCandidates={allCandidates}
@@ -333,7 +409,7 @@ export default function App() {
             />
           )}
 
-          {!testPageTest && currentTab === 'companies' && (
+          {!detailPage && currentTab === 'companies' && (
             <BusinessesView
               key={companiesQuery}
               businesses={businesses}
@@ -344,7 +420,20 @@ export default function App() {
             />
           )}
 
-          {!testPageTest && activeRole !== 'candidate' && businessSection && (
+          {!detailPage && activeRole !== 'candidate' && currentTab === 'business-exams' && (
+            <ExamsManager
+              key={activeRole}
+              business={activeRole === 'admin' ? undefined : recruiterBusiness}
+              businesses={businesses}
+              exams={exams}
+              tests={tests}
+              candidates={allCandidates}
+              onCreateExam={(exam) => setExams((prev) => [exam, ...prev])}
+              onInvite={handleInviteToExam}
+            />
+          )}
+
+          {!detailPage && activeRole !== 'candidate' && businessSection && (
             <RecruiterPortal
               key={activeRole}
               section={businessSection}

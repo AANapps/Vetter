@@ -256,3 +256,35 @@ export interface SocialState {
   kudosGiven: string[]; // feed item ids the signed-in candidate gave kudos to
   following: string[]; // candidate and company ids
 }
+
+// An exam: a series of tests a company invites candidates to take, like a course
+export interface Exam {
+  id: string;
+  title: string;
+  description: string;
+  businessId: string;
+  companyName: string;
+  // Who set it up: the company itself, or the Vetter team on its behalf
+  createdBy: 'company' | 'vetter';
+  // The test versions to take, in order
+  testIds: string[];
+  // Average score across the tests needed to pass
+  passingScore: number;
+  dueDate?: string;
+  createdAt: string;
+  invitations: ExamInvitation[];
+}
+
+export interface ExamInvitation {
+  candidateId: string;
+  invitedAt: string; // ISO date; only results from this day on count toward the exam
+}
+
+export interface AppNotification {
+  id: string;
+  userId: string;
+  kind: 'exam-invite';
+  examId: string;
+  createdAt: string; // ISO timestamp
+  read: boolean;
+}

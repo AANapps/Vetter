@@ -1,4 +1,4 @@
-import { AssessmentTest, JobPosting, SocialState, TEST_DIFFICULTIES, User } from '../types';
+import { AppNotification, AssessmentTest, Exam, JobPosting, SocialState, TEST_DIFFICULTIES, User } from '../types';
 import {
   INITIAL_CANDIDATE,
   OTHER_CANDIDATES,
@@ -8,6 +8,7 @@ import {
   INITIAL_BUSINESSES,
 } from '../data/mockData';
 import { SEED_SOCIAL } from '../data/seedSocial';
+import { SEED_EXAMS, SEED_NOTIFICATIONS } from '../data/seedExams';
 import { withFilterFields } from './jobFilters';
 import { buildSeedCandidates, withComputedPercentiles, withSeedDurations } from '../data/seedCandidates';
 
@@ -24,6 +25,8 @@ export interface AppData {
   jobs: JobPosting[];
   tests: AssessmentTest[];
   social: SocialState;
+  exams: Exam[];
+  notifications: AppNotification[];
 }
 
 const SEED_TESTS = [...STANDARD_ASSESSMENTS, ...COMPANY_ASSESSMENTS];
@@ -37,6 +40,8 @@ export function createSeedData(): AppData {
     jobs: INITIAL_JOBS,
     tests: SEED_TESTS,
     social: SEED_SOCIAL,
+    exams: SEED_EXAMS,
+    notifications: SEED_NOTIFICATIONS,
   };
 }
 
@@ -68,6 +73,9 @@ export function loadData(): AppData {
       tests: [...SEED_TESTS, ...createdTests],
       // Saved before the feed existed: start from the seeded conversation
       social: saved.social ?? seed.social,
+      // Saved before exams existed: start from the seeded ones
+      exams: saved.exams ?? seed.exams,
+      notifications: saved.notifications ?? seed.notifications,
     };
   } catch {
     return seed;

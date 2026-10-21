@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { UserRole } from '../types';
-import { ArrowLeftRight, Briefcase, Building2, ChevronDown, ClipboardCheck, Compass, Search, UserRound, Users } from 'lucide-react';
+import { ArrowLeftRight, Bell, Briefcase, Building2, ChevronDown, ClipboardCheck, ClipboardList, Compass, Search, UserRound, Users } from 'lucide-react';
 
 export type AppTab =
   | 'profile'
@@ -10,6 +10,7 @@ export type AppTab =
   | 'companies'
   | 'business-jobs'
   | 'business-tests'
+  | 'business-exams'
   | 'business-candidates';
 
 type TabIcon = React.ComponentType<{ className?: string }>;
@@ -18,13 +19,14 @@ export const NAV_TABS: Record<'candidate' | 'recruiter', { id: AppTab; label: st
   candidate: [
     { id: 'profile', label: 'Profile', icon: UserRound },
     { id: 'discover', label: 'Discover', icon: Compass },
-    { id: 'jobs', label: 'Jobs', icon: Briefcase },
     { id: 'tests', label: 'Tests', icon: ClipboardCheck },
+    { id: 'jobs', label: 'Jobs', icon: Briefcase },
     { id: 'companies', label: 'Companies', icon: Building2 },
   ],
   recruiter: [
-    { id: 'business-jobs', label: 'Jobs', icon: Briefcase },
+    { id: 'business-exams', label: 'Exams', icon: ClipboardList },
     { id: 'business-tests', label: 'Tests', icon: ClipboardCheck },
+    { id: 'business-jobs', label: 'Jobs', icon: Briefcase },
     { id: 'business-candidates', label: 'Candidates', icon: Users },
   ],
 };
@@ -35,6 +37,14 @@ const VIEWS: { role: UserRole; label: string }[] = [
   { role: 'admin', label: 'Vetter team view' },
 ];
 
+export interface NavNotification {
+  id: string;
+  text: string;
+  detail: string;
+  when: string;
+  read: boolean;
+}
+
 interface NavigationProps {
   currentTab: AppTab;
   onTabChange: (tab: AppTab) => void;
@@ -43,6 +53,9 @@ interface NavigationProps {
   userAvatar: string;
   userName: string;
   userTitle: string;
+  // The signed-in candidate's notifications, newest first
+  notifications?: NavNotification[];
+  onOpenNotification?: (id: string) => void;
   // The search box, rendered in the bar (and full width on phones)
   renderSearch: (mobile: { onClose: () => void } | null) => React.ReactNode;
 }
@@ -65,8 +78,13 @@ export const Navigation: React.FC<NavigationProps> = ({
   userAvatar,
   userName,
   userTitle,
+  notifications,
+  onOpenNotification,
   renderSearch,
 }) => {
+  const [isBellOpen, setIsBellOpen] = useState(false);
+  const bellRef = useRef<HTMLDivElement>(null);
+  const unread = notifications?.filter((n) => !n.read).length ?? 0;
   const tabs = NAV_TABS[activeRole === 'candidate' ? 'candidate' : 'recruiter'];
   const [isMeOpen, setIsMeOpen] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
@@ -75,6 +93,7 @@ export const Navigation: React.FC<NavigationProps> = ({
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
       if (!meRef.current?.contains(e.target as Node)) setIsMeOpen(false);
+      if (!bellRef.current?.contains(e.target as Node)) setIsBellOpen(false);
     };
     document.addEventListener('mousedown', onClick);
     return () => document.removeEventListener('mousedown', onClick);
@@ -122,6 +141,54 @@ export const Navigation: React.FC<NavigationProps> = ({
           </button>
 
           <nav className="hidden md:flex items-center ml-auto">{tabs.map((tab) => tabButton(tab, 'top'))}</nav>
+
+          {notifications && (
+            <div ref={bellRef} className="relative">
+              <button
+                onClick={() => setIsBellOpen((o) => !o)}
+                aria-expanded={isBellOpen}
+                aria-label={`Notifications${unread ? `, ${unread} unread` : ''}`}
+                className="relative h-14 min-w-[3.5rem] flex flex-col items-center justify-center gap-0.5 text-slate-500 hover:text-slate-900 transition-colors"
+              >
+                <Bell className="w-5 h-5" />
+                <span className="hidden md:block text-[11px] font-medium">Notifications</span>
+                {unread > 0 && (
+                  <span className="absolute top-2 left-1/2 ml-1 min-w-4 h-4 px-1 rounded-full bg-rose-600 text-white text-[10px] font-bold flex items-center justify-center tabular-nums">
+                    {unread}
+                  </span>
+                )}
+              </button>
+              {isBellOpen && (
+                <div className="absolute right-0 top-full mt-1 w-80 bg-white rounded-xl shadow-2xl border border-slate-200 z-50 overflow-hidden">
+                  <div className="px-4 py-3 border-b border-slate-100 text-sm font-bold text-slate-900">Notifications</div>
+                  {notifications.length === 0 ? (
+                    <p className="px-4 py-6 text-xs text-slate-500 text-center">Nothing new.</p>
+                  ) : (
+                    <ul className="max-h-96 overflow-y-auto divide-y divide-slate-100">
+                      {notifications.map((n) => (
+                        <li key={n.id}>
+                          <button
+                            onClick={() => {
+                              onOpenNotification?.(n.id);
+                              setIsBellOpen(false);
+                            }}
+                            className={`w-full text-left px-4 py-3 flex gap-3 hover:bg-slate-50 ${n.read ? '' : 'bg-indigo-50/40'}`}
+                          >
+                            <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${n.read ? 'bg-transparent' : 'bg-indigo-600'}`} />
+                            <span className="min-w-0">
+                              <span className="block text-xs text-slate-900">{n.text}</span>
+                              <span className="block text-[11px] text-slate-500 mt-0.5">{n.detail}</span>
+                              <span className="block text-[11px] text-slate-400 mt-0.5">{n.when}</span>
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Me: account and view switcher */}
           <div ref={meRef} className="relative md:border-l md:border-slate-200 md:pl-2 md:ml-1">

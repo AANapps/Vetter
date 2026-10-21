@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { User, AssessmentTest, JobPosting, CandidateJobMatch, Business, TestRole, TEST_DIFFICULTIES } from '../types';
+import { User, AssessmentTest, JobPosting, CandidateJobMatch, Business, TestRole, TEST_DIFFICULTIES, Exam } from '../types';
 import { ROLE_GROUPS } from '../lib/testRoles';
 import { isMainVersion, levelsOf } from '../lib/testLevels';
 import { LevelPicker } from './LevelPicker';
@@ -19,6 +19,7 @@ import { VerifiedSkillBadge, TierLegend, getBadgeTier } from './VerifiedSkillBad
 import { JobApplicationModal } from './JobApplicationModal';
 import { JobDetailsModal, JobPage } from './JobDetails';
 import { ProfileSidebar } from './ProfileSidebar';
+import { TodoList } from './TodoList';
 import { JobFilters } from './JobFilters';
 import { CITIES } from '../lib/geo';
 import { JobFilterState, countActiveFilters, defaultJobFilters, jobMatchesFilters } from '../lib/jobFilters';
@@ -40,6 +41,9 @@ interface CandidatePortalProps {
   // Set when the candidate is on a job's own page (#/jobs/<id>)
   jobPageId?: string | null;
   onOpenJob: (jobId: string) => void;
+  // Exams the candidate has been invited to, for the to-do list on their profile
+  exams: Exam[];
+  onOpenExam: (examId: string) => void;
 }
 
 export const CandidatePortal: React.FC<CandidatePortalProps> = ({
@@ -56,6 +60,8 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   onApplyJob,
   jobPageId,
   onOpenJob,
+  exams,
+  onOpenExam,
 }) => {
   // Tests page filters
   const [roleFilter, setRoleFilter] = useState<TestRole | 'all'>('all');
@@ -164,6 +170,8 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
       {view === 'profile' && (
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-6 items-start">
       <div className="min-w-0 space-y-8">
+      <TodoList candidate={candidate} exams={exams} onOpenExam={onOpenExam} />
+
       {/* Hero: Candidate Profile & Verification Passport Overview */}
       <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 space-y-6 shadow-xs">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
