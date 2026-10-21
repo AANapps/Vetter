@@ -23,7 +23,9 @@ export function calculateCandidateJobMatch(candidate: User, job: JobPosting): Ca
   });
 
   job.requirements.forEach((req) => {
-    const candidateScore = skillMap.get(req.skillName.toLowerCase()) || 0;
+    const candidateScore = req.testId
+      ? getBestTestScore(candidate, req.testId) ?? 0
+      : skillMap.get(req.skillName.toLowerCase()) || 0;
     const meetsThreshold = candidateScore >= req.minScore;
 
     if (req.importance === 'required' && !meetsThreshold) {

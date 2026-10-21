@@ -33,12 +33,22 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
   const [employmentType, setEmploymentType] = useState<NonNullable<JobPosting['employmentType']>>('Full-time');
   const [experience, setExperience] = useState(EXPERIENCE_LEVELS[2]);
   const [description, setDescription] = useState('');
-  const [skills] = useState<JobPosting['requirements']>([
-    { skillId: 'skill-sys', skillName: 'System Architecture', minScore: 80, importance: 'required', weight: 0.5 },
-    { skillId: 'skill-backend', skillName: 'Backend APIs', minScore: 75, importance: 'required', weight: 0.3 },
-    { skillId: 'skill-sql', skillName: 'SQL & Databases', minScore: 70, importance: 'preferred', weight: 0.2 },
-  ]);
-  const [attachedTestId, setAttachedTestId] = useState<string>((companyTests[0] ?? vetterTests[0])?.id || '');
+  // The tests candidates are ranked on, each with its minimum score
+  const [picked, setPicked] = useState<Record<string, { minScore: number; importance: 'required' | 'preferred' }>>({});
+  const [pickError, setPickError] = useState(false);
+  const pickedTests = [...companyTests, ...vetterTests].filter((t) => picked[t.id]);
+  const [attachedTestId, setAttachedTestId] = useState<string>('');
+
+  const togglePick = (testId: string) => {
+    setPickError(false);
+    setPicked((prev) => {
+      const { [testId]: wasPicked, ...rest } = prev;
+      return wasPicked ? rest : { ...prev, [testId]: { minScore: 70, importance: 'required' } };
+    });
+    if (picked[testId] && attachedTestId === testId) setAttachedTestId('');
+  };
+  const updatePick = (testId: string, change: Partial<(typeof picked)[string]>) =>
+    setPicked((prev) => ({ ...prev, [testId]: { ...prev[testId], ...change } }));
   const [passingScore, setPassingScore] = useState<number>(80);
   const [requireTest, setRequireTest] = useState<boolean>(true);
 
@@ -46,14 +56,21 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
     setBusinessId(id);
     const next = businesses.find((b) => b.id === id);
     if (next && CITIES[next.headquarters]) setLocation(next.headquarters);
-    // Another company's own test can't be attached
+    // Another company's own tests can't be used
+    setPicked((prev) =>
+      Object.fromEntries(Object.entries(prev).filter(([id]) => tests.find((t) => t.id === id)?.type !== 'custom'))
+    );
     if (tests.some((t) => t.id === attachedTestId && t.type === 'custom')) setAttachedTestId('');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!business || !title.trim() || !department.trim() || salaryMax < salaryMin) return;
-    const attachedTest = [...companyTests, ...vetterTests].find((t) => t.id === attachedTestId);
+    if (pickedTests.length === 0) {
+      setPickError(true);
+      return;
+    }
+    const attachedTest = pickedTests.find((t) => t.id === attachedTestId);
 
     onSave({
       id: `job-${Date.now()}`,
@@ -71,7 +88,14 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
       employmentType,
       experienceLevel: experience,
       closingDate: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
-      requirements: skills,
+      requirements: pickedTests.map((t) => ({
+        skillId: t.id,
+        testId: t.id,
+        skillName: t.title,
+        minScore: picked[t.id].minScore,
+        importance: picked[t.id].importance,
+        weight: Math.round((1 / pickedTests.length) * 100) / 100,
+      })),
       attachedTestId: attachedTest?.id,
       attachedTestTitle: attachedTest?.title,
       attachedTestPassingScore: attachedTest ? passingScore : undefined,
@@ -210,67 +234,104 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
             />
           </div>
 
-          {/* Attach a test to this job */}
-          <div className="p-3 bg-indigo-50/50 border border-indigo-200 rounded-xl space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-indigo-900">Attach a Test</span>
-              <label
-                className={`flex items-center gap-1.5 text-xs text-indigo-800 font-medium cursor-pointer ${
-                  attachedTestId ? '' : 'opacity-40 pointer-events-none'
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={requireTest}
-                  onChange={(e) => setRequireTest(e.target.checked)}
-                  className="rounded text-indigo-600 accent-indigo-600"
-                />
-                <span>Required to apply</span>
-              </label>
-            </div>
+          {/* The tests this job ranks candidates on */}
+          <fieldset className={`p-3 border rounded-xl space-y-3 ${pickError ? 'border-rose-300 bg-rose-50/40' : 'border-indigo-200 bg-indigo-50/50'}`}>
+            <legend className="px-1 text-xs font-bold text-indigo-900">Tests for this job</legend>
+            <p className="text-[11px] text-slate-600 -mt-1">
+              Tick the tests that matter for the role. Candidates are ranked on their scores in them.
+            </p>
+            {pickError && <p className="text-[11px] font-semibold text-rose-700">Pick at least one test.</p>}
 
-            <div className="grid grid-cols-3 gap-2">
+            {[
+              { label: businesses.length === 1 ? 'Your tests' : `${business?.name}'s tests`, list: companyTests },
+              { label: 'Vetter tests', list: vetterTests },
+            ]
+              .filter((g) => g.list.length > 0)
+              .map((group) => (
+                <div key={group.label} className="space-y-1">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{group.label}</div>
+                  <ul className="bg-white border border-slate-200 rounded-lg divide-y divide-slate-100">
+                    {group.list.map((t) => {
+                      const pick = picked[t.id];
+                      return (
+                        <li key={t.id} className="px-3 py-2">
+                          <label className="flex items-start gap-2.5 cursor-pointer">
+                            <input type="checkbox" checked={!!pick} onChange={() => togglePick(t.id)} className="mt-0.5 accent-indigo-600" />
+                            <span className="min-w-0">
+                              <span className="block text-xs font-semibold text-slate-900">{t.title}</span>
+                              <span className="block text-[11px] text-slate-500">
+                                {t.category} &middot; {t.difficulty}
+                                {t.roles?.length ? ` · ${t.roles.join(', ')}` : ''}
+                              </span>
+                            </span>
+                          </label>
+                          {pick && (
+                            <div className="mt-2 ml-6 flex flex-wrap items-center gap-3 text-[11px]">
+                              <label className="flex items-center gap-1.5 text-slate-700">
+                                <span>Min score</span>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  max={100}
+                                  value={pick.minScore}
+                                  onChange={(e) => updatePick(t.id, { minScore: Number(e.target.value) })}
+                                  className="w-16 px-2 py-1 bg-white border border-slate-300 rounded text-xs font-mono"
+                                />
+                              </label>
+                              <select
+                                value={pick.importance}
+                                onChange={(e) => updatePick(t.id, { importance: e.target.value as 'required' | 'preferred' })}
+                                aria-label={`${t.title}: required or preferred`}
+                                className="px-2 py-1 bg-white border border-slate-300 rounded text-xs"
+                              >
+                                <option value="required">Required</option>
+                                <option value="preferred">Preferred</option>
+                              </select>
+                            </div>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ))}
+
+            {/* Optionally, one picked test must be taken before applying */}
+            <div className="grid grid-cols-3 gap-2 pt-1">
               <div className="col-span-2">
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">Test</label>
+                <label className="block text-[11px] font-semibold text-slate-700 mb-1">Must take before applying</label>
                 <select
                   value={attachedTestId}
+                  disabled={pickedTests.length === 0}
                   onChange={(e) => setAttachedTestId(e.target.value)}
-                  className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 font-medium"
+                  className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 font-medium disabled:opacity-50"
                 >
-                  <option value="">No test</option>
-                  {companyTests.length > 0 && (
-                    <optgroup label={businesses.length === 1 ? 'Your tests' : `${business?.name}'s tests`}>
-                      {companyTests.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.title}
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
-                  <optgroup label="Vetter tests">
-                    {vetterTests.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.title} ({t.category})
-                      </option>
-                    ))}
-                  </optgroup>
+                  <option value="">None</option>
+                  {pickedTests.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.title}
+                    </option>
+                  ))}
                 </select>
               </div>
-
               <div>
                 <label className="block text-[11px] font-semibold text-slate-700 mb-1">Pass mark</label>
                 <input
                   type="number"
                   disabled={!attachedTestId}
-                  min={60}
+                  min={0}
                   max={100}
                   value={passingScore}
                   onChange={(e) => setPassingScore(Number(e.target.value))}
-                  className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 font-mono"
+                  className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 font-mono disabled:opacity-50"
                 />
               </div>
             </div>
-          </div>
+            <label className={`flex items-center gap-1.5 text-xs text-indigo-800 font-medium cursor-pointer ${attachedTestId ? '' : 'opacity-40 pointer-events-none'}`}>
+              <input type="checkbox" checked={requireTest} onChange={(e) => setRequireTest(e.target.checked)} className="accent-indigo-600" />
+              <span>Required to apply (otherwise recommended)</span>
+            </label>
+          </fieldset>
 
           <button
             type="submit"

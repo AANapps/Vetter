@@ -130,8 +130,14 @@ export const JobCandidates: React.FC<JobCandidatesProps> = ({ job, allCandidates
           const isOpen = expandedId === c.candidateId;
           const applied = hasApplied(c.candidateId);
           const requiredNames = new Set(c.breakdown.map((b) => b.skillName.toLowerCase()));
+          const requiredTests = new Set(job.requirements.map((r) => r.testId).filter(Boolean));
           const otherSkills = person.verifiedSkills
-            .filter((s) => !requiredNames.has(s.skillName.toLowerCase()) && !requiredNames.has(s.category.toLowerCase()))
+            .filter(
+              (s) =>
+                !requiredTests.has(s.testId) &&
+                !requiredNames.has(s.skillName.toLowerCase()) &&
+                !requiredNames.has(s.category.toLowerCase())
+            )
             .sort((a, b) => b.score - a.score)
             .slice(0, 4);
 
@@ -170,7 +176,7 @@ export const JobCandidates: React.FC<JobCandidatesProps> = ({ job, allCandidates
                 <div className="px-4 pb-5 pt-2 bg-indigo-50/30 grid grid-cols-1 md:grid-cols-2 gap-5">
                   {/* Skill scores against the job's minimums */}
                   <div className="space-y-3">
-                    <h5 className="text-[11px] font-bold uppercase tracking-wider text-slate-700">Skills this job asks for</h5>
+                    <h5 className="text-[11px] font-bold uppercase tracking-wider text-slate-700">Scores this job asks for</h5>
                     {c.breakdown.map((b) => (
                       <div key={b.skillName} className="space-y-1">
                         <div className="flex items-center justify-between gap-2 text-xs">

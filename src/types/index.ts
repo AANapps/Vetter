@@ -159,6 +159,8 @@ export interface Business {
 
 export interface JobRequirement {
   skillId: string;
+  // Set when the requirement is a test: candidates are scored by their best result on it
+  testId?: string;
   skillName: string;
   minScore: number; // e.g. 75
   importance: 'required' | 'preferred';
