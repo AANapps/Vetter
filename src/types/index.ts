@@ -171,6 +171,8 @@ export interface JobPosting {
   companyName: string;
   companyLogo: string;
   businessId?: string;
+  // Who wrote the listing: the company itself, or the Vetter team on its behalf
+  postedBy?: 'company' | 'vetter';
   location: string;
   workType: 'Remote' | 'Hybrid' | 'On-site';
   salaryRange: string;

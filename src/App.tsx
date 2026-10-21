@@ -3,7 +3,7 @@ import { User, UserRole, AssessmentTest, JobPosting, VerifiedSkill, Business, So
 import { INITIAL_RECRUITER, INITIAL_BUSINESSES } from './data/mockData';
 import { loadData, saveData, clearData } from './lib/store';
 import { getPercentile } from './lib/leaderboard';
-import { levelForScore, withComputedPercentiles } from './data/seedCandidates';
+import { initialsAvatar, levelForScore, withComputedPercentiles } from './data/seedCandidates';
 import { Navigation, AppTab, NAV_TABS } from './components/Navigation';
 import { CandidatePortal, CandidateSection } from './components/CandidatePortal';
 import { RecruiterPortal, BusinessSection } from './components/RecruiterPortal';
@@ -25,6 +25,18 @@ const BUSINESS_SECTIONS: Partial<Record<AppTab, BusinessSection>> = {
   'business-jobs': 'jobs',
   'business-tests': 'tests',
   'business-candidates': 'candidates',
+};
+
+// Vetter's own talent team, who post and fill jobs on companies' behalf
+const VETTER_TEAM: User = {
+  ...INITIAL_RECRUITER,
+  id: 'vetter-team',
+  name: 'Vetter Talent Team',
+  email: 'talent@vetter.dev',
+  role: 'admin',
+  avatarUrl: initialsAvatar('Vetter Team'),
+  title: 'Talent Partner, Vetter',
+  businessId: undefined,
 };
 
 const today = () => new Date().toISOString().split('T')[0];
@@ -115,12 +127,13 @@ export default function App() {
       following: prev.following.includes(id) ? prev.following.filter((f) => f !== id) : [...prev.following, id],
     }));
 
-  // Switch between Candidate & Business views
-  const handleRoleToggle = () => {
-    const nextRole: UserRole = activeRole === 'candidate' ? 'recruiter' : 'candidate';
+  // Switch between the candidate, business and Vetter team views
+  const handleRoleChange = (nextRole: UserRole) => {
     setActiveRole(nextRole);
     goToTab(NAV_TABS[nextRole === 'candidate' ? 'candidate' : 'recruiter'][0].id);
   };
+  // The business and Vetter team views share the same pages
+  const staffUser = activeRole === 'admin' ? VETTER_TEAM : recruiter;
 
   const handleResetData = () => {
     clearData();
@@ -244,10 +257,16 @@ export default function App() {
           goToTab(tab);
         }}
         activeRole={activeRole}
-        onRoleToggle={handleRoleToggle}
-        userAvatar={activeRole === 'candidate' ? candidate.avatarUrl : recruiter.avatarUrl}
-        userName={activeRole === 'candidate' ? candidate.name : recruiter.name}
-        userTitle={activeRole === 'candidate' ? candidate.title : `${recruiter.title} · ${recruiterBusiness.name}`}
+        onRoleChange={handleRoleChange}
+        userAvatar={activeRole === 'candidate' ? candidate.avatarUrl : staffUser.avatarUrl}
+        userName={activeRole === 'candidate' ? candidate.name : staffUser.name}
+        userTitle={
+          activeRole === 'candidate'
+            ? candidate.title
+            : activeRole === 'admin'
+            ? staffUser.title
+            : `${recruiter.title} · ${recruiterBusiness.name}`
+        }
         renderSearch={(mobile) => (
           <GlobalSearch
             people={allCandidates}
@@ -323,13 +342,15 @@ export default function App() {
             />
           )}
 
-          {!testPageTest && activeRole === 'recruiter' && businessSection && (
+          {!testPageTest && activeRole !== 'candidate' && businessSection && (
             <RecruiterPortal
+              key={activeRole}
               section={businessSection}
               onNavigate={(section) => goToTab(`business-${section}`)}
               onOpenTest={openTestPage}
-              recruiter={recruiter}
-              business={recruiterBusiness}
+              recruiter={staffUser}
+              business={activeRole === 'admin' ? undefined : recruiterBusiness}
+              businesses={businesses}
               jobs={jobs}
               allCandidates={allCandidates}
               tests={tests}

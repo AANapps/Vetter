@@ -29,11 +29,17 @@ export const NAV_TABS: Record<'candidate' | 'recruiter', { id: AppTab; label: st
   ],
 };
 
+const VIEWS: { role: UserRole; label: string }[] = [
+  { role: 'candidate', label: 'candidate view' },
+  { role: 'recruiter', label: 'business view' },
+  { role: 'admin', label: 'Vetter team view' },
+];
+
 interface NavigationProps {
   currentTab: AppTab;
   onTabChange: (tab: AppTab) => void;
   activeRole: UserRole;
-  onRoleToggle: () => void;
+  onRoleChange: (role: UserRole) => void;
   userAvatar: string;
   userName: string;
   userTitle: string;
@@ -55,7 +61,7 @@ export const Navigation: React.FC<NavigationProps> = ({
   currentTab,
   onTabChange,
   activeRole,
-  onRoleToggle,
+  onRoleChange,
   userAvatar,
   userName,
   userTitle,
@@ -153,17 +159,20 @@ export const Navigation: React.FC<NavigationProps> = ({
                   </button>
                 )}
                 {/* Stands in for sign-in until accounts exist */}
-                <button
-                  role="menuitem"
-                  onClick={() => {
-                    onRoleToggle();
-                    setIsMeOpen(false);
-                  }}
-                  className="w-full flex items-center justify-center gap-2 py-1.5 text-xs font-semibold text-slate-700 bg-white rounded-full"
-                >
-                  <ArrowLeftRight className="w-3.5 h-3.5 text-indigo-600" />
-                  <span>Switch to {activeRole === 'candidate' ? 'business' : 'candidate'} view</span>
-                </button>
+                {VIEWS.filter((v) => v.role !== activeRole).map((v) => (
+                  <button
+                    key={v.role}
+                    role="menuitem"
+                    onClick={() => {
+                      onRoleChange(v.role);
+                      setIsMeOpen(false);
+                    }}
+                    className="w-full flex items-center justify-center gap-2 py-1.5 text-xs font-semibold text-slate-700 bg-white rounded-full"
+                  >
+                    <ArrowLeftRight className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>Switch to {v.label}</span>
+                  </button>
+                ))}
               </div>
             )}
           </div>

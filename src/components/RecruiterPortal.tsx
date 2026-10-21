@@ -1,17 +1,9 @@
 import React, { useState } from 'react';
-import { User, JobPosting, AssessmentTest, CandidateJobMatch, Business } from '../types';
-import { rankCandidatesForJob } from '../lib/matchingAlgorithm';
+import { User, JobPosting, AssessmentTest, Business } from '../types';
 import { getTestStats } from '../lib/leaderboard';
-import { CITIES } from '../lib/geo';
-import { EMPLOYMENT_TYPES, EXPERIENCE_LEVELS, formatSalaryRange } from '../lib/jobFilters';
-import {
-  Users,
-  Plus,
-  CheckCircle2,
-  ChevronRight,
-  Check,
-  Award
-} from 'lucide-react';
+import { JobForm } from './JobForm';
+import { JobCandidates } from './JobCandidates';
+import { Plus, CheckCircle2, Check, Award } from 'lucide-react';
 
 export type BusinessSection = 'jobs' | 'tests' | 'candidates';
 
@@ -20,7 +12,9 @@ interface RecruiterPortalProps {
   onNavigate: (section: BusinessSection) => void;
   onOpenTest: (testId: string) => void;
   recruiter: User;
-  business: Business;
+  // The company being managed; without one, this is the Vetter team managing every company's jobs
+  business?: Business;
+  businesses: Business[];
   jobs: JobPosting[];
   allCandidates: User[];
   tests: AssessmentTest[];
@@ -35,6 +29,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   onOpenTest,
   recruiter,
   business,
+  businesses,
   jobs: allJobs,
   allCandidates,
   tests,
@@ -42,36 +37,14 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   onUpdateJobRequirements,
   onCreateCustomAssessment,
 }) => {
-  // A business only manages its own jobs and its own tests
-  const jobs = allJobs.filter((j) => j.businessId === business.id);
-  const companyTests = tests.filter((t) => t.type === 'custom' && t.businessId === business.id);
+  // A business only manages its own jobs and its own tests; the Vetter team sees every company's jobs
+  const isVetter = !business;
+  const jobs = isVetter ? allJobs : allJobs.filter((j) => j.businessId === business.id);
+  const companyTests = isVetter ? [] : tests.filter((t) => t.type === 'custom' && t.businessId === business.id);
   const vetterTests = tests.filter((t) => t.type === 'standard');
-  const attachableTests = [...companyTests, ...vetterTests];
 
   const [selectedJobId, setSelectedJobId] = useState<string>(jobs[0]?.id || '');
-  const [filterMeetsHardOnly, setFilterMeetsHardOnly] = useState(false);
-  const [filterAppliedOnly, setFilterAppliedOnly] = useState(false);
-
-  // Job creation modal state
   const [isCreatingJob, setIsCreatingJob] = useState(false);
-  const [newJobTitle, setNewJobTitle] = useState('');
-  const [newJobDept, setNewJobDept] = useState('Core Engineering');
-  // Every field the job board filters on is asked for here, so new jobs filter like the seeded ones
-  const [newJobLocation, setNewJobLocation] = useState(CITIES[business.headquarters] ? business.headquarters : 'San Francisco, CA');
-  const [newJobWorkType, setNewJobWorkType] = useState<'Remote' | 'Hybrid' | 'On-site'>('Remote');
-  const [newJobSalaryMin, setNewJobSalaryMin] = useState(170000);
-  const [newJobSalaryMax, setNewJobSalaryMax] = useState(210000);
-  const [newJobEmploymentType, setNewJobEmploymentType] = useState<NonNullable<JobPosting['employmentType']>>('Full-time');
-  const [newJobExperience, setNewJobExperience] = useState(EXPERIENCE_LEVELS[2]);
-  const [newJobDesc, setNewJobDesc] = useState('');
-  const [newJobSkills, setNewJobSkills] = useState([
-    { skillId: 'skill-sys', skillName: 'System Architecture', minScore: 80, importance: 'required' as const, weight: 0.5 },
-    { skillId: 'skill-backend', skillName: 'Backend APIs', minScore: 75, importance: 'required' as const, weight: 0.3 },
-    { skillId: 'skill-sql', skillName: 'SQL & Databases', minScore: 70, importance: 'preferred' as const, weight: 0.2 },
-  ]);
-  const [newJobAttachedTestId, setNewJobAttachedTestId] = useState<string>(attachableTests[0]?.id || '');
-  const [newJobAttachedPassingScore, setNewJobAttachedPassingScore] = useState<number>(80);
-  const [newJobRequireTest, setNewJobRequireTest] = useState<boolean>(true);
 
   // Custom Assessment Builder state
   const [customTestTitle, setCustomTestTitle] = useState('');
@@ -93,26 +66,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   ]);
   const [builderSuccessMessage, setBuilderSuccessMessage] = useState<string | null>(null);
 
-  // Candidate pipeline status tracking
-  const [candidateStatuses, setCandidateStatuses] = useState<Record<string, string>>({
-    'cand-001': 'interview',
-    'cand-002': 'offer',
-  });
-
   const selectedJob = jobs.find((j) => j.id === selectedJobId) || jobs[0];
-
-  // Calculate live ranking
-  const rankedCandidates: CandidateJobMatch[] = selectedJob
-    ? rankCandidatesForJob(allCandidates, selectedJob)
-    : [];
-
-  const filteredCandidates = rankedCandidates.filter((c) => {
-    if (filterMeetsHardOnly && !c.meetsAllHardRequirements) return false;
-    if (filterAppliedOnly && !allCandidates.find((cand) => cand.id === c.candidateId)?.appliedJobIds?.includes(selectedJob.id)) {
-      return false;
-    }
-    return true;
-  });
 
   const handleRequirementChange = (skillIndex: number, newMinScore: number) => {
     if (!selectedJob) return;
@@ -121,47 +75,16 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
     onUpdateJobRequirements(selectedJob.id, updated);
   };
 
-  const handleSaveJob = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newJobTitle.trim() || !newJobDept.trim() || newJobSalaryMax < newJobSalaryMin) return;
-
-    const attachedTest = attachableTests.find((t) => t.id === newJobAttachedTestId);
-
-    const newJob: JobPosting = {
-      id: `job-${Date.now()}`,
-      title: newJobTitle,
-      companyName: business.name,
-      companyLogo: business.logo,
-      businessId: business.id,
-      location: newJobLocation,
-      workType: newJobWorkType,
-      salaryRange: formatSalaryRange(newJobSalaryMin, newJobSalaryMax),
-      description: newJobDesc || `We are hiring a ${newJobTitle} to join ${business.name}.`,
-      department: newJobDept.trim(),
-      postedDate: new Date().toISOString().split('T')[0],
-      employmentType: newJobEmploymentType,
-      experienceLevel: newJobExperience,
-      closingDate: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
-      requirements: newJobSkills,
-      attachedTestId: attachedTest?.id,
-      attachedTestTitle: attachedTest?.title,
-      attachedTestPassingScore: attachedTest ? newJobAttachedPassingScore : undefined,
-      isAttachedTestMandatory: attachedTest ? newJobRequireTest : undefined,
-      applicantCount: 0,
-      status: 'active',
-    };
-
+  const handleSaveJob = (newJob: JobPosting) => {
     onCreateJob(newJob);
     setSelectedJobId(newJob.id);
     setIsCreatingJob(false);
-    setNewJobTitle('');
-    setNewJobDesc('');
     onNavigate('jobs');
   };
 
   const handleSaveCustomAssessment = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customTestTitle.trim()) return;
+    if (!business || !customTestTitle.trim()) return;
 
     const newAssessment: AssessmentTest = {
       id: `test-custom-${Date.now()}`,
@@ -195,19 +118,21 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
           <div className="flex items-start sm:items-center gap-5">
             <div className="w-16 h-16 rounded-2xl overflow-hidden border border-slate-200 shrink-0 bg-slate-100 shadow-xs">
               <img
-                src={business.logo}
-                alt={business.name}
+                src={business ? business.logo : recruiter.avatarUrl}
+                alt={business ? business.name : 'Vetter'}
                 referrerPolicy="no-referrer"
                 className="w-full h-full object-cover"
               />
             </div>
             <div className="space-y-1">
-              <h1 className="text-xl font-bold text-slate-900 tracking-tight">{business.name}</h1>
+              <h1 className="text-xl font-bold text-slate-900 tracking-tight">{business ? business.name : 'Vetter Talent Team'}</h1>
               <p className="text-xs text-slate-700 font-medium">
                 {recruiter.name} &middot; {recruiter.title}
               </p>
               <p className="text-xs text-slate-500">
-                {business.industry} &middot; {business.headquarters}
+                {business
+                  ? `${business.industry} · ${business.headquarters}`
+                  : `Posting and filling jobs for ${businesses.length} companies`}
               </p>
             </div>
           </div>
@@ -220,6 +145,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
               <Plus className="w-3.5 h-3.5" />
               <span>Post a Job</span>
             </button>
+            {business && (
             <button
               onClick={() => onNavigate('tests')}
               className="px-3.5 py-2 text-xs font-semibold text-slate-700 hover:text-indigo-700 bg-white hover:bg-indigo-50/70 border border-slate-200 hover:border-indigo-200 rounded-lg transition-colors flex items-center gap-1.5 shadow-2xs"
@@ -227,6 +153,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
               <Award className="w-3.5 h-3.5 text-indigo-600" />
               <span>Create a Test</span>
             </button>
+            )}
           </div>
         </div>
 
@@ -245,8 +172,10 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
             </div>
           </div>
           <div>
-            <div className="text-xs text-slate-500 font-medium">Your Tests</div>
-            <div className="text-2xl font-bold text-emerald-600 font-mono tabular-nums">{companyTests.length}</div>
+            <div className="text-xs text-slate-500 font-medium">{business ? 'Your Tests' : 'Companies'}</div>
+            <div className="text-2xl font-bold text-emerald-600 font-mono tabular-nums">
+              {business ? companyTests.length : businesses.length}
+            </div>
           </div>
           <div>
             <div className="text-xs text-slate-500 font-medium">Candidates on Vetter</div>
@@ -259,14 +188,14 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
       {section === 'jobs' && (
         <div className="space-y-6">
           <div>
-            <h2 className="text-base font-bold text-slate-900">Your Jobs</h2>
+            <h2 className="text-base font-bold text-slate-900">{business ? 'Your Jobs' : 'All Jobs'}</h2>
             <p className="text-xs text-slate-500">
-              Set the minimum skill scores for each job. Candidates are ranked against them automatically.
+              Set the minimum skill scores for each job. Its candidates are ranked against them automatically.
             </p>
           </div>
 
           {jobs.length === 0 && (
-            <p className="text-xs text-slate-500">You haven't posted any jobs yet.</p>
+            <p className="text-xs text-slate-500">No jobs posted yet.</p>
           )}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -285,12 +214,17 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                   <div className="flex items-start justify-between">
                     <div>
                       <span className="text-[10px] font-mono uppercase tracking-wider text-indigo-700 font-semibold">
-                        {job.department}
+                        {isVetter ? job.companyName : job.department}
                       </span>
                       <h3 className="text-sm font-bold text-slate-900 mt-0.5">{job.title}</h3>
                     </div>
-                    <span className="text-[11px] font-mono text-indigo-700 font-semibold">{job.applicantCount} applicants</span>
+                    <span className="text-[11px] font-mono text-indigo-700 font-semibold shrink-0">{job.applicantCount} applicants</span>
                   </div>
+                  {job.postedBy === 'vetter' && (
+                    <span className="mt-1 inline-block text-[10px] font-semibold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded">
+                      Posted by Vetter
+                    </span>
+                  )}
 
                   <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
                     <span>{job.workType}</span>
@@ -325,13 +259,6 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                     </div>
                     <p className="text-xs text-slate-500 mt-1">{selectedJob.description}</p>
                   </div>
-                  <button
-                    onClick={() => onNavigate('candidates')}
-                    className="px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:text-indigo-800 bg-indigo-50 border border-indigo-200 rounded-lg flex items-center gap-1.5 transition-colors shrink-0 shadow-2xs"
-                  >
-                    <span>View Ranked Candidates</span>
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </button>
                 </div>
 
                 {/* Attached Assessment Card for this Requisition */}
@@ -345,7 +272,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                         <span className="font-bold text-slate-900">Attached test:</span>{' '}
                         <span className="text-indigo-900 font-semibold">{selectedJob.attachedTestTitle}</span>
                         <div className="text-[11px] text-slate-500 font-mono mt-0.5">
-                          {companyTests.some((t) => t.id === selectedJob.attachedTestId) ? 'Your test' : 'Vetter test'} &middot; Pass mark {selectedJob.attachedTestPassingScore || 75} &middot; {selectedJob.isAttachedTestMandatory ? 'Required to apply' : 'Optional'}
+                          {tests.find((t) => t.id === selectedJob.attachedTestId)?.type === 'custom' ? 'Company test' : 'Vetter test'} &middot; Pass mark {selectedJob.attachedTestPassingScore || 75} &middot; {selectedJob.isAttachedTestMandatory ? 'Required to apply' : 'Optional'}
                         </div>
                       </div>
                     </div>
@@ -401,6 +328,10 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                     ))}
                   </div>
                 </div>
+
+                <div className="border-t border-slate-200 pt-5">
+                  <JobCandidates key={selectedJob.id} job={selectedJob} allCandidates={allCandidates} />
+                </div>
               </div>
             )}
           </div>
@@ -412,174 +343,23 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
         <p className="text-xs text-slate-500">Post a job to start seeing ranked candidates.</p>
       )}
       {section === 'candidates' && selectedJob && (
-        <div className="space-y-6">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-            <div className="space-y-2">
-              <h2 className="text-base font-bold text-slate-900">Candidates</h2>
-              <select
-                value={selectedJob.id}
-                onChange={(e) => setSelectedJobId(e.target.value)}
-                className="px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 font-semibold shadow-2xs max-w-full"
-              >
-                {jobs.map((j) => (
-                  <option key={j.id} value={j.id}>
-                    {j.title}
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-slate-500">Ranked by how well their verified skills fit this job.</p>
-            </div>
-
-            {/* Filter controls */}
-            <div className="flex flex-wrap items-center gap-3">
-              <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer font-medium">
-                <input
-                  type="checkbox"
-                  checked={filterMeetsHardOnly}
-                  onChange={(e) => setFilterMeetsHardOnly(e.target.checked)}
-                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                />
-                <span>Meets all required scores</span>
-              </label>
-
-              <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer font-medium">
-                <input
-                  type="checkbox"
-                  checked={filterAppliedOnly}
-                  onChange={(e) => setFilterAppliedOnly(e.target.checked)}
-                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                />
-                <span>Applied to this job</span>
-              </label>
-            </div>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <h2 className="text-base font-bold text-slate-900">Candidates by Job</h2>
+            <select
+              value={selectedJob.id}
+              onChange={(e) => setSelectedJobId(e.target.value)}
+              aria-label="Job"
+              className="px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 font-semibold shadow-2xs max-w-full"
+            >
+              {jobs.map((j) => (
+                <option key={j.id} value={j.id}>
+                  {isVetter ? `${j.companyName}: ${j.title}` : j.title}
+                </option>
+              ))}
+            </select>
           </div>
-
-          {/* Candidate Match Table / Cards */}
-          <div className="space-y-3">
-            {filteredCandidates.length === 0 && (
-              <p className="text-xs text-slate-500">No candidates match these filters.</p>
-            )}
-            {filteredCandidates.map((c) => {
-              const hasApplied = allCandidates.find((cand) => cand.id === c.candidateId)?.appliedJobIds?.includes(selectedJob.id);
-              const currentStatus = candidateStatuses[c.candidateId] || 'review';
-
-              return (
-                <div
-                  key={c.candidateId}
-                  className="bg-white border border-slate-200 rounded-xl p-5 hover:border-indigo-300 transition-colors shadow-xs"
-                >
-                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-                    {/* Candidate Identity */}
-                    <div className="flex items-start sm:items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl overflow-hidden border border-slate-200 shrink-0 bg-slate-100 shadow-xs">
-                        <img
-                          src={c.candidateAvatar}
-                          alt={c.candidateName}
-                          referrerPolicy="no-referrer"
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <div className="space-y-0.5">
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-sm font-bold text-slate-900">{c.candidateName}</h3>
-                          <span className="text-xs text-slate-400">&middot;</span>
-                          <span className="text-xs text-slate-500">{c.yearsExperience} yrs exp</span>
-                          <span className="text-xs text-slate-400">&middot;</span>
-                          <span className="text-xs text-indigo-700 font-semibold">{c.candidateLocation}</span>
-                          {hasApplied && (
-                            <span className="text-[10px] font-mono uppercase font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
-                              Applied
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs text-slate-600">{c.candidateTitle}</p>
-                      </div>
-                    </div>
-
-                    {/* Vector Fit Badge & Score Breakdown */}
-                    <div className="flex flex-wrap items-center gap-4">
-                      <div className="flex flex-wrap items-center gap-2">
-                        {c.breakdown.map((b) => (
-                          <div
-                            key={b.skillName}
-                            className={`px-2.5 py-1 rounded text-xs border font-mono ${
-                              b.meetsThreshold
-                                ? 'bg-indigo-50/60 border-indigo-200 text-indigo-900'
-                                : 'bg-amber-50/60 border-amber-200 text-amber-900'
-                            }`}
-                          >
-                            <span>{b.skillName}: </span>
-                            <strong className="font-bold">{b.candidateScore}</strong>
-                            <span className="text-slate-500 text-[10px]">/{b.requiredMinScore}</span>
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="text-right min-w-[70px]">
-                        <div
-                          className={`text-2xl font-extrabold font-mono tabular-nums ${
-                            c.overallFitPercentage >= 85
-                              ? 'text-indigo-600'
-                              : c.overallFitPercentage >= 75
-                              ? 'text-violet-600'
-                              : 'text-amber-600'
-                          }`}
-                        >
-                          {c.overallFitPercentage}%
-                        </div>
-                        <div className="text-[10px] text-slate-500 font-medium">{c.matchTier}</div>
-                      </div>
-
-                      {/* Pipeline Stage Select */}
-                      <div className="flex items-center gap-2">
-                        <select
-                          value={currentStatus}
-                          onChange={(e) =>
-                            setCandidateStatuses((prev) => ({
-                              ...prev,
-                              [c.candidateId]: e.target.value,
-                            }))
-                          }
-                          className="px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-300 text-slate-800 font-medium rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                        >
-                          <option value="review">Screening</option>
-                          <option value="interview">Interviewing</option>
-                          <option value="offer">Offer Extended</option>
-                          <option value="archived">Archived</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Attached test result */}
-                  {selectedJob.attachedTestId && (
-                    <div className="mt-3 pt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-                      <div className="flex items-center gap-1.5 text-slate-600">
-                        <Award className="w-3.5 h-3.5 text-indigo-600" />
-                        <span>Attached test ({selectedJob.attachedTestTitle}):</span>
-                      </div>
-                      <div>
-                        {c.attachedTestStatus === 'qualified' ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-mono font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                            <span>Passed: {c.attachedTestScore}/100</span>
-                          </span>
-                        ) : c.attachedTestStatus === 'test_taken_failed' ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-mono font-semibold bg-amber-50 text-amber-800 border border-amber-200">
-                            <span>Below pass mark: {c.attachedTestScore}/100</span>
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-mono text-slate-500 bg-slate-50 border border-slate-200">
-                            <span>Not taken</span>
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+          <JobCandidates key={selectedJob.id} job={selectedJob} allCandidates={allCandidates} />
         </div>
       )}
 
@@ -587,6 +367,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
       {section === 'tests' && (
         <div className="space-y-8">
           {/* The company's own tests */}
+          {business && (
           <div className="space-y-4">
             <div>
               <h2 className="text-base font-bold text-slate-900">Your Tests</h2>
@@ -610,6 +391,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
               </div>
             )}
           </div>
+          )}
 
           {/* Vetter's library */}
           <div className="space-y-4">
@@ -632,6 +414,8 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
             </div>
           </div>
 
+          {business && (
+          <>
           <div>
             <h2 className="text-base font-bold text-slate-900">Create a Test</h2>
             <p className="text-xs text-slate-500">
@@ -779,218 +563,19 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
               </button>
             </div>
           </form>
+          </>
+          )}
         </div>
       )}
 
-      {/* CREATE JOB MODAL */}
       {isCreatingJob && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white border border-slate-200 rounded-2xl max-w-xl w-full p-6 space-y-5 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-              <h3 className="text-base font-bold text-slate-900">Post a Job at {business.name}</h3>
-              <button
-                onClick={() => setIsCreatingJob(false)}
-                className="text-slate-400 hover:text-slate-700 text-xs font-medium"
-              >
-                Cancel
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveJob} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Role Title</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Senior Database Platform Architect"
-                  value={newJobTitle}
-                  onChange={(e) => setNewJobTitle(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-indigo-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Department</label>
-                  <input
-                    type="text"
-                    required
-                    value={newJobDept}
-                    onChange={(e) => setNewJobDept(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-indigo-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Work Type</label>
-                  <select
-                    value={newJobWorkType}
-                    onChange={(e) => setNewJobWorkType(e.target.value as any)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-indigo-500 font-medium"
-                  >
-                    <option value="Remote">Remote</option>
-                    <option value="Hybrid">Hybrid</option>
-                    <option value="On-site">On-site</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Location</label>
-                <select
-                  value={newJobLocation}
-                  onChange={(e) => setNewJobLocation(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-indigo-500"
-                >
-                  {Object.keys(CITIES)
-                    .sort()
-                    .map((city) => (
-                      <option key={city} value={city}>
-                        {city}
-                      </option>
-                    ))}
-                </select>
-                <p className="text-[11px] text-slate-500 mt-1">For remote jobs, where the team is based.</p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Job Type</label>
-                  <select
-                    value={newJobEmploymentType}
-                    onChange={(e) => setNewJobEmploymentType(e.target.value as typeof newJobEmploymentType)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-indigo-500"
-                  >
-                    {EMPLOYMENT_TYPES.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Experience Level</label>
-                  <select
-                    value={newJobExperience}
-                    onChange={(e) => setNewJobExperience(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-indigo-500"
-                  >
-                    {EXPERIENCE_LEVELS.map((level) => (
-                      <option key={level} value={level}>
-                        {level}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Salary Range (a year, USD)</label>
-                <div className="grid grid-cols-2 gap-3">
-                  <input
-                    type="number"
-                    required
-                    min={0}
-                    step={5000}
-                    aria-label="Minimum salary"
-                    value={newJobSalaryMin}
-                    onChange={(e) => setNewJobSalaryMin(Number(e.target.value))}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 font-mono focus:outline-none focus:bg-white focus:border-indigo-500"
-                  />
-                  <input
-                    type="number"
-                    required
-                    min={newJobSalaryMin}
-                    step={5000}
-                    aria-label="Maximum salary"
-                    value={newJobSalaryMax}
-                    onChange={(e) => setNewJobSalaryMax(Number(e.target.value))}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 font-mono focus:outline-none focus:bg-white focus:border-indigo-500"
-                  />
-                </div>
-                <p className="text-[11px] text-slate-500 mt-1 font-mono">{formatSalaryRange(newJobSalaryMin, newJobSalaryMax)}</p>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Role Summary</label>
-                <textarea
-                  rows={3}
-                  placeholder="Key responsibilities and engineering scale..."
-                  value={newJobDesc}
-                  onChange={(e) => setNewJobDesc(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-indigo-500"
-                />
-              </div>
-
-              {/* Attach a test to this job */}
-              <div className="p-3 bg-indigo-50/50 border border-indigo-200 rounded-xl space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-indigo-900 flex items-center gap-1.5">
-                    <span>Attach a Test</span>
-                  </span>
-                  <label className={`flex items-center gap-1.5 text-xs text-indigo-800 font-medium cursor-pointer ${newJobAttachedTestId ? '' : 'opacity-40 pointer-events-none'}`}>
-                    <input
-                      type="checkbox"
-                      checked={newJobRequireTest}
-                      onChange={(e) => setNewJobRequireTest(e.target.checked)}
-                      className="rounded text-indigo-600 accent-indigo-600"
-                    />
-                    <span>Required to apply</span>
-                  </label>
-                </div>
-
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="col-span-2">
-                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">Test</label>
-                    <select
-                      value={newJobAttachedTestId}
-                      onChange={(e) => setNewJobAttachedTestId(e.target.value)}
-                      className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 font-medium"
-                    >
-                      <option value="">No test</option>
-                      {companyTests.length > 0 && (
-                        <optgroup label="Your tests">
-                          {companyTests.map((t) => (
-                            <option key={t.id} value={t.id}>
-                              {t.title}
-                            </option>
-                          ))}
-                        </optgroup>
-                      )}
-                      <optgroup label="Vetter tests">
-                        {vetterTests.map((t) => (
-                          <option key={t.id} value={t.id}>
-                            {t.title} ({t.category})
-                          </option>
-                        ))}
-                      </optgroup>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">Pass mark</label>
-                    <input
-                      type="number"
-                      disabled={!newJobAttachedTestId}
-                      min={60}
-                      max={100}
-                      value={newJobAttachedPassingScore}
-                      onChange={(e) => setNewJobAttachedPassingScore(Number(e.target.value))}
-                      className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 font-mono"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                className="w-full py-2.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-xs"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Post Job</span>
-              </button>
-            </form>
-          </div>
-        </div>
+        <JobForm
+          businesses={business ? [business] : businesses}
+          postedBy={business ? 'company' : 'vetter'}
+          tests={tests}
+          onSave={handleSaveJob}
+          onCancel={() => setIsCreatingJob(false)}
+        />
       )}
     </div>
   );
