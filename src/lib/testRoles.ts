@@ -2,7 +2,7 @@ import { Question, TestRole } from '../types';
 
 // Industries and the roles within them, as listed on the Tests page
 export const ROLE_GROUPS: { industry: string; roles: TestRole[] }[] = [
-  { industry: 'Software Engineering', roles: ['Frontend Engineer', 'Backend Engineer', 'Full Stack Engineer', 'Platform & DevOps'] },
+  { industry: 'Software Engineering', roles: ['Frontend Engineer', 'Backend Engineer', 'Full Stack Engineer', 'Platform & DevOps', 'QA Engineer'] },
   { industry: 'Data & Analytics', roles: ['Data Analyst', 'Data Engineer'] },
   { industry: 'Consulting & Business', roles: ['Consultant', 'Business Analyst'] },
 ];
@@ -12,6 +12,7 @@ export const QUESTION_TYPE_LABELS: Record<Question['type'], string> = {
   code: 'JavaScript',
   scenario: 'Scenario',
   choice: 'Multiple choice',
+  schema: 'Schema design',
 };
 
 // "3 checks" for code and SQL tasks; multiple choice has one right answer

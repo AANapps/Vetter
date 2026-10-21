@@ -1,6 +1,7 @@
 import { User, AssessmentTest, JobPosting, Business } from '../types';
 import CANDIDATE_AVATAR from '../assets/images/candidate_avatar_dev_1792329815461.jpg';
 import RECRUITER_AVATAR from '../assets/images/recruiter_avatar_tech_1792329815454.jpg';
+import { ROLE_ASSESSMENTS } from './roleTests';
 
 // Seed each candidate's test history from the tests behind their verified skills
 const withTestResults = (user: Omit<User, 'testResults'>): User => ({
@@ -210,16 +211,16 @@ export const INITIAL_RECRUITER: User = {
 export const STANDARD_ASSESSMENTS: AssessmentTest[] = [
   {
     id: 'test-sql-01',
-    title: 'Advanced SQL & Analytics Engineering',
+    title: 'SQL Queries: Joins, Aggregations & Window Functions',
     category: 'Databases',
-    difficulty: 'Advanced',
+    difficulty: 'Medium',
     type: 'standard',
-    description: 'Practical evaluation covering window functions, aggregations, multi-table joins, subqueries, and analytical data grouping on realistic company databases.',
+    description: 'Write the queries a backend runs every day: filtering, grouped totals, joins across tables and ranking with window functions, on a company database.',
     estimatedMinutes: 20,
     passingScore: 75,
-    totalQuestions: 2,
-    skillsTested: ['SQL & Databases', 'Query Optimization', 'Data Aggregation'],
-    roles: ['Data Analyst', 'Data Engineer', 'Backend Engineer', 'Full Stack Engineer'],
+    totalQuestions: 4,
+    skillsTested: ['SQL & Databases', 'Joins', 'Data Aggregation', 'Window Functions'],
+    roles: ['Backend Engineer', 'Full Stack Engineer', 'Data Engineer'],
     questions: [
       {
         id: 'q-sql-1',
@@ -246,8 +247,8 @@ ORDER BY total_amount DESC;`,
             expectedOutput: JSON.stringify([{ client_name: 'Stripe Global', total_amount: 27900 }]),
           },
         ],
-        timeLimitMinutes: 10,
-        weight: 50,
+        timeLimitMinutes: 5,
+        weight: 25,
       },
       {
         id: 'q-sql-2',
@@ -275,8 +276,56 @@ ORDER BY salary DESC;`,
             ]),
           },
         ],
-        timeLimitMinutes: 10,
-        weight: 50,
+        timeLimitMinutes: 4,
+        weight: 25,
+      },
+      {
+        id: 'q-sql-3',
+        title: 'Department Headcount Against the Cap',
+        type: 'sql',
+        prompt: `Join 'departments' to 'employees' (employees.department matches departments.dept_name). For every department, return how many people it employs, their average salary rounded to a whole number, and how many open seats are left under its headcount cap.
+
+Order by open_seats descending.
+
+Target columns: dept_name, headcount, avg_salary, open_seats`,
+        contextData: `Table: departments (id INT, dept_name VARCHAR, quarterly_budget INT, headcount_cap INT)
+Table: employees (id INT, name VARCHAR, department VARCHAR, salary INT, rating FLOAT, hire_year INT)`,
+        starterCode: `-- Write your query here
+SELECT
+FROM departments d
+JOIN employees e ON ...;`,
+        solutionCode: `SELECT d.dept_name, COUNT(e.id) AS headcount, ROUND(AVG(e.salary)) AS avg_salary, d.headcount_cap - COUNT(e.id) AS open_seats
+FROM departments d
+LEFT JOIN employees e ON e.department = d.dept_name
+GROUP BY d.id
+ORDER BY open_seats DESC;`,
+        testCases: [{ id: 'tc-sql-3', description: 'One row per department with headcount, average salary and open seats', input: '', expectedOutput: '' }],
+        timeLimitMinutes: 5,
+        weight: 25,
+      },
+      {
+        id: 'q-sql-4',
+        title: 'Top Earner in Each Department',
+        type: 'sql',
+        prompt: `Use a window function to find the highest-paid employee in each department.
+
+Order by department alphabetically.
+
+Target columns: department, name, salary`,
+        contextData: `Table: employees (id INT, name VARCHAR, department VARCHAR, salary INT, rating FLOAT, hire_year INT)`,
+        starterCode: `-- Hint: RANK() OVER (PARTITION BY ... ORDER BY ...)
+SELECT
+FROM employees;`,
+        solutionCode: `SELECT department, name, salary
+FROM (
+  SELECT department, name, salary, RANK() OVER (PARTITION BY department ORDER BY salary DESC) AS salary_rank
+  FROM employees
+)
+WHERE salary_rank = 1
+ORDER BY department;`,
+        testCases: [{ id: 'tc-sql-4', description: 'One top earner per department, in department order', input: '', expectedOutput: '' }],
+        timeLimitMinutes: 6,
+        weight: 25,
       },
     ],
   },
@@ -284,7 +333,7 @@ ORDER BY salary DESC;`,
     id: 'test-sys-01',
     title: 'Distributed Systems & Concurrency',
     category: 'System Architecture',
-    difficulty: 'Staff Specialist',
+    difficulty: 'Hard',
     type: 'standard',
     description: 'Solve real-world scale challenges: distributed consensus, cache stamps, token bucket rate limiters, and idempotency key patterns.',
     estimatedMinutes: 25,
@@ -399,7 +448,7 @@ Output: number[] of window maximums.`,
     id: 'test-fe-01',
     title: 'Modern Frontend & State Architecture',
     category: 'Frontend',
-    difficulty: 'Advanced',
+    difficulty: 'Hard',
     type: 'standard',
     description: 'Test your mastery of state normalization, optimistic UI reconciliations, performance optimization, and custom event dispatching.',
     estimatedMinutes: 20,
@@ -449,9 +498,9 @@ Apply optimistic patches to server entities (by id). If an id is in rollbackIds,
   },
   {
     id: 'test-be-01',
-    title: 'Robust REST & gRPC API Design',
+    title: 'API Resilience & Routing',
     category: 'Backend APIs',
-    difficulty: 'Advanced',
+    difficulty: 'Hard',
     type: 'standard',
     description: 'Core building blocks of production APIs: retry schedules for flaky upstreams and path routing with parameters.',
     estimatedMinutes: 20,
@@ -540,7 +589,7 @@ Example: solution(["/users/:id"], "/users/7") returns { route: "/users/:id", par
     id: 'test-da-01',
     title: 'Data Analysis & Business Metrics',
     category: 'Data Analysis',
-    difficulty: 'Intermediate',
+    difficulty: 'Medium',
     type: 'standard',
     description: 'Turn raw numbers into decisions: conversion funnels, growth rates, averages that mislead, A/B test results and cohort retention.',
     estimatedMinutes: 20,
@@ -650,7 +699,7 @@ What is the January cohort’s retention in March?`,
     id: 'test-cs-01',
     title: 'Case Interview & Business Problem Solving',
     category: 'Consulting',
-    difficulty: 'Intermediate',
+    difficulty: 'Medium',
     type: 'standard',
     description: 'The core of a consulting case: diagnosing profit problems, break-even maths, market sizing, structuring a problem and prioritising options.',
     estimatedMinutes: 20,
@@ -759,6 +808,7 @@ Which gives the most impact per week of effort?`,
       },
     ],
   },
+  ...ROLE_ASSESSMENTS,
 ];
 
 // Company-made tests, written by a business for its own jobs
@@ -767,7 +817,7 @@ export const COMPANY_ASSESSMENTS: AssessmentTest[] = [
     id: 'test-custom-01',
     title: 'Idempotent Message Ingestion',
     category: 'Backend APIs',
-    difficulty: 'Advanced',
+    difficulty: 'Hard',
     type: 'custom',
     businessId: 'biz-001',
     companyName: 'PrismaScale AI',
@@ -901,7 +951,7 @@ export const INITIAL_JOBS: JobPosting[] = [
       { skillId: 'skill-sys', skillName: 'System Architecture', minScore: 70, importance: 'preferred', weight: 0.2 },
     ],
     attachedTestId: 'test-sql-01',
-    attachedTestTitle: 'Advanced SQL & Analytics Engineering',
+    attachedTestTitle: 'SQL Queries: Joins, Aggregations & Window Functions',
     attachedTestPassingScore: 85,
     isAttachedTestMandatory: true,
     applicantCount: 14,

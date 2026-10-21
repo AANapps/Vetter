@@ -8,6 +8,7 @@ export type SkillCategory =
   | 'Frontend'
   | 'Backend APIs'
   | 'Data Analysis'
+  | 'Quality Assurance'
   | 'Consulting';
 
 // The jobs a test is relevant to; grouped by industry on the Tests page
@@ -16,6 +17,7 @@ export type TestRole =
   | 'Backend Engineer'
   | 'Full Stack Engineer'
   | 'Platform & DevOps'
+  | 'QA Engineer'
   | 'Data Analyst'
   | 'Data Engineer'
   | 'Consultant'
@@ -62,8 +64,9 @@ export interface TestResult {
   durationSeconds?: number;
 }
 
-// 'choice' is multiple choice, for roles where writing code isn't the job
-export type QuestionType = 'sql' | 'code' | 'scenario' | 'choice';
+// 'choice' is multiple choice, for roles where writing code isn't the job;
+// 'schema' is CREATE TABLE statements, graded by inserts that must be accepted or rejected
+export type QuestionType = 'sql' | 'code' | 'scenario' | 'choice' | 'schema';
 
 export interface TestCase {
   id: string;
@@ -84,16 +87,23 @@ export interface Question {
   // Multiple choice only: the answers to pick from and the index of the right one
   options?: string[];
   correctOption?: number;
+  // Hidden code run after the candidate's, whose check(input) function grades each test case.
+  // Lets a task grade code that isn't a pure function, such as tests the candidate writes.
+  harness?: string;
+  // Show what the code returns as a chart, for tasks that build visualisations
+  preview?: 'chart';
   testCases: TestCase[];
   timeLimitMinutes: number;
   weight: number;
 }
 
+export type TestDifficulty = 'Easy' | 'Medium' | 'Hard';
+
 export interface AssessmentTest {
   id: string;
   title: string;
   category: SkillCategory;
-  difficulty: 'Intermediate' | 'Advanced' | 'Staff Specialist';
+  difficulty: TestDifficulty;
   // 'standard' tests are made by Vetter; 'custom' tests are made by a company for its own jobs
   type: 'standard' | 'custom';
   businessId?: string;

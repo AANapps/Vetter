@@ -1,5 +1,5 @@
 import { AssessmentTest, Question } from '../types';
-import { executeSqlQuery, SqlExecutionResult } from './sqlEngine';
+import { executeSqlQuery, runSchemaChecks, SqlExecutionResult } from './sqlEngine';
 import { runJavaScriptCode, CodeExecutionResult } from './codeEngine';
 
 export type TestCaseOutcome = CodeExecutionResult['testCaseResults'][number];
@@ -72,21 +72,34 @@ function gradeChoice(q: Question, answer: string): QuestionRunResult {
 export async function runQuestion(q: Question, code: string): Promise<QuestionRunResult> {
   if (q.type === 'sql') return runSqlQuestion(q, code);
   if (q.type === 'choice') return gradeChoice(q, code);
+  if (q.type === 'schema') return { type: 'code', ...(await runSchemaChecks(code, q.testCases)) };
+  // A harness grades through its own check(), run after the candidate's code so it can call their solution
+  if (q.harness) return { type: 'code', ...runJavaScriptCode(`${code}\n${q.harness}`, q.testCases, 'check') };
   return { type: 'code', ...runJavaScriptCode(code, q.testCases) };
+}
+
+// What to tell the candidate after submitting: the checks a task missed
+function feedbackFor(q: Question, result: QuestionRunResult): string[] {
+  if (result.score === 100) return [];
+  if (q.type === 'choice') return ['Not the right answer'];
+  if (result.type === 'sql' && !result.success) return [`Query failed: ${result.errorMessage}`];
+  return result.testCaseResults.filter((tc) => !tc.passed).map((tc) => tc.description);
 }
 
 // Grade every question from the candidate's latest code; untouched starter code is graded like any other answer
 export async function gradeTest(test: AssessmentTest, codes: Record<string, string>) {
   const perQuestion: Record<string, number> = {};
+  const feedback: Record<string, string[]> = {};
   let weighted = 0;
   let weights = 0;
 
   for (const q of test.questions) {
     const result = await runQuestion(q, codes[q.id] ?? q.starterCode);
     perQuestion[q.id] = result.score;
+    feedback[q.id] = feedbackFor(q, result);
     weighted += perQuestion[q.id] * q.weight;
     weights += q.weight;
   }
 
-  return { score: Math.round(weighted / (weights || 1)), perQuestion };
+  return { score: Math.round(weighted / (weights || 1)), perQuestion, feedback };
 }

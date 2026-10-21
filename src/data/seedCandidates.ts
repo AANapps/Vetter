@@ -56,6 +56,7 @@ export const SKILL_IDS: Record<AssessmentTest['category'], string> = {
   'Backend APIs': 'skill-backend',
   Algorithms: 'skill-algorithms',
   'Data Analysis': 'skill-analytics',
+  'Quality Assurance': 'skill-qa',
   Consulting: 'skill-consulting',
 };
 

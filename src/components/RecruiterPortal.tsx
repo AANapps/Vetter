@@ -167,7 +167,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
       id: `test-custom-${Date.now()}`,
       title: customTestTitle,
       category: customTestCategory,
-      difficulty: 'Staff Specialist',
+      difficulty: 'Hard',
       type: 'custom',
       businessId: business.id,
       companyName: business.name,

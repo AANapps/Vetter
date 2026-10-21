@@ -17,6 +17,12 @@ export interface CodeExecutionResult {
   totalExecutionTimeMs: number;
 }
 
+// JSON with object keys sorted, so { a, b } and { b, a } compare equal
+const canonical = (value: unknown): string =>
+  JSON.stringify(value, (_key, v) =>
+    v && typeof v === 'object' && !Array.isArray(v) ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, v[k]])) : v
+  );
+
 export function runJavaScriptCode(
   code: string,
   testCases: TestCase[],
@@ -88,7 +94,7 @@ export function runJavaScriptCode(
       let isMatch = false;
       try {
         const expectedParsed = JSON.parse(expectedClean);
-        isMatch = JSON.stringify(rawResult) === JSON.stringify(expectedParsed);
+        isMatch = canonical(rawResult) === canonical(expectedParsed);
       } catch {
         isMatch = String(rawResult).trim() === expectedClean;
       }

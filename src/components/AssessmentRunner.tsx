@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { getBadgeTier } from './VerifiedSkillBadge';
 import { QUESTION_TYPE_LABELS, describeChecks } from '../lib/testRoles';
+import { ChartPreview, parseChartSpec } from './ChartPreview';
 
 interface AssessmentRunnerProps {
   test: AssessmentTest;
@@ -39,6 +40,7 @@ export const AssessmentRunner: React.FC<AssessmentRunnerProps> = ({ test, onClos
   const [activeTab, setActiveTab] = useState<'output' | 'testcases' | 'schema'>('output');
   const [runResults, setRunResults] = useState<QuestionRunResult | null>(null);
   const [questionScores, setQuestionScores] = useState<Record<string, number>>({});
+  const [questionFeedback, setQuestionFeedback] = useState<Record<string, string[]>>({});
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [finalScore, setFinalScore] = useState(0);
   const [finalPercentile, setFinalPercentile] = useState(0);
@@ -61,8 +63,12 @@ export const AssessmentRunner: React.FC<AssessmentRunnerProps> = ({ test, onClos
 
   const currentQ: Question = test.questions[currentQuestionIndex];
   const currentCode = userCodes[currentQ.id] || '';
-  const sampleTableName = currentQ.contextData?.match(/Table:\s*(\w+)/)?.[1];
-  const sampleTable = sampleTableName ? MOCK_DATABASE[sampleTableName] : undefined;
+  // Every sample table the task's schema reference names
+  const sampleTables = Array.from(currentQ.contextData?.matchAll(/Table:\s*(\w+)/g) ?? [])
+    .map((m) => MOCK_DATABASE[m[1]])
+    .filter(Boolean);
+  const chartSpec =
+    currentQ.preview === 'chart' && runResults?.type === 'code' ? parseChartSpec(runResults.testCaseResults[0]?.actual) : null;
 
   // Timer countdown
   useEffect(() => {
@@ -135,8 +141,9 @@ export const AssessmentRunner: React.FC<AssessmentRunnerProps> = ({ test, onClos
     submittedRef.current = true;
     setIsSubmitting(true);
 
-    const { score, perQuestion } = await gradeTest(test, userCodesRef.current);
+    const { score, perQuestion, feedback } = await gradeTest(test, userCodesRef.current);
     setQuestionScores(perQuestion);
+    setQuestionFeedback(feedback);
     setFinalScore(score);
     setFinalPercentile(getPercentileFor(score));
     setFinalDuration(Math.round((Date.now() - startedAtRef.current) / 1000));
@@ -305,9 +312,11 @@ export const AssessmentRunner: React.FC<AssessmentRunnerProps> = ({ test, onClos
             )}
 
             {/* Sample Table Inspection for SQL */}
-            {currentQ.type === 'sql' && sampleTable && (
-              <div className="space-y-2 pt-2">
-                <div className="text-xs font-bold text-slate-800">Database Sample Records</div>
+            {currentQ.type === 'sql' && sampleTables.map((sampleTable) => (
+              <div key={sampleTable.name} className="space-y-2 pt-2">
+                <div className="text-xs font-bold text-slate-800">
+                  Sample records: <span className="font-mono">{sampleTable.name}</span>
+                </div>
                 <div className="border border-slate-200 rounded-lg overflow-hidden bg-white shadow-2xs">
                   <div className="overflow-x-auto max-h-48">
                     <table className="w-full text-left text-xs">
@@ -323,9 +332,9 @@ export const AssessmentRunner: React.FC<AssessmentRunnerProps> = ({ test, onClos
                       <tbody className="divide-y divide-slate-100 text-slate-700 font-mono text-[11px]">
                         {sampleTable.rows.slice(0, 4).map((row, i) => (
                           <tr key={i} className="hover:bg-slate-50">
-                            {Object.values(row).map((val: any, j) => (
-                              <td key={j} className="p-2 truncate max-w-[140px]">
-                                {String(val)}
+                            {sampleTable.columns.map((c) => (
+                              <td key={c} className="p-2 truncate max-w-[140px] whitespace-pre">
+                                {row[c] === null ? 'NULL' : JSON.stringify(row[c]).replace(/^"|"$/g, '')}
                               </td>
                             ))}
                           </tr>
@@ -333,9 +342,14 @@ export const AssessmentRunner: React.FC<AssessmentRunnerProps> = ({ test, onClos
                       </tbody>
                     </table>
                   </div>
+                  {sampleTable.rows.length > 4 && (
+                    <div className="p-2 bg-slate-50 text-slate-500 text-[11px] border-t border-slate-200">
+                      Showing 4 of {sampleTable.rows.length} rows. Query the table to see them all.
+                    </div>
+                  )}
                 </div>
               </div>
-            )}
+            ))}
           </div>
         </div>
 
@@ -378,7 +392,7 @@ export const AssessmentRunner: React.FC<AssessmentRunnerProps> = ({ test, onClos
           <div className="px-4 py-2 bg-slate-100 border-b border-slate-200 flex items-center justify-between shrink-0">
             <div className="text-xs text-slate-600 font-mono flex items-center gap-2 font-semibold">
               <span className="w-2 h-2 rounded-full bg-indigo-600" />
-              <span>{currentQ.type === 'sql' ? 'sql_workspace.sql' : 'solution.js'}</span>
+              <span>{currentQ.type === 'sql' ? 'sql_workspace.sql' : currentQ.type === 'schema' ? 'schema.sql' : 'solution.js'}</span>
             </div>
 
             <div className="flex items-center gap-2">
@@ -485,6 +499,13 @@ export const AssessmentRunner: React.FC<AssessmentRunnerProps> = ({ test, onClos
                   )}
 
                   <div className="text-indigo-700 font-bold">Score on this task: {runResults.score}/100</div>
+
+                  {chartSpec && (
+                    <div className="p-3 border border-slate-200 rounded-lg space-y-2">
+                      <div className="text-[10px] text-slate-400 font-semibold">YOUR CHART (first test case)</div>
+                      <ChartPreview spec={chartSpec} />
+                    </div>
+                  )}
 
                   {runResults.type === 'code' && (
                     <div className="space-y-2">
@@ -599,16 +620,29 @@ export const AssessmentRunner: React.FC<AssessmentRunnerProps> = ({ test, onClos
                 </div>
               </div>
 
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600 space-y-1.5">
-                <div className="font-bold text-slate-900">Score by task</div>
-                {test.questions.map((q, idx) => (
-                  <div key={q.id} className="flex items-center justify-between gap-3">
-                    <span className="truncate">
-                      {idx + 1}. {q.title} <span className="text-slate-400">({q.weight}%)</span>
-                    </span>
-                    <span className="font-mono font-semibold tabular-nums text-slate-900">{questionScores[q.id] ?? 0}/100</span>
-                  </div>
-                ))}
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600 space-y-1.5 max-h-64 overflow-y-auto">
+                <div className="font-bold text-slate-900">Score and feedback by task</div>
+                {test.questions.map((q, idx) => {
+                  const missed = questionFeedback[q.id] ?? [];
+                  return (
+                    <div key={q.id}>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="truncate">
+                          {idx + 1}. {q.title} <span className="text-slate-400">({q.weight}%)</span>
+                        </span>
+                        <span className="font-mono font-semibold tabular-nums text-slate-900">{questionScores[q.id] ?? 0}/100</span>
+                      </div>
+                      {missed.length > 0 && (
+                        <ul className="mt-0.5 pl-4 text-[11px] text-rose-700 list-disc">
+                          {missed.slice(0, 3).map((m) => (
+                            <li key={m}>{m}</li>
+                          ))}
+                          {missed.length > 3 && <li className="list-none text-slate-500">and {missed.length - 3} more</li>}
+                        </ul>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
 
               <button
