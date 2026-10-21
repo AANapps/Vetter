@@ -15,7 +15,7 @@ import {
   Crown,
   Award
 } from 'lucide-react';
-import { BadgeEmblem, getBadgeTier } from './VerifiedSkillBadge';
+import { getBadgeTier } from './VerifiedSkillBadge';
 import { QUESTION_TYPE_LABELS, describeChecks } from '../lib/testRoles';
 import { ChartPreview, parseChartSpec } from './ChartPreview';
 
@@ -574,8 +574,8 @@ export const AssessmentRunner: React.FC<AssessmentRunnerProps> = ({ test, onClos
               </div>
 
               {/* The badge this score earns */}
-              <div className={`medal-banner medal-banner-${earnedTier.tierKey} rounded-xl border border-slate-200 p-4 flex items-center gap-4`}>
-                <BadgeEmblem tier={earnedTier.tierKey} score={finalScore} size="lg" />
+              <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-white p-4">
+                <span className={`absolute inset-x-0 top-0 h-1 ${earnedTier.barClass}`} aria-hidden="true" />
                 <div>
                   <div className="text-sm font-bold text-slate-900">
                     {earnedTier.tierKey === 'developing'

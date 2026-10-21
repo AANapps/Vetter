@@ -1,4 +1,4 @@
-import React, { useId, useState } from 'react';
+import React, { useState } from 'react';
 import { VerifiedSkill } from '../types';
 import { LeaderboardEntry } from '../lib/leaderboard';
 import { RankDisc } from './RankDisc';
@@ -72,86 +72,12 @@ export function getBadgeTier(score: number): BadgeTierConfig {
   return TIERS.find((t) => score >= t.minScore)!;
 }
 
-// Metallic colours for each medal: highlight, body, shadow, and the text that sits on it
-const MEDAL_COLOURS: Record<TierKey, { light: string; mid: string; dark: string; ink: string }> = {
-  gold: { light: '#FFF1BF', mid: '#E6B43C', dark: '#9C6A0E', ink: '#5A3B00' },
-  silver: { light: '#FFFFFF', mid: '#C3CCD8', dark: '#6F7C8F', ink: '#273445' },
-  bronze: { light: '#FFDCC0', mid: '#CD8550', dark: '#7F431C', ink: '#4A2307' },
-  developing: { light: '#F8FAFC', mid: '#CBD5E1', dark: '#94A3B8', ink: '#475569' },
-};
-
-const EMBLEM_SIZES = { xs: 18, sm: 24, md: 40, lg: 52, xl: 72 } as const;
-
-// A hexagonal medal in the tier's metal, with the score struck into it
-export const BadgeEmblem: React.FC<{ tier: TierKey; score?: number; size?: keyof typeof EMBLEM_SIZES; className?: string }> = ({
-  tier,
-  score,
-  size = 'md',
-  className = '',
-}) => {
-  const id = useId().replace(/:/g, '');
-  const c = MEDAL_COLOURS[tier];
-  const px = EMBLEM_SIZES[size];
-  const hex = (r: number) =>
-    Array.from({ length: 6 }, (_, i) => {
-      const a = (Math.PI / 3) * i - Math.PI / 2;
-      return `${50 + r * Math.cos(a)},${50 + r * Math.sin(a)}`;
-    }).join(' ');
-  const showScore = score !== undefined && px >= 24;
-
-  return (
-    <svg
-      width={px}
-      height={px}
-      viewBox="0 0 100 100"
-      className={`shrink-0 drop-shadow-sm ${className}`}
-      role="img"
-      aria-label={`${getBadgeTier(score ?? TIERS.find((t) => t.tierKey === tier)!.minScore).label} badge${score !== undefined ? `, ${score}` : ''}`}
-    >
-      <defs>
-        <linearGradient id={`rim-${id}`} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor={c.light} />
-          <stop offset="0.45" stopColor={c.mid} />
-          <stop offset="1" stopColor={c.dark} />
-        </linearGradient>
-        <linearGradient id={`face-${id}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor={c.mid} />
-          <stop offset="1" stopColor={c.light} />
-        </linearGradient>
-      </defs>
-      <polygon points={hex(48)} fill={`url(#rim-${id})`} />
-      <polygon points={hex(39)} fill={`url(#face-${id})`} stroke={c.dark} strokeOpacity="0.35" strokeWidth="1.5" />
-      {/* Sheen across the top */}
-      <path d={`M ${hex(39).split(' ')[5]} L ${hex(39).split(' ')[0]} L ${hex(39).split(' ')[1]} L 50 42 Z`} fill="#fff" opacity="0.28" />
-      {showScore ? (
-        <text
-          x="50"
-          y="52"
-          textAnchor="middle"
-          dominantBaseline="middle"
-          fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
-          fontWeight="800"
-          fontSize={score! >= 100 ? 28 : 34}
-          fill={c.ink}
-        >
-          {score}
-        </text>
-      ) : (
-        <path d="M34 51 l11 11 l22 -24" fill="none" stroke={c.ink} strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />
-      )}
-    </svg>
-  );
-};
-
 // The score bands, for legends
 export const TierLegend: React.FC = () => (
   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-600">
     {TIERS.slice(0, 3).map((t, i) => (
-      <span key={t.tierKey} className="flex items-center gap-1.5">
-        <BadgeEmblem tier={t.tierKey} size="xs" />
-        <span>
-          <span className="font-semibold text-slate-800">{t.label}</span> {i === 0 ? `${t.minScore}+` : `${t.minScore}–${TIERS[i - 1].minScore - 1}`}
-        </span>
+      <span key={t.tierKey}>
+        <span className={`font-semibold ${t.badgeTextColor}`}>{t.label}</span> {i === 0 ? `${t.minScore}+` : `${t.minScore}–${TIERS[i - 1].minScore - 1}`}
       </span>
     ))}
   </div>
@@ -203,11 +129,11 @@ export const VerifiedSkillBadge: React.FC<VerifiedSkillBadgeProps> = ({
       <>
         <button
           onClick={() => setIsModalOpen(true)}
-          className="badge-chip inline-flex items-center gap-2 pl-1 pr-3 py-1 rounded-full bg-white ring-1 ring-slate-200 hover:ring-slate-300 hover:shadow-sm transition-all"
+          className="badge-chip inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white ring-1 ring-slate-200 hover:ring-slate-300 hover:shadow-sm transition-all"
           title={`${tier.label} badge: ${skill.skillName}, ${skill.score}/100. View credential`}
         >
-          <BadgeEmblem tier={tier.tierKey} score={skill.score} size="sm" />
           <span className="text-xs font-semibold text-slate-800">{skill.skillName}</span>
+          <span className={`text-xs font-bold font-mono tabular-nums ${tier.badgeTextColor}`}>{skill.score}</span>
           <span className={`text-[11px] font-semibold ${tier.badgeTextColor}`}>{tier.label}</span>
         </button>
         {modal}
@@ -221,9 +147,9 @@ export const VerifiedSkillBadge: React.FC<VerifiedSkillBadgeProps> = ({
       <>
         <button
           onClick={() => setIsModalOpen(true)}
-          className="group w-full text-left p-4 rounded-xl bg-white border border-slate-200 hover:border-slate-300 hover:shadow-md transition-all flex items-center gap-4 shadow-xs"
+          className="group relative overflow-hidden w-full text-left p-4 rounded-xl bg-white border border-slate-200 hover:border-slate-300 hover:shadow-md transition-all flex items-center gap-4 shadow-xs"
         >
-          <BadgeEmblem tier={tier.tierKey} score={skill.score} size="lg" />
+          <span className={`absolute inset-x-0 top-0 h-1 ${tier.barClass}`} aria-hidden="true" />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <TierChip tier={tier} />
@@ -234,6 +160,10 @@ export const VerifiedSkillBadge: React.FC<VerifiedSkillBadgeProps> = ({
               Vetter &middot; {skill.percentile}th percentile
             </p>
           </div>
+          <div className={`text-3xl font-bold font-mono tabular-nums ${tier.badgeTextColor}`}>
+            {skill.score}
+            <span className="text-xs font-normal text-slate-400">/100</span>
+          </div>
         </button>
         {modal}
       </>
@@ -243,9 +173,9 @@ export const VerifiedSkillBadge: React.FC<VerifiedSkillBadgeProps> = ({
   // Full card: the credential, where it stands, and who leads the test
   return (
     <>
-      <div className="rounded-xl bg-white border border-slate-200 p-5 flex flex-col gap-4 shadow-xs hover:shadow-md transition-shadow">
+      <div className="relative overflow-hidden rounded-xl bg-white border border-slate-200 p-5 flex flex-col gap-4 shadow-xs hover:shadow-md transition-shadow">
+        <span className={`absolute inset-x-0 top-0 h-1 ${tier.barClass}`} aria-hidden="true" />
         <div className="flex items-start gap-3.5">
-          <BadgeEmblem tier={tier.tierKey} score={skill.score} size="lg" />
           <div className="min-w-0 flex-1">
             <h3 className="text-sm font-bold text-slate-900 leading-snug">{skill.skillName}</h3>
             <p className="text-xs text-slate-600 flex items-center gap-1 mt-0.5">
@@ -254,14 +184,16 @@ export const VerifiedSkillBadge: React.FC<VerifiedSkillBadgeProps> = ({
             </p>
             <p className="text-[11px] text-slate-500 mt-0.5">Issued {formatDate(skill.verifiedAt)}</p>
           </div>
-          <TierChip tier={tier} />
+          <div className="text-right shrink-0">
+            <TierChip tier={tier} />
+            <div className={`text-3xl font-bold font-mono tabular-nums mt-1 ${tier.badgeTextColor}`}>{skill.score}</div>
+          </div>
         </div>
 
         <div className="space-y-1.5">
           <div className="flex items-baseline justify-between text-xs">
             <span className="text-slate-600">
-              <span className={`font-bold font-mono tabular-nums text-base ${tier.badgeTextColor}`}>{skill.score}</span>
-              <span className="text-slate-400">/100</span> &middot; {skill.level}
+              {skill.level}
             </span>
             <span className="text-slate-600">
               <span className="font-semibold text-slate-900 tabular-nums">{skill.percentile}th</span> percentile
@@ -339,12 +271,12 @@ const CertificateModal: React.FC<CertificateModalProps> = ({ skill, tier, onClos
           <X className="w-5 h-5" />
         </button>
 
-        <div className={`medal-banner medal-banner-${tier.tierKey} px-6 pt-8 pb-6 flex flex-col items-center text-center gap-3`}>
-          <BadgeEmblem tier={tier.tierKey} score={skill.score} size="xl" />
+        <span className={`absolute inset-x-0 top-0 h-1 ${tier.barClass}`} aria-hidden="true" />
+        <div className="px-6 pt-8 pb-5 border-b border-slate-100">
           <div>
             <TierChip tier={tier} />
             <h3 className="text-lg font-bold text-slate-900 mt-2">{skill.skillName}</h3>
-            <p className="text-xs text-slate-600 flex items-center justify-center gap-1 mt-0.5">
+            <p className="text-xs text-slate-600 flex items-center gap-1 mt-0.5">
               <BadgeCheck className="w-3.5 h-3.5 text-indigo-600" />
               Verified by Vetter &middot; Issued {formatDate(skill.verifiedAt)}
             </p>

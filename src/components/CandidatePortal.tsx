@@ -13,7 +13,7 @@ import {
   Search,
   Send,
 } from 'lucide-react';
-import { VerifiedSkillBadge, BadgeEmblem, TierLegend, getBadgeTier } from './VerifiedSkillBadge';
+import { VerifiedSkillBadge, TierLegend, getBadgeTier } from './VerifiedSkillBadge';
 import { JobApplicationModal } from './JobApplicationModal';
 import { JobDetailsModal, JobPage } from './JobDetails';
 import { ProfileSidebar } from './ProfileSidebar';
@@ -173,9 +173,8 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
               <div className="flex items-center gap-3">
                 <h1 className="text-xl font-bold text-slate-900 tracking-tight">{candidate.name}</h1>
                 {bestTier && bestTier.tierKey !== 'developing' && (
-                  <span className="flex items-center gap-1 text-xs font-semibold text-slate-700" title={`Best verified result: ${bestTier.label}`}>
-                    <BadgeEmblem tier={bestTier.tierKey} size="xs" />
-                    <span>{bestTier.label} verified</span>
+                  <span className={`text-xs font-semibold ${bestTier.badgeTextColor}`} title={`Best verified result: ${bestTier.label}`}>
+                    {bestTier.label} verified
                   </span>
                 )}
               </div>
