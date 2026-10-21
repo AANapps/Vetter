@@ -1,6 +1,8 @@
 import React, { useCallback, useState } from 'react';
 import { User, AssessmentTest, JobPosting, CandidateJobMatch, Business, TestRole, TEST_DIFFICULTIES } from '../types';
 import { ROLE_GROUPS } from '../lib/testRoles';
+import { isMainVersion, levelsOf } from '../lib/testLevels';
+import { LevelPicker } from './LevelPicker';
 import { rankJobsForCandidate, getBestTestScore, calculateCandidateJobMatch } from '../lib/matchingAlgorithm';
 import { getLeaderboard, getTestStats } from '../lib/leaderboard';
 import {
@@ -58,6 +60,8 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   // Tests page filters
   const [roleFilter, setRoleFilter] = useState<TestRole | 'all'>('all');
   const [difficultyFilter, setDifficultyFilter] = useState<AssessmentTest['difficulty'][]>([]);
+  // The level picked on each test card, by the test's main version
+  const [cardLevels, setCardLevels] = useState<Record<string, string>>({});
   const [testStatusFilter, setTestStatusFilter] = useState<'all' | 'not-taken' | 'taken'>('all');
   const [openJobId, setOpenJobId] = useState<string | null>(null);
   const [appliedNotification, setAppliedNotification] = useState<string | null>(null);
@@ -132,12 +136,15 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   };
 
   // Vetter-made tests are open to everyone; company tests are taken through the jobs they're attached to
-  const vetterTests = tests.filter((t) => t.type === 'standard');
-  const testDifficulties = TEST_DIFFICULTIES.filter((d) => vetterTests.some((t) => t.difficulty === d));
+  // Each test is listed once; its levels are picked on the card
+  const allVetterVersions = tests.filter((t) => t.type === 'standard');
+  const vetterTests = allVetterVersions.filter(isMainVersion);
+  const testDifficulties = TEST_DIFFICULTIES.filter((d) => allVetterVersions.some((t) => t.difficulty === d));
   const filteredTests = vetterTests.filter((t) => {
+    const versions = levelsOf(t, tests);
     if (roleFilter !== 'all' && !t.roles?.includes(roleFilter)) return false;
-    if (difficultyFilter.length > 0 && !difficultyFilter.includes(t.difficulty)) return false;
-    const taken = getBestTestScore(candidate, t.id) !== undefined;
+    if (difficultyFilter.length > 0 && !versions.some((v) => difficultyFilter.includes(v.difficulty))) return false;
+    const taken = versions.some((v) => getBestTestScore(candidate, v.id) !== undefined);
     if (testStatusFilter === 'taken' && !taken) return false;
     if (testStatusFilter === 'not-taken' && taken) return false;
     return true;
@@ -689,22 +696,25 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {filteredTests.map((t) => {
+            {filteredTests.map((main) => {
+              const versions = levelsOf(main, tests);
+              // The level shown: the one picked on this card, else the first matching the difficulty filter
+              const t =
+                versions.find((v) => v.id === cardLevels[main.id]) ??
+                versions.find((v) => difficultyFilter.includes(v.difficulty)) ??
+                main;
               const bestScore = getBestTestScore(candidate, t.id);
               const stats = getTestStats(t, allCandidates);
 
               return (
                 <div
-                  key={t.id}
+                  key={main.id}
                   className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col justify-between hover:border-indigo-300 transition-colors space-y-5 shadow-xs"
                 >
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-mono uppercase tracking-wider text-indigo-700 font-bold">
-                        {t.category}
-                      </span>
-                      <span className="text-xs text-slate-500 font-medium">{t.difficulty}</span>
-                    </div>
+                    <span className="text-[11px] font-mono uppercase tracking-wider text-indigo-700 font-bold">
+                      {t.category}
+                    </span>
 
                     <h3 className="text-base font-bold text-slate-900">
                       <button onClick={() => onOpenTest(t.id)} className="text-left hover:text-indigo-700 transition-colors">
@@ -712,6 +722,15 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                       </button>
                     </h3>
                     <p className="text-xs text-slate-600 leading-relaxed">{t.description}</p>
+
+                    {versions.length > 1 && (
+                      <LevelPicker
+                        versions={versions}
+                        selectedId={t.id}
+                        onSelect={(id) => setCardLevels((prev) => ({ ...prev, [main.id]: id }))}
+                        bestScores={Object.fromEntries(versions.map((v) => [v.id, getBestTestScore(candidate, v.id)]))}
+                      />
+                    )}
 
                     {t.roles && t.roles.length > 0 && (
                       <div className="text-[11px] text-slate-500">
@@ -733,7 +752,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
 
                   <div className="pt-4 border-t border-slate-200 space-y-4">
                     <div className="flex items-center justify-between text-xs text-slate-500 font-mono">
-                      <span>~{t.estimatedMinutes} mins &middot; {t.totalQuestions} tasks</span>
+                      <span>{t.difficulty} &middot; ~{t.estimatedMinutes} mins &middot; {t.totalQuestions} tasks</span>
                       <span className="tabular-nums">
                         {stats.candidatesRanked} ranked &middot; avg {stats.averageScore}
                       </span>

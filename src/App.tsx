@@ -286,12 +286,14 @@ export default function App() {
           {testPageTest && (
             <TestPage
               test={testPageTest}
+              tests={tests}
               candidates={allCandidates}
               jobs={jobs}
               viewerRole={activeRole}
               currentCandidateId={activeRole === 'candidate' ? candidate.id : undefined}
               onStartTest={(test) => setActiveTest(test)}
               onOpenJob={activeRole === 'candidate' ? openJobPage : undefined}
+              onOpenTest={openTestPage}
               onBack={() => goToTab(activeRole === 'candidate' ? 'tests' : 'business-tests')}
             />
           )}

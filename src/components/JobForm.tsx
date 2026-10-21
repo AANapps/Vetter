@@ -3,6 +3,7 @@ import { AssessmentTest, Business, JobPosting } from '../types';
 import { CITIES } from '../lib/geo';
 import { EMPLOYMENT_TYPES, EXPERIENCE_LEVELS, formatSalaryRange } from '../lib/jobFilters';
 import { Plus } from 'lucide-react';
+import { isMainVersion, levelsOf, versionTitle } from '../lib/testLevels';
 
 interface JobFormProps {
   // The companies the job can be posted for: a company posts for itself, the Vetter team for any company
@@ -21,7 +22,8 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
   const [businessId, setBusinessId] = useState(businesses[0]?.id ?? '');
   const business = businesses.find((b) => b.id === businessId) ?? businesses[0];
   const companyTests = tests.filter((t) => t.type === 'custom' && t.businessId === business?.id);
-  const vetterTests = tests.filter((t) => t.type === 'standard');
+  // Each Vetter test once; its level is chosen when it's ticked
+  const vetterTests = tests.filter((t) => t.type === 'standard' && isMainVersion(t));
 
   const [title, setTitle] = useState('');
   const [department, setDepartment] = useState('Core Engineering');
@@ -33,22 +35,28 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
   const [employmentType, setEmploymentType] = useState<NonNullable<JobPosting['employmentType']>>('Full-time');
   const [experience, setExperience] = useState(EXPERIENCE_LEVELS[2]);
   const [description, setDescription] = useState('');
-  // The tests candidates are ranked on, each with its minimum score
-  const [picked, setPicked] = useState<Record<string, { minScore: number; importance: 'required' | 'preferred' }>>({});
+  // The tests candidates are ranked on, by main version: the level picked, its minimum score and importance
+  type Pick = { testId: string; minScore: number; importance: 'required' | 'preferred' };
+  const [picked, setPicked] = useState<Record<string, Pick>>({});
   const [pickError, setPickError] = useState(false);
-  const pickedTests = [...companyTests, ...vetterTests].filter((t) => picked[t.id]);
+  const pickedTests = Object.values(picked)
+    .map((p) => tests.find((t) => t.id === p.testId))
+    .filter((t): t is AssessmentTest => !!t);
+  const pickFor = (testId: string) => Object.values(picked).find((p) => p.testId === testId)!;
   const [attachedTestId, setAttachedTestId] = useState<string>('');
 
   const togglePick = (testId: string) => {
     setPickError(false);
     setPicked((prev) => {
       const { [testId]: wasPicked, ...rest } = prev;
-      return wasPicked ? rest : { ...prev, [testId]: { minScore: 70, importance: 'required' } };
+      return wasPicked ? rest : { ...prev, [testId]: { testId, minScore: 70, importance: 'required' } };
     });
-    if (picked[testId] && attachedTestId === testId) setAttachedTestId('');
+    if (picked[testId] && attachedTestId === picked[testId].testId) setAttachedTestId('');
   };
-  const updatePick = (testId: string, change: Partial<(typeof picked)[string]>) =>
+  const updatePick = (testId: string, change: Partial<Pick>) => {
+    if (change.testId && attachedTestId === picked[testId]?.testId) setAttachedTestId(change.testId);
     setPicked((prev) => ({ ...prev, [testId]: { ...prev[testId], ...change } }));
+  };
   const [passingScore, setPassingScore] = useState<number>(80);
   const [requireTest, setRequireTest] = useState<boolean>(true);
 
@@ -91,13 +99,13 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
       requirements: pickedTests.map((t) => ({
         skillId: t.id,
         testId: t.id,
-        skillName: t.title,
-        minScore: picked[t.id].minScore,
-        importance: picked[t.id].importance,
+        skillName: versionTitle(t),
+        minScore: pickFor(t.id).minScore,
+        importance: pickFor(t.id).importance,
         weight: Math.round((1 / pickedTests.length) * 100) / 100,
       })),
       attachedTestId: attachedTest?.id,
-      attachedTestTitle: attachedTest?.title,
+      attachedTestTitle: attachedTest && versionTitle(attachedTest),
       attachedTestPassingScore: attachedTest ? passingScore : undefined,
       isAttachedTestMandatory: attachedTest ? requireTest : undefined,
       applicantCount: 0,
@@ -260,13 +268,28 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
                             <span className="min-w-0">
                               <span className="block text-xs font-semibold text-slate-900">{t.title}</span>
                               <span className="block text-[11px] text-slate-500">
-                                {t.category} &middot; {t.difficulty}
+                                {t.category} &middot;{' '}
+                                {levelsOf(t, tests).length > 1 ? `${levelsOf(t, tests).length} levels` : t.difficulty}
                                 {t.roles?.length ? ` · ${t.roles.join(', ')}` : ''}
                               </span>
                             </span>
                           </label>
                           {pick && (
                             <div className="mt-2 ml-6 flex flex-wrap items-center gap-3 text-[11px]">
+                              {levelsOf(t, tests).length > 1 && (
+                                <select
+                                  value={pick.testId}
+                                  onChange={(e) => updatePick(t.id, { testId: e.target.value })}
+                                  aria-label={`${t.title}: level`}
+                                  className="px-2 py-1 bg-white border border-slate-300 rounded text-xs font-medium"
+                                >
+                                  {levelsOf(t, tests).map((v) => (
+                                    <option key={v.id} value={v.id}>
+                                      {v.difficulty}
+                                    </option>
+                                  ))}
+                                </select>
+                              )}
                               <label className="flex items-center gap-1.5 text-slate-700">
                                 <span>Min score</span>
                                 <input
@@ -309,7 +332,7 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
                   <option value="">None</option>
                   {pickedTests.map((t) => (
                     <option key={t.id} value={t.id}>
-                      {t.title}
+                      {versionTitle(t)}
                     </option>
                   ))}
                 </select>

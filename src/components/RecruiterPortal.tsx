@@ -1,3 +1,4 @@
+import { isMainVersion } from '../lib/testLevels';
 import React, { useState } from 'react';
 import { User, JobPosting, AssessmentTest, Business } from '../types';
 import { getTestStats } from '../lib/leaderboard';
@@ -41,7 +42,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   const isVetter = !business;
   const jobs = isVetter ? allJobs : allJobs.filter((j) => j.businessId === business.id);
   const companyTests = isVetter ? [] : tests.filter((t) => t.type === 'custom' && t.businessId === business.id);
-  const vetterTests = tests.filter((t) => t.type === 'standard');
+  const vetterTests = tests.filter((t) => t.type === 'standard' && isMainVersion(t));
 
   const [selectedJobId, setSelectedJobId] = useState<string>(jobs[0]?.id || '');
   const [isCreatingJob, setIsCreatingJob] = useState(false);

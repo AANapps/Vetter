@@ -1,3 +1,4 @@
+import { isMainVersion } from '../lib/testLevels';
 import React from 'react';
 import { AssessmentTest, CandidateJobMatch, JobPosting, User } from '../types';
 import { getBestTestScore } from '../lib/matchingAlgorithm';
@@ -27,7 +28,7 @@ export const ProfileSidebar: React.FC<ProfileSidebarProps> = ({ candidate, tests
 
   // Untaken tests first (most in demand from open jobs), then tests short of Gold (lowest score first)
   const suggestedTests = tests
-    .filter((t) => t.type === 'standard')
+    .filter((t) => t.type === 'standard' && isMainVersion(t))
     .map((test) => {
       const best = getBestTestScore(candidate, test.id);
       const jobsNeeding = activeJobs.filter((j) => j.requirements.some((r) => r.skillId === SKILL_IDS[test.category])).length;

@@ -2,6 +2,7 @@ import { User, AssessmentTest, JobPosting, Business } from '../types';
 import CANDIDATE_AVATAR from '../assets/images/candidate_avatar_dev_1792329815461.jpg';
 import RECRUITER_AVATAR from '../assets/images/recruiter_avatar_tech_1792329815454.jpg';
 import { ROLE_ASSESSMENTS } from './roleTests';
+import { withLevelVersions } from './levelVersions';
 
 // Seed each candidate's test history from the tests behind their verified skills
 const withTestResults = (user: Omit<User, 'testResults'>): User => ({
@@ -207,8 +208,8 @@ export const INITIAL_RECRUITER: User = {
   appliedJobIds: [],
 };
 
-// Vetter-made tests, open to every candidate
-export const STANDARD_ASSESSMENTS: AssessmentTest[] = [
+// Vetter-made tests, each followed by its versions at other levels
+export const STANDARD_ASSESSMENTS: AssessmentTest[] = withLevelVersions([
   {
     id: 'test-sql-01',
     title: 'SQL Queries: Joins, Aggregations & Window Functions',
@@ -809,7 +810,7 @@ Which gives the most impact per week of effort?`,
     ],
   },
   ...ROLE_ASSESSMENTS,
-];
+]);
 
 // Company-made tests, written by a business for its own jobs
 export const COMPANY_ASSESSMENTS: AssessmentTest[] = [

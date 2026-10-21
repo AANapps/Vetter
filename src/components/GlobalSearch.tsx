@@ -1,3 +1,4 @@
+import { isMainVersion } from '../lib/testLevels';
 import React, { useEffect, useRef, useState } from 'react';
 import { AssessmentTest, Business, User } from '../types';
 import { Search, X } from 'lucide-react';
@@ -33,7 +34,7 @@ export function searchEverything(query: string, people: User[], tests: Assessmen
     .slice(0, PER_GROUP)
     .map((p) => ({ kind: 'person', id: p.id, title: p.name, subtitle: `${p.title} · ${p.location}`, image: p.avatarUrl }));
   const testResults: SearchResult[] = tests
-    .filter((t) => matches(q, t.title, t.category, t.companyName, ...t.skillsTested))
+    .filter((t) => isMainVersion(t) && matches(q, t.title, t.category, t.companyName, ...t.skillsTested))
     .slice(0, PER_GROUP)
     .map((t) => ({
       kind: 'test',

@@ -1,3 +1,4 @@
+import { familyIdOf, isMainVersion } from './testLevels';
 import { AssessmentTest, Business, FeedPost, JobPosting, User } from '../types';
 import { getLeaderboard } from './leaderboard';
 import { hashString } from '../data/seedCandidates';
@@ -127,8 +128,12 @@ export function trendingTests(candidates: User[], tests: AssessmentTest[], limit
   if (!latest) return [];
   const cutoff = new Date(new Date(latest).getTime() - 30 * 86400000).toISOString().split('T')[0];
   return tests
-    .filter((t) => t.type === 'standard')
-    .map((test) => ({ test, attempts: results.filter((r) => r.testId === test.id && r.completedAt >= cutoff).length }))
+    .filter((t) => t.type === 'standard' && isMainVersion(t))
+    .map((test) => {
+      // A test's attempts at every level count together
+      const ids = new Set(tests.filter((t) => familyIdOf(t) === test.id).map((t) => t.id));
+      return { test, attempts: results.filter((r) => ids.has(r.testId) && r.completedAt >= cutoff).length };
+    })
     .filter((t) => t.attempts > 0)
     .sort((a, b) => b.attempts - a.attempts)
     .slice(0, limit);

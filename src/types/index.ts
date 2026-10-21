@@ -108,6 +108,8 @@ export interface AssessmentTest {
   difficulty: TestDifficulty;
   // 'standard' tests are made by Vetter; 'custom' tests are made by a company for its own jobs
   type: 'standard' | 'custom';
+  // Versions of one test at different levels share a familyId: the id of its main version
+  familyId?: string;
   businessId?: string;
   companyName?: string;
   description: string;

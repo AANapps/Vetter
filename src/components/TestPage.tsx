@@ -4,29 +4,37 @@ import { AssessmentTest, JobPosting, User, UserRole } from '../types';
 import { getLeaderboard, getTestStats } from '../lib/leaderboard';
 import { TestLeaderboard, formatDuration } from './TestLeaderboard';
 import { QUESTION_TYPE_LABELS, describeChecks } from '../lib/testRoles';
+import { levelsOf } from '../lib/testLevels';
+import { LevelPicker } from './LevelPicker';
 
 interface TestPageProps {
   test: AssessmentTest;
+  // Every test, to find this one's other levels
+  tests: AssessmentTest[];
   candidates: User[];
   jobs: JobPosting[];
   viewerRole: UserRole;
   currentCandidateId?: string;
   onStartTest: (test: AssessmentTest) => void;
   onOpenJob?: (jobId: string) => void;
+  onOpenTest: (testId: string) => void;
   onBack: () => void;
 }
 
 
 export const TestPage: React.FC<TestPageProps> = ({
   test,
+  tests,
   candidates,
   jobs,
   viewerRole,
   currentCandidateId,
   onStartTest,
   onOpenJob,
+  onOpenTest,
   onBack,
 }) => {
+  const versions = levelsOf(test, tests);
   const leaderboard = getLeaderboard(test.id, candidates);
   const stats = getTestStats(test, candidates);
   const yourEntry = leaderboard.find((e) => e.candidate.id === currentCandidateId);
@@ -52,6 +60,22 @@ export const TestPage: React.FC<TestPageProps> = ({
               <span className="text-slate-500">{test.type === 'standard' ? 'Made by Vetter' : `Made by ${test.companyName}`}</span>
             </div>
             <h1 className="text-xl font-bold text-slate-900 tracking-tight">{test.title}</h1>
+            {versions.length > 1 && (
+              <div className="pt-1">
+                <LevelPicker
+                  versions={versions}
+                  selectedId={test.id}
+                  onSelect={onOpenTest}
+                  bestScores={
+                    currentCandidateId
+                      ? Object.fromEntries(
+                          versions.map((v) => [v.id, getLeaderboard(v.id, candidates).find((e) => e.candidate.id === currentCandidateId)?.score])
+                        )
+                      : undefined
+                  }
+                />
+              </div>
+            )}
             <p className="text-sm text-slate-600 leading-relaxed">{test.description}</p>
             <div className="flex flex-wrap items-center gap-2 pt-1">
               {test.skillsTested.map((s) => (
@@ -68,7 +92,9 @@ export const TestPage: React.FC<TestPageProps> = ({
               className="px-4 py-2.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors flex items-center gap-2 shadow-xs shrink-0 self-start"
             >
               <Play className="w-3.5 h-3.5 fill-current" />
-              <span>{yourEntry ? 'Retake test' : 'Start test'}</span>
+              <span>
+                {yourEntry ? 'Retake' : 'Start'} {test.difficulty} test
+              </span>
             </button>
           )}
         </div>
