@@ -1,4 +1,4 @@
-import { AssessmentTest, JobPosting, SocialState, User } from '../types';
+import { AssessmentTest, JobPosting, SocialState, TEST_DIFFICULTIES, User } from '../types';
 import {
   INITIAL_CANDIDATE,
   OTHER_CANDIDATES,
@@ -52,10 +52,10 @@ export function loadData(): AppData {
     const withAvatar = (u: User) => ({ ...u, avatarUrl: seedAvatars.get(u.id) ?? u.avatarUrl });
 
     // Seeded tests always come from code (so content fixes apply); tests created in the app are kept
-    // Tests saved before difficulty was Easy/Medium/Hard were all made as the hardest level
+    // Tests saved under older difficulty names were all made as the hardest level
     const createdTests = saved.tests
       .filter((t) => !SEED_TESTS.some((s) => s.id === t.id))
-      .map((t) => (['Easy', 'Medium', 'Hard'].includes(t.difficulty) ? t : { ...t, difficulty: 'Hard' as const }));
+      .map((t) => (TEST_DIFFICULTIES.includes(t.difficulty) ? t : { ...t, difficulty: 'Senior' as const }));
 
     return {
       candidate: withAvatar(saved.candidate),

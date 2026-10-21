@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { User, AssessmentTest, JobPosting, CandidateJobMatch, Business, TestRole } from '../types';
+import { User, AssessmentTest, JobPosting, CandidateJobMatch, Business, TestRole, TEST_DIFFICULTIES } from '../types';
 import { ROLE_GROUPS } from '../lib/testRoles';
 import { rankJobsForCandidate, getBestTestScore, calculateCandidateJobMatch } from '../lib/matchingAlgorithm';
 import { getLeaderboard, getTestStats } from '../lib/leaderboard';
@@ -133,7 +133,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
 
   // Vetter-made tests are open to everyone; company tests are taken through the jobs they're attached to
   const vetterTests = tests.filter((t) => t.type === 'standard');
-  const testDifficulties = Array.from(new Set(vetterTests.map((t) => t.difficulty)));
+  const testDifficulties = TEST_DIFFICULTIES.filter((d) => vetterTests.some((t) => t.difficulty === d));
   const filteredTests = vetterTests.filter((t) => {
     if (roleFilter !== 'all' && !t.roles?.includes(roleFilter)) return false;
     if (difficultyFilter.length > 0 && !difficultyFilter.includes(t.difficulty)) return false;

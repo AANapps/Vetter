@@ -97,7 +97,9 @@ export interface Question {
   weight: number;
 }
 
-export type TestDifficulty = 'Easy' | 'Medium' | 'Hard';
+export type TestDifficulty = 'Beginner' | 'Junior' | 'Professional' | 'Senior';
+
+export const TEST_DIFFICULTIES: TestDifficulty[] = ['Beginner', 'Junior', 'Professional', 'Senior'];
 
 export interface AssessmentTest {
   id: string;
