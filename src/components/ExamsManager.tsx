@@ -238,9 +238,11 @@ const ExamForm: React.FC<{
   // Picked tests in the order they were ticked: main version id → the level chosen
   const [picked, setPicked] = useState<{ mainId: string; testId: string }[]>([]);
   const [error, setError] = useState(false);
-  const choices = tests.filter(
-    (t) => isMainVersion(t) && (t.type === 'standard' || (t.type === 'custom' && t.businessId === business?.id))
-  );
+  const [testQuery, setTestQuery] = useState('');
+  const tq = testQuery.trim().toLowerCase();
+  const choices = tests
+    .filter((t) => isMainVersion(t) && (t.type === 'standard' || (t.type === 'custom' && t.businessId === business?.id)))
+    .filter((t) => !tq || `${t.title} ${t.category} ${t.companyName ?? ''} ${t.skillsTested.join(' ')}`.toLowerCase().includes(tq));
 
   const toggle = (main: AssessmentTest) => {
     setError(false);
@@ -321,7 +323,18 @@ const ExamForm: React.FC<{
           <fieldset className={`p-3 border rounded-xl space-y-2 ${error ? 'border-rose-300 bg-rose-50/40' : 'border-slate-200'}`}>
             <legend className="px-1 text-xs font-bold text-slate-900">Tests ({picked.length} picked)</legend>
             {error && <p className="text-[11px] font-semibold text-rose-700">Pick at least one test.</p>}
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                value={testQuery}
+                onChange={(e) => setTestQuery(e.target.value)}
+                placeholder="Search tests by name, category or skill"
+                aria-label="Search tests"
+                className={`${inputClass} pl-8`}
+              />
+            </div>
             <ul className="divide-y divide-slate-100 max-h-72 overflow-y-auto">
+              {choices.length === 0 && <li className="py-2 text-xs text-slate-500">No tests match.</li>}
               {choices.map((t) => {
                 const pick = picked.find((p) => p.mainId === t.id);
                 const levels = levelsOf(t, tests);
