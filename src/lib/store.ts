@@ -1,4 +1,4 @@
-import { AppNotification, AssessmentTest, Exam, JobPosting, SocialState, TEST_DIFFICULTIES, User } from '../types';
+import { AppNotification, AssessmentTest, Exam, JobPosting, SocialState, TEST_DIFFICULTIES, TestShare, User } from '../types';
 import {
   INITIAL_CANDIDATE,
   OTHER_CANDIDATES,
@@ -27,6 +27,7 @@ export interface AppData {
   social: SocialState;
   exams: Exam[];
   notifications: AppNotification[];
+  testShares: TestShare[];
 }
 
 const SEED_TESTS = [...STANDARD_ASSESSMENTS, ...COMPANY_ASSESSMENTS];
@@ -42,6 +43,7 @@ export function createSeedData(): AppData {
     social: SEED_SOCIAL,
     exams: SEED_EXAMS,
     notifications: SEED_NOTIFICATIONS,
+    testShares: [],
   };
 }
 
@@ -76,6 +78,7 @@ export function loadData(): AppData {
       // Saved before exams existed: start from the seeded ones
       exams: saved.exams ?? seed.exams,
       notifications: saved.notifications ?? seed.notifications,
+      testShares: saved.testShares ?? [],
     };
   } catch {
     return seed;

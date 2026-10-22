@@ -54,6 +54,14 @@ export interface User {
   verifiedSkills: VerifiedSkill[];
   testResults: TestResult[];
   appliedJobIds: string[];
+  // Company links the candidate followed to a test; their results on it are shared with that company
+  testReferrals?: TestReferral[];
+}
+
+export interface TestReferral {
+  testId: string;
+  businessId: string;
+  at: string; // ISO date
 }
 
 // Every test a candidate completes, Vetter-made or company-made
@@ -62,6 +70,8 @@ export interface TestResult {
   score: number;
   completedAt: string;
   durationSeconds?: number;
+  // The company whose link the candidate took the test from
+  referredBy?: string;
 }
 
 // 'choice' is multiple choice, for roles where writing code isn't the job;
@@ -278,6 +288,15 @@ export interface Exam {
 export interface ExamInvitation {
   candidateId: string;
   invitedAt: string; // ISO date; only results from this day on count toward the exam
+}
+
+// A company sending a test's link to students by email
+export interface TestShare {
+  id: string;
+  testId: string;
+  businessId: string;
+  emails: string[];
+  sentAt: string; // ISO date
 }
 
 export interface AppNotification {

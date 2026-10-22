@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { User, UserRole, AssessmentTest, JobPosting, VerifiedSkill, Business, SocialState, Exam, AppNotification } from './types';
+import { User, UserRole, AssessmentTest, JobPosting, VerifiedSkill, Business, SocialState, Exam, AppNotification, TestShare } from './types';
 import { INITIAL_RECRUITER, INITIAL_BUSINESSES } from './data/mockData';
 import { loadData, saveData, clearData } from './lib/store';
 import { getPercentile } from './lib/leaderboard';
@@ -45,9 +45,12 @@ const today = () => new Date().toISOString().split('T')[0];
 
 // Test, job and exam pages live at #/tests/<id>, #/jobs/<id> and #/exams/<id> so they can be linked to and the back button works
 const idFromHash = (kind: 'tests' | 'jobs' | 'exams') => {
-  const match = window.location.hash.match(new RegExp(`^#/${kind}/(.+)$`));
+  const match = window.location.hash.match(new RegExp(`^#/${kind}/([^?]+)`));
   return match ? decodeURIComponent(match[1]) : null;
 };
+
+// A company's link to a test carries ?ref=<business id>, like an affiliate link
+const refFromHash = () => new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('ref');
 
 const initialTab = (): AppTab => (idFromHash('jobs') ? 'jobs' : idFromHash('tests') ? 'tests' : 'profile');
 
@@ -66,10 +69,11 @@ export default function App() {
   const [social, setSocial] = useState<SocialState>(initialData.social);
   const [exams, setExams] = useState<Exam[]>(initialData.exams);
   const [notifications, setNotifications] = useState<AppNotification[]>(initialData.notifications);
+  const [testShares, setTestShares] = useState<TestShare[]>(initialData.testShares);
 
   useEffect(() => {
-    saveData({ candidate, otherCandidates, jobs, tests, social, exams, notifications });
-  }, [candidate, otherCandidates, jobs, tests, social, exams, notifications]);
+    saveData({ candidate, otherCandidates, jobs, tests, social, exams, notifications, testShares });
+  }, [candidate, otherCandidates, jobs, tests, social, exams, notifications, testShares]);
 
   const [testPageId, setTestPageId] = useState<string | null>(() => idFromHash('tests'));
   const [jobPageId, setJobPageId] = useState<string | null>(() => idFromHash('jobs'));
@@ -83,6 +87,17 @@ export default function App() {
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);
   }, []);
+
+  // Following a company's link to a test ties the candidate's results on it back to that company
+  useEffect(() => {
+    const ref = refFromHash();
+    if (!testPageId || !ref || !businesses.some((b) => b.id === ref)) return;
+    setCandidate((prev) =>
+      prev.testReferrals?.some((r) => r.testId === testPageId && r.businessId === ref)
+        ? prev
+        : { ...prev, testReferrals: [...(prev.testReferrals ?? []), { testId: testPageId, businessId: ref, at: today() }] }
+    );
+  }, [testPageId, businesses]);
 
   // When a candidate takes a job's attached test, the job they're applying to
   const [activeTestJobId, setActiveTestJobId] = useState<string | null>(null);
@@ -202,7 +217,9 @@ export default function App() {
     const completedTest = tests.find((t) => t.id === testId);
     if (!completedTest) return;
 
-    const testResults = [...candidate.testResults, { testId, score: finalScore, completedAt: today(), durationSeconds }];
+    // Taken from a company's link: the latest one gets the result
+    const referredBy = candidate.testReferrals?.filter((r) => r.testId === testId).at(-1)?.businessId;
+    const testResults = [...candidate.testResults, { testId, score: finalScore, completedAt: today(), durationSeconds, referredBy }];
     let updatedCandidate: User = { ...candidate, testResults };
 
     // Only Vetter-made tests become verified skills; company tests are scored for their own jobs
@@ -365,6 +382,14 @@ export default function App() {
               jobs={jobs}
               viewerRole={activeRole}
               currentCandidateId={activeRole === 'candidate' ? candidate.id : undefined}
+              referredByCompany={
+                activeRole === 'candidate'
+                  ? businesses.find((b) => b.id === candidate.testReferrals?.filter((r) => r.testId === testPageTest.id).at(-1)?.businessId)
+                  : undefined
+              }
+              business={activeRole === 'recruiter' ? recruiterBusiness : undefined}
+              shares={testShares}
+              onShare={(share) => setTestShares((prev) => [share, ...prev])}
               onStartTest={(test) => setActiveTest(test)}
               onOpenJob={activeRole === 'candidate' ? openJobPage : undefined}
               onOpenTest={openTestPage}
