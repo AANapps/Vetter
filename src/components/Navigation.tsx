@@ -17,8 +17,8 @@ type TabIcon = React.ComponentType<{ className?: string }>;
 
 export const NAV_TABS: Record<'candidate' | 'recruiter', { id: AppTab; label: string; icon: TabIcon }[]> = {
   candidate: [
-    { id: 'profile', label: 'Profile', icon: UserRound },
     { id: 'discover', label: 'Discover', icon: Compass },
+    { id: 'profile', label: 'Profile', icon: UserRound },
     { id: 'tests', label: 'Tests', icon: ClipboardCheck },
     { id: 'jobs', label: 'Jobs', icon: Briefcase },
     { id: 'companies', label: 'Companies', icon: Building2 },

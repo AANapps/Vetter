@@ -6,6 +6,7 @@ export interface LeaderboardEntry {
   score: number;
   durationSeconds?: number;
   completedAt: string;
+  completedTime?: string;
   attempts: number;
 }
 
@@ -18,7 +19,7 @@ export function getLeaderboard(testId: string, candidates: User[]): LeaderboardE
       if (b.score !== a.score) return b.score > a.score ? b : a;
       return (b.durationSeconds ?? Infinity) < (a.durationSeconds ?? Infinity) ? b : a;
     });
-    return [{ candidate, score: best.score, durationSeconds: best.durationSeconds, completedAt: best.completedAt, attempts: attempts.length }];
+    return [{ candidate, score: best.score, durationSeconds: best.durationSeconds, completedAt: best.completedAt, completedTime: best.completedTime, attempts: attempts.length }];
   });
 
   entries.sort(

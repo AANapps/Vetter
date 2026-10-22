@@ -37,7 +37,7 @@ export function buildFeed(
     standardTests.flatMap((test) => {
       const attempts = actor.testResults
         .filter((r) => r.testId === test.id)
-        .sort((a, b) => a.completedAt.localeCompare(b.completedAt));
+        .sort((a, b) => (a.completedTime ?? a.completedAt).localeCompare(b.completedTime ?? b.completedAt));
       let bestSoFar: number | undefined;
       return attempts.flatMap((r, i) => {
         const previousBest = bestSoFar;
@@ -49,7 +49,7 @@ export function buildFeed(
           {
             kind: 'result' as const,
             id: `result:${actor.id}:${test.id}:${i}`,
-            date: r.completedAt,
+            date: r.completedTime ?? r.completedAt,
             actor,
             test,
             score: r.score,

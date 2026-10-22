@@ -69,6 +69,8 @@ export interface TestResult {
   testId: string;
   score: number;
   completedAt: string;
+  // The moment it was finished; seeded results only have the day
+  completedTime?: string;
   durationSeconds?: number;
   // The company whose link the candidate took the test from
   referredBy?: string;

@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from 'react';
-import { User, UserRole, AssessmentTest, JobPosting, VerifiedSkill, Business, SocialState, Exam, AppNotification, TestShare } from './types';
+import React, { useEffect, useRef, useState } from 'react';
+import { User, UserRole, AssessmentTest, JobPosting, Business, SocialState, Exam, AppNotification, TestShare } from './types';
 import { INITIAL_RECRUITER, INITIAL_BUSINESSES } from './data/mockData';
 import { loadData, saveData, clearData } from './lib/store';
 import { getPercentile } from './lib/leaderboard';
-import { initialsAvatar, levelForScore, withComputedPercentiles } from './data/seedCandidates';
+import { initialsAvatar, withComputedPercentiles } from './data/seedCandidates';
+import { addTestResult } from './lib/results';
+import { simulateAttempt } from './lib/liveActivity';
 import { Navigation, AppTab, NAV_TABS } from './components/Navigation';
 import { CandidatePortal, CandidateSection } from './components/CandidatePortal';
 import { RecruiterPortal, BusinessSection } from './components/RecruiterPortal';
@@ -52,7 +54,8 @@ const idFromHash = (kind: 'tests' | 'jobs' | 'exams') => {
 // A company's link to a test carries ?ref=<business id>, like an affiliate link
 const refFromHash = () => new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('ref');
 
-const initialTab = (): AppTab => (idFromHash('jobs') ? 'jobs' : idFromHash('tests') ? 'tests' : 'profile');
+// Discover is home: tests, leaderboards and what everyone's doing
+const initialTab = (): AppTab => (idFromHash('jobs') ? 'jobs' : idFromHash('tests') ? 'tests' : 'discover');
 
 export default function App() {
   const [activeRole, setActiveRole] = useState<UserRole>('candidate');
@@ -62,6 +65,10 @@ export default function App() {
   const [initialData] = useState(loadData);
   const [candidate, setCandidate] = useState<User>(initialData.candidate);
   const [otherCandidates, setOtherCandidates] = useState<User[]>(initialData.otherCandidates);
+  const candidateRef = useRef(candidate);
+  candidateRef.current = candidate;
+  const othersRef = useRef(otherCandidates);
+  othersRef.current = otherCandidates;
   const [recruiter] = useState<User>(INITIAL_RECRUITER);
   const [jobs, setJobs] = useState<JobPosting[]>(initialData.jobs);
   const [tests, setTests] = useState<AssessmentTest[]>(initialData.tests);
@@ -74,6 +81,24 @@ export default function App() {
   useEffect(() => {
     saveData({ candidate, otherCandidates, jobs, tests, social, exams, notifications, testShares });
   }, [candidate, otherCandidates, jobs, tests, social, exams, notifications, testShares]);
+
+  // Other people keep taking tests while the page is open, every few seconds, so scores and ranks shift live
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    const tick = () => {
+      const attempt = document.visibilityState === 'visible' ? simulateAttempt(othersRef.current, tests) : null;
+      if (attempt) {
+        const updated = othersRef.current.map((c) =>
+          c.id === attempt.candidateId ? addTestResult(c, attempt.test, attempt.result) : c
+        );
+        setOtherCandidates(withComputedPercentiles([candidateRef.current, ...updated]).slice(1));
+        setCandidate((prev) => withComputedPercentiles([prev, ...updated])[0]);
+      }
+      timer = setTimeout(tick, 4000 + Math.random() * 6000);
+    };
+    timer = setTimeout(tick, 3000);
+    return () => clearTimeout(timer);
+  }, [tests]);
 
   const [testPageId, setTestPageId] = useState<string | null>(() => idFromHash('tests'));
   const [jobPageId, setJobPageId] = useState<string | null>(() => idFromHash('jobs'));
@@ -219,49 +244,14 @@ export default function App() {
 
     // Taken from a company's link: the latest one gets the result
     const referredBy = candidate.testReferrals?.filter((r) => r.testId === testId).at(-1)?.businessId;
-    const testResults = [...candidate.testResults, { testId, score: finalScore, completedAt: today(), durationSeconds, referredBy }];
-    let updatedCandidate: User = { ...candidate, testResults };
-
-    // Only Vetter-made tests become verified skills; company tests are scored for their own jobs
-    if (completedTest.type === 'standard') {
-      const bestScore = Math.max(...testResults.filter((r) => r.testId === testId).map((r) => r.score));
-      const skillName = completedTest.skillsTested[0] || completedTest.title;
-      const historyEntry = { date: today(), score: finalScore, testName: completedTest.title };
-      const existingSkillIndex = candidate.verifiedSkills.findIndex(
-        (s) => s.testId === testId || s.skillName === skillName
-      );
-
-      let updatedSkills: VerifiedSkill[];
-      if (existingSkillIndex >= 0) {
-        updatedSkills = [...candidate.verifiedSkills];
-        const existing = updatedSkills[existingSkillIndex];
-        const skillBest = Math.max(existing.score, bestScore);
-        updatedSkills[existingSkillIndex] = {
-          ...existing,
-          testId,
-          score: skillBest,
-          verifiedAt: skillBest > existing.score ? today() : existing.verifiedAt,
-          level: levelForScore(skillBest),
-          history: [...existing.history, historyEntry],
-        };
-      } else {
-        updatedSkills = [
-          ...candidate.verifiedSkills,
-          {
-            skillId: `skill-${Date.now()}`,
-            skillName,
-            category: completedTest.category,
-            score: bestScore,
-            percentile: 0,
-            verifiedAt: today(),
-            testId,
-            level: levelForScore(bestScore),
-            history: [historyEntry],
-          },
-        ];
-      }
-      updatedCandidate = { ...updatedCandidate, verifiedSkills: updatedSkills };
-    }
+    const updatedCandidate = addTestResult(candidate, completedTest, {
+      testId,
+      score: finalScore,
+      completedAt: today(),
+      completedTime: new Date().toISOString(),
+      durationSeconds,
+      referredBy,
+    });
 
     // A new score shifts everyone's standing on this test
     const everyone = withComputedPercentiles([updatedCandidate, ...otherCandidates]);
@@ -431,6 +421,7 @@ export default function App() {
               onSocialChange={setSocial}
               onOpenTest={openTestPage}
               onOpenJob={openJobPage}
+              onBrowseTests={() => goToTab('tests')}
             />
           )}
 
