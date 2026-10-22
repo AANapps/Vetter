@@ -12,7 +12,6 @@ import { getBestTestScore } from '../lib/matchingAlgorithm';
 import { Heart, MessageCircle } from 'lucide-react';
 import { DiscoverSidebar, FollowButton } from './DiscoverSidebar';
 import { LiveLeaderboards } from './LiveLeaderboards';
-import { DiscoverTests } from './DiscoverTests';
 
 interface DiscoverFeedProps {
   candidate: User;
@@ -24,7 +23,6 @@ interface DiscoverFeedProps {
   onSocialChange: (update: (prev: SocialState) => SocialState) => void;
   onOpenTest: (testId: string) => void;
   onOpenJob: (jobId: string) => void;
-  onBrowseTests: () => void;
 }
 
 const FILTERS: { id: FeedFilter; label: string }[] = [
@@ -58,7 +56,6 @@ export const DiscoverFeed: React.FC<DiscoverFeedProps> = ({
   onSocialChange,
   onOpenTest,
   onOpenJob,
-  onBrowseTests,
 }) => {
   const [filter, setFilter] = useState<FeedFilter>('all');
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -126,20 +123,13 @@ export const DiscoverFeed: React.FC<DiscoverFeedProps> = ({
       <div>
         <h1 className="text-xl font-bold text-slate-900 tracking-tight">Discover</h1>
         <p className="text-xs text-slate-500 mt-1">
-          Tests and leaderboards, live, and what people on Vetter are passing, sharing and hiring for.
+          Live leaderboards, and what people on Vetter are passing, sharing and hiring for.
         </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-6 items-start">
         <div className="space-y-4 min-w-0">
           <LiveLeaderboards tests={tests} allCandidates={allCandidates} viewerId={candidate.id} onOpenTest={onOpenTest} />
-          <DiscoverTests
-            tests={tests}
-            allCandidates={allCandidates}
-            viewer={candidate}
-            onOpenTest={onOpenTest}
-            onBrowseTests={onBrowseTests}
-          />
 
           {/* Composer */}
           <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3 shadow-xs">

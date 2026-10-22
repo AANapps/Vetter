@@ -421,7 +421,6 @@ export default function App() {
               onSocialChange={setSocial}
               onOpenTest={openTestPage}
               onOpenJob={openJobPage}
-              onBrowseTests={() => goToTab('tests')}
             />
           )}
 
