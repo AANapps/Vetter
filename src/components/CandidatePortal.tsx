@@ -23,7 +23,6 @@ import { JobApplicationModal } from './JobApplicationModal';
 import { JobDetailsModal, JobPage, JobTests, getJobTests } from './JobDetails';
 import { JobProfileEditor } from './JobProfileEditor';
 import { ProfileSidebar } from './ProfileSidebar';
-import { TodoList } from './TodoList';
 import { JobFilters } from './JobFilters';
 import { CITIES } from '../lib/geo';
 import { JobFilterState, countActiveFilters, defaultJobFilters, jobMatchesFilters } from '../lib/jobFilters';
@@ -184,7 +183,6 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
       {view === 'profile' && (
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-6 items-start">
       <div className="min-w-0 space-y-8">
-      <TodoList candidate={candidate} exams={exams} onOpenExam={onOpenExam} />
 
       {/* Hero: Candidate Profile & Verification Passport Overview */}
       <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 space-y-6 shadow-xs">

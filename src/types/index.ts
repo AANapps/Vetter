@@ -283,7 +283,7 @@ export interface SocialState {
   following: string[]; // candidate and company ids
 }
 
-// An exam: a series of tests a company invites candidates to take, like a course
+// An assessment: one or more tests a company sends candidates as a link (called an exam in code)
 export interface Exam {
   id: string;
   title: string;
@@ -299,20 +299,18 @@ export interface Exam {
   dueDate?: string;
   createdAt: string;
   invitations: ExamInvitation[];
+  // Addresses the link was emailed to, including people without a Vetter account yet
+  invitedEmails?: string[];
 }
 
 export interface ExamInvitation {
   candidateId: string;
   invitedAt: string; // ISO date; only results from this day on count toward the exam
-}
-
-// A company sending a test's link to students by email
-export interface TestShare {
-  id: string;
-  testId: string;
-  businessId: string;
-  emails: string[];
-  sentAt: string; // ISO date
+  // How they got it: followed the link, were emailed it, or were picked from Vetter's candidates
+  via?: 'link' | 'email' | 'invite';
+  // When they first opened the link, and first started one of its tests
+  openedAt?: string; // ISO timestamp
+  startedAt?: string; // ISO timestamp
 }
 
 export interface AppNotification {

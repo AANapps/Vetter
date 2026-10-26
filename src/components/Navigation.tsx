@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { UserRole } from '../types';
-import { ArrowLeftRight, Bell, Briefcase, Building2, ChevronDown, ClipboardCheck, ClipboardList, Compass, Search, Users } from 'lucide-react';
+import { ArrowLeftRight, Bell, Briefcase, ChevronDown, ClipboardCheck, Compass, House, Link2, Search, Users } from 'lucide-react';
 
 export type AppTab =
+  | 'home'
   | 'profile'
   | 'discover'
   | 'jobs'
@@ -10,21 +11,21 @@ export type AppTab =
   | 'companies'
   | 'business-jobs'
   | 'business-tests'
-  | 'business-exams'
+  | 'business-assessments'
   | 'business-candidates';
 
 type TabIcon = React.ComponentType<{ className?: string }>;
 
+// Everything starts from a company's assessment link: companies send them, candidates take them
 export const NAV_TABS: Record<'candidate' | 'recruiter', { id: AppTab; label: string; icon: TabIcon }[]> = {
   candidate: [
-    { id: 'discover', label: 'Discover', icon: Compass },
-    { id: 'tests', label: 'Tests', icon: ClipboardCheck },
+    { id: 'home', label: 'Home', icon: House },
+    { id: 'tests', label: 'Practise', icon: ClipboardCheck },
     { id: 'jobs', label: 'Jobs', icon: Briefcase },
-    // Companies is hidden for now
-    // { id: 'companies', label: 'Companies', icon: Building2 },
+    { id: 'discover', label: 'Discover', icon: Compass },
   ],
   recruiter: [
-    { id: 'business-exams', label: 'Exams', icon: ClipboardList },
+    { id: 'business-assessments', label: 'Assessments', icon: Link2 },
     { id: 'business-tests', label: 'Tests', icon: ClipboardCheck },
     { id: 'business-jobs', label: 'Jobs', icon: Briefcase },
     { id: 'business-candidates', label: 'Candidates', icon: Users },

@@ -1,12 +1,11 @@
 import React from 'react';
-import { Play } from 'lucide-react';
-import { AssessmentTest, Business, JobPosting, TestShare, User, UserRole } from '../types';
+import { Link2, Play } from 'lucide-react';
+import { AssessmentTest, Business, JobPosting, User, UserRole } from '../types';
 import { getLeaderboard, getTestStats } from '../lib/leaderboard';
 import { TestLeaderboard, formatDuration } from './TestLeaderboard';
 import { QUESTION_TYPE_LABELS, describeChecks } from '../lib/testRoles';
 import { levelsOf } from '../lib/testLevels';
 import { LevelPicker } from './LevelPicker';
-import { ShareTestPanel } from './ShareTestPanel';
 
 interface TestPageProps {
   test: AssessmentTest;
@@ -18,10 +17,8 @@ interface TestPageProps {
   currentCandidateId?: string;
   // The company whose link the candidate came from
   referredByCompany?: Business;
-  // The company viewing, who can send the test to students
-  business?: Business;
-  shares: TestShare[];
-  onShare: (share: TestShare) => void;
+  // Companies and the Vetter team send the test to candidates as an assessment link
+  onSend?: () => void;
   onStartTest: (test: AssessmentTest) => void;
   onOpenJob?: (jobId: string) => void;
   onOpenTest: (testId: string) => void;
@@ -37,9 +34,7 @@ export const TestPage: React.FC<TestPageProps> = ({
   viewerRole,
   currentCandidateId,
   referredByCompany,
-  business,
-  shares,
-  onShare,
+  onSend,
   onStartTest,
   onOpenJob,
   onOpenTest,
@@ -52,8 +47,6 @@ export const TestPage: React.FC<TestPageProps> = ({
   const usedByJobs = jobs.filter((j) => j.attachedTestId === test.id && j.status === 'active');
   // Candidates take company tests through the jobs they're attached to, or the company's own link
   const canStart = viewerRole === 'candidate' && (test.type === 'standard' || referredByCompany?.id === test.businessId);
-  // Companies send Vetter's tests and their own
-  const canShare = business && (test.type === 'standard' || test.businessId === business.id);
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-8 space-y-6">
@@ -105,6 +98,16 @@ export const TestPage: React.FC<TestPageProps> = ({
             </div>
           </div>
 
+          {onSend && (
+            <button
+              onClick={onSend}
+              className="px-4 py-2.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors flex items-center gap-2 shadow-xs shrink-0 self-start"
+            >
+              <Link2 className="w-3.5 h-3.5" />
+              <span>Send to candidates</span>
+            </button>
+          )}
+
           {canStart && (
             <button
               onClick={() => onStartTest(test)}
@@ -142,8 +145,6 @@ export const TestPage: React.FC<TestPageProps> = ({
           </div>
         </div>
       </div>
-
-      {canShare && <ShareTestPanel test={test} business={business} candidates={candidates} shares={shares} onShare={onShare} />}
 
       <TestLeaderboard entries={leaderboard} passingScore={test.passingScore} currentCandidateId={currentCandidateId} />
 

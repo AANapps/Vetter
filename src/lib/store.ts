@@ -1,4 +1,4 @@
-import { AppNotification, AssessmentTest, Exam, JobPosting, SocialState, TEST_DIFFICULTIES, TestShare, User } from '../types';
+import { AppNotification, AssessmentTest, Exam, JobPosting, SocialState, TEST_DIFFICULTIES, User } from '../types';
 import {
   INITIAL_CANDIDATE,
   OTHER_CANDIDATES,
@@ -8,7 +8,8 @@ import {
   INITIAL_BUSINESSES,
 } from '../data/mockData';
 import { SEED_SOCIAL } from '../data/seedSocial';
-import { SEED_EXAMS, SEED_NOTIFICATIONS } from '../data/seedExams';
+import { SEED_EXAMS, SEED_EXAM_RESULTS, SEED_NOTIFICATIONS } from '../data/seedExams';
+import { addTestResult } from './results';
 import { withFilterFields } from './jobFilters';
 import { buildSeedCandidates, withComputedPercentiles, withSeedDurations } from '../data/seedCandidates';
 
@@ -17,7 +18,8 @@ import { buildSeedCandidates, withComputedPercentiles, withSeedDurations } from 
  * refresh. This is the single place to swap in a real API later: load/save
  * have the same shape a server would return.
  */
-const STORAGE_KEY = 'vetter:data:v1';
+// v2: assessments track how each person got the link and how far they've got
+const STORAGE_KEY = 'vetter:data:v2';
 
 export interface AppData {
   candidate: User;
@@ -27,14 +29,20 @@ export interface AppData {
   social: SocialState;
   exams: Exam[];
   notifications: AppNotification[];
-  testShares: TestShare[];
 }
 
 const SEED_TESTS = [...STANDARD_ASSESSMENTS, ...COMPANY_ASSESSMENTS];
 
 export function createSeedData(): AppData {
   const handWritten = [INITIAL_CANDIDATE, ...OTHER_CANDIDATES].map((u) => withSeedDurations(u, SEED_TESTS));
-  const everyone = withComputedPercentiles([...handWritten, ...buildSeedCandidates(SEED_TESTS)]);
+  // Results already handed in through companies' assessment links
+  const withExamResults = [...handWritten, ...buildSeedCandidates(SEED_TESTS)].map((u) =>
+    SEED_EXAM_RESULTS.filter((e) => e.candidateId === u.id).reduce((acc, { result }) => {
+      const test = SEED_TESTS.find((t) => t.id === result.testId);
+      return test ? addTestResult(acc, test, result) : acc;
+    }, u)
+  );
+  const everyone = withComputedPercentiles(withExamResults);
   return {
     candidate: everyone[0],
     otherCandidates: everyone.slice(1),
@@ -43,7 +51,6 @@ export function createSeedData(): AppData {
     social: SEED_SOCIAL,
     exams: SEED_EXAMS,
     notifications: SEED_NOTIFICATIONS,
-    testShares: [],
   };
 }
 
@@ -88,7 +95,6 @@ export function loadData(): AppData {
       // Saved before exams existed: start from the seeded ones
       exams: saved.exams ?? seed.exams,
       notifications: saved.notifications ?? seed.notifications,
-      testShares: saved.testShares ?? [],
     };
   } catch {
     return seed;
