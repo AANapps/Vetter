@@ -456,7 +456,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
 
       {/* SECTION 2: JOB BOARD */}
       {view === 'jobs' && (
-        <div className="grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)] gap-6 items-start">
+        <div className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[280px_minmax(0,1fr)] gap-6 items-start">
           {/* Filters: a column on the left; on phones a full-screen sheet behind the Filters button */}
           <div
             className={`${

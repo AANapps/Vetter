@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { CheckCircle2, MapPin, Play, Send, X } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { CheckCircle2, ChevronLeft, ChevronRight, MapPin, Play, Send, X } from 'lucide-react';
 import { AssessmentTest, Business, CandidateJobMatch, JobPosting, User } from '../types';
 import { getBestTestScore } from '../lib/matchingAlgorithm';
 import { SKILL_IDS } from '../data/seedCandidates';
@@ -108,20 +108,73 @@ export const getJobTests = (
   return [...attached, ...skillTests];
 };
 
-// A job's tests on the job board, one block each: what it's for, then to do or your result
+// A job's tests on the job board, one block each: what it's for, then to do or your result.
+// More than three slide sideways, three to a view
 export const JobTests: React.FC<{ items: JobTest[] }> = ({ items }) => {
+  const trackRef = useRef<HTMLUListElement>(null);
+  const [edges, setEdges] = useState({ atStart: true, atEnd: false });
+  const slides = items.length > 3;
+
+  const updateEdges = () => {
+    const el = trackRef.current;
+    if (!el) return;
+    setEdges({ atStart: el.scrollLeft <= 1, atEnd: el.scrollLeft + el.clientWidth >= el.scrollWidth - 1 });
+  };
+
+  useEffect(() => {
+    if (!slides) return;
+    updateEdges();
+    window.addEventListener('resize', updateEdges);
+    return () => window.removeEventListener('resize', updateEdges);
+  }, [slides, items.length]);
+
   if (items.length === 0) return null;
   const done = items.filter((t) => t.score !== undefined).length;
 
+  const slide = (dir: 1 | -1) => {
+    const el = trackRef.current;
+    if (!el) return;
+    const card = el.querySelector('li');
+    const step = card ? card.getBoundingClientRect().width + 12 : el.clientWidth;
+    el.scrollBy({ left: dir * step, behavior: 'smooth' });
+  };
+
+  const arrow = (dir: 1 | -1, disabled: boolean) => (
+    <button
+      onClick={() => slide(dir)}
+      disabled={disabled}
+      aria-label={dir === 1 ? 'Next tests' : 'Previous tests'}
+      className="p-1 rounded-md border border-slate-200 bg-white text-slate-600 hover:text-indigo-700 hover:border-indigo-200 disabled:opacity-40 disabled:pointer-events-none transition-colors"
+    >
+      {dir === 1 ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+    </button>
+  );
+
   return (
     <div className="space-y-3">
-      <div className="flex items-baseline justify-between gap-2">
+      <div className="flex items-center justify-between gap-2">
         <h4 className="text-sm font-bold text-slate-900">Tests for this job</h4>
-        <span className="text-[11px] font-medium text-slate-500">
-          {done} of {items.length} done
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-[11px] font-medium text-slate-500">
+            {done} of {items.length} done
+          </span>
+          {slides && (
+            <div className="flex items-center gap-1">
+              {arrow(-1, edges.atStart)}
+              {arrow(1, edges.atEnd)}
+            </div>
+          )}
+        </div>
       </div>
-      <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      <ul
+        ref={trackRef}
+        onScroll={slides ? updateEdges : undefined}
+        className={
+          slides
+            ? 'flex gap-3 overflow-x-auto snap-x snap-mandatory scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>li]:snap-start [&>li]:shrink-0 [&>li]:basis-[85%] sm:[&>li]:basis-[calc((100%-0.75rem)/2)] lg:[&>li]:basis-[calc((100%-1.5rem)/3)]'
+            : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3'
+        }
+      >
         {items.map((t) => (
           <TestBlock key={t.key} item={t} />
         ))}
