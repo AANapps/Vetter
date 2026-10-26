@@ -52,44 +52,110 @@ const BulletList: React.FC<{ title: string; items?: string[] }> = ({ title, item
     </div>
   ) : null;
 
-// The skills a job asks for, required first, each with its minimum score and where you stand
-export const JobSkills: React.FC<{ match: CandidateJobMatch }> = ({ match }) => {
-  const skills = [...match.breakdown].sort(
-    (a, b) => Number(b.importance === 'required') - Number(a.importance === 'required')
-  );
-  if (skills.length === 0) return null;
-  const met = skills.filter((s) => s.meetsThreshold).length;
+// Every test a job uses, in one list: its attached test, then the Vetter test for each skill it asks for
+export interface JobTest {
+  key: string;
+  // What the test is for on this job: "Required to apply", "Required skill"...
+  label: string;
+  required: boolean;
+  name: string;
+  test?: AssessmentTest;
+  isAttached: boolean;
+  score?: number;
+  target: number;
+}
+
+export const getJobTests = (
+  job: JobPosting,
+  match: CandidateJobMatch,
+  candidate: User,
+  tests: AssessmentTest[]
+): JobTest[] => {
+  const attachedTest = tests.find((t) => t.id === job.attachedTestId);
+  const attached: JobTest[] = attachedTest
+    ? [
+        {
+          key: attachedTest.id,
+          label: job.isAttachedTestMandatory ? 'Required to apply' : 'Optional',
+          required: !!job.isAttachedTestMandatory,
+          name: attachedTest.title,
+          test: attachedTest,
+          isAttached: true,
+          score: getBestTestScore(candidate, attachedTest.id),
+          target: job.attachedTestPassingScore || attachedTest.passingScore || 75,
+        },
+      ]
+    : [];
+
+  // Each skill requirement is scored by the Vetter test for that skill; the attached test is listed once
+  const skillTests = job.requirements
+    .map((req): JobTest => {
+      const test = tests.find((t) => t.type === 'standard' && SKILL_IDS[t.category] === req.skillId);
+      const breakdown = match.breakdown.find((b) => b.skillName === req.skillName);
+      return {
+        key: req.skillId,
+        label: req.importance === 'required' ? 'Required skill' : 'Preferred skill',
+        required: req.importance === 'required',
+        name: test?.title ?? req.skillName,
+        test,
+        isAttached: false,
+        score: breakdown && breakdown.candidateScore > 0 ? breakdown.candidateScore : undefined,
+        target: req.minScore,
+      };
+    })
+    .filter((t) => !t.test || t.test.id !== attachedTest?.id);
+
+  return [...attached, ...skillTests];
+};
+
+// A job's tests on the job board: each one to do, or your result
+export const JobTests: React.FC<{ items: JobTest[] }> = ({ items }) => {
+  if (items.length === 0) return null;
+  const done = items.filter((t) => t.score !== undefined).length;
 
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-baseline gap-x-2">
-        <h4 className="text-sm font-bold text-slate-900">Skills required</h4>
+        <h4 className="text-sm font-bold text-slate-900">Tests for this job</h4>
         <span className="text-[11px] text-slate-500">
-          You meet {met} of {skills.length}
+          {done} of {items.length} done
         </span>
       </div>
       <ul className="flex flex-wrap gap-2">
-        {skills.map((s) => (
-          <li
-            key={s.skillName}
-            className={`px-3 py-1.5 rounded-lg border flex items-center gap-2 text-sm ${
-              s.meetsThreshold ? 'bg-indigo-50/60 border-indigo-200' : 'bg-amber-50/60 border-amber-200'
-            }`}
-          >
-            <span className="font-semibold text-slate-900">{s.skillName}</span>
-            <span className="text-[11px] font-mono text-slate-500">{s.requiredMinScore}+</span>
-            {s.importance === 'preferred' && (
-              <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500">Preferred</span>
-            )}
-            {s.meetsThreshold ? (
-              <CheckCircle2 className="w-4 h-4 text-indigo-600" aria-label={`You scored ${s.candidateScore}`} />
-            ) : (
-              <span className="text-[11px] font-mono font-semibold text-amber-700">
-                {s.candidateScore > 0 ? `You: ${s.candidateScore}` : 'Not taken'}
-              </span>
-            )}
-          </li>
-        ))}
+        {items.map((t) => {
+          const passed = t.score !== undefined && t.score >= t.target;
+          return (
+            <li
+              key={t.key}
+              className={`px-3 py-1.5 rounded-lg border flex items-center gap-2 text-sm ${
+                t.score === undefined
+                  ? 'bg-white border-slate-200'
+                  : passed
+                  ? 'bg-emerald-50/60 border-emerald-200'
+                  : 'bg-amber-50/60 border-amber-200'
+              }`}
+            >
+              {t.isAttached && t.required && (
+                <span className="text-[10px] font-mono uppercase tracking-wider font-bold text-rose-700">Required to apply</span>
+              )}
+              <span className="font-semibold text-slate-900">{t.name}</span>
+              {t.score === undefined ? (
+                <span className="text-[11px] font-mono font-semibold text-indigo-700">
+                  {t.test ? 'To do' : 'No test yet'}
+                </span>
+              ) : passed ? (
+                <span className="flex items-center gap-1 text-[11px] font-mono font-semibold text-emerald-700">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  {t.score}/100
+                </span>
+              ) : (
+                <span className="text-[11px] font-mono font-semibold text-amber-700">
+                  {t.score}/100 &middot; {t.target} needed
+                </span>
+              )}
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
@@ -120,47 +186,23 @@ export const JobDetails: React.FC<JobDetailsProps> = ({
   onStartTest,
   onOpenTest,
 }) => {
-  const attachedTest = tests.find((t) => t.id === job.attachedTestId);
-  const attachedBest = attachedTest ? getBestTestScore(candidate, attachedTest.id) : undefined;
-  const passMark = job.attachedTestPassingScore || attachedTest?.passingScore || 75;
-
-  // Each skill requirement is scored by the Vetter test for that skill; the attached test is listed once
-  const skillTests = job.requirements
-    .map((req) => ({
-      req,
-      test: tests.find((t) => t.type === 'standard' && SKILL_IDS[t.category] === req.skillId),
-      breakdown: match.breakdown.find((b) => b.skillName === req.skillName),
-    }))
-    .filter(({ test }) => !test || test.id !== attachedTest?.id);
-
   const testRows = (
     <ul className="divide-y divide-slate-100 bg-white rounded-xl text-xs">
-      {attachedTest && (
-        <TestRow
-          label={job.isAttachedTestMandatory ? 'Required to apply' : 'Optional'}
-          labelTone={job.isAttachedTestMandatory ? 'required' : 'muted'}
-          test={attachedTest}
-          score={attachedBest}
-          target={passMark}
-          onStart={() => onStartAttachedTest(attachedTest)}
-          onOpenTest={onOpenTest}
-        />
-      )}
-      {skillTests.map(({ req, test, breakdown }) =>
-        test ? (
+      {getJobTests(job, match, candidate, tests).map((t) =>
+        t.test ? (
           <TestRow
-            key={req.skillId}
-            label={req.importance === 'required' ? 'Required skill' : 'Preferred skill'}
-            labelTone={req.importance === 'required' ? 'required' : 'muted'}
-            test={test}
-            score={breakdown && breakdown.candidateScore > 0 ? breakdown.candidateScore : undefined}
-            target={req.minScore}
-            onStart={() => onStartTest(test)}
+            key={t.key}
+            label={t.label}
+            labelTone={t.required ? 'required' : 'muted'}
+            test={t.test}
+            score={t.score}
+            target={t.target}
+            onStart={() => (t.isAttached ? onStartAttachedTest(t.test!) : onStartTest(t.test!))}
             onOpenTest={onOpenTest}
           />
         ) : (
-          <li key={req.skillId} className="px-4 py-2.5 flex items-center justify-between gap-3">
-            <span className="font-semibold text-slate-900">{req.skillName}</span>
+          <li key={t.key} className="px-4 py-2.5 flex items-center justify-between gap-3">
+            <span className="font-semibold text-slate-900">{t.name}</span>
             <span className="text-slate-500">No Vetter test yet</span>
           </li>
         )
@@ -172,8 +214,6 @@ export const JobDetails: React.FC<JobDetailsProps> = ({
     <div className="grid grid-cols-1 lg:grid-cols-3">
       {/* Left: the full description */}
       <div className="lg:col-span-2 p-6 space-y-7 lg:border-r border-slate-200">
-        <JobSkills match={match} />
-
         <div className="space-y-2">
           <h4 className="text-sm font-bold text-slate-900">Full job description</h4>
           <p className="text-xs text-slate-700 leading-relaxed">{job.description}</p>

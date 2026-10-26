@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { VerifiedSkillBadge, TierLegend, getBadgeTier } from './VerifiedSkillBadge';
 import { JobApplicationModal } from './JobApplicationModal';
-import { JobDetailsModal, JobPage, JobSkills } from './JobDetails';
+import { JobDetailsModal, JobPage, JobTests, getJobTests } from './JobDetails';
 import { JobProfileEditor } from './JobProfileEditor';
 import { ProfileSidebar } from './ProfileSidebar';
 import { TodoList } from './TodoList';
@@ -617,45 +617,10 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                       </div>
                     </div>
 
-                    {/* The skills this job needs */}
+                    {/* The job's tests: each to do, or your result */}
                     <div className="mt-4 pt-4 border-t border-slate-200/80">
-                      <JobSkills match={match} />
+                      <JobTests items={getJobTests(job, match, candidate, tests)} />
                     </div>
-
-                    {/* Test attached to this job */}
-                    {job.attachedTestId && (
-                      <div className="mt-3.5 p-3 bg-indigo-50/40 border border-indigo-200/80 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-                        <div className="flex items-center gap-2">
-                          <Award className="w-4 h-4 text-indigo-600 shrink-0" />
-                          <div>
-                            <span className="font-bold text-slate-900">
-                              {job.isAttachedTestMandatory ? 'Required test:' : 'Optional test:'}
-                            </span>{' '}
-                            <span className="text-indigo-900 font-semibold">{job.attachedTestTitle || 'Technical Test'}</span>
-                            <span className="text-slate-400 font-mono text-[11px] ml-1.5">
-                              ({tests.find((t) => t.id === job.attachedTestId)?.type === 'custom' ? `by ${job.companyName}` : 'by Vetter'}, pass mark {job.attachedTestPassingScore || 75})
-                            </span>
-                          </div>
-                        </div>
-
-                        <div>
-                          {match.attachedTestStatus === 'qualified' ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-mono font-semibold bg-emerald-100/70 text-emerald-800 border border-emerald-200 shadow-2xs">
-                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                              <span>Passed: {match.attachedTestScore}/100</span>
-                            </span>
-                          ) : match.attachedTestStatus === 'test_taken_failed' ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-mono font-semibold bg-amber-50 text-amber-800 border border-amber-200">
-                              <span>Best score {match.attachedTestScore}/100 (below pass mark)</span>
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-mono text-slate-500 bg-white border border-slate-200">
-                              Not taken yet
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    )}
                   </div>
 
                 </div>
