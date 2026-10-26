@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { VerifiedSkillBadge, TierLegend, getBadgeTier } from './VerifiedSkillBadge';
 import { JobApplicationModal } from './JobApplicationModal';
-import { JobDetailsModal, JobPage } from './JobDetails';
+import { JobDetailsModal, JobPage, JobSkills } from './JobDetails';
 import { ProfileSidebar } from './ProfileSidebar';
 import { TodoList } from './TodoList';
 import { JobFilters } from './JobFilters';
@@ -555,29 +555,9 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                       </div>
                     </div>
 
-                    {/* Skill Breakdown Quick Row */}
-                    <div className="mt-4 pt-4 border-t border-slate-200/80 flex flex-wrap items-center gap-3">
-                      <span className="text-[11px] text-slate-500 font-medium">Skill Alignment:</span>
-                      {match.breakdown.map((b) => (
-                        <div
-                          key={b.skillName}
-                          className={`text-xs px-2.5 py-1 rounded-md border flex items-center gap-1.5 ${
-                            b.meetsThreshold
-                              ? 'bg-slate-50 border-slate-200 text-slate-800'
-                              : 'bg-amber-50/60 border-amber-200 text-amber-900'
-                          }`}
-                        >
-                          <span className="font-semibold text-slate-900">{b.skillName}</span>
-                          <span className="text-slate-500 font-mono text-[11px]">
-                            {b.candidateScore > 0 ? b.candidateScore : 'Not taken'} / {b.requiredMinScore} min
-                          </span>
-                          {b.meetsThreshold ? (
-                            <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600" />
-                          ) : (
-                            <span className="text-[10px] text-amber-700 font-mono font-semibold">Deficit</span>
-                          )}
-                        </div>
-                      ))}
+                    {/* The skills this job needs */}
+                    <div className="mt-4 pt-4 border-t border-slate-200/80">
+                      <JobSkills match={match} />
                     </div>
 
                     {/* Test attached to this job */}

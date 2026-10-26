@@ -52,6 +52,49 @@ const BulletList: React.FC<{ title: string; items?: string[] }> = ({ title, item
     </div>
   ) : null;
 
+// The skills a job asks for, required first, each with its minimum score and where you stand
+export const JobSkills: React.FC<{ match: CandidateJobMatch }> = ({ match }) => {
+  const skills = [...match.breakdown].sort(
+    (a, b) => Number(b.importance === 'required') - Number(a.importance === 'required')
+  );
+  if (skills.length === 0) return null;
+  const met = skills.filter((s) => s.meetsThreshold).length;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-baseline gap-x-2">
+        <h4 className="text-sm font-bold text-slate-900">Skills required</h4>
+        <span className="text-[11px] text-slate-500">
+          You meet {met} of {skills.length}
+        </span>
+      </div>
+      <ul className="flex flex-wrap gap-2">
+        {skills.map((s) => (
+          <li
+            key={s.skillName}
+            className={`px-3 py-1.5 rounded-lg border flex items-center gap-2 text-sm ${
+              s.meetsThreshold ? 'bg-indigo-50/60 border-indigo-200' : 'bg-amber-50/60 border-amber-200'
+            }`}
+          >
+            <span className="font-semibold text-slate-900">{s.skillName}</span>
+            <span className="text-[11px] font-mono text-slate-500">{s.requiredMinScore}+</span>
+            {s.importance === 'preferred' && (
+              <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500">Preferred</span>
+            )}
+            {s.meetsThreshold ? (
+              <CheckCircle2 className="w-4 h-4 text-indigo-600" aria-label={`You scored ${s.candidateScore}`} />
+            ) : (
+              <span className="text-[11px] font-mono font-semibold text-amber-700">
+                {s.candidateScore > 0 ? `You: ${s.candidateScore}` : 'Not taken'}
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+
 interface JobDetailsProps {
   job: JobPosting;
   match: CandidateJobMatch;
@@ -129,6 +172,8 @@ export const JobDetails: React.FC<JobDetailsProps> = ({
     <div className="grid grid-cols-1 lg:grid-cols-3">
       {/* Left: the full description */}
       <div className="lg:col-span-2 p-6 space-y-7 lg:border-r border-slate-200">
+        <JobSkills match={match} />
+
         <div className="space-y-2">
           <h4 className="text-sm font-bold text-slate-900">Full job description</h4>
           <p className="text-xs text-slate-700 leading-relaxed">{job.description}</p>
