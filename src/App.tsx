@@ -503,6 +503,8 @@ export default function App() {
               tests={tests}
               businesses={businesses}
               onOpenExam={openExamPage}
+              onStartTest={(test) => setActiveTest(test)}
+              onOpenTest={openTestPage}
               onGoTo={goToTab}
             />
           )}

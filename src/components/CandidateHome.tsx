@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { AssessmentTest, Business, Exam, User } from '../types';
 import { STATUS_LABELS, examsFor, totalMinutes } from '../lib/exams';
-import { ArrowRight, Briefcase, ClipboardCheck, Link2, UserRound } from 'lucide-react';
+import { isMainVersion } from '../lib/testLevels';
+import { ArrowRight, Briefcase, ClipboardCheck, Link2, Play, UserRound } from 'lucide-react';
 
 interface CandidateHomeProps {
   candidate: User;
@@ -9,6 +10,8 @@ interface CandidateHomeProps {
   tests: AssessmentTest[];
   businesses: Business[];
   onOpenExam: (examId: string) => void;
+  onStartTest: (test: AssessmentTest) => void;
+  onOpenTest: (testId: string) => void;
   onGoTo: (tab: 'tests' | 'jobs' | 'profile') => void;
 }
 
@@ -30,10 +33,17 @@ const examIdFromLink = (text: string) => {
 };
 
 // A candidate's home: the assessments companies sent them, what's left to do and how they did
-export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, exams, tests, businesses, onOpenExam, onGoTo }) => {
+export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, exams, tests, businesses, onOpenExam, onStartTest, onOpenTest, onGoTo }) => {
   const items = examsFor(candidate, exams);
   const open = items.filter((i) => i.progress.score === undefined);
   const finished = items.filter((i) => i.progress.score !== undefined);
+  // Vetter tests to take next: ones they haven't tried, in their usual categories first
+  const takenIds = new Set(candidate.testResults.map((r) => r.testId));
+  const theirCategories = new Set(candidate.verifiedSkills.map((s) => s.category));
+  const suggested = tests
+    .filter((t) => t.type === 'standard' && isMainVersion(t) && !takenIds.has(t.id))
+    .sort((a, b) => Number(theirCategories.has(b.category)) - Number(theirCategories.has(a.category)))
+    .slice(0, 3);
   const [pasted, setPasted] = useState('');
   const [linkError, setLinkError] = useState(false);
 
@@ -54,7 +64,7 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, exams, 
         <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Hi {candidate.name.split(' ')[0]}</h1>
         <p className="text-sm text-slate-500">
           {open.length === 0
-            ? "You're all caught up."
+            ? 'Take a test any time to build your profile. Companies see your verified scores.'
             : `${open.length} ${open.length === 1 ? 'assessment' : 'assessments'} from companies waiting for you.`}
         </p>
       </div>
@@ -99,6 +109,46 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, exams, 
           })}
         </ul>
       )}
+
+      <section className="space-y-3">
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-bold text-slate-900">Take a test</h2>
+            <p className="text-xs text-slate-500">No invite needed. Your best score on each goes on your profile.</p>
+          </div>
+          <button onClick={() => onGoTo('tests')} className="text-xs font-semibold text-indigo-700 hover:underline shrink-0">
+            All tests
+          </button>
+        </div>
+        <ul className="bg-white border border-slate-200 rounded-2xl divide-y divide-slate-100">
+          {suggested.length === 0 && (
+            <li className="px-5 py-4 text-xs text-slate-500">
+              You've taken every test.{' '}
+              <button onClick={() => onGoTo('tests')} className="font-semibold text-indigo-700 hover:underline">
+                Retake one to raise your score
+              </button>
+            </li>
+          )}
+          {suggested.map((t) => (
+            <li key={t.id} className="px-5 py-3.5 flex items-center gap-3">
+              <ClipboardCheck className="w-5 h-5 text-indigo-600 shrink-0" />
+              <button onClick={() => onOpenTest(t.id)} className="min-w-0 flex-1 text-left group">
+                <span className="block text-sm font-semibold text-slate-900 group-hover:text-indigo-700 truncate">{t.title}</span>
+                <span className="block text-xs text-slate-500">
+                  {t.category} &middot; {t.difficulty} &middot; ~{t.estimatedMinutes} min
+                </span>
+              </button>
+              <button
+                onClick={() => onStartTest(t)}
+                className="px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg flex items-center gap-1.5 shrink-0"
+              >
+                <Play className="w-3 h-3 fill-current" />
+                Start
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
 
       <form onSubmit={openPasted} className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
         <label htmlFor="paste-link" className="flex items-center gap-1.5 text-sm font-bold text-slate-900">
@@ -147,16 +197,11 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, exams, 
         </section>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <button onClick={() => onGoTo('profile')} className="text-left p-5 bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl space-y-1 transition-colors">
           <UserRound className="w-5 h-5 text-indigo-600" />
           <div className="text-sm font-bold text-slate-900">Your profile</div>
           <p className="text-xs text-slate-500">Your verified skills and every test you've taken.</p>
-        </button>
-        <button onClick={() => onGoTo('tests')} className="text-left p-5 bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl space-y-1 transition-colors">
-          <ClipboardCheck className="w-5 h-5 text-indigo-600" />
-          <div className="text-sm font-bold text-slate-900">Practise</div>
-          <p className="text-xs text-slate-500">Take Vetter's tests any time. Your best scores go on your profile.</p>
         </button>
         <button onClick={() => onGoTo('jobs')} className="text-left p-5 bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl space-y-1 transition-colors">
           <Briefcase className="w-5 h-5 text-indigo-600" />

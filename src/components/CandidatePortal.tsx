@@ -717,8 +717,8 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
               {roleFilter === 'all' ? 'Tests' : `Tests for ${roleFilter}s`}
             </h1>
             <p className="text-xs text-slate-500">
-              Practical tests made by Vetter for each kind of role. Each score becomes a verified skill on your
-              profile. Tests that companies write for their own jobs are taken from the Job Board.
+              Take any test, any time, as often as you like. Your best score on each becomes a verified skill on your
+              profile, where companies can see it. Tests that companies write for their own jobs are taken from the Job Board.
             </p>
           </div>
 
