@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { UserRole } from '../types';
-import { ArrowLeftRight, Bell, Briefcase, Building2, ChevronDown, ClipboardCheck, ClipboardList, Compass, Search, UserRound, Users } from 'lucide-react';
+import { ArrowLeftRight, Bell, Briefcase, Building2, ChevronDown, ClipboardCheck, ClipboardList, Compass, Search, Users } from 'lucide-react';
 
 export type AppTab =
   | 'profile'
@@ -18,7 +18,6 @@ type TabIcon = React.ComponentType<{ className?: string }>;
 export const NAV_TABS: Record<'candidate' | 'recruiter', { id: AppTab; label: string; icon: TabIcon }[]> = {
   candidate: [
     { id: 'discover', label: 'Discover', icon: Compass },
-    { id: 'profile', label: 'Profile', icon: UserRound },
     { id: 'tests', label: 'Tests', icon: ClipboardCheck },
     { id: 'jobs', label: 'Jobs', icon: Briefcase },
     // Companies is hidden for now
