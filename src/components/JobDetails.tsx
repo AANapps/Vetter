@@ -108,56 +108,81 @@ export const getJobTests = (
   return [...attached, ...skillTests];
 };
 
-// A job's tests on the job board: each one to do, or your result
+// A job's tests on the job board, one block each: what it's for, then to do or your result
 export const JobTests: React.FC<{ items: JobTest[] }> = ({ items }) => {
   if (items.length === 0) return null;
   const done = items.filter((t) => t.score !== undefined).length;
 
   return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap items-baseline gap-x-2">
+    <div className="space-y-3">
+      <div className="flex items-baseline justify-between gap-2">
         <h4 className="text-sm font-bold text-slate-900">Tests for this job</h4>
-        <span className="text-[11px] text-slate-500">
+        <span className="text-[11px] font-medium text-slate-500">
           {done} of {items.length} done
         </span>
       </div>
-      <ul className="flex flex-wrap gap-2">
-        {items.map((t) => {
-          const passed = t.score !== undefined && t.score >= t.target;
-          return (
-            <li
-              key={t.key}
-              className={`px-3 py-1.5 rounded-lg border flex items-center gap-2 text-sm ${
-                t.score === undefined
-                  ? 'bg-white border-slate-200'
-                  : passed
-                  ? 'bg-emerald-50/60 border-emerald-200'
-                  : 'bg-amber-50/60 border-amber-200'
-              }`}
-            >
-              {t.isAttached && t.required && (
-                <span className="text-[10px] font-mono uppercase tracking-wider font-bold text-rose-700">Required to apply</span>
-              )}
-              <span className="font-semibold text-slate-900">{t.name}</span>
-              {t.score === undefined ? (
-                <span className="text-[11px] font-mono font-semibold text-indigo-700">
-                  {t.test ? 'To do' : 'No test yet'}
-                </span>
-              ) : passed ? (
-                <span className="flex items-center gap-1 text-[11px] font-mono font-semibold text-emerald-700">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  {t.score}/100
-                </span>
-              ) : (
-                <span className="text-[11px] font-mono font-semibold text-amber-700">
-                  {t.score}/100 &middot; {t.target} needed
-                </span>
-              )}
-            </li>
-          );
-        })}
+      <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {items.map((t) => (
+          <TestBlock key={t.key} item={t} />
+        ))}
       </ul>
     </div>
+  );
+};
+
+const TestBlock: React.FC<{ item: JobTest }> = ({ item: t }) => {
+  const taken = t.score !== undefined;
+  const passed = taken && t.score! >= t.target;
+  const status = !t.test
+    ? { text: 'No test yet', tone: 'bg-slate-100 text-slate-500' }
+    : !taken
+    ? { text: 'To do', tone: 'bg-indigo-50 text-indigo-700' }
+    : passed
+    ? { text: 'Passed', tone: 'bg-emerald-50 text-emerald-700' }
+    : { text: 'Below pass mark', tone: 'bg-amber-50 text-amber-700' };
+
+  return (
+    <li className="flex flex-col gap-3 p-4 bg-white border border-slate-200 rounded-xl">
+      <div className="flex items-start justify-between gap-2">
+        <span
+          className={`text-[10px] font-mono uppercase tracking-wider font-semibold ${
+            t.isAttached && t.required ? 'text-rose-700' : 'text-slate-500'
+          }`}
+        >
+          {t.label}
+        </span>
+        <span className={`shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${status.tone}`}>
+          {passed && <CheckCircle2 className="w-3 h-3" />}
+          {status.text}
+        </span>
+      </div>
+
+      <div className="text-sm font-semibold text-slate-900 leading-snug">{t.name}</div>
+
+      <div className="mt-auto space-y-1.5">
+        <div className="flex items-baseline justify-between text-xs">
+          {taken ? (
+            <span className={`font-mono font-bold tabular-nums ${passed ? 'text-emerald-700' : 'text-amber-700'}`}>
+              {t.score}
+              <span className="text-slate-400 font-medium">/100</span>
+            </span>
+          ) : (
+            <span className="text-slate-500">Not taken</span>
+          )}
+          <span className="text-slate-500">Pass mark {t.target}</span>
+        </div>
+        {/* Your score against the pass mark */}
+        <div className="relative h-1.5 rounded-full bg-slate-100">
+          {taken && (
+            <div
+              className={`absolute inset-y-0 left-0 rounded-full ${passed ? 'bg-emerald-500' : 'bg-amber-400'}`}
+              style={{ width: `${Math.min(t.score!, 100)}%` }}
+            />
+          )}
+          <div className="absolute -top-0.5 -bottom-0.5 w-0.5 bg-slate-400 rounded" style={{ left: `${t.target}%` }} />
+        </div>
+      </div>
+    </li>
   );
 };
 
