@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { AssessmentTest, Business, Exam, User } from '../types';
 import { STATUS_LABELS, examsFor, totalMinutes } from '../lib/exams';
-import { ArrowRight, Briefcase, ClipboardCheck, Link2 } from 'lucide-react';
+import { ArrowRight, Briefcase, ClipboardCheck, Link2, UserRound } from 'lucide-react';
 
 interface CandidateHomeProps {
   candidate: User;
@@ -9,7 +9,7 @@ interface CandidateHomeProps {
   tests: AssessmentTest[];
   businesses: Business[];
   onOpenExam: (examId: string) => void;
-  onGoTo: (tab: 'tests' | 'jobs') => void;
+  onGoTo: (tab: 'tests' | 'jobs' | 'profile') => void;
 }
 
 const DAY = 86400000;
@@ -147,7 +147,12 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, exams, 
         </section>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <button onClick={() => onGoTo('profile')} className="text-left p-5 bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl space-y-1 transition-colors">
+          <UserRound className="w-5 h-5 text-indigo-600" />
+          <div className="text-sm font-bold text-slate-900">Your profile</div>
+          <p className="text-xs text-slate-500">Your verified skills and every test you've taken.</p>
+        </button>
         <button onClick={() => onGoTo('tests')} className="text-left p-5 bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl space-y-1 transition-colors">
           <ClipboardCheck className="w-5 h-5 text-indigo-600" />
           <div className="text-sm font-bold text-slate-900">Practise</div>

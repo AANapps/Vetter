@@ -618,6 +618,17 @@ export default function App() {
           isFollowing={social.following.includes(profilePerson.id)}
           onToggleFollow={activeRole === 'candidate' ? () => toggleFollow(profilePerson.id) : undefined}
           onClose={() => setProfilePersonId(null)}
+          tests={tests}
+          candidates={allCandidates}
+          businesses={businesses}
+          companyResultsFor={
+            activeRole === 'admin' || (activeRole === 'candidate' && profilePerson.id === candidate.id)
+              ? 'all'
+              : activeRole === 'recruiter'
+              ? recruiterBusiness.id
+              : null
+          }
+          onOpenTest={openTestPage}
         />
       )}
 

@@ -23,6 +23,7 @@ import { JobApplicationModal } from './JobApplicationModal';
 import { JobDetailsModal, JobPage, JobTests, getJobTests } from './JobDetails';
 import { JobProfileEditor } from './JobProfileEditor';
 import { ProfileSidebar } from './ProfileSidebar';
+import { TestHistory } from './TestHistory';
 import { JobFilters } from './JobFilters';
 import { CITIES } from '../lib/geo';
 import { JobFilterState, countActiveFilters, defaultJobFilters, jobMatchesFilters } from '../lib/jobFilters';
@@ -399,6 +400,25 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                 Start Architecture Test
               </button>
             </div>
+          </div>
+
+          {/* Every test taken, Vetter's and companies' */}
+          <div className="space-y-3">
+            <div>
+              <h2 className="text-base font-bold text-slate-900">Your tests</h2>
+              <p className="text-xs text-slate-500">
+                Everything you've taken. Others see your Vetter tests; results on a company's test go to that company only.
+              </p>
+            </div>
+            <TestHistory
+              person={candidate}
+              tests={tests}
+              candidates={allCandidates}
+              businesses={businesses}
+              companyResultsFor="all"
+              onOpenTest={onOpenTest}
+              emptyText="You haven't taken a test yet."
+            />
           </div>
 
           {/* My Applications */}

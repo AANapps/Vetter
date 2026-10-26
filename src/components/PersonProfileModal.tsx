@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
-import { User } from '../types';
+import { AssessmentTest, Business, User } from '../types';
 import { VerifiedSkillBadge } from './VerifiedSkillBadge';
+import { TestHistory } from './TestHistory';
 import { MapPin, X } from 'lucide-react';
 
 interface PersonProfileModalProps {
@@ -10,10 +11,27 @@ interface PersonProfileModalProps {
   isFollowing?: boolean;
   onToggleFollow?: () => void;
   onClose: () => void;
+  tests: AssessmentTest[];
+  candidates: User[];
+  businesses: Business[];
+  // Which company results the viewer may see (see TestHistory)
+  companyResultsFor: 'all' | string | null;
+  onOpenTest: (testId: string) => void;
 }
 
-// A quick look at someone found through search: who they are and what they've verified
-export const PersonProfileModal: React.FC<PersonProfileModalProps> = ({ person, isYou, isFollowing, onToggleFollow, onClose }) => {
+// Someone's profile: who they are, what they've verified and every test they've taken that the viewer may see
+export const PersonProfileModal: React.FC<PersonProfileModalProps> = ({
+  person,
+  isYou,
+  isFollowing,
+  onToggleFollow,
+  onClose,
+  tests,
+  candidates,
+  businesses,
+  companyResultsFor,
+  onOpenTest,
+}) => {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', onKey);
@@ -29,7 +47,7 @@ export const PersonProfileModal: React.FC<PersonProfileModalProps> = ({ person, 
         aria-modal="true"
         aria-label={person.name}
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl relative max-h-[90vh] overflow-y-auto"
+        className="bg-white rounded-2xl max-w-2xl w-full p-6 space-y-5 shadow-2xl relative max-h-[90vh] overflow-y-auto"
       >
         <button
           onClick={onClose}
@@ -83,6 +101,21 @@ export const PersonProfileModal: React.FC<PersonProfileModalProps> = ({ person, 
               ))}
             </div>
           )}
+        </div>
+
+        <div className="space-y-2">
+          <h3 className="text-xs font-bold text-slate-900">Tests</h3>
+          <TestHistory
+            person={person}
+            tests={tests}
+            candidates={candidates}
+            businesses={businesses}
+            companyResultsFor={companyResultsFor}
+            onOpenTest={(testId) => {
+              onClose();
+              onOpenTest(testId);
+            }}
+          />
         </div>
       </div>
     </div>
