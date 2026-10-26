@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from 'react';
-import { User, AssessmentTest, JobPosting, CandidateJobMatch, Business, TestRole, TEST_DIFFICULTIES, Exam } from '../types';
+import { User, AssessmentTest, JobPosting, CandidateJobMatch, Business, TestRole, TEST_DIFFICULTIES, Exam, JobProfile } from '../types';
+import { activeProfileOf, asProfile, profilesOf } from '../lib/jobProfiles';
 import { ROLE_GROUPS } from '../lib/testRoles';
 import { isMainVersion, levelsOf } from '../lib/testLevels';
 import { LevelPicker } from './LevelPicker';
@@ -14,10 +15,13 @@ import {
   DollarSign,
   Search,
   Send,
+  Pencil,
+  Plus,
 } from 'lucide-react';
 import { VerifiedSkillBadge, TierLegend, getBadgeTier } from './VerifiedSkillBadge';
 import { JobApplicationModal } from './JobApplicationModal';
 import { JobDetailsModal, JobPage, JobSkills } from './JobDetails';
+import { JobProfileEditor } from './JobProfileEditor';
 import { ProfileSidebar } from './ProfileSidebar';
 import { TodoList } from './TodoList';
 import { JobFilters } from './JobFilters';
@@ -37,7 +41,8 @@ interface CandidatePortalProps {
   businesses: Business[];
   onStartTest: (test: AssessmentTest) => void;
   onStartAttachedTest?: (test: AssessmentTest, forJobId: string) => void;
-  onApplyJob: (jobId: string) => void;
+  onApplyJob: (jobId: string, profileId: string) => void;
+  onUpdateProfiles: (profiles: JobProfile[], activeProfileId: string) => void;
   // Set when the candidate is on a job's own page (#/jobs/<id>)
   jobPageId?: string | null;
   onOpenJob: (jobId: string) => void;
@@ -58,6 +63,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   onStartTest,
   onStartAttachedTest,
   onApplyJob,
+  onUpdateProfiles,
   jobPageId,
   onOpenJob,
   exams,
@@ -77,13 +83,20 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   const [jobFilters, setJobFilters] = useState<JobFilterState>(() => defaultJobFilters(homeCity));
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [jobSort, setJobSort] = useState<'newest' | 'fit'>('newest');
+  // The job profile being edited or created
+  const [editingProfile, setEditingProfile] = useState<{ profile: JobProfile; isNew: boolean } | null>(null);
+
+  // The profile page shows one job profile at a time: its headline, about and the skills it features
+  const profiles = profilesOf(candidate);
+  const activeProfile = activeProfileOf(candidate);
+  const shown = asProfile(candidate, activeProfile);
 
   const activeJobs = jobs.filter((j) => j.status === 'active');
 
   // Compute live vector matches
   const rankedJobs: CandidateJobMatch[] = rankJobsForCandidate(candidate, activeJobs);
-  const bestScore = Math.max(...candidate.verifiedSkills.map((s) => s.score), 0);
-  const bestTier = candidate.verifiedSkills.length ? getBadgeTier(bestScore) : undefined;
+  const bestScore = Math.max(...shown.verifiedSkills.map((s) => s.score), 0);
+  const bestTier = shown.verifiedSkills.length ? getBadgeTier(bestScore) : undefined;
 
   // Job board: every active job through the sidebar filters, sorted by newest or best fit
   const activeFilterCount = countActiveFilters(jobFilters, defaultJobFilters(homeCity));
@@ -135,9 +148,10 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
 
   const appliedJobs = jobs.filter((j) => candidate.appliedJobIds?.includes(j.id));
 
-  const handleApply = (jobId: string, jobTitle: string) => {
-    onApplyJob(jobId);
-    setAppliedNotification(`Application sent for "${jobTitle}" with your verified skill passport.`);
+  const handleApply = (jobId: string, jobTitle: string, profileId: string) => {
+    onApplyJob(jobId, profileId);
+    const profileName = profiles.find((p) => p.id === profileId)?.name;
+    setAppliedNotification(`Application sent for "${jobTitle}" with your ${profileName ?? 'verified skills'} profile.`);
     setTimeout(() => setAppliedNotification(null), 3500);
   };
 
@@ -174,6 +188,41 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
 
       {/* Hero: Candidate Profile & Verification Passport Overview */}
       <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 space-y-6 shadow-xs">
+        {/* Job profiles: one for each kind of work */}
+        <div className="flex flex-wrap items-center gap-2 pb-5 border-b border-slate-200/80">
+          <span className="text-xs font-bold text-slate-900 mr-1">Job profiles</span>
+          {profiles.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => onUpdateProfiles(profiles, p.id)}
+              aria-pressed={p.id === activeProfile.id}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
+                p.id === activeProfile.id
+                  ? 'bg-indigo-600 border-indigo-600 text-white'
+                  : 'bg-white border-slate-200 text-slate-700 hover:border-indigo-300 hover:text-indigo-700'
+              }`}
+            >
+              {p.name}
+            </button>
+          ))}
+          <button
+            onClick={() =>
+              setEditingProfile({ profile: { id: `profile-${Date.now()}`, name: '', title: '', bio: '', skillIds: [] }, isNew: true })
+            }
+            className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-dashed border-slate-300 text-slate-600 hover:border-indigo-300 hover:text-indigo-700 flex items-center gap-1 transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>New profile</span>
+          </button>
+          <button
+            onClick={() => setEditingProfile({ profile: activeProfile, isNew: false })}
+            className="ml-auto text-xs font-semibold text-indigo-700 hover:underline flex items-center gap-1"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+            <span>Edit {activeProfile.name} profile</span>
+          </button>
+        </div>
+
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-start sm:items-center gap-5">
             <div className="w-16 h-16 rounded-2xl overflow-hidden border border-slate-200 shrink-0 bg-slate-100 shadow-xs">
@@ -193,7 +242,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-700 font-medium">{candidate.title}</p>
+              <p className="text-xs text-slate-700 font-medium">{shown.title}</p>
               <div className="flex items-center gap-2 text-xs text-slate-500">
                 <span className="flex items-center gap-1">
                   <MapPin className="w-3 h-3 text-slate-400" />
@@ -225,6 +274,8 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
           </div>
         </div>
 
+        {shown.bio && <p className="text-sm text-slate-600 leading-relaxed">{shown.bio}</p>}
+
         {/* Dynamic Verified Skill Badges Showcase in Hero */}
         <div className="pt-4 border-t border-slate-200/80 space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs gap-2">
@@ -235,7 +286,18 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
-            {candidate.verifiedSkills.map((skill) => (
+            {shown.verifiedSkills.length === 0 && (
+              <p className="text-xs text-slate-500">
+                This profile doesn't show any verified skills yet.{' '}
+                <button
+                  onClick={() => setEditingProfile({ profile: activeProfile, isNew: false })}
+                  className="font-semibold text-indigo-700 hover:underline"
+                >
+                  Choose skills to show
+                </button>
+              </p>
+            )}
+            {shown.verifiedSkills.map((skill) => (
               <VerifiedSkillBadge
                 key={skill.skillId}
                 skill={skill}
@@ -250,7 +312,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
           <div>
             <div className="text-xs text-slate-500 font-medium">Verified Skills</div>
             <div className="text-2xl font-bold text-slate-900 font-mono tabular-nums">
-              {candidate.verifiedSkills.length}
+              {shown.verifiedSkills.length}
             </div>
           </div>
           <div>
@@ -263,7 +325,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
           <div>
             <div className="text-xs text-slate-500 font-medium">Global Percentile</div>
             <div className="text-2xl font-bold text-indigo-600 font-mono tabular-nums">
-              {Math.max(...candidate.verifiedSkills.map((s) => s.percentile), 0)}th
+              {Math.max(...shown.verifiedSkills.map((s) => s.percentile), 0)}th
             </div>
           </div>
           <div>
@@ -289,11 +351,11 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
           </div>
 
           {/* High-Scoring Showcase Banner (Highlights 95+ Gold Master credentials) */}
-          {candidate.verifiedSkills.some((s) => s.score >= 95) && (
+          {shown.verifiedSkills.some((s) => s.score >= 95) && (
             <div className="space-y-2">
               <div className="text-xs font-semibold text-slate-700">Featured</div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {candidate.verifiedSkills
+                {shown.verifiedSkills
                   .filter((s) => s.score >= 95)
                   .map((skill) => (
                     <VerifiedSkillBadge
@@ -308,7 +370,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
 
           {/* Grid of All Verified Skill Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {candidate.verifiedSkills.map((skill) => (
+            {shown.verifiedSkills.map((skill) => (
               <VerifiedSkillBadge
                 key={skill.skillId}
                 skill={skill}
@@ -797,6 +859,31 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
         />
       )}
 
+      {editingProfile && (
+        <JobProfileEditor
+          profile={editingProfile.profile}
+          isNew={editingProfile.isNew}
+          skills={candidate.verifiedSkills}
+          onDelete={
+            profiles.length > 1
+              ? () => {
+                  const rest = profiles.filter((p) => p.id !== editingProfile.profile.id);
+                  onUpdateProfiles(rest, rest[0].id);
+                  setEditingProfile(null);
+                }
+              : undefined
+          }
+          onSave={(saved) => {
+            const next = editingProfile.isNew
+              ? [...profiles, saved]
+              : profiles.map((p) => (p.id === saved.id ? saved : p));
+            onUpdateProfiles(next, saved.id);
+            setEditingProfile(null);
+          }}
+          onClose={() => setEditingProfile(null)}
+        />
+      )}
+
       {/* Job application, including any attached test */}
       {selectedJobForApplication && (
         <JobApplicationModal
@@ -808,8 +895,9 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
           overallFitPercentage={
             rankedJobs.find((m) => m.jobId === selectedJobForApplication.id)?.overallFitPercentage || 80
           }
-          onConfirmApply={(jobId, score) => {
-            handleApply(jobId, selectedJobForApplication.title);
+          profiles={profiles}
+          onConfirmApply={(jobId, profileId) => {
+            handleApply(jobId, selectedJobForApplication.title, profileId);
           }}
           onStartAttachedTest={(test, forJobId) => {
             if (onStartAttachedTest) {

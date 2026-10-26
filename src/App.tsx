@@ -8,6 +8,7 @@ import { addTestResult } from './lib/results';
 import { simulateAttempt } from './lib/liveActivity';
 import { Navigation, AppTab, NAV_TABS } from './components/Navigation';
 import { CandidatePortal, CandidateSection } from './components/CandidatePortal';
+import { bestProfileFor } from './lib/jobProfiles';
 import { RecruiterPortal, BusinessSection } from './components/RecruiterPortal';
 import { BusinessesView } from './components/BusinessesView';
 import { AssessmentRunner } from './components/AssessmentRunner';
@@ -223,12 +224,16 @@ export default function App() {
   };
 
   // When candidate applies for a job
-  const handleApplyJob = (jobId: string) => {
+  // Sent with one of their job profiles: by default the one that best covers the job
+  const handleApplyJob = (jobId: string, profileId?: string) => {
     if (candidate.appliedJobIds?.includes(jobId)) return;
+    const job = jobs.find((j) => j.id === jobId);
+    const sentWith = profileId ?? (job ? bestProfileFor(candidate, job).id : undefined);
 
     setCandidate((prev) => ({
       ...prev,
       appliedJobIds: [...(prev.appliedJobIds || []), jobId],
+      applicationProfiles: sentWith ? { ...prev.applicationProfiles, [jobId]: sentWith } : prev.applicationProfiles,
     }));
 
     // Increment job applicants count
@@ -403,6 +408,9 @@ export default function App() {
                 setActiveTestJobId(forJobId);
               }}
               onApplyJob={handleApplyJob}
+              onUpdateProfiles={(jobProfiles, activeProfileId) =>
+                setCandidate((prev) => ({ ...prev, jobProfiles, activeProfileId }))
+              }
               jobPageId={jobPageId}
               onOpenJob={openJobPage}
               exams={exams}

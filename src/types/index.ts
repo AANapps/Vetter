@@ -56,6 +56,20 @@ export interface User {
   appliedJobIds: string[];
   // Company links the candidate followed to a test; their results on it are shared with that company
   testReferrals?: TestReferral[];
+  // Profiles for different kinds of work (data, customer service, retail...); the one shown is activeProfileId
+  jobProfiles?: JobProfile[];
+  activeProfileId?: string;
+  // The profile each application was sent with, by job id
+  applicationProfiles?: Record<string, string>;
+}
+
+// How a candidate presents themselves for one kind of work: a headline, an about and the skills it features
+export interface JobProfile {
+  id: string;
+  name: string; // e.g. "Data", "Customer service"
+  title: string;
+  bio: string;
+  skillIds: string[];
 }
 
 export interface TestReferral {

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { CandidateJobMatch, JobPosting, User } from '../types';
 import { rankCandidatesForJob } from '../lib/matchingAlgorithm';
+import { applicationProfileOf } from '../lib/jobProfiles';
 import { distanceMiles } from '../lib/geo';
 import { Award, CheckCircle2, ChevronDown, AlertTriangle, MinusCircle } from 'lucide-react';
 
@@ -129,6 +130,10 @@ export const JobCandidates: React.FC<JobCandidatesProps> = ({ job, allCandidates
           const person = people.get(c.candidateId)!;
           const isOpen = expandedId === c.candidateId;
           const applied = hasApplied(c.candidateId);
+          // Applicants are shown as the job profile they applied with
+          const appliedAs = applied ? applicationProfileOf(person, job.id) : undefined;
+          const headline = appliedAs?.title ?? c.candidateTitle;
+          const bio = appliedAs?.bio ?? person.bio;
           const requiredNames = new Set(c.breakdown.map((b) => b.skillName.toLowerCase()));
           const requiredTests = new Set(job.requirements.map((r) => r.testId).filter(Boolean));
           const otherSkills = person.verifiedSkills
@@ -160,7 +165,7 @@ export const JobCandidates: React.FC<JobCandidatesProps> = ({ job, allCandidates
                     )}
                   </div>
                   <div className="text-xs text-slate-500 truncate">
-                    {c.candidateTitle} &middot; {c.candidateLocation}
+                    {headline} &middot; {c.candidateLocation}
                   </div>
                 </div>
                 <div className="text-right shrink-0">
@@ -238,7 +243,14 @@ export const JobCandidates: React.FC<JobCandidatesProps> = ({ job, allCandidates
                       </div>
                     )}
 
-                    {person.bio && <p className="text-xs text-slate-600 leading-relaxed border-t border-slate-200 pt-3">{person.bio}</p>}
+                    {(bio || appliedAs) && (
+                      <div className="border-t border-slate-200 pt-3 space-y-1">
+                        {appliedAs && (
+                          <div className="text-[11px] font-semibold text-slate-700">Applied with their {appliedAs.name} profile</div>
+                        )}
+                        {bio && <p className="text-xs text-slate-600 leading-relaxed">{bio}</p>}
+                      </div>
+                    )}
 
                     <div className="flex items-center gap-2 pt-1">
                       <label htmlFor={`stage-${c.candidateId}`} className="text-xs font-semibold text-slate-700">

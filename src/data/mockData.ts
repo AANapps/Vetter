@@ -64,6 +64,24 @@ export const INITIAL_CANDIDATE: User = withTestResults({
     },
   ],
   appliedJobIds: ['job-001'],
+  jobProfiles: [
+    {
+      id: 'profile-data',
+      name: 'Data',
+      title: 'Data Engineer',
+      bio: 'Distributed data ingestion and PostgreSQL tuning. I build pipelines and warehouses that analysts can trust.',
+      skillIds: ['skill-sql', 'skill-backend'],
+    },
+    {
+      id: 'profile-software',
+      name: 'Software engineering',
+      title: 'Senior Full-Stack Engineer',
+      bio: 'Resilient React architectures and the APIs behind them. Scaled real-time web applications to 50M+ requests/day.',
+      skillIds: ['skill-frontend', 'skill-backend', 'skill-sql'],
+    },
+  ],
+  activeProfileId: 'profile-data',
+  applicationProfiles: { 'job-001': 'profile-data' },
 });
 
 export const OTHER_CANDIDATES: User[] = ([

@@ -65,7 +65,17 @@ export function loadData(): AppData {
       .map((t) => (TEST_DIFFICULTIES.includes(t.difficulty) ? t : { ...t, difficulty: 'Senior' as const }));
 
     return {
-      candidate: withAvatar(saved.candidate),
+      // Saved before job profiles existed: start from the seeded ones
+      candidate: withAvatar(
+        saved.candidate.jobProfiles
+          ? saved.candidate
+          : {
+              ...saved.candidate,
+              jobProfiles: seed.candidate.jobProfiles,
+              activeProfileId: seed.candidate.activeProfileId,
+              applicationProfiles: seed.candidate.applicationProfiles,
+            }
+      ),
       otherCandidates: saved.otherCandidates.map(withAvatar),
       // Saved jobs keep their changes; listing details added in code since are filled in from the seed,
       // and anything the job board filters need is filled in for jobs created before the form asked for it

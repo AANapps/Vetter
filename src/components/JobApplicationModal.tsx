@@ -1,6 +1,7 @@
-import React from 'react';
-import { User, JobPosting, AssessmentTest } from '../types';
+import React, { useState } from 'react';
+import { User, JobPosting, AssessmentTest, JobProfile } from '../types';
 import { getBestTestScore } from '../lib/matchingAlgorithm';
+import { bestProfileFor } from '../lib/jobProfiles';
 import {
   X,
   Play,
@@ -18,7 +19,9 @@ interface JobApplicationModalProps {
   job: JobPosting;
   tests: AssessmentTest[];
   overallFitPercentage: number;
-  onConfirmApply: (jobId: string, testScoreAttached?: number) => void;
+  // The candidate's job profiles: the application is sent with one of them
+  profiles: JobProfile[];
+  onConfirmApply: (jobId: string, profileId: string) => void;
   onStartAttachedTest: (test: AssessmentTest, forJobId: string) => void;
 }
 
@@ -29,10 +32,14 @@ export const JobApplicationModal: React.FC<JobApplicationModalProps> = ({
   job,
   tests,
   overallFitPercentage,
+  profiles,
   onConfirmApply,
   onStartAttachedTest,
 }) => {
+  // Starts on the profile that covers most of what the job asks for
+  const [profileId, setProfileId] = useState(() => bestProfileFor(candidate, job).id);
   if (!isOpen) return null;
+  const profile = profiles.find((p) => p.id === profileId) ?? profiles[0];
 
   // Test attached to this job, if any (Vetter-made or the company's own)
   const attachedTest = tests.find((t) => t.id === job.attachedTestId);
@@ -73,7 +80,7 @@ export const JobApplicationModal: React.FC<JobApplicationModalProps> = ({
               <span>{candidate.name}</span>
               <span className="text-slate-400 font-normal">({candidate.yearsExperience} yrs exp)</span>
             </div>
-            <p className="text-[11px] text-slate-500 truncate">{candidate.title}</p>
+            <p className="text-[11px] text-slate-500 truncate">{profile.title}</p>
           </div>
 
           <div className="space-y-1">
@@ -97,6 +104,32 @@ export const JobApplicationModal: React.FC<JobApplicationModalProps> = ({
             <div className="text-slate-500 text-[11px]">{job.department} &middot; {job.salaryRange}</div>
           </div>
         </div>
+
+        {/* Which job profile the company sees */}
+        {!isApplied && profiles.length > 1 && (
+          <div className="space-y-2">
+            <h3 className="text-xs font-bold text-slate-900">Apply with</h3>
+            <div className="flex flex-wrap gap-2">
+              {profiles.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => setProfileId(p.id)}
+                  aria-pressed={p.id === profile.id}
+                  className={`px-3 py-2 rounded-lg text-xs text-left transition-colors ${
+                    p.id === profile.id ? 'bg-indigo-600 text-white' : 'bg-white text-slate-700'
+                  }`}
+                >
+                  <span className="font-semibold">{p.name}</span>
+                  <span className={p.id === profile.id ? 'text-indigo-100' : 'text-slate-500'}> &middot; {p.title}</span>
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px] text-slate-500">
+              {job.companyName} sees this profile's headline, about and skills, plus your scores on the tests this job asks for.
+            </p>
+          </div>
+        )}
 
         {/* Attached Test Card */}
         {attachedTest && (
@@ -182,7 +215,7 @@ export const JobApplicationModal: React.FC<JobApplicationModalProps> = ({
               {!testBlocksApplication && (
                 <button
                   onClick={() => {
-                    onConfirmApply(job.id, bestScore);
+                    onConfirmApply(job.id, profile.id);
                     onClose();
                   }}
                   className="w-full sm:w-auto px-5 py-2.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-xs"
