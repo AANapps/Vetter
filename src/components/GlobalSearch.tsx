@@ -122,8 +122,8 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
         }}
         onFocus={() => setIsOpen(true)}
         onKeyDown={onKeyDown}
-        placeholder="Search people, tests and companies"
-        aria-label="Search people, tests and companies"
+        placeholder="Search people and tests"
+        aria-label="Search people and tests"
         role="combobox"
         aria-expanded={showPanel}
         aria-controls="global-search-results"
@@ -153,7 +153,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
           className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white rounded-xl shadow-2xl border border-slate-200 max-h-[70vh] overflow-y-auto py-2 md:min-w-[26rem]"
         >
           {results.length === 0 ? (
-            <div className="px-4 py-6 text-center text-xs text-slate-500">No people, tests or companies match “{query.trim()}”.</div>
+            <div className="px-4 py-6 text-center text-xs text-slate-500">No people or tests match “{query.trim()}”.</div>
           ) : (
             (['person', 'test', 'company'] as const).map((kind) => {
               const group = results.filter((r) => r.kind === kind);

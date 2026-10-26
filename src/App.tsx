@@ -346,7 +346,8 @@ export default function App() {
           <GlobalSearch
             people={allCandidates}
             tests={tests}
-            businesses={businesses}
+            // Companies are hidden for now, so search leaves them out
+            businesses={[]}
             onOpenPerson={setProfilePersonId}
             onOpenTest={openTestPage}
             onOpenCompany={openCompany}

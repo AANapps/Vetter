@@ -21,7 +21,8 @@ export const NAV_TABS: Record<'candidate' | 'recruiter', { id: AppTab; label: st
     { id: 'profile', label: 'Profile', icon: UserRound },
     { id: 'tests', label: 'Tests', icon: ClipboardCheck },
     { id: 'jobs', label: 'Jobs', icon: Briefcase },
-    { id: 'companies', label: 'Companies', icon: Building2 },
+    // Companies is hidden for now
+    // { id: 'companies', label: 'Companies', icon: Building2 },
   ],
   recruiter: [
     { id: 'business-exams', label: 'Exams', icon: ClipboardList },
