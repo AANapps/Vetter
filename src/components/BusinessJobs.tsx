@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AssessmentTest, Business, Exam, JobPosting, User } from '../types';
 import {
   ExamTrackingRow,
@@ -28,7 +28,7 @@ import {
 import { formatDuration } from './TestLeaderboard';
 import { JobForm } from './JobForm';
 import { JobCandidates } from './JobCandidates';
-import { ArrowLeft, Check, CheckCircle2, ChevronDown, Copy, Download, Link2, Mail, MapPin, Pencil, Plus, Search, Send, UserPlus } from 'lucide-react';
+import { ArrowLeft, Check, CheckCircle2, ChevronDown, Copy, Download, Link2, Mail, MapPin, Pencil, Plus, Search, Send, Share2, UserPlus, X } from 'lucide-react';
 
 interface BusinessJobsProps {
   // The company signed in; without one, the Vetter team sees every company's jobs
@@ -92,8 +92,21 @@ export const BusinessJobs: React.FC<BusinessJobsProps> = (props) => {
   return selected && exam ? <JobDetail {...props} job={selected} exam={exam} /> : <JobList {...props} jobs={jobs} />;
 };
 
-const JobList: React.FC<BusinessJobsProps> = ({ business, businesses, jobs, exams, tests, candidates, onSelect, onCreateJob, onOpenPerson }) => {
+const JobList: React.FC<BusinessJobsProps> = ({
+  business,
+  businesses,
+  jobs,
+  exams,
+  tests,
+  candidates,
+  onSelect,
+  onCreateJob,
+  onEmail,
+  onInvite,
+  onOpenPerson,
+}) => {
   const [isCreating, setIsCreating] = useState(false);
+  const [sharing, setSharing] = useState<{ job: JobPosting; exam: Exam } | null>(null);
   const tracked = jobs.flatMap((job) => {
     const exam = jobExam(job, exams);
     if (!exam) return [];
@@ -195,8 +208,8 @@ const JobList: React.FC<BusinessJobsProps> = ({ business, businesses, jobs, exam
                         </div>
                       </div>
                       {exam.testIds.length > 0 && (
-                        <CopyLinkButton
-                          examId={exam.id}
+                        <ShareButton
+                          onClick={() => setSharing({ job, exam })}
                           className="shrink-0 px-3 py-1.5 text-xs text-slate-700 bg-white border border-slate-300 hover:border-indigo-400 rounded-lg"
                         />
                       )}
@@ -236,6 +249,10 @@ const JobList: React.FC<BusinessJobsProps> = ({ business, businesses, jobs, exam
             </section>
           </div>
         </>
+      )}
+
+      {sharing && (
+        <ShareDialog job={sharing.job} exam={sharing.exam} candidates={candidates} onEmail={onEmail} onInvite={onInvite} onClose={() => setSharing(null)} />
       )}
 
       {isCreating && (
@@ -315,6 +332,7 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting; exam: Exam }> =
   onOpenTest,
 }) => {
   const [filter, setFilter] = useState<TrackingStatus | 'all'>('all');
+  const [sharing, setSharing] = useState(false);
   const rows = examTracking(exam, candidates).sort(rank);
   const funnel = examFunnel(exam, rows, candidates);
   const examTests = exam.testIds.map((id) => tests.find((t) => t.id === id)).filter((t): t is AssessmentTest => !!t);
@@ -351,7 +369,16 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting; exam: Exam }> =
 
       <div className="space-y-2">
         {!business && <div className="text-xs font-semibold text-indigo-700">{job.companyName}</div>}
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{job.title}</h1>
+        <div className="flex items-start justify-between gap-4">
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{job.title}</h1>
+          {examTests.length > 0 && (
+            <ShareButton
+              onClick={() => setSharing(true)}
+              label="Share tests"
+              className="shrink-0 px-4 py-2 text-sm text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs"
+            />
+          )}
+        </div>
         <p className="text-xs text-slate-500 flex flex-wrap items-center gap-x-2 gap-y-1">
           <span className="flex items-center gap-1">
             <MapPin className="w-3 h-3" />
@@ -394,7 +421,7 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting; exam: Exam }> =
         )}
       </section>
 
-      {examTests.length > 0 && <SharePanel exam={exam} candidates={candidates} onEmail={onEmail} onInvite={onInvite} />}
+      {sharing && <ShareDialog job={job} exam={exam} candidates={candidates} onEmail={onEmail} onInvite={onInvite} onClose={() => setSharing(false)} />}
 
       <section className="bg-white border border-slate-200 rounded-xl p-5">
         <FunnelBar funnel={funnel} />
@@ -430,7 +457,7 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting; exam: Exam }> =
 
         {shown.length === 0 ? (
           <p className="px-5 py-8 text-sm text-slate-500 text-center">
-            {rows.length === 0 ? "Nobody has been sent this job's tests yet. Send them above." : 'Nobody here.'}
+            {rows.length === 0 ? "Nobody has been sent this job's tests yet. Use Share tests to send them." : 'Nobody here.'}
           </p>
         ) : (
           <div className="overflow-x-auto">
@@ -573,6 +600,60 @@ const SkillRanking: React.FC<{
   );
 };
 
+const ShareButton: React.FC<{ onClick: () => void; label?: string; className?: string }> = ({ onClick, label = 'Share', className = '' }) => (
+  <button
+    onClick={(e) => {
+      e.stopPropagation();
+      onClick();
+    }}
+    className={`flex items-center gap-1.5 font-semibold transition-colors ${className}`}
+  >
+    <Share2 className="w-3.5 h-3.5" />
+    <span>{label}</span>
+  </button>
+);
+
+// Sharing a job's tests opens in a popup: the link, and sending it to people
+const ShareDialog: React.FC<{
+  job: JobPosting;
+  exam: Exam;
+  candidates: User[];
+  onEmail: BusinessJobsProps['onEmail'];
+  onInvite: BusinessJobsProps['onInvite'];
+  onClose: () => void;
+}> = ({ job, exam, candidates, onEmail, onInvite, onClose }) => {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/60 backdrop-blur-sm" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Share tests for ${job.title}`}
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white sm:rounded-2xl rounded-t-2xl max-w-2xl w-full max-h-[calc(100vh-2rem)] flex flex-col shadow-2xl"
+      >
+        <div className="px-6 pt-5 pb-4 border-b border-slate-200 flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h2 className="text-lg font-bold text-slate-900">Share tests</h2>
+            <p className="text-xs text-slate-500 truncate">{job.title}</p>
+          </div>
+          <button onClick={onClose} aria-label="Close" className="p-1 text-slate-400 hover:text-slate-700">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5">
+          <SharePanel exam={exam} candidates={candidates} onEmail={onEmail} onInvite={onInvite} />
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Sending the link: copy it, email it, or pick people already on Vetter
 const SharePanel: React.FC<{
   exam: Exam;
@@ -609,7 +690,7 @@ const SharePanel: React.FC<{
     }). Your results go straight to ${exam.companyName}.\n\nStart here: ${link}\n`;
     window.location.href = `mailto:?bcc=${encodeURIComponent(emails.join(','))}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     setEmailsText('');
-    flash(`Sent to ${emails.length} ${emails.length === 1 ? 'person' : 'people'}. They're tracked below.`);
+    flash(`Sent to ${emails.length} ${emails.length === 1 ? 'person' : 'people'}. They're tracked on the job.`);
   };
 
   const invitedIds = new Set(exam.invitations.map((i) => i.candidateId));
@@ -624,12 +705,12 @@ const SharePanel: React.FC<{
 
   const invite = () => {
     onInvite(exam.id, chosen);
-    flash(`Emailed ${chosen.length} ${chosen.length === 1 ? 'candidate' : 'candidates'} at their Vetter login address. They're tracked below.`);
+    flash(`Emailed ${chosen.length} ${chosen.length === 1 ? 'candidate' : 'candidates'} at their Vetter login address. They're tracked on the job.`);
     setChosen([]);
   };
 
   return (
-    <section className="bg-indigo-50/60 border border-indigo-100 rounded-xl p-5 space-y-4">
+    <div className="space-y-4">
       <div className="space-y-2">
         <label htmlFor="exam-link" className="flex items-center gap-1.5 text-sm font-bold text-slate-900">
           <Link2 className="w-4 h-4 text-indigo-600" />
@@ -648,7 +729,7 @@ const SharePanel: React.FC<{
         <p className="text-xs text-slate-500">Anyone who opens it can take the tests, and their results come back to you.</p>
       </div>
 
-      <div className="pt-4 border-t border-indigo-100 space-y-3">
+      <div className="pt-4 border-t border-slate-200 space-y-3">
         <div className="flex gap-1">
           {(
             [
@@ -811,7 +892,7 @@ const SharePanel: React.FC<{
           </div>
         )}
       </div>
-    </section>
+    </div>
   );
 };
 
