@@ -290,8 +290,10 @@ export interface SocialState {
 }
 
 // An assessment: one or more tests a company sends candidates as a link (called an exam in code)
+// A job's tests and everyone they've been sent to. Every job has one; the link candidates get points at it.
 export interface Exam {
   id: string;
+  jobId?: string;
   title: string;
   description: string;
   businessId: string;

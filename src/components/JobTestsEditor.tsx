@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
-import { AssessmentTest, Business, Exam } from '../types';
+import { AssessmentTest, Exam, JobPosting } from '../types';
+import { jobExam } from '../lib/exams';
 import { isMainVersion, levelsOf } from '../lib/testLevels';
-import { ArrowLeft, ArrowRight, Check, Link2, Search, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Search, X } from 'lucide-react';
 
-interface CreateAssessmentProps {
-  // The companies it can be made for: just the signed-in one, or every company for the Vetter team
-  businesses: Business[];
-  createdBy: Exam['createdBy'];
+interface JobTestsEditorProps {
+  // The jobs the tests can be for: just one when opened from a job, or all of them when sending a test from its page
+  jobs: JobPosting[];
+  exams: Exam[];
   tests: AssessmentTest[];
-  // Tests already picked, e.g. when sending one from its page
-  initialTestIds?: string[];
-  onCreate: (exam: Exam) => void;
+  // Tests to add, e.g. when sending one from its page
+  addTestIds?: string[];
+  onSave: (exam: Exam) => void;
   onCancel: () => void;
 }
 
@@ -19,49 +20,53 @@ const inputClass =
 
 const STEPS = ['Pick tests', 'Details'] as const;
 
-// Making an assessment is two steps: choose the tests, then name it. The link comes straight after.
-export const CreateAssessment: React.FC<CreateAssessmentProps> = ({ businesses, createdBy, tests, initialTestIds = [], onCreate, onCancel }) => {
+// Choosing a job's tests is two steps: pick them, then set the pass mark, deadline and message
+export const JobTestsEditor: React.FC<JobTestsEditorProps> = ({ jobs, exams, tests, addTestIds = [], onSave, onCancel }) => {
   const [step, setStep] = useState(0);
-  const [businessId, setBusinessId] = useState(businesses[0]?.id ?? '');
-  const business = businesses.find((b) => b.id === businessId) ?? businesses[0];
+  const [jobId, setJobId] = useState(jobs[0]?.id ?? '');
+  const job = jobs.find((j) => j.id === jobId) ?? jobs[0];
+  const exam = job && jobExam(job, exams);
   // Picked tests in the order they were ticked: main version id → the level chosen
-  const [picked, setPicked] = useState<{ mainId: string; testId: string }[]>(() =>
-    initialTestIds.flatMap((id) => {
+  const pickedFor = (e: Exam | undefined) =>
+    [...new Set([...(e?.testIds ?? []), ...addTestIds])].flatMap((id) => {
       const t = tests.find((x) => x.id === id);
       return t ? [{ mainId: t.familyId ?? t.id, testId: t.id }] : [];
-    })
-  );
+    });
+  const [picked, setPicked] = useState<{ mainId: string; testId: string }[]>(() => pickedFor(exam));
   const [testQuery, setTestQuery] = useState('');
   const pickedTests = picked.map((p) => tests.find((t) => t.id === p.testId)).filter((t): t is AssessmentTest => !!t);
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [passingScore, setPassingScore] = useState(() => (pickedTests.length === 1 ? pickedTests[0].passingScore : 70));
-  const [dueDate, setDueDate] = useState('');
+  const [description, setDescription] = useState(exam?.description ?? '');
+  const [passingScore, setPassingScore] = useState(() => exam?.passingScore ?? (pickedTests.length === 1 ? pickedTests[0].passingScore : 70));
+  const [dueDate, setDueDate] = useState(exam?.dueDate ?? '');
+  const switchJob = (id: string) => {
+    const next = jobs.find((j) => j.id === id);
+    const nextExam = next && jobExam(next, exams);
+    setJobId(id);
+    setPicked(pickedFor(nextExam));
+    setDescription(nextExam?.description ?? '');
+    setPassingScore(nextExam?.passingScore ?? 70);
+    setDueDate(nextExam?.dueDate ?? '');
+  };
 
   const tq = testQuery.trim().toLowerCase();
   const choices = tests
-    .filter((t) => isMainVersion(t) && (t.type === 'standard' || t.businessId === business?.id))
+    .filter((t) => isMainVersion(t) && (t.type === 'standard' || t.businessId === job?.businessId))
     .filter((t) => !tq || `${t.title} ${t.category} ${t.companyName ?? ''} ${t.skillsTested.join(' ')}`.toLowerCase().includes(tq));
   const minutes = pickedTests.reduce((sum, t) => sum + t.estimatedMinutes, 0);
 
   const toggle = (main: AssessmentTest) =>
     setPicked((prev) => (prev.some((p) => p.mainId === main.id) ? prev.filter((p) => p.mainId !== main.id) : [...prev, { mainId: main.id, testId: main.id }]));
 
-  const create = (e: React.FormEvent) => {
+  const save = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!business || pickedTests.length === 0) return;
-    onCreate({
-      id: `exam-${Date.now()}`,
-      title: title.trim() || pickedTests[0].title,
-      description: description.trim() || `${business.name} would like you to take ${pickedTests.length === 1 ? 'this test' : 'these tests'}.`,
-      businessId: business.id,
-      companyName: business.name,
-      createdBy,
+    if (!exam || pickedTests.length === 0) return;
+    onSave({
+      ...exam,
+      title: job.title,
+      description: description.trim() || `${job.companyName} would like you to take the tests for ${job.title}.`,
       testIds: pickedTests.map((t) => t.id),
       passingScore,
       dueDate: dueDate || undefined,
-      createdAt: new Date().toISOString().split('T')[0],
-      invitations: [],
     });
   };
 
@@ -71,13 +76,13 @@ export const CreateAssessment: React.FC<CreateAssessmentProps> = ({ businesses, 
         {/* Steps */}
         <div className="px-6 pt-5 pb-4 border-b border-slate-200 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-slate-900">New assessment</h2>
+            <h2 className="text-lg font-bold text-slate-900">{jobs.length === 1 && job ? `Tests for ${job.title}` : 'Add tests to a job'}</h2>
             <button onClick={onCancel} aria-label="Close" className="p-1 text-slate-400 hover:text-slate-700">
               <X className="w-5 h-5" />
             </button>
           </div>
           <ol className="flex items-center gap-2 text-xs">
-            {[...STEPS, 'Send link'].map((label, i) => (
+            {[...STEPS, 'Send'].map((label, i) => (
               <li key={label} className="flex items-center gap-2">
                 {i > 0 && <span className="w-6 h-px bg-slate-300" />}
                 <span
@@ -93,24 +98,17 @@ export const CreateAssessment: React.FC<CreateAssessmentProps> = ({ businesses, 
           </ol>
         </div>
 
-        <form onSubmit={create} className="flex-1 min-h-0 flex flex-col">
+        <form onSubmit={save} className="flex-1 min-h-0 flex flex-col">
           <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5 space-y-4">
             {step === 0 && (
               <>
-                {businesses.length > 1 && (
+                {jobs.length > 1 && (
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">For which company</label>
-                    <select
-                      value={businessId}
-                      onChange={(e) => {
-                        setBusinessId(e.target.value);
-                        setPicked((prev) => prev.filter((p) => tests.find((t) => t.id === p.mainId)?.type === 'standard'));
-                      }}
-                      className={inputClass}
-                    >
-                      {businesses.map((b) => (
-                        <option key={b.id} value={b.id}>
-                          {b.name}
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">For which job</label>
+                    <select value={jobId} onChange={(e) => switchJob(e.target.value)} className={inputClass}>
+                      {jobs.map((j) => (
+                        <option key={j.id} value={j.id}>
+                          {j.companyName}: {j.title}
                         </option>
                       ))}
                     </select>
@@ -175,13 +173,6 @@ export const CreateAssessment: React.FC<CreateAssessmentProps> = ({ businesses, 
                   &middot; ~{minutes} min in total: {pickedTests.map((t) => t.title).join(', ')}
                 </div>
                 <div>
-                  <label htmlFor="a-title" className="block text-xs font-semibold text-slate-700 mb-1">
-                    Name
-                  </label>
-                  <input id="a-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={pickedTests[0]?.title} className={inputClass} />
-                  <p className="text-[11px] text-slate-500 mt-1">Candidates see this, e.g. "Graduate Analyst 2027".</p>
-                </div>
-                <div>
                   <label htmlFor="a-desc" className="block text-xs font-semibold text-slate-700 mb-1">
                     Message to candidates <span className="font-normal text-slate-400">(optional)</span>
                   </label>
@@ -226,7 +217,7 @@ export const CreateAssessment: React.FC<CreateAssessmentProps> = ({ businesses, 
               </span>
             )}
             {step === 0 ? (
-              // Keyed apart from Create link, so the click that moves on isn't taken as a submit when this button becomes it
+              // Keyed apart from Save, so the click that moves on isn't taken as a submit when this button becomes it
               <button
                 key="next"
                 type="button"
@@ -239,8 +230,8 @@ export const CreateAssessment: React.FC<CreateAssessmentProps> = ({ businesses, 
               </button>
             ) : (
               <button key="create" type="submit" className="ml-auto px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg flex items-center gap-1.5">
-                <Link2 className="w-4 h-4" />
-                Create link
+                <Check className="w-4 h-4" />
+                Save tests
               </button>
             )}
           </div>

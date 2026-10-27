@@ -62,8 +62,8 @@ export function inviteEmail(exam: Exam, candidate: User, link: string) {
   const count = exam.testIds.length;
   return {
     to: candidate.email,
-    subject: `${exam.companyName} has sent you ${count === 1 ? 'a test' : `${count} tests`} on Vetter`,
-    body: `Hi ${candidate.name.split(' ')[0]},\n\n${exam.description}\n\n${exam.title}: ${count} ${count === 1 ? 'test' : 'tests'}${
+    subject: `${exam.companyName} has sent you ${count === 1 ? 'a test' : `${count} tests`} for ${exam.title}`,
+    body: `Hi ${candidate.name.split(' ')[0]},\n\n${exam.description}\n\n${exam.title} at ${exam.companyName}: ${count} ${count === 1 ? 'test' : 'tests'}${
       exam.dueDate ? `, due ${exam.dueDate}` : ''
     }. Your results go straight to ${exam.companyName}.\n\nStart here: ${link}\n`,
   };

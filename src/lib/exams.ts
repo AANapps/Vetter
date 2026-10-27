@@ -1,4 +1,4 @@
-import { AssessmentTest, Exam, ExamInvitation, User } from '../types';
+import { AssessmentTest, Exam, ExamInvitation, JobPosting, User } from '../types';
 
 export interface ExamProgress {
   // Best score on each test since the invitation, or undefined if not taken yet
@@ -113,3 +113,29 @@ export function examFunnel(exam: Exam, rows: ExamTrackingRow[], candidates: User
 // The link a company sends: whoever opens it joins the assessment and their results go back to the company
 export const examLink = (examId: string) =>
   `${window.location.origin}${window.location.pathname}#/exams/${encodeURIComponent(examId)}`;
+
+// Every job has one assessment: its tests, and everyone they've been sent to
+export const jobExam = (job: JobPosting, exams: Exam[]) => exams.find((e) => e.jobId === job.id);
+
+export function newJobExam(job: JobPosting): Exam {
+  return {
+    id: `exam-${job.id}`,
+    jobId: job.id,
+    title: job.title,
+    description: `${job.companyName} would like you to take the tests for ${job.title}.`,
+    businessId: job.businessId ?? '',
+    companyName: job.companyName,
+    createdBy: job.postedBy ?? 'company',
+    testIds: job.attachedTestId ? [job.attachedTestId] : [],
+    passingScore: job.attachedTestPassingScore ?? 70,
+    dueDate: job.closingDate,
+    createdAt: job.postedDate,
+    invitations: [],
+  };
+}
+
+// Fills in the assessment for any job without one
+export const withJobExams = (jobs: JobPosting[], exams: Exam[]) => [
+  ...exams,
+  ...jobs.filter((j) => !jobExam(j, exams)).map(newJobExam),
+];

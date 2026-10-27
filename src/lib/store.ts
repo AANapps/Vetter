@@ -11,6 +11,7 @@ import { SEED_SOCIAL } from '../data/seedSocial';
 import { SEED_EXAMS, SEED_EXAM_RESULTS, SEED_NOTIFICATIONS } from '../data/seedExams';
 import { addTestResult } from './results';
 import { withFilterFields } from './jobFilters';
+import { withJobExams } from './exams';
 import { buildSeedCandidates, withComputedPercentiles, withSeedDurations } from '../data/seedCandidates';
 
 /**
@@ -18,7 +19,7 @@ import { buildSeedCandidates, withComputedPercentiles, withSeedDurations } from 
  * refresh. This is the single place to swap in a real API later: load/save
  * have the same shape a server would return.
  */
-// v2: assessments track how each person got the link and how far they've got
+// v2: assessments track how each person got the link and how far they've got; each belongs to a job
 const STORAGE_KEY = 'vetter:data:v2';
 
 export interface AppData {
@@ -49,7 +50,7 @@ export function createSeedData(): AppData {
     jobs: INITIAL_JOBS,
     tests: SEED_TESTS,
     social: SEED_SOCIAL,
-    exams: SEED_EXAMS,
+    exams: withJobExams(INITIAL_JOBS, SEED_EXAMS),
     notifications: SEED_NOTIFICATIONS,
   };
 }
@@ -79,6 +80,16 @@ export function loadData(): AppData {
       .filter((t) => !SEED_TESTS.some((s) => s.id === t.id))
       .map((t) => (TEST_DIFFICULTIES.includes(t.difficulty) ? t : { ...t, difficulty: 'Senior' as const }));
 
+    // Saved jobs keep their changes; listing details added in code since are filled in from the seed,
+    // and anything the job board filters need is filled in for jobs created before the form asked for it.
+    // Seeded jobs added since are included.
+    const jobs = [
+      ...saved.jobs.map((j) =>
+        withFilterFields({ ...seed.jobs.find((s) => s.id === j.id), ...j }, INITIAL_BUSINESSES.find((b) => b.id === j.businessId))
+      ),
+      ...seed.jobs.filter((s) => !saved.jobs.some((j) => j.id === s.id)),
+    ];
+
     return {
       // Saved before job profiles existed: start from the seeded ones
       candidate: withAvatar(
@@ -92,16 +103,18 @@ export function loadData(): AppData {
             }
       ),
       otherCandidates: saved.otherCandidates.map((u) => withStudies(withAvatar(u))),
-      // Saved jobs keep their changes; listing details added in code since are filled in from the seed,
-      // and anything the job board filters need is filled in for jobs created before the form asked for it
-      jobs: saved.jobs.map((j) =>
-        withFilterFields({ ...seed.jobs.find((s) => s.id === j.id), ...j }, INITIAL_BUSINESSES.find((b) => b.id === j.businessId))
-      ),
+      jobs,
       tests: [...SEED_TESTS, ...createdTests],
       // Saved before the feed existed: start from the seeded conversation
       social: saved.social ?? seed.social,
       // Saved before exams existed: start from the seeded ones
-      exams: saved.exams ?? seed.exams,
+      // Assessments saved before they belonged to jobs take their job from the seed; any job without one gets one
+      exams: saved.exams
+        ? withJobExams(
+            jobs,
+            saved.exams.map((e) => (e.jobId ? e : { ...e, jobId: seed.exams.find((s) => s.id === e.id)?.jobId }))
+          )
+        : seed.exams,
       notifications: saved.notifications ?? seed.notifications,
     };
   } catch {

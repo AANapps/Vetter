@@ -1,11 +1,12 @@
 import { AppNotification, Exam, TestResult } from '../types';
 
-// Assessments already sent when the demo starts. The signed-in candidate (cand-001) has two to do;
+// Jobs' tests already sent when the demo starts (each assessment belongs to a job). The signed-in candidate (cand-001) has two to do;
 // other people are at every stage, so the company's tracking has something to show.
 export const SEED_EXAMS: Exam[] = [
   {
     id: 'exam-001',
-    title: 'Backend Engineer Assessment',
+    jobId: 'job-004',
+    title: 'Senior Backend Engineer, Ingestion',
     description: 'The three tests every backend hire at PrismaScale AI takes: SQL, API design and database design.',
     businessId: 'biz-001',
     companyName: 'PrismaScale AI',
@@ -27,7 +28,8 @@ export const SEED_EXAMS: Exam[] = [
   },
   {
     id: 'exam-002',
-    title: 'Analytics Graduate Programme',
+    jobId: 'job-006',
+    title: 'Analytics Graduate Programme 2027',
     description: 'FinTech Core uses this assessment to shortlist for its analytics graduate intake.',
     businessId: 'biz-002',
     companyName: 'FinTech Core',
@@ -45,7 +47,8 @@ export const SEED_EXAMS: Exam[] = [
   },
   {
     id: 'exam-003',
-    title: 'Frontend Take-home',
+    jobId: 'job-005',
+    title: 'Frontend Engineer',
     description: 'One test before a first interview for frontend roles at PrismaScale AI.',
     businessId: 'biz-001',
     companyName: 'PrismaScale AI',

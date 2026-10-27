@@ -1,6 +1,16 @@
 import React, { useState } from 'react';
-import { AssessmentTest, Business, Exam, User } from '../types';
-import { ExamTrackingRow, TRACKING_LABELS, TrackingStatus, VIA_LABELS, examFunnel, examLink, examTracking, totalMinutes } from '../lib/exams';
+import { AssessmentTest, Business, Exam, JobPosting, User } from '../types';
+import {
+  ExamTrackingRow,
+  TRACKING_LABELS,
+  TrackingStatus,
+  VIA_LABELS,
+  examFunnel,
+  examLink,
+  examTracking,
+  jobExam,
+  totalMinutes,
+} from '../lib/exams';
 import { versionTitle } from '../lib/testLevels';
 import {
   AudienceFilters,
@@ -16,18 +26,24 @@ import {
   matchesAudience,
 } from '../lib/audience';
 import { formatDuration } from './TestLeaderboard';
-import { ArrowLeft, Check, CheckCircle2, ChevronRight, Copy, Download, Link2, Mail, Plus, Search, Send, UserPlus } from 'lucide-react';
+import { JobForm } from './JobForm';
+import { JobCandidates } from './JobCandidates';
+import { ArrowLeft, Check, CheckCircle2, ChevronDown, Copy, Download, Link2, Mail, MapPin, Pencil, Plus, Search, Send, UserPlus } from 'lucide-react';
 
-interface AssessmentsProps {
-  // The company signed in; without one, the Vetter team sees every company's assessments
+interface BusinessJobsProps {
+  // The company signed in; without one, the Vetter team sees every company's jobs
   business?: Business;
+  businesses: Business[];
+  jobs: JobPosting[];
   exams: Exam[];
   tests: AssessmentTest[];
   candidates: User[];
-  // The assessment open, or null for the list
-  selectedId: string | null;
-  onSelect: (examId: string | null) => void;
-  onNew: () => void;
+  // The job open, or null for the list
+  selectedJobId: string | null;
+  onSelect: (jobId: string | null) => void;
+  onCreateJob: (job: JobPosting) => void;
+  onEditTests: (jobId: string) => void;
+  onUpdateJobRequirements: (jobId: string, requirements: JobPosting['requirements']) => void;
   onEmail: (examId: string, emails: string[]) => void;
   onInvite: (examId: string, candidateIds: string[]) => void;
   onOpenPerson: (personId: string) => void;
@@ -53,7 +69,7 @@ export const CopyLinkButton: React.FC<{ examId: string; label?: string; classNam
     try {
       await navigator.clipboard.writeText(examLink(examId));
     } catch {
-      // Clipboard blocked: the link is also shown in a selectable box on the assessment
+      // Clipboard blocked: the link is also shown in a selectable box on the job
       return;
     }
     setCopied(true);
@@ -67,18 +83,22 @@ export const CopyLinkButton: React.FC<{ examId: string; label?: string; classNam
   );
 };
 
-// A company's home: the assessment links it has sent, and how everyone is getting on with them
-export const Assessments: React.FC<AssessmentsProps> = (props) => {
-  const { business, exams: allExams, selectedId } = props;
-  const exams = business ? allExams.filter((e) => e.businessId === business.id) : allExams;
-  const selected = selectedId ? exams.find((e) => e.id === selectedId) : undefined;
-  return selected ? <AssessmentDetail {...props} exam={selected} /> : <AssessmentList {...props} exams={exams} />;
+// A company's jobs: each has its tests, the link to them, and how everyone sent them is getting on
+export const BusinessJobs: React.FC<BusinessJobsProps> = (props) => {
+  const { business, jobs: allJobs, exams, selectedJobId } = props;
+  const jobs = business ? allJobs.filter((j) => j.businessId === business.id) : allJobs;
+  const selected = selectedJobId ? jobs.find((j) => j.id === selectedJobId) : undefined;
+  const exam = selected && jobExam(selected, exams);
+  return selected && exam ? <JobDetail {...props} job={selected} exam={exam} /> : <JobList {...props} jobs={jobs} />;
 };
 
-const AssessmentList: React.FC<AssessmentsProps> = ({ business, exams, tests, candidates, onSelect, onNew, onOpenPerson }) => {
-  const tracked = exams.map((exam) => {
+const JobList: React.FC<BusinessJobsProps> = ({ business, businesses, jobs, exams, tests, candidates, onSelect, onCreateJob, onOpenPerson }) => {
+  const [isCreating, setIsCreating] = useState(false);
+  const tracked = jobs.flatMap((job) => {
+    const exam = jobExam(job, exams);
+    if (!exam) return [];
     const rows = examTracking(exam, candidates);
-    return { exam, rows, funnel: examFunnel(exam, rows, candidates) };
+    return [{ job, exam, rows, funnel: examFunnel(exam, rows, candidates) }];
   });
   const totals = tracked.reduce(
     (acc, t) => ({
@@ -88,14 +108,14 @@ const AssessmentList: React.FC<AssessmentsProps> = ({ business, exams, tests, ca
     }),
     { reached: 0, completed: 0, passed: 0 }
   );
-  // The latest finished tests across every assessment
+  // The latest finished tests across every job
   const activity = tracked
-    .flatMap(({ exam, rows }) =>
+    .flatMap(({ job, exam, rows }) =>
       rows.flatMap((row) =>
         exam.testIds.flatMap((testId) =>
           row.candidate.testResults
             .filter((r) => r.testId === testId && r.completedAt >= row.invitation.invitedAt)
-            .map((r) => ({ exam, row, testId, result: r }))
+            .map((r) => ({ job, exam, row, testId, result: r }))
         )
       )
     )
@@ -106,28 +126,37 @@ const AssessmentList: React.FC<AssessmentsProps> = ({ business, exams, tests, ca
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div className="space-y-1">
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Assessments</h1>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{business ? 'Your jobs' : 'All jobs'}</h1>
           <p className="text-sm text-slate-500 max-w-xl">
-            Send candidates a link. They take the tests, and every score lands here as it comes in.
+            Each job has its tests. Send them to candidates, and every score lands on the job as it comes in.
           </p>
         </div>
         <button
-          onClick={onNew}
+          onClick={() => setIsCreating(true)}
           className="self-start px-4 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg flex items-center gap-2 shadow-xs"
         >
           <Plus className="w-4 h-4" />
-          New assessment
+          Post a job
         </button>
       </div>
 
-      {exams.length === 0 ? (
-        <HowItWorks onNew={onNew} />
+      {jobs.length === 0 ? (
+        <div className="bg-white border border-dashed border-slate-300 rounded-2xl p-8 sm:p-12 text-center space-y-4">
+          <p className="text-sm text-slate-600">Post a job, pick its tests, then send them to candidates or share the link.</p>
+          <button
+            onClick={() => setIsCreating(true)}
+            className="px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg inline-flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Post your first job
+          </button>
+        </div>
       ) : (
         <>
           <dl className="grid grid-cols-2 md:grid-cols-4 gap-px bg-slate-200 rounded-xl overflow-hidden border border-slate-200">
             {[
-              { label: 'Assessments', value: exams.length },
-              { label: 'Candidates reached', value: totals.reached },
+              { label: 'Open jobs', value: jobs.filter((j) => j.status === 'active').length },
+              { label: 'Candidates sent tests', value: totals.reached },
               { label: 'Finished', value: totals.completed },
               { label: 'Passed', value: totals.passed },
             ].map((s) => (
@@ -140,28 +169,37 @@ const AssessmentList: React.FC<AssessmentsProps> = ({ business, exams, tests, ca
 
           <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] gap-6 items-start">
             <ul className="space-y-3">
-              {tracked.map(({ exam, funnel }) => (
-                <li key={exam.id}>
+              {tracked.map(({ job, exam, funnel }) => (
+                <li key={job.id}>
                   <div
                     role="button"
                     tabIndex={0}
-                    onClick={() => onSelect(exam.id)}
-                    onKeyDown={(e) => e.key === 'Enter' && onSelect(exam.id)}
+                    onClick={() => onSelect(job.id)}
+                    onKeyDown={(e) => e.key === 'Enter' && onSelect(job.id)}
                     className="group bg-white border border-slate-200 hover:border-indigo-300 rounded-xl p-5 space-y-4 cursor-pointer transition-colors"
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="min-w-0">
-                        {!business && <div className="text-[11px] font-semibold text-indigo-700">{exam.companyName}</div>}
-                        <div className="text-base font-bold text-slate-900 group-hover:text-indigo-700">{exam.title}</div>
+                        {!business && <div className="text-[11px] font-semibold text-indigo-700">{job.companyName}</div>}
+                        <div className="flex items-center gap-2">
+                          <span className="text-base font-bold text-slate-900 group-hover:text-indigo-700">{job.title}</span>
+                          {job.status !== 'active' && (
+                            <span className="text-[10px] font-semibold uppercase text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">{job.status}</span>
+                          )}
+                        </div>
                         <div className="text-xs text-slate-500 mt-0.5">
-                          {exam.testIds.length} {exam.testIds.length === 1 ? 'test' : 'tests'} &middot; ~{totalMinutes(exam, tests)} min &middot; pass{' '}
-                          {exam.passingScore} &middot; {exam.dueDate ? `due ${formatDay(exam.dueDate)}` : 'no deadline'}
+                          {job.location} &middot; {job.workType} &middot;{' '}
+                          {exam.testIds.length === 0
+                            ? 'no tests yet'
+                            : `${exam.testIds.length} ${exam.testIds.length === 1 ? 'test' : 'tests'} · ~${totalMinutes(exam, tests)} min · pass ${exam.passingScore}`}
                         </div>
                       </div>
-                      <CopyLinkButton
-                        examId={exam.id}
-                        className="shrink-0 px-3 py-1.5 text-xs text-slate-700 bg-white border border-slate-300 hover:border-indigo-400 rounded-lg"
-                      />
+                      {exam.testIds.length > 0 && (
+                        <CopyLinkButton
+                          examId={exam.id}
+                          className="shrink-0 px-3 py-1.5 text-xs text-slate-700 bg-white border border-slate-300 hover:border-indigo-400 rounded-lg"
+                        />
+                      )}
                     </div>
                     <FunnelBar funnel={funnel} compact />
                   </div>
@@ -175,7 +213,7 @@ const AssessmentList: React.FC<AssessmentsProps> = ({ business, exams, tests, ca
                 <p className="text-xs text-slate-500">Nothing handed in yet.</p>
               ) : (
                 <ul className="space-y-3">
-                  {activity.map(({ exam, row, testId, result }) => {
+                  {activity.map(({ job, exam, row, testId, result }) => {
                     const test = tests.find((t) => t.id === testId);
                     const pass = result.score >= (test?.passingScore ?? exam.passingScore);
                     return (
@@ -186,7 +224,7 @@ const AssessmentList: React.FC<AssessmentsProps> = ({ business, exams, tests, ca
                             {row.candidate.name}
                           </button>
                           <div className="text-slate-500 truncate">
-                            {test ? test.title : testId} &middot; {exam.title}
+                            {test ? test.title : testId} &middot; {job.title}
                           </div>
                         </div>
                         <span className={`font-mono font-bold tabular-nums ${pass ? 'text-emerald-700' : 'text-rose-700'}`}>{result.score}</span>
@@ -199,35 +237,23 @@ const AssessmentList: React.FC<AssessmentsProps> = ({ business, exams, tests, ca
           </div>
         </>
       )}
+
+      {isCreating && (
+        <JobForm
+          businesses={business ? [business] : businesses}
+          postedBy={business ? 'company' : 'vetter'}
+          tests={tests}
+          onSave={(job) => {
+            onCreateJob(job);
+            setIsCreating(false);
+            onSelect(job.id);
+          }}
+          onCancel={() => setIsCreating(false)}
+        />
+      )}
     </div>
   );
 };
-
-const HowItWorks: React.FC<{ onNew: () => void }> = ({ onNew }) => (
-  <div className="bg-white border border-dashed border-slate-300 rounded-2xl p-8 sm:p-12 text-center space-y-6">
-    <ol className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-left max-w-3xl mx-auto">
-      {[
-        { icon: Plus, title: 'Pick tests', text: "Choose from Vetter's tests or your own." },
-        { icon: Link2, title: 'Send the link', text: 'Email it or paste it anywhere: job ads, careers pages, chats.' },
-        { icon: CheckCircle2, title: 'See results', text: 'Track who opened it, who finished and who passed.' },
-      ].map((s, i) => (
-        <li key={s.title} className="space-y-2">
-          <div className="w-9 h-9 rounded-full bg-indigo-50 text-indigo-700 flex items-center justify-center">
-            <s.icon className="w-4 h-4" />
-          </div>
-          <div className="text-sm font-bold text-slate-900">
-            {i + 1}. {s.title}
-          </div>
-          <p className="text-xs text-slate-500">{s.text}</p>
-        </li>
-      ))}
-    </ol>
-    <button onClick={onNew} className="px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg inline-flex items-center gap-2">
-      <Plus className="w-4 h-4" />
-      Create your first assessment
-    </button>
-  </div>
-);
 
 const FunnelBar: React.FC<{ funnel: ReturnType<typeof examFunnel>; compact?: boolean }> = ({ funnel, compact }) => {
   const stages = [
@@ -274,12 +300,15 @@ const rank = (a: ExamTrackingRow, b: ExamTrackingRow) => {
   return b.progress.done - a.progress.done;
 };
 
-const AssessmentDetail: React.FC<AssessmentsProps & { exam: Exam }> = ({
+const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting; exam: Exam }> = ({
+  job,
   exam,
   business,
   tests,
   candidates,
   onSelect,
+  onEditTests,
+  onUpdateJobRequirements,
   onEmail,
   onInvite,
   onOpenPerson,
@@ -308,7 +337,7 @@ const AssessmentDetail: React.FC<AssessmentsProps & { exam: Exam }> = ({
     const csv = [header, ...lines].map((l) => l.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-    a.download = `${exam.title.replace(/[^\w]+/g, '-').toLowerCase()}-results.csv`;
+    a.download = `${job.title.replace(/[^\w]+/g, '-').toLowerCase()}-results.csv`;
     a.click();
     URL.revokeObjectURL(a.href);
   };
@@ -317,31 +346,55 @@ const AssessmentDetail: React.FC<AssessmentsProps & { exam: Exam }> = ({
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-6">
       <button onClick={() => onSelect(null)} className="text-xs font-semibold text-slate-500 hover:text-indigo-700 flex items-center gap-1">
         <ArrowLeft className="w-3.5 h-3.5" />
-        All assessments
+        All jobs
       </button>
 
       <div className="space-y-2">
-        {!business && <div className="text-xs font-semibold text-indigo-700">{exam.companyName}</div>}
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{exam.title}</h1>
-        <p className="text-sm text-slate-600 max-w-2xl">{exam.description}</p>
-        <div className="flex flex-wrap items-center gap-2 pt-1">
-          {examTests.map((t, i) => (
-            <button
-              key={t.id}
-              onClick={() => onOpenTest(t.id)}
-              className="text-xs px-2.5 py-1 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 rounded-full text-slate-700"
-            >
-              {i + 1}. {versionTitle(t)}
-            </button>
-          ))}
-          <span className="text-xs text-slate-500">
-            &middot; ~{totalMinutes(exam, tests)} min &middot; pass mark {exam.passingScore}
-            {examTests.length > 1 ? ' average' : ''} &middot; {exam.dueDate ? `due ${formatDay(exam.dueDate)}` : 'no deadline'}
+        {!business && <div className="text-xs font-semibold text-indigo-700">{job.companyName}</div>}
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{job.title}</h1>
+        <p className="text-xs text-slate-500 flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="flex items-center gap-1">
+            <MapPin className="w-3 h-3" />
+            {job.location}
           </span>
-        </div>
+          <span>&middot; {job.workType}</span>
+          <span>&middot; {job.salaryRange}</span>
+          {job.closingDate && <span>&middot; closes {formatDay(job.closingDate)}</span>}
+          <span>&middot; {job.applicantCount} applicants</span>
+        </p>
+        <p className="text-sm text-slate-600 max-w-2xl">{job.description}</p>
       </div>
 
-      <SharePanel exam={exam} candidates={candidates} onEmail={onEmail} onInvite={onInvite} />
+      <section className="bg-white border border-slate-200 rounded-xl p-5 space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-sm font-bold text-slate-900">Tests for this job</h2>
+          <button onClick={() => onEditTests(job.id)} className="text-xs font-semibold text-indigo-700 hover:text-indigo-900 flex items-center gap-1.5">
+            {examTests.length === 0 ? <Plus className="w-3.5 h-3.5" /> : <Pencil className="w-3.5 h-3.5" />}
+            {examTests.length === 0 ? 'Add tests' : 'Change tests'}
+          </button>
+        </div>
+        {examTests.length === 0 ? (
+          <p className="text-xs text-slate-500">Add the tests candidates should take for this job, then send them out.</p>
+        ) : (
+          <div className="flex flex-wrap items-center gap-2">
+            {examTests.map((t, i) => (
+              <button
+                key={t.id}
+                onClick={() => onOpenTest(t.id)}
+                className="text-xs px-2.5 py-1 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 rounded-full text-slate-700"
+              >
+                {i + 1}. {versionTitle(t)}
+              </button>
+            ))}
+            <span className="text-xs text-slate-500">
+              &middot; ~{totalMinutes(exam, tests)} min &middot; pass mark {exam.passingScore}
+              {examTests.length > 1 ? ' average' : ''} &middot; {exam.dueDate ? `due ${formatDay(exam.dueDate)}` : 'no deadline'}
+            </span>
+          </div>
+        )}
+      </section>
+
+      {examTests.length > 0 && <SharePanel exam={exam} candidates={candidates} onEmail={onEmail} onInvite={onInvite} />}
 
       <section className="bg-white border border-slate-200 rounded-xl p-5">
         <FunnelBar funnel={funnel} />
@@ -377,7 +430,7 @@ const AssessmentDetail: React.FC<AssessmentsProps & { exam: Exam }> = ({
 
         {shown.length === 0 ? (
           <p className="px-5 py-8 text-sm text-slate-500 text-center">
-            {rows.length === 0 ? 'Nobody has opened the link yet. Send it above.' : 'Nobody here.'}
+            {rows.length === 0 ? "Nobody has been sent this job's tests yet. Send them above." : 'Nobody here.'}
           </p>
         ) : (
           <div className="overflow-x-auto">
@@ -465,7 +518,58 @@ const AssessmentDetail: React.FC<AssessmentsProps & { exam: Exam }> = ({
           </div>
         )}
       </section>
+
+      <SkillRanking job={job} candidates={candidates} onUpdateJobRequirements={onUpdateJobRequirements} />
     </div>
+  );
+};
+
+// Tucked away under the results: the skill scores the job asks for, and Vetter's candidates ranked against them
+const SkillRanking: React.FC<{
+  job: JobPosting;
+  candidates: User[];
+  onUpdateJobRequirements: BusinessJobsProps['onUpdateJobRequirements'];
+}> = ({ job, candidates, onUpdateJobRequirements }) => {
+  const [open, setOpen] = useState(false);
+  const setMin = (index: number, minScore: number) =>
+    onUpdateJobRequirements(
+      job.id,
+      job.requirements.map((r, i) => (i === index ? { ...r, minScore } : r))
+    );
+  return (
+    <section className="bg-white border border-slate-200 rounded-xl">
+      <button onClick={() => setOpen(!open)} aria-expanded={open} className="w-full px-5 py-4 flex items-center justify-between text-left">
+        <span>
+          <span className="block text-sm font-bold text-slate-900">Skill scores and best matches</span>
+          <span className="block text-xs text-slate-500">The minimum scores this job asks for, and who on Vetter fits them best</span>
+        </span>
+        <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="px-5 pb-5 space-y-5 border-t border-slate-100 pt-4">
+          <div className="space-y-3">
+            {job.requirements.map((req, i) => (
+              <div key={req.skillName} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs">
+                <span className="sm:w-48 font-semibold text-slate-900">
+                  {req.skillName} <span className="font-normal text-slate-500">({req.importance})</span>
+                </span>
+                <input
+                  type="range"
+                  min={50}
+                  max={98}
+                  value={req.minScore}
+                  onChange={(e) => setMin(i, Number(e.target.value))}
+                  aria-label={`${req.skillName}: minimum score`}
+                  className="flex-1 accent-indigo-600"
+                />
+                <span className="font-mono tabular-nums text-slate-900 w-14 text-right">min {req.minScore}</span>
+              </div>
+            ))}
+          </div>
+          <JobCandidates key={job.id} job={job} allCandidates={candidates} />
+        </div>
+      )}
+    </section>
   );
 };
 
@@ -473,8 +577,8 @@ const AssessmentDetail: React.FC<AssessmentsProps & { exam: Exam }> = ({
 const SharePanel: React.FC<{
   exam: Exam;
   candidates: User[];
-  onEmail: AssessmentsProps['onEmail'];
-  onInvite: AssessmentsProps['onInvite'];
+  onEmail: BusinessJobsProps['onEmail'];
+  onInvite: BusinessJobsProps['onInvite'];
 }> = ({ exam, candidates, onEmail, onInvite }) => {
   const [mode, setMode] = useState<'email' | 'vetter'>('vetter');
   const [emailsText, setEmailsText] = useState('');
@@ -529,7 +633,7 @@ const SharePanel: React.FC<{
       <div className="space-y-2">
         <label htmlFor="exam-link" className="flex items-center gap-1.5 text-sm font-bold text-slate-900">
           <Link2 className="w-4 h-4 text-indigo-600" />
-          Assessment link
+          Link to this job's tests
         </label>
         <div className="flex gap-2">
           <input

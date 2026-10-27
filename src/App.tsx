@@ -17,8 +17,9 @@ import { DiscoverFeed } from './components/DiscoverFeed';
 import { GlobalSearch } from './components/GlobalSearch';
 import { PersonProfileModal } from './components/PersonProfileModal';
 import { ExamPage } from './components/ExamPage';
-import { Assessments } from './components/Assessments';
-import { CreateAssessment } from './components/CreateAssessment';
+import { BusinessJobs } from './components/BusinessJobs';
+import { JobTestsEditor } from './components/JobTestsEditor';
+import { newJobExam } from './lib/exams';
 import { CandidateHome } from './components/CandidateHome';
 import { CheckCircle2 } from 'lucide-react';
 
@@ -29,9 +30,7 @@ const CANDIDATE_SECTIONS: Partial<Record<AppTab, CandidateSection>> = {
 };
 
 const BUSINESS_SECTIONS: Partial<Record<AppTab, BusinessSection>> = {
-  'business-jobs': 'jobs',
   'business-tests': 'tests',
-  'business-candidates': 'candidates',
 };
 
 // Vetter's own talent team, who post and fill jobs on companies' behalf
@@ -57,7 +56,7 @@ const idFromHash = (kind: 'tests' | 'jobs' | 'exams') => {
 // A company's link to a test carries ?ref=<business id>, like an affiliate link
 const refFromHash = () => new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('ref');
 
-// Home is the assessments companies sent you; a company's home is the assessments it has sent
+// Home is the tests companies sent you; a company starts on its jobs
 const initialTab = (): AppTab => (idFromHash('jobs') ? 'jobs' : idFromHash('tests') ? 'tests' : 'home');
 
 export default function App() {
@@ -159,15 +158,15 @@ export default function App() {
     if (!invitation || !invitation.openedAt) updateInvitation(examPageId, candidateRef.current.id, { openedAt: new Date().toISOString() });
   }, [examPageId, activeRole]);
 
-  // Companies opening an assessment link land on its results
-  const [selectedAssessmentId, setSelectedAssessmentId] = useState<string | null>(null);
+  // Companies opening a job's test link land on that job's results
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   useEffect(() => {
     if (!examPageId || activeRole === 'candidate') return;
-    setSelectedAssessmentId(examPageId);
-    setCurrentTab('business-assessments');
+    setSelectedJobId(examsRef.current.find((e) => e.id === examPageId)?.jobId ?? null);
+    setCurrentTab('business-jobs');
   }, [examPageId, activeRole]);
-  // The new-assessment flow, with any tests already picked
-  const [newAssessment, setNewAssessment] = useState<{ testIds: string[] } | null>(null);
+  // Choosing a job's tests: the job (or every job, when sending a test from its page) and any tests to add
+  const [editingTests, setEditingTests] = useState<{ jobId?: string; addTestIds: string[] } | null>(null);
 
   // When a candidate takes a job's attached test, the job they're applying to
   const [activeTestJobId, setActiveTestJobId] = useState<string | null>(null);
@@ -193,7 +192,7 @@ export default function App() {
       setJobPageId(null);
       setExamPageId(null);
     }
-    if (tab === 'business-assessments') setSelectedAssessmentId(null);
+    if (tab === 'business-jobs') setSelectedJobId(null);
     setCurrentTab(tab);
   };
 
@@ -364,8 +363,22 @@ export default function App() {
     setActiveTest(null);
   };
 
+  // A new job comes with its own tests to send, starting from the test attached in the form
   const handleCreateJob = (newJob: JobPosting) => {
     setJobs((prev) => [newJob, ...prev]);
+    setExams((prev) => [newJobExam(newJob), ...prev]);
+  };
+
+  // Saving a job's tests; the first one is what candidates see on the job listing
+  const handleSaveJobTests = (exam: Exam) => {
+    setExams((prev) => prev.map((e) => (e.id === exam.id ? exam : e)));
+    const first = tests.find((t) => t.id === exam.testIds[0]);
+    if (first)
+      setJobs((prev) =>
+        prev.map((j) =>
+          j.id === exam.jobId ? { ...j, attachedTestId: first.id, attachedTestTitle: first.title, attachedTestPassingScore: exam.passingScore } : j
+        )
+      );
   };
 
   const handleUpdateJobRequirements = (jobId: string, requirements: JobPosting['requirements']) => {
@@ -390,7 +403,7 @@ export default function App() {
       return [
         {
           id: n.id,
-          text: `${exam.companyName} invited you to take ${exam.title}`,
+          text: `${exam.companyName} sent you the tests for ${exam.title}`,
           detail: `${exam.testIds.length} tests${exam.dueDate ? ` · due ${new Date(exam.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : ''}`,
           when: new Date(n.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
           read: n.read,
@@ -469,7 +482,7 @@ export default function App() {
                   ? businesses.find((b) => b.id === candidate.testReferrals?.filter((r) => r.testId === testPageTest.id).at(-1)?.businessId)
                   : undefined
               }
-              onSend={activeRole === 'candidate' ? undefined : () => setNewAssessment({ testIds: [testPageTest.id] })}
+              onSend={activeRole === 'candidate' ? undefined : () => setEditingTests({ addTestIds: [testPageTest.id] })}
               onStartTest={(test) => setActiveTest(test)}
               onOpenJob={activeRole === 'candidate' ? openJobPage : undefined}
               onOpenTest={openTestPage}
@@ -542,18 +555,23 @@ export default function App() {
             />
           )}
 
-          {!detailPage && activeRole !== 'candidate' && currentTab === 'business-assessments' && (
-            <Assessments
+          {!detailPage && activeRole !== 'candidate' && currentTab === 'business-jobs' && (
+            <BusinessJobs
+              key={activeRole}
               business={activeRole === 'admin' ? undefined : recruiterBusiness}
+              businesses={businesses}
+              jobs={jobs}
               exams={exams}
               tests={tests}
               candidates={allCandidates}
-              selectedId={selectedAssessmentId}
+              selectedJobId={selectedJobId}
               onSelect={(id) => {
-                setSelectedAssessmentId(id);
+                setSelectedJobId(id);
                 window.scrollTo(0, 0);
               }}
-              onNew={() => setNewAssessment({ testIds: [] })}
+              onCreateJob={handleCreateJob}
+              onEditTests={(jobId) => setEditingTests({ jobId, addTestIds: [] })}
+              onUpdateJobRequirements={handleUpdateJobRequirements}
               onEmail={handleEmailExam}
               onInvite={handleInviteToExam}
               onOpenPerson={setProfilePersonId}
@@ -565,16 +583,14 @@ export default function App() {
             <RecruiterPortal
               key={activeRole}
               section={businessSection}
-              onNavigate={(section) => goToTab(`business-${section}`)}
               onOpenTest={openTestPage}
               recruiter={staffUser}
               business={activeRole === 'admin' ? undefined : recruiterBusiness}
               businesses={businesses}
               jobs={jobs}
+              exams={exams}
               allCandidates={allCandidates}
               tests={tests}
-              onCreateJob={handleCreateJob}
-              onUpdateJobRequirements={handleUpdateJobRequirements}
               onCreateCustomAssessment={handleCreateCustomAssessment}
             />
           )}
@@ -591,20 +607,22 @@ export default function App() {
         </footer>
       </div>
 
-      {newAssessment && (
-        <CreateAssessment
-          businesses={activeRole === 'admin' ? businesses : [recruiterBusiness]}
-          createdBy={activeRole === 'admin' ? 'vetter' : 'company'}
+      {editingTests && (
+        <JobTestsEditor
+          jobs={jobs.filter((j) =>
+            editingTests.jobId ? j.id === editingTests.jobId : activeRole === 'admin' || j.businessId === recruiterBusiness.id
+          )}
+          exams={exams}
           tests={tests}
-          initialTestIds={newAssessment.testIds}
-          onCreate={(exam) => {
-            setExams((prev) => [exam, ...prev]);
-            setNewAssessment(null);
-            goToTab('business-assessments');
-            setSelectedAssessmentId(exam.id);
+          addTestIds={editingTests.addTestIds}
+          onSave={(exam) => {
+            handleSaveJobTests(exam);
+            setEditingTests(null);
+            goToTab('business-jobs');
+            setSelectedJobId(exam.jobId ?? null);
             window.scrollTo(0, 0);
           }}
-          onCancel={() => setNewAssessment(null)}
+          onCancel={() => setEditingTests(null)}
         />
       )}
 

@@ -17,7 +17,7 @@ interface TestPageProps {
   currentCandidateId?: string;
   // The company whose link the candidate came from
   referredByCompany?: Business;
-  // Companies and the Vetter team send the test to candidates as an assessment link
+  // Companies and the Vetter team add the test to one of their jobs, then send it from there
   onSend?: () => void;
   onStartTest: (test: AssessmentTest) => void;
   onOpenJob?: (jobId: string) => void;
@@ -104,7 +104,7 @@ export const TestPage: React.FC<TestPageProps> = ({
               className="px-4 py-2.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors flex items-center gap-2 shadow-xs shrink-0 self-start"
             >
               <Link2 className="w-3.5 h-3.5" />
-              <span>Send to candidates</span>
+              <span>Add to a job</span>
             </button>
           )}
 

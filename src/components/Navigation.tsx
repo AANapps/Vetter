@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { UserRole } from '../types';
-import { ArrowLeftRight, Bell, Briefcase, ChevronDown, ClipboardCheck, Compass, House, Link2, Search, Users } from 'lucide-react';
+import { ArrowLeftRight, Bell, Briefcase, ChevronDown, ClipboardCheck, Compass, House, Search } from 'lucide-react';
 
 export type AppTab =
   | 'home'
@@ -10,13 +10,11 @@ export type AppTab =
   | 'tests'
   | 'companies'
   | 'business-jobs'
-  | 'business-tests'
-  | 'business-assessments'
-  | 'business-candidates';
+  | 'business-tests';
 
 type TabIcon = React.ComponentType<{ className?: string }>;
 
-// Everything starts from a company's assessment link: companies send them, candidates take them
+// Companies have jobs and tests: each job's tests go out to candidates, who take them
 export const NAV_TABS: Record<'candidate' | 'recruiter', { id: AppTab; label: string; icon: TabIcon }[]> = {
   candidate: [
     { id: 'home', label: 'Home', icon: House },
@@ -25,10 +23,8 @@ export const NAV_TABS: Record<'candidate' | 'recruiter', { id: AppTab; label: st
     { id: 'discover', label: 'Discover', icon: Compass },
   ],
   recruiter: [
-    { id: 'business-assessments', label: 'Assessments', icon: Link2 },
-    { id: 'business-tests', label: 'Tests', icon: ClipboardCheck },
     { id: 'business-jobs', label: 'Jobs', icon: Briefcase },
-    { id: 'business-candidates', label: 'Candidates', icon: Users },
+    { id: 'business-tests', label: 'Tests', icon: ClipboardCheck },
   ],
 };
 
