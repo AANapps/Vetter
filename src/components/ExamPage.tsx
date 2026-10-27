@@ -14,7 +14,7 @@ interface ExamPageProps {
   onBack: () => void;
 }
 
-// What an assessment link opens: who sent it, the tests to take, and the result once they're done
+// What an invite to tests opens: who sent it, the tests to take, and the result once they're done
 export const ExamPage: React.FC<ExamPageProps> = ({ exam, business, tests, candidate, onStartTest, onOpenTest, onBack }) => {
   const progress = examProgress(exam, candidate);
   const examTests = exam.testIds.map((id) => tests.find((t) => t.id === id)).filter((t): t is AssessmentTest => !!t);
@@ -34,7 +34,7 @@ export const ExamPage: React.FC<ExamPageProps> = ({ exam, business, tests, candi
           <img src={business.logo} alt="" referrerPolicy="no-referrer" className="w-16 h-16 rounded-2xl object-cover bg-slate-100 mx-auto shadow-xs" />
         )}
         <div className="text-sm text-slate-500">
-          <span className="font-semibold text-slate-900">{exam.companyName}</span> sent you
+          <span className="font-semibold text-slate-900">{exam.companyName}</span> invited you to take the tests for
         </div>
         <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">{exam.title}</h1>
         <p className="text-sm text-slate-600 max-w-lg mx-auto">{exam.description}</p>

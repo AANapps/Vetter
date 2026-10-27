@@ -404,7 +404,7 @@ export default function App() {
       return [
         {
           id: n.id,
-          text: `${exam.companyName} sent you the tests for ${exam.title}`,
+          text: `${exam.companyName} invited you to take the tests for ${exam.title}`,
           detail: `${exam.testIds.length} tests${exam.dueDate ? ` · due ${new Date(exam.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : ''}`,
           when: new Date(n.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
           read: n.read,

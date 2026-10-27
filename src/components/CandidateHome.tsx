@@ -26,13 +26,13 @@ export function dueLabel(dueDate?: string) {
   return days === 1 ? 'Due tomorrow' : `Due in ${days} days`;
 }
 
-// A pasted assessment link, or just its id
+// A pasted invite link, or just its id
 const examIdFromLink = (text: string) => {
   const match = text.trim().match(/#\/exams\/([^?\s]+)/);
   return match ? decodeURIComponent(match[1]) : text.trim();
 };
 
-// A candidate's home: the assessments companies sent them, what's left to do and how they did
+// A candidate's home: the invites to tests companies sent them, what's left to do and how they did
 export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, exams, tests, businesses, onOpenExam, onStartTest, onOpenTest, onGoTo }) => {
   const items = examsFor(candidate, exams);
   const open = items.filter((i) => i.progress.score === undefined);
@@ -65,7 +65,7 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, exams, 
         <p className="text-sm text-slate-500">
           {open.length === 0
             ? 'Take a test any time to build your profile. Companies see your verified scores.'
-            : `${open.length} ${open.length === 1 ? 'assessment' : 'assessments'} from companies waiting for you.`}
+            : `${open.length} ${open.length === 1 ? 'invite' : 'invites'} to tests from companies waiting for you.`}
         </p>
       </div>
 
@@ -170,7 +170,7 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, exams, 
             Open
           </button>
         </div>
-        {linkError && <p className="text-xs font-semibold text-rose-700">That link doesn't match an assessment. Check it and try again.</p>}
+        {linkError && <p className="text-xs font-semibold text-rose-700">That link doesn't match an invite to tests. Check it and try again.</p>}
       </form>
 
       {finished.length > 0 && (
