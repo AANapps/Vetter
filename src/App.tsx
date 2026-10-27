@@ -31,6 +31,7 @@ const CANDIDATE_SECTIONS: Partial<Record<AppTab, CandidateSection>> = {
 
 const BUSINESS_SECTIONS: Partial<Record<AppTab, BusinessSection>> = {
   'business-tests': 'tests',
+  'business-candidates': 'candidates',
 };
 
 // Vetter's own talent team, who post and fill jobs on companies' behalf

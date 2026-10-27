@@ -3,10 +3,11 @@ import React, { useState } from 'react';
 import { User, JobPosting, AssessmentTest, Business, Exam } from '../types';
 import { getTestStats } from '../lib/leaderboard';
 import { jobExam } from '../lib/exams';
+import { JobCandidates } from './JobCandidates';
 import { CheckCircle2, Check, Award } from 'lucide-react';
 
-// Jobs have their own page (BusinessJobs); this is the company's tests
-export type BusinessSection = 'tests';
+// Jobs have their own page (BusinessJobs); this is the company's tests and the candidates ranked for each job
+export type BusinessSection = 'tests' | 'candidates';
 
 interface RecruiterPortalProps {
   section: BusinessSection;
@@ -39,6 +40,9 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   const jobs = isVetter ? allJobs : allJobs.filter((j) => j.businessId === business.id);
   const companyTests = isVetter ? [] : tests.filter((t) => t.type === 'custom' && t.businessId === business.id);
   const vetterTests = tests.filter((t) => t.type === 'standard' && isMainVersion(t));
+
+  const [selectedJobId, setSelectedJobId] = useState<string>(jobs[0]?.id || '');
+  const selectedJob = jobs.find((j) => j.id === selectedJobId) || jobs[0];
 
   // Custom Assessment Builder state
   const [customTestTitle, setCustomTestTitle] = useState('');
@@ -142,6 +146,31 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Candidates */}
+      {section === 'candidates' && !selectedJob && (
+        <p className="text-xs text-slate-500">Post a job to start seeing ranked candidates.</p>
+      )}
+      {section === 'candidates' && selectedJob && (
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <h2 className="text-base font-bold text-slate-900">Candidates by Job</h2>
+            <select
+              value={selectedJob.id}
+              onChange={(e) => setSelectedJobId(e.target.value)}
+              aria-label="Job"
+              className="px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 font-semibold shadow-2xs max-w-full"
+            >
+              {jobs.map((j) => (
+                <option key={j.id} value={j.id}>
+                  {isVetter ? `${j.companyName}: ${j.title}` : j.title}
+                </option>
+              ))}
+            </select>
+          </div>
+          <JobCandidates key={selectedJob.id} job={selectedJob} allCandidates={allCandidates} />
+        </div>
+      )}
 
       {/* Tests */}
       {section === 'tests' && (

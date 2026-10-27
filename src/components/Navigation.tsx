@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { UserRole } from '../types';
-import { ArrowLeftRight, Bell, Briefcase, ChevronDown, ClipboardCheck, Compass, House, Search } from 'lucide-react';
+import { ArrowLeftRight, Bell, Briefcase, ChevronDown, ClipboardCheck, Compass, House, Search, Users } from 'lucide-react';
 
 export type AppTab =
   | 'home'
@@ -10,11 +10,12 @@ export type AppTab =
   | 'tests'
   | 'companies'
   | 'business-jobs'
-  | 'business-tests';
+  | 'business-tests'
+  | 'business-candidates';
 
 type TabIcon = React.ComponentType<{ className?: string }>;
 
-// Companies have jobs and tests: each job's tests go out to candidates, who take them
+// Companies have jobs, tests and candidates: each job's tests go out to candidates, who take them
 export const NAV_TABS: Record<'candidate' | 'recruiter', { id: AppTab; label: string; icon: TabIcon }[]> = {
   candidate: [
     { id: 'home', label: 'Home', icon: House },
@@ -25,6 +26,7 @@ export const NAV_TABS: Record<'candidate' | 'recruiter', { id: AppTab; label: st
   recruiter: [
     { id: 'business-jobs', label: 'Jobs', icon: Briefcase },
     { id: 'business-tests', label: 'Tests', icon: ClipboardCheck },
+    { id: 'business-candidates', label: 'Candidates', icon: Users },
   ],
 };
 
