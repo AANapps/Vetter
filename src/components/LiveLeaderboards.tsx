@@ -20,7 +20,7 @@ interface LiveLeaderboardsProps {
   onOpenTest: (testId: string) => void;
 }
 
-// Discover's headline: the busiest tests' leaderboards, moving as people take them
+// Top of the Discover column on Home: the busiest tests' leaderboards, moving as people take them
 export const LiveLeaderboards: React.FC<LiveLeaderboardsProps> = ({ tests, allCandidates, viewerId, onOpenTest }) => {
   const trending = trendingTests(allCandidates, tests, BOARD_COUNT).map((t) => t.test);
   const boards = trending.length > 0 ? trending : tests.filter((t) => t.type === 'standard' && isMainVersion(t)).slice(0, BOARD_COUNT);

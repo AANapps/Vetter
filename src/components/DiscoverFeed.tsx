@@ -118,126 +118,121 @@ export const DiscoverFeed: React.FC<DiscoverFeedProps> = ({
       return { ...prev, posts: prev.posts.filter((p) => p.id !== postId), comments };
     });
 
+  // One narrow column beside Home: leaderboards and who to follow first, then the feed
   return (
-    <div className="max-w-6xl mx-auto px-6 py-8 space-y-6">
+    <div className="space-y-4 min-w-0">
       <div>
-        <h1 className="text-xl font-bold text-slate-900 tracking-tight">Discover</h1>
-        <p className="text-xs text-slate-500 mt-1">
-          Live leaderboards, and what people on Vetter are passing, sharing and hiring for.
-        </p>
+        <h2 className="text-base font-bold text-slate-900 tracking-tight">Discover</h2>
+        <p className="text-xs text-slate-500 mt-0.5">What people on Vetter are passing, sharing and hiring for.</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-6 items-start">
-        <div className="space-y-4 min-w-0">
-          <LiveLeaderboards tests={tests} allCandidates={allCandidates} viewerId={candidate.id} onOpenTest={onOpenTest} />
+      <LiveLeaderboards tests={tests} allCandidates={allCandidates} viewerId={candidate.id} onOpenTest={onOpenTest} />
 
-          {/* Composer */}
-          <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3 shadow-xs">
-            <div className="flex gap-3">
-              <Avatar src={candidate.avatarUrl} />
-              <textarea
-                value={draft}
-                onChange={(e) => setDraft(e.target.value.slice(0, MAX_POST_LENGTH))}
-                placeholder="Share a win, a tip, or ask the community something..."
-                rows={2}
-                className="flex-1 min-w-0 resize-none text-sm text-slate-900 placeholder-slate-400 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500"
-              />
-            </div>
-            <div className="flex flex-wrap items-center justify-between gap-3 pl-0 sm:pl-13">
-              <select
-                value={draftTestId}
-                onChange={(e) => setDraftTestId(e.target.value)}
-                disabled={shareableTests.length === 0}
-                className="text-xs text-slate-700 bg-white border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-indigo-500 max-w-full"
-              >
-                <option value="">{shareableTests.length === 0 ? 'Take a test to share a result' : 'Attach a result (optional)'}</option>
-                {shareableTests.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.title} · {getBestTestScore(candidate, t.id)}/100
-                  </option>
-                ))}
-              </select>
-              <div className="flex items-center gap-3 ml-auto">
-                {draft.length > MAX_POST_LENGTH - 80 && (
-                  <span className="text-[11px] font-mono text-slate-400 tabular-nums">{MAX_POST_LENGTH - draft.length}</span>
-                )}
-                <button
-                  onClick={publishPost}
-                  disabled={!draft.trim()}
-                  className="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors shadow-xs"
-                >
-                  Post
-                </button>
-              </div>
-            </div>
-          </div>
+      <DiscoverSidebar
+        viewer={candidate}
+        allCandidates={allCandidates}
+        tests={tests}
+        businesses={businesses}
+        following={social.following}
+        onToggleFollow={toggleFollow}
+        onOpenTest={onOpenTest}
+      />
 
-          {/* Filters */}
-          <div className="flex flex-wrap items-center gap-1 p-1 bg-white border border-slate-200 rounded-lg shadow-2xs w-fit max-w-full">
-            {FILTERS.map((f) => (
-              <button
-                key={f.id}
-                onClick={() => {
-                  setFilter(f.id);
-                  setVisibleCount(PAGE_SIZE);
-                }}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-                  filter === f.id ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                {f.label}
-              </button>
+      {/* Composer */}
+      <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3 shadow-xs">
+        <div className="flex gap-3">
+          <Avatar src={candidate.avatarUrl} />
+          <textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value.slice(0, MAX_POST_LENGTH))}
+            placeholder="Share a win, a tip, or ask the community something..."
+            rows={2}
+            className="flex-1 min-w-0 resize-none text-sm text-slate-900 placeholder-slate-400 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500"
+          />
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-3 pl-0 sm:pl-13">
+          <select
+            value={draftTestId}
+            onChange={(e) => setDraftTestId(e.target.value)}
+            disabled={shareableTests.length === 0}
+            className="text-xs text-slate-700 bg-white border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-indigo-500 max-w-full"
+          >
+            <option value="">{shareableTests.length === 0 ? 'Take a test to share a result' : 'Attach a result (optional)'}</option>
+            {shareableTests.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.title} · {getBestTestScore(candidate, t.id)}/100
+              </option>
             ))}
+          </select>
+          <div className="flex items-center gap-3 ml-auto">
+            {draft.length > MAX_POST_LENGTH - 80 && (
+              <span className="text-[11px] font-mono text-slate-400 tabular-nums">{MAX_POST_LENGTH - draft.length}</span>
+            )}
+            <button
+              onClick={publishPost}
+              disabled={!draft.trim()}
+              className="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors shadow-xs"
+            >
+              Post
+            </button>
           </div>
+        </div>
+      </div>
 
-          {/* Feed */}
-          {visible.length === 0 ? (
-            <div className="bg-white border border-slate-200 rounded-xl p-8 text-center text-xs text-slate-500 shadow-xs">
-              {filter === 'following'
-                ? 'Nothing from people or companies you follow yet. Follow a few from the suggestions.'
-                : 'Nothing here yet.'}
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {visible.map((item) => (
-                <FeedCard
-                  key={item.id}
-                  item={item}
-                  viewer={candidate}
-                  allCandidates={allCandidates}
-                  following={social.following}
-                  comments={social.comments[item.id] ?? []}
-                  hasKudos={social.kudosGiven.includes(item.id)}
-                  onToggleKudos={() => toggleKudos(item.id)}
-                  onToggleFollow={toggleFollow}
-                  onAddComment={(text) => addComment(item.id, text)}
-                  onDeletePost={deletePost}
-                  onOpenTest={onOpenTest}
-                  onOpenJob={onOpenJob}
-                />
-              ))}
-              {filtered.length > visibleCount && (
-                <button
-                  onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
-                  className="w-full py-2.5 text-xs font-semibold text-slate-700 hover:text-indigo-700 bg-white hover:bg-indigo-50/70 border border-slate-200 hover:border-indigo-200 rounded-lg transition-colors"
-                >
-                  Show more
-                </button>
-              )}
-            </div>
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-1 p-1 bg-white border border-slate-200 rounded-lg shadow-2xs w-fit max-w-full">
+        {FILTERS.map((f) => (
+          <button
+            key={f.id}
+            onClick={() => {
+              setFilter(f.id);
+              setVisibleCount(PAGE_SIZE);
+            }}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
+              filter === f.id ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Feed */}
+      {visible.length === 0 ? (
+        <div className="bg-white border border-slate-200 rounded-xl p-8 text-center text-xs text-slate-500 shadow-xs">
+          {filter === 'following'
+            ? 'Nothing from people or companies you follow yet. Follow a few from the suggestions.'
+            : 'Nothing here yet.'}
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {visible.map((item) => (
+            <FeedCard
+              key={item.id}
+              item={item}
+              viewer={candidate}
+              allCandidates={allCandidates}
+              following={social.following}
+              comments={social.comments[item.id] ?? []}
+              hasKudos={social.kudosGiven.includes(item.id)}
+              onToggleKudos={() => toggleKudos(item.id)}
+              onToggleFollow={toggleFollow}
+              onAddComment={(text) => addComment(item.id, text)}
+              onDeletePost={deletePost}
+              onOpenTest={onOpenTest}
+              onOpenJob={onOpenJob}
+            />
+          ))}
+          {filtered.length > visibleCount && (
+            <button
+              onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+              className="w-full py-2.5 text-xs font-semibold text-slate-700 hover:text-indigo-700 bg-white hover:bg-indigo-50/70 border border-slate-200 hover:border-indigo-200 rounded-lg transition-colors"
+            >
+              Show more
+            </button>
           )}
         </div>
-
-        <DiscoverSidebar
-          viewer={candidate}
-          allCandidates={allCandidates}
-          tests={tests}
-          businesses={businesses}
-          following={social.following}
-          onToggleFollow={toggleFollow}
-          onOpenTest={onOpenTest}
-        />
-      </div>
+      )}
     </div>
   );
 };

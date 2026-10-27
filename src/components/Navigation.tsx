@@ -1,11 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { UserRole } from '../types';
-import { ArrowLeftRight, Bell, Briefcase, ChevronDown, ClipboardCheck, Compass, House, Search, Users } from 'lucide-react';
+import { ArrowLeftRight, Bell, Briefcase, ChevronDown, ClipboardCheck, House, Search, Users } from 'lucide-react';
 
 export type AppTab =
   | 'home'
   | 'profile'
-  | 'discover'
   | 'jobs'
   | 'tests'
   | 'companies'
@@ -21,7 +20,6 @@ export const NAV_TABS: Record<'candidate' | 'recruiter', { id: AppTab; label: st
     { id: 'home', label: 'Home', icon: House },
     { id: 'tests', label: 'Tests', icon: ClipboardCheck },
     { id: 'jobs', label: 'Jobs', icon: Briefcase },
-    { id: 'discover', label: 'Discover', icon: Compass },
   ],
   recruiter: [
     { id: 'business-jobs', label: 'Jobs', icon: Briefcase },

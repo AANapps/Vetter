@@ -59,7 +59,7 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, exams, 
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 space-y-8">
+    <div className="space-y-8 min-w-0">
       <div className="space-y-1">
         <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Hi {candidate.name.split(' ')[0]}</h1>
         <p className="text-sm text-slate-500">
