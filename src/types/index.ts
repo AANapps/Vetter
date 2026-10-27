@@ -51,6 +51,10 @@ export interface User {
   yearsExperience: number;
   workPreference: 'Remote' | 'Hybrid' | 'On-site';
   bio: string;
+  // Where they are in their career and what they study or studied; companies filter on these when sending tests
+  careerStage?: CareerStage;
+  studySubject?: string; // e.g. "Computer Science"
+  university?: string;
   verifiedSkills: VerifiedSkill[];
   testResults: TestResult[];
   appliedJobIds: string[];
@@ -62,6 +66,8 @@ export interface User {
   // The profile each application was sent with, by job id
   applicationProfiles?: Record<string, string>;
 }
+
+export type CareerStage = 'Student' | 'Graduate' | 'Working';
 
 // How a candidate presents themselves for one kind of work: a headline, an about and the skills it features
 export interface JobProfile {
@@ -311,6 +317,8 @@ export interface ExamInvitation {
   // When they first opened the link, and first started one of its tests
   openedAt?: string; // ISO timestamp
   startedAt?: string; // ISO timestamp
+  // The login address the invitation was emailed to, for people picked from Vetter's candidates
+  emailedTo?: string;
 }
 
 export interface AppNotification {

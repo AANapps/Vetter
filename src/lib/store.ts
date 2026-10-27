@@ -64,6 +64,14 @@ export function loadData(): AppData {
     // Bundled images get new URLs on each build, so always take avatars from the seed
     const seedAvatars = new Map([seed.candidate, ...seed.otherCandidates].map((u) => [u.id, u.avatarUrl]));
     const withAvatar = (u: User) => ({ ...u, avatarUrl: seedAvatars.get(u.id) ?? u.avatarUrl });
+    // Saved before candidates had a career stage: seeded people take theirs (and its title and place) from the seed
+    const seedPeople = new Map([seed.candidate, ...seed.otherCandidates].map((u) => [u.id, u]));
+    const withStudies = (u: User): User => {
+      const s = seedPeople.get(u.id);
+      if (u.careerStage || !s?.careerStage) return u;
+      const { careerStage, studySubject, university, title, location, yearsExperience } = s;
+      return { ...u, careerStage, studySubject, university, title, location, yearsExperience };
+    };
 
     // Seeded tests always come from code (so content fixes apply); tests created in the app are kept
     // Tests saved under older difficulty names were all made as the hardest level
@@ -83,7 +91,7 @@ export function loadData(): AppData {
               applicationProfiles: seed.candidate.applicationProfiles,
             }
       ),
-      otherCandidates: saved.otherCandidates.map(withAvatar),
+      otherCandidates: saved.otherCandidates.map((u) => withStudies(withAvatar(u))),
       // Saved jobs keep their changes; listing details added in code since are filled in from the seed,
       // and anything the job board filters need is filled in for jobs created before the form asked for it
       jobs: saved.jobs.map((j) =>

@@ -129,22 +129,58 @@ export function buildSeedCandidates(tests: AssessmentTest[]): User[] {
     });
 
     const first = name.split(' ')[0].toLowerCase();
+    const working = {
+      title: pick(TITLES),
+      location: pick(LOCATIONS),
+      yearsExperience: 1 + Math.floor(rand() * 12),
+      workPreference: pick(['Remote', 'Hybrid', 'On-site'] as const),
+    };
     return {
       id: `cand-seed-${String(i + 1).padStart(2, '0')}`,
       name,
       email: `${first}@example.dev`,
       role: 'candidate' as const,
       avatarUrl: initialsAvatar(name),
-      title: pick(TITLES),
-      location: pick(LOCATIONS),
-      yearsExperience: 1 + Math.floor(rand() * 12),
-      workPreference: pick(['Remote', 'Hybrid', 'On-site'] as const),
+      ...working,
+      ...studies(name),
       bio: '',
       verifiedSkills: deriveVerifiedSkills(results, tests),
       testResults: results,
       appliedJobIds: [],
     };
   });
+}
+
+const SUBJECT_WEIGHTS = [
+  'Computer Science', 'Computer Science', 'Computer Science', 'Software Engineering', 'Data Science',
+  'Mathematics', 'Physics', 'Economics',
+];
+const UNIVERSITIES: Record<string, string[]> = {
+  'London, UK': ['UCL', 'Imperial College London', "King's College London", 'Queen Mary University of London'],
+  'Manchester, UK': ['University of Manchester'],
+  'Edinburgh, UK': ['University of Edinburgh'],
+  'Bristol, UK': ['University of Bristol'],
+};
+
+// About a third of the seed are students and a few are new graduates, mostly in the UK.
+// Drawn from their own stream so the rest of the seed (and its leaderboards) stays the same.
+function studies(name: string): Partial<User> {
+  const r = mulberry32(hashString(`${name}:studies`));
+  const roll = r();
+  if (roll >= 0.5) return { careerStage: 'Working' };
+  const stage = roll < 0.27 ? 'Student' : 'Graduate';
+  const cities = Object.keys(UNIVERSITIES);
+  const location = r() < 0.6 ? 'London, UK' : cities[Math.floor(r() * cities.length)];
+  const unis = UNIVERSITIES[location];
+  const subject = SUBJECT_WEIGHTS[Math.floor(r() * SUBJECT_WEIGHTS.length)];
+  return {
+    careerStage: stage,
+    studySubject: subject,
+    university: unis[Math.floor(r() * unis.length)],
+    location,
+    yearsExperience: stage === 'Student' ? 0 : Math.floor(r() * 2),
+    title: stage === 'Student' ? `${subject} student` : subject === 'Computer Science' || subject === 'Software Engineering' ? 'Graduate Software Engineer' : 'Graduate Analyst',
+  };
 }
 
 // Hand-written candidates don't record how long they took; give them plausible, stable durations

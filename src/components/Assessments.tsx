@@ -2,6 +2,19 @@ import React, { useState } from 'react';
 import { AssessmentTest, Business, Exam, User } from '../types';
 import { ExamTrackingRow, TRACKING_LABELS, TrackingStatus, VIA_LABELS, examFunnel, examLink, examTracking, totalMinutes } from '../lib/exams';
 import { versionTitle } from '../lib/testLevels';
+import {
+  AudienceFilters,
+  CANDIDATE_LEVELS,
+  CAREER_STAGES,
+  SUBJECTS,
+  audienceIsEmpty,
+  cityOf,
+  emptyAudience,
+  headline,
+  inviteEmail,
+  levelOf,
+  matchesAudience,
+} from '../lib/audience';
 import { formatDuration } from './TestLeaderboard';
 import { ArrowLeft, Check, CheckCircle2, ChevronRight, Copy, Download, Link2, Mail, Plus, Search, Send, UserPlus } from 'lucide-react';
 
@@ -396,7 +409,10 @@ const AssessmentDetail: React.FC<AssessmentsProps & { exam: Exam }> = ({
                           <span className="min-w-0">
                             <span className="block font-semibold text-slate-900 group-hover:text-indigo-700 whitespace-nowrap">{r.candidate.name}</span>
                             <span className="block text-slate-500 whitespace-nowrap">
-                              {VIA_LABELS[r.invitation.via ?? 'invite']} &middot; {formatDay(r.invitation.invitedAt)}
+                              <span title={r.invitation.emailedTo ? `Emailed to ${r.invitation.emailedTo}` : undefined}>
+                                {VIA_LABELS[r.invitation.via ?? 'invite']}
+                              </span>{' '}
+                              &middot; {formatDay(r.invitation.invitedAt)}
                             </span>
                           </span>
                         </button>
@@ -460,12 +476,13 @@ const SharePanel: React.FC<{
   onEmail: AssessmentsProps['onEmail'];
   onInvite: AssessmentsProps['onInvite'];
 }> = ({ exam, candidates, onEmail, onInvite }) => {
-  const [mode, setMode] = useState<'email' | 'vetter'>('email');
+  const [mode, setMode] = useState<'email' | 'vetter'>('vetter');
   const [emailsText, setEmailsText] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState<string | null>(null);
-  const [query, setQuery] = useState('');
+  const [audience, setAudience] = useState<AudienceFilters>(emptyAudience);
   const [chosen, setChosen] = useState<string[]>([]);
+  const [showEmail, setShowEmail] = useState(false);
   const link = examLink(exam.id);
 
   const flash = (message: string) => {
@@ -492,11 +509,20 @@ const SharePanel: React.FC<{
   };
 
   const invitedIds = new Set(exam.invitations.map((i) => i.candidateId));
-  const q = query.trim().toLowerCase();
-  const invitable = candidates
-    .filter((c) => !invitedIds.has(c.id))
-    .filter((c) => !q || `${c.name} ${c.title} ${c.location}`.toLowerCase().includes(q))
-    .slice(0, 6);
+  const notInvited = candidates.filter((c) => !invitedIds.has(c.id));
+  const matching = notInvited.filter((c) => matchesAudience(c, audience));
+  const cities = [...new Set(notInvited.map(cityOf))].sort();
+  const chosenMatching = matching.filter((c) => chosen.includes(c.id));
+  const allChosen = matching.length > 0 && chosenMatching.length === matching.length;
+  const sample = candidates.find((c) => c.id === chosen[0]) ?? matching[0];
+  const setAudienceField = <K extends keyof AudienceFilters>(key: K, value: AudienceFilters[K]) => setAudience((prev) => ({ ...prev, [key]: value }));
+  const toggleIn = <T,>(list: T[], item: T) => (list.includes(item) ? list.filter((x) => x !== item) : [...list, item]);
+
+  const invite = () => {
+    onInvite(exam.id, chosen);
+    flash(`Emailed ${chosen.length} ${chosen.length === 1 ? 'candidate' : 'candidates'} at their Vetter login address. They're tracked below.`);
+    setChosen([]);
+  };
 
   return (
     <section className="bg-indigo-50/60 border border-indigo-100 rounded-xl p-5 space-y-4">
@@ -522,8 +548,8 @@ const SharePanel: React.FC<{
         <div className="flex gap-1">
           {(
             [
+              { id: 'vetter', label: 'Send to people on Vetter', icon: UserPlus },
               { id: 'email', label: 'Email it', icon: Mail },
-              { id: 'vetter', label: 'Invite people on Vetter', icon: UserPlus },
             ] as const
           ).map((m) => (
             <button
@@ -569,52 +595,150 @@ const SharePanel: React.FC<{
             </div>
           </div>
         ) : (
-          <div className="space-y-2">
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search by name, title or location"
-                aria-label="Search candidates"
-                className="w-full pl-8 pr-3 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-indigo-500"
-              />
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <ChipRow label="Stage" options={CAREER_STAGES} selected={audience.stages} onToggle={(v) => setAudienceField('stages', toggleIn(audience.stages, v))} />
+              <ChipRow label="Level" options={CANDIDATE_LEVELS} selected={audience.levels} onToggle={(v) => setAudienceField('levels', toggleIn(audience.levels, v))} />
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <select
+                  value={audience.subject}
+                  onChange={(e) => setAudienceField('subject', e.target.value)}
+                  aria-label="Subject studied"
+                  className="px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:border-indigo-500"
+                >
+                  <option value="">Any subject</option>
+                  {SUBJECTS.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={audience.city}
+                  onChange={(e) => setAudienceField('city', e.target.value)}
+                  aria-label="Location"
+                  className="px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:border-indigo-500"
+                >
+                  <option value="">Anywhere</option>
+                  {cities.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    value={audience.query}
+                    onChange={(e) => setAudienceField('query', e.target.value)}
+                    placeholder="Name, university…"
+                    aria-label="Search candidates"
+                    className="w-full pl-8 pr-3 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+              </div>
             </div>
-            <ul className="bg-white divide-y divide-slate-100 border border-slate-200 rounded-lg">
-              {invitable.length === 0 && <li className="px-3 py-2.5 text-xs text-slate-500">No candidates match.</li>}
-              {invitable.map((c) => (
-                <li key={c.id}>
-                  <label className="px-3 py-2 flex items-center gap-3 text-xs cursor-pointer hover:bg-slate-50">
-                    <input
-                      type="checkbox"
-                      checked={chosen.includes(c.id)}
-                      onChange={(e) => setChosen((prev) => (e.target.checked ? [...prev, c.id] : prev.filter((x) => x !== c.id)))}
-                      className="accent-indigo-600"
-                    />
-                    <img src={c.avatarUrl} alt="" referrerPolicy="no-referrer" className="w-6 h-6 rounded-full object-cover bg-slate-100" />
-                    <span className="font-semibold text-slate-900 whitespace-nowrap">{c.name}</span>
-                    <span className="text-slate-500 truncate">
-                      {c.title} &middot; {c.location}
-                    </span>
-                  </label>
-                </li>
-              ))}
-            </ul>
-            <button
-              onClick={() => {
-                onInvite(exam.id, chosen);
-                flash(`Invited ${chosen.length}. They've been notified.`);
-                setChosen([]);
-              }}
-              disabled={chosen.length === 0}
-              className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-700 disabled:opacity-40 rounded-lg flex items-center gap-2"
-            >
-              <ChevronRight className="w-3.5 h-3.5" />
-              Invite {chosen.length > 0 ? chosen.length : ''}
-            </button>
+
+            <div className="bg-white border border-slate-200 rounded-lg">
+              <div className="px-3 py-2 border-b border-slate-100 flex items-center gap-3 text-xs">
+                <label className="flex items-center gap-2 font-semibold text-slate-900 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={allChosen}
+                    disabled={matching.length === 0}
+                    onChange={() =>
+                      setChosen((prev) =>
+                        allChosen ? prev.filter((id) => !matching.some((c) => c.id === id)) : [...new Set([...prev, ...matching.map((c) => c.id)])]
+                      )
+                    }
+                    className="accent-indigo-600"
+                  />
+                  {matching.length} {matching.length === 1 ? 'candidate matches' : 'candidates match'}
+                </label>
+                {!audienceIsEmpty(audience) && (
+                  <button onClick={() => setAudience(emptyAudience())} className="text-slate-500 hover:text-slate-900">
+                    Clear filters
+                  </button>
+                )}
+                {invitedIds.size > 0 && <span className="ml-auto text-slate-400">{invitedIds.size} already sent</span>}
+              </div>
+              <ul className="divide-y divide-slate-100 max-h-72 overflow-y-auto">
+                {matching.length === 0 && <li className="px-3 py-2.5 text-xs text-slate-500">No candidates match.</li>}
+                {matching.map((c) => (
+                  <li key={c.id}>
+                    <label className="px-3 py-2 flex items-center gap-3 text-xs cursor-pointer hover:bg-slate-50">
+                      <input
+                        type="checkbox"
+                        checked={chosen.includes(c.id)}
+                        onChange={(e) => setChosen((prev) => (e.target.checked ? [...prev, c.id] : prev.filter((x) => x !== c.id)))}
+                        className="accent-indigo-600"
+                      />
+                      <img src={c.avatarUrl} alt="" referrerPolicy="no-referrer" className="w-6 h-6 rounded-full object-cover bg-slate-100" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-semibold text-slate-900 truncate">{c.name}</span>
+                        <span className="block text-slate-500 truncate">
+                          {headline(c)} &middot; {c.location}
+                        </span>
+                      </span>
+                      <span className="hidden sm:inline px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-semibold shrink-0">{levelOf(c)}</span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                onClick={invite}
+                disabled={chosen.length === 0}
+                className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-700 disabled:opacity-40 rounded-lg flex items-center gap-2"
+              >
+                <Send className="w-3.5 h-3.5" />
+                {chosen.length === 0 ? 'Send' : `Send to ${chosen.length}`}
+              </button>
+              <span className="text-[11px] text-slate-500">Emailed to each person's Vetter login address and added to their Home.</span>
+              {sample && (
+                <button onClick={() => setShowEmail(!showEmail)} className="text-[11px] font-semibold text-indigo-700 hover:text-indigo-900">
+                  {showEmail ? 'Hide email' : 'Preview email'}
+                </button>
+              )}
+            </div>
+            {showEmail && sample && <EmailPreview {...inviteEmail(exam, sample, link)} />}
           </div>
         )}
       </div>
     </section>
   );
 };
+
+const ChipRow = <T extends string>({ label, options, selected, onToggle }: { label: string; options: T[]; selected: T[]; onToggle: (value: T) => void }) => (
+  <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label={label}>
+    <span className="w-12 text-[11px] font-semibold text-slate-500">{label}</span>
+    {options.map((o) => (
+      <button
+        key={o}
+        onClick={() => onToggle(o)}
+        aria-pressed={selected.includes(o)}
+        className={`px-2.5 py-1 rounded-full border text-xs font-medium ${
+          selected.includes(o) ? 'bg-slate-900 border-slate-900 text-white' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-400'
+        }`}
+      >
+        {o}
+      </button>
+    ))}
+  </div>
+);
+
+const EmailPreview: React.FC<{ to: string; subject: string; body: string }> = ({ to, subject, body }) => (
+  <div className="bg-white border border-slate-200 rounded-lg text-xs">
+    <div className="px-3 py-2 border-b border-slate-100 space-y-0.5 text-slate-500">
+      <div>
+        To: <span className="text-slate-900">{to}</span>
+      </div>
+      <div>
+        Subject: <span className="font-semibold text-slate-900">{subject}</span>
+      </div>
+    </div>
+    <p className="px-3 py-2.5 whitespace-pre-line text-slate-700 break-words">{body}</p>
+  </div>
+);

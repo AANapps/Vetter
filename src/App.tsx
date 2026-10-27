@@ -215,12 +215,19 @@ export default function App() {
     window.scrollTo(0, 0);
   };
 
-  // Inviting candidates to an exam puts it on their to-do list and notifies them
+  // Inviting candidates to an exam emails it to their login address, puts it on their Home and notifies them
   const handleInviteToExam = (examId: string, candidateIds: string[]) => {
+    const emailOf = (id: string) => allCandidates.find((c) => c.id === id)?.email;
     setExams((prev) =>
       prev.map((e) =>
         e.id === examId
-          ? { ...e, invitations: [...e.invitations, ...candidateIds.map((candidateId) => ({ candidateId, invitedAt: today(), via: 'invite' as const }))] }
+          ? {
+              ...e,
+              invitations: [
+                ...e.invitations,
+                ...candidateIds.map((candidateId) => ({ candidateId, invitedAt: today(), via: 'invite' as const, emailedTo: emailOf(candidateId) })),
+              ],
+            }
           : e
       )
     );
@@ -489,6 +496,7 @@ export default function App() {
               onUpdateProfiles={(jobProfiles, activeProfileId) =>
                 setCandidate((prev) => ({ ...prev, jobProfiles, activeProfileId }))
               }
+              onUpdateStudies={(studies) => setCandidate((prev) => ({ ...prev, ...studies }))}
               jobPageId={jobPageId}
               onOpenJob={openJobPage}
               exams={exams}

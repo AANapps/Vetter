@@ -17,11 +17,14 @@ import {
   Send,
   Pencil,
   Plus,
+  GraduationCap,
 } from 'lucide-react';
 import { VerifiedSkillBadge, TierLegend, getBadgeTier } from './VerifiedSkillBadge';
 import { JobApplicationModal } from './JobApplicationModal';
 import { JobDetailsModal, JobPage, JobTests, getJobTests } from './JobDetails';
 import { JobProfileEditor } from './JobProfileEditor';
+import { Studies, StudiesEditor } from './StudiesEditor';
+import { stageOf } from '../lib/audience';
 import { ProfileSidebar } from './ProfileSidebar';
 import { TestHistory } from './TestHistory';
 import { JobFilters } from './JobFilters';
@@ -43,6 +46,7 @@ interface CandidatePortalProps {
   onStartAttachedTest?: (test: AssessmentTest, forJobId: string) => void;
   onApplyJob: (jobId: string, profileId: string) => void;
   onUpdateProfiles: (profiles: JobProfile[], activeProfileId: string) => void;
+  onUpdateStudies: (studies: Studies) => void;
   // Set when the candidate is on a job's own page (#/jobs/<id>)
   jobPageId?: string | null;
   onOpenJob: (jobId: string) => void;
@@ -64,6 +68,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   onStartAttachedTest,
   onApplyJob,
   onUpdateProfiles,
+  onUpdateStudies,
   jobPageId,
   onOpenJob,
   exams,
@@ -85,6 +90,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   const [jobSort, setJobSort] = useState<'newest' | 'fit'>('newest');
   // The job profile being edited or created
   const [editingProfile, setEditingProfile] = useState<{ profile: JobProfile; isNew: boolean } | null>(null);
+  const [editingStudies, setEditingStudies] = useState(false);
 
   // The profile page shows one job profile at a time: its headline, about and the skills it features
   const profiles = profilesOf(candidate);
@@ -252,6 +258,15 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                 <span aria-hidden="true">&middot;</span>
                 <span className="text-indigo-600 font-semibold">{candidate.workPreference}</span>
               </div>
+              <button onClick={() => setEditingStudies(true)} className="text-xs text-slate-600 hover:text-indigo-700 flex items-center gap-1">
+                <GraduationCap className="w-3 h-3 text-slate-400" />
+                {stageOf(candidate) === 'Working'
+                  ? candidate.studySubject
+                    ? `Studied ${candidate.studySubject}${candidate.university ? ` at ${candidate.university}` : ''}`
+                    : 'Add your studies'
+                  : `${candidate.studySubject ?? ''} ${stageOf(candidate).toLowerCase()}${candidate.university ? ` at ${candidate.university}` : ''}`.trim()}
+                <span className="text-indigo-600 font-semibold ml-1">Edit</span>
+              </button>
             </div>
           </div>
 
@@ -839,6 +854,17 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
             closeJob();
             onOpenJob(openJob.id);
           }}
+        />
+      )}
+
+      {editingStudies && (
+        <StudiesEditor
+          candidate={candidate}
+          onSave={(studies) => {
+            onUpdateStudies(studies);
+            setEditingStudies(false);
+          }}
+          onClose={() => setEditingStudies(false)}
         />
       )}
 
