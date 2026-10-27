@@ -59,7 +59,7 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, exams, 
   };
 
   return (
-    <div className="space-y-8 min-w-0">
+    <div className="@container space-y-8 min-w-0">
       <div className="space-y-1">
         <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Hi {candidate.name.split(' ')[0]}</h1>
         <p className="text-sm text-slate-500">
@@ -99,7 +99,7 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, exams, 
                       </span>
                     </div>
                   </div>
-                  <span className="hidden sm:flex px-4 py-2 text-sm font-semibold text-white bg-indigo-600 group-hover:bg-indigo-700 rounded-lg items-center gap-1.5 shrink-0">
+                  <span className="hidden @md:flex px-4 py-2 text-sm font-semibold text-white bg-indigo-600 group-hover:bg-indigo-700 rounded-lg items-center gap-1.5 shrink-0">
                     {progress.done === 0 ? 'Start' : 'Continue'}
                     <ArrowRight className="w-4 h-4" />
                   </span>
@@ -197,7 +197,7 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, exams, 
         </section>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 @md:grid-cols-2 gap-3">
         <button onClick={() => onGoTo('profile')} className="text-left p-5 bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl space-y-1 transition-colors">
           <UserRound className="w-5 h-5 text-indigo-600" />
           <div className="text-sm font-bold text-slate-900">Your profile</div>

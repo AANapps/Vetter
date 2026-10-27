@@ -518,34 +518,30 @@ export default function App() {
             />
           )}
 
-          {/* Home: what companies sent you, with Discover in a narrower column to its left (below it on phones) */}
+          {/* Home: what companies sent you in a narrower column, with Discover beside it (below it on phones) */}
           {!detailPage && activeRole === 'candidate' && currentTab === 'home' && (
             <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 grid grid-cols-1 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)] gap-8 items-start">
-              <div className="order-2 lg:order-1 min-w-0">
-                <DiscoverFeed
-                  candidate={candidate}
-                  allCandidates={allCandidates}
-                  tests={tests}
-                  jobs={jobs}
-                  businesses={businesses}
-                  social={social}
-                  onSocialChange={setSocial}
-                  onOpenTest={openTestPage}
-                  onOpenJob={openJobPage}
-                />
-              </div>
-              <div className="order-1 lg:order-2 min-w-0">
-                <CandidateHome
-                  candidate={candidate}
-                  exams={exams}
-                  tests={tests}
-                  businesses={businesses}
-                  onOpenExam={openExamPage}
-                  onStartTest={(test) => setActiveTest(test)}
-                  onOpenTest={openTestPage}
-                  onGoTo={goToTab}
-                />
-              </div>
+              <CandidateHome
+                candidate={candidate}
+                exams={exams}
+                tests={tests}
+                businesses={businesses}
+                onOpenExam={openExamPage}
+                onStartTest={(test) => setActiveTest(test)}
+                onOpenTest={openTestPage}
+                onGoTo={goToTab}
+              />
+              <DiscoverFeed
+                candidate={candidate}
+                allCandidates={allCandidates}
+                tests={tests}
+                jobs={jobs}
+                businesses={businesses}
+                social={social}
+                onSocialChange={setSocial}
+                onOpenTest={openTestPage}
+                onOpenJob={openJobPage}
+              />
             </div>
           )}
 

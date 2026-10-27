@@ -118,7 +118,7 @@ export const DiscoverFeed: React.FC<DiscoverFeedProps> = ({
       return { ...prev, posts: prev.posts.filter((p) => p.id !== postId), comments };
     });
 
-  // One narrow column beside Home: leaderboards and who to follow first, then the feed
+  // The wide column on Home, beside what companies sent you: leaderboards and who to follow first, then the feed
   return (
     <div className="space-y-4 min-w-0">
       <div>
