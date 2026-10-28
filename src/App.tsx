@@ -15,6 +15,7 @@ import { TestRunner } from './components/TestRunner';
 import { TestPage } from './components/TestPage';
 import { DiscoverFeed } from './components/DiscoverFeed';
 import { LiveLeaderboards } from './components/LiveLeaderboards';
+import { FollowSuggestions } from './components/DiscoverSidebar';
 import { GlobalSearch } from './components/GlobalSearch';
 import { PersonProfileModal } from './components/PersonProfileModal';
 import { BusinessJobs } from './components/BusinessJobs';
@@ -496,8 +497,8 @@ export default function App() {
             />
           )}
 
-          {/* Home in three columns: what companies sent you, Discover in the widest middle, and live leaderboards on the right.
-              Stacked on smaller screens, with the leaderboards above the feed */}
+          {/* Home in three columns: what companies sent you, Discover in the widest middle, and live leaderboards with
+              people and companies to follow on the right. Stacked on smaller screens, with the right column above the feed */}
           {!detailPage && activeRole === 'candidate' && currentTab === 'home' && (
             <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 grid grid-cols-1 lg:grid-cols-[minmax(0,300px)_minmax(0,1fr)_minmax(0,280px)] gap-6 items-start">
               <CandidateHome
@@ -510,8 +511,15 @@ export default function App() {
                 onOpenTest={openTestPage}
                 onGoTo={goToTab}
               />
-              <div className="lg:sticky lg:top-20 lg:col-start-3 lg:row-start-1">
+              <div className="space-y-4 lg:col-start-3 lg:row-start-1">
                 <LiveLeaderboards tests={tests} allCandidates={allCandidates} viewerId={candidate.id} onOpenTest={openTestPage} />
+                <FollowSuggestions
+                  viewer={candidate}
+                  allCandidates={allCandidates}
+                  businesses={businesses}
+                  following={social.following}
+                  onToggleFollow={toggleFollow}
+                />
               </div>
               <DiscoverFeed
                 candidate={candidate}

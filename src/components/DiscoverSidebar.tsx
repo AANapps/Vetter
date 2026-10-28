@@ -2,32 +2,21 @@ import React from 'react';
 import { AssessmentTest, Business, User } from '../types';
 import { suggestedPeople, trendingTests } from '../lib/feed';
 
-interface DiscoverSidebarProps {
+interface FollowSuggestionsProps {
   viewer: User;
   allCandidates: User[];
-  tests: AssessmentTest[];
   businesses: Business[];
   following: string[];
   onToggleFollow: (id: string) => void;
-  onOpenTest: (testId: string) => void;
 }
 
-// Discover's right-hand column: who to follow, companies and trending tests
-export const DiscoverSidebar: React.FC<DiscoverSidebarProps> = ({
-  viewer,
-  allCandidates,
-  tests,
-  businesses,
-  following,
-  onToggleFollow,
-  onOpenTest,
-}) => {
+// Under the leaderboards in Home's right-hand column: people to follow, and companies
+export const FollowSuggestions: React.FC<FollowSuggestionsProps> = ({ viewer, allCandidates, businesses, following, onToggleFollow }) => {
   const people = suggestedPeople(allCandidates, viewer.id, following);
-  const trending = trendingTests(allCandidates, tests);
 
   return (
     <div className="space-y-4">
-      <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-4 shadow-xs">
+      <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-4 shadow-xs">
         <h2 className="text-sm font-bold text-slate-900">People to follow</h2>
         {people.length === 0 ? (
           <p className="text-xs text-slate-500">You follow everyone. Impressive.</p>
@@ -49,7 +38,7 @@ export const DiscoverSidebar: React.FC<DiscoverSidebarProps> = ({
         )}
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-4 shadow-xs">
+      <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-4 shadow-xs">
         <h2 className="text-sm font-bold text-slate-900">Companies</h2>
         <ul className="space-y-3">
           {businesses.map((biz) => (
@@ -64,7 +53,19 @@ export const DiscoverSidebar: React.FC<DiscoverSidebarProps> = ({
           ))}
         </ul>
       </div>
+    </div>
+  );
+};
 
+// In the Discover feed: the tests most people are taking this month
+export const TrendingTests: React.FC<{ allCandidates: User[]; tests: AssessmentTest[]; onOpenTest: (testId: string) => void }> = ({
+  allCandidates,
+  tests,
+  onOpenTest,
+}) => {
+  const trending = trendingTests(allCandidates, tests);
+  return (
+    <>
       {trending.length > 0 && (
         <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-3 shadow-xs">
           <h2 className="text-sm font-bold text-slate-900">Trending tests</h2>
@@ -88,7 +89,7 @@ export const DiscoverSidebar: React.FC<DiscoverSidebarProps> = ({
           </ol>
         </div>
       )}
-    </div>
+    </>
   );
 };
 

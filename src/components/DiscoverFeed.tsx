@@ -10,7 +10,7 @@ import {
 } from '../lib/feed';
 import { getBestTestScore } from '../lib/matchingAlgorithm';
 import { Heart, MessageCircle } from 'lucide-react';
-import { DiscoverSidebar, FollowButton } from './DiscoverSidebar';
+import { FollowButton, TrendingTests } from './DiscoverSidebar';
 
 interface DiscoverFeedProps {
   candidate: User;
@@ -117,7 +117,7 @@ export const DiscoverFeed: React.FC<DiscoverFeedProps> = ({
       return { ...prev, posts: prev.posts.filter((p) => p.id !== postId), comments };
     });
 
-  // The wide middle column on Home: who to follow, then the feed
+  // The wide middle column on Home: trending tests, then the feed
   return (
     <div className="space-y-4 min-w-0">
       <div>
@@ -125,15 +125,7 @@ export const DiscoverFeed: React.FC<DiscoverFeedProps> = ({
         <p className="text-xs text-slate-500 mt-0.5">What people on Vetter are passing, sharing and hiring for.</p>
       </div>
 
-      <DiscoverSidebar
-        viewer={candidate}
-        allCandidates={allCandidates}
-        tests={tests}
-        businesses={businesses}
-        following={social.following}
-        onToggleFollow={toggleFollow}
-        onOpenTest={onOpenTest}
-      />
+      <TrendingTests allCandidates={allCandidates} tests={tests} onOpenTest={onOpenTest} />
 
       {/* Composer */}
       <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3 shadow-xs">
