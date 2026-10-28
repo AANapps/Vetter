@@ -53,7 +53,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
 
   const ask = async () => {
     setWorking(true);
-    const res = await generateTests({ prompt, wantExisting, wantNewTest, questionCount, styles, level }, tests, business);
+    const res = await generateTests({ prompt, wantExisting, wantNewTest, questionCount, styles, level, title: job?.title }, tests, business);
     setResult(res);
     setChosen(res.existing.filter((s) => !job?.testIds.includes(s.test.id)).map((s) => s.test.id));
     setKeepNew(!!res.test);
@@ -261,6 +261,11 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                             </li>
                           ))}
                         </ol>
+                        {result.source === 'bank' && (
+                          <p className="text-[11px] text-slate-500">
+                            Put together from the best-fitting questions in Vetter's tests. Edit it to add questions of your own.
+                          </p>
+                        )}
                         {result.dropped > 0 && (
                           <p className="text-[11px] text-slate-500">
                             {result.dropped} {result.dropped === 1 ? 'question' : 'questions'} the AI wrote failed Vetter's checks and {result.dropped === 1 ? 'was' : 'were'} left out.

@@ -35,5 +35,6 @@ answers `/api/generate-test`, which companies use to have Vetter suggest tests f
 
 - Set `GEMINI_API_KEY` (in `.env.local` or `.env`, or the host's environment). It stays on the server.
 - Optionally set `GEMINI_MODEL` (defaults to `gemini-2.5-flash`).
-- Without a key, suggesting tests from Vetter's library still works; writing new tests says the AI isn't set up.
+- The key is optional. Without it, Vetter still suggests library tests and still creates a new test, by
+  putting together the best-fitting questions from its own tests. With it, the new test's questions are written fresh.
 - `npm run dev` answers the same endpoint, using the same settings.
