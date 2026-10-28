@@ -2,6 +2,7 @@ node_modules/
 dist/
 .env*
 !.env.example
+!.env.production
 server.js
 firebase-debug.log
 firestore-debug.log
