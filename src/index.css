@@ -44,6 +44,35 @@
   to { transform: translateX(-50%); }
 }
 
+/* The test generator's wait: a hammer strikes three times, the nail sinks a little each time, then a fresh nail */
+@keyframes hammer-swing {
+  0%, 100% { transform: rotate(35deg); }
+  15% { transform: rotate(0deg); }
+  21% { transform: rotate(30deg); }
+  45% { transform: rotate(-4.4deg); }
+  51% { transform: rotate(30deg); }
+  75% { transform: rotate(-8.8deg); }
+  83% { transform: rotate(35deg); }
+}
+@keyframes nail-sink {
+  0%, 15% { transform: translateY(0); opacity: 1; }
+  17%, 45% { transform: translateY(4px); }
+  47%, 75% { transform: translateY(8px); }
+  77%, 88% { transform: translateY(12px); opacity: 1; }
+  95%, 99% { transform: translateY(12px); opacity: 0; }
+}
+@keyframes hammer-spark {
+  0%, 14%, 22%, 44%, 52%, 74%, 82%, 100% { opacity: 0; transform: scale(0.6); }
+  16%, 46%, 76% { opacity: 1; transform: scale(1); }
+}
+.hammer-swing { transform-box: view-box; transform-origin: 114px 43.5px; animation: hammer-swing 2.4s ease-in infinite; }
+.nail-sink { animation: nail-sink 2.4s linear infinite; }
+.hammer-spark { transform-box: fill-box; transform-origin: center; animation: hammer-spark 2.4s linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .hammer-swing, .nail-sink, .hammer-spark { animation: none; }
+  .hammer-spark { opacity: 0; }
+}
+
 @layer base {
   html, body {
     background-color: #ffffff;

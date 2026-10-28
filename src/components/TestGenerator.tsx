@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { AlertCircle, ArrowLeft, Check, Library, Loader2, Pencil, Sparkles, X } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Check, Library, Pencil, Sparkles, X } from 'lucide-react';
 import { AssessmentTest, Business, JobPosting, QuestionType, TEST_DIFFICULTIES, TestDifficulty } from '../types';
 import { ANSWER_TYPES, QUESTION_STYLES } from '../lib/questionTypes';
 import { GenerationResult, generateTests, jobBrief } from '../lib/testGeneration';
@@ -91,9 +91,9 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
 
         <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5">
           {working ? (
-            <div className="py-16 flex flex-col items-center gap-3 text-center">
-              <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
-              <p className="text-sm font-semibold text-slate-900">{wantNewTest ? 'Writing and checking your test…' : 'Finding tests that fit…'}</p>
+            <div className="py-12 flex flex-col items-center gap-3 text-center">
+              <HammerAndNail />
+              <WorkingStep writing={wantNewTest} />
               <p className="text-xs text-slate-500 max-w-sm">
                 {wantNewTest ? 'Every question is checked before you see it: coding answers and SQL queries are run, and anything that fails is left out.' : ''}
               </p>
@@ -326,5 +326,49 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
         </div>
       </div>
     </div>
+  );
+};
+
+// While Vetter builds the test: a hammer drives a nail into a board, three strikes, then a fresh nail
+const HammerAndNail: React.FC = () => (
+  <svg viewBox="0 0 120 96" className="w-36 h-29" role="img" aria-label="Building your test">
+    {/* The nail, sinking with each strike; its sparks move with its head */}
+    <g className="nail-sink">
+      <rect x="60.5" y="53" width="3" height="26" rx="0.5" className="fill-slate-400" />
+      <rect x="55" y="50" width="14" height="3" rx="1" className="fill-slate-500" />
+      <g className="hammer-spark text-amber-500" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+        <line x1="50" y1="49" x2="42" y2="45" />
+        <line x1="49" y1="53" x2="41" y2="54" />
+        <line x1="74" y1="49" x2="82" y2="45" />
+        <line x1="75" y1="53" x2="83" y2="54" />
+      </g>
+    </g>
+    {/* The board covers the part of the nail driven in */}
+    <rect x="12" y="78" width="96" height="14" rx="2" className="fill-amber-200 stroke-amber-600" strokeWidth="1.5" />
+    <line x1="22" y1="84" x2="44" y2="84" className="stroke-amber-500" strokeWidth="1" strokeLinecap="round" />
+    <line x1="78" y1="87" x2="98" y2="87" className="stroke-amber-500" strokeWidth="1" strokeLinecap="round" />
+    {/* The hammer, swinging from the end of its handle */}
+    <g className="hammer-swing">
+      <rect x="62" y="41" width="52" height="5" rx="2.5" className="fill-amber-700" />
+      <rect x="55" y="36" width="14" height="14" rx="2" className="fill-indigo-600" />
+      <rect x="55" y="47" width="14" height="3" rx="1" className="fill-indigo-800" />
+    </g>
+  </svg>
+);
+
+const WRITING_STEPS = ['Reading the job…', 'Choosing what to test…', 'Writing the questions…', 'Checking every answer…', 'Nearly there…'];
+
+// What Vetter is doing, moving on every few seconds and holding on the last step
+const WorkingStep: React.FC<{ writing: boolean }> = ({ writing }) => {
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    if (!writing) return;
+    const timer = setInterval(() => setStep((s) => Math.min(s + 1, WRITING_STEPS.length - 1)), 4000);
+    return () => clearInterval(timer);
+  }, [writing]);
+  return (
+    <p className="text-sm font-semibold text-slate-900" aria-live="polite">
+      {writing ? WRITING_STEPS[step] : 'Finding tests that fit…'}
+    </p>
   );
 };
