@@ -1,6 +1,6 @@
 import { FirebaseApp, initializeApp } from 'firebase/app';
 import { Auth, connectAuthEmulator, getAuth } from 'firebase/auth';
-import { Firestore, connectFirestoreEmulator, getFirestore } from 'firebase/firestore';
+import { Firestore, connectFirestoreEmulator, initializeFirestore } from 'firebase/firestore';
 
 /**
  * Firebase, for accounts. Set up from the VITE_FIREBASE_* settings (the web app's public config from the Firebase
@@ -22,7 +22,8 @@ let dbInstance: Firestore | undefined;
 if (firebaseEnabled) {
   app = initializeApp(config);
   authInstance = getAuth(app);
-  dbInstance = getFirestore(app);
+  // Profiles leave optional fields unset; Firestore would refuse them otherwise
+  dbInstance = initializeFirestore(app, { ignoreUndefinedProperties: true });
   // Local testing against the Firebase emulators
   if (import.meta.env.VITE_FIREBASE_EMULATORS === 'true') {
     connectAuthEmulator(authInstance, 'http://127.0.0.1:9099', { disableWarnings: true });

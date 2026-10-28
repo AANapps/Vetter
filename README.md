@@ -63,6 +63,8 @@ Without Firebase settings Vetter runs as a demo with a view switcher. With them,
   colleagues from the same domain. Sign-ups without a work email wait for the Vetter team to approve them.
 - Google sign-in works the same way: a work Google account counts as a work email, a personal Gmail one goes to
   review. First-time Google users say whether they're looking for work or hiring.
+- A candidate's profile and progress (test results, applications, job profiles) are saved to their account, so
+  they follow them to any device. Only they and the Vetter team can read them.
 - `firestore.rules` enforces all of this on the server. `npm run test:rules` checks it against the Firebase
   emulators.
 

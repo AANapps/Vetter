@@ -4,7 +4,7 @@ import { runnerImport } from 'vite';
 const root = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const env = { VITE_FIREBASE_API_KEY: 'demo-key', VITE_FIREBASE_AUTH_DOMAIN: 'demo-vetter.firebaseapp.com', VITE_FIREBASE_PROJECT_ID: 'demo-vetter', VITE_FIREBASE_APP_ID: 'demo-app', VITE_FIREBASE_EMULATORS: 'true' };
 const define = Object.fromEntries(Object.entries(env).map(([k, v]) => [`import.meta.env.${k}`, JSON.stringify(v)]));
-const { A, F } = (await runnerImport(`${root}/tests/rulesEntry.ts`, { configFile: false, root, define, logLevel: 'silent' })).module;
+const { A, F, P } = (await runnerImport(`${root}/tests/rulesEntry.ts`, { configFile: false, root, define, logLevel: 'silent' })).module;
 const { doc, setDoc, getDoc, updateDoc } = (await runnerImport('firebase/firestore', { configFile: false, root, logLevel: 'silent' })).module;
 const PROJECT = 'demo-vetter';
 let pass = 0, fail = 0;
@@ -26,6 +26,12 @@ await check('signs up with any email', () => A.signUp({ role: 'candidate', name:
 const cara = F.auth().currentUser.uid;
 await check('cannot make themselves an admin', () => updateDoc(doc(db, 'users', cara), { role: 'admin' }), false);
 await check('can change their name', () => updateDoc(doc(db, 'users', cara), { name: 'Cara B' }), true);
+const caraProfile = { id: cara, name: 'Cara B', email: 'cara@gmail.com', role: 'candidate', avatarUrl: '', title: '', location: '', yearsExperience: 0, workPreference: 'Remote', bio: '', verifiedSkills: [], testResults: [{ testId: 't1', score: 88, completedAt: '2026-10-28' }], appliedJobIds: [] };
+await check('cannot save progress before verifying', () => P.saveProfile(caraProfile), false);
+await verify('cara@gmail.com');
+await check('saves her progress once verified', () => P.saveProfile(caraProfile), true);
+await check('loads it back on any device', async () => { if ((await P.loadProfile(cara))?.testResults[0]?.score !== 88) throw new Error('not saved'); }, true);
+await check('cannot pass herself off as a company', () => P.saveProfile({ ...caraProfile, role: 'recruiter' }), false);
 await A.signOut();
 
 console.log('Company owner (alice@acme.io)');
@@ -58,6 +64,8 @@ await verify('eve@evil.com');
 await check('cannot claim someone else\'s domain', () => setDoc(doc(db, 'companies', 'rival.io'), { name: 'Rival', website: 'rival.io', domain: 'rival.io', ownerUid: eve, ownerName: 'Eve', ownerEmail: 'eve@evil.com', status: 'active' }), false);
 await check('cannot read Acme\'s members', () => getDoc(doc(db, 'companies', 'acme.io', 'members', bob)), false);
 await check('cannot read Alice\'s account', () => getDoc(doc(db, 'users', alice)), false);
+await check('cannot read Cara\'s progress', () => P.loadProfile(cara), false);
+await check('cannot write Cara\'s progress', () => setDoc(doc(db, 'profiles', cara), { ...caraProfile, testResults: [] }), false);
 await A.signOut();
 
 console.log('No work email (mo@gmail.com)');

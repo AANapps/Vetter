@@ -63,6 +63,15 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // A candidate's profile and progress: theirs alone, written only once their email is verified
+    match /profiles/{userId} {
+      allow read: if signedIn() && (uid() == userId || isAdmin());
+      allow create, update: if signedIn() && uid() == userId && verified()
+        && userDoc(userId).data.role == 'candidate'
+        && request.resource.data.id == userId && request.resource.data.role == 'candidate';
+      allow delete: if isAdmin();
+    }
+
     match /companies/{companyId} {
       // Signed-in people can see companies, so a sign-up can be told it's joining an existing one
       allow read: if signedIn();

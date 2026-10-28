@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { User, UserRole, AssessmentTest, JobPosting, Business, SocialState, AppNotification, JobInvitation } from './types';
-import { INITIAL_RECRUITER, INITIAL_BUSINESSES } from './data/mockData';
-import { loadData, saveData, clearData } from './lib/store';
+import { INITIAL_CANDIDATE, INITIAL_RECRUITER, INITIAL_BUSINESSES } from './data/mockData';
+import { loadData, saveData, clearData, createSeedData } from './lib/store';
 import { getPercentile } from './lib/leaderboard';
 import { initialsAvatar, withComputedPercentiles } from './data/seedCandidates';
 import { addTestResult } from './lib/results';
@@ -28,6 +28,7 @@ import { CandidateHome } from './components/CandidateHome';
 import { CheckCircle2 } from 'lucide-react';
 import { firebaseEnabled } from './lib/firebase';
 import { useAccount } from './lib/useAccount';
+import { loadProfile, saveProfile } from './lib/profiles';
 import { Account, signOut } from './lib/accounts';
 import { AuthDialog, AuthMode } from './components/AuthDialog';
 import { AccountGate, CompanyReview, TeamRequests } from './components/AccountScreens';
@@ -256,15 +257,68 @@ export default function App() {
     if (role !== activeRole) handleRoleChange(role);
   }, [account?.role, user?.uid]);
 
-  // A candidate account's profile replaces the demo one; their name follows the account
+  // A candidate account's profile and progress come from their account, so they follow them to any device. Until
+  // it has loaded, nothing is saved back (a blank profile mustn't overwrite theirs); saving stays off if it can't load
+  const [profileSync, setProfileSync] = useState<{ uid: string; canSave: boolean } | null>(null);
+  const candidateAccountUid =
+    firebaseEnabled && user?.emailVerified && account?.role === 'candidate' && account.status === 'active' ? account.uid : null;
   useEffect(() => {
-    if (!firebaseEnabled || !account || account.role !== 'candidate') return;
-    setCandidate((prev) => (prev.id !== account.uid ? profileFor(account) : prev.name === account.name ? prev : { ...prev, name: account.name }));
-  }, [account?.uid, account?.name]);
+    if (!candidateAccountUid || !account) return;
+    let cancelled = false;
+    loadProfile(candidateAccountUid)
+      .then((saved) => {
+        if (cancelled) return;
+        // Progress made in this browser before it was saved to their account is kept
+        const local = candidateRef.current.id === candidateAccountUid ? candidateRef.current : null;
+        setCandidate({ ...(saved ?? local ?? profileFor(account)), name: account.name, avatarUrl: initialsAvatar(account.name) });
+        setProfileSync({ uid: candidateAccountUid, canSave: true });
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.error('Loading profile failed', err);
+        if (candidateRef.current.id !== candidateAccountUid) setCandidate(profileFor(account));
+        setProfileSync({ uid: candidateAccountUid, canSave: false });
+        showToast("Couldn't load your saved progress. Refresh to try again; changes made now won't be saved.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [candidateAccountUid]);
+
+  // Their name follows the account
+  useEffect(() => {
+    if (!account || candidate.id !== account.uid || candidate.name === account.name) return;
+    setCandidate((prev) => ({ ...prev, name: account.name, avatarUrl: initialsAvatar(account.name) }));
+  }, [account?.name]);
+
+  // Saving to their account, a moment after the last change
+  const lastSavedProfile = useRef('');
+  useEffect(() => {
+    if (!profileSync?.canSave || candidate.id !== profileSync.uid) return;
+    const json = JSON.stringify(candidate);
+    if (json === lastSavedProfile.current) return;
+    const timer = setTimeout(() => {
+      saveProfile(candidate)
+        .then(() => (lastSavedProfile.current = json))
+        .catch((err) => {
+          console.error('Saving profile failed', err);
+          showToast("Couldn't save your progress. Check your connection.");
+        });
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [candidate, profileSync]);
+
+  // Signed out, nothing of theirs is left on screen or in this browser: visitors see the example candidate
+  useEffect(() => {
+    if (!firebaseEnabled || accountLoading || user) return;
+    setProfileSync(null);
+    lastSavedProfile.current = '';
+    if (candidateRef.current.id !== INITIAL_CANDIDATE.id) setCandidate(createSeedData().candidate);
+  }, [user, accountLoading]);
 
   // Before a signed-in person can use Vetter: verifying their email, and for companies, being let in
   const accountGate =
-    firebaseEnabled && accountLoading ? (
+    firebaseEnabled && (accountLoading || (candidateAccountUid && profileSync?.uid !== candidateAccountUid)) ? (
       <div className="flex justify-center py-16">
         <Pulse label="Loading" />
       </div>
