@@ -18,3 +18,12 @@ View your app in AI Studio: https://ai.studio/apps/98dedbef-fe5a-411c-840c-6b597
 2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
 3. Run the app:
    `npm run dev`
+
+## Search engines and AI assistants
+
+`npm run build` writes a static page for every job at `/jobs/<title>-<company>-<id>/`, with Google for Jobs
+(`JobPosting`) structured data, plus `/jobs/`, `sitemap.xml`, `robots.txt` and `llms.txt`.
+
+- Set `SITE_URL` (e.g. `SITE_URL=https://vetter.dev` in `.env`) to the address the site is served from; it is used for canonical links and the sitemap.
+- The host should serve `index.html` for paths without a file (single-page app fallback), so jobs created in the app open at their address too.
+- After deploying, submit `<SITE_URL>/sitemap.xml` in Google Search Console and Bing Webmaster Tools.

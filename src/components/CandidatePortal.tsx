@@ -47,7 +47,7 @@ interface CandidatePortalProps {
   onApplyJob: (jobId: string, profileId: string) => void;
   onUpdateProfiles: (profiles: JobProfile[], activeProfileId: string) => void;
   onUpdateStudies: (studies: Studies) => void;
-  // Set when the candidate is on a job's own page (#/jobs/<id>)
+  // Set when the candidate is on a job's own page (/jobs/<slug>/)
   jobPageId?: string | null;
   onOpenJob: (jobId: string) => void;
   // Exams the candidate has been invited to, for the to-do list on their profile

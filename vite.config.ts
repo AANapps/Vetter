@@ -1,11 +1,14 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import {defineConfig} from 'vite';
+import {defineConfig, loadEnv} from 'vite';
+import {seoPages} from './seoPages';
 
-export default defineConfig(() => {
+export default defineConfig(({mode}) => {
+  // The address the site is served from, for canonical links, the sitemap and job listings
+  const siteUrl = (loadEnv(mode, process.cwd(), '').SITE_URL || 'https://vetter.dev').replace(/\/+$/, '');
   return {
-    plugins: [react(), tailwindcss()],
+    plugins: [react(), tailwindcss(), seoPages(siteUrl)],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

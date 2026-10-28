@@ -526,7 +526,7 @@ export const JobDetailsModal: React.FC<JobDetailsProps & { onClose: () => void; 
   );
 };
 
-// The job's own page, linkable at #/jobs/<id>
+// The job's own page, linkable at /jobs/<slug>/
 export const JobPage: React.FC<JobDetailsProps & { onBack: () => void }> = ({ onBack, ...props }) => (
   <div className="space-y-6">
     <button onClick={onBack} className="text-xs font-semibold text-slate-500 hover:text-indigo-700 transition-colors">

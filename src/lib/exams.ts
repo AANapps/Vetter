@@ -112,7 +112,7 @@ export function examFunnel(exam: Exam, rows: ExamTrackingRow[], candidates: User
 
 // The link a company sends: whoever opens it joins the assessment and their results go back to the company
 export const examLink = (examId: string) =>
-  `${window.location.origin}${window.location.pathname}#/exams/${encodeURIComponent(examId)}`;
+  `${window.location.origin}/#/exams/${encodeURIComponent(examId)}`;
 
 // Every job has one assessment: its tests, and everyone they've been sent to
 export const jobExam = (job: JobPosting, exams: Exam[]) => exams.find((e) => e.jobId === job.id);

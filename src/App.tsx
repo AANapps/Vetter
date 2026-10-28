@@ -22,6 +22,7 @@ import { JobTestsEditor } from './components/JobTestsEditor';
 import { newJobExam } from './lib/exams';
 import { CandidateHome } from './components/CandidateHome';
 import { CheckCircle2 } from 'lucide-react';
+import { isJobsIndexPath, jobIdFromPath, jobPageTitle, jobPath } from './lib/jobSeo';
 
 const CANDIDATE_SECTIONS: Partial<Record<AppTab, CandidateSection>> = {
   profile: 'profile',
@@ -48,17 +49,23 @@ const VETTER_TEAM: User = {
 
 const today = () => new Date().toISOString().split('T')[0];
 
-// Test, job and exam pages live at #/tests/<id>, #/jobs/<id> and #/exams/<id> so they can be linked to and the back button works
+// Test and exam pages live at #/tests/<id> and #/exams/<id> so they can be linked to and the back button works
 const idFromHash = (kind: 'tests' | 'jobs' | 'exams') => {
   const match = window.location.hash.match(new RegExp(`^#/${kind}/([^?]+)`));
   return match ? decodeURIComponent(match[1]) : null;
 };
 
+// Job pages have real addresses (/jobs/<title>-<company>-<id>/) so search engines can list them; older #/jobs/<id> links still open
+const jobIdFromUrl = () => jobIdFromPath(window.location.pathname) ?? idFromHash('jobs');
+
+const SITE_TITLE = 'Vetter - Skills-Based Hiring';
+
 // A company's link to a test carries ?ref=<business id>, like an affiliate link
 const refFromHash = () => new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('ref');
 
 // Home is the tests companies sent you; a company starts on its jobs
-const initialTab = (): AppTab => (idFromHash('jobs') ? 'jobs' : idFromHash('tests') ? 'tests' : 'home');
+const initialTab = (): AppTab =>
+  jobIdFromUrl() || isJobsIndexPath(window.location.pathname) ? 'jobs' : idFromHash('tests') ? 'tests' : 'home';
 
 export default function App() {
   const [activeRole, setActiveRole] = useState<UserRole>('candidate');
@@ -127,17 +134,32 @@ export default function App() {
   }, [tests]);
 
   const [testPageId, setTestPageId] = useState<string | null>(() => idFromHash('tests'));
-  const [jobPageId, setJobPageId] = useState<string | null>(() => idFromHash('jobs'));
+  const [jobPageId, setJobPageId] = useState<string | null>(jobIdFromUrl);
   const [examPageId, setExamPageId] = useState<string | null>(() => idFromHash('exams'));
+  const syncPagesFromUrl = () => {
+    setTestPageId(idFromHash('tests'));
+    setJobPageId(jobIdFromUrl());
+    setExamPageId(idFromHash('exams'));
+  };
+  const navigateTo = (url: string) => {
+    history.pushState(null, '', url);
+    syncPagesFromUrl();
+  };
   useEffect(() => {
-    const onHashChange = () => {
-      setTestPageId(idFromHash('tests'));
-      setJobPageId(idFromHash('jobs'));
-      setExamPageId(idFromHash('exams'));
+    window.addEventListener('hashchange', syncPagesFromUrl);
+    window.addEventListener('popstate', syncPagesFromUrl);
+    return () => {
+      window.removeEventListener('hashchange', syncPagesFromUrl);
+      window.removeEventListener('popstate', syncPagesFromUrl);
     };
-    window.addEventListener('hashchange', onHashChange);
-    return () => window.removeEventListener('hashchange', onHashChange);
   }, []);
+
+  // A job's page is titled after the job, and an old #/jobs/<id> link moves to the job's real address
+  useEffect(() => {
+    const job = jobPageId ? jobs.find((j) => j.id === jobPageId) : undefined;
+    document.title = job ? jobPageTitle(job) : SITE_TITLE;
+    if (job && window.location.hash.startsWith('#/jobs/')) history.replaceState(null, '', jobPath(job));
+  }, [jobPageId, jobs]);
 
   // Following a company's link to a test ties the candidate's results on it back to that company
   useEffect(() => {
@@ -187,31 +209,27 @@ export default function App() {
   };
 
   const goToTab = (tab: AppTab) => {
-    if (window.location.hash) {
-      history.pushState(null, '', window.location.pathname + window.location.search);
-      setTestPageId(null);
-      setJobPageId(null);
-      setExamPageId(null);
-    }
+    if (window.location.hash || window.location.pathname !== '/') navigateTo('/' + window.location.search);
     if (tab === 'business-jobs') setSelectedJobId(null);
     setCurrentTab(tab);
   };
 
   const openTestPage = (testId: string) => {
     setCurrentTab(activeRole === 'candidate' ? 'tests' : 'business-tests');
-    window.location.hash = `/tests/${encodeURIComponent(testId)}`;
+    navigateTo(`/#/tests/${encodeURIComponent(testId)}`);
     window.scrollTo(0, 0);
   };
 
   const openJobPage = (jobId: string) => {
     setCurrentTab('jobs');
-    window.location.hash = `/jobs/${encodeURIComponent(jobId)}`;
+    const job = jobs.find((j) => j.id === jobId);
+    navigateTo(job ? jobPath(job) : `/jobs/${encodeURIComponent(jobId)}/`);
     window.scrollTo(0, 0);
   };
 
   const openExamPage = (examId: string) => {
     setCurrentTab('home');
-    window.location.hash = `/exams/${encodeURIComponent(examId)}`;
+    navigateTo(`/#/exams/${encodeURIComponent(examId)}`);
     window.scrollTo(0, 0);
   };
 
