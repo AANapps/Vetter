@@ -44,7 +44,7 @@ export const TestPage: React.FC<TestPageProps> = ({
   const leaderboard = getLeaderboard(test.id, candidates);
   const stats = getTestStats(test, candidates);
   const yourEntry = leaderboard.find((e) => e.candidate.id === currentCandidateId);
-  const usedByJobs = jobs.filter((j) => j.attachedTestId === test.id && j.status === 'active');
+  const usedByJobs = jobs.filter((j) => j.testIds.includes(test.id) && j.status === 'active');
   // Candidates take company tests through the jobs they're attached to, or the company's own link
   const canStart = viewerRole === 'candidate' && (test.type === 'standard' || referredByCompany?.id === test.businessId);
 

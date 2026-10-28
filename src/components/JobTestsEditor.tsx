@@ -1,17 +1,15 @@
 import React, { useState } from 'react';
-import { AssessmentTest, Exam, JobPosting } from '../types';
-import { jobExam } from '../lib/exams';
+import { AssessmentTest, JobPosting } from '../types';
 import { isMainVersion, levelsOf } from '../lib/testLevels';
 import { ArrowLeft, ArrowRight, Check, Search, X } from 'lucide-react';
 
 interface JobTestsEditorProps {
   // The jobs the tests can be for: just one when opened from a job, or all of them when sending a test from its page
   jobs: JobPosting[];
-  exams: Exam[];
   tests: AssessmentTest[];
   // Tests to add, e.g. when sending one from its page
   addTestIds?: string[];
-  onSave: (exam: Exam) => void;
+  onSave: (jobId: string, change: Pick<JobPosting, 'testIds' | 'testPassingScore' | 'testsRequired'>) => void;
   onCancel: () => void;
 }
 
@@ -20,32 +18,28 @@ const inputClass =
 
 const STEPS = ['Pick tests', 'Details'] as const;
 
-// Choosing a job's tests is two steps: pick them, then set the pass mark, deadline and message
-export const JobTestsEditor: React.FC<JobTestsEditorProps> = ({ jobs, exams, tests, addTestIds = [], onSave, onCancel }) => {
+// Choosing a job's tests is two steps: pick them, then set the pass mark and whether they're needed to apply
+export const JobTestsEditor: React.FC<JobTestsEditorProps> = ({ jobs, tests, addTestIds = [], onSave, onCancel }) => {
   const [step, setStep] = useState(0);
   const [jobId, setJobId] = useState(jobs[0]?.id ?? '');
   const job = jobs.find((j) => j.id === jobId) ?? jobs[0];
-  const exam = job && jobExam(job, exams);
   // Picked tests in the order they were ticked: main version id → the level chosen
-  const pickedFor = (e: Exam | undefined) =>
-    [...new Set([...(e?.testIds ?? []), ...addTestIds])].flatMap((id) => {
+  const pickedFor = (j: JobPosting | undefined) =>
+    [...new Set([...(j?.testIds ?? []), ...addTestIds])].flatMap((id) => {
       const t = tests.find((x) => x.id === id);
       return t ? [{ mainId: t.familyId ?? t.id, testId: t.id }] : [];
     });
-  const [picked, setPicked] = useState<{ mainId: string; testId: string }[]>(() => pickedFor(exam));
+  const [picked, setPicked] = useState<{ mainId: string; testId: string }[]>(() => pickedFor(job));
   const [testQuery, setTestQuery] = useState('');
   const pickedTests = picked.map((p) => tests.find((t) => t.id === p.testId)).filter((t): t is AssessmentTest => !!t);
-  const [description, setDescription] = useState(exam?.description ?? '');
-  const [passingScore, setPassingScore] = useState(() => exam?.passingScore ?? (pickedTests.length === 1 ? pickedTests[0].passingScore : 70));
-  const [dueDate, setDueDate] = useState(exam?.dueDate ?? '');
+  const [passingScore, setPassingScore] = useState(() => job?.testPassingScore ?? 70);
+  const [required, setRequired] = useState(() => job?.testsRequired ?? true);
   const switchJob = (id: string) => {
     const next = jobs.find((j) => j.id === id);
-    const nextExam = next && jobExam(next, exams);
     setJobId(id);
-    setPicked(pickedFor(nextExam));
-    setDescription(nextExam?.description ?? '');
-    setPassingScore(nextExam?.passingScore ?? 70);
-    setDueDate(nextExam?.dueDate ?? '');
+    setPicked(pickedFor(next));
+    setPassingScore(next?.testPassingScore ?? 70);
+    setRequired(next?.testsRequired ?? true);
   };
 
   const tq = testQuery.trim().toLowerCase();
@@ -59,15 +53,8 @@ export const JobTestsEditor: React.FC<JobTestsEditorProps> = ({ jobs, exams, tes
 
   const save = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!exam || pickedTests.length === 0) return;
-    onSave({
-      ...exam,
-      title: job.title,
-      description: description.trim() || `${job.companyName} would like you to take the tests for ${job.title}.`,
-      testIds: pickedTests.map((t) => t.id),
-      passingScore,
-      dueDate: dueDate || undefined,
-    });
+    if (!job || pickedTests.length === 0) return;
+    onSave(job.id, { testIds: pickedTests.map((t) => t.id), testPassingScore: passingScore, testsRequired: required });
   };
 
   return (
@@ -172,13 +159,7 @@ export const JobTestsEditor: React.FC<JobTestsEditorProps> = ({ jobs, exams, tes
                   </span>{' '}
                   &middot; ~{minutes} min in total: {pickedTests.map((t) => t.title).join(', ')}
                 </div>
-                <div>
-                  <label htmlFor="a-desc" className="block text-xs font-semibold text-slate-700 mb-1">
-                    Message to candidates <span className="font-normal text-slate-400">(optional)</span>
-                  </label>
-                  <textarea id="a-desc" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} className={inputClass} />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-3 items-end">
                   <div>
                     <label htmlFor="a-pass" className="block text-xs font-semibold text-slate-700 mb-1">
                       Pass mark {pickedTests.length > 1 && <span className="font-normal text-slate-400">(average)</span>}
@@ -193,12 +174,10 @@ export const JobTestsEditor: React.FC<JobTestsEditorProps> = ({ jobs, exams, tes
                       className={`${inputClass} font-mono`}
                     />
                   </div>
-                  <div>
-                    <label htmlFor="a-due" className="block text-xs font-semibold text-slate-700 mb-1">
-                      Deadline <span className="font-normal text-slate-400">(optional)</span>
-                    </label>
-                    <input id="a-due" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className={inputClass} />
-                  </div>
+                  <label className="flex items-center gap-2 py-2 text-sm text-slate-700 cursor-pointer">
+                    <input type="checkbox" checked={required} onChange={(e) => setRequired(e.target.checked)} className="accent-indigo-600" />
+                    Required to apply
+                  </label>
                 </div>
               </>
             )}

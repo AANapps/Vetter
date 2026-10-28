@@ -1,4 +1,4 @@
-import { CareerStage, Exam, User } from '../types';
+import { CareerStage, JobPosting, User } from '../types';
 
 // Who a company sends tests to: candidates narrowed down by career stage, subject, level and location
 
@@ -58,13 +58,13 @@ export function headline(c: User) {
 }
 
 // What a candidate picked from Vetter is emailed at their login address
-export function inviteEmail(exam: Exam, candidate: User, link: string) {
-  const count = exam.testIds.length;
+export function inviteEmail(job: JobPosting, candidate: User, link: string) {
+  const count = job.testIds.length;
   return {
     to: candidate.email,
-    subject: `${exam.companyName} has invited you to take ${count === 1 ? 'a test' : `${count} tests`} for ${exam.title}`,
-    body: `Hi ${candidate.name.split(' ')[0]},\n\n${exam.description}\n\n${exam.title} at ${exam.companyName}: ${count} ${count === 1 ? 'test' : 'tests'}${
-      exam.dueDate ? `, due ${exam.dueDate}` : ''
-    }. Your results go straight to ${exam.companyName}.\n\nStart here: ${link}\n`,
+    subject: `${job.companyName} has invited you to take ${count === 1 ? 'a test' : `${count} tests`} for ${job.title}`,
+    body: `Hi ${candidate.name.split(' ')[0]},\n\n${job.companyName} would like you to take the tests for ${job.title}: ${count} ${count === 1 ? 'test' : 'tests'}${
+      job.closingDate ? `, by ${job.closingDate}` : ''
+    }. Your results go straight to ${job.companyName}.\n\nStart here: ${link}\n`,
   };
 }

@@ -150,13 +150,15 @@ export const BusinessesView: React.FC<BusinessesViewProps> = ({
                             <span className="text-[11px] text-slate-500 font-mono shrink-0 ml-2">{j.workType}</span>
                           </div>
 
-                          {j.attachedTestId && (
+                          {j.testIds.length > 0 && (
                             <div className="flex items-center justify-between text-[11px] text-indigo-700 bg-white border border-indigo-100 rounded px-2 py-1 font-mono">
                               <span className="truncate flex items-center gap-1">
                                 <Award className="w-3 h-3 text-indigo-600 shrink-0" />
-                                <span>Test: {j.attachedTestTitle || 'Technical Test'}</span>
+                                <span>
+                                  {j.testIds.length} {j.testIds.length === 1 ? 'test' : 'tests'}
+                                </span>
                               </span>
-                              <span className="text-slate-400 shrink-0 ml-2">≥{j.attachedTestPassingScore || 75} pts</span>
+                              <span className="text-slate-400 shrink-0 ml-2">≥{j.testPassingScore} pts</span>
                             </div>
                           )}
                         </div>

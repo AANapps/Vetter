@@ -1,25 +1,24 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { User, UserRole, AssessmentTest, JobPosting, Business, SocialState, Exam, AppNotification } from './types';
+import { User, UserRole, AssessmentTest, JobPosting, Business, SocialState, AppNotification, JobInvitation } from './types';
 import { INITIAL_RECRUITER, INITIAL_BUSINESSES } from './data/mockData';
 import { loadData, saveData, clearData } from './lib/store';
 import { getPercentile } from './lib/leaderboard';
 import { initialsAvatar, withComputedPercentiles } from './data/seedCandidates';
 import { addTestResult } from './lib/results';
-import { simulateAttempt, simulateExamStep } from './lib/liveActivity';
+import { simulateAttempt, simulateJobTestStep } from './lib/liveActivity';
 import { Navigation, AppTab, NAV_TABS } from './components/Navigation';
 import { CandidatePortal, CandidateSection } from './components/CandidatePortal';
 import { bestProfileFor } from './lib/jobProfiles';
 import { RecruiterPortal, BusinessSection } from './components/RecruiterPortal';
 import { BusinessesView } from './components/BusinessesView';
-import { AssessmentRunner } from './components/AssessmentRunner';
+import { TestRunner } from './components/TestRunner';
 import { TestPage } from './components/TestPage';
 import { DiscoverFeed } from './components/DiscoverFeed';
 import { GlobalSearch } from './components/GlobalSearch';
 import { PersonProfileModal } from './components/PersonProfileModal';
-import { ExamPage } from './components/ExamPage';
 import { BusinessJobs } from './components/BusinessJobs';
 import { JobTestsEditor } from './components/JobTestsEditor';
-import { newJobExam } from './lib/exams';
+import { jobTestProgress, withInvitation } from './lib/jobTests';
 import { CandidateHome } from './components/CandidateHome';
 import { CheckCircle2 } from 'lucide-react';
 import { isJobsIndexPath, jobIdFromPath, jobPageTitle, jobPath } from './lib/jobSeo';
@@ -49,14 +48,20 @@ const VETTER_TEAM: User = {
 
 const today = () => new Date().toISOString().split('T')[0];
 
-// Test and exam pages live at #/tests/<id> and #/exams/<id> so they can be linked to and the back button works
+// Test pages live at #/tests/<id> so they can be linked to and the back button works
 const idFromHash = (kind: 'tests' | 'jobs' | 'exams') => {
   const match = window.location.hash.match(new RegExp(`^#/${kind}/([^?]+)`));
   return match ? decodeURIComponent(match[1]) : null;
 };
 
-// Job pages have real addresses (/jobs/<title>-<company>-<id>/) so search engines can list them; older #/jobs/<id> links still open
-const jobIdFromUrl = () => jobIdFromPath(window.location.pathname) ?? idFromHash('jobs');
+// Job pages have real addresses (/jobs/<title>-<company>-<id>/) so search engines can list them. Older #/jobs/<id> links
+// still open, and so do links to the assessments jobs used to have (#/exams/<id>), which open their job
+const LEGACY_EXAM_JOBS: Record<string, string> = { 'exam-001': 'job-004', 'exam-002': 'job-006', 'exam-003': 'job-005' };
+const jobIdFromUrl = () => {
+  const examId = idFromHash('exams');
+  if (examId) return LEGACY_EXAM_JOBS[examId] ?? examId.replace(/^exam-/, '');
+  return jobIdFromPath(window.location.pathname) ?? idFromHash('jobs');
+};
 
 const SITE_TITLE = 'Vetter - Skills-Based Hiring';
 
@@ -84,32 +89,20 @@ export default function App() {
   const [tests, setTests] = useState<AssessmentTest[]>(initialData.tests);
   const [businesses] = useState<Business[]>(INITIAL_BUSINESSES);
   const [social, setSocial] = useState<SocialState>(initialData.social);
-  const [exams, setExams] = useState<Exam[]>(initialData.exams);
   const [notifications, setNotifications] = useState<AppNotification[]>(initialData.notifications);
-  const examsRef = useRef(exams);
-  examsRef.current = exams;
+  const jobsRef = useRef(jobs);
+  jobsRef.current = jobs;
 
   useEffect(() => {
-    saveData({ candidate, otherCandidates, jobs, tests, social, exams, notifications });
-  }, [candidate, otherCandidates, jobs, tests, social, exams, notifications]);
+    saveData({ candidate, otherCandidates, jobs, tests, social, notifications });
+  }, [candidate, otherCandidates, jobs, tests, social, notifications]);
 
-  // Changes one person's invitation to an assessment, adding it if they don't have one yet
-  const updateInvitation = (examId: string, candidateId: string, change: Partial<Exam['invitations'][number]>) =>
-    setExams((prev) =>
-      prev.map((e) => {
-        if (e.id !== examId) return e;
-        const existing = e.invitations.find((i) => i.candidateId === candidateId);
-        return {
-          ...e,
-          invitations: existing
-            ? e.invitations.map((i) => (i.candidateId === candidateId ? { ...i, ...change } : i))
-            : [...e.invitations, { candidateId, invitedAt: today(), via: 'link' as const, ...change }],
-        };
-      })
-    );
+  // Changes one person's invitation to a job's tests, adding it if they don't have one yet
+  const updateInvitation = (jobId: string, candidateId: string, change: Partial<JobInvitation>) =>
+    setJobs((prev) => prev.map((j) => (j.id === jobId ? withInvitation(j, candidateId, change, today()) : j)));
 
   // Other people keep taking tests while the page is open, every few seconds, so scores and ranks shift live,
-  // and work through the assessments companies sent them, so companies see results come in
+  // and work through the jobs' tests companies sent them, so companies see results come in
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
     const recordAttempt = (attempt: { candidateId: string; test: AssessmentTest; result: User['testResults'][number] }) => {
@@ -119,9 +112,9 @@ export default function App() {
     };
     const tick = () => {
       if (document.visibilityState === 'visible') {
-        const step = Math.random() < 0.5 ? simulateExamStep(examsRef.current, othersRef.current, tests) : null;
+        const step = Math.random() < 0.5 ? simulateJobTestStep(jobsRef.current, othersRef.current, tests) : null;
         if (step?.kind === 'attempt') recordAttempt(step);
-        else if (step) updateInvitation(step.examId, step.candidateId, { openedAt: new Date().toISOString() });
+        else if (step) updateInvitation(step.jobId, step.candidateId, { openedAt: new Date().toISOString() });
         else {
           const attempt = simulateAttempt(othersRef.current, tests);
           if (attempt) recordAttempt(attempt);
@@ -135,11 +128,9 @@ export default function App() {
 
   const [testPageId, setTestPageId] = useState<string | null>(() => idFromHash('tests'));
   const [jobPageId, setJobPageId] = useState<string | null>(jobIdFromUrl);
-  const [examPageId, setExamPageId] = useState<string | null>(() => idFromHash('exams'));
   const syncPagesFromUrl = () => {
     setTestPageId(idFromHash('tests'));
     setJobPageId(jobIdFromUrl());
-    setExamPageId(idFromHash('exams'));
   };
   const navigateTo = (url: string) => {
     history.pushState(null, '', url);
@@ -158,7 +149,7 @@ export default function App() {
   useEffect(() => {
     const job = jobPageId ? jobs.find((j) => j.id === jobPageId) : undefined;
     document.title = job ? jobPageTitle(job) : SITE_TITLE;
-    if (job && window.location.hash.startsWith('#/jobs/')) history.replaceState(null, '', jobPath(job));
+    if (job && /^#\/(jobs|exams)\//.test(window.location.hash)) history.replaceState(null, '', jobPath(job));
   }, [jobPageId, jobs]);
 
   // Following a company's link to a test ties the candidate's results on it back to that company
@@ -172,34 +163,30 @@ export default function App() {
     );
   }, [testPageId, businesses]);
 
-  // Opening an assessment link joins it, so the company sees who opened it and when
+  // Someone sent a job's tests opening the job: the company sees who opened it and when
   useEffect(() => {
-    if (!examPageId || activeRole !== 'candidate') return;
-    const exam = examsRef.current.find((e) => e.id === examPageId);
-    if (!exam) return;
-    const invitation = exam.invitations.find((i) => i.candidateId === candidateRef.current.id);
-    if (!invitation || !invitation.openedAt) updateInvitation(examPageId, candidateRef.current.id, { openedAt: new Date().toISOString() });
-  }, [examPageId, activeRole]);
+    if (!jobPageId || activeRole !== 'candidate') return;
+    const invitation = jobsRef.current.find((j) => j.id === jobPageId)?.invitations.find((i) => i.candidateId === candidateRef.current.id);
+    if (invitation && !invitation.openedAt) updateInvitation(jobPageId, candidateRef.current.id, { openedAt: new Date().toISOString() });
+  }, [jobPageId, activeRole]);
 
-  // Companies opening a job's test link land on that job's results
+  // Companies opening a job's link land on that job's results
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   useEffect(() => {
-    if (!examPageId || activeRole === 'candidate') return;
-    setSelectedJobId(examsRef.current.find((e) => e.id === examPageId)?.jobId ?? null);
+    if (!jobPageId || activeRole === 'candidate') return;
+    setSelectedJobId(jobPageId);
     setCurrentTab('business-jobs');
-  }, [examPageId, activeRole]);
+  }, [jobPageId, activeRole]);
   // Choosing a job's tests: the job (or every job, when sending a test from its page) and any tests to add
   const [editingTests, setEditingTests] = useState<{ jobId?: string; addTestIds: string[] } | null>(null);
 
-  // When a candidate takes a job's attached test, the job they're applying to
+  // When a candidate takes one of a job's tests from the job, the job they're applying to
   const [activeTestJobId, setActiveTestJobId] = useState<string | null>(null);
   const [activeTest, setActiveTest] = useState<AssessmentTest | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   // Opened from search
   const [profilePersonId, setProfilePersonId] = useState<string | null>(null);
   const [companiesQuery, setCompaniesQuery] = useState('');
-  // The assessment a test was started from, which gets the result
-  const [activeExamId, setActiveExamId] = useState<string | null>(null);
 
   const recruiterBusiness = businesses.find((b) => b.id === recruiter.businessId)!;
 
@@ -227,59 +214,53 @@ export default function App() {
     window.scrollTo(0, 0);
   };
 
-  const openExamPage = (examId: string) => {
-    setCurrentTab('home');
-    navigateTo(`/#/exams/${encodeURIComponent(examId)}`);
-    window.scrollTo(0, 0);
-  };
-
-  // Inviting candidates to an exam emails it to their login address, puts it on their Home and notifies them
-  const handleInviteToExam = (examId: string, candidateIds: string[]) => {
+  // Sending a job's tests to people on Vetter emails them at their login address, puts the job on their Home and notifies them
+  const handleInviteToJob = (jobId: string, candidateIds: string[]) => {
     const emailOf = (id: string) => allCandidates.find((c) => c.id === id)?.email;
-    setExams((prev) =>
-      prev.map((e) =>
-        e.id === examId
+    setJobs((prev) =>
+      prev.map((j) =>
+        j.id === jobId
           ? {
-              ...e,
+              ...j,
               invitations: [
-                ...e.invitations,
+                ...j.invitations,
                 ...candidateIds.map((candidateId) => ({ candidateId, invitedAt: today(), via: 'invite' as const, emailedTo: emailOf(candidateId) })),
               ],
             }
-          : e
+          : j
       )
     );
-    notifyInvited(examId, candidateIds);
+    notifyInvited(jobId, candidateIds);
   };
 
   // Emailing the link: people with a Vetter account are tracked from now, the rest once they sign up
-  const handleEmailExam = (examId: string, emails: string[]) => {
-    const exam = exams.find((e) => e.id === examId);
-    if (!exam) return;
-    const already = new Set(exam.invitations.map((i) => i.candidateId));
+  const handleEmailJob = (jobId: string, emails: string[]) => {
+    const job = jobs.find((j) => j.id === jobId);
+    if (!job) return;
+    const already = new Set(job.invitations.map((i) => i.candidateId));
     const withAccounts = allCandidates.filter((c) => emails.includes(c.email.toLowerCase()) && !already.has(c.id)).map((c) => c.id);
-    setExams((prev) =>
-      prev.map((e) =>
-        e.id === examId
+    setJobs((prev) =>
+      prev.map((j) =>
+        j.id === jobId
           ? {
-              ...e,
-              invitedEmails: [...new Set([...(e.invitedEmails ?? []), ...emails])],
-              invitations: [...e.invitations, ...withAccounts.map((candidateId) => ({ candidateId, invitedAt: today(), via: 'email' as const }))],
+              ...j,
+              invitedEmails: [...new Set([...(j.invitedEmails ?? []), ...emails])],
+              invitations: [...j.invitations, ...withAccounts.map((candidateId) => ({ candidateId, invitedAt: today(), via: 'email' as const }))],
             }
-          : e
+          : j
       )
     );
-    notifyInvited(examId, withAccounts);
+    notifyInvited(jobId, withAccounts);
   };
 
-  const notifyInvited = (examId: string, candidateIds: string[]) => {
+  const notifyInvited = (jobId: string, candidateIds: string[]) => {
     const now = new Date();
     setNotifications((prev) => [
       ...candidateIds.map((userId, i) => ({
         id: `note-${now.getTime()}-${i}`,
         userId,
-        kind: 'exam-invite' as const,
-        examId,
+        kind: 'job-invite' as const,
+        jobId,
         createdAt: now.toISOString(),
         read: false,
       })),
@@ -290,7 +271,7 @@ export default function App() {
   const openNotification = (id: string) => {
     const note = notifications.find((n) => n.id === id);
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
-    if (note) openExamPage(note.examId);
+    if (note) openJobPage(note.jobId);
   };
 
   // A company from search: the Companies page, filtered to it
@@ -339,13 +320,13 @@ export default function App() {
   };
 
   // Complete a test in the runner
-  const handleCompleteAssessment = (testId: string, finalScore: number, durationSeconds: number) => {
+  const handleCompleteTest = (testId: string, finalScore: number, durationSeconds: number) => {
     const completedTest = tests.find((t) => t.id === testId);
     if (!completedTest) return;
 
-    // Taken from an assessment, or a company's link to the test: that company gets the result
-    const fromExam = activeExamId ? exams.find((e) => e.id === activeExamId) : undefined;
-    const referredBy = fromExam?.businessId ?? candidate.testReferrals?.filter((r) => r.testId === testId).at(-1)?.businessId;
+    // Taken for a job, or from a company's link to the test: that company gets the result
+    const job = activeTestJobId ? jobs.find((j) => j.id === activeTestJobId) : undefined;
+    const referredBy = job?.businessId ?? candidate.testReferrals?.filter((r) => r.testId === testId).at(-1)?.businessId;
     const updatedCandidate = addTestResult(candidate, completedTest, {
       testId,
       score: finalScore,
@@ -360,70 +341,70 @@ export default function App() {
     setCandidate(everyone[0]);
     setOtherCandidates(everyone.slice(1));
 
-    // If the test was taken to apply for a job, submit the application when the candidate passes
-    const job = activeTestJobId ? jobs.find((j) => j.id === activeTestJobId) : undefined;
+    // Taken for a job: once every one of its tests is done, a pass sends the application (when the tests are required to apply)
     if (job) {
-      const passMark = job.attachedTestPassingScore || completedTest.passingScore;
-      if (finalScore >= passMark) {
+      const progress = jobTestProgress(job, updatedCandidate);
+      const applied = candidate.appliedJobIds?.includes(job.id);
+      if (progress.status === 'passed' && job.testsRequired && !applied) {
         handleApplyJob(job.id);
-        showToast(`You passed with ${finalScore}/100. Your application to ${job.companyName} has been sent.`);
+        showToast(`You passed ${job.title}'s tests with ${progress.score}/100. Your application to ${job.companyName} has been sent.`);
+      } else if (progress.status === 'passed') {
+        showToast(`You passed ${job.title}'s tests with ${progress.score}/100.`);
+      } else if (progress.status === 'failed') {
+        showToast(`You averaged ${progress.score}/100. ${job.title} needs ${job.testPassingScore}. You can retake a test.`);
       } else {
-        showToast(`You scored ${finalScore}/100. ${job.title} needs ${passMark} to apply. You can retake the test.`);
+        showToast(`You scored ${finalScore}/100. ${progress.done} of ${progress.total} of ${job.title}'s tests done.`);
       }
       // Started from the job's own page: stay there
       if (!jobPageId) goToTab('jobs');
-    } else if (!testPageId && !examPageId) {
+    } else if (!testPageId) {
       // Started from a test page: stay there so the candidate sees where they now rank
       goToTab(completedTest.type === 'standard' ? 'profile' : 'jobs');
     }
 
     setActiveTestJobId(null);
-    setActiveExamId(null);
     setActiveTest(null);
   };
 
-  // A new job comes with its own tests to send, starting from the test attached in the form
-  const handleCreateJob = (newJob: JobPosting) => {
-    setJobs((prev) => [newJob, ...prev]);
-    setExams((prev) => [newJobExam(newJob), ...prev]);
+  // A candidate starting one of a job's tests from the job: the company sees them on the job from now
+  const startJobTest = (test: AssessmentTest, jobId: string) => {
+    const invitation = jobs.find((j) => j.id === jobId)?.invitations.find((i) => i.candidateId === candidate.id);
+    if (!invitation?.startedAt) updateInvitation(jobId, candidate.id, { startedAt: new Date().toISOString() });
+    setActiveTest(test);
+    setActiveTestJobId(jobId);
   };
 
-  // Saving a job's tests; the first one is what candidates see on the job listing
-  const handleSaveJobTests = (exam: Exam) => {
-    setExams((prev) => prev.map((e) => (e.id === exam.id ? exam : e)));
-    const first = tests.find((t) => t.id === exam.testIds[0]);
-    if (first)
-      setJobs((prev) =>
-        prev.map((j) =>
-          j.id === exam.jobId ? { ...j, attachedTestId: first.id, attachedTestTitle: first.title, attachedTestPassingScore: exam.passingScore } : j
-        )
-      );
+  const handleCreateJob = (newJob: JobPosting) => {
+    setJobs((prev) => [newJob, ...prev]);
+  };
+
+  const handleSaveJobTests = (jobId: string, change: Pick<JobPosting, 'testIds' | 'testPassingScore' | 'testsRequired'>) => {
+    setJobs((prev) => prev.map((j) => (j.id === jobId ? { ...j, ...change } : j)));
   };
 
   const handleUpdateJobRequirements = (jobId: string, requirements: JobPosting['requirements']) => {
     setJobs((prev) => prev.map((j) => (j.id === jobId ? { ...j, requirements } : j)));
   };
 
-  const handleCreateCustomAssessment = (newTest: AssessmentTest) => {
+  const handleCreateTest = (newTest: AssessmentTest) => {
     setTests((prev) => [newTest, ...prev]);
   };
 
   const allCandidates = [candidate, ...otherCandidates];
   const testPageTest = testPageId ? tests.find((t) => t.id === testPageId) : undefined;
-  const examPageExam = examPageId && activeRole === 'candidate' ? exams.find((e) => e.id === examPageId) : undefined;
-  // A test or exam page replaces the tab's own content
-  const detailPage = testPageTest || examPageExam;
+  // A test page replaces the tab's own content
+  const detailPage = testPageTest;
   const candidateNotifications = notifications
     .filter((n) => n.userId === candidate.id)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     .flatMap((n) => {
-      const exam = exams.find((e) => e.id === n.examId);
-      if (!exam) return [];
+      const job = jobs.find((j) => j.id === n.jobId);
+      if (!job) return [];
       return [
         {
           id: n.id,
-          text: `${exam.companyName} invited you to take the tests for ${exam.title}`,
-          detail: `${exam.testIds.length} tests${exam.dueDate ? ` · due ${new Date(exam.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : ''}`,
+          text: `${job.companyName} invited you to take the tests for ${job.title}`,
+          detail: `${job.testIds.length} ${job.testIds.length === 1 ? 'test' : 'tests'}${job.closingDate ? ` · closes ${new Date(job.closingDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : ''}`,
           when: new Date(n.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
           read: n.read,
         },
@@ -471,24 +452,7 @@ export default function App() {
 
       <div className="flex-1 min-w-0 flex flex-col pb-14 md:pb-0">
         <main className="flex-1 pb-16 bg-white">
-          {examPageExam && (
-            <ExamPage
-              exam={examPageExam}
-              business={businesses.find((b) => b.id === examPageExam.businessId)}
-              tests={tests}
-              candidate={candidate}
-              onStartTest={(test) => {
-                const invitation = examPageExam.invitations.find((i) => i.candidateId === candidate.id);
-                if (!invitation?.startedAt) updateInvitation(examPageExam.id, candidate.id, { startedAt: new Date().toISOString() });
-                setActiveExamId(examPageExam.id);
-                setActiveTest(test);
-              }}
-              onOpenTest={openTestPage}
-              onBack={() => goToTab('home')}
-            />
-          )}
-
-          {!examPageExam && testPageTest && (
+          {testPageTest && (
             <TestPage
               test={testPageTest}
               tests={tests}
@@ -520,10 +484,7 @@ export default function App() {
               jobs={jobs}
               businesses={businesses}
               onStartTest={(test) => setActiveTest(test)}
-              onStartAttachedTest={(test, forJobId) => {
-                setActiveTest(test);
-                setActiveTestJobId(forJobId);
-              }}
+              onStartJobTest={startJobTest}
               onApplyJob={handleApplyJob}
               onUpdateProfiles={(jobProfiles, activeProfileId) =>
                 setCandidate((prev) => ({ ...prev, jobProfiles, activeProfileId }))
@@ -531,8 +492,6 @@ export default function App() {
               onUpdateStudies={(studies) => setCandidate((prev) => ({ ...prev, ...studies }))}
               jobPageId={jobPageId}
               onOpenJob={openJobPage}
-              exams={exams}
-              onOpenExam={openExamPage}
             />
           )}
 
@@ -541,10 +500,10 @@ export default function App() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 grid grid-cols-1 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)] gap-8 items-start">
               <CandidateHome
                 candidate={candidate}
-                exams={exams}
+                jobs={jobs}
                 tests={tests}
                 businesses={businesses}
-                onOpenExam={openExamPage}
+                onOpenJob={openJobPage}
                 onStartTest={(test) => setActiveTest(test)}
                 onOpenTest={openTestPage}
                 onGoTo={goToTab}
@@ -580,7 +539,6 @@ export default function App() {
               business={activeRole === 'admin' ? undefined : recruiterBusiness}
               businesses={businesses}
               jobs={jobs}
-              exams={exams}
               tests={tests}
               candidates={allCandidates}
               selectedJobId={selectedJobId}
@@ -591,8 +549,8 @@ export default function App() {
               onCreateJob={handleCreateJob}
               onEditTests={(jobId) => setEditingTests({ jobId, addTestIds: [] })}
               onUpdateJobRequirements={handleUpdateJobRequirements}
-              onEmail={handleEmailExam}
-              onInvite={handleInviteToExam}
+              onEmail={handleEmailJob}
+              onInvite={handleInviteToJob}
               onOpenPerson={setProfilePersonId}
               onOpenTest={openTestPage}
             />
@@ -607,10 +565,9 @@ export default function App() {
               business={activeRole === 'admin' ? undefined : recruiterBusiness}
               businesses={businesses}
               jobs={jobs}
-              exams={exams}
               allCandidates={allCandidates}
               tests={tests}
-              onCreateCustomAssessment={handleCreateCustomAssessment}
+              onCreateTest={handleCreateTest}
             />
           )}
         </main>
@@ -631,14 +588,13 @@ export default function App() {
           jobs={jobs.filter((j) =>
             editingTests.jobId ? j.id === editingTests.jobId : activeRole === 'admin' || j.businessId === recruiterBusiness.id
           )}
-          exams={exams}
           tests={tests}
           addTestIds={editingTests.addTestIds}
-          onSave={(exam) => {
-            handleSaveJobTests(exam);
+          onSave={(jobId, change) => {
+            handleSaveJobTests(jobId, change);
             setEditingTests(null);
             goToTab('business-jobs');
-            setSelectedJobId(exam.jobId ?? null);
+            setSelectedJobId(jobId);
             window.scrollTo(0, 0);
           }}
           onCancel={() => setEditingTests(null)}
@@ -646,14 +602,13 @@ export default function App() {
       )}
 
       {activeTest && (
-        <AssessmentRunner
+        <TestRunner
           test={activeTest}
           onClose={() => {
             setActiveTest(null);
             setActiveTestJobId(null);
-            setActiveExamId(null);
           }}
-          onComplete={handleCompleteAssessment}
+          onComplete={handleCompleteTest}
           getPercentileFor={(score) => getPercentile(score, activeTest.id, allCandidates, candidate.id)}
         />
       )}

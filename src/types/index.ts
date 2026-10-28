@@ -227,11 +227,16 @@ export interface JobPosting {
   niceToHave?: string[];
   benefits?: string[];
   requirements: JobRequirement[];
-  // A job may have one test attached (Vetter-made or the company's own)
-  attachedTestId?: string;
-  attachedTestTitle?: string;
-  attachedTestPassingScore?: number;
-  isAttachedTestMandatory?: boolean;
+  // The job's tests, in order (Vetter-made or the company's own). Each is an ordinary test: a score on it counts here
+  // however it was taken
+  testIds: string[];
+  // Average score across the job's tests needed to pass
+  testPassingScore: number;
+  // Candidates must pass the tests before they can apply
+  testsRequired: boolean;
+  // Everyone the job's tests have been sent to, and addresses emailed that have no Vetter account yet
+  invitations: JobInvitation[];
+  invitedEmails?: string[];
   applicantCount: number;
   status: 'active' | 'paused' | 'filled';
 }
@@ -260,8 +265,9 @@ export interface CandidateJobMatch {
   overallFitPercentage: number; // 0 - 100
   meetsAllHardRequirements: boolean;
   breakdown: SkillMatchBreakdown[];
-  attachedTestStatus?: 'qualified' | 'requires_test' | 'test_taken_failed';
-  attachedTestScore?: number;
+  // How the candidate did on the job's tests: passed, still to take, or below the pass mark; the average once all are taken
+  jobTestStatus?: 'qualified' | 'requires_test' | 'test_taken_failed';
+  jobTestScore?: number;
   applicationStatus?: 'none' | 'applied' | 'reviewing' | 'interview' | 'offer' | 'rejected';
   matchTier: 'Top Match' | 'Strong Fit' | 'Borderline' | 'Needs Upskilling';
 }
@@ -289,34 +295,13 @@ export interface SocialState {
   following: string[]; // candidate and company ids
 }
 
-// An assessment: one or more tests a company sends candidates as a link (called an exam in code)
-// A job's tests and everyone they've been sent to. Every job has one; the link candidates get points at it.
-export interface Exam {
-  id: string;
-  jobId?: string;
-  title: string;
-  description: string;
-  businessId: string;
-  companyName: string;
-  // Who set it up: the company itself, or the Vetter team on its behalf
-  createdBy: 'company' | 'vetter';
-  // The test versions to take, in order
-  testIds: string[];
-  // Average score across the tests needed to pass
-  passingScore: number;
-  dueDate?: string;
-  createdAt: string;
-  invitations: ExamInvitation[];
-  // Addresses the link was emailed to, including people without a Vetter account yet
-  invitedEmails?: string[];
-}
-
-export interface ExamInvitation {
+// Someone sent a job's tests, or who started them from the job's page
+export interface JobInvitation {
   candidateId: string;
-  invitedAt: string; // ISO date; only results from this day on count toward the exam
-  // How they got it: followed the link, were emailed it, or were picked from Vetter's candidates
+  invitedAt: string; // ISO date
+  // How they got it: from the job's link or page, emailed it, or picked from Vetter's candidates
   via?: 'link' | 'email' | 'invite';
-  // When they first opened the link, and first started one of its tests
+  // When they first opened the job, and first started one of its tests
   openedAt?: string; // ISO timestamp
   startedAt?: string; // ISO timestamp
   // The login address the invitation was emailed to, for people picked from Vetter's candidates
@@ -326,8 +311,8 @@ export interface ExamInvitation {
 export interface AppNotification {
   id: string;
   userId: string;
-  kind: 'exam-invite';
-  examId: string;
+  kind: 'job-invite';
+  jobId: string;
   createdAt: string; // ISO timestamp
   read: boolean;
 }

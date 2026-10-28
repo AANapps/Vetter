@@ -19,14 +19,14 @@ import { getBadgeTier } from './VerifiedSkillBadge';
 import { QUESTION_TYPE_LABELS, describeChecks } from '../lib/testRoles';
 import { ChartPreview, parseChartSpec } from './ChartPreview';
 
-interface AssessmentRunnerProps {
+interface TestRunnerProps {
   test: AssessmentTest;
   onClose: () => void;
   onComplete: (testId: string, finalScore: number, durationSeconds: number) => void;
   getPercentileFor: (score: number) => number;
 }
 
-export const AssessmentRunner: React.FC<AssessmentRunnerProps> = ({ test, onClose, onComplete, getPercentileFor }) => {
+export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete, getPercentileFor }) => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [userCodes, setUserCodes] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {};
@@ -77,7 +77,7 @@ export const AssessmentRunner: React.FC<AssessmentRunnerProps> = ({ test, onClos
       setSecondsRemaining((prev) => {
         if (prev <= 1) {
           clearInterval(interval);
-          handleSubmitAssessment();
+          handleSubmitTest();
           return 0;
         }
         return prev - 1;
@@ -136,7 +136,7 @@ export const AssessmentRunner: React.FC<AssessmentRunnerProps> = ({ test, onClos
   };
 
   // Grade every task from the candidate's latest code, whether or not they pressed Run
-  const handleSubmitAssessment = async () => {
+  const handleSubmitTest = async () => {
     if (submittedRef.current) return;
     submittedRef.current = true;
     setIsSubmitting(true);
@@ -162,7 +162,7 @@ export const AssessmentRunner: React.FC<AssessmentRunnerProps> = ({ test, onClos
 
   if (!hasStarted) {
     return (
-      <AssessmentIntro
+      <TestIntro
         test={test}
         acceptedRules={acceptedRules}
         onAcceptedRulesChange={setAcceptedRules}
@@ -235,18 +235,18 @@ export const AssessmentRunner: React.FC<AssessmentRunnerProps> = ({ test, onClos
                 ? 'bg-amber-50 border-amber-200 text-amber-800'
                 : 'bg-slate-50 border-slate-200 text-slate-600'
             }`}
-            title="Monitors tab visibility and focus for assessment integrity"
+            title="Monitors tab visibility and focus for test integrity"
           >
             <Eye className="w-3 h-3 text-indigo-600" />
             <span>Focus: {tabSwitches === 0 ? '100%' : `${Math.max(60, 100 - tabSwitches * 10)}%`}</span>
           </div>
 
           <button
-            onClick={handleSubmitAssessment}
+            onClick={handleSubmitTest}
             disabled={isSubmitting}
             className="px-3.5 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 rounded-lg shadow-xs transition-colors"
           >
-            {isSubmitting ? 'Grading...' : 'Submit Assessment'}
+            {isSubmitting ? 'Grading...' : 'Submit test'}
           </button>
         </div>
       </div>
@@ -564,7 +564,7 @@ export const AssessmentRunner: React.FC<AssessmentRunnerProps> = ({ test, onClos
                   <CheckCircle2 className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900">Assessment Complete!</h3>
+                  <h3 className="text-lg font-bold text-slate-900">Test complete!</h3>
                   <p className="text-xs text-slate-500">
                     {test.type === 'standard'
                       ? 'Your score is saved to your profile and this test’s leaderboard'
@@ -656,7 +656,7 @@ const INTEGRITY_RULES = [
   'One attempt at a time, on your own account. Breaking these rules can void your score.',
 ];
 
-interface AssessmentIntroProps {
+interface TestIntroProps {
   test: AssessmentTest;
   acceptedRules: boolean;
   onAcceptedRulesChange: (accepted: boolean) => void;
@@ -664,7 +664,7 @@ interface AssessmentIntroProps {
   onClose: () => void;
 }
 
-const AssessmentIntro: React.FC<AssessmentIntroProps> = ({ test, acceptedRules, onAcceptedRulesChange, onBegin, onClose }) => (
+const TestIntro: React.FC<TestIntroProps> = ({ test, acceptedRules, onAcceptedRulesChange, onBegin, onClose }) => (
   <div className="fixed inset-0 z-50 bg-slate-50 overflow-y-auto text-slate-900 font-sans">
     <div className="max-w-3xl mx-auto px-6 py-8 space-y-6">
       <button

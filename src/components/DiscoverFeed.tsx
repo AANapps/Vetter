@@ -341,8 +341,10 @@ const FeedCard: React.FC<FeedCardProps> = ({
             <div className="text-xs text-slate-500">
               {item.job.location} &middot; {item.job.workType} &middot; {item.job.salaryRange}
             </div>
-            {item.job.attachedTestTitle && (
-              <div className="text-[11px] font-mono text-indigo-700 pt-1">Test: {item.job.attachedTestTitle}</div>
+            {item.job.testIds.length > 0 && (
+              <div className="text-[11px] font-mono text-indigo-700 pt-1">
+                {item.job.testIds.length} {item.job.testIds.length === 1 ? 'test' : 'tests'} for this job
+              </div>
             )}
           </button>
         </div>

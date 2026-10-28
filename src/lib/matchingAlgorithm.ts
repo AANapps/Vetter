@@ -1,4 +1,5 @@
 import { JobPosting, SkillMatchBreakdown, CandidateJobMatch, User } from '../types';
+import { jobTestProgress } from './jobTests';
 
 // Highest score the candidate has achieved on a given test, if they've taken it
 export function getBestTestScore(candidate: User, testId: string): number | undefined {
@@ -87,20 +88,10 @@ export function calculateCandidateJobMatch(candidate: User, job: JobPosting): Ca
     matchTier = 'Borderline';
   }
 
-  let attachedTestStatus: CandidateJobMatch['attachedTestStatus'] = undefined;
-  let attachedTestScore: number | undefined = undefined;
-
-  if (job.attachedTestId) {
-    const bestScore = getBestTestScore(candidate, job.attachedTestId);
-
-    if (bestScore !== undefined) {
-      attachedTestScore = bestScore;
-      const passingScore = job.attachedTestPassingScore || 75;
-      attachedTestStatus = bestScore >= passingScore ? 'qualified' : 'test_taken_failed';
-    } else {
-      attachedTestStatus = 'requires_test';
-    }
-  }
+  // The job's tests: passed once every one is taken and the average reaches the pass mark
+  const progress = jobTestProgress(job, candidate);
+  const jobTestStatus: CandidateJobMatch['jobTestStatus'] =
+    job.testIds.length === 0 ? undefined : progress.status === 'passed' ? 'qualified' : progress.status === 'failed' ? 'test_taken_failed' : 'requires_test';
 
   const isApplied = candidate.appliedJobIds?.includes(job.id);
 
@@ -118,8 +109,8 @@ export function calculateCandidateJobMatch(candidate: User, job: JobPosting): Ca
     overallFitPercentage,
     meetsAllHardRequirements,
     breakdown,
-    attachedTestStatus,
-    attachedTestScore,
+    jobTestStatus,
+    jobTestScore: progress.score,
     applicationStatus: isApplied ? 'applied' : 'none',
     matchTier,
   };

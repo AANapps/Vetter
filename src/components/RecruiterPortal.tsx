@@ -1,8 +1,7 @@
 import { isMainVersion } from '../lib/testLevels';
 import React, { useState } from 'react';
-import { User, JobPosting, AssessmentTest, Business, Exam } from '../types';
+import { User, JobPosting, AssessmentTest, Business } from '../types';
 import { getTestStats } from '../lib/leaderboard';
-import { jobExam } from '../lib/exams';
 import { JobCandidates } from './JobCandidates';
 import { CheckCircle2, Check, Award } from 'lucide-react';
 
@@ -17,10 +16,9 @@ interface RecruiterPortalProps {
   business?: Business;
   businesses: Business[];
   jobs: JobPosting[];
-  exams: Exam[];
   allCandidates: User[];
   tests: AssessmentTest[];
-  onCreateCustomAssessment: (newTest: AssessmentTest) => void;
+  onCreateTest: (newTest: AssessmentTest) => void;
 }
 
 export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
@@ -30,10 +28,9 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   business,
   businesses,
   jobs: allJobs,
-  exams,
   allCandidates,
   tests,
-  onCreateCustomAssessment,
+  onCreateTest,
 }) => {
   // A business only manages its own jobs and its own tests; the Vetter team sees every company's jobs
   const isVetter = !business;
@@ -44,7 +41,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   const [selectedJobId, setSelectedJobId] = useState<string>(jobs[0]?.id || '');
   const selectedJob = jobs.find((j) => j.id === selectedJobId) || jobs[0];
 
-  // Custom Assessment Builder state
+  // Building the company's own test
   const [customTestTitle, setCustomTestTitle] = useState('');
   const [customTestCategory, setCustomTestCategory] = useState<'System Architecture' | 'Databases' | 'Frontend' | 'Backend APIs'>('System Architecture');
   const [customTestDesc, setCustomTestDesc] = useState('');
@@ -64,11 +61,11 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   ]);
   const [builderSuccessMessage, setBuilderSuccessMessage] = useState<string | null>(null);
 
-  const handleSaveCustomAssessment = (e: React.FormEvent) => {
+  const handleSaveTest = (e: React.FormEvent) => {
     e.preventDefault();
     if (!business || !customTestTitle.trim()) return;
 
-    const newAssessment: AssessmentTest = {
+    const newTest: AssessmentTest = {
       id: `test-custom-${Date.now()}`,
       title: customTestTitle,
       category: customTestCategory,
@@ -85,7 +82,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
       skillsTested: [customTestCategory, 'High Concurrency', 'Production Readiness'],
     };
 
-    onCreateCustomAssessment(newAssessment);
+    onCreateTest(newTest);
     setBuilderSuccessMessage(`"${customTestTitle}" saved. You can now attach it to any of your jobs.`);
     setTimeout(() => setBuilderSuccessMessage(null), 4000);
     setCustomTestTitle('');
@@ -192,7 +189,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                   <TestSummaryCard
                     key={t.id}
                     test={t}
-                    usedBy={jobs.filter((j) => jobExam(j, exams)?.testIds.includes(t.id))}
+                    usedBy={jobs.filter((j) => j.testIds.includes(t.id))}
                     ranked={getTestStats(t, allCandidates).candidatesRanked}
                     onOpen={() => onOpenTest(t.id)}
                   />
@@ -215,7 +212,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                 <TestSummaryCard
                   key={t.id}
                   test={t}
-                  usedBy={jobs.filter((j) => j.attachedTestId === t.id)}
+                  usedBy={jobs.filter((j) => j.testIds.includes(t.id))}
                   ranked={getTestStats(t, allCandidates).candidatesRanked}
                   onOpen={() => onOpenTest(t.id)}
                 />
@@ -239,7 +236,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
             </div>
           )}
 
-          <form onSubmit={handleSaveCustomAssessment} className="space-y-6">
+          <form onSubmit={handleSaveTest} className="space-y-6">
             <div className="bg-white border border-slate-200 rounded-xl p-6 space-y-4 shadow-xs">
               <h3 className="text-sm font-bold text-slate-900">Details</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

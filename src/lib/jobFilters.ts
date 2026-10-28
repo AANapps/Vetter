@@ -116,7 +116,7 @@ export function jobMatchesFilters(
   }
 
   if (filters.postedWithinDays !== null && daysSince(job.postedDate, now) > filters.postedWithinDays) return false;
-  if (filters.hasTest && !job.attachedTestId) return false;
+  if (filters.hasTest && job.testIds.length === 0) return false;
   if (filters.meetsRequirements && !match.meetsAllHardRequirements) return false;
   if (filters.hideApplied && appliedJobIds.includes(job.id)) return false;
   return true;

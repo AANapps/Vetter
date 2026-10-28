@@ -1,20 +1,9 @@
-import { AppNotification, Exam, TestResult } from '../types';
+import { AppNotification, JobInvitation, TestResult } from '../types';
 
-// Jobs' tests already sent when the demo starts (each assessment belongs to a job). The signed-in candidate (cand-001) has two to do;
+// Jobs' tests already sent when the demo starts. The signed-in candidate (cand-001) has two jobs' tests to do;
 // other people are at every stage, so the company's tracking has something to show.
-export const SEED_EXAMS: Exam[] = [
-  {
-    id: 'exam-001',
-    jobId: 'job-004',
-    title: 'Senior Backend Engineer, Ingestion',
-    description: 'The three tests every backend hire at PrismaScale AI takes: SQL, API design and database design.',
-    businessId: 'biz-001',
-    companyName: 'PrismaScale AI',
-    createdBy: 'company',
-    testIds: ['test-sql-01-professional', 'test-api-01', 'test-db-01'],
-    passingScore: 70,
-    dueDate: '2026-11-04',
-    createdAt: '2026-10-14',
+export const SEED_INVITATIONS: Record<'job-004' | 'job-005' | 'job-006', { invitations: JobInvitation[]; invitedEmails?: string[] }> = {
+  'job-004': {
     invitations: [
       { candidateId: 'cand-001', invitedAt: '2026-10-14', via: 'invite', openedAt: '2026-10-14T15:20:00Z' },
       { candidateId: 'cand-002', invitedAt: '2026-10-14', via: 'invite', openedAt: '2026-10-14T16:02:00Z' },
@@ -26,18 +15,14 @@ export const SEED_EXAMS: Exam[] = [
     ],
     invitedEmails: ['priya.nair@uni.ac.uk', 'tom.hughes@uni.ac.uk', 'j.okafor@uni.ac.uk'],
   },
-  {
-    id: 'exam-002',
-    jobId: 'job-006',
-    title: 'Analytics Graduate Programme 2027',
-    description: 'FinTech Core uses this assessment to shortlist for its analytics graduate intake.',
-    businessId: 'biz-002',
-    companyName: 'FinTech Core',
-    createdBy: 'vetter',
-    testIds: ['test-sql-02-beginner', 'test-clean-01', 'test-dash-01'],
-    passingScore: 65,
-    dueDate: '2026-11-15',
-    createdAt: '2026-10-18',
+  'job-005': {
+    invitations: [
+      { candidateId: 'cand-seed-06', invitedAt: '2026-10-21', via: 'link' },
+      { candidateId: 'cand-seed-08', invitedAt: '2026-10-22', via: 'link' },
+      { candidateId: 'cand-seed-10', invitedAt: '2026-10-23', via: 'email' },
+    ],
+  },
+  'job-006': {
     invitations: [
       { candidateId: 'cand-001', invitedAt: '2026-10-18', via: 'invite' },
       { candidateId: 'cand-003', invitedAt: '2026-10-18', via: 'invite', openedAt: '2026-10-19T10:10:00Z' },
@@ -45,32 +30,15 @@ export const SEED_EXAMS: Exam[] = [
       { candidateId: 'cand-seed-04', invitedAt: '2026-10-20', via: 'link' },
     ],
   },
-  {
-    id: 'exam-003',
-    jobId: 'job-005',
-    title: 'Frontend Engineer',
-    description: 'One test before a first interview for frontend roles at PrismaScale AI.',
-    businessId: 'biz-001',
-    companyName: 'PrismaScale AI',
-    createdBy: 'company',
-    testIds: ['test-fe-01'],
-    passingScore: 75,
-    createdAt: '2026-10-21',
-    invitations: [
-      { candidateId: 'cand-seed-06', invitedAt: '2026-10-21', via: 'link' },
-      { candidateId: 'cand-seed-08', invitedAt: '2026-10-22', via: 'link' },
-      { candidateId: 'cand-seed-10', invitedAt: '2026-10-23', via: 'email' },
-    ],
-  },
-];
+};
 
-// Results people have already handed in through those links
+// Results people have already handed in for those jobs
 const r = (candidateId: string, testId: string, score: number, completedAt: string, minutes: number, referredBy: string) => ({
   candidateId,
   result: { testId, score, completedAt, completedTime: `${completedAt}T14:00:00Z`, durationSeconds: minutes * 60, referredBy } as TestResult,
 });
 
-export const SEED_EXAM_RESULTS: { candidateId: string; result: TestResult }[] = [
+export const SEED_JOB_TEST_RESULTS: { candidateId: string; result: TestResult }[] = [
   r('cand-002', 'test-sql-01-professional', 84, '2026-10-15', 21, 'biz-001'),
   r('cand-002', 'test-api-01', 78, '2026-10-16', 24, 'biz-001'),
   r('cand-002', 'test-db-01', 81, '2026-10-17', 19, 'biz-001'),
@@ -90,6 +58,6 @@ export const SEED_EXAM_RESULTS: { candidateId: string; result: TestResult }[] = 
 ];
 
 export const SEED_NOTIFICATIONS: AppNotification[] = [
-  { id: 'note-001', userId: 'cand-001', kind: 'exam-invite', examId: 'exam-002', createdAt: '2026-10-18T09:30:00Z', read: false },
-  { id: 'note-002', userId: 'cand-001', kind: 'exam-invite', examId: 'exam-001', createdAt: '2026-10-14T14:05:00Z', read: true },
+  { id: 'note-001', userId: 'cand-001', kind: 'job-invite', jobId: 'job-006', createdAt: '2026-10-18T09:30:00Z', read: false },
+  { id: 'note-002', userId: 'cand-001', kind: 'job-invite', jobId: 'job-004', createdAt: '2026-10-14T14:05:00Z', read: true },
 ];

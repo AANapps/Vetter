@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { User, JobPosting, AssessmentTest, JobProfile } from '../types';
-import { getBestTestScore } from '../lib/matchingAlgorithm';
+import { jobTestProgress, jobTestsOf } from '../lib/jobTests';
 import { bestProfileFor } from '../lib/jobProfiles';
 import {
   X,
@@ -22,7 +22,8 @@ interface JobApplicationModalProps {
   // The candidate's job profiles: the application is sent with one of them
   profiles: JobProfile[];
   onConfirmApply: (jobId: string, profileId: string) => void;
-  onStartAttachedTest: (test: AssessmentTest, forJobId: string) => void;
+  // One of the job's tests, taken to apply: passing them all sends the application
+  onStartJobTest: (test: AssessmentTest, forJobId: string) => void;
 }
 
 export const JobApplicationModal: React.FC<JobApplicationModalProps> = ({
@@ -34,21 +35,23 @@ export const JobApplicationModal: React.FC<JobApplicationModalProps> = ({
   overallFitPercentage,
   profiles,
   onConfirmApply,
-  onStartAttachedTest,
+  onStartJobTest,
 }) => {
   // Starts on the profile that covers most of what the job asks for
   const [profileId, setProfileId] = useState(() => bestProfileFor(candidate, job).id);
   if (!isOpen) return null;
   const profile = profiles.find((p) => p.id === profileId) ?? profiles[0];
 
-  // Test attached to this job, if any (Vetter-made or the company's own)
-  const attachedTest = tests.find((t) => t.id === job.attachedTestId);
-  const bestScore = attachedTest ? getBestTestScore(candidate, attachedTest.id) : undefined;
-
-  const passingScore = job.attachedTestPassingScore || attachedTest?.passingScore || 75;
-  const hasTakenTest = bestScore !== undefined;
-  const hasPassed = hasTakenTest && bestScore >= passingScore;
-  const testBlocksApplication = !!attachedTest && !!job.isAttachedTestMandatory && !hasPassed;
+  // The job's tests (Vetter-made or the company's own) and how the candidate has done on them
+  const jobTests = jobTestsOf(job, tests);
+  const progress = jobTestProgress(job, candidate);
+  const passingScore = job.testPassingScore;
+  const hasPassed = progress.status === 'passed';
+  // The next to take, or once all are taken and the average is short, the weakest to retake
+  const nextTest =
+    jobTests.find((t) => progress.scores[t.id] === undefined) ??
+    (hasPassed ? undefined : [...jobTests].sort((a, b) => (progress.scores[a.id] ?? 0) - (progress.scores[b.id] ?? 0))[0]);
+  const testBlocksApplication = jobTests.length > 0 && job.testsRequired && !hasPassed;
   const isApplied = candidate.appliedJobIds?.includes(job.id);
 
   return (
@@ -66,8 +69,8 @@ export const JobApplicationModal: React.FC<JobApplicationModalProps> = ({
         <div className="space-y-1 pr-8">
           <h2 className="text-xl font-bold text-slate-900 tracking-tight">Apply to {job.title}</h2>
           <p className="text-xs text-slate-500">
-            {attachedTest
-              ? `${job.companyName} has attached a test to this job.`
+            {jobTests.length > 0
+              ? `${job.companyName} asks candidates to take ${jobTests.length === 1 ? 'a test' : `${jobTests.length} tests`} for this job.`
               : 'Your verified skills are shared with the company when you apply.'}
           </p>
         </div>
@@ -131,56 +134,68 @@ export const JobApplicationModal: React.FC<JobApplicationModalProps> = ({
           </div>
         )}
 
-        {/* Attached Test Card */}
-        {attachedTest && (
+        {/* The job's tests */}
+        {jobTests.length > 0 && (
           <div className="border-2 border-indigo-200 bg-indigo-50/20 rounded-xl p-5 space-y-4">
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[10px] font-mono uppercase font-bold text-indigo-700 bg-indigo-100/70 px-2 py-0.5 rounded">
-                    {attachedTest.type === 'custom' ? `${attachedTest.companyName} test` : 'Vetter test'}
-                  </span>
-                  <span
-                    className={`text-[10px] font-mono uppercase font-semibold px-2 py-0.5 rounded border ${
-                      job.isAttachedTestMandatory
-                        ? 'text-rose-700 bg-rose-50 border-rose-200'
-                        : 'text-slate-600 bg-slate-50 border-slate-200'
-                    }`}
-                  >
-                    {job.isAttachedTestMandatory ? 'Required to apply' : 'Optional'}
-                  </span>
-                </div>
-                <h3 className="text-sm font-bold text-slate-900">{attachedTest.title}</h3>
-                <p className="text-xs text-slate-600">{attachedTest.description}</p>
+                <span
+                  className={`text-[10px] font-mono uppercase font-semibold px-2 py-0.5 rounded border ${
+                    job.testsRequired ? 'text-rose-700 bg-rose-50 border-rose-200' : 'text-slate-600 bg-slate-50 border-slate-200'
+                  }`}
+                >
+                  {job.testsRequired ? 'Required to apply' : 'Optional'}
+                </span>
+                <h3 className="text-sm font-bold text-slate-900">Tests for this job</h3>
               </div>
-
               <div className="text-right shrink-0">
-                <span className="text-[10px] font-mono text-slate-400">Pass mark</span>
+                <span className="text-[10px] font-mono text-slate-400">Pass mark{jobTests.length > 1 ? ' (average)' : ''}</span>
                 <div className="text-sm font-mono font-bold text-indigo-700">{passingScore}/100</div>
               </div>
             </div>
 
-            {/* Test Status Banner for Candidate */}
+            <ul className="divide-y divide-indigo-100 text-xs">
+              {jobTests.map((t) => {
+                const score = progress.scores[t.id];
+                return (
+                  <li key={t.id} className="py-2 flex items-center justify-between gap-3">
+                    <span className="min-w-0">
+                      <span className="block font-semibold text-slate-900 truncate">{t.title}</span>
+                      <span className="block text-slate-500">
+                        {t.type === 'custom' ? `${t.companyName} test` : 'Vetter test'} &middot; ~{t.estimatedMinutes} min
+                      </span>
+                    </span>
+                    <span className={`font-mono font-bold tabular-nums shrink-0 ${score === undefined ? 'text-slate-400 font-medium' : 'text-slate-900'}`}>
+                      {score === undefined ? 'Not taken' : `${score}/100`}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+
+            {/* Where the candidate stands */}
             {hasPassed ? (
               <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-2 text-xs text-emerald-900">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                 <div>
-                  <span className="font-bold">Passed:</span> you scored <strong>{bestScore}/100</strong>.
+                  <span className="font-bold">Passed:</span> you {jobTests.length > 1 ? 'averaged' : 'scored'} <strong>{progress.score}/100</strong>.
                 </div>
               </div>
-            ) : hasTakenTest ? (
+            ) : progress.status === 'failed' ? (
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2 text-xs text-amber-900">
                 <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
                 <div>
-                  <span className="font-bold">Below pass mark:</span> your best score is {bestScore}/100. Retake it to reach {passingScore}.
+                  <span className="font-bold">Below pass mark:</span> you {jobTests.length > 1 ? 'averaged' : 'scored'} {progress.score}/100. Retake a test to reach {passingScore}.
                 </div>
               </div>
             ) : (
               <div className="p-3 bg-indigo-50/70 border border-indigo-200 rounded-lg flex items-center gap-2 text-xs text-indigo-950">
                 <Award className="w-4 h-4 text-indigo-600 shrink-0" />
                 <div>
-                  <span className="font-bold">Not taken yet:</span> takes about {attachedTest.estimatedMinutes} minutes.
-                  {job.isAttachedTestMandatory && ' Your application is submitted automatically if you pass.'}
+                  <span className="font-bold">
+                    {progress.done} of {progress.total} taken.
+                  </span>
+                  {job.testsRequired && ' Your application is sent automatically once you pass them.'}
                 </div>
               </div>
             )}
@@ -196,11 +211,11 @@ export const JobApplicationModal: React.FC<JobApplicationModalProps> = ({
             </div>
           ) : (
             <>
-              {attachedTest && !hasPassed && (
+              {nextTest && (
                 <button
                   onClick={() => {
                     onClose();
-                    onStartAttachedTest(attachedTest, job.id);
+                    onStartJobTest(nextTest, job.id);
                   }}
                   className={`w-full sm:w-auto px-5 py-2.5 text-xs font-semibold rounded-lg transition-colors flex items-center justify-center gap-2 shadow-xs ${
                     testBlocksApplication
@@ -209,7 +224,7 @@ export const JobApplicationModal: React.FC<JobApplicationModalProps> = ({
                   }`}
                 >
                   <Play className="w-3.5 h-3.5 fill-current" />
-                  <span>{hasTakenTest ? 'Retake test' : 'Take test'}</span>
+                  <span>{progress.scores[nextTest.id] !== undefined ? 'Retake test' : progress.done === 0 ? 'Take test' : 'Take next test'}</span>
                 </button>
               )}
               {!testBlocksApplication && (

@@ -1,4 +1,4 @@
-import { AssessmentTest, Exam, TestResult, User } from '../types';
+import { AssessmentTest, JobPosting, TestResult, User } from '../types';
 import { isMainVersion } from './testLevels';
 
 // Stands in for other people taking tests while you're on Vetter, so the Discover column on Home and the leaderboards keep moving
@@ -38,43 +38,44 @@ export function simulateAttempt(
   };
 }
 
-export type ExamStep =
-  | { kind: 'join'; examId: string; candidateId: string }
-  | { kind: 'open'; examId: string; candidateId: string }
-  | { kind: 'attempt'; examId: string; candidateId: string; test: AssessmentTest; result: TestResult };
+export type JobTestStep =
+  | { kind: 'join'; jobId: string; candidateId: string }
+  | { kind: 'open'; jobId: string; candidateId: string }
+  | { kind: 'attempt'; jobId: string; candidateId: string; test: AssessmentTest; result: TestResult };
 
-// Stands in for candidates working through the assessments companies sent them: new people follow a link,
+// Stands in for candidates working through the jobs' tests companies sent them: new people follow a job's link,
 // invitees open theirs, and people part-way through take their next test. Returns one step, or null.
-export function simulateExamStep(
-  exams: Exam[],
+export function simulateJobTestStep(
+  jobs: JobPosting[],
   others: User[],
   tests: AssessmentTest[],
   rand: () => number = Math.random
-): ExamStep | null {
-  if (exams.length === 0 || others.length === 0) return null;
+): JobTestStep | null {
+  const withTests = jobs.filter((j) => j.testIds.length > 0);
+  if (withTests.length === 0 || others.length === 0) return null;
   const pick = <T,>(items: T[]) => items[Math.floor(rand() * items.length)];
-  const exam = pick(exams);
+  const job = pick(withTests);
   const byId = new Map(others.map((c) => [c.id, c]));
-  const invited = exam.invitations.filter((i) => byId.has(i.candidateId));
+  const invited = job.invitations.filter((i) => byId.has(i.candidateId));
 
   // Someone the link was passed to opens it
   if (invited.length === 0 || rand() < 0.3) {
-    const newcomers = others.filter((c) => !exam.invitations.some((i) => i.candidateId === c.id));
-    return newcomers.length ? { kind: 'join', examId: exam.id, candidateId: pick(newcomers).id } : null;
+    const newcomers = others.filter((c) => !job.invitations.some((i) => i.candidateId === c.id));
+    return newcomers.length ? { kind: 'join', jobId: job.id, candidateId: pick(newcomers).id } : null;
   }
 
   const invitation = pick(invited);
-  if (!invitation.openedAt && invitation.via !== 'link') return { kind: 'open', examId: exam.id, candidateId: invitation.candidateId };
+  if (!invitation.openedAt && invitation.via !== 'link') return { kind: 'open', jobId: job.id, candidateId: invitation.candidateId };
 
   const candidate = byId.get(invitation.candidateId)!;
-  const nextId = exam.testIds.find((id) => !candidate.testResults.some((r) => r.testId === id && r.completedAt >= invitation.invitedAt));
+  const nextId = job.testIds.find((id) => !candidate.testResults.some((r) => r.testId === id));
   const test = nextId ? tests.find((t) => t.id === nextId) : undefined;
   if (!test) return null;
   const score = Math.max(30, Math.min(100, Math.round(42 + ((rand() + rand() + rand()) / 3) * 58)));
   const now = new Date();
   return {
     kind: 'attempt',
-    examId: exam.id,
+    jobId: job.id,
     candidateId: candidate.id,
     test,
     result: {
@@ -83,7 +84,7 @@ export function simulateExamStep(
       completedAt: now.toISOString().split('T')[0],
       completedTime: now.toISOString(),
       durationSeconds: Math.round(test.estimatedMinutes * 60 * (0.4 + rand() * 0.55)),
-      referredBy: exam.businessId,
+      referredBy: job.businessId,
     },
   };
 }

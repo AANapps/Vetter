@@ -38,10 +38,10 @@ function suitabilityPoints(match: CandidateJobMatch, person: User, job: JobPosti
     );
   }
 
-  if (match.attachedTestStatus === 'qualified') points.push({ tone: 'good', text: `Passed the job's test with ${match.attachedTestScore}/100` });
-  if (match.attachedTestStatus === 'test_taken_failed')
-    points.push({ tone: 'gap', text: `Scored ${match.attachedTestScore}/100 on the job's test, below the pass mark of ${job.attachedTestPassingScore || 75}` });
-  if (match.attachedTestStatus === 'requires_test') points.push({ tone: 'neutral', text: "Hasn't taken the job's test" });
+  if (match.jobTestStatus === 'qualified') points.push({ tone: 'good', text: `Passed the job's tests with ${match.jobTestScore}/100` });
+  if (match.jobTestStatus === 'test_taken_failed')
+    points.push({ tone: 'gap', text: `Scored ${match.jobTestScore}/100 on the job's tests, below the pass mark of ${job.testPassingScore}` });
+  if (match.jobTestStatus === 'requires_test') points.push({ tone: 'neutral', text: "Hasn't taken all the job's tests" });
 
   const minYears = minYearsFor(job.experienceLevel);
   if (minYears !== undefined) {
@@ -236,10 +236,12 @@ export const JobCandidates: React.FC<JobCandidatesProps> = ({ job, allCandidates
                       ))}
                     </ul>
 
-                    {job.attachedTestId && (
+                    {job.testIds.length > 0 && (
                       <div className="flex items-center gap-1.5 text-[11px] text-slate-500 pt-1">
                         <Award className="w-3.5 h-3.5 text-indigo-600" />
-                        <span>Job test: {job.attachedTestTitle}</span>
+                        <span>
+                          {job.testIds.length} {job.testIds.length === 1 ? 'test' : 'tests'} for this job &middot; pass mark {job.testPassingScore}
+                        </span>
                       </div>
                     )}
 

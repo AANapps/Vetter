@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
-import { AssessmentTest, Business, Exam, User } from '../types';
-import { STATUS_LABELS, examsFor, totalMinutes } from '../lib/exams';
+import { AssessmentTest, Business, JobPosting, User } from '../types';
+import { STATUS_LABELS, invitesFor, totalMinutes } from '../lib/jobTests';
+import { jobIdFromPath } from '../lib/jobSeo';
 import { isMainVersion } from '../lib/testLevels';
 import { ArrowRight, Briefcase, ClipboardCheck, Link2, Play, UserRound } from 'lucide-react';
 
 interface CandidateHomeProps {
   candidate: User;
-  exams: Exam[];
+  jobs: JobPosting[];
   tests: AssessmentTest[];
   businesses: Business[];
-  onOpenExam: (examId: string) => void;
+  onOpenJob: (jobId: string) => void;
   onStartTest: (test: AssessmentTest) => void;
   onOpenTest: (testId: string) => void;
   onGoTo: (tab: 'tests' | 'jobs' | 'profile') => void;
@@ -18,23 +19,28 @@ interface CandidateHomeProps {
 const DAY = 86400000;
 const today = () => new Date().toISOString().split('T')[0];
 
-export function dueLabel(dueDate?: string) {
-  if (!dueDate) return 'No deadline';
-  const days = Math.round((new Date(dueDate).getTime() - new Date(today()).getTime()) / DAY);
-  if (days < 0) return 'Overdue';
-  if (days === 0) return 'Due today';
-  return days === 1 ? 'Due tomorrow' : `Due in ${days} days`;
+// When the job stops taking applications
+function closesLabel(closingDate?: string) {
+  if (!closingDate) return 'No closing date';
+  const days = Math.round((new Date(closingDate).getTime() - new Date(today()).getTime()) / DAY);
+  if (days < 0) return 'Closed';
+  if (days === 0) return 'Closes today';
+  return days === 1 ? 'Closes tomorrow' : `Closes in ${days} days`;
 }
 
-// A pasted invite link, or just its id
-const examIdFromLink = (text: string) => {
-  const match = text.trim().match(/#\/exams\/([^?\s]+)/);
-  return match ? decodeURIComponent(match[1]) : text.trim();
+// A pasted job link, or just the job's id
+const jobIdFromLink = (text: string) => {
+  const trimmed = text.trim();
+  try {
+    return jobIdFromPath(new URL(trimmed).pathname) ?? trimmed;
+  } catch {
+    return jobIdFromPath(trimmed) ?? trimmed;
+  }
 };
 
-// A candidate's home: the invites to tests companies sent them, what's left to do and how they did
-export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, exams, tests, businesses, onOpenExam, onStartTest, onOpenTest, onGoTo }) => {
-  const items = examsFor(candidate, exams);
+// A candidate's home: the jobs whose tests companies sent them, what's left to do and how they did
+export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, jobs, tests, businesses, onOpenJob, onStartTest, onOpenTest, onGoTo }) => {
+  const items = invitesFor(candidate, jobs);
   const open = items.filter((i) => i.progress.score === undefined);
   const finished = items.filter((i) => i.progress.score !== undefined);
   // Vetter tests to take next: ones they haven't tried, in their usual categories first
@@ -49,13 +55,13 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, exams, 
 
   const openPasted = (e: React.FormEvent) => {
     e.preventDefault();
-    const id = examIdFromLink(pasted);
-    if (!exams.some((x) => x.id === id)) {
+    const id = jobIdFromLink(pasted);
+    if (!jobs.some((j) => j.id === id)) {
       setLinkError(true);
       return;
     }
     setPasted('');
-    onOpenExam(id);
+    onOpenJob(id);
   };
 
   return (
@@ -65,30 +71,30 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, exams, 
         <p className="text-sm text-slate-500">
           {open.length === 0
             ? 'Take a test any time to build your profile. Companies see your verified scores.'
-            : `${open.length} ${open.length === 1 ? 'invite' : 'invites'} to tests from companies waiting for you.`}
+            : `${open.length} ${open.length === 1 ? 'job wants' : 'jobs want'} you to take their tests.`}
         </p>
       </div>
 
       {open.length > 0 && (
         <ul className="space-y-3">
-          {open.map(({ exam, progress }) => {
-            const business = businesses.find((b) => b.id === exam.businessId);
-            const due = dueLabel(exam.dueDate);
+          {open.map(({ job, progress }) => {
+            const business = businesses.find((b) => b.id === job.businessId);
+            const due = closesLabel(job.closingDate);
             return (
-              <li key={exam.id}>
+              <li key={job.id}>
                 <button
-                  onClick={() => onOpenExam(exam.id)}
+                  onClick={() => onOpenJob(job.id)}
                   className="group w-full text-left bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl p-5 flex items-center gap-4 transition-colors shadow-xs"
                 >
                   {business && (
                     <img src={business.logo} alt="" referrerPolicy="no-referrer" className="w-12 h-12 rounded-xl object-cover bg-slate-100 shrink-0" />
                   )}
                   <div className="min-w-0 flex-1 space-y-1.5">
-                    <div className="text-xs font-semibold text-slate-500">{exam.companyName}</div>
-                    <div className="text-base font-bold text-slate-900 group-hover:text-indigo-700">{exam.title}</div>
+                    <div className="text-xs font-semibold text-slate-500">{job.companyName}</div>
+                    <div className="text-base font-bold text-slate-900 group-hover:text-indigo-700">{job.title}</div>
                     <div className="text-xs text-slate-500">
-                      {progress.total} {progress.total === 1 ? 'test' : 'tests'} &middot; ~{totalMinutes(exam, tests)} min &middot;{' '}
-                      <span className={due === 'Overdue' ? 'text-rose-700 font-semibold' : ''}>{due}</span>
+                      {progress.total} {progress.total === 1 ? 'test' : 'tests'} &middot; ~{totalMinutes(job, tests)} min &middot;{' '}
+                      <span className={due === 'Closed' ? 'text-rose-700 font-semibold' : ''}>{due}</span>
                     </div>
                     <div className="flex items-center gap-2 pt-0.5">
                       <div className="h-1.5 flex-1 max-w-56 bg-slate-100 rounded-full overflow-hidden">
@@ -170,19 +176,19 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, exams, 
             Open
           </button>
         </div>
-        {linkError && <p className="text-xs font-semibold text-rose-700">That link doesn't match an invite to tests. Check it and try again.</p>}
+        {linkError && <p className="text-xs font-semibold text-rose-700">That link doesn't match a job on Vetter. Check it and try again.</p>}
       </form>
 
       {finished.length > 0 && (
         <section className="space-y-3">
           <h2 className="text-sm font-bold text-slate-900">Finished</h2>
           <ul className="bg-white border border-slate-200 rounded-2xl divide-y divide-slate-100">
-            {finished.map(({ exam, progress }) => (
-              <li key={exam.id}>
-                <button onClick={() => onOpenExam(exam.id)} className="w-full px-5 py-3.5 flex items-center gap-3 text-left hover:bg-slate-50">
+            {finished.map(({ job, progress }) => (
+              <li key={job.id}>
+                <button onClick={() => onOpenJob(job.id)} className="w-full px-5 py-3.5 flex items-center gap-3 text-left hover:bg-slate-50">
                   <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-semibold text-slate-900 truncate">{exam.title}</span>
-                    <span className="block text-xs text-slate-500">Sent to {exam.companyName}</span>
+                    <span className="block text-sm font-semibold text-slate-900 truncate">{job.title}</span>
+                    <span className="block text-xs text-slate-500">Sent to {job.companyName}</span>
                   </span>
                   <span className={`text-sm font-bold font-mono tabular-nums ${progress.status === 'passed' ? 'text-emerald-700' : 'text-rose-700'}`}>
                     {progress.score}

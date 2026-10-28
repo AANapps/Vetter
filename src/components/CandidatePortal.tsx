@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { User, AssessmentTest, JobPosting, CandidateJobMatch, Business, TestRole, TEST_DIFFICULTIES, Exam, JobProfile } from '../types';
+import { User, AssessmentTest, JobPosting, CandidateJobMatch, Business, TestRole, TEST_DIFFICULTIES, JobProfile } from '../types';
 import { activeProfileOf, asProfile, profilesOf } from '../lib/jobProfiles';
 import { ROLE_GROUPS } from '../lib/testRoles';
 import { isMainVersion, levelsOf } from '../lib/testLevels';
@@ -43,16 +43,14 @@ interface CandidatePortalProps {
   jobs: JobPosting[];
   businesses: Business[];
   onStartTest: (test: AssessmentTest) => void;
-  onStartAttachedTest?: (test: AssessmentTest, forJobId: string) => void;
+  // One of a job's tests, taken from the job: passing them all can send the application
+  onStartJobTest?: (test: AssessmentTest, forJobId: string) => void;
   onApplyJob: (jobId: string, profileId: string) => void;
   onUpdateProfiles: (profiles: JobProfile[], activeProfileId: string) => void;
   onUpdateStudies: (studies: Studies) => void;
   // Set when the candidate is on a job's own page (/jobs/<slug>/)
   jobPageId?: string | null;
   onOpenJob: (jobId: string) => void;
-  // Exams the candidate has been invited to, for the to-do list on their profile
-  exams: Exam[];
-  onOpenExam: (examId: string) => void;
 }
 
 export const CandidatePortal: React.FC<CandidatePortalProps> = ({
@@ -65,14 +63,12 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   jobs,
   businesses,
   onStartTest,
-  onStartAttachedTest,
+  onStartJobTest,
   onApplyJob,
   onUpdateProfiles,
   onUpdateStudies,
   jobPageId,
   onOpenJob,
-  exams,
-  onOpenExam,
 }) => {
   // Tests page filters
   const [roleFilter, setRoleFilter] = useState<TestRole | 'all'>('all');
@@ -137,14 +133,10 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
       beforeLeaving();
       setSelectedJobForApplication(job);
     },
-    onStartAttachedTest: (test: AssessmentTest) => {
+    onStartJobTest: (test: AssessmentTest) => {
       beforeLeaving();
-      if (onStartAttachedTest) onStartAttachedTest(test, job.id);
+      if (onStartJobTest) onStartJobTest(test, job.id);
       else onStartTest(test);
-    },
-    onStartTest: (test: AssessmentTest) => {
-      beforeLeaving();
-      onStartTest(test);
     },
     onOpenTest: (testId: string) => {
       beforeLeaving();
@@ -395,7 +387,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
               />
             ))}
 
-            {/* Prompt to take more assessments */}
+            {/* Prompt to take more tests */}
             <div className="border border-dashed border-slate-300 rounded-xl p-5 flex flex-col items-center justify-center text-center space-y-3 bg-white shadow-2xs">
               <Award className="w-8 h-8 text-indigo-400" />
               <div>
@@ -652,7 +644,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
 
                     {/* The job's tests: each to do, or your result */}
                     <div className="mt-4 pt-4 border-t border-slate-200/80">
-                      <JobTests items={getJobTests(job, match, candidate, tests)} />
+                      <JobTests items={getJobTests(job, candidate, tests)} />
                     </div>
                   </div>
 
@@ -893,7 +885,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
         />
       )}
 
-      {/* Job application, including any attached test */}
+      {/* Job application, including the job's tests */}
       {selectedJobForApplication && (
         <JobApplicationModal
           isOpen={!!selectedJobForApplication}
@@ -908,9 +900,9 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
           onConfirmApply={(jobId, profileId) => {
             handleApply(jobId, selectedJobForApplication.title, profileId);
           }}
-          onStartAttachedTest={(test, forJobId) => {
-            if (onStartAttachedTest) {
-              onStartAttachedTest(test, forJobId);
+          onStartJobTest={(test, forJobId) => {
+            if (onStartJobTest) {
+              onStartJobTest(test, forJobId);
             } else {
               onStartTest(test);
             }

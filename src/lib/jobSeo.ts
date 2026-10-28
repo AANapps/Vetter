@@ -80,8 +80,9 @@ const listHtml = (heading: string, items?: string[]) =>
 // The full listing as HTML, for the JobPosting's description and the static page
 export function jobDescriptionHtml(job: JobPosting): string {
   const skills = job.requirements.map((r) => `${r.skillName} (${r.importance}, score ${r.minScore}+)`);
-  const test = job.attachedTestTitle
-    ? `<h2>How to apply</h2><p>Apply on Vetter${job.isAttachedTestMandatory ? ' by taking' : '. You can also take'} the ${escapeHtml(job.attachedTestTitle)} skills test${job.attachedTestPassingScore ? ` (pass mark ${job.attachedTestPassingScore}/100)` : ''}. Your verified score goes straight to ${escapeHtml(job.companyName)}.</p>`
+  const count = job.testIds.length;
+  const test = count
+    ? `<h2>How to apply</h2><p>Apply on Vetter${job.testsRequired ? ' by taking' : '. You can also take'} the job's ${count === 1 ? 'skills test' : `${count} skills tests`} (pass mark ${job.testPassingScore}/100). Your verified scores go straight to ${escapeHtml(job.companyName)}.</p>`
     : '';
   return [
     `<p>${escapeHtml(job.description)}</p>`,

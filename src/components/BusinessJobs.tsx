@@ -1,16 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { AssessmentTest, Business, Exam, JobPosting, User } from '../types';
+import { AssessmentTest, Business, JobPosting, User } from '../types';
 import {
-  ExamTrackingRow,
   TRACKING_LABELS,
+  TrackingRow,
   TrackingStatus,
   VIA_LABELS,
-  examFunnel,
-  examLink,
-  examTracking,
-  jobExam,
+  jobFunnel,
+  jobLink,
+  jobTestsOf,
+  jobTracking,
   totalMinutes,
-} from '../lib/exams';
+} from '../lib/jobTests';
 import { versionTitle } from '../lib/testLevels';
 import {
   AudienceFilters,
@@ -35,7 +35,6 @@ interface BusinessJobsProps {
   business?: Business;
   businesses: Business[];
   jobs: JobPosting[];
-  exams: Exam[];
   tests: AssessmentTest[];
   candidates: User[];
   // The job open, or null for the list
@@ -44,8 +43,8 @@ interface BusinessJobsProps {
   onCreateJob: (job: JobPosting) => void;
   onEditTests: (jobId: string) => void;
   onUpdateJobRequirements: (jobId: string, requirements: JobPosting['requirements']) => void;
-  onEmail: (examId: string, emails: string[]) => void;
-  onInvite: (examId: string, candidateIds: string[]) => void;
+  onEmail: (jobId: string, emails: string[]) => void;
+  onInvite: (jobId: string, candidateIds: string[]) => void;
   onOpenPerson: (personId: string) => void;
   onOpenTest: (testId: string) => void;
 }
@@ -62,12 +61,12 @@ const STATUS_STYLES: Record<TrackingStatus, string> = {
 
 const formatDay = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 
-export const CopyLinkButton: React.FC<{ examId: string; label?: string; className?: string }> = ({ examId, label = 'Copy link', className = '' }) => {
+export const CopyLinkButton: React.FC<{ job: JobPosting; label?: string; className?: string }> = ({ job, label = 'Copy link', className = '' }) => {
   const [copied, setCopied] = useState(false);
   const copy = async (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      await navigator.clipboard.writeText(examLink(examId));
+      await navigator.clipboard.writeText(jobLink(job));
     } catch {
       // Clipboard blocked: the link is also shown in a selectable box on the job
       return;
@@ -85,18 +84,16 @@ export const CopyLinkButton: React.FC<{ examId: string; label?: string; classNam
 
 // A company's jobs: each has its tests, the link to them, and how everyone sent them is getting on
 export const BusinessJobs: React.FC<BusinessJobsProps> = (props) => {
-  const { business, jobs: allJobs, exams, selectedJobId } = props;
+  const { business, jobs: allJobs, selectedJobId } = props;
   const jobs = business ? allJobs.filter((j) => j.businessId === business.id) : allJobs;
   const selected = selectedJobId ? jobs.find((j) => j.id === selectedJobId) : undefined;
-  const exam = selected && jobExam(selected, exams);
-  return selected && exam ? <JobDetail {...props} job={selected} exam={exam} /> : <JobList {...props} jobs={jobs} />;
+  return selected ? <JobDetail {...props} job={selected} /> : <JobList {...props} jobs={jobs} />;
 };
 
 const JobList: React.FC<BusinessJobsProps> = ({
   business,
   businesses,
   jobs,
-  exams,
   tests,
   candidates,
   onSelect,
@@ -106,12 +103,10 @@ const JobList: React.FC<BusinessJobsProps> = ({
   onOpenPerson,
 }) => {
   const [isCreating, setIsCreating] = useState(false);
-  const [sharing, setSharing] = useState<{ job: JobPosting; exam: Exam } | null>(null);
-  const tracked = jobs.flatMap((job) => {
-    const exam = jobExam(job, exams);
-    if (!exam) return [];
-    const rows = examTracking(exam, candidates);
-    return [{ job, exam, rows, funnel: examFunnel(exam, rows, candidates) }];
+  const [sharing, setSharing] = useState<JobPosting | null>(null);
+  const tracked = jobs.map((job) => {
+    const rows = jobTracking(job, candidates);
+    return { job, rows, funnel: jobFunnel(job, rows, candidates) };
   });
   const totals = tracked.reduce(
     (acc, t) => ({
@@ -123,12 +118,12 @@ const JobList: React.FC<BusinessJobsProps> = ({
   );
   // The latest finished tests across every job
   const activity = tracked
-    .flatMap(({ job, exam, rows }) =>
+    .flatMap(({ job, rows }) =>
       rows.flatMap((row) =>
-        exam.testIds.flatMap((testId) =>
+        job.testIds.flatMap((testId) =>
           row.candidate.testResults
-            .filter((r) => r.testId === testId && r.completedAt >= row.invitation.invitedAt)
-            .map((r) => ({ job, exam, row, testId, result: r }))
+            .filter((r) => r.testId === testId)
+            .map((r) => ({ job, row, testId, result: r }))
         )
       )
     )
@@ -182,7 +177,7 @@ const JobList: React.FC<BusinessJobsProps> = ({
 
           <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] gap-6 items-start">
             <ul className="space-y-3">
-              {tracked.map(({ job, exam, funnel }) => (
+              {tracked.map(({ job, funnel }) => (
                 <li key={job.id}>
                   <div
                     role="button"
@@ -202,14 +197,14 @@ const JobList: React.FC<BusinessJobsProps> = ({
                         </div>
                         <div className="text-xs text-slate-500 mt-0.5">
                           {job.location} &middot; {job.workType} &middot;{' '}
-                          {exam.testIds.length === 0
+                          {job.testIds.length === 0
                             ? 'no tests yet'
-                            : `${exam.testIds.length} ${exam.testIds.length === 1 ? 'test' : 'tests'} · ~${totalMinutes(exam, tests)} min · pass ${exam.passingScore}`}
+                            : `${job.testIds.length} ${job.testIds.length === 1 ? 'test' : 'tests'} · ~${totalMinutes(job, tests)} min · pass ${job.testPassingScore}`}
                         </div>
                       </div>
-                      {exam.testIds.length > 0 && (
+                      {job.testIds.length > 0 && (
                         <ShareButton
-                          onClick={() => setSharing({ job, exam })}
+                          onClick={() => setSharing(job)}
                           className="shrink-0 px-3 py-1.5 text-xs text-slate-700 bg-white border border-slate-300 hover:border-indigo-400 rounded-lg"
                         />
                       )}
@@ -226,11 +221,11 @@ const JobList: React.FC<BusinessJobsProps> = ({
                 <p className="text-xs text-slate-500">Nothing handed in yet.</p>
               ) : (
                 <ul className="space-y-3">
-                  {activity.map(({ job, exam, row, testId, result }) => {
+                  {activity.map(({ job, row, testId, result }) => {
                     const test = tests.find((t) => t.id === testId);
-                    const pass = result.score >= (test?.passingScore ?? exam.passingScore);
+                    const pass = result.score >= job.testPassingScore;
                     return (
-                      <li key={`${exam.id}-${row.candidate.id}-${testId}-${result.completedTime ?? result.completedAt}`} className="flex items-start gap-2.5 text-xs">
+                      <li key={`${job.id}-${row.candidate.id}-${testId}-${result.completedTime ?? result.completedAt}`} className="flex items-start gap-2.5 text-xs">
                         <img src={row.candidate.avatarUrl} alt="" referrerPolicy="no-referrer" className="w-7 h-7 rounded-full object-cover bg-slate-100 shrink-0" />
                         <div className="min-w-0 flex-1">
                           <button onClick={() => onOpenPerson(row.candidate.id)} className="font-semibold text-slate-900 hover:text-indigo-700">
@@ -252,7 +247,7 @@ const JobList: React.FC<BusinessJobsProps> = ({
       )}
 
       {sharing && (
-        <ShareDialog job={sharing.job} exam={sharing.exam} candidates={candidates} onEmail={onEmail} onInvite={onInvite} onClose={() => setSharing(null)} />
+        <ShareDialog job={sharing} candidates={candidates} onEmail={onEmail} onInvite={onInvite} onClose={() => setSharing(null)} />
       )}
 
       {isCreating && (
@@ -272,7 +267,7 @@ const JobList: React.FC<BusinessJobsProps> = ({
   );
 };
 
-const FunnelBar: React.FC<{ funnel: ReturnType<typeof examFunnel>; compact?: boolean }> = ({ funnel, compact }) => {
+const FunnelBar: React.FC<{ funnel: ReturnType<typeof jobFunnel>; compact?: boolean }> = ({ funnel, compact }) => {
   const stages = [
     { label: 'Sent', value: funnel.reached },
     { label: 'Opened', value: funnel.opened },
@@ -311,15 +306,14 @@ const FILTERS: { id: TrackingStatus | 'all'; label: string }[] = [
 ];
 
 // Finished first, best score first; then by how far they've got
-const rank = (a: ExamTrackingRow, b: ExamTrackingRow) => {
+const rank = (a: TrackingRow, b: TrackingRow) => {
   if ((a.progress.score === undefined) !== (b.progress.score === undefined)) return a.progress.score === undefined ? 1 : -1;
   if (a.progress.score !== undefined && b.progress.score !== undefined) return b.progress.score - a.progress.score;
   return b.progress.done - a.progress.done;
 };
 
-const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting; exam: Exam }> = ({
+const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
   job,
-  exam,
   business,
   tests,
   candidates,
@@ -333,21 +327,21 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting; exam: Exam }> =
 }) => {
   const [filter, setFilter] = useState<TrackingStatus | 'all'>('all');
   const [sharing, setSharing] = useState(false);
-  const rows = examTracking(exam, candidates).sort(rank);
-  const funnel = examFunnel(exam, rows, candidates);
-  const examTests = exam.testIds.map((id) => tests.find((t) => t.id === id)).filter((t): t is AssessmentTest => !!t);
+  const rows = jobTracking(job, candidates).sort(rank);
+  const funnel = jobFunnel(job, rows, candidates);
+  const jobTests = jobTestsOf(job, tests);
   const shown = filter === 'all' ? rows : rows.filter((r) => r.status === filter);
   const accountEmails = new Set(candidates.map((c) => c.email.toLowerCase()));
-  const pendingEmails = (exam.invitedEmails ?? []).filter((e) => !accountEmails.has(e));
+  const pendingEmails = (job.invitedEmails ?? []).filter((e) => !accountEmails.has(e));
 
   const downloadCsv = () => {
-    const header = ['Name', 'Email', 'Got it by', 'Status', ...examTests.map((t) => versionTitle(t)), 'Overall', 'Minutes', 'Last activity'];
+    const header = ['Name', 'Email', 'Got it by', 'Status', ...jobTests.map((t) => versionTitle(t)), 'Overall', 'Minutes', 'Last activity'];
     const lines = rows.map((r) => [
       r.candidate.name,
       r.candidate.email,
       VIA_LABELS[r.invitation.via ?? 'invite'],
       TRACKING_LABELS[r.status],
-      ...examTests.map((t) => r.progress.scores[t.id] ?? ''),
+      ...jobTests.map((t) => r.progress.scores[t.id] ?? ''),
       r.progress.score ?? '',
       r.progress.seconds ? Math.round(r.progress.seconds / 60) : '',
       r.progress.lastActivity?.split('T')[0] ?? '',
@@ -371,7 +365,7 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting; exam: Exam }> =
         {!business && <div className="text-xs font-semibold text-indigo-700">{job.companyName}</div>}
         <div className="flex items-start justify-between gap-4">
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{job.title}</h1>
-          {examTests.length > 0 && (
+          {jobTests.length > 0 && (
             <ShareButton
               onClick={() => setSharing(true)}
               label="Share tests"
@@ -396,15 +390,15 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting; exam: Exam }> =
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-sm font-bold text-slate-900">Tests for this job</h2>
           <button onClick={() => onEditTests(job.id)} className="text-xs font-semibold text-indigo-700 hover:text-indigo-900 flex items-center gap-1.5">
-            {examTests.length === 0 ? <Plus className="w-3.5 h-3.5" /> : <Pencil className="w-3.5 h-3.5" />}
-            {examTests.length === 0 ? 'Add tests' : 'Change tests'}
+            {jobTests.length === 0 ? <Plus className="w-3.5 h-3.5" /> : <Pencil className="w-3.5 h-3.5" />}
+            {jobTests.length === 0 ? 'Add tests' : 'Change tests'}
           </button>
         </div>
-        {examTests.length === 0 ? (
+        {jobTests.length === 0 ? (
           <p className="text-xs text-slate-500">Add the tests candidates should take for this job, then send them out.</p>
         ) : (
           <div className="flex flex-wrap items-center gap-2">
-            {examTests.map((t, i) => (
+            {jobTests.map((t, i) => (
               <button
                 key={t.id}
                 onClick={() => onOpenTest(t.id)}
@@ -414,14 +408,14 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting; exam: Exam }> =
               </button>
             ))}
             <span className="text-xs text-slate-500">
-              &middot; ~{totalMinutes(exam, tests)} min &middot; pass mark {exam.passingScore}
-              {examTests.length > 1 ? ' average' : ''} &middot; {exam.dueDate ? `due ${formatDay(exam.dueDate)}` : 'no deadline'}
+              &middot; ~{totalMinutes(job, tests)} min &middot; pass mark {job.testPassingScore}
+              {jobTests.length > 1 ? ' average' : ''} &middot; {job.testsRequired ? 'required to apply' : 'optional'}
             </span>
           </div>
         )}
       </section>
 
-      {sharing && <ShareDialog job={job} exam={exam} candidates={candidates} onEmail={onEmail} onInvite={onInvite} onClose={() => setSharing(false)} />}
+      {sharing && <ShareDialog job={job} candidates={candidates} onEmail={onEmail} onInvite={onInvite} onClose={() => setSharing(false)} />}
 
       <section className="bg-white border border-slate-200 rounded-xl p-5">
         <FunnelBar funnel={funnel} />
@@ -467,12 +461,12 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting; exam: Exam }> =
                   <th className="px-5 py-2.5 font-medium">#</th>
                   <th className="px-2 py-2.5 font-medium">Candidate</th>
                   <th className="px-2 py-2.5 font-medium">Status</th>
-                  {examTests.map((t, i) => (
+                  {jobTests.map((t, i) => (
                     <th key={t.id} className="px-2 py-2.5 font-medium text-right whitespace-nowrap" title={versionTitle(t)}>
                       Test {i + 1}
                     </th>
                   ))}
-                  {examTests.length > 1 && <th className="px-2 py-2.5 font-medium text-right">Overall</th>}
+                  {jobTests.length > 1 && <th className="px-2 py-2.5 font-medium text-right">Overall</th>}
                   <th className="px-2 py-2.5 font-medium text-right">Time</th>
                   <th className="px-5 py-2.5 font-medium text-right whitespace-nowrap">Last activity</th>
                 </tr>
@@ -500,24 +494,24 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting; exam: Exam }> =
                       <td className="px-2 py-3">
                         <span className={`px-2 py-0.5 rounded-full font-semibold whitespace-nowrap ${STATUS_STYLES[r.status]}`}>{TRACKING_LABELS[r.status]}</span>
                       </td>
-                      {examTests.map((t) => {
+                      {jobTests.map((t) => {
                         const s = r.progress.scores[t.id];
                         return (
                           <td key={t.id} className="px-2 py-3 text-right font-mono tabular-nums">
                             {s === undefined ? (
                               <span className="text-slate-300">–</span>
                             ) : (
-                              <span className={s >= t.passingScore ? 'text-slate-900' : 'text-rose-700'}>{s}</span>
+                              <span className={s >= job.testPassingScore ? 'text-slate-900' : 'text-rose-700'}>{s}</span>
                             )}
                           </td>
                         );
                       })}
-                      {examTests.length > 1 && (
+                      {jobTests.length > 1 && (
                         <td className="px-2 py-3 text-right font-mono font-bold tabular-nums">
                           {r.progress.score === undefined ? (
                             <span className="text-slate-300 font-normal">–</span>
                           ) : (
-                            <span className={r.progress.score >= exam.passingScore ? 'text-emerald-700' : 'text-rose-700'}>{r.progress.score}</span>
+                            <span className={r.progress.score >= job.testPassingScore ? 'text-emerald-700' : 'text-rose-700'}>{r.progress.score}</span>
                           )}
                         </td>
                       )}
@@ -616,12 +610,11 @@ const ShareButton: React.FC<{ onClick: () => void; label?: string; className?: s
 // Sharing a job's tests opens in a popup: the link, and sending it to people
 const ShareDialog: React.FC<{
   job: JobPosting;
-  exam: Exam;
   candidates: User[];
   onEmail: BusinessJobsProps['onEmail'];
   onInvite: BusinessJobsProps['onInvite'];
   onClose: () => void;
-}> = ({ job, exam, candidates, onEmail, onInvite, onClose }) => {
+}> = ({ job, candidates, onEmail, onInvite, onClose }) => {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', onKey);
@@ -647,7 +640,7 @@ const ShareDialog: React.FC<{
           </button>
         </div>
         <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5">
-          <SharePanel exam={exam} candidates={candidates} onEmail={onEmail} onInvite={onInvite} />
+          <SharePanel job={job} candidates={candidates} onEmail={onEmail} onInvite={onInvite} />
         </div>
       </div>
     </div>
@@ -656,11 +649,11 @@ const ShareDialog: React.FC<{
 
 // Sending the link: copy it, email it, or pick people already on Vetter
 const SharePanel: React.FC<{
-  exam: Exam;
+  job: JobPosting;
   candidates: User[];
   onEmail: BusinessJobsProps['onEmail'];
   onInvite: BusinessJobsProps['onInvite'];
-}> = ({ exam, candidates, onEmail, onInvite }) => {
+}> = ({ job, candidates, onEmail, onInvite }) => {
   const [mode, setMode] = useState<'email' | 'vetter'>('vetter');
   const [emailsText, setEmailsText] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -668,7 +661,7 @@ const SharePanel: React.FC<{
   const [audience, setAudience] = useState<AudienceFilters>(emptyAudience);
   const [chosen, setChosen] = useState<string[]>([]);
   const [showEmail, setShowEmail] = useState(false);
-  const link = examLink(exam.id);
+  const link = jobLink(job);
 
   const flash = (message: string) => {
     setSent(message);
@@ -683,17 +676,17 @@ const SharePanel: React.FC<{
       return;
     }
     setError(null);
-    onEmail(exam.id, emails);
-    const subject = `${exam.companyName}: ${exam.title}`;
-    const body = `Hi,\n\n${exam.companyName} would like you to take ${exam.title} on Vetter (${exam.testIds.length} ${
-      exam.testIds.length === 1 ? 'test' : 'tests'
-    }). Your results go straight to ${exam.companyName}.\n\nStart here: ${link}\n`;
+    onEmail(job.id, emails);
+    const subject = `${job.companyName}: ${job.title}`;
+    const body = `Hi,\n\n${job.companyName} would like you to take the tests for ${job.title} on Vetter (${job.testIds.length} ${
+      job.testIds.length === 1 ? 'test' : 'tests'
+    }). Your results go straight to ${job.companyName}.\n\nStart here: ${link}\n`;
     window.location.href = `mailto:?bcc=${encodeURIComponent(emails.join(','))}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     setEmailsText('');
     flash(`Sent to ${emails.length} ${emails.length === 1 ? 'person' : 'people'}. They're tracked on the job.`);
   };
 
-  const invitedIds = new Set(exam.invitations.map((i) => i.candidateId));
+  const invitedIds = new Set(job.invitations.map((i) => i.candidateId));
   const notInvited = candidates.filter((c) => !invitedIds.has(c.id));
   const matching = notInvited.filter((c) => matchesAudience(c, audience));
   const cities = [...new Set(notInvited.map(cityOf))].sort();
@@ -704,7 +697,7 @@ const SharePanel: React.FC<{
   const toggleIn = <T,>(list: T[], item: T) => (list.includes(item) ? list.filter((x) => x !== item) : [...list, item]);
 
   const invite = () => {
-    onInvite(exam.id, chosen);
+    onInvite(job.id, chosen);
     flash(`Emailed ${chosen.length} ${chosen.length === 1 ? 'candidate' : 'candidates'} at their Vetter login address. They're tracked on the job.`);
     setChosen([]);
   };
@@ -712,21 +705,21 @@ const SharePanel: React.FC<{
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <label htmlFor="exam-link" className="flex items-center gap-1.5 text-sm font-bold text-slate-900">
+        <label htmlFor="job-link" className="flex items-center gap-1.5 text-sm font-bold text-slate-900">
           <Link2 className="w-4 h-4 text-indigo-600" />
           Link to this job's tests
         </label>
         <div className="flex gap-2">
           <input
-            id="exam-link"
+            id="job-link"
             readOnly
             value={link}
             onFocus={(e) => e.target.select()}
             className="flex-1 min-w-0 px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-mono text-slate-700"
           />
-          <CopyLinkButton examId={exam.id} className="px-4 py-2 text-xs text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shrink-0" />
+          <CopyLinkButton job={job} className="px-4 py-2 text-xs text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shrink-0" />
         </div>
-        <p className="text-xs text-slate-500">Anyone who opens it can take the tests, and their results come back to you.</p>
+        <p className="text-xs text-slate-500">It opens the job's page. Anyone can take the tests there, and their results come back to you.</p>
       </div>
 
       <div className="pt-4 border-t border-slate-200 space-y-3">
@@ -888,7 +881,7 @@ const SharePanel: React.FC<{
                 </button>
               )}
             </div>
-            {showEmail && sample && <EmailPreview {...inviteEmail(exam, sample, link)} />}
+            {showEmail && sample && <EmailPreview {...inviteEmail(job, sample, link)} />}
           </div>
         )}
       </div>

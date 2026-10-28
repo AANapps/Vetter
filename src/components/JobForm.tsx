@@ -43,7 +43,6 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
     .map((p) => tests.find((t) => t.id === p.testId))
     .filter((t): t is AssessmentTest => !!t);
   const pickFor = (testId: string) => Object.values(picked).find((p) => p.testId === testId)!;
-  const [attachedTestId, setAttachedTestId] = useState<string>('');
 
   const togglePick = (testId: string) => {
     setPickError(false);
@@ -51,13 +50,11 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
       const { [testId]: wasPicked, ...rest } = prev;
       return wasPicked ? rest : { ...prev, [testId]: { testId, minScore: 70, importance: 'required' } };
     });
-    if (picked[testId] && attachedTestId === picked[testId].testId) setAttachedTestId('');
   };
   const updatePick = (testId: string, change: Partial<Pick>) => {
-    if (change.testId && attachedTestId === picked[testId]?.testId) setAttachedTestId(change.testId);
     setPicked((prev) => ({ ...prev, [testId]: { ...prev[testId], ...change } }));
   };
-  const [passingScore, setPassingScore] = useState<number>(80);
+  const [passingScore, setPassingScore] = useState<number>(70);
   const [requireTest, setRequireTest] = useState<boolean>(true);
 
   const changeBusiness = (id: string) => {
@@ -68,7 +65,6 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
     setPicked((prev) =>
       Object.fromEntries(Object.entries(prev).filter(([id]) => tests.find((t) => t.id === id)?.type !== 'custom'))
     );
-    if (tests.some((t) => t.id === attachedTestId && t.type === 'custom')) setAttachedTestId('');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -78,8 +74,6 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
       setPickError(true);
       return;
     }
-    const attachedTest = pickedTests.find((t) => t.id === attachedTestId);
-
     onSave({
       id: `job-${Date.now()}`,
       title: title.trim(),
@@ -104,10 +98,10 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
         importance: pickFor(t.id).importance,
         weight: Math.round((1 / pickedTests.length) * 100) / 100,
       })),
-      attachedTestId: attachedTest?.id,
-      attachedTestTitle: attachedTest && versionTitle(attachedTest),
-      attachedTestPassingScore: attachedTest ? passingScore : undefined,
-      isAttachedTestMandatory: attachedTest ? requireTest : undefined,
+      testIds: pickedTests.map((t) => t.id),
+      testPassingScore: passingScore,
+      testsRequired: requireTest,
+      invitations: [],
       applicantCount: 0,
       status: 'active',
     });
@@ -319,41 +313,24 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
                 </div>
               ))}
 
-            {/* Optionally, one picked test must be taken before applying */}
-            <div className="grid grid-cols-3 gap-2 pt-1">
-              <div className="col-span-2">
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">Must take before applying</label>
-                <select
-                  value={attachedTestId}
-                  disabled={pickedTests.length === 0}
-                  onChange={(e) => setAttachedTestId(e.target.value)}
-                  className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 font-medium disabled:opacity-50"
-                >
-                  <option value="">None</option>
-                  {pickedTests.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {versionTitle(t)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">Pass mark</label>
+            {/* The picked tests are the job's tests: an average pass mark, and whether candidates must pass them to apply */}
+            <div className="flex flex-wrap items-end gap-4 pt-1">
+              <div className="w-28">
+                <label className="block text-[11px] font-semibold text-slate-700 mb-1">Pass mark{pickedTests.length > 1 ? ' (average)' : ''}</label>
                 <input
                   type="number"
-                  disabled={!attachedTestId}
                   min={0}
                   max={100}
                   value={passingScore}
                   onChange={(e) => setPassingScore(Number(e.target.value))}
-                  className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 font-mono disabled:opacity-50"
+                  className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 font-mono"
                 />
               </div>
+              <label className="flex items-center gap-1.5 py-1.5 text-xs text-indigo-800 font-medium cursor-pointer">
+                <input type="checkbox" checked={requireTest} onChange={(e) => setRequireTest(e.target.checked)} className="accent-indigo-600" />
+                <span>Required to apply (otherwise recommended)</span>
+              </label>
             </div>
-            <label className={`flex items-center gap-1.5 text-xs text-indigo-800 font-medium cursor-pointer ${attachedTestId ? '' : 'opacity-40 pointer-events-none'}`}>
-              <input type="checkbox" checked={requireTest} onChange={(e) => setRequireTest(e.target.checked)} className="accent-indigo-600" />
-              <span>Required to apply (otherwise recommended)</span>
-            </label>
           </fieldset>
 
           <button
