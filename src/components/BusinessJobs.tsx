@@ -104,7 +104,8 @@ const JobList: React.FC<BusinessJobsProps> = ({
   onInvite,
   onOpenPerson,
 }) => {
-  const [isCreating, setIsCreating] = useState(false);
+  // A company with no jobs yet starts on posting its first
+  const [isCreating, setIsCreating] = useState(() => !!business && jobs.length === 0);
   const [sharing, setSharing] = useState<JobPosting | null>(null);
   const tracked = jobs.map((job) => {
     const rows = jobTracking(job, candidates);

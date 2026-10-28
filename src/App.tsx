@@ -294,7 +294,8 @@ export default function App() {
   const [profilePersonId, setProfilePersonId] = useState<string | null>(null);
   const [companiesQuery, setCompaniesQuery] = useState('');
 
-  const recruiterBusiness = businesses.find((b) => b.id === recruiter.businessId)!;
+  // None while a new company is still being set up
+  const recruiterBusiness: Business | undefined = businesses.find((b) => b.id === recruiter.businessId);
 
   // A signed-in account sees its own side of Vetter; the Vetter team keeps the view switcher
   useEffect(() => {
@@ -393,7 +394,11 @@ export default function App() {
 
   // Before a signed-in person can use Vetter: verifying their email, and for companies, being let in
   const accountGate =
-    firebaseEnabled && (accountLoading || !cloud || (candidateAccountUid && profileSync?.uid !== candidateAccountUid)) ? (
+    firebaseEnabled &&
+    (accountLoading ||
+      !cloud ||
+      (candidateAccountUid && profileSync?.uid !== candidateAccountUid) ||
+      (user?.emailVerified && account?.role === 'recruiter' && account.status === 'active' && company?.status !== 'active')) ? (
       <div className="flex justify-center py-16">
         <Pulse label="Loading" />
       </div>
@@ -692,7 +697,9 @@ export default function App() {
             ? candidate.title
             : activeRole === 'admin'
             ? staffUser.title
-            : `${recruiter.title} · ${recruiterBusiness.name}`
+            : recruiterBusiness
+            ? `${recruiter.title} · ${recruiterBusiness.name}`
+            : recruiter.title
         }
         notifications={activeRole === 'candidate' && !isVisitor ? candidateNotifications : undefined}
         onOpenNotification={openNotification}
@@ -884,7 +891,7 @@ export default function App() {
       {editingTests && (
         <JobTestsEditor
           jobs={jobs.filter((j) =>
-            editingTests.jobId ? j.id === editingTests.jobId : activeRole === 'admin' || j.businessId === recruiterBusiness.id
+            editingTests.jobId ? j.id === editingTests.jobId : activeRole === 'admin' || j.businessId === recruiterBusiness?.id
           )}
           tests={tests}
           addTestIds={editingTests.addTestIds}
@@ -959,7 +966,7 @@ export default function App() {
             activeRole === 'admin' || (activeRole === 'candidate' && profilePerson.id === candidate.id)
               ? 'all'
               : activeRole === 'recruiter'
-              ? recruiterBusiness.id
+              ? recruiterBusiness?.id ?? null
               : null
           }
           onOpenTest={openTestPage}
