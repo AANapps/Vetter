@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { AssessmentTest, Business, JobPosting, User } from '../types';
 import { STATUS_LABELS, invitesFor, totalMinutes } from '../lib/jobTests';
 import { jobIdFromPath } from '../lib/jobSeo';
+import { activeProfileOf } from '../lib/jobProfiles';
 import { isMainVersion } from '../lib/testLevels';
-import { ArrowRight, Briefcase, ClipboardCheck, Link2, Play, UserRound } from 'lucide-react';
+import { ArrowRight, Briefcase, ClipboardCheck, Link2, MapPin, Play } from 'lucide-react';
 
 interface CandidateHomeProps {
   candidate: User;
@@ -50,6 +51,7 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, jobs, t
     .filter((t) => t.type === 'standard' && isMainVersion(t) && !takenIds.has(t.id))
     .sort((a, b) => Number(theirCategories.has(b.category)) - Number(theirCategories.has(a.category)))
     .slice(0, 3);
+  const bestScore = candidate.testResults.length ? Math.max(...candidate.testResults.map((r) => r.score)) : undefined;
   const [pasted, setPasted] = useState('');
   const [linkError, setLinkError] = useState(false);
 
@@ -66,14 +68,53 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, jobs, t
 
   return (
     <div className="@container space-y-8 min-w-0">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Hi {candidate.name.split(' ')[0]}</h1>
-        <p className="text-sm text-slate-500">
-          {open.length === 0
-            ? 'Take a test any time to build your profile. Companies see your verified scores.'
-            : `${open.length} ${open.length === 1 ? 'job wants' : 'jobs want'} you to take their tests.`}
-        </p>
-      </div>
+      {/* Who you are at a glance: photo, name, what you do, and your record on Vetter */}
+      <section className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
+        <div className="h-14 bg-gradient-to-r from-indigo-600 to-violet-500" />
+        <div className="px-5 pb-5 -mt-8 space-y-3">
+          <button onClick={() => onGoTo('profile')} aria-label="Open your profile" className="block rounded-full">
+            <img
+              src={candidate.avatarUrl}
+              alt=""
+              referrerPolicy="no-referrer"
+              className="w-16 h-16 rounded-full object-cover border-4 border-white bg-slate-100 shadow-xs"
+            />
+          </button>
+          <div className="space-y-0.5">
+            <h1 className="text-lg font-bold text-slate-900 tracking-tight">{candidate.name}</h1>
+            <p className="text-sm text-slate-700">{activeProfileOf(candidate).title}</p>
+            <p className="text-xs text-slate-500 flex items-center gap-1">
+              <MapPin className="w-3 h-3" />
+              {candidate.location}
+              {candidate.yearsExperience > 0 && <> &middot; {candidate.yearsExperience} yrs experience</>}
+            </p>
+          </div>
+          <dl className="grid grid-cols-3 gap-2 pt-3 border-t border-slate-100 text-center">
+            {[
+              { label: 'Verified skills', value: candidate.verifiedSkills.length },
+              { label: 'Tests taken', value: new Set(candidate.testResults.map((r) => r.testId)).size },
+              { label: 'Best score', value: bestScore ?? '–' },
+            ].map((s) => (
+              <div key={s.label}>
+                <dd className="text-base font-bold text-slate-900 font-mono tabular-nums">{s.value}</dd>
+                <dt className="text-[11px] text-slate-500">{s.label}</dt>
+              </div>
+            ))}
+          </dl>
+          <button
+            onClick={() => onGoTo('profile')}
+            className="w-full py-2 text-xs font-semibold text-indigo-700 border border-indigo-200 hover:bg-indigo-50 rounded-lg transition-colors"
+          >
+            View profile
+          </button>
+        </div>
+      </section>
+
+      <p className="text-sm text-slate-500 -mt-4">
+        {open.length === 0
+          ? 'Take a test any time to build your profile. Companies see your verified scores.'
+          : `${open.length} ${open.length === 1 ? 'job wants' : 'jobs want'} you to take their tests.`}
+      </p>
 
       {open.length > 0 && (
         <ul className="space-y-3">
@@ -203,12 +244,7 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, jobs, t
         </section>
       )}
 
-      <div className="grid grid-cols-1 @md:grid-cols-2 gap-3">
-        <button onClick={() => onGoTo('profile')} className="text-left p-5 bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl space-y-1 transition-colors">
-          <UserRound className="w-5 h-5 text-indigo-600" />
-          <div className="text-sm font-bold text-slate-900">Your profile</div>
-          <p className="text-xs text-slate-500">Your verified skills and every test you've taken.</p>
-        </button>
+      <div className="grid grid-cols-1 gap-3">
         <button onClick={() => onGoTo('jobs')} className="text-left p-5 bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl space-y-1 transition-colors">
           <Briefcase className="w-5 h-5 text-indigo-600" />
           <div className="text-sm font-bold text-slate-900">Find jobs</div>
