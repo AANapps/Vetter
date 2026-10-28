@@ -126,11 +126,11 @@ export async function generateTest(body: unknown, apiKey: string | undefined, mo
       .stream({
         model,
         max_tokens: 32000,
-        // Thinking is always on for Claude Opus 5.5; effort sets how much, and medium suits writing a test
+        // Effort sets how much Claude thinks first; medium suits writing a test
         output_config: { effort: 'medium', format: { type: 'json_schema', schema: responseSchema } },
-        // If Claude declines on safety grounds, Anthropic re-runs the request on its recommended fallback model
-        betas: ['server-side-fallback-2026-07-01'],
-        fallbacks: 'default',
+        // If Claude declines on safety grounds, Anthropic re-runs the request on its recommended fallback model.
+        // Haiku has no fallback, so it's only asked for on the larger models
+        ...(!model.includes('haiku') && { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' as const }),
         system: instructions({ ...req, questionCount: Math.min(15, Math.max(1, Math.round(req.questionCount || 6))) }),
         messages: [{ role: 'user', content: `The job or test the company described:\n\n${req.prompt.slice(0, MAX_PROMPT)}` }],
       })

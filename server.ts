@@ -13,7 +13,7 @@ const root = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: [path.join(root, '.env.local'), path.join(root, '.env')], quiet: true });
 const dist = path.join(root, 'dist');
 const port = Number(process.env.PORT) || 3000;
-const model = process.env.CLAUDE_MODEL || 'claude-opus-5-5';
+const model = process.env.CLAUDE_MODEL || 'claude-haiku-5-5';
 
 const app = express();
 app.use(express.json({ limit: '300kb' }));

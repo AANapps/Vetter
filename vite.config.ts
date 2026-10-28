@@ -28,7 +28,7 @@ export default defineConfig(({mode}) => {
               } catch {
                 // Answered as a bad request below
               }
-              const {status, json} = await generateTest(body, env.ANTHROPIC_API_KEY, env.CLAUDE_MODEL || 'claude-opus-5-5');
+              const {status, json} = await generateTest(body, env.ANTHROPIC_API_KEY, env.CLAUDE_MODEL || 'claude-haiku-5-5');
               res.statusCode = status;
               res.setHeader('Content-Type', 'application/json');
               res.end(JSON.stringify(json));
