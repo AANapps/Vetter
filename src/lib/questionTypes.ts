@@ -45,6 +45,35 @@ const normalise = (text: string) =>
     .trim()
     .replace(/\s+/g, ' ');
 
+// Letters added, dropped, changed or swapped between two strings
+function editDistance(a: string, b: string): number {
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++)
+    for (let j = 1; j <= b.length; j++) {
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+    }
+  return d[a.length][b.length];
+}
+
+// A typed answer matches when it's the same once case, spacing and punctuation are ignored, give or take typos:
+// a slip in a word of five letters or more, two in a word of nine or more. Short words and numbers must match
+// exactly, so "log" never passes for "lag" and 26% never for 25%
+export function closeEnough(given: string, accepted: string): boolean {
+  if (given.replace(/\s+/g, '') === accepted.replace(/\s+/g, '')) return true;
+  const a = given.split(' ');
+  const b = accepted.split(' ');
+  if (a.length !== b.length) return false;
+  return a.every((word, i) => {
+    const target = b[i];
+    if (word === target) return true;
+    if (/[0-9]/.test(word + target)) return false;
+    const allowed = target.length >= 9 ? 2 : target.length >= 5 ? 1 : 0;
+    return allowed > 0 && editDistance(word, target) <= allowed;
+  });
+}
+
 // Out of 100. Arranging and select-all questions get partial credit; one-answer questions are right or wrong
 export function gradeAnswer(q: Question, answer: string): number {
   switch (q.type) {
@@ -60,7 +89,7 @@ export function gradeAnswer(q: Question, answer: string): number {
     }
     case 'text': {
       const given = normalise(answer);
-      return given !== '' && (q.acceptedAnswers ?? []).some((a) => normalise(a) === given) ? 100 : 0;
+      return given !== '' && (q.acceptedAnswers ?? []).some((a) => closeEnough(given, normalise(a))) ? 100 : 0;
     }
     case 'order': {
       const order = orderAnswer(q, answer);

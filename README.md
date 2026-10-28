@@ -35,6 +35,9 @@ answers `/api/generate-test`, which companies use to have Vetter suggest tests f
 
 - Set `ANTHROPIC_API_KEY` (in `.env.local` or `.env`, or the host's environment). It stays on the server.
 - Optionally set `CLAUDE_MODEL` (defaults to `claude-haiku-5-5`, the cheapest; `claude-sonnet-5-5` or `claude-opus-5-5` write stronger questions). Each test written logs its token use and cost in the server output.
+- Candidates' code, SQL and short answers that the automatic checks don't give full marks are marked again by
+  Claude, which gives partial credit for near misses and ignores typos (`/api/grade-answers`; set `GRADING_MODEL`
+  to use a different model). It can only raise a score. Without a key, the automatic marks stand.
 - The key is optional. Without it, Vetter still suggests library tests and still creates a new test, by
   putting together the best-fitting questions from its own tests. With it, the new test's questions are written fresh.
 - `npm run dev` answers the same endpoint, using the same settings.

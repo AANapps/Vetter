@@ -4,6 +4,7 @@ import { AssessmentTest, Business, JobPosting, QuestionType, TEST_DIFFICULTIES, 
 import { ANSWER_TYPES, QUESTION_STYLES } from '../lib/questionTypes';
 import { GenerationResult, generateTests, jobBrief } from '../lib/testGeneration';
 import { versionTitle } from '../lib/testLevels';
+import { Pulse } from './Pulse';
 
 interface TestGeneratorProps {
   // The job the tests are for; without one, Vetter only writes a test
@@ -92,7 +93,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
         <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5">
           {working ? (
             <div className="py-12 flex flex-col items-center gap-3 text-center">
-              <Pulse />
+              <Pulse label="Building your test" />
               <WorkingStep writing={wantNewTest} />
               <p className="text-xs text-slate-500 max-w-sm">
                 {wantNewTest ? 'Every question is checked before you see it: coding answers and SQL queries are run, and anything that fails is left out.' : ''}
@@ -328,16 +329,6 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
     </div>
   );
 };
-
-// While Vetter builds the test: a circle beats and rings pulse out from it
-const Pulse: React.FC = () => (
-  <div className="relative w-24 h-24 my-8 flex items-center justify-center" role="img" aria-label="Building your test">
-    <span className="pulse-ring absolute inset-0 rounded-full bg-indigo-400" />
-    <span className="pulse-ring absolute inset-0 rounded-full bg-indigo-400 [animation-delay:0.8s]" />
-    <span className="pulse-ring absolute inset-0 rounded-full bg-indigo-400 [animation-delay:1.6s]" />
-    <span className="pulse-core relative w-14 h-14 rounded-full bg-indigo-600 shadow-lg shadow-indigo-600/30" />
-  </div>
-);
 
 const WRITING_STEPS = ['Reading the job…', 'Choosing what to test…', 'Writing the questions…', 'Checking every answer…', 'Nearly there…'];
 

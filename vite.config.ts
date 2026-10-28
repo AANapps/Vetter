@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import {defineConfig, loadEnv} from 'vite';
 import {seoPages} from './seoPages';
-import {generateTest} from './server/generateTest';
+import {API_ROUTES} from './server/routes';
 
 export default defineConfig(({mode}) => {
   // The address the site is served from, for canonical links, the sitemap and job listings
@@ -14,26 +14,28 @@ export default defineConfig(({mode}) => {
       react(),
       tailwindcss(),
       seoPages(siteUrl),
-      // The AI test generator in development; server.ts answers it in production. The key stays on the server.
+      // The AI endpoints in development; server.ts answers them in production. The key stays on the server.
       {
-        name: 'vetter-generate-test',
+        name: 'vetter-ai-endpoints',
         configureServer(server) {
-          server.middlewares.use('/api/generate-test', (req, res) => {
-            let raw = '';
-            req.on('data', (chunk) => (raw += chunk));
-            req.on('end', async () => {
-              let body: unknown = null;
-              try {
-                body = JSON.parse(raw);
-              } catch {
-                // Answered as a bad request below
-              }
-              const {status, json} = await generateTest(body, env.ANTHROPIC_API_KEY, env.CLAUDE_MODEL || 'claude-haiku-5-5');
-              res.statusCode = status;
-              res.setHeader('Content-Type', 'application/json');
-              res.end(JSON.stringify(json));
+          for (const [route, handle] of Object.entries(API_ROUTES)) {
+            server.middlewares.use(route, (req, res) => {
+              let raw = '';
+              req.on('data', (chunk) => (raw += chunk));
+              req.on('end', async () => {
+                let body: unknown = null;
+                try {
+                  body = JSON.parse(raw);
+                } catch {
+                  // Answered as a bad request
+                }
+                const {status, json} = await handle(body, env);
+                res.statusCode = status;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify(json));
+              });
             });
-          });
+          }
         },
       },
     ],

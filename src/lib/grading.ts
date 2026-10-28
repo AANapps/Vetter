@@ -91,16 +91,21 @@ function feedbackFor(q: Question, result: QuestionRunResult): string[] {
 export async function gradeTest(test: AssessmentTest, codes: Record<string, string>) {
   const perQuestion: Record<string, number> = {};
   const feedback: Record<string, string[]> = {};
-  let weighted = 0;
-  let weights = 0;
+  // What each task's run found, for a second marking of the ones that fell short
+  const runs: Record<string, QuestionRunResult> = {};
 
   for (const q of test.questions) {
     const result = await runQuestion(q, codes[q.id] ?? q.starterCode);
+    runs[q.id] = result;
     perQuestion[q.id] = result.score;
     feedback[q.id] = feedbackFor(q, result);
-    weighted += perQuestion[q.id] * q.weight;
-    weights += q.weight;
   }
 
-  return { score: Math.round(weighted / (weights || 1)), perQuestion, feedback };
+  return { score: weightedScore(test, perQuestion), perQuestion, feedback, runs };
+}
+
+// The test's score out of 100 from each task's score and weight
+export function weightedScore(test: AssessmentTest, perQuestion: Record<string, number>) {
+  const weights = test.questions.reduce((sum, q) => sum + q.weight, 0) || 1;
+  return Math.round(test.questions.reduce((sum, q) => sum + (perQuestion[q.id] ?? 0) * q.weight, 0) / weights);
 }

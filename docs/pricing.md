@@ -13,7 +13,11 @@ existing tests from the library is free (Vetter matches them itself).
 | Claude Sonnet 5.5 | $2 / $10 | ~$0.05–0.10 | ~$5–10 | ~$50–100 |
 | Claude Opus 5.5 | $4 / $20 | ~$0.10–0.20 | ~$10–20 | ~$100–200 |
 
-These are estimates; the server logs the real tokens and cost of every test it writes.
+These are estimates; the server logs the real tokens and cost of every test it writes. Measured on Haiku: $0.001 for a
+5-question test, $0.003 for a 6-question senior test with coding.
+
+AI marking (a second look at code, SQL and short answers that weren't fully right) costs about $0.0002–0.0005 per
+candidate on Haiku, so 1,000 candidates is roughly 20–50p.
 
 ## What employers pay elsewhere
 

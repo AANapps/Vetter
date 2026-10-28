@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AssessmentTest, Question } from '../types';
 import { MOCK_DATABASE } from '../lib/sqlEngine';
-import { runQuestion, gradeTest, QuestionRunResult } from '../lib/grading';
+import { runQuestion, gradeTest, QuestionRunResult, weightedScore } from '../lib/grading';
+import { AiMark, aiMarks } from '../lib/aiMarking';
+import { Pulse } from './Pulse';
 import {
   Play,
   RotateCcw,
@@ -50,6 +52,9 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
   const [finalPercentile, setFinalPercentile] = useState(0);
   const [finalDuration, setFinalDuration] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // After the automatic checks, Vetter's AI takes a second look at code and written answers that fell short
+  const [isAiMarking, setIsAiMarking] = useState(false);
+  const [aiMarked, setAiMarked] = useState<Record<string, AiMark>>({});
   // The intro screen shows first; the clock and proctoring only begin once the candidate starts
   const [hasStarted, setHasStarted] = useState(false);
   const [acceptedRules, setAcceptedRules] = useState(false);
@@ -145,7 +150,18 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
     submittedRef.current = true;
     setIsSubmitting(true);
 
-    const { score, perQuestion, feedback } = await gradeTest(test, userCodesRef.current);
+    const graded = await gradeTest(test, userCodesRef.current);
+    setIsAiMarking(true);
+    const marks = await aiMarks(test, userCodesRef.current, graded.perQuestion, graded.runs);
+    setIsAiMarking(false);
+    const perQuestion = { ...graded.perQuestion };
+    const feedback = { ...graded.feedback };
+    for (const [id, mark] of Object.entries(marks)) {
+      perQuestion[id] = mark.score;
+      feedback[id] = mark.feedback ? [mark.feedback] : feedback[id];
+    }
+    const score = weightedScore(test, perQuestion);
+    setAiMarked(marks);
     setQuestionScores(perQuestion);
     setQuestionFeedback(feedback);
     setFinalScore(score);
@@ -250,7 +266,7 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
             disabled={isSubmitting}
             className="px-3.5 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 rounded-lg shadow-xs transition-colors"
           >
-            {isSubmitting ? 'Grading...' : 'Submit test'}
+            {isSubmitting ? 'Marking…' : 'Submit test'}
           </button>
         </div>
       </div>
@@ -528,6 +544,17 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
         )}
       </div>
 
+      {/* While answers are marked */}
+      {isSubmitting && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white/90 backdrop-blur-sm text-center px-6">
+          <Pulse label="Marking your answers" />
+          <p className="text-sm font-semibold text-slate-900" aria-live="polite">
+            {isAiMarking ? 'Taking a closer look at your answers…' : 'Marking your answers…'}
+          </p>
+          <p className="text-xs text-slate-500 mt-1 max-w-sm">Answers that are nearly right get credit, so a typo or a small slip doesn't cost you everything.</p>
+        </div>
+      )}
+
       {/* Completion Modal */}
       {showCompletionModal && (() => {
         const earnedTier = getBadgeTier(finalScore);
@@ -589,16 +616,26 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
                 <div className="font-bold text-slate-900">Score and feedback by task</div>
                 {test.questions.map((q, idx) => {
                   const missed = questionFeedback[q.id] ?? [];
+                  const byAi = aiMarked[q.id];
                   return (
                     <div key={q.id}>
                       <div className="flex items-center justify-between gap-3">
                         <span className="truncate">
                           {idx + 1}. {q.title} <span className="text-slate-400">({q.weight}%)</span>
+                          {byAi && (
+                            <span className="ml-1.5 px-1.5 py-px rounded bg-indigo-50 text-indigo-700 text-[10px] font-semibold" title="Marked again by Vetter's AI, which gives credit for answers that are nearly right">
+                              AI-marked
+                            </span>
+                          )}
                         </span>
                         <span className="font-mono font-semibold tabular-nums text-slate-900">{questionScores[q.id] ?? 0}/100</span>
                       </div>
                       {missed.length > 0 && (
-                        <ul className="mt-0.5 pl-4 text-[11px] text-rose-700 list-disc">
+                        <ul
+                          className={`mt-0.5 pl-4 text-[11px] list-disc ${
+                            (questionScores[q.id] ?? 0) === 100 ? 'text-emerald-700' : byAi && (questionScores[q.id] ?? 0) > 0 ? 'text-amber-800' : 'text-rose-700'
+                          }`}
+                        >
                           {missed.slice(0, 3).map((m) => (
                             <li key={m}>{m}</li>
                           ))}
@@ -609,6 +646,12 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
                   );
                 })}
               </div>
+
+              {Object.keys(aiMarked).length > 0 && (
+                <p className="text-[11px] text-slate-500">
+                  Code and written answers that weren't fully right were marked again by Vetter's AI, which gives credit for answers that are nearly there.
+                </p>
+              )}
 
               <button
                 onClick={handleConfirmFinish}
