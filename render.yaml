@@ -17,12 +17,12 @@ services:
       # The site's public address, e.g. https://vetter.onrender.com or your own domain. Used for job links and the sitemap
       - key: SITE_URL
         sync: false
-      # Firebase web app settings, for accounts (Project settings > Your apps in the Firebase console)
+      # Firebase web app settings, for accounts (Project settings > Your apps in the Firebase console). Public, not secrets
       - key: VITE_FIREBASE_API_KEY
-        sync: false
+        value: "AIzaSyByK-3EOUne814-fKW9n5rqVOcNFXqXlLE"
       - key: VITE_FIREBASE_AUTH_DOMAIN
-        sync: false
+        value: "vetter-7b06f.firebaseapp.com"
       - key: VITE_FIREBASE_PROJECT_ID
-        sync: false
+        value: "vetter-7b06f"
       - key: VITE_FIREBASE_APP_ID
-        sync: false
+        value: "1:1043391834562:web:a7a06781505cbc99568e5b"
