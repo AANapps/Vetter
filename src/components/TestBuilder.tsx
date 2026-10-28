@@ -12,6 +12,8 @@ interface TestBuilderProps {
   business?: Business;
   // The test being edited, or undefined for a new one
   initial?: AssessmentTest;
+  // A new test to start from, such as one Vetter's AI wrote; saved as a new test
+  draft?: AssessmentTest;
   onSave: (test: AssessmentTest) => void;
   onCancel: () => void;
 }
@@ -22,16 +24,17 @@ const CATEGORIES = Object.keys(SKILL_IDS) as SkillCategory[];
 type Selection = 'details' | number;
 
 // Writing a test: its details, then questions in any mix of styles, tried out as a candidate before saving
-export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, onSave, onCancel }) => {
+export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, draft, onSave, onCancel }) => {
   const isVetter = !business;
-  const [title, setTitle] = useState(initial?.title ?? '');
-  const [description, setDescription] = useState(initial?.description ?? '');
-  const [category, setCategory] = useState<SkillCategory>(initial?.category ?? 'Data Analysis');
-  const [difficulty, setDifficulty] = useState(initial?.difficulty ?? 'Junior');
-  const [passingScore, setPassingScore] = useState(initial?.passingScore ?? 70);
-  const [skills, setSkills] = useState((initial?.skillsTested ?? []).join(', '));
-  const [roles, setRoles] = useState<TestRole[]>(initial?.roles ?? []);
-  const [questions, setQuestions] = useState<Question[]>(initial?.questions ?? []);
+  const source = initial ?? draft;
+  const [title, setTitle] = useState(source?.title ?? '');
+  const [description, setDescription] = useState(source?.description ?? '');
+  const [category, setCategory] = useState<SkillCategory>(source?.category ?? 'Data Analysis');
+  const [difficulty, setDifficulty] = useState(source?.difficulty ?? 'Junior');
+  const [passingScore, setPassingScore] = useState(source?.passingScore ?? 70);
+  const [skills, setSkills] = useState((source?.skillsTested ?? []).join(', '));
+  const [roles, setRoles] = useState<TestRole[]>(source?.roles ?? []);
+  const [questions, setQuestions] = useState<Question[]>(source?.questions ?? []);
   const [selected, setSelected] = useState<Selection>('details');
   const [picking, setPicking] = useState(false);
   const [showProblems, setShowProblems] = useState(false);
@@ -108,7 +111,7 @@ export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, onS
             <X className="w-5 h-5" />
           </button>
           <div className="min-w-0">
-            <h1 className="text-sm font-bold truncate">{initial ? `Edit ${initial.title}` : 'New test'}</h1>
+            <h1 className="text-sm font-bold truncate">{initial ? `Edit ${initial.title}` : draft ? 'Review the AI draft' : 'New test'}</h1>
             <p className="text-[11px] text-slate-500 truncate">
               {business ? `For ${business.name}'s jobs` : 'For the Vetter test library, open to every candidate'} &middot; {questions.length}{' '}
               {questions.length === 1 ? 'question' : 'questions'} &middot; ~{minutes} min

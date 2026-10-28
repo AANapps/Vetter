@@ -28,7 +28,7 @@ import {
 import { formatDuration } from './TestLeaderboard';
 import { JobForm } from './JobForm';
 import { JobCandidates } from './JobCandidates';
-import { ArrowLeft, Check, CheckCircle2, ChevronDown, Copy, Download, Link2, Mail, MapPin, Pencil, Plus, Search, Send, Share2, UserPlus, X } from 'lucide-react';
+import { ArrowLeft, Check, CheckCircle2, ChevronDown, Copy, Download, Link2, Mail, MapPin, Pencil, Plus, Search, Send, Share2, Sparkles, UserPlus, X } from 'lucide-react';
 
 interface BusinessJobsProps {
   // The company signed in; without one, the Vetter team sees every company's jobs
@@ -42,6 +42,8 @@ interface BusinessJobsProps {
   onSelect: (jobId: string | null) => void;
   onCreateJob: (job: JobPosting) => void;
   onEditTests: (jobId: string) => void;
+  // Vetter's AI suggests library tests for the job and writes a new one
+  onSuggestTests: (jobId: string) => void;
   onUpdateJobRequirements: (jobId: string, requirements: JobPosting['requirements']) => void;
   onEmail: (jobId: string, emails: string[]) => void;
   onInvite: (jobId: string, candidateIds: string[]) => void;
@@ -319,6 +321,7 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
   candidates,
   onSelect,
   onEditTests,
+  onSuggestTests,
   onUpdateJobRequirements,
   onEmail,
   onInvite,
@@ -389,13 +392,21 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
       <section className="bg-white border border-slate-200 rounded-xl p-5 space-y-3">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-sm font-bold text-slate-900">Tests for this job</h2>
-          <button onClick={() => onEditTests(job.id)} className="text-xs font-semibold text-indigo-700 hover:text-indigo-900 flex items-center gap-1.5">
-            {jobTests.length === 0 ? <Plus className="w-3.5 h-3.5" /> : <Pencil className="w-3.5 h-3.5" />}
-            {jobTests.length === 0 ? 'Add tests' : 'Change tests'}
-          </button>
+          <div className="flex items-center gap-4">
+            <button onClick={() => onSuggestTests(job.id)} className="text-xs font-semibold text-indigo-700 hover:text-indigo-900 flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5" />
+              Suggest tests with AI
+            </button>
+            <button onClick={() => onEditTests(job.id)} className="text-xs font-semibold text-indigo-700 hover:text-indigo-900 flex items-center gap-1.5">
+              {jobTests.length === 0 ? <Plus className="w-3.5 h-3.5" /> : <Pencil className="w-3.5 h-3.5" />}
+              {jobTests.length === 0 ? 'Add tests' : 'Change tests'}
+            </button>
+          </div>
         </div>
         {jobTests.length === 0 ? (
-          <p className="text-xs text-slate-500">Add the tests candidates should take for this job, then send them out.</p>
+          <p className="text-xs text-slate-500">
+            Add the tests candidates should take for this job, then send them out. Or let Vetter suggest tests from the job description and write a new one.
+          </p>
         ) : (
           <div className="flex flex-wrap items-center gap-2">
             {jobTests.map((t, i) => (

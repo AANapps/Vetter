@@ -21,6 +21,8 @@ import { GlobalSearch } from './components/GlobalSearch';
 import { PersonProfileModal } from './components/PersonProfileModal';
 import { BusinessJobs } from './components/BusinessJobs';
 import { JobTestsEditor } from './components/JobTestsEditor';
+import { TestGenerator } from './components/TestGenerator';
+import { TestBuilder } from './components/TestBuilder';
 import { jobTestProgress, withInvitation } from './lib/jobTests';
 import { CandidateHome } from './components/CandidateHome';
 import { CheckCircle2 } from 'lucide-react';
@@ -187,6 +189,9 @@ export default function App() {
   const [activeTestJobId, setActiveTestJobId] = useState<string | null>(null);
   const [activeTest, setActiveTest] = useState<AssessmentTest | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  // Asking Vetter's AI for tests, for a job or on their own; and the builder opened on what it wrote
+  const [generator, setGenerator] = useState<{ jobId?: string } | null>(null);
+  const [draftBuilder, setDraftBuilder] = useState<{ draft: AssessmentTest; jobId?: string; alsoAdd: string[] } | null>(null);
   // What the candidate's Tests page is narrowed to, e.g. a field picked on Home
   const [testField, setTestField] = useState<TestField | null>(null);
   // Opened from search
@@ -399,6 +404,25 @@ export default function App() {
     setTests((prev) => prev.map((t) => (t.id === test.id ? test : t)));
   };
 
+  // Who a new test belongs to: the job's company, or the company signed in, or the Vetter library
+  const testOwnerFor = (jobId?: string) => {
+    const job = jobId ? jobs.find((j) => j.id === jobId) : undefined;
+    if (job) return businesses.find((b) => b.id === job.businessId);
+    return activeRole === 'admin' ? undefined : recruiterBusiness;
+  };
+
+  const saveNewTest = (test: AssessmentTest) => {
+    const id = `test-${test.type === 'custom' ? 'custom' : 'vetter'}-${Date.now()}`;
+    setTests((prev) => [{ ...test, id }, ...prev]);
+    return id;
+  };
+
+  const addTestsToJob = (jobId: string, testIds: string[]) => {
+    const job = jobs.find((j) => j.id === jobId);
+    setJobs((prev) => prev.map((j) => (j.id === jobId ? { ...j, testIds: [...new Set([...j.testIds, ...testIds])] } : j)));
+    if (job) showToast(`Added ${testIds.length} ${testIds.length === 1 ? 'test' : 'tests'} to ${job.title}.`);
+  };
+
   const allCandidates = [candidate, ...otherCandidates];
   const testPageTest = testPageId ? tests.find((t) => t.id === testPageId) : undefined;
   // A test page replaces the tab's own content
@@ -575,6 +599,7 @@ export default function App() {
               }}
               onCreateJob={handleCreateJob}
               onEditTests={(jobId) => setEditingTests({ jobId, addTestIds: [] })}
+              onSuggestTests={(jobId) => setGenerator({ jobId })}
               onUpdateJobRequirements={handleUpdateJobRequirements}
               onEmail={handleEmailJob}
               onInvite={handleInviteToJob}
@@ -596,6 +621,7 @@ export default function App() {
               tests={tests}
               onCreateTest={handleCreateTest}
               onUpdateTest={handleUpdateTest}
+              onGenerateTest={() => setGenerator({})}
             />
           )}
         </main>
@@ -626,6 +652,40 @@ export default function App() {
             window.scrollTo(0, 0);
           }}
           onCancel={() => setEditingTests(null)}
+        />
+      )}
+
+      {generator && (
+        <TestGenerator
+          job={generator.jobId ? jobs.find((j) => j.id === generator.jobId) : undefined}
+          business={testOwnerFor(generator.jobId)}
+          tests={tests}
+          onOpenTest={(testId) => {
+            setGenerator(null);
+            openTestPage(testId);
+          }}
+          onSaveTest={(test) => {
+            const id = saveNewTest(test);
+            if (!generator.jobId) showToast(`"${test.title}" saved to your tests.`);
+            return id;
+          }}
+          onAddToJob={addTestsToJob}
+          onEditDraft={(draft, alsoAdd) => setDraftBuilder({ draft, jobId: generator.jobId, alsoAdd })}
+          onClose={() => setGenerator(null)}
+        />
+      )}
+
+      {draftBuilder && (
+        <TestBuilder
+          business={testOwnerFor(draftBuilder.jobId)}
+          draft={draftBuilder.draft}
+          onSave={(test) => {
+            handleCreateTest(test);
+            if (draftBuilder.jobId) addTestsToJob(draftBuilder.jobId, [test.id, ...draftBuilder.alsoAdd]);
+            else showToast(`"${test.title}" saved to your tests.`);
+            setDraftBuilder(null);
+          }}
+          onCancel={() => setDraftBuilder(null)}
         />
       )}
 

@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { User, JobPosting, AssessmentTest, Business } from '../types';
 import { getTestStats } from '../lib/leaderboard';
 import { JobCandidates } from './JobCandidates';
-import { CheckCircle2, Pencil, Plus } from 'lucide-react';
+import { CheckCircle2, Pencil, Plus, Sparkles } from 'lucide-react';
 import { TestBuilder } from './TestBuilder';
 
 // Jobs have their own page (BusinessJobs); this is the company's tests and the candidates ranked for each job
@@ -21,6 +21,8 @@ interface RecruiterPortalProps {
   tests: AssessmentTest[];
   onCreateTest: (newTest: AssessmentTest) => void;
   onUpdateTest: (test: AssessmentTest) => void;
+  // Vetter's AI writes a test from a description
+  onGenerateTest: () => void;
 }
 
 // Tests written in the builder have ids like test-custom-<timestamp> or test-vetter-<timestamp>
@@ -37,6 +39,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   tests,
   onCreateTest,
   onUpdateTest,
+  onGenerateTest,
 }) => {
   // A business only manages its own jobs and its own tests; the Vetter team sees every company's jobs
   const isVetter = !business;
@@ -153,13 +156,22 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                 {isVetter ? 'Tests you write join the Vetter library for every candidate.' : 'Use it on any of your jobs.'}
               </p>
             </div>
-            <button
-              onClick={() => setBuilding({})}
-              className="shrink-0 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg flex items-center gap-1.5 shadow-xs"
-            >
-              <Plus className="w-4 h-4" />
-              Create a test
-            </button>
+            <div className="flex flex-wrap gap-2 shrink-0">
+              <button
+                onClick={onGenerateTest}
+                className="px-4 py-2 text-sm font-semibold text-indigo-700 bg-white border border-indigo-200 hover:bg-indigo-50 rounded-lg flex items-center gap-1.5"
+              >
+                <Sparkles className="w-4 h-4" />
+                Write with AI
+              </button>
+              <button
+                onClick={() => setBuilding({})}
+                className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg flex items-center gap-1.5 shadow-xs"
+              >
+                <Plus className="w-4 h-4" />
+                Create a test
+              </button>
+            </div>
           </div>
 
           {savedMessage && (
