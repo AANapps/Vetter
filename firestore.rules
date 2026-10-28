@@ -18,6 +18,17 @@ service cloud.firestore {
     }
     function companyAfter(companyId) { return getAfter(/databases/$(database)/documents/companies/$(companyId)).data; }
     function changed() { return request.resource.data.diff(resource.data).affectedKeys(); }
+    // Someone let into a company (its owner or an approved colleague), who can post its jobs and tests
+    function worksAt(companyId) {
+      return signedIn() && exists(/databases/$(database)/documents/users/$(uid()))
+        && userDoc(uid()).data.get('companyId', null) == companyId && userDoc(uid()).data.status == 'active'
+        && userDoc(uid()).data.role == 'recruiter';
+    }
+    function activeCandidate() {
+      return signedIn() && verified() && exists(/databases/$(database)/documents/users/$(uid()))
+        && userDoc(uid()).data.role == 'candidate';
+    }
+    function jobDoc(jobId) { return get(/databases/$(database)/documents/jobs/$(jobId)).data; }
     // Keep in step with src/lib/emailDomains.ts
     function freeDomains() {
       return ['gmail.com', 'googlemail.com', 'outlook.com', 'hotmail.com', 'hotmail.co.uk', 'live.com', 'live.co.uk',
@@ -63,18 +74,118 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // A candidate's profile and progress: theirs alone, written only once their email is verified
+    // A candidate's public profile and results (what leaderboards and companies see), written only by them once
+    // their email is verified. Never their email or where they applied
     match /profiles/{userId} {
-      allow read: if signedIn() && (uid() == userId || isAdmin());
+      allow read: if true;
       allow create, update: if signedIn() && uid() == userId && verified()
         && userDoc(userId).data.role == 'candidate'
-        && request.resource.data.id == userId && request.resource.data.role == 'candidate';
+        && request.resource.data.id == userId && request.resource.data.role == 'candidate'
+        && !request.resource.data.keys().hasAny(['email', 'appliedJobIds', 'applicationProfiles']);
       allow delete: if isAdmin();
     }
 
+    // Jobs are public. A company posts and edits its own; the Vetter team any. Applying adds one to the count
+    match /jobs/{jobId} {
+      allow read: if true;
+      allow create: if isAdmin() || worksAt(request.resource.data.businessId);
+      allow update: if isAdmin()
+        || (worksAt(resource.data.businessId) && request.resource.data.businessId == resource.data.businessId)
+        || (changed().hasOnly(['applicantCount']) && request.resource.data.applicantCount == resource.data.applicantCount + 1
+          && !exists(/databases/$(database)/documents/applications/$(jobId + '__' + uid()))
+          && existsAfter(/databases/$(database)/documents/applications/$(jobId + '__' + uid())));
+      allow delete: if isAdmin() || worksAt(resource.data.businessId);
+
+      // Who the job's tests went to. The company sends them; a candidate puts themselves on the job by opening its
+      // link (or an emailed invitation) and records when they opened it and started
+      match /invitations/{candidateId} {
+        function candidateOwnFields() {
+          return request.resource.data.keys().hasOnly(['candidateId', 'invitedAt', 'via', 'openedAt', 'startedAt', 'jobId', 'businessId']);
+        }
+        function sameJob() {
+          return request.resource.data.jobId == jobId && request.resource.data.businessId == jobDoc(jobId).get('businessId', '');
+        }
+        allow create: if sameJob() && request.resource.data.candidateId == candidateId && (
+          isAdmin() || worksAt(jobDoc(jobId).get('businessId', ''))
+          || (uid() == candidateId && activeCandidate() && candidateOwnFields() && (
+            request.resource.data.via == 'link'
+            || (request.resource.data.via == 'email'
+              && exists(/databases/$(database)/documents/jobs/$(jobId)/emailInvites/$(request.auth.token.email.lower())))
+          ))
+        );
+        allow update: if (isAdmin() || worksAt(resource.data.businessId))
+          || (uid() == candidateId && changed().hasOnly(['openedAt', 'startedAt']));
+      }
+
+      // Addresses the job's tests were emailed to; the person at one can see theirs once they sign in
+      match /emailInvites/{email} {
+        allow create, update, delete: if isAdmin() || worksAt(jobDoc(jobId).get('businessId', ''));
+      }
+    }
+
+    // Read rules for both, also when queried across every job
+    match /{path=**}/invitations/{candidateId} {
+      allow read: if signedIn() && (uid() == resource.data.candidateId || isAdmin() || worksAt(resource.data.businessId));
+    }
+    match /{path=**}/emailInvites/{email} {
+      allow read: if signedIn() && (isAdmin() || worksAt(resource.data.businessId)
+        || (verified() && resource.data.email == request.auth.token.email.lower()));
+    }
+
+    // An application, seen by the candidate and the company they applied to
+    match /applications/{applicationId} {
+      allow read: if signedIn() && (uid() == resource.data.candidateId || isAdmin() || worksAt(resource.data.businessId));
+      allow create: if activeCandidate() && request.resource.data.candidateId == uid()
+        && applicationId == request.resource.data.jobId + '__' + uid()
+        && request.resource.data.businessId == jobDoc(request.resource.data.jobId).get('businessId', '');
+      allow delete: if isAdmin();
+    }
+
+    // Tests made in the app: a company's own, or the Vetter team's. Anyone can open a test page
+    match /tests/{testId} {
+      allow read: if true;
+      allow create: if isAdmin() || (request.resource.data.type == 'custom' && worksAt(request.resource.data.businessId));
+      allow update: if isAdmin()
+        || (worksAt(resource.data.businessId) && request.resource.data.businessId == resource.data.businessId
+          && request.resource.data.type == 'custom');
+      allow delete: if isAdmin() || worksAt(resource.data.businessId);
+    }
+
+    // The feed: anyone can read it; people write, comment and give kudos as themselves
+    match /posts/{postId} {
+      allow read: if true;
+      allow create: if signedIn() && verified() && request.resource.data.authorId == uid();
+      allow delete: if signedIn() && (resource.data.authorId == uid() || isAdmin());
+    }
+    match /comments/{commentId} {
+      allow read: if true;
+      allow create: if signedIn() && verified() && request.resource.data.authorId == uid();
+      allow delete: if signedIn() && (resource.data.authorId == uid() || isAdmin());
+    }
+    match /kudos/{kudosId} {
+      allow read: if true;
+      allow create: if signedIn() && verified() && request.resource.data.uid == uid() && kudosId.matches('.*__' + uid());
+      allow delete: if signedIn() && resource.data.uid == uid();
+    }
+    // Who someone follows: theirs alone
+    match /follows/{userId} {
+      allow read, write: if signedIn() && uid() == userId;
+    }
+
+    // Telling a candidate they've been sent a job's tests. Companies send them; candidates mark them read
+    match /notifications/{noteId} {
+      allow read: if signedIn() && (resource.data.userId == uid() || isAdmin());
+      allow create: if signedIn() && verified() && (
+        isAdmin() || request.resource.data.userId == uid()
+        || worksAt(jobDoc(request.resource.data.jobId).get('businessId', ''))
+      );
+      allow update: if signedIn() && resource.data.userId == uid() && changed().hasOnly(['read']);
+    }
+
     match /companies/{companyId} {
-      // Signed-in people can see companies, so a sign-up can be told it's joining an existing one
-      allow read: if signedIn();
+      // Approved companies are public (the Companies page); signed-in people can see the rest, so a sign-up can be
+      // told it's joining an existing one
+      allow read: if resource.data.status == 'active' || signedIn();
 
       allow create: if signedIn() && verified() && request.resource.data.ownerUid == uid() && (
         // A company's id is its email domain, claimed only by a verified address at that domain
@@ -85,7 +196,8 @@ service cloud.firestore {
       );
 
       allow update: if isAdmin()
-        || (signedIn() && resource.data.ownerUid == uid() && changed().hasOnly(['name', 'website']));
+        || (signedIn() && resource.data.ownerUid == uid()
+          && changed().hasOnly(['name', 'website', 'logo', 'industry', 'headquarters', 'companySize', 'description', 'techStack']));
       allow delete: if isAdmin();
 
       match /members/{memberId} {

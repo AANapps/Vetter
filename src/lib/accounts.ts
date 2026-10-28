@@ -46,7 +46,8 @@ export interface Company {
   domain?: string;
   ownerUid: string;
   ownerName: string;
-  ownerEmail: string;
+  // Only for the Vetter team's review queue, from the owner's account; companies' records are public, so it isn't kept there
+  ownerEmail?: string;
   status: 'active' | 'pending-review' | 'rejected';
 }
 
@@ -143,7 +144,6 @@ export async function finishCompanySetup(account: Account) {
       website: setup.website,
       ownerUid: account.uid,
       ownerName: account.name,
-      ownerEmail: account.email,
       status: 'pending-review',
       createdAt: serverTimestamp(),
     });
@@ -163,7 +163,6 @@ export async function finishCompanySetup(account: Account) {
       domain,
       ownerUid: account.uid,
       ownerName: account.name,
-      ownerEmail: account.email,
       status: 'active',
       createdAt: serverTimestamp(),
     });
@@ -204,7 +203,13 @@ export async function decideMember(companyId: string, uid: string, approve: bool
 // The Vetter team's queue: companies that signed up without a work email
 export async function companiesInReview(): Promise<Company[]> {
   const snap = await getDocs(query(collection(db(), 'companies'), where('status', '==', 'pending-review')));
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Company);
+  return Promise.all(
+    snap.docs.map(async (d) => {
+      const company = { id: d.id, ...d.data() } as Company;
+      const owner = await getDoc(userRef(company.ownerUid));
+      return { ...company, ownerEmail: owner.data()?.email };
+    })
+  );
 }
 
 export async function decideCompany(company: Company, approve: boolean) {

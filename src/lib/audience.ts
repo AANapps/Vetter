@@ -61,7 +61,8 @@ export function headline(c: User) {
 export function inviteEmail(job: JobPosting, candidate: User, link: string) {
   const count = job.testIds.length;
   return {
-    to: candidate.email,
+    // Companies don't see candidates' addresses when accounts are on
+    to: candidate.email || `${candidate.name}'s Vetter login address`,
     subject: `${job.companyName} has invited you to take ${count === 1 ? 'a test' : `${count} tests`} for ${job.title}`,
     body: `Hi ${candidate.name.split(' ')[0]},\n\n${job.companyName} would like you to take the tests for ${job.title}: ${count} ${count === 1 ? 'test' : 'tests'}${
       job.closingDate ? `, by ${job.closingDate}` : ''

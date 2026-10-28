@@ -221,6 +221,7 @@ export const DiscoverFeed: React.FC<DiscoverFeedProps> = ({
               following={social.following}
               comments={social.comments[item.id] ?? []}
               hasKudos={social.kudosGiven.includes(item.id)}
+              otherKudos={social.kudosCounts ? social.kudosCounts[item.id] ?? 0 : seededKudos(item.id)}
               onToggleKudos={() => toggleKudos(item.id)}
               onToggleFollow={toggleFollow}
               onAddComment={(text) => addComment(item.id, text)}
@@ -250,6 +251,8 @@ interface FeedCardProps {
   following: string[];
   comments: FeedComment[];
   hasKudos: boolean;
+  // Kudos from everyone else
+  otherKudos: number;
   onToggleKudos: () => void;
   onToggleFollow: (id: string) => void;
   onAddComment: (text: string) => void;
@@ -265,6 +268,7 @@ const FeedCard: React.FC<FeedCardProps> = ({
   following,
   comments,
   hasKudos,
+  otherKudos,
   onToggleKudos,
   onToggleFollow,
   onAddComment,
@@ -281,7 +285,7 @@ const FeedCard: React.FC<FeedCardProps> = ({
       ? { id: item.job.businessId, name: item.job.companyName, avatar: item.business?.logo ?? item.job.companyLogo, subtitle: item.business?.industry }
       : { id: item.actor.id, name: item.actor.name, avatar: item.actor.avatarUrl, subtitle: item.actor.title };
   const isViewer = subject.id === viewer.id;
-  const kudosCount = seededKudos(item.id) + (hasKudos ? 1 : 0);
+  const kudosCount = otherKudos + (hasKudos ? 1 : 0);
 
   const submitReply = () => {
     const text = reply.trim();

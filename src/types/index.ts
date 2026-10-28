@@ -313,6 +313,8 @@ export interface SocialState {
   posts: FeedPost[];
   comments: Record<string, FeedComment[]>; // keyed by feed item id
   kudosGiven: string[]; // feed item ids the signed-in candidate gave kudos to
+  // Kudos from everyone else, by feed item id; without it (the demo) counts are made up
+  kudosCounts?: Record<string, number>;
   following: string[]; // candidate and company ids
 }
 

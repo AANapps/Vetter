@@ -13,7 +13,12 @@ export default defineConfig(({mode}) => {
     plugins: [
       react(),
       tailwindcss(),
-      seoPages(siteUrl),
+      seoPages(
+        siteUrl,
+        env.VITE_FIREBASE_PROJECT_ID && env.VITE_FIREBASE_EMULATORS !== 'true'
+          ? { projectId: env.VITE_FIREBASE_PROJECT_ID, apiKey: env.VITE_FIREBASE_API_KEY }
+          : undefined
+      ),
       // The AI endpoints in development; server.ts answers them in production. The key stays on the server.
       {
         name: 'vetter-ai-endpoints',

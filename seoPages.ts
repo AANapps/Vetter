@@ -10,7 +10,53 @@ import type * as JobSeo from './src/lib/jobSeo';
  * sitemap.xml, robots.txt and llms.txt. Search engines and AI crawlers that don't run JavaScript
  * read the listing straight from the page; the app takes over once it loads.
  */
-export function seoPages(siteUrl: string): Plugin {
+// Firestore's REST values, as plain values
+type FirestoreValue = Record<string, unknown>;
+const plain = (v: FirestoreValue): unknown => {
+  if ('arrayValue' in v) return ((v.arrayValue as { values?: FirestoreValue[] }).values ?? []).map(plain);
+  if ('mapValue' in v) return fields((v.mapValue as { fields?: Record<string, FirestoreValue> }).fields);
+  if ('integerValue' in v) return Number(v.integerValue);
+  if ('nullValue' in v) return null;
+  return Object.values(v)[0];
+};
+const fields = (f: Record<string, FirestoreValue> = {}) => Object.fromEntries(Object.entries(f).map(([k, v]) => [k, plain(v)]));
+
+// With accounts on, the jobs and companies are the real ones in Firebase (both public); otherwise the demo's examples
+async function loadListings(root: string, firebase?: { projectId: string; apiKey: string }) {
+  if (!firebase) {
+    const { INITIAL_JOBS, INITIAL_BUSINESSES } = (
+      await runnerImport<{ INITIAL_JOBS: JobPosting[]; INITIAL_BUSINESSES: Business[] }>(path.join(root, 'src/data/mockData.ts'), { configFile: false, root })
+    ).module;
+    return { jobs: INITIAL_JOBS, businesses: INITIAL_BUSINESSES };
+  }
+  const base = `https://firestore.googleapis.com/v1/projects/${firebase.projectId}/databases/(default)/documents`;
+  const jobs: JobPosting[] = [];
+  let pageToken = '';
+  do {
+    const res = await fetch(`${base}/jobs?key=${firebase.apiKey}&pageSize=300${pageToken ? `&pageToken=${pageToken}` : ''}`);
+    if (!res.ok) throw new Error(`Loading jobs from Firebase failed: ${res.status} ${await res.text()}`);
+    const page = (await res.json()) as { documents?: { name: string; fields: Record<string, FirestoreValue> }[]; nextPageToken?: string };
+    for (const d of page.documents ?? []) jobs.push({ invitations: [], ...fields(d.fields), id: d.name.split('/').pop() } as unknown as JobPosting);
+    pageToken = page.nextPageToken ?? '';
+  } while (pageToken);
+  const res = await fetch(`${base}:runQuery?key=${firebase.apiKey}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      structuredQuery: { from: [{ collectionId: 'companies' }], where: { fieldFilter: { field: { fieldPath: 'status' }, op: 'EQUAL', value: { stringValue: 'active' } } } },
+    }),
+  });
+  if (!res.ok) throw new Error(`Loading companies from Firebase failed: ${res.status} ${await res.text()}`);
+  const rows = (await res.json()) as { document?: { name: string; fields: Record<string, FirestoreValue> } }[];
+  const businesses = rows.flatMap((r) => {
+    if (!r.document) return [];
+    const c = fields(r.document.fields) as Partial<Business> & { name: string; website?: string };
+    return [{ industry: '', headquarters: '', companySize: '', description: '', techStack: [], logo: '', ...c, websiteUrl: c.website ?? '', id: r.document.name.split('/').pop()! }];
+  });
+  return { jobs, businesses };
+}
+
+export function seoPages(siteUrl: string, firebase?: { projectId: string; apiKey: string }): Plugin {
   let outDir = 'dist';
   let root = process.cwd();
   return {
@@ -22,13 +68,17 @@ export function seoPages(siteUrl: string): Plugin {
     },
     async closeBundle() {
       const load = async <T,>(file: string) => (await runnerImport<T>(path.join(root, file), { configFile: false, root })).module;
-      const { INITIAL_JOBS, INITIAL_BUSINESSES } = await load<{ INITIAL_JOBS: JobPosting[]; INITIAL_BUSINESSES: Business[] }>('src/data/mockData.ts');
+      // A deploy shouldn't fail because Firebase couldn't be reached: the site works without the static job pages
+      const { jobs, businesses } = await loadListings(root, firebase).catch((err) => {
+        console.warn(`\nNo job pages written. ${err instanceof Error ? err.message : err}`);
+        return { jobs: [] as JobPosting[], businesses: [] as Business[] };
+      });
       const seo = await load<typeof JobSeo>('src/lib/jobSeo.ts');
       const { escapeHtml: esc } = seo;
 
       const template = await fs.readFile(path.join(outDir, 'index.html'), 'utf8');
-      const listable = INITIAL_JOBS.filter((j) => seo.isListable(j));
-      const businessOf = (job: JobPosting) => INITIAL_BUSINESSES.find((b) => b.id === job.businessId);
+      const listable = jobs.filter((j) => seo.isListable(j));
+      const businessOf = (job: JobPosting) => businesses.find((b) => b.id === job.businessId);
 
       const page = (p: { path: string; title: string; description: string; head?: string; body: string; noindex?: boolean }) =>
         template
@@ -58,7 +108,7 @@ export function seoPages(siteUrl: string): Plugin {
       const jobCard = (job: JobPosting) =>
         `<li><a href="${seo.jobPath(job)}">${esc(job.title)}</a> at ${esc(job.companyName)}: ${esc(job.location)}, ${esc(job.workType)}, ${esc(job.salaryRange)}</li>`;
 
-      for (const job of INITIAL_JOBS) {
+      for (const job of jobs) {
         const open = seo.isListable(job);
         const others = listable.filter((j) => j.id !== job.id);
         const facts = [job.location, job.workType, job.employmentType, job.salaryRange, job.experienceLevel].filter(Boolean).map((f) => esc(f!));

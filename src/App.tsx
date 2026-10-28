@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { User, UserRole, AssessmentTest, JobPosting, Business, SocialState, AppNotification, JobInvitation } from './types';
-import { INITIAL_CANDIDATE, INITIAL_RECRUITER, INITIAL_BUSINESSES } from './data/mockData';
+import { INITIAL_RECRUITER, INITIAL_BUSINESSES, STANDARD_ASSESSMENTS } from './data/mockData';
 import { loadData, saveData, clearData, createSeedData } from './lib/store';
 import { getPercentile } from './lib/leaderboard';
 import { initialsAvatar, withComputedPercentiles } from './data/seedCandidates';
@@ -29,7 +29,8 @@ import { CheckCircle2 } from 'lucide-react';
 import { firebaseEnabled } from './lib/firebase';
 import { useAccount } from './lib/useAccount';
 import { loadProfile, saveProfile } from './lib/profiles';
-import { Account, signOut } from './lib/accounts';
+import { Account, accountError, signOut } from './lib/accounts';
+import { Viewer, apply, syncJobs, syncNotifications, syncSocial, syncTests, useCloudData } from './lib/cloud';
 import { AuthDialog, AuthMode } from './components/AuthDialog';
 import { AccountGate, CompanyReview, TeamRequests } from './components/AccountScreens';
 import { Pulse } from './components/Pulse';
@@ -77,6 +78,9 @@ const profileFor = (account: Account): User => ({
   appliedJobIds: [],
 });
 
+// Who visitors are shown as, with accounts on: nobody yet, with no results
+const VISITOR: User = { ...profileFor({ uid: 'visitor', name: 'Visitor', email: '' } as Account), id: 'visitor' };
+
 // Test pages live at #/tests/<id> so they can be linked to and the back button works
 const idFromHash = (kind: 'tests' | 'jobs' | 'exams') => {
   const match = window.location.hash.match(new RegExp(`^#/${kind}/([^?]+)`));
@@ -107,12 +111,10 @@ export default function App() {
 
   // Core data: candidates, jobs, tests and companies, loaded from the store and saved on every change
   const [initialData] = useState(loadData);
-  const [candidate, setCandidate] = useState<User>(initialData.candidate);
-  const [otherCandidates, setOtherCandidates] = useState<User[]>(initialData.otherCandidates);
+  const [candidate, setCandidate] = useState<User>(firebaseEnabled ? VISITOR : initialData.candidate);
+  const [localOthers, setOtherCandidates] = useState<User[]>(initialData.otherCandidates);
   const candidateRef = useRef(candidate);
   candidateRef.current = candidate;
-  const othersRef = useRef(otherCandidates);
-  othersRef.current = otherCandidates;
   // Accounts, when Firebase is set up: who's signed in decides what they see. Without it, Vetter is a demo with a view switcher
   const { loading: accountLoading, user, account, company } = useAccount();
   const [authDialog, setAuthDialog] = useState<{ mode: AuthMode; reason?: string } | null>(null);
@@ -140,15 +142,58 @@ export default function App() {
     companyBusiness && account
       ? { ...INITIAL_RECRUITER, id: account.uid, name: account.name, email: account.email, avatarUrl: initialsAvatar(account.name), title: `Hiring at ${company!.name}`, businessId: companyBusiness.id }
       : INITIAL_RECRUITER;
-  const [jobs, setJobs] = useState<JobPosting[]>(initialData.jobs);
-  const [tests, setTests] = useState<AssessmentTest[]>(initialData.tests);
-  const businesses: Business[] = companyBusiness ? [...INITIAL_BUSINESSES.filter((b) => b.id !== companyBusiness.id), companyBusiness] : INITIAL_BUSINESSES;
-  const [social, setSocial] = useState<SocialState>(initialData.social);
-  const [notifications, setNotifications] = useState<AppNotification[]>(initialData.notifications);
+  const [localJobs, setLocalJobs] = useState<JobPosting[]>(initialData.jobs);
+  const [localTests, setLocalTests] = useState<AssessmentTest[]>(initialData.tests);
+  const [localSocial, setLocalSocial] = useState<SocialState>(initialData.social);
+  const [localNotifications, setLocalNotifications] = useState<AppNotification[]>(initialData.notifications);
+
+  // With accounts on, everything real comes from Firebase (src/lib/cloud.ts) and changes are written back there;
+  // without them, the demo's example data lives in this browser
+  const viewer: Viewer | null =
+    firebaseEnabled && user?.emailVerified && account?.status === 'active'
+      ? { uid: account.uid, role: account.role, companyId: companyBusiness?.id, email: account.email }
+      : null;
+  const reportCloudError = (err: unknown) => showToast(`Couldn't save or load: ${accountError(err)}`);
+  const cloud = useCloudData(viewer, firebaseEnabled && !accountLoading, reportCloudError);
+  const jobs = cloud ? cloud.jobs : localJobs;
+  // Vetter's library is in the code; the Vetter team's edits to it and tests made in the app come from Firebase
+  const tests = cloud
+    ? [...STANDARD_ASSESSMENTS.map((t) => cloud.tests.find((c) => c.id === t.id) ?? t), ...cloud.tests.filter((c) => !STANDARD_ASSESSMENTS.some((t) => t.id === c.id))]
+    : localTests;
+  const cloudBusinesses = cloud ? cloud.businesses : INITIAL_BUSINESSES;
+  const businesses: Business[] = companyBusiness
+    ? [...cloudBusinesses.filter((b) => b.id !== companyBusiness.id), { ...companyBusiness, ...cloudBusinesses.find((b) => b.id === companyBusiness.id) }]
+    : cloudBusinesses;
+  const social = cloud ? cloud.social : localSocial;
+  const notifications = cloud ? cloud.notifications : localNotifications;
   const jobsRef = useRef(jobs);
   jobsRef.current = jobs;
+  const testsRef = useRef(tests);
+  testsRef.current = tests;
+  const socialRef = useRef(social);
+  socialRef.current = social;
+  const notificationsRef = useRef(notifications);
+  notificationsRef.current = notifications;
+  type Update<T> = (prev: T) => T;
+  const setJobs = (update: Update<JobPosting[]>) =>
+    firebaseEnabled ? syncJobs(jobsRef.current, update(jobsRef.current), reportCloudError) : setLocalJobs(update);
+  const setTests = (update: Update<AssessmentTest[]>) =>
+    firebaseEnabled ? syncTests(testsRef.current, update(testsRef.current), reportCloudError) : setLocalTests(update);
+  const setSocial = (update: Update<SocialState>) =>
+    firebaseEnabled
+      ? viewer && syncSocial(socialRef.current, update(socialRef.current), viewer.uid, reportCloudError)
+      : setLocalSocial(update);
+  const setNotifications = (update: Update<AppNotification[]>) =>
+    firebaseEnabled ? syncNotifications(notificationsRef.current, update(notificationsRef.current), reportCloudError) : setLocalNotifications(update);
+
+  // The signed-in candidate, when there is one; visitors and companies aren't among the candidates
+  const isCandidateAccount = firebaseEnabled && !!viewer && viewer.role === 'candidate' && candidate.id === viewer.uid;
+  const otherCandidates = cloud ? cloud.profiles.filter((p) => p.id !== candidate.id) : localOthers;
+  const othersRef = useRef(otherCandidates);
+  othersRef.current = otherCandidates;
 
   useEffect(() => {
+    if (firebaseEnabled) return;
     saveData({ candidate, otherCandidates, jobs, tests, social, notifications });
   }, [candidate, otherCandidates, jobs, tests, social, notifications]);
 
@@ -159,6 +204,7 @@ export default function App() {
   // Other people keep taking tests while the page is open, every few seconds, so scores and ranks shift live,
   // and work through the jobs' tests companies sent them, so companies see results come in
   useEffect(() => {
+    if (firebaseEnabled) return;
     let timer: ReturnType<typeof setTimeout>;
     const recordAttempt = (attempt: { candidateId: string; test: AssessmentTest; result: User['testResults'][number] }) => {
       const updated = othersRef.current.map((c) => (c.id === attempt.candidateId ? addTestResult(c, attempt.test, attempt.result) : c));
@@ -270,7 +316,7 @@ export default function App() {
         if (cancelled) return;
         // Progress made in this browser before it was saved to their account is kept
         const local = candidateRef.current.id === candidateAccountUid ? candidateRef.current : null;
-        setCandidate({ ...(saved ?? local ?? profileFor(account)), name: account.name, avatarUrl: initialsAvatar(account.name) });
+        setCandidate({ ...(saved ?? local ?? profileFor(account)), name: account.name, email: account.email, avatarUrl: initialsAvatar(account.name) });
         setProfileSync({ uid: candidateAccountUid, canSave: true });
       })
       .catch((err) => {
@@ -308,17 +354,46 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [candidate, profileSync]);
 
-  // Signed out, nothing of theirs is left on screen or in this browser: visitors see the example candidate
+  // Signed out, nothing of theirs is left on screen
   useEffect(() => {
     if (!firebaseEnabled || accountLoading || user) return;
     setProfileSync(null);
     lastSavedProfile.current = '';
-    if (candidateRef.current.id !== INITIAL_CANDIDATE.id) setCandidate(createSeedData().candidate);
+    if (candidateRef.current.id !== VISITOR.id) setCandidate(VISITOR);
   }, [user, accountLoading]);
+
+  // Where they've applied is kept with each application; it comes back with them on any device
+  const ownApplications = cloud?.profiles.find((p) => p.id === candidate.id);
+  useEffect(() => {
+    if (!isCandidateAccount || !ownApplications) return;
+    setCandidate((prev) => {
+      const appliedJobIds = [...new Set([...(prev.appliedJobIds ?? []), ...ownApplications.appliedJobIds])];
+      const applicationProfiles = { ...ownApplications.applicationProfiles, ...prev.applicationProfiles };
+      return appliedJobIds.length === prev.appliedJobIds?.length && Object.keys(applicationProfiles).length === Object.keys(prev.applicationProfiles ?? {}).length
+        ? prev
+        : { ...prev, appliedJobIds, applicationProfiles };
+    });
+  }, [isCandidateAccount, JSON.stringify(ownApplications?.appliedJobIds)]);
+
+  // Jobs whose tests were emailed to them before they had an account: they're on the job now, and told about it
+  const claimedEmailInvites = useRef(new Set<string>());
+  useEffect(() => {
+    if (!isCandidateAccount || !cloud) return;
+    const jobIds = cloud.emailedJobIds.filter(
+      (id) => !claimedEmailInvites.current.has(id) && cloud.jobs.find((j) => j.id === id && !j.invitations.some((i) => i.candidateId === candidate.id))
+    );
+    if (!jobIds.length) return;
+    jobIds.forEach((id) => {
+      claimedEmailInvites.current.add(id);
+      updateInvitation(id, candidate.id, { via: 'email' });
+    });
+    notifyInvited(jobIds[0], [candidate.id]);
+    jobIds.slice(1).forEach((id) => notifyInvited(id, [candidate.id]));
+  }, [isCandidateAccount, cloud?.emailedJobIds.join(), cloud?.jobs.length]);
 
   // Before a signed-in person can use Vetter: verifying their email, and for companies, being let in
   const accountGate =
-    firebaseEnabled && (accountLoading || (candidateAccountUid && profileSync?.uid !== candidateAccountUid)) ? (
+    firebaseEnabled && (accountLoading || !cloud || (candidateAccountUid && profileSync?.uid !== candidateAccountUid)) ? (
       <div className="flex justify-center py-16">
         <Pulse label="Loading" />
       </div>
@@ -353,7 +428,7 @@ export default function App() {
 
   // Sending a job's tests to people on Vetter emails them at their login address, puts the job on their Home and notifies them
   const handleInviteToJob = (jobId: string, candidateIds: string[]) => {
-    const emailOf = (id: string) => allCandidates.find((c) => c.id === id)?.email;
+    const emailOf = (id: string) => allCandidates.find((c) => c.id === id)?.email || undefined;
     setJobs((prev) =>
       prev.map((j) =>
         j.id === jobId
@@ -451,6 +526,10 @@ export default function App() {
     }));
 
     // Increment job applicants count
+    if (firebaseEnabled) {
+      if (job && viewer) apply(job, viewer.uid, sentWith).catch(reportCloudError);
+      return;
+    }
     setJobs((prev) =>
       prev.map((j) => (j.id === jobId ? { ...j, applicantCount: j.applicantCount + 1 } : j))
     );
@@ -554,7 +633,10 @@ export default function App() {
     if (job) showToast(`Added ${testIds.length} ${testIds.length === 1 ? 'test' : 'tests'} to ${job.title}.`);
   };
 
-  const allCandidates = [candidate, ...otherCandidates];
+  // With accounts on, standings are worked out from everyone's real results; visitors and companies aren't candidates
+  const allCandidates = firebaseEnabled
+    ? withComputedPercentiles(isCandidateAccount ? [candidate, ...otherCandidates] : otherCandidates)
+    : [candidate, ...otherCandidates];
   const testPageTest = testPageId ? tests.find((t) => t.id === testPageId) : undefined;
   // A test page replaces the tab's own content
   const detailPage = testPageTest;

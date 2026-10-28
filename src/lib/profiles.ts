@@ -2,10 +2,12 @@ import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { User } from '../types';
 import { db } from './firebase';
 import { initialsAvatar } from '../data/seedCandidates';
+import { publicProfile } from './cloud';
 
 /**
- * A candidate's profile and progress (test results, applications, job profiles), kept in Firestore under their
- * account so it follows them to any device. Only they (and the Vetter team) can read it; see firestore.rules.
+ * A candidate's profile and progress (test results, job profiles, studies), kept in Firestore under their account so
+ * it follows them to any device. It's public, like their place on the leaderboards, so it leaves out their email;
+ * where they applied is kept with each application (src/lib/cloud.ts). See firestore.rules.
  */
 const profileRef = (uid: string) => doc(db(), 'profiles', uid);
 
@@ -14,10 +16,7 @@ export async function loadProfile(uid: string): Promise<User | null> {
   const snap = await getDoc(profileRef(uid));
   if (!snap.exists()) return null;
   const { updatedAt: _, ...profile } = snap.data() as User & { updatedAt?: unknown };
-  return { ...profile, id: uid, avatarUrl: initialsAvatar(profile.name) };
+  return { ...profile, appliedJobIds: profile.appliedJobIds ?? [], id: uid, avatarUrl: initialsAvatar(profile.name) };
 }
 
-export function saveProfile(profile: User) {
-  const { avatarUrl: _, ...rest } = profile;
-  return setDoc(profileRef(profile.id), { ...rest, updatedAt: serverTimestamp() });
-}
+export const saveProfile = (profile: User) => setDoc(profileRef(profile.id), { ...publicProfile(profile), updatedAt: serverTimestamp() });

@@ -4,8 +4,8 @@ import { runnerImport } from 'vite';
 const root = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const env = { VITE_FIREBASE_API_KEY: 'demo-key', VITE_FIREBASE_AUTH_DOMAIN: 'demo-vetter.firebaseapp.com', VITE_FIREBASE_PROJECT_ID: 'demo-vetter', VITE_FIREBASE_APP_ID: 'demo-app', VITE_FIREBASE_EMULATORS: 'true' };
 const define = Object.fromEntries(Object.entries(env).map(([k, v]) => [`import.meta.env.${k}`, JSON.stringify(v)]));
-const { A, F, P } = (await runnerImport(`${root}/tests/rulesEntry.ts`, { configFile: false, root, define, logLevel: 'silent' })).module;
-const { doc, setDoc, getDoc, updateDoc } = (await runnerImport('firebase/firestore', { configFile: false, root, logLevel: 'silent' })).module;
+const { A, F, P, C } = (await runnerImport(`${root}/tests/rulesEntry.ts`, { configFile: false, root, define, logLevel: 'silent' })).module;
+const { doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, collection, collectionGroup, query, where, increment } = (await runnerImport('firebase/firestore', { configFile: false, root, logLevel: 'silent' })).module;
 const PROJECT = 'demo-vetter';
 let pass = 0, fail = 0;
 const check = async (name, fn, shouldWork) => {
@@ -32,6 +32,7 @@ await verify('cara@gmail.com');
 await check('saves her progress once verified', () => P.saveProfile(caraProfile), true);
 await check('loads it back on any device', async () => { if ((await P.loadProfile(cara))?.testResults[0]?.score !== 88) throw new Error('not saved'); }, true);
 await check('cannot pass herself off as a company', () => P.saveProfile({ ...caraProfile, role: 'recruiter' }), false);
+await check('cannot put her email on her public profile', () => setDoc(doc(db, 'profiles', cara), { ...caraProfile }), false);
 await A.signOut();
 
 console.log('Company owner (alice@acme.io)');
@@ -64,8 +65,75 @@ await verify('eve@evil.com');
 await check('cannot claim someone else\'s domain', () => setDoc(doc(db, 'companies', 'rival.io'), { name: 'Rival', website: 'rival.io', domain: 'rival.io', ownerUid: eve, ownerName: 'Eve', ownerEmail: 'eve@evil.com', status: 'active' }), false);
 await check('cannot read Acme\'s members', () => getDoc(doc(db, 'companies', 'acme.io', 'members', bob)), false);
 await check('cannot read Alice\'s account', () => getDoc(doc(db, 'users', alice)), false);
-await check('cannot read Cara\'s progress', () => P.loadProfile(cara), false);
+await check('can see Cara\'s public profile and results', () => P.loadProfile(cara), true);
 await check('cannot write Cara\'s progress', () => setDoc(doc(db, 'profiles', cara), { ...caraProfile, testResults: [] }), false);
+await A.signOut();
+
+console.log('Jobs, tests and applications');
+const job = { id: 'job-1', title: 'Analyst', companyName: 'Acme', companyLogo: '', businessId: 'acme.io', location: 'Leeds', workType: 'Remote', salaryRange: '', description: '', department: '', postedDate: '2026-10-28', requirements: [], testIds: [], testPassingScore: 70, testsRequired: false, invitations: [], applicantCount: 0, status: 'active' };
+const noop = (e) => { throw e; };
+await A.signIn('alice@acme.io', 'password123');
+await check('Alice posts a job for Acme', () => C.syncJobs([], [job], noop), true);
+await check('Alice writes a test for Acme', () => C.syncTests([], [{ id: 'test-custom-1', title: 'Acme SQL', type: 'custom', businessId: 'acme.io', questions: [] }], noop), true);
+await check('Alice cannot post a job for another company', () => C.syncJobs([], [{ ...job, id: 'job-x', businessId: 'rival.io' }], noop), false);
+await check('Alice cannot make a Vetter library test', () => setDoc(doc(db, 'tests', 'test-vetter-1'), { id: 'test-vetter-1', type: 'standard', title: 'x' }), false);
+await check('Alice sends the job to Cara and tells her', async () => {
+  await C.syncJobs([job], [{ ...job, invitations: [{ candidateId: cara, invitedAt: '2026-10-28', via: 'invite' }] }], noop);
+  await C.syncNotifications([], [{ id: 'note-1', userId: cara, kind: 'job-invite', jobId: 'job-1', createdAt: new Date().toISOString(), read: false }], noop);
+}, true);
+await check('Alice emails it to dan@example.com', () => C.syncJobs([job], [{ ...job, invitedEmails: ['dan@example.com'] }], noop), true);
+await A.signOut();
+
+console.log('    visitors:');
+await check('anyone can see jobs, tests and profiles', async () => { await getDocs(collection(db, 'jobs')); await getDocs(collection(db, 'tests')); await getDocs(collection(db, 'profiles')); }, true);
+await check('anyone can see approved companies', () => getDocs(query(collection(db, 'companies'), where('status', '==', 'active'))), true);
+await check('visitors cannot see who a job was sent to', () => getDocs(query(collectionGroup(db, 'invitations'), where('businessId', '==', 'acme.io'))), false);
+
+await A.signIn('cara@gmail.com', 'password123');
+console.log('    Cara:');
+await check('sees her invitation and notification', async () => {
+  const inv = await getDocs(query(collectionGroup(db, 'invitations'), where('candidateId', '==', cara)));
+  const notes = await getDocs(query(collection(db, 'notifications'), where('userId', '==', cara)));
+  if (inv.size !== 1 || notes.size !== 1) throw new Error(`${inv.size} invitations, ${notes.size} notifications`);
+}, true);
+await check('marks it read', () => updateDoc(doc(db, 'notifications', 'note-1'), { read: true }), true);
+await check('records starting the tests', () => updateDoc(doc(db, 'jobs', 'job-1', 'invitations', cara), { startedAt: new Date().toISOString() }), true);
+await check('cannot change how she was invited', () => updateDoc(doc(db, 'jobs', 'job-1', 'invitations', cara), { via: 'link' }), false);
+await check('applies', () => C.apply(job, cara, undefined), true);
+console.log('    applicants:', (await getDoc(doc(db, 'jobs', 'job-1'))).data().applicantCount);
+await check('cannot add applicants without applying', () => updateDoc(doc(db, 'jobs', 'job-1'), { applicantCount: increment(1) }), false);
+await check('cannot edit the job', () => updateDoc(doc(db, 'jobs', 'job-1'), { title: 'Hacked' }), false);
+await check('cannot apply as someone else', () => setDoc(doc(db, 'applications', `job-1__${eve}`), { jobId: 'job-1', candidateId: eve, businessId: 'acme.io', appliedAt: '' }), false);
+await check('cannot see Dan\'s emailed invite', () => getDocs(query(collectionGroup(db, 'emailInvites'), where('email', '==', 'dan@example.com'))), false);
+await check('cannot write a test', () => setDoc(doc(db, 'tests', 'test-custom-2'), { id: 'test-custom-2', type: 'custom', businessId: 'acme.io' }), false);
+await check('posts on the feed', () => C.syncSocial({ posts: [], comments: {}, kudosGiven: [], following: [] }, { posts: [{ id: 'post-1', authorId: cara, text: 'Hi', createdAt: new Date().toISOString() }], comments: { 'post-1': [{ id: 'cmt-1', authorId: cara, text: 'me', createdAt: new Date().toISOString() }] }, kudosGiven: ['post-1'], following: ['acme.io'] }, cara, noop), true);
+await A.signOut();
+
+await A.signIn('alice@acme.io', 'password123');
+console.log('    Alice:');
+await check('sees who she sent the job to', () => getDocs(query(collectionGroup(db, 'invitations'), where('businessId', '==', 'acme.io'))), true);
+await check('sees Cara\'s application', () => getDocs(query(collection(db, 'applications'), where('businessId', '==', 'acme.io'))), true);
+await check('cannot give kudos as Cara', () => setDoc(doc(db, 'kudos', `x__${cara}`), { itemId: 'x', uid: cara }), false);
+await check('cannot delete Cara\'s post', () => deleteDoc(doc(db, 'posts', 'post-1')), false);
+await check('cannot read Cara\'s notifications', () => getDocs(query(collection(db, 'notifications'), where('userId', '==', cara))), false);
+await check('cannot see who Cara follows', () => getDoc(doc(db, 'follows', cara)), false);
+await A.signOut();
+
+await A.signIn('eve@evil.com', 'password123');
+console.log('    Eve (not at Acme):');
+await check('cannot see who Acme sent its job to', () => getDocs(query(collectionGroup(db, 'invitations'), where('businessId', '==', 'acme.io'))), false);
+await check('cannot see Acme\'s applications', () => getDocs(query(collection(db, 'applications'), where('businessId', '==', 'acme.io'))), false);
+await check('cannot edit Acme\'s job', () => updateDoc(doc(db, 'jobs', 'job-1'), { title: 'Hacked' }), false);
+await check('cannot edit Acme\'s test', () => updateDoc(doc(db, 'tests', 'test-custom-1'), { title: 'Hacked' }), false);
+await A.signOut();
+
+console.log('    Dan, emailed before he had an account:');
+await A.signUp({ role: 'candidate', name: 'Dan', email: 'dan@example.com', password: 'password123' });
+const dan = F.auth().currentUser.uid;
+await verify('dan@example.com');
+await check('sees the job emailed to him', async () => { const s = await getDocs(query(collectionGroup(db, 'emailInvites'), where('email', '==', 'dan@example.com'))); if (s.size !== 1) throw new Error(`${s.size}`); }, true);
+await check('puts himself on it', () => setDoc(doc(db, 'jobs', 'job-1', 'invitations', dan), { candidateId: dan, invitedAt: '2026-10-28', via: 'email', jobId: 'job-1', businessId: 'acme.io' }), true);
+await check('cannot claim he was picked by the company', () => setDoc(doc(db, 'jobs', 'job-1', 'invitations', `${dan}`), { candidateId: dan, invitedAt: '2026-10-28', via: 'invite', jobId: 'job-1', businessId: 'acme.io' }), false);
 await A.signOut();
 
 console.log('No work email (mo@gmail.com)');

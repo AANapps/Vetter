@@ -63,15 +63,20 @@ Without Firebase settings Vetter runs as a demo with a view switcher. With them,
   colleagues from the same domain. Sign-ups without a work email wait for the Vetter team to approve them.
 - Google sign-in works the same way: a work Google account counts as a work email, a personal Gmail one goes to
   review. First-time Google users say whether they're looking for work or hiring.
-- A candidate's profile and progress (test results, applications, job profiles) are saved to their account, so
-  they follow them to any device. Only they and the Vetter team can read them.
-- `firestore.rules` enforces all of this on the server. `npm run test:rules` checks it against the Firebase
-  emulators.
+- Everything real lives in Firestore (`src/lib/cloud.ts`): jobs and who they were sent to, company-made tests,
+  applications, candidates' public profiles and results, the feed, follows and notifications. Vetter's test library
+  stays in the code. Visitors see real jobs, tests, profiles and companies; the demo's example data and simulated
+  activity are only in demo mode.
+- Profiles are public (like the leaderboards) but never include email addresses or where someone applied. Companies
+  see applications and invitations for their own jobs only.
+- `firestore.rules` enforces all of this on the server. `npm run test:rules` checks it (56 cases) against the
+  Firebase emulators.
 
 Setup: create a Firebase project, turn on **Authentication > Email/Password** and **Google**, create a **Firestore** database,
 add a web app and put its settings in `.env.local` (and on the host) as `VITE_FIREBASE_API_KEY`,
-`VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID` and `VITE_FIREBASE_APP_ID`. Publish the rules with
-`npx firebase deploy --only firestore:rules --project <project-id>` (or paste `firestore.rules` into the console).
+`VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID` and `VITE_FIREBASE_APP_ID`. Publish the rules and
+indexes with `npx firebase deploy --only firestore --project <project-id>`. With Firebase set, `npm run build` writes
+the job pages from the jobs in Firestore.
 Add the site's domain under **Authentication > Settings > Authorised domains**. To make someone part of the Vetter
 team, set `role` to `admin` on their document in the `users` collection.
 
