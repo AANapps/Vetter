@@ -23,6 +23,8 @@ export interface GenerationResult {
   newTestError?: string;
   // Where the new test came from: written by the AI, or put together from Vetter's own questions
   source?: 'ai' | 'bank';
+  // Why the AI didn't write it, when it came from the question bank
+  aiNote?: string;
 }
 
 export interface GenerationOptions {
@@ -247,15 +249,19 @@ export async function generateTests(opts: GenerationOptions, tests: AssessmentTe
   const existing = opts.wantExisting ? (picked.length ? picked : local) : [];
 
   if (!opts.wantNewTest) return { existing, dropped: 0 };
-  // No AI, or it failed: build the test from Vetter's own questions instead
+  // No AI, or it failed: build the test from Vetter's own questions instead, and say why the AI wasn't used
   if (failure || !body.test) {
+    const aiNote =
+      failure === 'not-configured'
+        ? "Vetter's AI isn't available on this site: it runs on Vetter's own server (npm run dev or npm start) with an ANTHROPIC_API_KEY."
+        : failure ?? "The AI didn't send back a test.";
     const fromBank = assembleFromBank(opts, library, tests, business);
     return fromBank
-      ? { existing, dropped: 0, test: fromBank, source: 'bank' }
+      ? { existing, dropped: 0, test: fromBank, source: 'bank', aiNote }
       : {
           existing,
           dropped: 0,
-          newTestError: "Vetter's question bank doesn't have enough on this yet. Add more detail about the skills, pick more question styles, or write the test in the builder.",
+          newTestError: `${aiNote} Vetter's own question bank doesn't cover this yet either, so write the test in the builder for now.`,
         };
   }
 

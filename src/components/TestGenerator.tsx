@@ -263,7 +263,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                         </ol>
                         {result.source === 'bank' && (
                           <p className="text-[11px] text-slate-500">
-                            Put together from the best-fitting questions in Vetter's tests. Edit it to add questions of your own.
+                            Put together from the best-fitting questions in Vetter's tests. {result.aiNote}
                           </p>
                         )}
                         {result.dropped > 0 && (
