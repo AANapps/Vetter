@@ -1,0 +1,19 @@
+# Render blueprint: runs Vetter's server (the site, each job's page, and the AI endpoints).
+# On render.com: New > Blueprint > pick this repository. Fill in ANTHROPIC_API_KEY and SITE_URL when asked.
+services:
+  - type: web
+    name: vetter
+    runtime: node
+    plan: starter
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # Your Anthropic key, for writing and marking tests. Kept secret by Render; never in the code
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      # The site's public address, e.g. https://vetter.onrender.com or your own domain. Used for job links and the sitemap
+      - key: SITE_URL
+        sync: false

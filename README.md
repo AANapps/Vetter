@@ -41,3 +41,15 @@ answers `/api/generate-test`, which companies use to have Vetter suggest tests f
 - The key is optional. Without it, Vetter still suggests library tests and still creates a new test, by
   putting together the best-fitting questions from its own tests. With it, the new test's questions are written fresh.
 - `npm run dev` answers the same endpoint, using the same settings.
+
+## Putting it online (with AI test creation)
+
+The site needs a host that runs `server.js`; static hosts (GitHub Pages, Netlify, AI Studio's preview) can't run
+the AI. `render.yaml` sets this up on Render:
+
+1. On render.com, sign in with GitHub, then **New > Blueprint** and pick this repository.
+2. When asked, fill in `ANTHROPIC_API_KEY` and `SITE_URL` (the site's address, e.g. `https://vetter.onrender.com`).
+3. Deploy. Every push to `main` redeploys.
+
+Any Node host works the same way: build with `npm ci --include=dev && npm run build`, start with `npm start`,
+and set the same environment variables.
