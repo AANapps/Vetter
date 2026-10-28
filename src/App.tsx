@@ -395,6 +395,10 @@ export default function App() {
     setTests((prev) => [newTest, ...prev]);
   };
 
+  const handleUpdateTest = (test: AssessmentTest) => {
+    setTests((prev) => prev.map((t) => (t.id === test.id ? test : t)));
+  };
+
   const allCandidates = [candidate, ...otherCandidates];
   const testPageTest = testPageId ? tests.find((t) => t.id === testPageId) : undefined;
   // A test page replaces the tab's own content
@@ -591,6 +595,7 @@ export default function App() {
               allCandidates={allCandidates}
               tests={tests}
               onCreateTest={handleCreateTest}
+              onUpdateTest={handleUpdateTest}
             />
           )}
         </main>

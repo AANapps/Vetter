@@ -18,15 +18,19 @@ import {
 import { getBadgeTier } from './VerifiedSkillBadge';
 import { QUESTION_TYPE_LABELS, describeChecks } from '../lib/testRoles';
 import { ChartPreview, parseChartSpec } from './ChartPreview';
+import { AnswerInput } from './AnswerInputs';
+import { hasAnswer, isAnswerType } from '../lib/questionTypes';
 
 interface TestRunnerProps {
   test: AssessmentTest;
   onClose: () => void;
   onComplete: (testId: string, finalScore: number, durationSeconds: number) => void;
   getPercentileFor: (score: number) => number;
+  // Tried out from the test builder: nothing is saved
+  preview?: boolean;
 }
 
-export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete, getPercentileFor }) => {
+export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete, getPercentileFor, preview }) => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [userCodes, setUserCodes] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {};
@@ -199,9 +203,9 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
         {/* Center: Question Navigation */}
         <div className="flex items-center gap-1.5 p-1 bg-white border border-slate-200 rounded-lg shadow-2xs">
           {test.questions.map((q, idx) => {
-            // Multiple choice counts as done once answered; its result stays hidden until submit
+            // Answer-style questions count as done once answered; their result stays hidden until submit
             const isCompleted =
-              questionScores[q.id] !== undefined || (q.type === 'choice' && (userCodes[q.id] ?? '') !== '');
+              questionScores[q.id] !== undefined || (isAnswerType(q.type) && hasAnswer(q, userCodes[q.id] ?? ''));
             return (
               <button
                 key={q.id}
@@ -216,7 +220,7 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
                 }`}
               >
                 <span>Task {idx + 1}</span>
-                {isCompleted && <CheckCircle className="w-3 h-3 text-white" />}
+                {isCompleted && <CheckCircle className={`w-3 h-3 ${currentQuestionIndex === idx ? 'text-white' : 'text-emerald-600'}`} />}
               </button>
             );
           })}
@@ -353,38 +357,10 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
           </div>
         </div>
 
-        {/* Right Pane: answer options for multiple choice, otherwise the code editor & execution results */}
-        {currentQ.type === 'choice' ? (
+        {/* Right Pane: picking, typing or arranging for answer-style questions, otherwise the code editor & execution results */}
+        {isAnswerType(currentQ.type) ? (
           <div className="w-1/2 flex flex-col bg-slate-50 overflow-y-auto p-6">
-            <fieldset className="space-y-3">
-              <legend className="text-xs font-bold text-slate-800 mb-3">Choose one answer</legend>
-              {(currentQ.options ?? []).map((option, i) => {
-                const selected = currentCode === String(i);
-                return (
-                  <label
-                    key={i}
-                    className={`flex items-start gap-3 p-4 rounded-lg bg-white cursor-pointer text-sm transition-colors ${
-                      selected ? 'ring-2 ring-indigo-500 text-slate-900' : 'text-slate-700 hover:bg-slate-100'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name={`answer-${currentQ.id}`}
-                      checked={selected}
-                      onChange={() => handleCodeChange(String(i))}
-                      className="mt-0.5 accent-indigo-600"
-                    />
-                    <span>
-                      <span className="font-mono text-xs text-slate-400 mr-2">{String.fromCharCode(65 + i)}</span>
-                      {option}
-                    </span>
-                  </label>
-                );
-              })}
-            </fieldset>
-            <p className="text-[11px] text-slate-500 mt-4">
-              You can change your answer until you submit. Answers are marked when you submit the test.
-            </p>
+            <AnswerInput key={currentQ.id} question={currentQ} answer={currentCode} onChange={handleCodeChange} />
           </div>
         ) : (
         <div className="w-1/2 flex flex-col bg-slate-50 overflow-hidden">
@@ -564,9 +540,11 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
                   <CheckCircle2 className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900">Test complete!</h3>
+                  <h3 className="text-lg font-bold text-slate-900">{preview ? 'Preview finished' : 'Test complete!'}</h3>
                   <p className="text-xs text-slate-500">
-                    {test.type === 'standard'
+                    {preview
+                      ? 'This is how candidates are scored. Nothing is saved.'
+                      : test.type === 'standard'
                       ? 'Your score is saved to your profile and this test’s leaderboard'
                       : `Your score is saved and shared with ${test.companyName}`}
                   </p>
@@ -636,7 +614,7 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
                 onClick={handleConfirmFinish}
                 className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-lg transition-colors flex items-center justify-center gap-2 shadow-xs"
               >
-                <span>Save Result</span>
+                <span>{preview ? 'Back to the builder' : 'Save Result'}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
@@ -712,14 +690,17 @@ const TestIntro: React.FC<TestIntroProps> = ({ test, acceptedRules, onAcceptedRu
         </ol>
         <ul className="text-xs text-slate-600 leading-relaxed space-y-1.5 list-disc pl-4">
           <li>Move between tasks freely using the tabs at the top. Do them in any order.</li>
-          {test.questions.some((q) => q.type !== 'choice') && (
+          {test.questions.some((q) => !isAnswerType(q.type)) && (
             <>
               <li>Press Run to check your answer against the test cases as often as you like.</li>
               <li>Every task is graded on your latest code when you submit, whether or not you pressed Run.</li>
             </>
           )}
-          {test.questions.some((q) => q.type === 'choice') && (
-            <li>Multiple choice questions have one right answer. You can change it until you submit, and it&rsquo;s marked then.</li>
+          {test.questions.some((q) => isAnswerType(q.type)) && (
+            <li>
+              Questions you answer by picking, typing or dragging are marked when you submit, and you can change them until then.
+              Select-all, ordering and matching questions give credit for each part you get right.
+            </li>
           )}
           <li>
             You need <span className="font-semibold text-slate-900">{test.passingScore}/100</span> to pass.

@@ -109,7 +109,9 @@ export interface TestResult {
 
 // 'choice' is multiple choice, for roles where writing code isn't the job;
 // 'schema' is CREATE TABLE statements, graded by inserts that must be accepted or rejected
-export type QuestionType = 'sql' | 'code' | 'scenario' | 'choice' | 'schema';
+// How a question is answered: written code or SQL run against checks, or an answer picked, typed or arranged.
+// multi: tick every right option; text: a short typed answer; order: drag items into sequence; match: drag each answer onto its prompt
+export type QuestionType = 'sql' | 'code' | 'scenario' | 'choice' | 'schema' | 'multi' | 'text' | 'order' | 'match';
 
 export interface TestCase {
   id: string;
@@ -130,6 +132,14 @@ export interface Question {
   // Multiple choice only: the answers to pick from and the index of the right one
   options?: string[];
   correctOption?: number;
+  // Select all that apply: the indexes of every right option
+  correctOptions?: number[];
+  // Short answer: every answer accepted, compared ignoring case, spacing and punctuation
+  acceptedAnswers?: string[];
+  // Drag to order: the items in their right order (candidates see them shuffled)
+  items?: string[];
+  // Drag to match: each prompt on the left with the answer that belongs to it
+  pairs?: { left: string; right: string }[];
   // Hidden code run after the candidate's, whose check(input) function grades each test case.
   // Lets a task grade code that isn't a pure function, such as tests the candidate writes.
   harness?: string;

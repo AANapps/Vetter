@@ -3,7 +3,8 @@ import React, { useState } from 'react';
 import { User, JobPosting, AssessmentTest, Business } from '../types';
 import { getTestStats } from '../lib/leaderboard';
 import { JobCandidates } from './JobCandidates';
-import { CheckCircle2, Check, Award } from 'lucide-react';
+import { CheckCircle2, Pencil, Plus } from 'lucide-react';
+import { TestBuilder } from './TestBuilder';
 
 // Jobs have their own page (BusinessJobs); this is the company's tests and the candidates ranked for each job
 export type BusinessSection = 'tests' | 'candidates';
@@ -19,7 +20,11 @@ interface RecruiterPortalProps {
   allCandidates: User[];
   tests: AssessmentTest[];
   onCreateTest: (newTest: AssessmentTest) => void;
+  onUpdateTest: (test: AssessmentTest) => void;
 }
+
+// Tests written in the builder have ids like test-custom-<timestamp> or test-vetter-<timestamp>
+const isEditable = (t: AssessmentTest) => /^test-(custom|vetter)-\d{10,}$/.test(t.id);
 
 export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   section,
@@ -31,6 +36,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   allCandidates,
   tests,
   onCreateTest,
+  onUpdateTest,
 }) => {
   // A business only manages its own jobs and its own tests; the Vetter team sees every company's jobs
   const isVetter = !business;
@@ -41,53 +47,20 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   const [selectedJobId, setSelectedJobId] = useState<string>(jobs[0]?.id || '');
   const selectedJob = jobs.find((j) => j.id === selectedJobId) || jobs[0];
 
-  // Building the company's own test
-  const [customTestTitle, setCustomTestTitle] = useState('');
-  const [customTestCategory, setCustomTestCategory] = useState<'System Architecture' | 'Databases' | 'Frontend' | 'Backend APIs'>('System Architecture');
-  const [customTestDesc, setCustomTestDesc] = useState('');
-  const [customQuestions, setCustomQuestions] = useState([
-    {
-      id: 'cq-1',
-      title: 'High-Throughput Idempotency Verifier',
-      type: 'code' as const,
-      prompt: 'Write a deduplication check that rejects duplicate message UUIDs within a 5-second sliding window.',
-      starterCode: 'function solution(messages, windowMs) {\n  // Implementation here\n  return [];\n}',
-      testCases: [
-        { id: 'ctc-1', description: 'Filters duplicate message within window', input: '[[{"id":"m1","t":100},{"id":"m1","t":200}], 5000]', expectedOutput: '["m1"]' },
-      ],
-      timeLimitMinutes: 15,
-      weight: 100,
-    },
-  ]);
-  const [builderSuccessMessage, setBuilderSuccessMessage] = useState<string | null>(null);
-
-  const handleSaveTest = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!business || !customTestTitle.trim()) return;
-
-    const newTest: AssessmentTest = {
-      id: `test-custom-${Date.now()}`,
-      title: customTestTitle,
-      category: customTestCategory,
-      difficulty: 'Senior',
-      type: 'custom',
-      businessId: business.id,
-      companyName: business.name,
-      description: customTestDesc || `Test written by ${business.name} for its own hiring.`,
-      estimatedMinutes: 25,
-      passingScore: 80,
-      totalQuestions: customQuestions.length,
-      // Copy the draft so later edits in the builder don't change the saved test
-      questions: customQuestions.map((q) => ({ ...q, testCases: q.testCases.map((tc) => ({ ...tc })) })),
-      skillsTested: [customTestCategory, 'High Concurrency', 'Production Readiness'],
-    };
-
-    onCreateTest(newTest);
-    setBuilderSuccessMessage(`"${customTestTitle}" saved. You can now attach it to any of your jobs.`);
-    setTimeout(() => setBuilderSuccessMessage(null), 4000);
-    setCustomTestTitle('');
-    setCustomTestDesc('');
+  // The test builder, open on a new test or one being edited
+  const [building, setBuilding] = useState<{ initial?: AssessmentTest } | null>(null);
+  const [savedMessage, setSavedMessage] = useState<string | null>(null);
+  const saveTest = (test: AssessmentTest) => {
+    if (building?.initial) onUpdateTest(test);
+    else onCreateTest(test);
+    setBuilding(null);
+    setSavedMessage(
+      `"${test.title}" saved. ${isVetter ? 'Every candidate can take it from the Tests page.' : 'Add it to any of your jobs from the job.'}`
+    );
+    setTimeout(() => setSavedMessage(null), 5000);
   };
+  // Tests written here can be edited; seeded ones come from code
+  const editFor = (t: AssessmentTest) => (isEditable(t) ? () => setBuilding({ initial: t }) : undefined);
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
@@ -172,6 +145,30 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
       {/* Tests */}
       {section === 'tests' && (
         <div className="space-y-8">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-5 bg-indigo-50/60 border border-indigo-100 rounded-xl">
+            <div>
+              <h2 className="text-base font-bold text-slate-900">Write a test</h2>
+              <p className="text-xs text-slate-600">
+                Mix multiple choice, select-all, short answers, drag to order, drag to match, coding and SQL.{' '}
+                {isVetter ? 'Tests you write join the Vetter library for every candidate.' : 'Use it on any of your jobs.'}
+              </p>
+            </div>
+            <button
+              onClick={() => setBuilding({})}
+              className="shrink-0 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg flex items-center gap-1.5 shadow-xs"
+            >
+              <Plus className="w-4 h-4" />
+              Create a test
+            </button>
+          </div>
+
+          {savedMessage && (
+            <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl flex items-center gap-3 shadow-xs">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span className="font-medium">{savedMessage}</span>
+            </div>
+          )}
+
           {/* The company's own tests */}
           {business && (
           <div className="space-y-4">
@@ -182,7 +179,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
               </p>
             </div>
             {companyTests.length === 0 ? (
-              <p className="text-xs text-slate-500">You haven't created any tests yet. Use the form below.</p>
+              <p className="text-xs text-slate-500">You haven't written any tests yet. Use Create a test above.</p>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {companyTests.map((t) => (
@@ -192,6 +189,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                     usedBy={jobs.filter((j) => j.testIds.includes(t.id))}
                     ranked={getTestStats(t, allCandidates).candidatesRanked}
                     onOpen={() => onOpenTest(t.id)}
+                    onEdit={editFor(t)}
                   />
                 ))}
               </div>
@@ -215,182 +213,48 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                   usedBy={jobs.filter((j) => j.testIds.includes(t.id))}
                   ranked={getTestStats(t, allCandidates).candidatesRanked}
                   onOpen={() => onOpenTest(t.id)}
+                  onEdit={isVetter ? editFor(t) : undefined}
                 />
               ))}
             </div>
           </div>
 
-          {business && (
-          <>
-          <div>
-            <h2 className="text-base font-bold text-slate-900">Create a Test</h2>
-            <p className="text-xs text-slate-500">
-              Write a coding challenge based on your own stack and attach it to any of your jobs.
-            </p>
-          </div>
-
-          {builderSuccessMessage && (
-            <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl flex items-center gap-3 shadow-xs">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span className="font-medium">{builderSuccessMessage}</span>
-            </div>
-          )}
-
-          <form onSubmit={handleSaveTest} className="space-y-6">
-            <div className="bg-white border border-slate-200 rounded-xl p-6 space-y-4 shadow-xs">
-              <h3 className="text-sm font-bold text-slate-900">Details</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Test Title</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Distributed Lock & Raft Log Compactor"
-                    value={customTestTitle}
-                    onChange={(e) => setCustomTestTitle(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-indigo-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Skill Category</label>
-                  <select
-                    value={customTestCategory}
-                    onChange={(e) => setCustomTestCategory(e.target.value as any)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-indigo-500 font-medium"
-                  >
-                    <option value="System Architecture">System Architecture</option>
-                    <option value="Databases">Databases & SQL</option>
-                    <option value="Backend APIs">Backend APIs & Networking</option>
-                    <option value="Frontend">Frontend Engineering</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Test Description & Context</label>
-                <textarea
-                  rows={2}
-                  placeholder="Explain the real-world scenario candidates will be solving..."
-                  value={customTestDesc}
-                  onChange={(e) => setCustomTestDesc(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-indigo-500"
-                />
-              </div>
-            </div>
-
-            {/* Modular Question Authoring */}
-            <div className="bg-white border border-slate-200 rounded-xl p-6 space-y-4 shadow-xs">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-slate-900">Challenge</h3>
-                <span className="text-xs text-slate-500 font-mono">1 Question in Challenge</span>
-              </div>
-
-              {customQuestions.map((cq, idx) => (
-                <div key={cq.id} className="p-4 bg-slate-50 border border-slate-200 rounded-lg space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div className="md:col-span-2">
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">Challenge Prompt</label>
-                      <input
-                        type="text"
-                        value={cq.title}
-                        onChange={(e) => {
-                          const updated = [...customQuestions];
-                          updated[idx].title = e.target.value;
-                          setCustomQuestions(updated);
-                        }}
-                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs text-slate-900"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">Time Limit (mins)</label>
-                      <input
-                        type="number"
-                        value={cq.timeLimitMinutes}
-                        onChange={(e) => {
-                          const updated = [...customQuestions];
-                          updated[idx].timeLimitMinutes = Number(e.target.value);
-                          setCustomQuestions(updated);
-                        }}
-                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs text-slate-900"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Starter Code Template</label>
-                    <textarea
-                      rows={3}
-                      value={cq.starterCode}
-                      onChange={(e) => {
-                        const updated = [...customQuestions];
-                        updated[idx].starterCode = e.target.value;
-                        setCustomQuestions(updated);
-                      }}
-                      className="w-full p-3 font-mono text-xs bg-slate-900 border border-slate-800 rounded-lg text-emerald-400"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Assertion Test Case</label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <input
-                        type="text"
-                        placeholder="Input: JSON arguments"
-                        value={cq.testCases[0]?.input}
-                        onChange={(e) => {
-                          const updated = [...customQuestions];
-                          updated[idx].testCases[0].input = e.target.value;
-                          setCustomQuestions(updated);
-                        }}
-                        className="p-2 font-mono text-xs bg-white border border-slate-300 rounded text-slate-800"
-                      />
-                      <input
-                        type="text"
-                        placeholder="Expected Output JSON"
-                        value={cq.testCases[0]?.expectedOutput}
-                        onChange={(e) => {
-                          const updated = [...customQuestions];
-                          updated[idx].testCases[0].expectedOutput = e.target.value;
-                          setCustomQuestions(updated);
-                        }}
-                        className="p-2 font-mono text-xs bg-white border border-slate-300 rounded text-indigo-700 font-semibold"
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              <button
-                type="submit"
-                className="px-5 py-2.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors flex items-center gap-2 shadow-xs"
-              >
-                <Check className="w-4 h-4" />
-                <span>Save Test</span>
-              </button>
-            </div>
-          </form>
-          </>
-          )}
         </div>
       )}
 
+      {building && <TestBuilder business={business} initial={building.initial} onSave={saveTest} onCancel={() => setBuilding(null)} />}
     </div>
   );
 };
 
-const TestSummaryCard: React.FC<{ test: AssessmentTest; usedBy: JobPosting[]; ranked: number; onOpen: () => void }> = ({
+const TestSummaryCard: React.FC<{ test: AssessmentTest; usedBy: JobPosting[]; ranked: number; onOpen: () => void; onEdit?: () => void }> = ({
   test,
   usedBy,
   ranked,
   onOpen,
+  onEdit,
 }) => (
   <div
     onClick={onOpen}
     className="bg-white border border-slate-200 rounded-xl p-5 space-y-3 shadow-2xs cursor-pointer hover:border-indigo-300 transition-colors"
   >
-    <div className="flex items-center justify-between">
+    <div className="flex items-center justify-between gap-2">
       <span className="text-[11px] font-mono uppercase tracking-wider text-indigo-700 font-bold">{test.category}</span>
-      <span className="text-xs text-slate-500 font-medium">{test.difficulty}</span>
+      <span className="flex items-center gap-3">
+        <span className="text-xs text-slate-500 font-medium">{test.difficulty}</span>
+        {onEdit && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit();
+            }}
+            className="text-xs font-semibold text-indigo-700 hover:text-indigo-900 flex items-center gap-1"
+          >
+            <Pencil className="w-3 h-3" />
+            Edit
+          </button>
+        )}
+      </span>
     </div>
     <h3 className="text-sm font-bold text-slate-900">{test.title}</h3>
     <p className="text-xs text-slate-600 leading-relaxed">{test.description}</p>

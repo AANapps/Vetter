@@ -56,8 +56,27 @@ export const QUESTION_TYPE_LABELS: Record<Question['type'], string> = {
   scenario: 'Scenario',
   choice: 'Multiple choice',
   schema: 'Schema design',
+  multi: 'Select all that apply',
+  text: 'Short answer',
+  order: 'Drag to order',
+  match: 'Drag to match',
 };
 
-// "3 checks" for code and SQL tasks; multiple choice has one right answer
-export const describeChecks = (q: Question) =>
-  q.type === 'choice' ? `${q.options?.length ?? 0} options` : `${q.testCases.length} ${q.testCases.length === 1 ? 'check' : 'checks'}`;
+// "3 checks" for code tasks; answer-style questions say what's to pick or arrange
+export function describeChecks(q: Question): string {
+  switch (q.type) {
+    case 'choice':
+    case 'multi':
+      return `${q.options?.length ?? 0} options`;
+    case 'text':
+      return 'one answer';
+    case 'order':
+      return `${q.items?.length ?? 0} items`;
+    case 'match':
+      return `${q.pairs?.length ?? 0} pairs`;
+    case 'sql':
+      return q.testCases.length ? `${q.testCases.length} ${q.testCases.length === 1 ? 'check' : 'checks'}` : 'result checked';
+    default:
+      return `${q.testCases.length} ${q.testCases.length === 1 ? 'check' : 'checks'}`;
+  }
+}

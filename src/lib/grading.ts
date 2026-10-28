@@ -1,6 +1,7 @@
 import { AssessmentTest, Question } from '../types';
 import { executeSqlQuery, runSchemaChecks, SqlExecutionResult } from './sqlEngine';
 import { runJavaScriptCode, CodeExecutionResult } from './codeEngine';
+import { gradeAnswer, isAnswerType } from './questionTypes';
 
 export type TestCaseOutcome = CodeExecutionResult['testCaseResults'][number];
 
@@ -63,15 +64,15 @@ async function runSqlQuestion(q: Question, code: string): Promise<QuestionRunRes
   };
 }
 
-// Multiple choice: the answer is the chosen option's index, stored like code
-function gradeChoice(q: Question, answer: string): QuestionRunResult {
-  const passed = answer !== '' && Number(answer) === q.correctOption;
-  return { type: 'code', allPassed: passed, score: passed ? 100 : 0, testCaseResults: [], logs: [], totalExecutionTimeMs: 0 };
+// Picked, typed or arranged answers, stored like code
+function gradeAnswerQuestion(q: Question, answer: string): QuestionRunResult {
+  const score = gradeAnswer(q, answer);
+  return { type: 'code', allPassed: score === 100, score, testCaseResults: [], logs: [], totalExecutionTimeMs: 0 };
 }
 
 export async function runQuestion(q: Question, code: string): Promise<QuestionRunResult> {
   if (q.type === 'sql') return runSqlQuestion(q, code);
-  if (q.type === 'choice') return gradeChoice(q, code);
+  if (isAnswerType(q.type)) return gradeAnswerQuestion(q, code);
   if (q.type === 'schema') return { type: 'code', ...(await runSchemaChecks(code, q.testCases)) };
   // A harness grades through its own check(), run after the candidate's code so it can call their solution
   if (q.harness) return { type: 'code', ...runJavaScriptCode(`${code}\n${q.harness}`, q.testCases, 'check') };
@@ -81,7 +82,7 @@ export async function runQuestion(q: Question, code: string): Promise<QuestionRu
 // What to tell the candidate after submitting: the checks a task missed
 function feedbackFor(q: Question, result: QuestionRunResult): string[] {
   if (result.score === 100) return [];
-  if (q.type === 'choice') return ['Not the right answer'];
+  if (isAnswerType(q.type)) return [result.score > 0 ? `Partly right (${result.score}/100)` : 'Not the right answer'];
   if (result.type === 'sql' && !result.success) return [`Query failed: ${result.errorMessage}`];
   return result.testCaseResults.filter((tc) => !tc.passed).map((tc) => tc.description);
 }
