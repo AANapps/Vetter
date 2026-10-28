@@ -2,6 +2,7 @@ import { User, AssessmentTest, JobPosting, Business } from '../types';
 import CANDIDATE_AVATAR from '../assets/images/candidate_avatar_dev_1792329815461.jpg';
 import RECRUITER_AVATAR from '../assets/images/recruiter_avatar_tech_1792329815454.jpg';
 import { ROLE_ASSESSMENTS } from './roleTests';
+import { INDUSTRY_TESTS } from './industryTests';
 import { withLevelVersions } from './levelVersions';
 import { SEED_INVITATIONS } from './seedInvitations';
 
@@ -829,6 +830,7 @@ Which gives the most impact per week of effort?`,
     ],
   },
   ...ROLE_ASSESSMENTS,
+  ...INDUSTRY_TESTS,
 ]);
 
 // Company-made tests, written by a business for its own jobs

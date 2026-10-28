@@ -1,6 +1,6 @@
 import React from 'react';
-import { AssessmentTest, Business, User } from '../types';
-import { suggestedPeople, trendingTests } from '../lib/feed';
+import { Business, User } from '../types';
+import { suggestedPeople } from '../lib/feed';
 
 interface FollowSuggestionsProps {
   viewer: User;
@@ -54,42 +54,6 @@ export const FollowSuggestions: React.FC<FollowSuggestionsProps> = ({ viewer, al
         </ul>
       </div>
     </div>
-  );
-};
-
-// In the Discover feed: the tests most people are taking this month
-export const TrendingTests: React.FC<{ allCandidates: User[]; tests: AssessmentTest[]; onOpenTest: (testId: string) => void }> = ({
-  allCandidates,
-  tests,
-  onOpenTest,
-}) => {
-  const trending = trendingTests(allCandidates, tests);
-  return (
-    <>
-      {trending.length > 0 && (
-        <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-3 shadow-xs">
-          <h2 className="text-sm font-bold text-slate-900">Trending tests</h2>
-          <ol className="space-y-2.5">
-            {trending.map(({ test, attempts }, i) => (
-              <li key={test.id} className="flex items-baseline gap-2.5 text-xs">
-                <span className="font-mono text-slate-400 tabular-nums">{i + 1}</span>
-                <div className="min-w-0">
-                  <button
-                    onClick={() => onOpenTest(test.id)}
-                    className="font-semibold text-slate-900 hover:text-indigo-700 text-left"
-                  >
-                    {test.title}
-                  </button>
-                  <div className="text-[11px] text-slate-500">
-                    {attempts} {attempts === 1 ? 'attempt' : 'attempts'} this month
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ol>
-        </div>
-      )}
-    </>
   );
 };
 

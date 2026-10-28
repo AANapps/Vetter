@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { User, AssessmentTest, JobPosting, CandidateJobMatch, Business, TestRole, TEST_DIFFICULTIES, JobProfile } from '../types';
 import { activeProfileOf, asProfile, profilesOf } from '../lib/jobProfiles';
-import { ROLE_GROUPS } from '../lib/testRoles';
+import { ROLE_GROUPS, TestField } from '../lib/testRoles';
 import { isMainVersion, levelsOf } from '../lib/testLevels';
 import { LevelPicker } from './LevelPicker';
 import { rankJobsForCandidate, getBestTestScore, calculateCandidateJobMatch } from '../lib/matchingAlgorithm';
@@ -48,6 +48,9 @@ interface CandidatePortalProps {
   onApplyJob: (jobId: string, profileId: string) => void;
   onUpdateProfiles: (profiles: JobProfile[], activeProfileId: string) => void;
   onUpdateStudies: (studies: Studies) => void;
+  // The roles the Tests page is narrowed to (a role, an industry, or a field picked on Home), or null for every test
+  testField: TestField | null;
+  onTestFieldChange: (field: TestField | null) => void;
   // Set when the candidate is on a job's own page (/jobs/<slug>/)
   jobPageId?: string | null;
   onOpenJob: (jobId: string) => void;
@@ -69,9 +72,10 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   onUpdateStudies,
   jobPageId,
   onOpenJob,
+  testField,
+  onTestFieldChange,
 }) => {
   // Tests page filters
-  const [roleFilter, setRoleFilter] = useState<TestRole | 'all'>('all');
   const [difficultyFilter, setDifficultyFilter] = useState<AssessmentTest['difficulty'][]>([]);
   // The level picked on each test card, by the test's main version
   const [cardLevels, setCardLevels] = useState<Record<string, string>>({});
@@ -160,7 +164,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   const testDifficulties = TEST_DIFFICULTIES.filter((d) => allVetterVersions.some((t) => t.difficulty === d));
   const filteredTests = vetterTests.filter((t) => {
     const versions = levelsOf(t, tests);
-    if (roleFilter !== 'all' && !t.roles?.includes(roleFilter)) return false;
+    if (testField && !t.roles?.some((r) => testField.roles.includes(r))) return false;
     if (difficultyFilter.length > 0 && !versions.some((v) => difficultyFilter.includes(v.difficulty))) return false;
     const taken = versions.some((v) => getBestTestScore(candidate, v.id) !== undefined);
     if (testStatusFilter === 'taken' && !taken) return false;
@@ -663,18 +667,30 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
           <aside className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs space-y-5 lg:sticky lg:top-20">
             <div className="space-y-1">
               <h2 className="text-sm font-bold text-slate-900 mb-2">Browse by role</h2>
-              <RoleButton label="All tests" count={vetterTests.length} active={roleFilter === 'all'} onClick={() => setRoleFilter('all')} />
+              <RoleButton label="All tests" count={vetterTests.length} active={!testField} onClick={() => onTestFieldChange(null)} />
+              {/* A field picked on Home that isn't a role or industry listed here */}
+              {testField && !ROLE_GROUPS.some((g) => g.industry === testField.label || g.roles.includes(testField.label as TestRole)) && (
+                <RoleButton label={testField.label} count={filteredTests.length} active onClick={() => {}} />
+              )}
             </div>
             {ROLE_GROUPS.map((group) => (
               <div key={group.industry} className="space-y-1">
-                <h3 className="text-[10px] font-mono uppercase tracking-wider text-slate-400 font-semibold px-2">{group.industry}</h3>
+                <button
+                  onClick={() => onTestFieldChange({ label: group.industry, roles: group.roles })}
+                  aria-pressed={testField?.label === group.industry}
+                  className={`block w-full text-left text-[10px] font-mono uppercase tracking-wider font-semibold px-2 hover:text-indigo-700 ${
+                    testField?.label === group.industry ? 'text-indigo-700' : 'text-slate-400'
+                  }`}
+                >
+                  {group.industry}
+                </button>
                 {group.roles.map((role) => (
                   <RoleButton
                     key={role}
                     label={role}
                     count={vetterTests.filter((t) => t.roles?.includes(role)).length}
-                    active={roleFilter === role}
-                    onClick={() => setRoleFilter(role)}
+                    active={testField?.label === role}
+                    onClick={() => onTestFieldChange({ label: role, roles: [role] })}
                   />
                 ))}
               </div>
@@ -721,7 +737,11 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
         <div className="space-y-6 min-w-0">
           <div>
             <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-              {roleFilter === 'all' ? 'Tests' : `Tests for ${roleFilter}s`}
+              {!testField
+                ? 'Tests'
+                : testField.roles.length === 1 && testField.roles[0] === testField.label
+                ? `Tests for ${testField.label}s`
+                : `${testField.label} tests`}
             </h1>
             <p className="text-xs text-slate-500">
               Take any test, any time, as often as you like. Your best score on each becomes a verified skill on your

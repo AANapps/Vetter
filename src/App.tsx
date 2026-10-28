@@ -16,6 +16,7 @@ import { TestPage } from './components/TestPage';
 import { DiscoverFeed } from './components/DiscoverFeed';
 import { LiveLeaderboards } from './components/LiveLeaderboards';
 import { FollowSuggestions } from './components/DiscoverSidebar';
+import { TestField } from './lib/testRoles';
 import { GlobalSearch } from './components/GlobalSearch';
 import { PersonProfileModal } from './components/PersonProfileModal';
 import { BusinessJobs } from './components/BusinessJobs';
@@ -186,6 +187,8 @@ export default function App() {
   const [activeTestJobId, setActiveTestJobId] = useState<string | null>(null);
   const [activeTest, setActiveTest] = useState<AssessmentTest | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  // What the candidate's Tests page is narrowed to, e.g. a field picked on Home
+  const [testField, setTestField] = useState<TestField | null>(null);
   // Opened from search
   const [profilePersonId, setProfilePersonId] = useState<string | null>(null);
   const [companiesQuery, setCompaniesQuery] = useState('');
@@ -494,6 +497,8 @@ export default function App() {
               onUpdateStudies={(studies) => setCandidate((prev) => ({ ...prev, ...studies }))}
               jobPageId={jobPageId}
               onOpenJob={openJobPage}
+              testField={testField}
+              onTestFieldChange={setTestField}
             />
           )}
 
@@ -531,6 +536,11 @@ export default function App() {
                 onSocialChange={setSocial}
                 onOpenTest={openTestPage}
                 onOpenJob={openJobPage}
+                onOpenField={(field) => {
+                  setTestField(field);
+                  goToTab('tests');
+                  window.scrollTo(0, 0);
+                }}
               />
             </div>
           )}

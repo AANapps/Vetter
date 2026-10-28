@@ -10,7 +10,9 @@ import {
 } from '../lib/feed';
 import { getBestTestScore } from '../lib/matchingAlgorithm';
 import { Heart, MessageCircle } from 'lucide-react';
-import { FollowButton, TrendingTests } from './DiscoverSidebar';
+import { FollowButton } from './DiscoverSidebar';
+import { FieldSlider } from './FieldSlider';
+import { TestField } from '../lib/testRoles';
 
 interface DiscoverFeedProps {
   candidate: User;
@@ -22,6 +24,7 @@ interface DiscoverFeedProps {
   onSocialChange: (update: (prev: SocialState) => SocialState) => void;
   onOpenTest: (testId: string) => void;
   onOpenJob: (jobId: string) => void;
+  onOpenField: (field: TestField) => void;
 }
 
 const FILTERS: { id: FeedFilter; label: string }[] = [
@@ -55,6 +58,7 @@ export const DiscoverFeed: React.FC<DiscoverFeedProps> = ({
   onSocialChange,
   onOpenTest,
   onOpenJob,
+  onOpenField,
 }) => {
   const [filter, setFilter] = useState<FeedFilter>('all');
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -117,7 +121,7 @@ export const DiscoverFeed: React.FC<DiscoverFeedProps> = ({
       return { ...prev, posts: prev.posts.filter((p) => p.id !== postId), comments };
     });
 
-  // The wide middle column on Home: trending tests, then the feed
+  // The wide middle column on Home: fields of work to explore, then the feed
   return (
     <div className="space-y-4 min-w-0">
       <div>
@@ -125,7 +129,7 @@ export const DiscoverFeed: React.FC<DiscoverFeedProps> = ({
         <p className="text-xs text-slate-500 mt-0.5">What people on Vetter are passing, sharing and hiring for.</p>
       </div>
 
-      <TrendingTests allCandidates={allCandidates} tests={tests} onOpenTest={onOpenTest} />
+      <FieldSlider tests={tests} onOpenField={onOpenField} />
 
       {/* Composer */}
       <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3 shadow-xs">

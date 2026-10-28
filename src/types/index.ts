@@ -9,7 +9,12 @@ export type SkillCategory =
   | 'Backend APIs'
   | 'Data Analysis'
   | 'Quality Assurance'
-  | 'Consulting';
+  | 'Consulting'
+  | 'Finance'
+  | 'Marketing'
+  | 'Sales'
+  | 'Healthcare'
+  | 'Project Management';
 
 // The jobs a test is relevant to; grouped by industry on the Tests page
 export type TestRole =
@@ -21,7 +26,13 @@ export type TestRole =
   | 'Data Analyst'
   | 'Data Engineer'
   | 'Consultant'
-  | 'Business Analyst';
+  | 'Business Analyst'
+  | 'Financial Analyst'
+  | 'Accountant'
+  | 'Digital Marketer'
+  | 'Sales Representative'
+  | 'Healthcare Professional'
+  | 'Project Manager';
 
 export interface VerifiedSkill {
   skillId: string;

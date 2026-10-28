@@ -33,7 +33,15 @@
   --color-blurple-light: #f5f4fe;
 
   /* LinkedIn Font Stack */
+  --animate-marquee: marquee 60s linear infinite;
+
   --font-sans: 'Source Sans 3', -apple-system, system-ui, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', 'Fira Sans', Ubuntu, Oxygen, 'Oxygen Sans', Cantarell, 'Droid Sans', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Lucida Grande', Helvetica, Arial, sans-serif;
+}
+
+/* Home's field strip: the cards are listed twice, so sliding by half loops seamlessly */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
 }
 
 @layer base {
