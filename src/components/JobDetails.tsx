@@ -260,13 +260,19 @@ export const JobDetails: React.FC<JobDetailsProps> = ({
   candidate,
   tests,
   business,
+  isApplied,
+  onApply,
   onStartAttachedTest,
   onStartTest,
   onOpenTest,
 }) => {
+  const jobTests = getJobTests(job, match, candidate, tests);
+  // Every test the job has taken: the candidate can apply from right here
+  const takeable = jobTests.filter((t) => t.test);
+  const allTaken = takeable.length > 0 && takeable.every((t) => t.score !== undefined);
   const testRows = (
     <ul className="divide-y divide-slate-100 bg-white rounded-xl text-xs">
-      {getJobTests(job, match, candidate, tests).map((t) =>
+      {jobTests.map((t) =>
         t.test ? (
           <TestRow
             key={t.key}
@@ -366,6 +372,24 @@ export const JobDetails: React.FC<JobDetailsProps> = ({
             <p className="text-[11px] text-slate-500">Your scores decide your fit</p>
           </div>
           {testRows}
+          {allTaken &&
+            (isApplied ? (
+              <div className="px-4 py-2.5 font-semibold text-emerald-800 bg-emerald-50 rounded-lg flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Applied with these scores</span>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-indigo-50 rounded-lg">
+                <span className="text-indigo-900 font-medium">You've taken every test for this job</span>
+                <button
+                  onClick={onApply}
+                  className="shrink-0 px-3 py-1.5 text-[11px] font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md transition-colors flex items-center gap-1"
+                >
+                  <Send className="w-3 h-3" />
+                  <span>Apply</span>
+                </button>
+              </div>
+            ))}
         </section>
       </aside>
     </div>
