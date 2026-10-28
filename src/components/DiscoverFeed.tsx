@@ -11,7 +11,6 @@ import {
 import { getBestTestScore } from '../lib/matchingAlgorithm';
 import { Heart, MessageCircle } from 'lucide-react';
 import { DiscoverSidebar, FollowButton } from './DiscoverSidebar';
-import { LiveLeaderboards } from './LiveLeaderboards';
 
 interface DiscoverFeedProps {
   candidate: User;
@@ -118,15 +117,13 @@ export const DiscoverFeed: React.FC<DiscoverFeedProps> = ({
       return { ...prev, posts: prev.posts.filter((p) => p.id !== postId), comments };
     });
 
-  // The wide column on Home, beside what companies sent you: leaderboards and who to follow first, then the feed
+  // The wide middle column on Home: who to follow, then the feed
   return (
     <div className="space-y-4 min-w-0">
       <div>
         <h2 className="text-base font-bold text-slate-900 tracking-tight">Discover</h2>
         <p className="text-xs text-slate-500 mt-0.5">What people on Vetter are passing, sharing and hiring for.</p>
       </div>
-
-      <LiveLeaderboards tests={tests} allCandidates={allCandidates} viewerId={candidate.id} onOpenTest={onOpenTest} />
 
       <DiscoverSidebar
         viewer={candidate}

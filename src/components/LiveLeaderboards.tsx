@@ -20,7 +20,7 @@ interface LiveLeaderboardsProps {
   onOpenTest: (testId: string) => void;
 }
 
-// Top of the Discover column on Home: the busiest tests' leaderboards, moving as people take them
+// Home's narrow right-hand column: the busiest tests' leaderboards, moving as people take them
 export const LiveLeaderboards: React.FC<LiveLeaderboardsProps> = ({ tests, allCandidates, viewerId, onOpenTest }) => {
   const trending = trendingTests(allCandidates, tests, BOARD_COUNT).map((t) => t.test);
   const boards = trending.length > 0 ? trending : tests.filter((t) => t.type === 'standard' && isMainVersion(t)).slice(0, BOARD_COUNT);
@@ -56,7 +56,7 @@ export const LiveLeaderboards: React.FC<LiveLeaderboardsProps> = ({ tests, allCa
 
   return (
     <section className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
-      <div className="px-5 pt-4 pb-3 flex items-center justify-between gap-3">
+      <div className="px-4 pt-4 pb-3 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <span className="relative flex w-2 h-2">
             <span className="absolute inline-flex w-full h-full rounded-full bg-emerald-500 opacity-60 animate-ping" />
@@ -67,7 +67,7 @@ export const LiveLeaderboards: React.FC<LiveLeaderboardsProps> = ({ tests, allCa
         <span className="text-[11px] text-slate-500 tabular-nums">{entries.length} ranked</span>
       </div>
 
-      <div className="px-5 pb-3 flex gap-1.5 overflow-x-auto">
+      <div className="px-4 pb-3 flex gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {boardTests.map((t) => (
           <button
             key={t.id}
@@ -76,7 +76,8 @@ export const LiveLeaderboards: React.FC<LiveLeaderboardsProps> = ({ tests, allCa
               setIsRotating(false);
             }}
             aria-pressed={t.id === selectedId}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-full whitespace-nowrap transition-colors ${
+            title={t.title}
+            className={`max-w-[11rem] shrink-0 truncate px-3 py-1.5 text-xs font-semibold rounded-full whitespace-nowrap transition-colors ${
               t.id === selectedId ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -86,7 +87,7 @@ export const LiveLeaderboards: React.FC<LiveLeaderboardsProps> = ({ tests, allCa
       </div>
 
       {top.length === 0 ? (
-        <p className="px-5 py-6 border-t border-slate-100 text-xs text-slate-500 text-center">No one has taken this test yet.</p>
+        <p className="px-4 py-6 border-t border-slate-100 text-xs text-slate-500 text-center">No one has taken this test yet.</p>
       ) : (
         <ol className="border-t border-slate-100 divide-y divide-slate-100">
           {top.map((entry) => (
@@ -111,7 +112,7 @@ export const LiveLeaderboards: React.FC<LiveLeaderboardsProps> = ({ tests, allCa
         </ol>
       )}
 
-      <div className="flex items-center justify-between gap-3 px-5 py-3 border-t border-slate-100">
+      <div className="flex items-center justify-between gap-3 px-4 py-3 border-t border-slate-100">
         <span className="text-[11px] text-slate-500 truncate">
           {yours ? `You're #${yours.rank} of ${entries.length}` : 'Take it to get ranked'}
         </span>
@@ -137,13 +138,13 @@ const LiveRow: React.FC<{
   const moved = startRank === undefined ? undefined : startRank - entry.rank;
   return (
     <li
-      className={`grid grid-cols-[1.75rem_1fr_auto_2.5rem] items-center gap-3 px-5 py-2.5 text-xs transition-colors duration-700 ${
+      className={`grid grid-cols-[1.75rem_1fr_auto_1.75rem] items-center gap-2 px-4 py-2.5 text-xs transition-colors duration-700 ${
         isYou ? 'bg-indigo-50' : isFresh ? 'bg-emerald-50' : ''
       }`}
     >
       <RankDisc rank={entry.rank} />
-      <div className="flex items-center gap-2.5 min-w-0">
-        <img src={entry.candidate.avatarUrl} alt="" referrerPolicy="no-referrer" className="w-7 h-7 rounded-full object-cover shrink-0 bg-slate-100" />
+      <div className="flex items-center gap-2 min-w-0">
+        <img src={entry.candidate.avatarUrl} alt="" referrerPolicy="no-referrer" className="w-6 h-6 rounded-full object-cover shrink-0 bg-slate-100" />
         <div className="min-w-0">
           <div className="font-semibold text-slate-900 truncate">
             {entry.candidate.name}
@@ -157,7 +158,6 @@ const LiveRow: React.FC<{
         <span className={`font-mono font-bold tabular-nums text-sm ${entry.score >= passingScore ? getBadgeTier(entry.score).badgeTextColor : 'text-slate-400'}`}>
           {entry.score}
         </span>
-        <span className="text-[10px] text-slate-400 font-mono">/100</span>
       </div>
       <span className="text-[11px] font-semibold tabular-nums text-right">
         {moved === undefined ? (
