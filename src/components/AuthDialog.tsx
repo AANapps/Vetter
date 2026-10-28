@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { AlertCircle, Briefcase, CheckCircle2, Search, X } from 'lucide-react';
-import { accountError, resetPassword, signIn, signUp } from '../lib/accounts';
+import { accountError, continueWithGoogle, createAccount, resetPassword, signIn, signUp } from '../lib/accounts';
 import { domainOf, domainsMatch, isFreeEmail } from '../lib/emailDomains';
 
 export type AuthMode = 'sign-in' | 'sign-up' | 'reset';
@@ -70,6 +70,29 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ initialMode, reason, onC
     }
   };
 
+  // Google: an existing account just signs in. A new one is created from what's been filled in here, or, if that
+  // isn't enough, finished on the next screen
+  const google = async () => {
+    setError(null);
+    setBusy(true);
+    try {
+      const { user, hasAccount } = await continueWithGoogle();
+      const enough = role === 'candidate' || companyName.trim() !== '';
+      if (!hasAccount && mode === 'sign-up' && enough) {
+        await createAccount(user, {
+          role,
+          name: name.trim() || user.displayName || user.email!.split('@')[0],
+          ...(role === 'recruiter' && { company: { name: companyName.trim(), website: website.trim(), noWorkEmail: isFreeEmail(user.email ?? '') } }),
+        });
+      }
+      onClose();
+    } catch (err) {
+      setError(accountError(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const title = mode === 'sign-in' ? 'Sign in to Vetter' : mode === 'reset' ? 'Reset your password' : 'Create your Vetter account';
 
   return (
@@ -92,6 +115,24 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ initialMode, reason, onC
         </div>
 
         <form onSubmit={submit} className="px-6 pb-6 space-y-4">
+          {mode !== 'reset' && (
+            <>
+              <button
+                type="button"
+                onClick={google}
+                disabled={busy}
+                className="w-full py-2.5 text-sm font-semibold text-slate-800 bg-white border border-slate-300 hover:bg-slate-50 disabled:opacity-50 rounded-lg flex items-center justify-center gap-2.5"
+              >
+                <GoogleMark />
+                Continue with Google
+              </button>
+              <div className="flex items-center gap-3 text-[11px] text-slate-400">
+                <span className="h-px flex-1 bg-slate-200" />
+                or with email
+                <span className="h-px flex-1 bg-slate-200" />
+              </div>
+            </>
+          )}
           {mode === 'sign-up' && (
             <fieldset className="grid grid-cols-2 gap-2">
               <legend className="sr-only">I'm</legend>
@@ -239,3 +280,14 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ initialMode, reason, onC
     </div>
   );
 };
+
+// Google's "G", in its colours
+const GoogleMark: React.FC = () => (
+  <svg viewBox="0 0 48 48" className="w-4.5 h-4.5" aria-hidden="true">
+    <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.6 5.4 2.7 13.3l7.9 6.1C12.5 13.6 17.8 9.5 24 9.5z" />
+    <path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.7 6c4.5-4.2 6.9-10.3 6.9-17.7z" />
+    <path fill="#FBBC05" d="M10.6 28.6c-.5-1.4-.8-3-.8-4.6s.3-3.2.8-4.6l-7.9-6.1C1 16.6 0 20.2 0 24s1 7.4 2.7 10.7l7.9-6.1z" />
+    <path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.7-6c-2.2 1.5-5 2.3-8.2 2.3-6.2 0-11.5-4.1-13.4-9.9l-7.9 6.1C6.6 42.6 14.6 48 24 48z" />
+  </svg>
+);
+

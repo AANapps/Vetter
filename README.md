@@ -61,10 +61,12 @@ Without Firebase settings Vetter runs as a demo with a view switcher. With them,
 - Candidates use any email and verify it.
 - Companies use a work email. The first verified person from a domain creates the company and approves
   colleagues from the same domain. Sign-ups without a work email wait for the Vetter team to approve them.
+- Google sign-in works the same way: a work Google account counts as a work email, a personal Gmail one goes to
+  review. First-time Google users say whether they're looking for work or hiring.
 - `firestore.rules` enforces all of this on the server. `npm run test:rules` checks it against the Firebase
   emulators.
 
-Setup: create a Firebase project, turn on **Authentication > Email/Password**, create a **Firestore** database,
+Setup: create a Firebase project, turn on **Authentication > Email/Password** and **Google**, create a **Firestore** database,
 add a web app and put its settings in `.env.local` (and on the host) as `VITE_FIREBASE_API_KEY`,
 `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID` and `VITE_FIREBASE_APP_ID`. Publish the rules with
 `npx firebase deploy --only firestore:rules --project <project-id>` (or paste `firestore.rules` into the console).

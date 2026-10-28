@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { User as FirebaseUser } from 'firebase/auth';
-import { CheckCircle2, Clock, Mail, ShieldCheck, UserPlus, X } from 'lucide-react';
+import { Briefcase, CheckCircle2, Clock, Mail, Search, ShieldCheck, UserPlus, X } from 'lucide-react';
+import { isFreeEmail } from '../lib/emailDomains';
 import {
   Account,
   Company,
@@ -10,8 +11,10 @@ import {
   decideCompany,
   decideMember,
   finishCompanySetup,
+  createAccount,
   refreshVerification,
   resendVerification,
+  signedInWithGoogle,
   signOut,
   watchMemberRequests,
 } from '../lib/accounts';
@@ -84,6 +87,9 @@ export const AccountGate: React.FC<{ user: FirebaseUser; account: Account | null
       </Screen>
     );
 
+  // Signed in with Google for the first time: say whether they're looking for work or hiring
+  if (!account && signedInWithGoogle(user)) return <FinishGoogleSignUp user={user} />;
+
   if (!account || needsSetup)
     return (
       <div className="flex flex-col items-center py-16">
@@ -120,6 +126,100 @@ export const AccountGate: React.FC<{ user: FirebaseUser; account: Account | null
     );
 
   return null;
+};
+
+const inputClass =
+  'w-full px-3 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100';
+
+// The one question Google can't answer: are they looking for work or hiring (and if hiring, for which company)
+const FinishGoogleSignUp: React.FC<{ user: FirebaseUser }> = ({ user }) => {
+  const [role, setRole] = useState<'candidate' | 'recruiter'>('candidate');
+  const [name, setName] = useState(user.displayName ?? '');
+  const [companyName, setCompanyName] = useState('');
+  const [website, setWebsite] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const free = isFreeEmail(user.email ?? '');
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      await createAccount(user, {
+        role,
+        name,
+        ...(role === 'recruiter' && { company: { name: companyName.trim(), website: website.trim(), noWorkEmail: free } }),
+      });
+    } catch (err) {
+      setError(accountError(err));
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form onSubmit={submit} className="max-w-md mx-auto px-4 py-12 space-y-5">
+      <div className="text-center space-y-1">
+        <h1 className="text-xl font-bold text-slate-900">Welcome to Vetter</h1>
+        <p className="text-sm text-slate-600">Signed in as {user.email}. One question before you start.</p>
+      </div>
+      <fieldset className="grid grid-cols-2 gap-2">
+        <legend className="sr-only">I'm</legend>
+        {(
+          [
+            { id: 'candidate', label: "I'm looking for work", icon: Search },
+            { id: 'recruiter', label: "I'm hiring", icon: Briefcase },
+          ] as const
+        ).map((r) => (
+          <label
+            key={r.id}
+            className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border text-sm font-semibold cursor-pointer text-center ${
+              role === r.id ? 'border-indigo-500 bg-indigo-50 text-indigo-900' : 'border-slate-200 text-slate-700 hover:border-slate-400'
+            }`}
+          >
+            <input type="radio" name="role" checked={role === r.id} onChange={() => setRole(r.id)} className="sr-only" />
+            <r.icon className="w-5 h-5" />
+            {r.label}
+          </label>
+        ))}
+      </fieldset>
+      <div>
+        <label htmlFor="g-name" className="block text-xs font-semibold text-slate-700 mb-1">
+          Your name
+        </label>
+        <input id="g-name" required value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
+      </div>
+      {role === 'recruiter' && (
+        <div className="p-4 bg-slate-50 rounded-xl space-y-3">
+          <div>
+            <label htmlFor="g-company" className="block text-xs font-semibold text-slate-700 mb-1">
+              Company name
+            </label>
+            <input id="g-company" required value={companyName} onChange={(e) => setCompanyName(e.target.value)} className={inputClass} />
+          </div>
+          <div>
+            <label htmlFor="g-website" className="block text-xs font-semibold text-slate-700 mb-1">
+              Company website
+            </label>
+            <input id="g-website" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="yourcompany.com" className={inputClass} />
+          </div>
+          {free && (
+            <p className="text-[11px] text-amber-800">
+              {user.email} is a personal address, so Vetter's team will check your company before you can post jobs. To skip that, sign in with your work
+              Google account instead.
+            </p>
+          )}
+        </div>
+      )}
+      {error && <p className="text-xs font-semibold text-rose-700">{error}</p>}
+      <button type="submit" disabled={busy} className="w-full py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 rounded-lg">
+        {busy ? 'One moment…' : 'Continue'}
+      </button>
+      <button type="button" onClick={() => signOut()} className="block mx-auto text-xs font-semibold text-slate-500 hover:text-slate-900">
+        Sign out
+      </button>
+    </form>
+  );
 };
 
 // Shown to a company's owner: colleagues from their domain asking to join

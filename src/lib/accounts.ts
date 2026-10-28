@@ -1,6 +1,8 @@
 import {
+  GoogleAuthProvider,
   User as FirebaseUser,
   createUserWithEmailAndPassword,
+  signInWithPopup,
   sendEmailVerification,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
@@ -72,6 +74,9 @@ export function accountError(err: unknown): string {
     'auth/too-many-requests': 'Too many attempts. Wait a few minutes and try again.',
     'auth/network-request-failed': "Couldn't reach Vetter. Check your connection.",
     'permission-denied': "You don't have permission to do that.",
+    'auth/popup-closed-by-user': 'The Google window was closed before signing in finished.',
+    'auth/popup-blocked': 'Your browser blocked the Google window. Allow pop-ups for Vetter and try again.',
+    'auth/account-exists-with-different-credential': 'This email already has a Vetter password. Sign in with your password instead.',
   };
   return messages[code] ?? (err instanceof Error ? err.message : 'Something went wrong. Try again.');
 }
@@ -86,7 +91,16 @@ export async function signUp(input: {
   if (input.password.length < 8) throw Object.assign(new Error(), { code: 'auth/weak-password' });
   const { user } = await createUserWithEmailAndPassword(auth(), input.email.trim(), input.password);
   await updateProfile(user, { displayName: input.name.trim() });
-  await setDoc(userRef(user.uid), {
+  await createAccount(user, input);
+  await sendEmailVerification(user);
+}
+
+// The Vetter account for someone just signed up: a candidate, or a company sign-up waiting to set up its company
+export const createAccount = (
+  user: FirebaseUser,
+  input: { role: 'candidate' | 'recruiter'; name: string; company?: { name: string; website: string; noWorkEmail: boolean } }
+) =>
+  setDoc(userRef(user.uid), {
     email: user.email,
     name: input.name.trim(),
     role: input.role,
@@ -94,8 +108,17 @@ export async function signUp(input: {
     ...(input.company && { companySetup: input.company }),
     createdAt: serverTimestamp(),
   });
-  await sendEmailVerification(user);
+
+// Signing in or up with a Google account. Its email comes verified; whether there's a Vetter account yet is returned
+export async function continueWithGoogle() {
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+  const { user } = await signInWithPopup(auth(), provider);
+  const hasAccount = (await getDoc(userRef(user.uid))).exists();
+  return { user, hasAccount };
 }
+
+export const signedInWithGoogle = (user: FirebaseUser) => user.providerData.some((p) => p.providerId === 'google.com');
 
 export const signIn = (email: string, password: string) => signInWithEmailAndPassword(auth(), email.trim(), password);
 export const signOut = () => firebaseSignOut(auth());
