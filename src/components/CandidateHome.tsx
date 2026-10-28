@@ -15,6 +15,8 @@ interface CandidateHomeProps {
   onStartTest: (test: AssessmentTest) => void;
   onOpenTest: (testId: string) => void;
   onGoTo: (tab: 'tests' | 'jobs' | 'profile') => void;
+  // Someone not signed in: they see an invitation to join instead of a profile
+  visitor?: { onJoin: () => void; onSignIn: () => void };
 }
 
 const DAY = 86400000;
@@ -40,8 +42,8 @@ const jobIdFromLink = (text: string) => {
 };
 
 // A candidate's home: the jobs whose tests companies sent them, what's left to do and how they did
-export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, jobs, tests, businesses, onOpenJob, onStartTest, onOpenTest, onGoTo }) => {
-  const items = invitesFor(candidate, jobs);
+export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, jobs, tests, businesses, onOpenJob, onStartTest, onOpenTest, onGoTo, visitor }) => {
+  const items = visitor ? [] : invitesFor(candidate, jobs);
   const open = items.filter((i) => i.progress.score === undefined);
   const finished = items.filter((i) => i.progress.score !== undefined);
   // Vetter tests to take next: ones they haven't tried, in their usual categories first
@@ -68,6 +70,25 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, jobs, t
 
   return (
     <div className="@container space-y-8 min-w-0">
+      {visitor ? (
+        <section className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
+          <div className="h-14 bg-gradient-to-r from-indigo-600 to-violet-500" />
+          <div className="px-5 pb-5 pt-4 space-y-3">
+            <h1 className="text-lg font-bold text-slate-900 tracking-tight">Get hired on what you can do</h1>
+            <p className="text-sm text-slate-600">Take a free test, get a verified score, and apply to jobs that hire on skill rather than CVs.</p>
+            <button onClick={visitor.onJoin} className="w-full py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg">
+              Join Vetter, it's free
+            </button>
+            <p className="text-xs text-slate-500 text-center">
+              Already on Vetter?{' '}
+              <button onClick={visitor.onSignIn} className="font-semibold text-indigo-700 hover:underline">
+                Sign in
+              </button>
+            </p>
+          </div>
+        </section>
+      ) : (
+      <>
       {/* Who you are at a glance: photo, name, what you do, and your record on Vetter */}
       <section className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
         <div className="h-14 bg-gradient-to-r from-indigo-600 to-violet-500" />
@@ -82,12 +103,14 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, jobs, t
           </button>
           <div className="space-y-0.5">
             <h1 className="text-lg font-bold text-slate-900 tracking-tight">{candidate.name}</h1>
-            <p className="text-sm text-slate-700">{activeProfileOf(candidate).title}</p>
-            <p className="text-xs text-slate-500 flex items-center gap-1">
-              <MapPin className="w-3 h-3" />
-              {candidate.location}
-              {candidate.yearsExperience > 0 && <> &middot; {candidate.yearsExperience} yrs experience</>}
-            </p>
+            {activeProfileOf(candidate).title && <p className="text-sm text-slate-700">{activeProfileOf(candidate).title}</p>}
+            {candidate.location && (
+              <p className="text-xs text-slate-500 flex items-center gap-1">
+                <MapPin className="w-3 h-3" />
+                {candidate.location}
+                {candidate.yearsExperience > 0 && <> &middot; {candidate.yearsExperience} yrs experience</>}
+              </p>
+            )}
           </div>
           <dl className="grid grid-cols-3 gap-2 pt-3 border-t border-slate-100 text-center">
             {[
@@ -115,6 +138,8 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, jobs, t
           ? 'Take a test any time to build your profile. Companies see your verified scores.'
           : `${open.length} ${open.length === 1 ? 'job wants' : 'jobs want'} you to take their tests.`}
       </p>
+      </>
+      )}
 
       {open.length > 0 && (
         <ul className="space-y-3">

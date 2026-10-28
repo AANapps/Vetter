@@ -53,3 +53,21 @@ the AI. `render.yaml` sets this up on Render:
 
 Any Node host works the same way: build with `npm ci --include=dev && npm run build`, start with `npm start`,
 and set the same environment variables.
+
+## Accounts (Firebase)
+
+Without Firebase settings Vetter runs as a demo with a view switcher. With them, people sign up and sign in:
+
+- Candidates use any email and verify it.
+- Companies use a work email. The first verified person from a domain creates the company and approves
+  colleagues from the same domain. Sign-ups without a work email wait for the Vetter team to approve them.
+- `firestore.rules` enforces all of this on the server. `npm run test:rules` checks it against the Firebase
+  emulators.
+
+Setup: create a Firebase project, turn on **Authentication > Email/Password**, create a **Firestore** database,
+add a web app and put its settings in `.env.local` (and on the host) as `VITE_FIREBASE_API_KEY`,
+`VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID` and `VITE_FIREBASE_APP_ID`. Publish the rules with
+`npx firebase deploy --only firestore:rules --project <project-id>` (or paste `firestore.rules` into the console).
+Add the site's domain under **Authentication > Settings > Authorised domains**. To make someone part of the Vetter
+team, set `role` to `admin` on their document in the `users` collection.
+

@@ -25,6 +25,8 @@ interface DiscoverFeedProps {
   onOpenTest: (testId: string) => void;
   onOpenJob: (jobId: string) => void;
   onOpenField: (field: TestField) => void;
+  // Set for visitors: following, kudos, comments and posting ask them to join instead
+  onJoin?: () => void;
 }
 
 const FILTERS: { id: FeedFilter; label: string }[] = [
@@ -59,6 +61,7 @@ export const DiscoverFeed: React.FC<DiscoverFeedProps> = ({
   onOpenTest,
   onOpenJob,
   onOpenField,
+  onJoin,
 }) => {
   const [filter, setFilter] = useState<FeedFilter>('all');
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -73,13 +76,13 @@ export const DiscoverFeed: React.FC<DiscoverFeedProps> = ({
   const shareableTests = tests.filter((t) => t.type === 'standard' && getBestTestScore(candidate, t.id) !== undefined);
 
   const toggleFollow = (id: string) =>
-    onSocialChange((prev) => ({
+    onJoin ? onJoin() : onSocialChange((prev) => ({
       ...prev,
       following: prev.following.includes(id) ? prev.following.filter((f) => f !== id) : [...prev.following, id],
     }));
 
   const toggleKudos = (itemId: string) =>
-    onSocialChange((prev) => ({
+    onJoin ? onJoin() : onSocialChange((prev) => ({
       ...prev,
       kudosGiven: prev.kudosGiven.includes(itemId)
         ? prev.kudosGiven.filter((k) => k !== itemId)
@@ -87,6 +90,7 @@ export const DiscoverFeed: React.FC<DiscoverFeedProps> = ({
     }));
 
   const addComment = (itemId: string, text: string) => {
+    if (onJoin) return onJoin();
     const comment: FeedComment = { id: newId('cmt'), authorId: candidate.id, text, createdAt: new Date().toISOString() };
     onSocialChange((prev) => ({
       ...prev,
@@ -131,7 +135,15 @@ export const DiscoverFeed: React.FC<DiscoverFeedProps> = ({
 
       <FieldSlider tests={tests} onOpenField={onOpenField} />
 
-      {/* Composer */}
+      {/* Composer: visitors are asked to join instead */}
+      {onJoin ? (
+        <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3 shadow-xs">
+          <p className="text-sm text-slate-600">Join Vetter to share your results, post and comment.</p>
+          <button onClick={onJoin} className="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg">
+            Join Vetter
+          </button>
+        </div>
+      ) : (
       <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3 shadow-xs">
         <div className="flex gap-3">
           <Avatar src={candidate.avatarUrl} />
@@ -171,6 +183,7 @@ export const DiscoverFeed: React.FC<DiscoverFeedProps> = ({
           </div>
         </div>
       </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-1 p-1 bg-white border border-slate-200 rounded-lg shadow-2xs w-fit max-w-full">

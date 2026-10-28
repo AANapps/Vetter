@@ -26,6 +26,12 @@ import { TestBuilder } from './components/TestBuilder';
 import { jobTestProgress, withInvitation } from './lib/jobTests';
 import { CandidateHome } from './components/CandidateHome';
 import { CheckCircle2 } from 'lucide-react';
+import { firebaseEnabled } from './lib/firebase';
+import { useAccount } from './lib/useAccount';
+import { Account, signOut } from './lib/accounts';
+import { AuthDialog, AuthMode } from './components/AuthDialog';
+import { AccountGate, CompanyReview, TeamRequests } from './components/AccountScreens';
+import { Pulse } from './components/Pulse';
 import { isJobsIndexPath, jobIdFromPath, jobPageTitle, jobPath } from './lib/jobSeo';
 
 const CANDIDATE_SECTIONS: Partial<Record<AppTab, CandidateSection>> = {
@@ -52,6 +58,23 @@ const VETTER_TEAM: User = {
 };
 
 const today = () => new Date().toISOString().split('T')[0];
+
+// A new candidate account's profile, empty until they take tests
+const profileFor = (account: Account): User => ({
+  id: account.uid,
+  name: account.name,
+  email: account.email,
+  role: 'candidate',
+  avatarUrl: initialsAvatar(account.name),
+  title: '',
+  location: '',
+  yearsExperience: 0,
+  workPreference: 'Remote',
+  bio: '',
+  verifiedSkills: [],
+  testResults: [],
+  appliedJobIds: [],
+});
 
 // Test pages live at #/tests/<id> so they can be linked to and the back button works
 const idFromHash = (kind: 'tests' | 'jobs' | 'exams') => {
@@ -89,10 +112,36 @@ export default function App() {
   candidateRef.current = candidate;
   const othersRef = useRef(otherCandidates);
   othersRef.current = otherCandidates;
-  const [recruiter] = useState<User>(INITIAL_RECRUITER);
+  // Accounts, when Firebase is set up: who's signed in decides what they see. Without it, Vetter is a demo with a view switcher
+  const { loading: accountLoading, user, account, company } = useAccount();
+  const [authDialog, setAuthDialog] = useState<{ mode: AuthMode; reason?: string } | null>(null);
+  const isVisitor = firebaseEnabled && !user;
+  // Runs the action for someone signed in; asks a visitor to create an account first
+  const requireAccount = (reason: string, action: () => void) => {
+    if (isVisitor) setAuthDialog({ mode: 'sign-up', reason });
+    else action();
+  };
+  const companyBusiness: Business | undefined =
+    firebaseEnabled && account?.role === 'recruiter' && account.status === 'active' && company
+      ? {
+          id: company.id,
+          name: company.name,
+          logo: initialsAvatar(company.name),
+          industry: '',
+          headquarters: '',
+          companySize: '',
+          websiteUrl: company.website,
+          description: '',
+          techStack: [],
+        }
+      : undefined;
+  const recruiter: User =
+    companyBusiness && account
+      ? { ...INITIAL_RECRUITER, id: account.uid, name: account.name, email: account.email, avatarUrl: initialsAvatar(account.name), title: `Hiring at ${company!.name}`, businessId: companyBusiness.id }
+      : INITIAL_RECRUITER;
   const [jobs, setJobs] = useState<JobPosting[]>(initialData.jobs);
   const [tests, setTests] = useState<AssessmentTest[]>(initialData.tests);
-  const [businesses] = useState<Business[]>(INITIAL_BUSINESSES);
+  const businesses: Business[] = companyBusiness ? [...INITIAL_BUSINESSES.filter((b) => b.id !== companyBusiness.id), companyBusiness] : INITIAL_BUSINESSES;
   const [social, setSocial] = useState<SocialState>(initialData.social);
   const [notifications, setNotifications] = useState<AppNotification[]>(initialData.notifications);
   const jobsRef = useRef(jobs);
@@ -199,6 +248,30 @@ export default function App() {
   const [companiesQuery, setCompaniesQuery] = useState('');
 
   const recruiterBusiness = businesses.find((b) => b.id === recruiter.businessId)!;
+
+  // A signed-in account sees its own side of Vetter; the Vetter team keeps the view switcher
+  useEffect(() => {
+    if (!firebaseEnabled) return;
+    const role: UserRole = !account ? 'candidate' : account.role === 'recruiter' ? 'recruiter' : account.role === 'admin' ? 'admin' : 'candidate';
+    if (role !== activeRole) handleRoleChange(role);
+  }, [account?.role, user?.uid]);
+
+  // A candidate account's profile replaces the demo one; their name follows the account
+  useEffect(() => {
+    if (!firebaseEnabled || !account || account.role !== 'candidate') return;
+    setCandidate((prev) => (prev.id !== account.uid ? profileFor(account) : prev.name === account.name ? prev : { ...prev, name: account.name }));
+  }, [account?.uid, account?.name]);
+
+  // Before a signed-in person can use Vetter: verifying their email, and for companies, being let in
+  const accountGate =
+    firebaseEnabled && accountLoading ? (
+      <div className="flex justify-center py-16">
+        <Pulse label="Loading" />
+      </div>
+    ) : firebaseEnabled && user && (!user.emailVerified || !account || account.status !== 'active') ? (
+      <AccountGate user={user} account={account} company={company} />
+    ) : null;
+  const startTest = (test: AssessmentTest) => requireAccount('Create a free account to take this test and get a verified score.', () => setActiveTest(test));
 
   const showToast = (message: string) => {
     setToast(message);
@@ -378,6 +451,10 @@ export default function App() {
 
   // A candidate starting one of a job's tests from the job: the company sees them on the job from now
   const startJobTest = (test: AssessmentTest, jobId: string) => {
+    if (isVisitor) {
+      setAuthDialog({ mode: 'sign-up', reason: 'Create a free account to take this job’s tests and apply.' });
+      return;
+    }
     const invitation = jobs.find((j) => j.id === jobId)?.invitations.find((i) => i.candidateId === candidate.id);
     if (!invitation?.startedAt) updateInvitation(jobId, candidate.id, { startedAt: new Date().toISOString() });
     setActiveTest(test);
@@ -457,6 +534,21 @@ export default function App() {
         }}
         activeRole={activeRole}
         onRoleChange={handleRoleChange}
+        accounts={
+          firebaseEnabled
+            ? {
+                signedIn: !!user,
+                email: user?.email ?? undefined,
+                canSwitchViews: account?.role === 'admin',
+                onSignIn: () => setAuthDialog({ mode: 'sign-in' }),
+                onJoin: () => setAuthDialog({ mode: 'sign-up' }),
+                onSignOut: () => {
+                  signOut();
+                  goToTab('home');
+                },
+              }
+            : undefined
+        }
         userAvatar={activeRole === 'candidate' ? candidate.avatarUrl : staffUser.avatarUrl}
         userName={activeRole === 'candidate' ? candidate.name : staffUser.name}
         userTitle={
@@ -466,7 +558,7 @@ export default function App() {
             ? staffUser.title
             : `${recruiter.title} · ${recruiterBusiness.name}`
         }
-        notifications={activeRole === 'candidate' ? candidateNotifications : undefined}
+        notifications={activeRole === 'candidate' && !isVisitor ? candidateNotifications : undefined}
         onOpenNotification={openNotification}
         renderSearch={(mobile) => (
           <GlobalSearch
@@ -485,6 +577,10 @@ export default function App() {
 
       <div className="flex-1 min-w-0 flex flex-col pb-14 md:pb-0">
         <main className="flex-1 pb-16 bg-white">
+          {accountGate ?? (
+          <>
+          {activeRole === 'recruiter' && company && account && company.ownerUid === account.uid && companyBusiness && <TeamRequests company={company} />}
+          {activeRole === 'admin' && firebaseEnabled && account?.role === 'admin' && <CompanyReview />}
           {testPageTest && (
             <TestPage
               test={testPageTest}
@@ -499,7 +595,7 @@ export default function App() {
                   : undefined
               }
               onSend={activeRole === 'candidate' ? undefined : () => setEditingTests({ addTestIds: [testPageTest.id] })}
-              onStartTest={(test) => setActiveTest(test)}
+              onStartTest={startTest}
               onOpenJob={activeRole === 'candidate' ? openJobPage : undefined}
               onOpenTest={openTestPage}
               onBack={() => goToTab(activeRole === 'candidate' ? 'tests' : 'business-tests')}
@@ -516,7 +612,7 @@ export default function App() {
               tests={tests}
               jobs={jobs}
               businesses={businesses}
-              onStartTest={(test) => setActiveTest(test)}
+              onStartTest={startTest}
               onStartJobTest={startJobTest}
               onApplyJob={handleApplyJob}
               onUpdateProfiles={(jobProfiles, activeProfileId) =>
@@ -527,6 +623,10 @@ export default function App() {
               onOpenJob={openJobPage}
               testField={testField}
               onTestFieldChange={setTestField}
+              canApply={() => {
+                if (isVisitor) setAuthDialog({ mode: 'sign-up', reason: 'Create a free account to apply. Your verified scores go with your application.' });
+                return !isVisitor;
+              }}
             />
           )}
 
@@ -540,18 +640,19 @@ export default function App() {
                 tests={tests}
                 businesses={businesses}
                 onOpenJob={openJobPage}
-                onStartTest={(test) => setActiveTest(test)}
+                onStartTest={startTest}
                 onOpenTest={openTestPage}
                 onGoTo={goToTab}
+                visitor={isVisitor ? { onJoin: () => setAuthDialog({ mode: 'sign-up' }), onSignIn: () => setAuthDialog({ mode: 'sign-in' }) } : undefined}
               />
               <div className="space-y-4 lg:col-start-3 lg:row-start-1">
-                <LiveLeaderboards tests={tests} allCandidates={allCandidates} viewerId={candidate.id} onOpenTest={openTestPage} />
+                <LiveLeaderboards tests={tests} allCandidates={allCandidates} viewerId={isVisitor ? '' : candidate.id} onOpenTest={openTestPage} />
                 <FollowSuggestions
                   viewer={candidate}
                   allCandidates={allCandidates}
                   businesses={businesses}
                   following={social.following}
-                  onToggleFollow={toggleFollow}
+                  onToggleFollow={(id) => requireAccount('Join Vetter to follow people and companies.', () => toggleFollow(id))}
                 />
               </div>
               <DiscoverFeed
@@ -564,6 +665,7 @@ export default function App() {
                 onSocialChange={setSocial}
                 onOpenTest={openTestPage}
                 onOpenJob={openJobPage}
+                onJoin={isVisitor ? () => setAuthDialog({ mode: 'sign-up', reason: 'Join Vetter to post, comment and follow people.' }) : undefined}
                 onOpenField={(field) => {
                   setTestField(field);
                   goToTab('tests');
@@ -624,18 +726,24 @@ export default function App() {
               onGenerateTest={() => setGenerator({})}
             />
           )}
+          </>
+          )}
         </main>
 
         <footer className="border-t border-slate-200 bg-white py-6 px-6 text-xs text-slate-500">
           <div className="max-w-7xl mx-auto flex items-center gap-2">
             <span className="font-bold text-slate-900 tracking-tight">VETTER</span>
             <span>&middot; Skills-based hiring</span>
-            <button onClick={handleResetData} className="ml-auto text-slate-400 hover:text-slate-700 transition-colors">
-              Reset demo data
-            </button>
+            {!firebaseEnabled && (
+              <button onClick={handleResetData} className="ml-auto text-slate-400 hover:text-slate-700 transition-colors">
+                Reset demo data
+              </button>
+            )}
           </div>
         </footer>
       </div>
+
+      {authDialog && <AuthDialog initialMode={authDialog.mode} reason={authDialog.reason} onClose={() => setAuthDialog(null)} />}
 
       {editingTests && (
         <JobTestsEditor

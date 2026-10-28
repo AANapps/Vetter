@@ -51,6 +51,8 @@ interface CandidatePortalProps {
   // The roles the Tests page is narrowed to (a role, an industry, or a field picked on Home), or null for every test
   testField: TestField | null;
   onTestFieldChange: (field: TestField | null) => void;
+  // Checked before an application opens; false when the visitor has to sign in first (and has been asked to)
+  canApply?: () => boolean;
   // Set when the candidate is on a job's own page (/jobs/<slug>/)
   jobPageId?: string | null;
   onOpenJob: (jobId: string) => void;
@@ -74,6 +76,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   onOpenJob,
   testField,
   onTestFieldChange,
+  canApply,
 }) => {
   // Tests page filters
   const [difficultyFilter, setDifficultyFilter] = useState<AssessmentTest['difficulty'][]>([]);
@@ -124,6 +127,11 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   // On a job page the sections give way to the job
   const view = jobPage ? 'job' : section;
 
+  const openApplication = (job: JobPosting) => {
+    if (canApply && !canApply()) return;
+    setSelectedJobForApplication(job);
+  };
+
   // The pop-up and the job page do the same things; the pop-up closes itself first
   const jobDetailsProps = (job: JobPosting, beforeLeaving: () => void = () => {}) => ({
     job,
@@ -135,7 +143,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
     isApplied: !!candidate.appliedJobIds?.includes(job.id),
     onApply: () => {
       beforeLeaving();
-      setSelectedJobForApplication(job);
+      openApplication(job);
     },
     onStartJobTest: (test: AssessmentTest) => {
       beforeLeaving();
@@ -629,7 +637,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                           </div>
                         ) : (
                           <button
-                            onClick={() => setSelectedJobForApplication(job)}
+                            onClick={() => openApplication(job)}
                             className="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors flex items-center gap-1.5 shadow-xs"
                           >
                             <Send className="w-3.5 h-3.5" />

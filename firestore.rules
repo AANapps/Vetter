@@ -1,0 +1,92 @@
+rules_version = '2';
+
+// Who can read and change accounts and companies. These are the real guard: the app follows the same rules, but
+// anything it skips is refused here. See src/lib/accounts.ts for the sign-up flow they protect.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function uid() { return request.auth.uid; }
+    function verified() { return request.auth.token.email_verified == true; }
+    function emailDomain() { return request.auth.token.email.lower().split('@')[1]; }
+    function userDoc(id) { return get(/databases/$(database)/documents/users/$(id)); }
+    function isAdmin() {
+      return signedIn() && exists(/databases/$(database)/documents/users/$(uid())) && userDoc(uid()).data.role == 'admin';
+    }
+    function ownsCompany(companyId) {
+      return get(/databases/$(database)/documents/companies/$(companyId)).data.ownerUid == uid();
+    }
+    function companyAfter(companyId) { return getAfter(/databases/$(database)/documents/companies/$(companyId)).data; }
+    function changed() { return request.resource.data.diff(resource.data).affectedKeys(); }
+    // Keep in step with src/lib/emailDomains.ts
+    function freeDomains() {
+      return ['gmail.com', 'googlemail.com', 'outlook.com', 'hotmail.com', 'hotmail.co.uk', 'live.com', 'live.co.uk',
+        'msn.com', 'yahoo.com', 'yahoo.co.uk', 'ymail.com', 'icloud.com', 'me.com', 'mac.com', 'aol.com', 'proton.me',
+        'protonmail.com', 'gmx.com', 'gmx.co.uk', 'mail.com', 'zoho.com', 'yandex.com', 'btinternet.com', 'sky.com',
+        'virginmedia.com', 'talktalk.net', 'qq.com', '163.com'];
+    }
+
+    match /users/{userId} {
+      allow read: if signedIn() && (
+        uid() == userId || isAdmin() ||
+        (resource.data.get('companyId', null) != null && ownsCompany(resource.data.companyId))
+      );
+
+      // A new account is a candidate (active) or a company sign-up (setup); nobody makes themselves an admin
+      allow create: if signedIn() && uid() == userId
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.keys().hasOnly(['email', 'name', 'role', 'status', 'companySetup', 'createdAt'])
+        && ((request.resource.data.role == 'candidate' && request.resource.data.status == 'active')
+          || (request.resource.data.role == 'recruiter' && request.resource.data.status == 'setup'));
+
+      allow update: if signedIn() && (
+        isAdmin()
+        // Your own name
+        || (uid() == userId && changed().hasOnly(['name']))
+        // Finishing a company sign-up, once the email is verified
+        || (uid() == userId && resource.data.status == 'setup' && verified() && changed().hasOnly(['status', 'companyId']) && (
+          // Created the company for your domain and run it
+          (request.resource.data.status == 'active' && request.resource.data.companyId == emailDomain()
+            && companyAfter(emailDomain()).ownerUid == uid())
+          // Asked to join your domain's company
+          || (request.resource.data.status == 'pending-approval' && request.resource.data.companyId == emailDomain()
+            && exists(/databases/$(database)/documents/companies/$(emailDomain()))
+            && getAfter(/databases/$(database)/documents/companies/$(emailDomain())/members/$(uid())).data.status == 'pending-approval')
+          // No work email: waiting for the Vetter team
+          || (request.resource.data.status == 'pending-review' && request.resource.data.companyId == 'review-' + uid()
+            && companyAfter('review-' + uid()).ownerUid == uid())
+        ))
+        // A company owner approving or turning down a colleague
+        || (resource.data.status == 'pending-approval' && changed().hasOnly(['status'])
+          && request.resource.data.status in ['active', 'rejected'] && ownsCompany(resource.data.companyId))
+      );
+      allow delete: if isAdmin();
+    }
+
+    match /companies/{companyId} {
+      // Signed-in people can see companies, so a sign-up can be told it's joining an existing one
+      allow read: if signedIn();
+
+      allow create: if signedIn() && verified() && request.resource.data.ownerUid == uid() && (
+        // A company's id is its email domain, claimed only by a verified address at that domain
+        (companyId == emailDomain() && !(emailDomain() in freeDomains())
+          && request.resource.data.domain == companyId && request.resource.data.status == 'active')
+        // Without a work email, a company waits for review
+        || (companyId == 'review-' + uid() && request.resource.data.status == 'pending-review')
+      );
+
+      allow update: if isAdmin()
+        || (signedIn() && resource.data.ownerUid == uid() && changed().hasOnly(['name', 'website']));
+      allow delete: if isAdmin();
+
+      match /members/{memberId} {
+        allow read: if signedIn() && (uid() == memberId || ownsCompany(companyId) || isAdmin());
+        // Asking to join your own domain's company
+        allow create: if signedIn() && uid() == memberId && verified() && companyId == emailDomain()
+          && request.resource.data.status == 'pending-approval';
+        allow update: if signedIn() && (ownsCompany(companyId) || isAdmin())
+          && changed().hasOnly(['status']) && request.resource.data.status in ['active', 'rejected'];
+      }
+    }
+  }
+}

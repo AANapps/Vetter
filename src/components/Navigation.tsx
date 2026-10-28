@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { UserRole } from '../types';
-import { ArrowLeftRight, Bell, Briefcase, ChevronDown, ClipboardCheck, House, Search, Users } from 'lucide-react';
+import { ArrowLeftRight,
+  LogOut, Bell, Briefcase, ChevronDown, ClipboardCheck, House, Search, Users } from 'lucide-react';
 
 export type AppTab =
   | 'home'
@@ -47,6 +48,15 @@ interface NavigationProps {
   onTabChange: (tab: AppTab) => void;
   activeRole: UserRole;
   onRoleChange: (role: UserRole) => void;
+  // With accounts: sign in and out, and the view switcher only for the Vetter team. Without, the demo's view switcher
+  accounts?: {
+    signedIn: boolean;
+    email?: string;
+    canSwitchViews: boolean;
+    onSignIn: () => void;
+    onJoin: () => void;
+    onSignOut: () => void;
+  };
   userAvatar: string;
   userName: string;
   userTitle: string;
@@ -72,6 +82,7 @@ export const Navigation: React.FC<NavigationProps> = ({
   onTabChange,
   activeRole,
   onRoleChange,
+  accounts,
   userAvatar,
   userName,
   userTitle,
@@ -187,7 +198,20 @@ export const Navigation: React.FC<NavigationProps> = ({
             </div>
           )}
 
+          {/* Visitors: sign in or join */}
+          {accounts && !accounts.signedIn && (
+            <div className="flex items-center gap-2 pl-2 md:border-l md:border-slate-200 md:ml-1">
+              <button onClick={accounts.onSignIn} className="px-3 py-1.5 text-sm font-semibold text-slate-700 hover:text-slate-900">
+                Sign in
+              </button>
+              <button onClick={accounts.onJoin} className="px-3.5 py-1.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-full">
+                Join now
+              </button>
+            </div>
+          )}
+
           {/* Me: account and view switcher */}
+          {(!accounts || accounts.signedIn) && (
           <div ref={meRef} className="relative md:border-l md:border-slate-200 md:pl-2 md:ml-1">
             <button
               onClick={() => setIsMeOpen((o) => !o)}
@@ -222,8 +246,9 @@ export const Navigation: React.FC<NavigationProps> = ({
                     View profile
                   </button>
                 )}
-                {/* Stands in for sign-in until accounts exist */}
-                {VIEWS.filter((v) => v.role !== activeRole).map((v) => (
+                {accounts?.email && <div className="text-[11px] text-slate-500 truncate -mt-1">{accounts.email}</div>}
+                {/* The demo's views, and with accounts the Vetter team's */}
+                {(!accounts || accounts.canSwitchViews) && VIEWS.filter((v) => v.role !== activeRole).map((v) => (
                   <button
                     key={v.role}
                     role="menuitem"
@@ -237,9 +262,23 @@ export const Navigation: React.FC<NavigationProps> = ({
                     <span>Switch to {v.label}</span>
                   </button>
                 ))}
+                {accounts && (
+                  <button
+                    role="menuitem"
+                    onClick={() => {
+                      setIsMeOpen(false);
+                      accounts.onSignOut();
+                    }}
+                    className="w-full flex items-center justify-center gap-2 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 border-t border-slate-100 pt-3"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Sign out</span>
+                  </button>
+                )}
               </div>
             )}
           </div>
+          )}
         </div>
 
         {isMobileSearchOpen && (
