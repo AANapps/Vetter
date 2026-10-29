@@ -3,7 +3,7 @@
  * Every query runs against a fresh copy of the sample database, so
  * candidates can't change the data other questions are graded on.
  */
-import initSqlJs, { type SqlJsStatic } from 'sql.js';
+import initSqlJs, { type Database, type SqlJsStatic } from 'sql.js';
 import sqlWasmUrl from 'sql.js/dist/sql-wasm-browser.wasm?url';
 import type { TestCase } from '../types';
 import type { CodeExecutionResult } from './codeEngine';
@@ -143,9 +143,14 @@ export interface SqlExecutionResult {
 let sqlJsPromise: Promise<SqlJsStatic> | null = null;
 const loadSqlJs = () => (sqlJsPromise ??= initSqlJs({ locateFile: () => sqlWasmUrl }));
 
-// Build the sample database from MOCK_DATABASE
-function seedStatements(): string {
-  return Object.values(MOCK_DATABASE)
+const sqlValue = (v: unknown) => {
+  if (v === null || v === undefined) return 'NULL';
+  return typeof v === 'number' ? String(v) : `'${String(v).replace(/'/g, "''")}'`;
+};
+
+// Build a database from sample tables: MOCK_DATABASE unless a task brings its own
+function seedStatements(tables: SqlTable[] = Object.values(MOCK_DATABASE)): string {
+  return tables
     .map((table) => {
       const columnDefs = table.columns
         .map((c) => {
@@ -154,17 +159,13 @@ function seedStatements(): string {
           return `${c} ${values.every(Number.isInteger) ? 'INTEGER' : 'REAL'}`;
         })
         .join(', ');
-      const inserts = table.rows
-        .map((row) => {
-          const values = table.columns.map((c) => {
-            const v = row[c];
-            if (v === null || v === undefined) return 'NULL';
-            return typeof v === 'number' ? String(v) : `'${String(v).replace(/'/g, "''")}'`;
-          });
-          return `INSERT INTO ${table.name} VALUES (${values.join(', ')});`;
-        })
-        .join('\n');
-      return `CREATE TABLE ${table.name} (${columnDefs});\n${inserts}`;
+      // A few hundred rows per INSERT keeps large tables quick to build
+      const inserts: string[] = [];
+      for (let i = 0; i < table.rows.length; i += 400) {
+        const chunk = table.rows.slice(i, i + 400).map((row) => `(${table.columns.map((c) => sqlValue(row[c])).join(', ')})`);
+        inserts.push(`INSERT INTO ${table.name} VALUES ${chunk.join(',\n')};`);
+      }
+      return `CREATE TABLE ${table.name} (${columnDefs});\n${inserts.join('\n')}`;
     })
     .join('\n');
 }
@@ -270,3 +271,117 @@ export async function runSchemaChecks(ddl: string, checks: TestCase[]): Promise<
     totalExecutionTimeMs: Math.round(performance.now() - start),
   };
 }
+
+// ---------- Database tasks ----------
+// A database task gives the candidate a live database: what they run changes it, as in a real SQL tool. Their work is
+// kept as the statements that changed it, so it can be rebuilt, and marked by check queries on the result.
+
+export interface ResultSet {
+  columns: string[];
+  rows: unknown[][];
+}
+
+export interface BatchResult {
+  resultSets: ResultSet[];
+  messages: { text: string; error?: boolean }[];
+  // Statements that changed the database, in order, to replay it later
+  changes: string[];
+  ms: number;
+}
+
+// The database a task starts with, with the candidate's changes so far replayed on top
+export async function openTaskDatabase(tables: SqlTable[], changes: string[] = []): Promise<Database> {
+  const SQL = await loadSqlJs();
+  const db = new SQL.Database();
+  db.run(seedStatements(tables));
+  for (const st of changes) {
+    try {
+      db.run(st);
+    } catch {
+      // A change that no longer applies is skipped, as it would have failed then too
+    }
+  }
+  return db;
+}
+
+// Runs a batch statement by statement, like a query window: every result set, rows affected, and the first error
+export function runBatch(db: Database, sql: string): BatchResult {
+  const start = performance.now();
+  const out: BatchResult = { resultSets: [], messages: [], changes: [], ms: 0 };
+  try {
+    for (const stmt of db.iterateStatements(sql)) {
+      try {
+        const columns = stmt.getColumnNames();
+        if (columns.length) {
+          const rows: unknown[][] = [];
+          while (stmt.step()) rows.push(stmt.get());
+          out.resultSets.push({ columns, rows });
+          out.messages.push({ text: `(${rows.length} row${rows.length === 1 ? '' : 's'} returned)` });
+        } else {
+          stmt.step();
+          const text = stmt.getSQL();
+          out.changes.push(text);
+          out.messages.push({
+            text: /^\s*(insert|update|delete|replace)\b/i.test(text)
+              ? `(${db.getRowsModified()} row${db.getRowsModified() === 1 ? '' : 's'} affected)`
+              : 'Commands completed successfully.',
+          });
+        }
+      } finally {
+        stmt.free();
+      }
+    }
+  } catch (e: any) {
+    out.messages.push({ text: e?.message ?? String(e), error: true });
+  }
+  out.ms = Math.max(1, Math.round(performance.now() - start));
+  return out;
+}
+
+// The tables and views in a database, with their columns, for the object explorer
+export function describeDatabase(db: Database): { name: string; kind: 'table' | 'view'; columns: { name: string; type: string }[] }[] {
+  const objects = db.exec(`SELECT name, type FROM sqlite_master WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%' ORDER BY type, name`);
+  return (objects[0]?.values ?? []).map(([name, type]) => {
+    const info = db.exec(`PRAGMA table_info(${sqlIdent(String(name))})`);
+    return {
+      name: String(name),
+      kind: type === 'view' ? 'view' : 'table',
+      columns: (info[0]?.values ?? []).map((col) => ({ name: String(col[1]), type: String(col[2] || 'ANY') })),
+    };
+  });
+}
+
+export const sqlIdent = (name: string) => `"${name.replace(/"/g, '""')}"`;
+
+// A CSV file as a new table, the way an import wizard creates one: column types guessed from the values
+export function importStatements(table: string, rows: string[][]): string {
+  const [header, ...data] = rows;
+  const columns = header.map((h, i) => h.trim().replace(/\s+/g, '_') || `column${i + 1}`);
+  const types = columns.map((_, i) => {
+    const values = data.map((r) => (r[i] ?? '').trim()).filter((v) => v !== '');
+    if (values.length && values.every((v) => /^-?\d+$/.test(v))) return 'INTEGER';
+    if (values.length && values.every((v) => /^-?(\d+\.?\d*|\.\d+)$/.test(v))) return 'REAL';
+    return 'TEXT';
+  });
+  const value = (v: string | undefined, type: string) => {
+    const t = (v ?? '').trim();
+    if (t === '') return 'NULL';
+    return type === 'TEXT' ? sqlValue(v) : t;
+  };
+  const create = `CREATE TABLE ${sqlIdent(table)} (${columns.map((c, i) => `${sqlIdent(c)} ${types[i]}`).join(', ')});`;
+  const inserts = data.length
+    ? `INSERT INTO ${sqlIdent(table)} VALUES ${data.map((r) => `(${columns.map((_, i) => value(r[i], types[i])).join(', ')})`).join(',\n')};`
+    : '';
+  return [create, inserts].filter(Boolean).join('\n');
+}
+
+// Runs one check query on a database, as rows of values
+export function queryRows(db: Database, sql: string): { rows: unknown[][] } | { error: string } {
+  try {
+    const res = db.exec(sql);
+    return { rows: res.length ? res[res.length - 1].values : [] };
+  } catch (e: any) {
+    return { error: e?.message ?? String(e) };
+  }
+}
+

@@ -1,5 +1,7 @@
 import { AssessmentTest, Question } from '../types';
-import { executeSqlQuery, runSchemaChecks, SqlExecutionResult } from './sqlEngine';
+import { executeSqlQuery, openTaskDatabase, queryRows, runSchemaChecks, SqlExecutionResult } from './sqlEngine';
+import { parseDatabaseWork } from './databaseWork';
+import { checkSheet, parseWorkbook } from './spreadsheet';
 import { runJavaScriptCode, CodeExecutionResult } from './codeEngine';
 import { gradeAnswer, isAnswerType } from './questionTypes';
 
@@ -10,8 +12,8 @@ export type QuestionRunResult =
   | ({ type: 'code' } & CodeExecutionResult);
 
 // Rows as arrays of values: column aliases don't matter, the data does
-const toValueRows = (rows: Record<string, any>[]) =>
-  rows.map((row) => Object.values(row).map((v) => (typeof v === 'number' ? Math.round(v * 100) / 100 : v)));
+const toValueRows = (rows: Record<string, any>[] | unknown[][]) =>
+  rows.map((row) => Object.values(row as object).map((v) => (typeof v === 'number' ? Math.round(v * 100) / 100 : v)));
 
 const sameRows = (actual: unknown[][], expected: unknown[][], ordered: boolean) => {
   const key = (r: unknown[]) => JSON.stringify(r);
@@ -64,6 +66,68 @@ async function runSqlQuestion(q: Question, code: string): Promise<QuestionRunRes
   };
 }
 
+// A spreadsheet task: each check is a formula run on the finished workbook
+function gradeSheetQuestion(q: Question, answer: string): QuestionRunResult {
+  const start = performance.now();
+  const wb = parseWorkbook(answer || q.starterCode);
+  const testCaseResults = q.testCases.map((tc) => {
+    const { passed, actual } = checkSheet(wb, tc.input, tc.expectedOutput);
+    return { id: tc.id, description: tc.description, passed, input: tc.input, expected: tc.expectedOutput, actual, executionMs: 0 };
+  });
+  const passed = testCaseResults.filter((r) => r.passed).length;
+  return {
+    type: 'code',
+    allPassed: passed === testCaseResults.length,
+    score: testCaseResults.length ? Math.round((passed / testCaseResults.length) * 100) : 0,
+    testCaseResults,
+    logs: [],
+    totalExecutionTimeMs: Math.round(performance.now() - start),
+  };
+}
+
+// A database task: the candidate's changes are replayed on a fresh copy, then each check query must return what it
+// returns after the reference solution (or the rows the check states)
+async function gradeDatabaseQuestion(q: Question, answer: string): Promise<QuestionRunResult> {
+  const start = performance.now();
+  const work = parseDatabaseWork(answer || q.starterCode);
+  const db = await openTaskDatabase(q.tables ?? [], work.changes);
+  const reference = await openTaskDatabase(q.tables ?? [], q.solutionCode ? [q.solutionCode] : []);
+  try {
+    const testCaseResults = q.testCases.map((tc) => {
+      const got = queryRows(db, tc.input);
+      let expected: unknown[][] = [];
+      if (tc.expectedOutput) expected = JSON.parse(tc.expectedOutput);
+      else {
+        const ref = queryRows(reference, tc.input);
+        if ('rows' in ref) expected = ref.rows;
+      }
+      const passed = 'rows' in got && sameRows(toValueRows(got.rows), toValueRows(expected), true);
+      return {
+        id: tc.id,
+        description: tc.description,
+        passed,
+        input: tc.input,
+        expected: JSON.stringify(expected),
+        actual: 'rows' in got ? JSON.stringify(got.rows) : got.error,
+        executionMs: 0,
+        error: 'error' in got ? got.error : undefined,
+      };
+    });
+    const passed = testCaseResults.filter((r) => r.passed).length;
+    return {
+      type: 'code',
+      allPassed: passed === testCaseResults.length,
+      score: testCaseResults.length ? Math.round((passed / testCaseResults.length) * 100) : 0,
+      testCaseResults,
+      logs: [],
+      totalExecutionTimeMs: Math.round(performance.now() - start),
+    };
+  } finally {
+    db.close();
+    reference.close();
+  }
+}
+
 // Picked, typed or arranged answers, stored like code
 function gradeAnswerQuestion(q: Question, answer: string): QuestionRunResult {
   const score = gradeAnswer(q, answer);
@@ -72,6 +136,8 @@ function gradeAnswerQuestion(q: Question, answer: string): QuestionRunResult {
 
 export async function runQuestion(q: Question, code: string): Promise<QuestionRunResult> {
   if (q.type === 'sql') return runSqlQuestion(q, code);
+  if (q.type === 'sheet') return gradeSheetQuestion(q, code);
+  if (q.type === 'database') return gradeDatabaseQuestion(q, code);
   if (isAnswerType(q.type)) return gradeAnswerQuestion(q, code);
   if (q.type === 'schema') return { type: 'code', ...(await runSchemaChecks(code, q.testCases)) };
   // A harness grades through its own check(), run after the candidate's code so it can call their solution

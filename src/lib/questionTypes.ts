@@ -5,6 +5,9 @@ import { Question, QuestionType } from '../types';
 export const ANSWER_TYPES: QuestionType[] = ['choice', 'multi', 'text', 'order', 'match'];
 export const isAnswerType = (type: QuestionType) => ANSWER_TYPES.includes(type);
 
+// Worked in an app window (a spreadsheet or a SQL workbench) and marked on what the candidate leaves behind
+export const isWorkspaceType = (type: QuestionType) => type === 'sheet' || type === 'database';
+
 // A stable shuffle per question, so the order candidates see is the same every time and grading can rebuild it.
 // Never returns the right order when there's more than one item.
 export function shuffledIndexes(seed: string, count: number): number[] {

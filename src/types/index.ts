@@ -110,8 +110,30 @@ export interface TestResult {
 // 'choice' is multiple choice, for roles where writing code isn't the job;
 // 'schema' is CREATE TABLE statements, graded by inserts that must be accepted or rejected
 // How a question is answered: written code or SQL run against checks, or an answer picked, typed or arranged.
-// multi: tick every right option; text: a short typed answer; order: drag items into sequence; match: drag each answer onto its prompt
-export type QuestionType = 'sql' | 'code' | 'scenario' | 'choice' | 'schema' | 'multi' | 'text' | 'order' | 'match';
+// multi: tick every right option; text: a short typed answer; order: drag items into sequence; match: drag each answer onto its prompt.
+// sheet and database are worked in a spreadsheet or a database window, and marked on what the candidate leaves behind
+export type QuestionType = 'sql' | 'code' | 'scenario' | 'choice' | 'schema' | 'multi' | 'text' | 'order' | 'match' | 'sheet' | 'database';
+
+// A table of sample data: the starting tables of a database task
+export interface DataTable {
+  name: string;
+  columns: string[];
+  rows: Record<string, string | number | null>[];
+}
+
+// A file handed to the candidate with a scenario, to download or import into the spreadsheet or database
+export interface CaseFile {
+  name: string;
+  content: string;
+}
+
+// The situation a whole test plays out in: who the candidate works for, what's been asked, and the files they get
+export interface TestScenario {
+  company: string;
+  role: string;
+  brief: string;
+  files?: CaseFile[];
+}
 
 export interface TestCase {
   id: string;
@@ -145,6 +167,8 @@ export interface Question {
   harness?: string;
   // Show what the code returns as a chart, for tasks that build visualisations
   preview?: 'chart';
+  // Database tasks: the tables the database starts with. Spreadsheet tasks keep their starting workbook in starterCode
+  tables?: DataTable[];
   testCases: TestCase[];
   timeLimitMinutes: number;
   weight: number;
@@ -172,6 +196,8 @@ export interface AssessmentTest {
   questions: Question[];
   skillsTested: string[];
   roles?: TestRole[];
+  // Simulations: one scenario that every question plays out in
+  scenario?: TestScenario;
 }
 
 export interface SubmissionResult {

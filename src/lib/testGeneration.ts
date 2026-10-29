@@ -122,7 +122,8 @@ export function assembleFromBank(opts: GenerationOptions, library: AssessmentTes
 
   const scored = sources
     .flatMap(({ main, fit }) =>
-      levelsOf(main, allTests).flatMap((version) =>
+      // Simulations' questions lean on their scenario, so they stay in their own test
+      levelsOf(main, allTests).filter((version) => !version.scenario).flatMap((version) =>
         version.questions
           .filter((q) => opts.styles.includes(q.type))
           .map((q) => ({
@@ -171,7 +172,7 @@ export function assembleFromBank(opts: GenerationOptions, library: AssessmentTes
   };
 }
 
-type RawQuestion = Partial<Question> & { tables?: string[]; points?: number; testCases?: { description: string; input: string; expectedOutput: string }[] };
+type RawQuestion = Omit<Partial<Question>, 'tables'> & { tables?: string[]; points?: number; testCases?: { description: string; input: string; expectedOutput: string }[] };
 
 const uid = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 
