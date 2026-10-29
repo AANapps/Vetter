@@ -4,6 +4,7 @@ import RECRUITER_AVATAR from '../assets/images/recruiter_avatar_tech_17923298154
 import { ROLE_ASSESSMENTS } from './roleTests';
 import { INDUSTRY_TESTS } from './industryTests';
 import { SIMULATION_TESTS } from './simulationTests';
+import { ANALYSIS_SIMULATIONS } from './analysisSimulations';
 import { withLevelVersions } from './levelVersions';
 import { SEED_INVITATIONS } from './seedInvitations';
 
@@ -608,116 +609,6 @@ Example: solution(["/users/:id"], "/users/7") returns { route: "/users/:id", par
     ],
   },
   {
-    id: 'test-da-01',
-    title: 'Data Analysis & Business Metrics',
-    category: 'Data Analysis',
-    difficulty: 'Beginner',
-    type: 'standard',
-    description: 'Turn raw numbers into decisions: conversion funnels, growth rates, averages that mislead, A/B test results and cohort retention.',
-    estimatedMinutes: 20,
-    passingScore: 75,
-    totalQuestions: 5,
-    skillsTested: ['Data Analysis', 'Metrics', 'Statistics'],
-    roles: ['Data Analyst', 'Business Analyst', 'Consultant'],
-    questions: [
-      {
-        id: 'q-da-1',
-        title: 'Funnel Conversion',
-        type: 'choice',
-        prompt: `A landing page had 12,000 visitors this month. 480 signed up and 120 of those went on to buy.
-
-What is the visitor-to-purchase conversion rate?`,
-        starterCode: '',
-        options: [
-          '4%',
-          '25%',
-          '1%',
-          '0.4%',
-        ],
-        correctOption: 2,
-        testCases: [],
-        timeLimitMinutes: 3,
-        weight: 20,
-      },
-      {
-        id: 'q-da-2',
-        title: 'Month-over-Month Change',
-        type: 'choice',
-        prompt: `Monthly revenue was $50,000 in January, $60,000 in February and $45,000 in March.
-
-What was the month-over-month change in March?`,
-        starterCode: '',
-        options: [
-          '+20%',
-          '-15%',
-          '-25%',
-          '-10%',
-        ],
-        correctOption: 2,
-        testCases: [],
-        timeLimitMinutes: 3,
-        weight: 20,
-      },
-      {
-        id: 'q-da-3',
-        title: 'Typical Order Value',
-        type: 'choice',
-        prompt: `This week’s order values were $20, $35, $35, $50 and $400.
-
-Which figure best describes a typical order, and why?`,
-        starterCode: '',
-        options: [
-          'The mean ($108), because it uses every order',
-          'The median ($35), because the $400 order skews the mean',
-          'The maximum ($400), because it shows what customers can spend',
-          'The total ($540), because it reflects the whole week',
-        ],
-        correctOption: 1,
-        testCases: [],
-        timeLimitMinutes: 4,
-        weight: 20,
-      },
-      {
-        id: 'q-da-4',
-        title: 'Reading an A/B Test',
-        type: 'choice',
-        prompt: `Variant A: 1,000 users, 50 conversions. Variant B: 1,000 users, 65 conversions. The test reports p = 0.17.
-
-What should you tell the product team?`,
-        starterCode: '',
-        options: [
-          'The difference isn’t statistically significant at the 5% level, so there’s no clear winner yet',
-          'B is 30% better, so ship B',
-          'A is better because its result is more stable',
-          'The test is broken because the p-value is above 0.05',
-        ],
-        correctOption: 0,
-        testCases: [],
-        timeLimitMinutes: 5,
-        weight: 20,
-      },
-      {
-        id: 'q-da-5',
-        title: 'Cohort Retention',
-        type: 'choice',
-        prompt: `200 users joined in January. 120 of them were active in February and 90 in March.
-
-What is the January cohort’s retention in March?`,
-        starterCode: '',
-        options: [
-          '60%',
-          '75%',
-          '90%',
-          '45%',
-        ],
-        correctOption: 3,
-        testCases: [],
-        timeLimitMinutes: 3,
-        weight: 20,
-      },
-    ],
-  },
-  {
     id: 'test-cs-01',
     title: 'Case Interview & Business Problem Solving',
     category: 'Consulting',
@@ -832,6 +723,7 @@ Which gives the most impact per week of effort?`,
   },
   ...ROLE_ASSESSMENTS,
   ...INDUSTRY_TESTS,
+  ...ANALYSIS_SIMULATIONS,
   ...SIMULATION_TESTS,
 ]);
 
@@ -1161,7 +1053,7 @@ export const INITIAL_JOBS: JobPosting[] = [
     qualifications: ['Graduating in 2027 in a numerate subject', 'Some SQL or spreadsheet experience'],
     benefits: ['Graduate training programme', 'Hybrid working', 'Study support'],
     requirements: [{ skillId: 'skill-analytics', skillName: 'Data Analysis', minScore: 65, importance: 'required', weight: 1 }],
-    testIds: ['test-sql-02-beginner', 'test-clean-01', 'test-dash-01'],
+    testIds: ['test-sql-02', 'test-clean-01', 'test-dash-01'],
     testPassingScore: 65,
     testsRequired: true,
     invitations: SEED_INVITATIONS['job-006'].invitations,

@@ -2,6 +2,7 @@ import { AssessmentTest, DataTable } from '../types';
 import { workbookStarter } from '../lib/spreadsheet';
 import { databaseStarter } from '../lib/databaseWork';
 import { toCsv } from '../lib/csv';
+import { round2, seeded, sum, tc } from './simulationKit';
 
 /**
  * Simulations: a whole test set in one workplace. The candidate gets a brief, files, a working spreadsheet and a SQL
@@ -13,12 +14,6 @@ import { toCsv } from '../lib/csv';
  */
 
 // ---------- The data ----------
-
-// A seeded random generator: the same numbers on every build
-function seeded(seed: number) {
-  let h = seed >>> 0;
-  return () => (h = (Math.imul(h, 1664525) + 1013904223) >>> 0) / 2 ** 32;
-}
 
 const STORES = [
   { store_id: 'S01', store_name: 'Leeds Briggate', region: 'North', opened: '2017-04-01', base: 210, pctOfTarget: 1.04 },
@@ -32,7 +27,6 @@ const STORES = [
 ];
 
 const CATERING = new Set(['S03', 'S06', 'S07']);
-const round2 = (n: number) => Math.round(n * 100) / 100;
 const DAY_MS = 86400000;
 const Q1_START = Date.UTC(2026, 0, 1);
 const dateOf = (day: number) => new Date(Q1_START + day * DAY_MS).toISOString().slice(0, 10);
@@ -92,7 +86,6 @@ function messUp(rows: SaleRow[]): SaleRow[] {
 
 const RAW_SALES = messUp(CLEAN_SALES);
 
-const sum = (ns: number[]) => ns.reduce((a, b) => a + b, 0);
 const revenueOf = (rows: SaleRow[], storeId: string) => sum(rows.filter((r) => r.store_id === storeId).map((r) => r.revenue));
 
 // Finance set each target so the clean Q1 result lands at the share of target in STORES
@@ -190,8 +183,6 @@ SELECT strftime('%Y-%m', sale_date) AS month, channel, ROUND(SUM(revenue), 2) AS
 FROM daily_sales
 WHERE store_id = 'S06'
 GROUP BY month, channel;`;
-
-const tc = (id: string, description: string, input: string, expectedOutput = '') => ({ id, description, input, expectedOutput });
 
 // ---------- The test ----------
 
