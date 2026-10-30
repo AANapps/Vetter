@@ -24,6 +24,7 @@ import { AnswerInput } from './AnswerInputs';
 import { hasAnswer, isAnswerType, isWorkspaceType } from '../lib/questionTypes';
 import { SpreadsheetWindow } from './SpreadsheetWindow';
 import { DatabaseWindow } from './DatabaseWindow';
+import { AppWindow } from './AppWindow';
 import { CaseBrief } from './CaseBrief';
 
 interface TestRunnerProps {
@@ -323,7 +324,7 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
                     </li>
                   ))}
                 </ul>
-                <p className="text-[11px] text-slate-500">Marked when you submit, on the {currentQ.type === 'sheet' ? 'workbook' : 'database'} as you leave it. Your work is kept if you move to another task.</p>
+                <p className="text-[11px] text-slate-500">Marked when you submit, on the {currentQ.type === 'sheet' ? 'workbook' : currentQ.type === 'app' ? 'app' : 'database'} as you leave it. Your work is kept if you move to another task.</p>
               </div>
             )}
 
@@ -418,6 +419,10 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
               databaseName={currentQ.contextData || 'Database'}
               files={test.scenario?.files}
             />
+          </div>
+        ) : currentQ.type === 'app' ? (
+          <div className="flex-1 min-w-0 p-3 bg-slate-100">
+            <AppWindow key={currentQ.id} value={currentCode} onChange={handleCodeChange} html={currentQ.appHtml ?? ''} appName={currentQ.contextData || currentQ.title} />
           </div>
         ) : isAnswerType(currentQ.type) ? (
           <div className="w-1/2 flex flex-col bg-slate-50 overflow-y-auto p-6">
@@ -785,8 +790,8 @@ const TestIntro: React.FC<TestIntroProps> = ({ test, acceptedRules, onAcceptedRu
           <li>Move between tasks freely using the tabs at the top. Do them in any order.</li>
           {test.questions.some((q) => isWorkspaceType(q.type)) && (
             <li>
-              Spreadsheet and database tasks open a working spreadsheet or SQL workbench. Import the files you&rsquo;re given, clean
-              and analyse the data, and leave your work where the task asks for it: it&rsquo;s marked as you leave it when you submit.
+              Spreadsheet, database and app tasks open a working spreadsheet, SQL workbench or a copy of the software the job uses. Do the
+              work the task asks for and leave it there: it&rsquo;s marked as you leave it when you submit.
             </li>
           )}
           {test.questions.some((q) => !isAnswerType(q.type) && !isWorkspaceType(q.type)) && (

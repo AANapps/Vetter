@@ -3,7 +3,7 @@ import { AlertCircle, ArrowDown, ArrowUp, Check, Eye, FileText, Plus, Trash2, X 
 import { AssessmentTest, Business, Question, QuestionType, SkillCategory, TEST_DIFFICULTIES, TestRole } from '../types';
 import { SKILL_IDS } from '../data/seedCandidates';
 import { ROLE_GROUPS } from '../lib/testRoles';
-import { QUESTION_STYLES, blankQuestion, questionProblems, tidyQuestion } from '../lib/questionTypes';
+import { AI_ONLY_TYPES, QUESTION_STYLES, blankQuestion, questionProblems, tidyQuestion } from '../lib/questionTypes';
 import { QuestionEditor, inputClass, labelClass } from './QuestionEditors';
 import { TestRunner } from './TestRunner';
 
@@ -371,7 +371,7 @@ const StylePicker: React.FC<{ onPick: (type: QuestionType) => void; onCancel: ()
     </div>
     <p className="text-xs text-slate-500">Mix styles freely. Picking, typing and dragging suit any field; coding and SQL run the candidate's answer.</p>
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      {QUESTION_STYLES.map((s) => (
+      {QUESTION_STYLES.filter((s) => !AI_ONLY_TYPES.includes(s.type)).map((s) => (
         <button key={s.type} onClick={() => onPick(s.type)} className="text-left p-4 bg-white border border-slate-200 hover:border-indigo-400 rounded-xl space-y-1 transition-colors">
           <div className="text-sm font-bold text-slate-900">{s.label}</div>
           <div className="text-xs text-slate-500">{s.hint}</div>

@@ -112,7 +112,7 @@ export interface TestResult {
 // How a question is answered: written code or SQL run against checks, or an answer picked, typed or arranged.
 // multi: tick every right option; text: a short typed answer; order: drag items into sequence; match: drag each answer onto its prompt.
 // sheet and database are worked in a spreadsheet or a database window, and marked on what the candidate leaves behind
-export type QuestionType = 'sql' | 'code' | 'scenario' | 'choice' | 'schema' | 'multi' | 'text' | 'order' | 'match' | 'sheet' | 'database';
+export type QuestionType = 'sql' | 'code' | 'scenario' | 'choice' | 'schema' | 'multi' | 'text' | 'order' | 'match' | 'sheet' | 'database' | 'app';
 
 // A table of sample data: the starting tables of a database task
 export interface DataTable {
@@ -169,6 +169,8 @@ export interface Question {
   preview?: 'chart';
   // Database tasks: the tables the database starts with. Spreadsheet tasks keep their starting workbook in starterCode
   tables?: DataTable[];
+  // App simulations: the simulated product as one HTML page (its name is in contextData). Checks read its saved state
+  appHtml?: string;
   testCases: TestCase[];
   timeLimitMinutes: number;
   weight: number;

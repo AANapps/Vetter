@@ -5,6 +5,7 @@ import { runJavaScriptCode } from './codeEngine';
 import { isMainVersion, levelsOf } from './testLevels';
 import { ROLE_GROUPS } from './testRoles';
 import { questionProblems } from './questionTypes';
+import { probeApp } from './appSimulation';
 
 // Asking Vetter for a job's tests: library tests that fit, and a new test written for it (by the server's AI).
 // Everything the AI returns is checked here: unknown tests dropped, coding and SQL answers run, broken questions removed.
@@ -179,7 +180,7 @@ const uid = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${Math.ran
 // One AI-written question made into a real one, or null if it doesn't hold up
 async function checkQuestion(raw: RawQuestion): Promise<Question | null> {
   const type = raw.type as QuestionType;
-  if (!['choice', 'multi', 'text', 'order', 'match', 'code', 'sql'].includes(type)) return null;
+  if (!['choice', 'multi', 'text', 'order', 'match', 'code', 'sql', 'app'].includes(type)) return null;
   const q: Question = {
     id: uid('q'),
     title: String(raw.title ?? '').trim(),
@@ -211,6 +212,20 @@ async function checkQuestion(raw: RawQuestion): Promise<Question | null> {
     q.starterCode = raw.starterCode || '-- Write your query here\nSELECT ';
     const result = await executeSqlQuery(q.solutionCode ?? '');
     if (!tables.length || !result.success || result.rowCount === 0) return null;
+  }
+  if (type === 'app') {
+    const checks = (raw.testCases ?? []).filter((tc) => tc.input?.trim() && tc.expectedOutput?.trim());
+    if (!raw.appHtml?.trim() || checks.length < 2) return null;
+    // The app must load, report its starting state and not already pass its checks
+    const probe = await probeApp(raw.appHtml, checks);
+    if (!probe.state) return null;
+    q.appHtml = raw.appHtml;
+    // The page's title names the product it copies
+    q.contextData = raw.appHtml.match(/<title>([^<]{1,60})<\/title>/i)?.[1].trim() || q.title;
+    // The starting state, so the runner can tell a task the candidate hasn't touched
+    q.starterCode = JSON.stringify(probe.state);
+    q.testCases = checks.map((tc, i) => ({ id: uid('tc'), description: tc.description || `Check ${i + 1}`, input: tc.input.trim(), expectedOutput: tc.expectedOutput.trim() }));
+    return q.title && q.prompt ? q : null;
   }
   if (type === 'choice' && (q.correctOption === undefined || q.correctOption < 0 || q.correctOption >= (q.options?.length ?? 0))) return null;
   if (type === 'match' && new Set((q.pairs ?? []).map((p) => p.right)).size !== (q.pairs ?? []).length) return null;

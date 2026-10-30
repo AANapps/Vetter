@@ -36,10 +36,10 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
   const [wantNewTest, setWantNewTest] = useState(true);
   const [questionCount, setQuestionCount] = useState(6);
   const [level, setLevel] = useState<TestDifficulty>(() => levelFor(job));
-  // Answer styles suit any job; coding and SQL are on when the job's tests already use them
+  // Answer styles and app simulations suit any job; coding and SQL are on when the job's tests already use them
   const [styles, setStyles] = useState<QuestionType[]>(() => {
     const used = new Set(tests.filter((t) => job?.testIds.includes(t.id)).flatMap((t) => t.questions.map((q) => q.type)));
-    return [...ANSWER_TYPES, ...(['code', 'sql'] as QuestionType[]).filter((t) => used.has(t))];
+    return [...ANSWER_TYPES, 'app', ...(['code', 'sql'] as QuestionType[]).filter((t) => used.has(t))];
   });
   const [working, setWorking] = useState(false);
   const [result, setResult] = useState<GenerationResult | null>(null);
@@ -94,9 +94,13 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
           {working ? (
             <div className="py-12 flex flex-col items-center gap-3 text-center">
               <Pulse label="Building your test" />
-              <WorkingStep writing={wantNewTest} />
+              <WorkingStep writing={wantNewTest} researching={wantNewTest && styles.includes('app')} />
               <p className="text-xs text-slate-500 max-w-sm">
-                {wantNewTest ? 'Every question is checked before you see it: coding answers and SQL queries are run, and anything that fails is left out.' : ''}
+                {wantNewTest
+                  ? styles.includes('app')
+                    ? 'Vetter researches the software the job uses and builds a working copy of it for candidates. Every question is checked before you see it, and anything that fails is left out. This can take a minute or two.'
+                    : 'Every question is checked before you see it: coding answers and SQL queries are run, and anything that fails is left out.'
+                  : ''}
               </p>
             </div>
           ) : !result ? (
@@ -331,18 +335,20 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
 };
 
 const WRITING_STEPS = ['Reading the job…', 'Choosing what to test…', 'Writing the questions…', 'Checking every answer…', 'Nearly there…'];
+const APP_STEPS = ['Reading the job…', 'Researching the software…', 'Studying how it looks and works…', 'Choosing what to test…', 'Building the simulation…', 'Writing the questions…', 'Trying the simulation out…', 'Nearly there…'];
 
 // What Vetter is doing, moving on every few seconds and holding on the last step
-const WorkingStep: React.FC<{ writing: boolean }> = ({ writing }) => {
+const WorkingStep: React.FC<{ writing: boolean; researching: boolean }> = ({ writing, researching }) => {
+  const steps = researching ? APP_STEPS : WRITING_STEPS;
   const [step, setStep] = useState(0);
   useEffect(() => {
     if (!writing) return;
-    const timer = setInterval(() => setStep((s) => Math.min(s + 1, WRITING_STEPS.length - 1)), 4000);
+    const timer = setInterval(() => setStep((s) => Math.min(s + 1, steps.length - 1)), researching ? 9000 : 4000);
     return () => clearInterval(timer);
-  }, [writing]);
+  }, [writing, researching, steps.length]);
   return (
     <p className="text-sm font-semibold text-slate-900" aria-live="polite">
-      {writing ? WRITING_STEPS[step] : 'Finding tests that fit…'}
+      {writing ? steps[step] : 'Finding tests that fit…'}
     </p>
   );
 };

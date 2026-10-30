@@ -5,8 +5,8 @@ import { Question, QuestionType } from '../types';
 export const ANSWER_TYPES: QuestionType[] = ['choice', 'multi', 'text', 'order', 'match'];
 export const isAnswerType = (type: QuestionType) => ANSWER_TYPES.includes(type);
 
-// Worked in an app window (a spreadsheet or a SQL workbench) and marked on what the candidate leaves behind
-export const isWorkspaceType = (type: QuestionType) => type === 'sheet' || type === 'database';
+// Worked in an app window (a spreadsheet, a SQL workbench or a simulated product) and marked on what the candidate leaves behind
+export const isWorkspaceType = (type: QuestionType) => type === 'sheet' || type === 'database' || type === 'app';
 
 // A stable shuffle per question, so the order candidates see is the same every time and grading can rebuild it.
 // Never returns the right order when there's more than one item.
@@ -123,7 +123,11 @@ export const QUESTION_STYLES: { type: QuestionType; label: string; hint: string 
   { type: 'match', label: 'Drag to match', hint: 'Pair each prompt with its answer' },
   { type: 'code', label: 'Coding', hint: 'Write a JavaScript function, run against test cases' },
   { type: 'sql', label: 'SQL query', hint: 'Query sample tables, checked against your solution' },
+  { type: 'app', label: 'App simulation', hint: 'A working copy of the software the job uses, researched and built by the AI' },
 ];
+
+// Styles only the AI can write; the builder edits their wording but doesn't offer them as blank questions
+export const AI_ONLY_TYPES: QuestionType[] = ['app'];
 
 export function blankQuestion(type: QuestionType): Question {
   const base: Question = {

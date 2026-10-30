@@ -62,6 +62,7 @@ export const QUESTION_TYPE_LABELS: Record<Question['type'], string> = {
   match: 'Drag to match',
   sheet: 'Spreadsheet',
   database: 'SQL database',
+  app: 'App simulation',
 };
 
 // "3 checks" for code tasks; answer-style questions say what's to pick or arrange

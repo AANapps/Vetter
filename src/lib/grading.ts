@@ -2,6 +2,7 @@ import { AssessmentTest, Question } from '../types';
 import { executeSqlQuery, openTaskDatabase, queryRows, runSchemaChecks, SqlExecutionResult } from './sqlEngine';
 import { parseDatabaseWork } from './databaseWork';
 import { checkSheet, parseWorkbook } from './spreadsheet';
+import { checkAppState } from './appSimulation';
 import { runJavaScriptCode, CodeExecutionResult } from './codeEngine';
 import { gradeAnswer, isAnswerType } from './questionTypes';
 
@@ -85,6 +86,20 @@ function gradeSheetQuestion(q: Question, answer: string): QuestionRunResult {
   };
 }
 
+// An app simulation: each check reads one value from the state the candidate left the app in
+function gradeAppQuestion(q: Question, answer: string): QuestionRunResult {
+  const testCaseResults = checkAppState(q, answer);
+  const passed = testCaseResults.filter((r) => r.passed).length;
+  return {
+    type: 'code',
+    allPassed: passed === testCaseResults.length,
+    score: testCaseResults.length ? Math.round((passed / testCaseResults.length) * 100) : 0,
+    testCaseResults,
+    logs: [],
+    totalExecutionTimeMs: 0,
+  };
+}
+
 // A database task: the candidate's changes are replayed on a fresh copy, then each check query must return what it
 // returns after the reference solution (or the rows the check states)
 async function gradeDatabaseQuestion(q: Question, answer: string): Promise<QuestionRunResult> {
@@ -138,6 +153,7 @@ export async function runQuestion(q: Question, code: string): Promise<QuestionRu
   if (q.type === 'sql') return runSqlQuestion(q, code);
   if (q.type === 'sheet') return gradeSheetQuestion(q, code);
   if (q.type === 'database') return gradeDatabaseQuestion(q, code);
+  if (q.type === 'app') return gradeAppQuestion(q, code);
   if (isAnswerType(q.type)) return gradeAnswerQuestion(q, code);
   if (q.type === 'schema') return { type: 'code', ...(await runSchemaChecks(code, q.testCases)) };
   // A harness grades through its own check(), run after the candidate's code so it can call their solution
