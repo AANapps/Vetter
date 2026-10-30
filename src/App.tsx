@@ -34,6 +34,7 @@ import { Viewer, apply, syncJobs, syncNotifications, syncSocial, syncTests, useC
 import { AuthDialog, AuthMode } from './components/AuthDialog';
 import { AccountGate, CompanyReview, TeamRequests } from './components/AccountScreens';
 import { Pulse } from './components/Pulse';
+import { PricingPage } from './components/PricingPage';
 import { isJobsIndexPath, jobIdFromPath, jobPageTitle, jobPath } from './lib/jobSeo';
 
 const CANDIDATE_SECTIONS: Partial<Record<AppTab, CandidateSection>> = {
@@ -103,7 +104,9 @@ const refFromHash = () => new URLSearchParams(window.location.hash.split('?')[1]
 
 // Home is the tests companies sent you; a company starts on its jobs
 const initialTab = (): AppTab =>
-  jobIdFromUrl() || isJobsIndexPath(window.location.pathname) ? 'jobs' : idFromHash('tests') ? 'tests' : 'home';
+  window.location.hash === '#/pricing'
+    ? 'pricing'
+    : jobIdFromUrl() || isJobsIndexPath(window.location.pathname) ? 'jobs' : idFromHash('tests') ? 'tests' : 'home';
 
 export default function App() {
   const [activeRole, setActiveRole] = useState<UserRole>('candidate');
@@ -117,7 +120,7 @@ export default function App() {
   candidateRef.current = candidate;
   // Accounts, when Firebase is set up: who's signed in decides what they see. Without it, Vetter is a demo with a view switcher
   const { loading: accountLoading, user, account, company } = useAccount();
-  const [authDialog, setAuthDialog] = useState<{ mode: AuthMode; reason?: string } | null>(null);
+  const [authDialog, setAuthDialog] = useState<{ mode: AuthMode; reason?: string; role?: 'candidate' | 'recruiter' } | null>(null);
   const isVisitor = firebaseEnabled && !user;
   // Runs the action for someone signed in; asks a visitor to create an account first
   const requireAccount = (reason: string, action: () => void) => {
@@ -302,6 +305,8 @@ export default function App() {
     if (!firebaseEnabled) return;
     const role: UserRole = !account ? 'candidate' : account.role === 'recruiter' ? 'recruiter' : account.role === 'admin' ? 'admin' : 'candidate';
     if (role !== activeRole) handleRoleChange(role);
+    // Pricing is for visitors: someone who signs in there goes to their own side
+    else if (user && currentTab === 'pricing') goToTab(NAV_TABS[role === 'candidate' ? 'candidate' : 'recruiter'][0].id);
   }, [account?.role, user?.uid]);
 
   // A candidate account's profile and progress come from their account, so they follow them to any device. Until
@@ -414,6 +419,7 @@ export default function App() {
 
   const goToTab = (tab: AppTab) => {
     if (window.location.hash || window.location.pathname !== '/') navigateTo('/' + window.location.search);
+    if (tab === 'pricing') history.replaceState(null, '', '/#/pricing');
     if (tab === 'business-jobs') setSelectedJobId(null);
     setCurrentTab(tab);
   };
@@ -702,6 +708,7 @@ export default function App() {
             : recruiter.title
         }
         notifications={activeRole === 'candidate' && !isVisitor ? candidateNotifications : undefined}
+        showPricing={isVisitor}
         onOpenNotification={openNotification}
         renderSearch={(mobile) => (
           <GlobalSearch
@@ -724,6 +731,20 @@ export default function App() {
           <>
           {activeRole === 'recruiter' && company && account && company.ownerUid === account.uid && companyBusiness && <TeamRequests company={company} />}
           {activeRole === 'admin' && firebaseEnabled && account?.role === 'admin' && <CompanyReview />}
+          {currentTab === 'pricing' && (
+            <PricingPage
+              onChoosePlan={(plan) =>
+                setAuthDialog({
+                  mode: 'sign-up',
+                  role: 'recruiter',
+                  reason:
+                    plan === 'enterprise'
+                      ? 'Create a company account and we’ll be in touch about Enterprise.'
+                      : 'Create a company account to get started. Your first job is free.',
+                })
+              }
+            />
+          )}
           {testPageTest && (
             <TestPage
               test={testPageTest}
@@ -886,7 +907,7 @@ export default function App() {
         </footer>
       </div>
 
-      {authDialog && <AuthDialog initialMode={authDialog.mode} reason={authDialog.reason} onClose={() => setAuthDialog(null)} />}
+      {authDialog && <AuthDialog initialMode={authDialog.mode} reason={authDialog.reason} initialRole={authDialog.role} onClose={() => setAuthDialog(null)} />}
 
       {editingTests && (
         <JobTestsEditor

@@ -9,6 +9,8 @@ interface AuthDialogProps {
   initialMode: AuthMode;
   // Shown above the form when an action needs an account, e.g. "Sign in to take this test"
   reason?: string;
+  // Which kind of account sign-up starts on; companies coming from the pricing page start as a company
+  initialRole?: 'candidate' | 'recruiter';
   onClose: () => void;
 }
 
@@ -16,9 +18,9 @@ const inputClass =
   'w-full px-3 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100';
 
 // Signing in, creating an account (as a candidate or a company) and resetting a password
-export const AuthDialog: React.FC<AuthDialogProps> = ({ initialMode, reason, onClose }) => {
+export const AuthDialog: React.FC<AuthDialogProps> = ({ initialMode, reason, initialRole = 'candidate', onClose }) => {
   const [mode, setMode] = useState<AuthMode>(initialMode);
-  const [role, setRole] = useState<'candidate' | 'recruiter'>('candidate');
+  const [role, setRole] = useState<'candidate' | 'recruiter'>(initialRole);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

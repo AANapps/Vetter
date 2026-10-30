@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { UserRole } from '../types';
 import { ArrowLeftRight,
-  LogOut, Bell, Briefcase, ChevronDown, ClipboardCheck, House, Search, Users } from 'lucide-react';
+  LogOut, Bell, Briefcase, ChevronDown, ClipboardCheck, House, Search, Tag, Users } from 'lucide-react';
 
 export type AppTab =
   | 'home'
@@ -11,7 +11,8 @@ export type AppTab =
   | 'companies'
   | 'business-jobs'
   | 'business-tests'
-  | 'business-candidates';
+  | 'business-candidates'
+  | 'pricing';
 
 type TabIcon = React.ComponentType<{ className?: string }>;
 
@@ -63,6 +64,8 @@ interface NavigationProps {
   // The signed-in candidate's notifications, newest first
   notifications?: NavNotification[];
   onOpenNotification?: (id: string) => void;
+  // Visitors also get a Pricing tab
+  showPricing?: boolean;
   // The search box, rendered in the bar (and full width on phones)
   renderSearch: (mobile: { onClose: () => void } | null) => React.ReactNode;
 }
@@ -88,12 +91,14 @@ export const Navigation: React.FC<NavigationProps> = ({
   userTitle,
   notifications,
   onOpenNotification,
+  showPricing,
   renderSearch,
 }) => {
   const [isBellOpen, setIsBellOpen] = useState(false);
   const bellRef = useRef<HTMLDivElement>(null);
   const unread = notifications?.filter((n) => !n.read).length ?? 0;
-  const tabs = NAV_TABS[activeRole === 'candidate' ? 'candidate' : 'recruiter'];
+  const roleTabs = NAV_TABS[activeRole === 'candidate' ? 'candidate' : 'recruiter'];
+  const tabs = showPricing ? [...roleTabs, { id: 'pricing' as AppTab, label: 'Pricing', icon: Tag }] : roleTabs;
   const [isMeOpen, setIsMeOpen] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const meRef = useRef<HTMLDivElement>(null);

@@ -28,17 +28,20 @@ candidate on Haiku, so 1,000 candidates is roughly 20–50p.
 | Job ads (Indeed, Seek and similar) | ~£100–400+ per job |
 | Recruitment agencies | 15–25% of first-year salary (£5k–15k for a typical hire) |
 
-## Proposed plans
+## Plans
+
+These are the plans on the pricing page (`src/components/PricingPage.tsx`), shown to signed-out visitors at `/#/pricing`.
 
 | Plan | Price | What's included |
 |---|---|---|
-| Free | £0 | Vetter's library tests on 1 job, a few candidates |
-| Pay per job | £49–99 per job | AI-written tests for the job, unlimited candidates for 30 days |
-| Monthly | £99–299/month | Several jobs, unlimited AI tests, results tracking and CSV export |
-| Enterprise | Custom | Many jobs, custom tests written by the Vetter team, support |
+| Free | £0 | 1 active job, up to 25 candidates, library tests |
+| Per job | £79 per job | 1 job for 30 days, unlimited candidates, AI-written tests and simulations, AI marking |
+| Growth | £149/month, or £1,490/year | Up to 5 active jobs, 3 seats, CSV export, search the candidate pool |
+| Scale | £349/month, or £3,490/year | Unlimited jobs and seats, your branding on tests, priority support |
+| Enterprise | Custom | Tests written by the Vetter team, SSO, ATS integration, invoicing |
 
-Suggested starting point: first job free, then £79 per job or £149 a month. Adjust once we see how many
-jobs a typical employer posts.
+Annual billing is two months free. Watch how many jobs a typical employer posts: if most post 4 or more, consider
+£199 for Growth; if few free employers reach 25 candidates, lower that limit.
 
 ## Principles
 
