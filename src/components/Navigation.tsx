@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { UserRole } from '../types';
 import { ArrowLeftRight,
-  LogOut, Bell, Briefcase, ChevronDown, ClipboardCheck, House, Building2, Search, Users } from 'lucide-react';
+  LogOut, Bell, Briefcase, ChevronDown, ClipboardCheck, House, Search, Users } from 'lucide-react';
 
 export type AppTab =
   | 'home'
@@ -64,8 +64,8 @@ interface NavigationProps {
   // The signed-in candidate's notifications, newest first
   notifications?: NavNotification[];
   onOpenNotification?: (id: string) => void;
-  // Visitors can switch between the candidate side and the page for businesses
-  visitorSwitch?: boolean;
+  // Signed-out visitors get a plain website header instead of the app's
+  visitor?: { onSignIn: () => void; onJoin: () => void };
   // The search box, rendered in the bar (and full width on phones)
   renderSearch: (mobile: { onClose: () => void } | null) => React.ReactNode;
 }
@@ -91,17 +91,13 @@ export const Navigation: React.FC<NavigationProps> = ({
   userTitle,
   notifications,
   onOpenNotification,
-  visitorSwitch,
+  visitor,
   renderSearch,
 }) => {
   const [isBellOpen, setIsBellOpen] = useState(false);
   const bellRef = useRef<HTMLDivElement>(null);
   const unread = notifications?.filter((n) => !n.read).length ?? 0;
-  const roleTabs = NAV_TABS[activeRole === 'candidate' ? 'candidate' : 'recruiter'];
-  const onBusinessPage = currentTab === 'for-business';
-  // The business page has no tabs of its own on wider screens; on phones the switch lives in the bottom bar
-  const tabs = visitorSwitch && onBusinessPage ? [] : roleTabs;
-  const bottomTabs = visitorSwitch ? [...roleTabs, { id: 'for-business' as AppTab, label: 'Business', icon: Building2 }] : roleTabs;
+  const tabs = NAV_TABS[activeRole === 'candidate' ? 'candidate' : 'recruiter'];
   const [isMeOpen, setIsMeOpen] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const meRef = useRef<HTMLDivElement>(null);
@@ -115,7 +111,9 @@ export const Navigation: React.FC<NavigationProps> = ({
     return () => document.removeEventListener('mousedown', onClick);
   }, []);
 
-  const tabButton = (tab: (typeof bottomTabs)[number], placement: 'top' | 'bottom') => {
+  if (visitor) return <VisitorHeader currentTab={currentTab} onTabChange={onTabChange} {...visitor} />;
+
+  const tabButton = (tab: (typeof tabs)[number], placement: 'top' | 'bottom') => {
     const Icon = tab.icon;
     const isActive = currentTab === tab.id;
     return (
@@ -144,7 +142,7 @@ export const Navigation: React.FC<NavigationProps> = ({
     <>
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-3">
-          <Wordmark onClick={() => onTabChange(onBusinessPage ? 'for-business' : roleTabs[0].id)} />
+          <Wordmark onClick={() => onTabChange(tabs[0].id)} />
 
           {/* Search: inline from tablet up, an icon on phones */}
           <div className="hidden md:block w-72 lg:w-80">{renderSearch(null)}</div>
@@ -206,28 +204,8 @@ export const Navigation: React.FC<NavigationProps> = ({
             </div>
           )}
 
-          {/* Visitors: who Vetter is for, then sign in or join */}
-          {visitorSwitch && (
-            <div role="radiogroup" aria-label="Vetter for" className={`hidden md:inline-flex items-center p-0.5 rounded-full bg-slate-100 text-xs font-semibold ${onBusinessPage ? 'ml-auto' : 'ml-2'}`}>
-              {[
-                { id: 'home' as AppTab, label: 'Candidates', active: !onBusinessPage },
-                { id: 'for-business' as AppTab, label: 'Business', active: onBusinessPage },
-              ].map((o) => (
-                <button
-                  key={o.id}
-                  role="radio"
-                  aria-checked={o.active}
-                  onClick={() => !o.active && onTabChange(o.id)}
-                  className={`px-3 py-1.5 rounded-full transition-colors ${o.active ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
-                >
-                  {o.label}
-                </button>
-              ))}
-            </div>
-          )}
-
           {accounts && !accounts.signedIn && (
-            <div className={`flex items-center gap-2 pl-2 md:border-l md:border-slate-200 md:ml-1 ${visitorSwitch && onBusinessPage ? 'ml-auto md:ml-1' : ''}`}>
+            <div className="flex items-center gap-2 pl-2 md:border-l md:border-slate-200 md:ml-1">
               <button onClick={accounts.onSignIn} className="px-3 py-1.5 text-sm font-semibold text-slate-700 hover:text-slate-900">
                 Sign in
               </button>
@@ -317,8 +295,66 @@ export const Navigation: React.FC<NavigationProps> = ({
 
       {/* Phones: tabs along the bottom, like the LinkedIn app */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 flex bg-white border-t border-slate-200 pb-[env(safe-area-inset-bottom)]">
-        {bottomTabs.map((tab) => tabButton(tab, 'bottom'))}
+        {tabs.map((tab) => tabButton(tab, 'bottom'))}
       </nav>
     </>
+  );
+};
+
+// Signed out, Vetter is a website: the name, what's on it, and signing in or joining
+const VisitorHeader: React.FC<{ currentTab: AppTab; onTabChange: (tab: AppTab) => void; onSignIn: () => void; onJoin: () => void }> = ({
+  currentTab,
+  onTabChange,
+  onSignIn,
+  onJoin,
+}) => {
+  const links: { id: AppTab; label: string }[] = [
+    { id: 'tests', label: 'Tests' },
+    { id: 'jobs', label: 'Jobs' },
+    { id: 'for-business', label: 'For business' },
+  ];
+  return (
+    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-2">
+        <button onClick={() => onTabChange('home')} aria-label="Vetter home" className="flex items-center gap-2 mr-4">
+          <span className="w-8 h-8 rounded-md tier-solid tier-solid-silver flex items-center justify-center text-sm font-extrabold">V</span>
+          <span className="text-lg font-extrabold tracking-tight text-slate-900">Vetter</span>
+        </button>
+        <nav className="hidden md:flex items-center gap-1">
+          {links.map((l) => (
+            <button
+              key={l.id}
+              onClick={() => onTabChange(l.id)}
+              aria-current={currentTab === l.id ? 'page' : undefined}
+              className={`px-3 py-1.5 rounded-full text-sm font-semibold transition-colors ${
+                currentTab === l.id ? 'text-slate-900 bg-slate-100' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              {l.label}
+            </button>
+          ))}
+        </nav>
+        <div className="ml-auto flex items-center gap-1 sm:gap-2">
+          <button onClick={onSignIn} className="px-3 py-1.5 text-sm font-semibold text-slate-700 hover:text-slate-900">
+            Sign in
+          </button>
+          <button onClick={onJoin} className="px-4 py-1.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-full">
+            Join free
+          </button>
+        </div>
+      </div>
+      {/* Phones: the same links in a row under the bar */}
+      <nav className="md:hidden flex items-center gap-1 px-4 pb-2 -mt-1 overflow-x-auto">
+        {links.map((l) => (
+          <button
+            key={l.id}
+            onClick={() => onTabChange(l.id)}
+            className={`shrink-0 px-3 py-1 rounded-full text-xs font-semibold ${currentTab === l.id ? 'text-slate-900 bg-slate-100' : 'text-slate-600'}`}
+          >
+            {l.label}
+          </button>
+        ))}
+      </nav>
+    </header>
   );
 };

@@ -35,6 +35,7 @@ import { AuthDialog, AuthMode } from './components/AuthDialog';
 import { AccountGate, CompanyReview, TeamRequests } from './components/AccountScreens';
 import { Pulse } from './components/Pulse';
 import { BusinessLanding } from './components/BusinessLanding';
+import { VisitorHome } from './components/VisitorHome';
 import { isJobsIndexPath, jobIdFromPath, jobPageTitle, jobPath } from './lib/jobSeo';
 
 const CANDIDATE_SECTIONS: Partial<Record<AppTab, CandidateSection>> = {
@@ -688,8 +689,7 @@ export default function App() {
                 email: user?.email ?? undefined,
                 canSwitchViews: account?.role === 'admin',
                 onSignIn: () => setAuthDialog({ mode: 'sign-in' }),
-                // From the business page, sign-up starts as a company
-                onJoin: () => setAuthDialog({ mode: 'sign-up', role: currentTab === 'for-business' ? 'recruiter' : undefined }),
+                onJoin: () => setAuthDialog({ mode: 'sign-up' }),
                 onSignOut: () => {
                   signOut();
                   goToTab('home');
@@ -709,7 +709,15 @@ export default function App() {
             : recruiter.title
         }
         notifications={activeRole === 'candidate' && !isVisitor ? candidateNotifications : undefined}
-        visitorSwitch={isVisitor}
+        visitor={
+          isVisitor
+            ? {
+                onSignIn: () => setAuthDialog({ mode: 'sign-in' }),
+                // From the business page, sign-up starts as a company
+                onJoin: () => setAuthDialog({ mode: 'sign-up', role: currentTab === 'for-business' ? 'recruiter' : undefined }),
+              }
+            : undefined
+        }
         onOpenNotification={openNotification}
         renderSearch={(mobile) => (
           <GlobalSearch
@@ -726,7 +734,8 @@ export default function App() {
         )}
       />
 
-      <div className="flex-1 min-w-0 flex flex-col pb-14 md:pb-0">
+      {/* Room for the phone tab bar, which visitors don't have */}
+      <div className={`flex-1 min-w-0 flex flex-col ${isVisitor ? '' : 'pb-14 md:pb-0'}`}>
         <main className="flex-1 pb-16 bg-white">
           {accountGate ?? (
           <>
@@ -784,7 +793,20 @@ export default function App() {
 
           {/* Home in three columns: what companies sent you, Discover in the widest middle, and live leaderboards with
               people and companies to follow on the right. Stacked on smaller screens, with the right column above the feed */}
-          {!detailPage && activeRole === 'candidate' && currentTab === 'home' && (
+          {!detailPage && isVisitor && currentTab === 'home' && (
+            <VisitorHome
+              tests={tests}
+              jobs={jobs}
+              onOpenTest={openTestPage}
+              onOpenJob={openJobPage}
+              onGoTo={(tab) => {
+                goToTab(tab);
+                window.scrollTo(0, 0);
+              }}
+              onJoin={() => setAuthDialog({ mode: 'sign-up' })}
+            />
+          )}
+          {!detailPage && !isVisitor && activeRole === 'candidate' && currentTab === 'home' && (
             <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 grid grid-cols-1 lg:grid-cols-[minmax(0,300px)_minmax(0,1fr)_minmax(0,280px)] gap-6 items-start">
               <CandidateHome
                 candidate={candidate}
