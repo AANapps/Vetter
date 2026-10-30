@@ -130,15 +130,15 @@ const CellMark: React.FC<{ value: Cell }> = ({ value }) =>
     <span className="text-slate-700">{value}</span>
   );
 
-// Pricing for companies, shown to visitors: plan cards, a monthly/annual switch, a full comparison and common questions
-export const PricingPage: React.FC<{ onChoosePlan: (planId: string) => void }> = ({ onChoosePlan }) => {
+// Pricing for companies, on the business landing page: plan cards, a monthly/annual switch, a full comparison and common questions
+export const PricingSection: React.FC<{ onChoosePlan: (planId: string) => void }> = ({ onChoosePlan }) => {
   const [billing, setBilling] = useState<Billing>('annual');
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
+    <section id="pricing" className="scroll-mt-20 max-w-6xl mx-auto px-4 sm:px-6 py-16">
       <header className="text-center max-w-2xl mx-auto">
         <p className="text-xs font-semibold uppercase tracking-wider text-indigo-600">Pricing</p>
-        <h1 className="mt-2 text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">Hire on skills, not CVs</h1>
+        <h2 className="mt-2 text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">Simple pricing, first job free</h2>
         <p className="mt-3 text-slate-600">
           Pay per job when you hire now and then, or monthly when you hire all the time. Free for candidates, always.
         </p>
@@ -281,6 +281,6 @@ export const PricingPage: React.FC<{ onChoosePlan: (planId: string) => void }> =
           Create a company account
         </button>
       </section>
-    </div>
+    </section>
   );
 };

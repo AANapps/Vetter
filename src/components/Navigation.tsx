@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { UserRole } from '../types';
 import { ArrowLeftRight,
-  LogOut, Bell, Briefcase, ChevronDown, ClipboardCheck, House, Search, Tag, Users } from 'lucide-react';
+  LogOut, Bell, Briefcase, ChevronDown, ClipboardCheck, House, Building2, Search, Users } from 'lucide-react';
 
 export type AppTab =
   | 'home'
@@ -12,7 +12,7 @@ export type AppTab =
   | 'business-jobs'
   | 'business-tests'
   | 'business-candidates'
-  | 'pricing';
+  | 'for-business';
 
 type TabIcon = React.ComponentType<{ className?: string }>;
 
@@ -64,8 +64,8 @@ interface NavigationProps {
   // The signed-in candidate's notifications, newest first
   notifications?: NavNotification[];
   onOpenNotification?: (id: string) => void;
-  // Visitors also get a Pricing tab
-  showPricing?: boolean;
+  // Visitors can switch between the candidate side and the page for businesses
+  visitorSwitch?: boolean;
   // The search box, rendered in the bar (and full width on phones)
   renderSearch: (mobile: { onClose: () => void } | null) => React.ReactNode;
 }
@@ -91,14 +91,17 @@ export const Navigation: React.FC<NavigationProps> = ({
   userTitle,
   notifications,
   onOpenNotification,
-  showPricing,
+  visitorSwitch,
   renderSearch,
 }) => {
   const [isBellOpen, setIsBellOpen] = useState(false);
   const bellRef = useRef<HTMLDivElement>(null);
   const unread = notifications?.filter((n) => !n.read).length ?? 0;
   const roleTabs = NAV_TABS[activeRole === 'candidate' ? 'candidate' : 'recruiter'];
-  const tabs = showPricing ? [...roleTabs, { id: 'pricing' as AppTab, label: 'Pricing', icon: Tag }] : roleTabs;
+  const onBusinessPage = currentTab === 'for-business';
+  // The business page has no tabs of its own on wider screens; on phones the switch lives in the bottom bar
+  const tabs = visitorSwitch && onBusinessPage ? [] : roleTabs;
+  const bottomTabs = visitorSwitch ? [...roleTabs, { id: 'for-business' as AppTab, label: 'Business', icon: Building2 }] : roleTabs;
   const [isMeOpen, setIsMeOpen] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const meRef = useRef<HTMLDivElement>(null);
@@ -112,7 +115,7 @@ export const Navigation: React.FC<NavigationProps> = ({
     return () => document.removeEventListener('mousedown', onClick);
   }, []);
 
-  const tabButton = (tab: (typeof tabs)[number], placement: 'top' | 'bottom') => {
+  const tabButton = (tab: (typeof bottomTabs)[number], placement: 'top' | 'bottom') => {
     const Icon = tab.icon;
     const isActive = currentTab === tab.id;
     return (
@@ -141,7 +144,7 @@ export const Navigation: React.FC<NavigationProps> = ({
     <>
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-3">
-          <Wordmark onClick={() => onTabChange(tabs[0].id)} />
+          <Wordmark onClick={() => onTabChange(onBusinessPage ? 'for-business' : roleTabs[0].id)} />
 
           {/* Search: inline from tablet up, an icon on phones */}
           <div className="hidden md:block w-72 lg:w-80">{renderSearch(null)}</div>
@@ -203,9 +206,28 @@ export const Navigation: React.FC<NavigationProps> = ({
             </div>
           )}
 
-          {/* Visitors: sign in or join */}
+          {/* Visitors: who Vetter is for, then sign in or join */}
+          {visitorSwitch && (
+            <div role="radiogroup" aria-label="Vetter for" className={`hidden md:inline-flex items-center p-0.5 rounded-full bg-slate-100 text-xs font-semibold ${onBusinessPage ? 'ml-auto' : 'ml-2'}`}>
+              {[
+                { id: 'home' as AppTab, label: 'Candidates', active: !onBusinessPage },
+                { id: 'for-business' as AppTab, label: 'Business', active: onBusinessPage },
+              ].map((o) => (
+                <button
+                  key={o.id}
+                  role="radio"
+                  aria-checked={o.active}
+                  onClick={() => !o.active && onTabChange(o.id)}
+                  className={`px-3 py-1.5 rounded-full transition-colors ${o.active ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          )}
+
           {accounts && !accounts.signedIn && (
-            <div className="flex items-center gap-2 pl-2 md:border-l md:border-slate-200 md:ml-1">
+            <div className={`flex items-center gap-2 pl-2 md:border-l md:border-slate-200 md:ml-1 ${visitorSwitch && onBusinessPage ? 'ml-auto md:ml-1' : ''}`}>
               <button onClick={accounts.onSignIn} className="px-3 py-1.5 text-sm font-semibold text-slate-700 hover:text-slate-900">
                 Sign in
               </button>
@@ -295,7 +317,7 @@ export const Navigation: React.FC<NavigationProps> = ({
 
       {/* Phones: tabs along the bottom, like the LinkedIn app */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 flex bg-white border-t border-slate-200 pb-[env(safe-area-inset-bottom)]">
-        {tabs.map((tab) => tabButton(tab, 'bottom'))}
+        {bottomTabs.map((tab) => tabButton(tab, 'bottom'))}
       </nav>
     </>
   );

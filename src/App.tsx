@@ -34,7 +34,7 @@ import { Viewer, apply, syncJobs, syncNotifications, syncSocial, syncTests, useC
 import { AuthDialog, AuthMode } from './components/AuthDialog';
 import { AccountGate, CompanyReview, TeamRequests } from './components/AccountScreens';
 import { Pulse } from './components/Pulse';
-import { PricingPage } from './components/PricingPage';
+import { BusinessLanding } from './components/BusinessLanding';
 import { isJobsIndexPath, jobIdFromPath, jobPageTitle, jobPath } from './lib/jobSeo';
 
 const CANDIDATE_SECTIONS: Partial<Record<AppTab, CandidateSection>> = {
@@ -104,8 +104,8 @@ const refFromHash = () => new URLSearchParams(window.location.hash.split('?')[1]
 
 // Home is the tests companies sent you; a company starts on its jobs
 const initialTab = (): AppTab =>
-  window.location.hash === '#/pricing'
-    ? 'pricing'
+  window.location.hash === '#/business' || window.location.hash === '#/pricing'
+    ? 'for-business'
     : jobIdFromUrl() || isJobsIndexPath(window.location.pathname) ? 'jobs' : idFromHash('tests') ? 'tests' : 'home';
 
 export default function App() {
@@ -305,8 +305,8 @@ export default function App() {
     if (!firebaseEnabled) return;
     const role: UserRole = !account ? 'candidate' : account.role === 'recruiter' ? 'recruiter' : account.role === 'admin' ? 'admin' : 'candidate';
     if (role !== activeRole) handleRoleChange(role);
-    // Pricing is for visitors: someone who signs in there goes to their own side
-    else if (user && currentTab === 'pricing') goToTab(NAV_TABS[role === 'candidate' ? 'candidate' : 'recruiter'][0].id);
+    // The business page is for visitors: someone who signs in there goes to their own side
+    else if (user && currentTab === 'for-business') goToTab(NAV_TABS[role === 'candidate' ? 'candidate' : 'recruiter'][0].id);
   }, [account?.role, user?.uid]);
 
   // A candidate account's profile and progress come from their account, so they follow them to any device. Until
@@ -419,7 +419,7 @@ export default function App() {
 
   const goToTab = (tab: AppTab) => {
     if (window.location.hash || window.location.pathname !== '/') navigateTo('/' + window.location.search);
-    if (tab === 'pricing') history.replaceState(null, '', '/#/pricing');
+    if (tab === 'for-business') history.replaceState(null, '', '/#/business');
     if (tab === 'business-jobs') setSelectedJobId(null);
     setCurrentTab(tab);
   };
@@ -688,7 +688,8 @@ export default function App() {
                 email: user?.email ?? undefined,
                 canSwitchViews: account?.role === 'admin',
                 onSignIn: () => setAuthDialog({ mode: 'sign-in' }),
-                onJoin: () => setAuthDialog({ mode: 'sign-up' }),
+                // From the business page, sign-up starts as a company
+                onJoin: () => setAuthDialog({ mode: 'sign-up', role: currentTab === 'for-business' ? 'recruiter' : undefined }),
                 onSignOut: () => {
                   signOut();
                   goToTab('home');
@@ -708,7 +709,7 @@ export default function App() {
             : recruiter.title
         }
         notifications={activeRole === 'candidate' && !isVisitor ? candidateNotifications : undefined}
-        showPricing={isVisitor}
+        visitorSwitch={isVisitor}
         onOpenNotification={openNotification}
         renderSearch={(mobile) => (
           <GlobalSearch
@@ -731,20 +732,7 @@ export default function App() {
           <>
           {activeRole === 'recruiter' && company && account && company.ownerUid === account.uid && companyBusiness && <TeamRequests company={company} />}
           {activeRole === 'admin' && firebaseEnabled && account?.role === 'admin' && <CompanyReview />}
-          {currentTab === 'pricing' && (
-            <PricingPage
-              onChoosePlan={(plan) =>
-                setAuthDialog({
-                  mode: 'sign-up',
-                  role: 'recruiter',
-                  reason:
-                    plan === 'enterprise'
-                      ? 'Create a company account and we’ll be in touch about Enterprise.'
-                      : 'Create a company account to get started. Your first job is free.',
-                })
-              }
-            />
-          )}
+          {currentTab === 'for-business' && <BusinessLanding onJoin={(reason) => setAuthDialog({ mode: 'sign-up', role: 'recruiter', reason })} />}
           {testPageTest && (
             <TestPage
               test={testPageTest}
