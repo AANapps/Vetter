@@ -5,7 +5,7 @@
  */
 
 export type CourseFormat = 'Bootcamp' | 'Course';
-export type CourseAudience = 'job-seekers' | 'employees';
+export type CourseAudience = 'career-switchers' | 'employees';
 export type LessonKind = 'video' | 'reading' | 'exercise' | 'project';
 
 export interface CourseLesson {
@@ -60,7 +60,7 @@ export const COURSES: Course[] = [
     level: 'Beginner',
     weeks: 12,
     hoursPerWeek: 10,
-    audiences: ['job-seekers', 'employees'],
+    audiences: ['career-switchers', 'employees'],
     skills: ['Excel', 'SQL', 'Data cleaning', 'Dashboards', 'Statistics', 'Storytelling with data'],
     outcomes: [
       'Clean and reshape a messy dataset without breaking it',
@@ -130,7 +130,7 @@ export const COURSES: Course[] = [
     level: 'Beginner',
     weeks: 4,
     hoursPerWeek: 4,
-    audiences: ['job-seekers', 'employees'],
+    audiences: ['career-switchers', 'employees'],
     skills: ['SQL', 'Joins', 'Aggregation', 'Window functions'],
     outcomes: ['Query any table you are given access to', 'Combine tables with the right join', 'Rank, total and compare with window functions'],
     forWho: ['Anyone applying for analyst roles', 'Employees tired of waiting for someone else to pull the numbers'],
@@ -154,7 +154,7 @@ export const COURSES: Course[] = [
     level: 'Beginner',
     weeks: 3,
     hoursPerWeek: 3,
-    audiences: ['job-seekers', 'employees'],
+    audiences: ['career-switchers', 'employees'],
     skills: ['Excel', 'Lookups', 'Pivot tables', 'Reporting'],
     outcomes: ['Build lookups that do not break', 'Summarise thousands of rows in a pivot table', 'Make a monthly report that refreshes itself'],
     forWho: ['Job seekers whose target roles list Excel', 'Employees who want to stop doing reports by hand'],
@@ -177,7 +177,7 @@ export const COURSES: Course[] = [
     level: 'Beginner',
     weeks: 8,
     hoursPerWeek: 8,
-    audiences: ['job-seekers', 'employees'],
+    audiences: ['career-switchers', 'employees'],
     skills: ['Test case design', 'Bug reports', 'API testing', 'SQL', 'Regression testing'],
     outcomes: ['Write test cases that find bugs, not just pass', 'Test a REST API for auth, errors and pagination', 'Write bug reports developers can act on', 'Validate data with SQL'],
     forWho: ['Career changers looking for a way into tech', 'Support staff moving into QA'],
@@ -203,7 +203,7 @@ export const COURSES: Course[] = [
     level: 'Intermediate',
     weeks: 6,
     hoursPerWeek: 6,
-    audiences: ['job-seekers', 'employees'],
+    audiences: ['career-switchers', 'employees'],
     skills: ['React', 'State management', 'TypeScript', 'Accessibility', 'Performance'],
     outcomes: ['Split a UI into components that stay simple', 'Choose where state should live', 'Find and fix slow renders', 'Ship pages that work with a keyboard and screen reader'],
     forWho: ['Junior developers going for their next role', 'Backend developers picking up frontend work'],
@@ -227,7 +227,7 @@ export const COURSES: Course[] = [
     level: 'Intermediate',
     weeks: 6,
     hoursPerWeek: 6,
-    audiences: ['job-seekers', 'employees'],
+    audiences: ['career-switchers', 'employees'],
     skills: ['REST', 'Database design', 'Retries and backoff', 'Idempotency'],
     outcomes: ['Design a clean REST API', 'Model data for a social app', 'Make calls safe to retry'],
     forWho: ['Developers moving into backend roles', 'Engineers preparing for system design interviews'],
@@ -250,7 +250,7 @@ export const COURSES: Course[] = [
     level: 'Beginner',
     weeks: 5,
     hoursPerWeek: 4,
-    audiences: ['job-seekers', 'employees'],
+    audiences: ['career-switchers', 'employees'],
     skills: ['Campaign planning', 'SEO', 'Paid social', 'Email', 'Marketing metrics'],
     outcomes: ['Plan a campaign from goal to channel', 'Read CAC, CTR and conversion like a marketer', 'Decide where the next pound of budget goes'],
     forWho: ['Graduates aiming for marketing roles', 'Small business staff who now run the marketing'],
@@ -272,7 +272,7 @@ export const COURSES: Course[] = [
     level: 'Beginner',
     weeks: 4,
     hoursPerWeek: 4,
-    audiences: ['job-seekers', 'employees'],
+    audiences: ['career-switchers', 'employees'],
     skills: ['Prospecting', 'Discovery calls', 'Pipeline management', 'Negotiation'],
     outcomes: ['Run a discovery call that finds the real problem', 'Keep a pipeline clean and forecastable', 'Handle common objections'],
     forWho: ['People starting out as SDRs or account executives', 'Founders and employees who now have to sell'],
@@ -294,7 +294,7 @@ export const COURSES: Course[] = [
     level: 'Beginner',
     weeks: 4,
     hoursPerWeek: 3,
-    audiences: ['employees', 'job-seekers'],
+    audiences: ['employees', 'career-switchers'],
     skills: ['Scoping', 'Planning', 'Risk management', 'Stakeholder updates', 'Agile'],
     outcomes: ['Write a scope people agree to', 'Build a plan with a critical path', 'Spot risks early and say so clearly'],
     forWho: ['Employees who have been handed a project', 'Job seekers moving into coordinator or PM roles'],
@@ -316,7 +316,7 @@ export const COURSES: Course[] = [
     level: 'Beginner',
     weeks: 4,
     hoursPerWeek: 3,
-    audiences: ['job-seekers', 'employees'],
+    audiences: ['career-switchers', 'employees'],
     skills: ['Financial statements', 'Ratios', 'Cash flow', 'Budgeting'],
     outcomes: ['Read all three statements and link them', 'Work out margins and key ratios', 'Explain why a profitable company can run out of cash'],
     forWho: ['Graduates applying for finance roles', 'Managers who now own a budget'],
@@ -338,7 +338,7 @@ export const COURSES: Course[] = [
     level: 'Intermediate',
     weeks: 3,
     hoursPerWeek: 4,
-    audiences: ['job-seekers'],
+    audiences: ['career-switchers'],
     skills: ['Structuring', 'Market sizing', 'Chart reading', 'Recommendations'],
     outcomes: ['Break a problem into parts that do not overlap', 'Size a market in your head', 'Finish with a clear recommendation'],
     forWho: ['Students and graduates applying to consulting and strategy roles'],
@@ -354,6 +354,7 @@ export const COURSES: Course[] = [
 
 export const coursePath = (course: Course) => `/learn/${course.id}/`;
 export const isLearnIndexPath = (pathname: string) => /^\/learn\/?$/.test(pathname);
+export const isUpskillIndexPath = (pathname: string) => /^\/upskill\/?$/.test(pathname);
 export function courseIdFromPath(pathname: string): string | null {
   const match = pathname.match(/^\/learn\/([a-z0-9-]+)\/?$/);
   return match && COURSES.some((c) => c.id === match[1]) ? match[1] : null;

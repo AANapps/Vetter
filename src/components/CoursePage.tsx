@@ -28,7 +28,7 @@ const LESSON_ICONS: Record<LessonKind, React.ComponentType<{ className?: string 
   project: Hammer,
 };
 
-const AUDIENCE_LABELS = { 'job-seekers': 'Job seekers', employees: 'Employees' };
+const AUDIENCE_LABELS = { 'career-switchers': 'Career switchers', employees: 'Employees' };
 
 const minutesLabel = (m: number) => (m >= 60 ? `${Math.round((m / 60) * 10) / 10} hr` : `${m} min`);
 

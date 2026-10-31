@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { UserRole } from '../types';
 import { ArrowLeftRight,
-  LogOut, Bell, Briefcase, ChevronDown, ClipboardCheck, GraduationCap, House, Search, Users } from 'lucide-react';
+  LogOut, Bell, Briefcase, ChevronDown, ClipboardCheck, House, Repeat, TrendingUp, Search, Users } from 'lucide-react';
 
 export type AppTab =
   | 'home'
@@ -10,6 +10,7 @@ export type AppTab =
   | 'tests'
   | 'companies'
   | 'learn'
+  | 'upskill'
   | 'business-jobs'
   | 'business-tests'
   | 'business-candidates'
@@ -23,7 +24,8 @@ export const NAV_TABS: Record<'candidate' | 'recruiter', { id: AppTab; label: st
     { id: 'home', label: 'Home', icon: House },
     { id: 'tests', label: 'Tests', icon: ClipboardCheck },
     { id: 'jobs', label: 'Jobs', icon: Briefcase },
-    { id: 'learn', label: 'Learn', icon: GraduationCap },
+    { id: 'learn', label: 'Career switch', icon: Repeat },
+    { id: 'upskill', label: 'Upskill', icon: TrendingUp },
   ],
   recruiter: [
     { id: 'business-jobs', label: 'Jobs', icon: Briefcase },
@@ -313,7 +315,8 @@ const VisitorHeader: React.FC<{ currentTab: AppTab; onTabChange: (tab: AppTab) =
   const links: { id: AppTab; label: string }[] = [
     { id: 'tests', label: 'Tests' },
     { id: 'jobs', label: 'Jobs' },
-    { id: 'learn', label: 'Learn' },
+    { id: 'learn', label: 'Career switch' },
+    { id: 'upskill', label: 'Upskill' },
     { id: 'for-business', label: 'For business' },
   ];
   return (

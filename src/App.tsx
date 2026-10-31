@@ -39,7 +39,7 @@ import { VisitorHome } from './components/VisitorHome';
 import { isJobsIndexPath, jobIdFromPath, jobPageTitle, jobPath } from './lib/jobSeo';
 import { LearnPage } from './components/LearnPage';
 import { CoursePage } from './components/CoursePage';
-import { COURSES, courseIdFromPath, coursePath, isLearnIndexPath } from './data/courses';
+import { COURSES, courseIdFromPath, coursePath, isLearnIndexPath, isUpskillIndexPath } from './data/courses';
 import { useCourseProgress } from './lib/courseProgress';
 
 const CANDIDATE_SECTIONS: Partial<Record<AppTab, CandidateSection>> = {
@@ -115,6 +115,8 @@ const initialTab = (): AppTab =>
     ? 'jobs'
     : courseIdFromPath(window.location.pathname) || isLearnIndexPath(window.location.pathname)
     ? 'learn'
+    : isUpskillIndexPath(window.location.pathname)
+    ? 'upskill'
     : idFromHash('tests')
     ? 'tests'
     : 'home';
@@ -434,7 +436,7 @@ export default function App() {
   };
 
   const goToTab = (tab: AppTab) => {
-    if (tab === 'learn') navigateTo('/learn/');
+    if (tab === 'learn' || tab === 'upskill') navigateTo(`/${tab}/`);
     else if (window.location.hash || window.location.pathname !== '/') navigateTo('/' + window.location.search);
     if (tab === 'for-business') history.replaceState(null, '', '/#/business');
     if (tab === 'business-jobs') setSelectedJobId(null);
@@ -447,8 +449,9 @@ export default function App() {
     window.scrollTo(0, 0);
   };
 
+  // A course opened from Upskill keeps that tab, so back returns there
   const openCoursePage = (courseId: string) => {
-    setCurrentTab('learn');
+    setCurrentTab((tab) => (tab === 'upskill' ? 'upskill' : 'learn'));
     const course = COURSES.find((c) => c.id === courseId);
     navigateTo(course ? coursePath(course) : '/learn/');
     window.scrollTo(0, 0);
@@ -769,7 +772,7 @@ export default function App() {
           <>
           {activeRole === 'recruiter' && company && account && company.ownerUid === account.uid && companyBusiness && <TeamRequests company={company} />}
           {activeRole === 'admin' && firebaseEnabled && account?.role === 'admin' && <CompanyReview />}
-          {!testPageTest && currentTab === 'learn' && coursePage && (
+          {!testPageTest && (currentTab === 'learn' || currentTab === 'upskill') && coursePage && (
             <CoursePage
               course={coursePage}
               tests={tests}
@@ -782,11 +785,14 @@ export default function App() {
               onOpenJob={openJobPage}
               onOpenCourse={openCoursePage}
               onTrainTeam={trainTeam}
-              onBack={() => goToTab('learn')}
+              onBack={() => goToTab(currentTab)}
             />
           )}
-          {!testPageTest && currentTab === 'learn' && !coursePage && (
-            <LearnPage progress={courseProgress.progress} onOpenCourse={openCoursePage} onTrainTeam={trainTeam} />
+          {!testPageTest && (currentTab === 'learn' || currentTab === 'upskill') && !coursePage && (
+            <LearnPage
+              key={currentTab}
+              track={currentTab === 'upskill' ? 'upskill' : 'switch'}
+              progress={courseProgress.progress} onOpenCourse={openCoursePage} onTrainTeam={trainTeam} />
           )}
           {currentTab === 'for-business' && <BusinessLanding onJoin={(reason) => setAuthDialog({ mode: 'sign-up', role: 'recruiter', reason })} />}
           {testPageTest && (
