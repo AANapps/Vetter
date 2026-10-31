@@ -37,6 +37,10 @@ import { Pulse } from './components/Pulse';
 import { BusinessLanding } from './components/BusinessLanding';
 import { VisitorHome } from './components/VisitorHome';
 import { isJobsIndexPath, jobIdFromPath, jobPageTitle, jobPath } from './lib/jobSeo';
+import { LearnPage } from './components/LearnPage';
+import { CoursePage } from './components/CoursePage';
+import { COURSES, courseIdFromPath, coursePath, isLearnIndexPath } from './data/courses';
+import { useCourseProgress } from './lib/courseProgress';
 
 const CANDIDATE_SECTIONS: Partial<Record<AppTab, CandidateSection>> = {
   profile: 'profile',
@@ -107,7 +111,13 @@ const refFromHash = () => new URLSearchParams(window.location.hash.split('?')[1]
 const initialTab = (): AppTab =>
   window.location.hash === '#/business' || window.location.hash === '#/pricing'
     ? 'for-business'
-    : jobIdFromUrl() || isJobsIndexPath(window.location.pathname) ? 'jobs' : idFromHash('tests') ? 'tests' : 'home';
+    : jobIdFromUrl() || isJobsIndexPath(window.location.pathname)
+    ? 'jobs'
+    : courseIdFromPath(window.location.pathname) || isLearnIndexPath(window.location.pathname)
+    ? 'learn'
+    : idFromHash('tests')
+    ? 'tests'
+    : 'home';
 
 export default function App() {
   const [activeRole, setActiveRole] = useState<UserRole>('candidate');
@@ -231,11 +241,15 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [tests]);
 
+  const courseProgress = useCourseProgress();
   const [testPageId, setTestPageId] = useState<string | null>(() => idFromHash('tests'));
   const [jobPageId, setJobPageId] = useState<string | null>(jobIdFromUrl);
+  // Each course has its own page at /learn/<id>/
+  const [coursePageId, setCoursePageId] = useState<string | null>(() => courseIdFromPath(window.location.pathname));
   const syncPagesFromUrl = () => {
     setTestPageId(idFromHash('tests'));
     setJobPageId(jobIdFromUrl());
+    setCoursePageId(courseIdFromPath(window.location.pathname));
   };
   const navigateTo = (url: string) => {
     history.pushState(null, '', url);
@@ -253,9 +267,10 @@ export default function App() {
   // A job's page is titled after the job, and an old #/jobs/<id> link moves to the job's real address
   useEffect(() => {
     const job = jobPageId ? jobs.find((j) => j.id === jobPageId) : undefined;
-    document.title = job ? jobPageTitle(job) : SITE_TITLE;
+    const course = COURSES.find((c) => c.id === coursePageId);
+    document.title = job ? jobPageTitle(job) : course ? `${course.title} | Vetter Learn` : SITE_TITLE;
     if (job && /^#\/(jobs|exams)\//.test(window.location.hash)) history.replaceState(null, '', jobPath(job));
-  }, [jobPageId, jobs]);
+  }, [jobPageId, coursePageId, jobs]);
 
   // Following a company's link to a test ties the candidate's results on it back to that company
   useEffect(() => {
@@ -419,7 +434,8 @@ export default function App() {
   };
 
   const goToTab = (tab: AppTab) => {
-    if (window.location.hash || window.location.pathname !== '/') navigateTo('/' + window.location.search);
+    if (tab === 'learn') navigateTo('/learn/');
+    else if (window.location.hash || window.location.pathname !== '/') navigateTo('/' + window.location.search);
     if (tab === 'for-business') history.replaceState(null, '', '/#/business');
     if (tab === 'business-jobs') setSelectedJobId(null);
     setCurrentTab(tab);
@@ -428,6 +444,17 @@ export default function App() {
   const openTestPage = (testId: string) => {
     setCurrentTab(activeRole === 'candidate' ? 'tests' : 'business-tests');
     navigateTo(`/#/tests/${encodeURIComponent(testId)}`);
+    window.scrollTo(0, 0);
+  };
+
+  const openCoursePage = (courseId: string) => {
+    setCurrentTab('learn');
+    const course = COURSES.find((c) => c.id === courseId);
+    navigateTo(course ? coursePath(course) : '/learn/');
+    window.scrollTo(0, 0);
+  };
+  const trainTeam = () => {
+    goToTab('for-business');
     window.scrollTo(0, 0);
   };
 
@@ -650,6 +677,7 @@ export default function App() {
     ? withComputedPercentiles(isCandidateAccount ? [candidate, ...otherCandidates] : otherCandidates)
     : [candidate, ...otherCandidates];
   const testPageTest = testPageId ? tests.find((t) => t.id === testPageId) : undefined;
+  const coursePage = COURSES.find((c) => c.id === coursePageId);
   // A test page replaces the tab's own content
   const detailPage = testPageTest;
   const candidateNotifications = notifications
@@ -741,6 +769,25 @@ export default function App() {
           <>
           {activeRole === 'recruiter' && company && account && company.ownerUid === account.uid && companyBusiness && <TeamRequests company={company} />}
           {activeRole === 'admin' && firebaseEnabled && account?.role === 'admin' && <CompanyReview />}
+          {!testPageTest && currentTab === 'learn' && coursePage && (
+            <CoursePage
+              course={coursePage}
+              tests={tests}
+              jobs={jobs}
+              candidate={activeRole === 'candidate' && !isVisitor ? candidate : undefined}
+              progress={courseProgress.progress}
+              onEnroll={() => requireAccount('Create a free account to start this course and track your progress.', () => courseProgress.enroll(coursePage.id))}
+              onToggleLesson={(key) => courseProgress.toggleLesson(coursePage.id, key)}
+              onOpenTest={openTestPage}
+              onOpenJob={openJobPage}
+              onOpenCourse={openCoursePage}
+              onTrainTeam={trainTeam}
+              onBack={() => goToTab('learn')}
+            />
+          )}
+          {!testPageTest && currentTab === 'learn' && !coursePage && (
+            <LearnPage progress={courseProgress.progress} onOpenCourse={openCoursePage} onTrainTeam={trainTeam} />
+          )}
           {currentTab === 'for-business' && <BusinessLanding onJoin={(reason) => setAuthDialog({ mode: 'sign-up', role: 'recruiter', reason })} />}
           {testPageTest && (
             <TestPage
