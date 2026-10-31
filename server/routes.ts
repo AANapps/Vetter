@@ -1,5 +1,6 @@
 import { generateTest } from './generateTest';
 import { gradeAnswers } from './gradeAnswers';
+import { testChat } from './testChat';
 
 // The AI endpoints, answered by server.ts in production and the Vite dev server in development
 type Env = Record<string, string | undefined>;
@@ -18,6 +19,7 @@ const logged =
 
 export const API_ROUTES: Record<string, Handler> = {
   '/api/generate-test': logged('generate-test', (body, env) => generateTest(body, env.ANTHROPIC_API_KEY, testModel(env))),
+  '/api/test-chat': logged('test-chat', (body, env) => testChat(body, env.ANTHROPIC_API_KEY, testModel(env))),
   // Marking can use its own model; by default the same one
   '/api/grade-answers': logged('grade-answers', (body, env) => gradeAnswers(body, env.ANTHROPIC_API_KEY, env.GRADING_MODEL || testModel(env))),
 };

@@ -39,8 +39,8 @@ export interface GenerationOptions {
   title?: string;
 }
 
-const CATEGORIES = Object.keys(SKILL_IDS) as SkillCategory[];
-const ALL_ROLES = ROLE_GROUPS.flatMap((g) => g.roles);
+export const CATEGORIES = Object.keys(SKILL_IDS) as SkillCategory[];
+export const ALL_ROLES = ROLE_GROUPS.flatMap((g) => g.roles);
 
 // The job written out for the prompt box
 export const jobBrief = (job: JobPosting) =>
@@ -173,12 +173,12 @@ export function assembleFromBank(opts: GenerationOptions, library: AssessmentTes
   };
 }
 
-type RawQuestion = Omit<Partial<Question>, 'tables'> & { tables?: string[]; points?: number; testCases?: { description: string; input: string; expectedOutput: string }[] };
+export type RawQuestion = Omit<Partial<Question>, 'tables'> & { tables?: string[]; points?: number; testCases?: { description: string; input: string; expectedOutput: string }[] };
 
-const uid = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+export const uid = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 
 // One AI-written question made into a real one, or null if it doesn't hold up
-async function checkQuestion(raw: RawQuestion): Promise<Question | null> {
+export async function checkQuestion(raw: RawQuestion): Promise<Question | null> {
   const type = raw.type as QuestionType;
   if (!['choice', 'multi', 'text', 'order', 'match', 'code', 'sql', 'app'].includes(type)) return null;
   const q: Question = {

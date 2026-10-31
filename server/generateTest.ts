@@ -25,9 +25,9 @@ export interface GenerateRequest {
   research?: string;
 }
 
-const MAX_PROMPT = 6000;
+export const MAX_PROMPT = 6000;
 
-const questionSchema = {
+export const questionSchema = {
   type: 'object',
   properties: {
     type: { type: 'string', enum: ['choice', 'multi', 'text', 'order', 'match', 'code', 'sql', 'app'] },
@@ -86,7 +86,7 @@ const responseSchema = {
   additionalProperties: false,
 };
 
-const APP_RULES = `
+export const APP_RULES = `
 - app: a working copy of the software the job uses, in which the candidate does a real task. Write at most 2, and when the
   job names software, make at least one. Base it on the RESEARCH, so someone who uses the product daily recognises it.
   appHtml: ONE self-contained HTML page, under 60KB:
@@ -138,7 +138,7 @@ ${req.library.map((t) => `- ${t.id}: ${t.title} (${t.category}, ${t.difficulty};
 }
 
 // Dollars per million tokens for the model used, to log what each test costs
-const PRICES: Record<string, { input: number; output: number }> = {
+export const PRICES: Record<string, { input: number; output: number }> = {
   'claude-opus-5-5': { input: 4, output: 20 },
   'claude-sonnet-5-5': { input: 2, output: 10 },
   'claude-haiku-5-5': { input: 0.1, output: 0.5 },
@@ -146,7 +146,7 @@ const PRICES: Record<string, { input: number; output: number }> = {
 
 // Researches the software the job uses, for app simulations to copy: plain notes, or empty when no product is named.
 // Web search runs on Anthropic's side; a long search pauses the turn, which is resumed a few times at most
-async function researchSoftware(client: Anthropic, model: string, prompt: string): Promise<string> {
+export async function researchSoftware(client: Anthropic, model: string, prompt: string): Promise<string> {
   const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: 'user', content: `The job or test the company described:\n\n${prompt.slice(0, MAX_PROMPT)}` }];
   for (let turn = 0; turn < 4; turn++) {
     const message = await client.beta.messages
@@ -217,10 +217,15 @@ export async function generateTest(body: unknown, apiKey: string | undefined, mo
     const text = message.content.flatMap((block) => (block.type === 'text' ? [block.text] : [])).join('');
     return { status: 200, json: JSON.parse(text) };
   } catch (err) {
-    if (err instanceof Anthropic.AuthenticationError) return { status: 503, json: { error: 'The Anthropic API key was rejected. Check ANTHROPIC_API_KEY.' } };
-    if (err instanceof Anthropic.RateLimitError) return { status: 429, json: { error: 'Too many requests to Claude right now. Try again in a minute.' } };
-    if (err instanceof Anthropic.APIError) console.error(`[generate-test] ${err.message}`);
-    if (err instanceof Anthropic.APIError) return { status: 502, json: { error: `Claude returned an error (${err.status}).` } };
-    return { status: 502, json: { error: err instanceof Error ? err.message : 'The AI request failed.' } };
+    return apiFailure('generate-test', err);
   }
+}
+
+// A failed call to Claude, as the response the browser gets
+export function apiFailure(name: string, err: unknown): { status: number; json: unknown } {
+  if (err instanceof Anthropic.AuthenticationError) return { status: 503, json: { error: 'The Anthropic API key was rejected. Check ANTHROPIC_API_KEY.' } };
+  if (err instanceof Anthropic.RateLimitError) return { status: 429, json: { error: 'Too many requests to Claude right now. Try again in a minute.' } };
+  if (err instanceof Anthropic.APIError) console.error(`[${name}] ${err.message}`);
+  if (err instanceof Anthropic.APIError) return { status: 502, json: { error: `Claude returned an error (${err.status}).` } };
+  return { status: 502, json: { error: err instanceof Error ? err.message : 'The AI request failed.' } };
 }
