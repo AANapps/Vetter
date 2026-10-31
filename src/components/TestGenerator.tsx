@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AlertCircle, ArrowUp, Check, ChevronDown, Library, Pencil, Sparkles, X } from 'lucide-react';
-import { AssessmentTest, Business, JobPosting, Question, TestDifficulty } from '../types';
+import { AssessmentTest, Business, JobPosting, Question, QuestionType, TestDifficulty } from '../types';
 import { QUESTION_STYLES } from '../lib/questionTypes';
 import { jobBrief } from '../lib/testGeneration';
 import { ChatState, sendChat } from '../lib/testChat';
@@ -29,6 +29,10 @@ const levelFor = (job?: JobPosting): TestDifficulty => {
   return 'Junior';
 };
 
+// The question types a company can pick from, in the order shown: answer styles, then hands-on tasks
+const PICKABLE: QuestionType[] = ['choice', 'multi', 'text', 'order', 'match', 'sheet', 'database', 'app', 'code', 'sql'];
+const PICKABLE_STYLES = PICKABLE.map((type) => QUESTION_STYLES.find((s) => s.type === type)!).filter(Boolean);
+
 const styleLabel = (q: Question) => QUESTION_STYLES.find((s) => s.type === q.type)?.label ?? q.type;
 
 // Build a test by talking to Vetter: describe the job, get a draft, then ask for changes until it's right
@@ -44,12 +48,18 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
   // On phones the chat and the draft share the screen as tabs
   const [pane, setPane] = useState<'chat' | 'draft'>('chat');
   const [flash, setFlash] = useState(false);
+  // The question types Vetter may use; all of them to start, so it picks what suits the job
+  const [styles, setStyles] = useState<QuestionType[]>(PICKABLE);
   const scroller = useRef<HTMLDivElement>(null);
   const box = useRef<HTMLTextAreaElement>(null);
 
-  const ctx = { job: job ? jobBrief(job) : undefined, jobTitle: job?.title, level: levelFor(job), wantExisting: !!job, tests, business };
   const draft = chat.draft;
   const started = chat.messages.some((m) => m.role === 'user');
+  const ctx = { job: job ? jobBrief(job) : undefined, jobTitle: job?.title, level: levelFor(job), wantExisting: !!job, tests, business, styles };
+  // At least one type stays on
+  const toggleStyle = (type: QuestionType) => setStyles((prev) => (prev.includes(type) ? (prev.length > 1 ? prev.filter((t) => t !== type) : prev) : PICKABLE.filter((t) => t === type || prev.includes(t))));
+  // Questions in the draft of a type since turned off
+  const offTypes = [...new Set((draft?.questions ?? []).filter((q) => !styles.includes(q.type)).map((q) => q.type))];
 
   const close = () => {
     if (working) return;
@@ -92,7 +102,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
       ? ['Write a first draft', 'Focus on the hands-on tools they use', 'Keep it under 20 minutes']
       : ['A junior accounts assistant using Excel and Xero', 'A customer support agent in Zendesk', 'A junior data analyst who writes SQL']
     : draft
-    ? ['Make it harder', 'Add a hands-on task in the software', 'Make it shorter']
+    ? [...(offTypes.length ? ['Use only the question types I picked'] : []), 'Make it harder', 'Add a hands-on task in the software', 'Make it shorter']
     : [];
 
   const addCount = chosen.length + (draft && keepNew ? 1 : 0);
@@ -118,6 +128,35 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        <fieldset className="px-5 py-2 border-b border-slate-200 flex items-center sm:items-start gap-2 min-w-0">
+          <legend className="sr-only">Question types Vetter may use</legend>
+          <span className="text-[11px] font-semibold text-slate-500 shrink-0 sm:pt-1.5" aria-hidden="true">
+            Question types
+          </span>
+          <div className="flex gap-1.5 overflow-x-auto sm:flex-wrap sm:overflow-visible -my-1 py-1 min-w-0">
+            {PICKABLE_STYLES.map((s) => {
+              const on = styles.includes(s.type);
+              return (
+                <label
+                  key={s.type}
+                  title={s.hint}
+                  className={`shrink-0 px-2.5 py-1 rounded-full border text-xs cursor-pointer select-none has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-indigo-300 ${
+                    on ? 'bg-slate-900 border-slate-900 text-white' : 'bg-white border-slate-300 text-slate-500 hover:border-slate-500'
+                  }`}
+                >
+                  <input type="checkbox" checked={on} disabled={working} onChange={() => toggleStyle(s.type)} className="sr-only" />
+                  {s.label}
+                </label>
+              );
+            })}
+          </div>
+          {styles.length < PICKABLE.length && (
+            <button onClick={() => setStyles(PICKABLE)} disabled={working} className="shrink-0 sm:pt-1.5 text-[11px] font-semibold text-indigo-700 hover:text-indigo-900">
+              All
+            </button>
+          )}
+        </fieldset>
 
         <div className="lg:hidden flex border-b border-slate-200 text-sm font-semibold" role="tablist">
           {(['chat', 'draft'] as const).map((p) => (

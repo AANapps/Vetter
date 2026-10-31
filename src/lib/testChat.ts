@@ -1,4 +1,4 @@
-import { AssessmentTest, Business, Question, SkillCategory, TEST_DIFFICULTIES, TestDifficulty, TestRole } from '../types';
+import { AssessmentTest, Business, Question, QuestionType, SkillCategory, TEST_DIFFICULTIES, TestDifficulty, TestRole } from '../types';
 import { MOCK_DATABASE } from './sqlEngine';
 import { ALL_ROLES, CATEGORIES, RawQuestion, Suggestion, assembleFromBank, checkQuestion, libraryFor, matchExisting } from './testGeneration';
 
@@ -29,6 +29,8 @@ export interface ChatContext {
   wantExisting: boolean;
   tests: AssessmentTest[];
   business?: Business;
+  // The question types the company picked; Vetter uses only these unless asked in the chat
+  styles: QuestionType[];
 }
 
 // The draft as the AI sees it: everything it needs to change a question, except app pages, which it can only keep whole
@@ -115,6 +117,7 @@ export async function sendChat(state: ChatState, text: string, ctx: ChatContext)
         draft: state.draft && draftForModel(state.draft),
         existing: state.existing.map((s) => s.test.id),
         wantExisting: ctx.wantExisting,
+        styles: ctx.styles,
         library: library.map((t) => ({ id: t.id, title: t.title, category: t.category, difficulty: t.difficulty, skills: t.skillsTested, roles: t.roles ?? [], description: t.description })),
         roles: ALL_ROLES,
         categories: CATEGORIES,
@@ -135,7 +138,7 @@ export async function sendChat(state: ChatState, text: string, ctx: ChatContext)
     // Without the AI, the first turn still gets a start from Vetter's own tests and questions
     if (failure === 'not-configured' && !state.draft) {
       const brief = [ctx.job, ...messages.filter((m) => m.role === 'user').map((m) => m.text)].filter(Boolean).join('\n\n');
-      const draft = assembleFromBank({ prompt: brief, wantNewTest: true, wantExisting: ctx.wantExisting, questionCount: 6, styles: ['choice', 'multi', 'text', 'order', 'match', 'app'], level: ctx.level, title: ctx.jobTitle }, library, ctx.tests, ctx.business);
+      const draft = assembleFromBank({ prompt: brief, wantNewTest: true, wantExisting: ctx.wantExisting, questionCount: 6, styles: ctx.styles, level: ctx.level, title: ctx.jobTitle }, library, ctx.tests, ctx.business);
       const existing = ctx.wantExisting ? matchExisting(brief, library) : [];
       const reply = draft
         ? `I can't write new questions here, so I've put a draft together from the best-fitting questions in Vetter's tests. ${NOT_CONFIGURED} You can still edit every question in the builder.`

@@ -18,6 +18,8 @@ export interface ChatRequest {
   // Library tests already picked, when picking from the library
   existing: string[];
   wantExisting: boolean;
+  // The question types the company picked, when it narrowed them
+  styles?: string[];
   library: { id: string; title: string; category: string; difficulty: string; skills: string[]; roles: string[]; description: string }[];
   roles: string[];
   categories: string[];
@@ -73,7 +75,13 @@ HOW TO TALK
 - When asked to change something, change exactly that and keep the rest. Questions are numbered from 1 in the order of the draft.
 - If asked something you can't do (a style not listed below, uploading files), say so and offer the nearest thing.
 
-THE DRAFT
+${
+  req.styles?.length
+    ? `QUESTION TYPES: the company has chosen to allow only these styles: ${req.styles.join(', ')}. Every new question must be one of them, and the hands-on rule below applies only if a hands-on style is among them. If the company asks in the chat for a style not on the list, use it anyway (they asked). If the draft has questions of a style no longer allowed and the company asks to use only the chosen types, rewrite those questions in allowed styles.
+
+`
+    : ''
+}THE DRAFT
 - Include "test" whenever the draft is new or changes, with every question in order. For a question that stays exactly as it is, set keep to its id and type to its type, and leave every other field empty ("", [], 0, -1). Leave "test" out when nothing changes (a question, a chat).
 - An app, sheet or database question can only be kept whole or written again from scratch.
 - 4 to 12 questions unless the company asks otherwise (never more than 15). Default 6. difficulty is one of: ${req.levels.join(', ')}; pick it from the job unless told.
