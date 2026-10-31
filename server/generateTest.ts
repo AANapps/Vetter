@@ -30,9 +30,13 @@ export const MAX_PROMPT = 6000;
 export const questionSchema = {
   type: 'object',
   properties: {
-    type: { type: 'string', enum: ['choice', 'multi', 'text', 'order', 'match', 'code', 'sql', 'app'] },
+    // In a conversation: the id of a draft question to keep exactly as it is (the other fields are then ignored)
+    keep: { type: 'string' },
+    type: { type: 'string', enum: ['choice', 'multi', 'text', 'order', 'match', 'code', 'sql', 'sheet', 'database', 'app'] },
     title: { type: 'string' },
     prompt: { type: 'string' },
+    // A sheet's file name, a database's name
+    contextData: { type: 'string' },
     options: { type: 'array', items: { type: 'string' } },
     correctOption: { type: 'integer' },
     correctOptions: { type: 'array', items: { type: 'integer' } },
@@ -52,11 +56,20 @@ export const questionSchema = {
     },
     tables: { type: 'array', items: { type: 'string' } },
     appHtml: { type: 'string' },
+    // Spreadsheet tasks: the starting sheets as CSV, and the cells a right answer fills in (to prove the checks)
+    workbook: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' }, csv: { type: 'string' } }, required: ['name', 'csv'], additionalProperties: false } },
+    solutionCells: {
+      type: 'array',
+      items: { type: 'object', properties: { sheet: { type: 'string' }, cells: { type: 'string' }, value: { type: 'string' } }, required: ['sheet', 'cells', 'value'], additionalProperties: false },
+    },
+    // Database tasks: the tables the database starts with, as CSV with a header row
+    dataTables: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' }, csv: { type: 'string' } }, required: ['name', 'csv'], additionalProperties: false } },
     timeLimitMinutes: { type: 'integer' },
     points: { type: 'integer' },
   },
-  // testCases is always asked for, as an empty list where a style has none, so it isn't skipped where it's needed
-  required: ['type', 'title', 'prompt', 'testCases', 'timeLimitMinutes', 'points'],
+  // Every field is asked for, empty where a style doesn't use it: optional fields make the output grammar too large to
+  // compile, and testCases can't be skipped where it's needed
+  required: ['keep', 'type', 'title', 'prompt', 'contextData', 'options', 'correctOption', 'correctOptions', 'acceptedAnswers', 'items', 'pairs', 'starterCode', 'solutionCode', 'testCases', 'tables', 'appHtml', 'workbook', 'solutionCells', 'dataTables', 'timeLimitMinutes', 'points'],
   additionalProperties: false,
 };
 
@@ -85,6 +98,25 @@ const responseSchema = {
   required: ['existing'],
   additionalProperties: false,
 };
+
+export const WORKSPACE_RULES = `
+- sheet: a task in an Excel-style spreadsheet (formulas such as SUM, SUMIFS, COUNTIFS, AVERAGEIFS, VLOOKUP, XLOOKUP, INDEX/MATCH,
+  IF, IFERROR, ROUND, TEXT, TRIM, LOWER, PROPER, LEFT/RIGHT/MID, DATE functions work). Use it for any role that lives in Excel.
+  workbook: the starting sheets, each as CSV (row 1 the headers; quote values containing commas), 15 to 60 rows of
+  realistic made-up data with the snags real data has. contextData: a file name like "march_sales.xlsx".
+  prompt: the task in 2 to 4 numbered steps, each on its own line, saying exactly which sheet, column or cell each answer goes in.
+  solutionCells: what a right answer enters: { sheet, cells, value }, where sheet is the sheet's name and cells one cell
+  ("B2") or a range ("G2:G41"); for a range, value is a formula written for its first cell and filled down or right.
+  testCases: 3 to 6 checks; input is a formula run on the finished workbook naming its sheets (e.g. "=SUM(Orders!H:H)" or
+  "=ISFORMULA(Orders!G2)"), expectedOutput the value it gives once done right ("|" between acceptable forms). Each must
+  fail on the starting workbook. Leave starterCode and solutionCode empty.
+- database: a task in a SQL workbench (SQLite) on its own tables. Use it for data, analyst, BI and engineering roles.
+  dataTables: 2 or 3 tables, each as CSV with a header row of column names (letters, digits and _ only) and 15 to 50 rows
+  of realistic made-up data (numbers written plainly, an empty field for NULL). contextData: the database's name, e.g. "NorthwindSales".
+  prompt: what to build, e.g. a view with named columns, or rows to fix with UPDATE/DELETE; numbered steps each on its own line.
+  starterCode: a short SQL comment naming the tables, then the start of the statement. solutionCode: SQLite that does the task
+  (CREATE VIEW ..., UPDATE ...). testCases: 2 to 4 checks; input is a SELECT run afterwards (e.g. "SELECT * FROM
+  monthly_revenue ORDER BY month"), expectedOutput "" (it's worked out from solutionCode).`;
 
 export const APP_RULES = `
 - app: a working copy of the software the job uses, in which the candidate does a real task. Write at most 2, and when the
@@ -119,6 +151,7 @@ ${
   req.wantNewTest
     ? `Write one new test of exactly ${req.questionCount} questions at ${req.level} level that checks what the job really needs, without repeating what the picked library tests already cover.
 Use only these question styles: ${req.styles.join(', ')}. Mix them where it suits the job. Every question must be answerable from its prompt alone.
+Every question has every field: "" for text, [] for lists and -1 for correctOption where its style doesn't use them, and keep is "".
 Style rules (testCases is an empty list for choice, multi, text, order and match):
 - choice: 4 options, exactly one right; correctOption is its 0-based index.
 - multi: 4 to 6 options; correctOptions lists every right index (at least 2).

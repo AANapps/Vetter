@@ -6,6 +6,9 @@ import { isMainVersion, levelsOf } from './testLevels';
 import { ROLE_GROUPS } from './testRoles';
 import { questionProblems } from './questionTypes';
 import { probeApp } from './appSimulation';
+import { checkSheet, parseAddr, cellAddr, setCells, shiftFormula, workbookStarter, parseWorkbook } from './spreadsheet';
+import { databaseStarter } from './databaseWork';
+import { openTaskDatabase, queryRows } from './sqlEngine';
 
 // Asking Vetter for a job's tests: library tests that fit, and a new test written for it (by the server's AI).
 // Everything the AI returns is checked here: unknown tests dropped, coding and SQL answers run, broken questions removed.
@@ -173,14 +176,65 @@ export function assembleFromBank(opts: GenerationOptions, library: AssessmentTes
   };
 }
 
-export type RawQuestion = Omit<Partial<Question>, 'tables'> & { tables?: string[]; points?: number; testCases?: { description: string; input: string; expectedOutput: string }[] };
+export type RawQuestion = Omit<Partial<Question>, 'tables'> & {
+  tables?: string[];
+  points?: number;
+  testCases?: { description: string; input: string; expectedOutput: string }[];
+  workbook?: { name: string; csv: string }[];
+  solutionCells?: { sheet: string; cells: string; value: string }[];
+  dataTables?: { name: string; csv: string }[];
+};
+
+// CSV as rows of fields: quoted fields may hold commas, line breaks and doubled quotes
+export function parseCsv(text: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = '';
+  let quoted = false;
+  const src = String(text ?? '').replace(/\r\n?/g, '\n');
+  for (let i = 0; i < src.length; i++) {
+    const ch = src[i];
+    if (quoted) {
+      if (ch === '"' && src[i + 1] === '"') (field += '"'), i++;
+      else if (ch === '"') quoted = false;
+      else field += ch;
+    } else if (ch === '"' && field === '') quoted = true;
+    else if (ch === ',') row.push(field), (field = '');
+    else if (ch === '\n') row.push(field), rows.push(row), (row = []), (field = '');
+    else field += ch;
+  }
+  if (field !== '' || row.length) row.push(field), rows.push(row);
+  return rows.filter((r) => r.some((f) => f.trim() !== ''));
+}
+
+// A cell value as written by the AI: numbers as numbers, blanks as nothing
+const cellValue = (v: string): string | number | null => {
+  const t = String(v ?? '').trim();
+  if (t === '') return null;
+  return /^-?\d+(\.\d+)?$/.test(t) && !/^0\d/.test(t) ? Number(t) : t;
+};
+
+// The cells a right answer fills in, a range taking its first cell's formula filled down or right
+function solveWorkbook(starter: string, cells: NonNullable<RawQuestion['solutionCells']>): string {
+  let wb = parseWorkbook(starter);
+  for (const { sheet, cells: range, value } of cells) {
+    const index = wb.sheets.findIndex((s) => s.name.toLowerCase() === String(sheet).trim().toLowerCase());
+    const [from, to = from] = String(range).replace(/^.*!/, '').split(':').map((a) => parseAddr(a.trim()));
+    if (index < 0 || !from || !to) continue;
+    const updates: Record<string, string> = {};
+    for (let r = from.r; r <= to.r; r++)
+      for (let c = from.c; c <= to.c; c++) updates[cellAddr(r, c)] = value.startsWith('=') ? shiftFormula(value, r - from.r, c - from.c) : value;
+    wb = setCells(wb, index, updates);
+  }
+  return JSON.stringify(wb);
+}
 
 export const uid = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 
 // One AI-written question made into a real one, or null if it doesn't hold up
 export async function checkQuestion(raw: RawQuestion): Promise<Question | null> {
   const type = raw.type as QuestionType;
-  if (!['choice', 'multi', 'text', 'order', 'match', 'code', 'sql', 'app'].includes(type)) return null;
+  if (!['choice', 'multi', 'text', 'order', 'match', 'code', 'sql', 'sheet', 'database', 'app'].includes(type)) return null;
   const q: Question = {
     id: uid('q'),
     title: String(raw.title ?? '').trim(),
@@ -212,6 +266,61 @@ export async function checkQuestion(raw: RawQuestion): Promise<Question | null> 
     q.starterCode = raw.starterCode || '-- Write your query here\nSELECT ';
     const result = await executeSqlQuery(q.solutionCode ?? '');
     if (!tables.length || !result.success || result.rowCount === 0) return null;
+  }
+  if (type === 'sheet') {
+    const sheets = (raw.workbook ?? [])
+      .map((s) => ({ name: String(s.name ?? '').trim(), rows: parseCsv(s.csv).map((row) => row.map(cellValue)) }))
+      .filter((s) => s.name && s.rows.length);
+    if (!sheets.length || !raw.solutionCells?.length) return null;
+    const starter = workbookStarter(sheets);
+    const start = parseWorkbook(starter);
+    const solved = parseWorkbook(solveWorkbook(starter, raw.solutionCells));
+    // Each check expects what it gives on the workbook a right answer leaves, worked out here rather than trusting the
+    // AI's sums; checks that error there, or already pass on the untouched workbook, are dropped
+    const checks = (raw.testCases ?? []).flatMap((tc) => {
+      if (!tc.input?.trim()) return [];
+      const { actual } = checkSheet(solved, tc.input, '');
+      if (!actual.trim() || actual.startsWith('#') || checkSheet(start, tc.input, actual).passed) return [];
+      return [{ ...tc, expectedOutput: actual }];
+    });
+    if (checks.length < 2) return null;
+    q.starterCode = starter;
+    q.contextData = raw.contextData?.trim() || 'workbook.xlsx';
+    q.testCases = checks.map((tc, i) => ({ id: uid('tc'), description: tc.description || `Check ${i + 1}`, input: tc.input.trim(), expectedOutput: tc.expectedOutput }));
+    return q.title && q.prompt ? q : null;
+  }
+  if (type === 'database') {
+    const tables = (raw.dataTables ?? []).flatMap((t) => {
+      const [header = [], ...rows] = parseCsv(t.csv);
+      const columns = header.map((c) => c.trim());
+      if (!/^\w+$/.test(t.name ?? '') || !columns.length || !columns.every((c) => /^\w+$/.test(c)) || !rows.length) return [];
+      return [{ name: t.name, columns, rows: rows.map((row) => Object.fromEntries(columns.map((c, i) => [c, cellValue(row[i] ?? '')]))) }];
+    });
+    if (!tables.length || !raw.solutionCode?.trim()) return null;
+    const start = await openTaskDatabase(tables);
+    const reference = await openTaskDatabase(tables);
+    try {
+      reference.run(raw.solutionCode);
+    } catch {
+      return null;
+    }
+    // Only checks the solution answers with rows and the untouched database can't
+    const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+    const checks = (raw.testCases ?? []).filter((tc) => {
+      if (!tc.input?.trim()) return false;
+      const ref = queryRows(reference, tc.input);
+      const before = queryRows(start, tc.input);
+      return 'rows' in ref && ref.rows.length > 0 && !('rows' in before && same(before.rows, ref.rows));
+    });
+    start.close();
+    reference.close();
+    if (checks.length < 2) return null;
+    q.tables = tables;
+    q.solutionCode = raw.solutionCode;
+    q.contextData = raw.contextData?.trim() || 'TaskDatabase';
+    q.starterCode = databaseStarter(raw.starterCode?.trim() || `-- Tables: ${tables.map((t) => t.name).join(', ')}\n`);
+    q.testCases = checks.map((tc, i) => ({ id: uid('tc'), description: tc.description || `Check ${i + 1}`, input: tc.input.trim(), expectedOutput: '' }));
+    return q.title && q.prompt ? q : null;
   }
   if (type === 'app') {
     const checks = (raw.testCases ?? []).filter((tc) => tc.input?.trim() && tc.expectedOutput?.trim());

@@ -58,6 +58,8 @@ export const draftForModel = (test: AssessmentTest) => ({
     ...(q.type === 'sql' && { tables: (q.contextData ?? '').match(/Table: (\w+)/g)?.map((t) => t.slice(7)) ?? [] }),
     ...(q.type !== 'app' && q.testCases.length > 0 && { testCases: q.testCases.map(({ description, input, expectedOutput }) => ({ description, input, expectedOutput })) }),
     ...(q.type === 'app' && { app: `A working copy of ${q.contextData}, checked on: ${q.testCases.map((tc) => tc.description).join('; ')}` }),
+    ...(q.type === 'sheet' && { sheet: `A spreadsheet task in ${q.contextData}, checked on: ${q.testCases.map((tc) => tc.description).join('; ')}` }),
+    ...(q.type === 'database' && { database: `A database task on ${(q.tables ?? []).map((t) => `${t.name} (${t.rows.length} rows)`).join(', ')}, checked on: ${q.testCases.map((tc) => tc.description).join('; ')}` }),
   })),
 });
 
