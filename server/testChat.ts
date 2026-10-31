@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { APP_RULES, MAX_PROMPT, PRICES, apiFailure, questionSchema, researchSoftware } from './generateTest';
+import { APP_RULES, MAX_PROMPT, PRICES, apiFailure, questionSchema, researchSoftware } from './generateTest.js';
 
 /**
  * Building a test by talking to Vetter: the company says what it wants, Vetter writes a draft, and every message after

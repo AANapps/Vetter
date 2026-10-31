@@ -1,6 +1,6 @@
-import { generateTest } from './generateTest';
-import { gradeAnswers } from './gradeAnswers';
-import { testChat } from './testChat';
+import { generateTest } from './generateTest.js';
+import { gradeAnswers } from './gradeAnswers.js';
+import { testChat } from './testChat.js';
 
 // The AI endpoints, answered by server.ts in production and the Vite dev server in development
 type Env = Record<string, string | undefined>;
