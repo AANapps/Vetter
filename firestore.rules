@@ -132,6 +132,20 @@ service cloud.firestore {
         || (verified() && resource.data.email == request.auth.token.email.lower()));
     }
 
+    // Where a candidate is in a company's hiring for one job (stage, rating, notes). Only that company and the Vetter
+    // team can see or change it; the candidate never sees it
+    match /leads/{leadId} {
+      allow read: if signedIn() && (isAdmin() || worksAt(resource.data.businessId));
+      allow create, update: if (isAdmin() || worksAt(request.resource.data.businessId))
+        && leadId == request.resource.data.jobId + '__' + request.resource.data.candidateId
+        && request.resource.data.businessId == jobDoc(request.resource.data.jobId).get('businessId', '')
+        && (resource == null || resource.data.businessId == request.resource.data.businessId)
+        && request.resource.data.stage in ['invited', 'applied', 'screening', 'interview', 'offer', 'hired', 'archived']
+        && request.resource.data.keys().hasOnly(['id', 'jobId', 'candidateId', 'businessId', 'stage', 'rating', 'note',
+          'archiveReason', 'dueDate', 'tags', 'updatedAt', 'history']);
+      allow delete: if isAdmin() || worksAt(resource.data.businessId);
+    }
+
     // An application, seen by the candidate and the company they applied to
     match /applications/{applicationId} {
       allow read: if signedIn() && (uid() == resource.data.candidateId || isAdmin() || worksAt(resource.data.businessId));

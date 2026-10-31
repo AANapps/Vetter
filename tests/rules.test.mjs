@@ -113,6 +113,11 @@ await A.signIn('alice@acme.io', 'password123');
 console.log('    Alice:');
 await check('sees who she sent the job to', () => getDocs(query(collectionGroup(db, 'invitations'), where('businessId', '==', 'acme.io'))), true);
 await check('sees Cara\'s application', () => getDocs(query(collection(db, 'applications'), where('businessId', '==', 'acme.io'))), true);
+const caraLead = { id: `job-1__${cara}`, jobId: 'job-1', candidateId: cara, businessId: 'acme.io', stage: 'interview', note: 'Strong', updatedAt: '2026-10-31', history: [{ stage: 'interview', at: '2026-10-31' }] };
+await check('moves Cara to interview', () => setDoc(doc(db, 'leads', caraLead.id), caraLead), true);
+await check('sees her leads', () => getDocs(query(collection(db, 'leads'), where('businessId', '==', 'acme.io'))), true);
+await check('cannot file a lead under another company', () => setDoc(doc(db, 'leads', caraLead.id), { ...caraLead, businessId: 'evil.com' }), false);
+await check('cannot use a stage that does not exist', () => setDoc(doc(db, 'leads', caraLead.id), { ...caraLead, stage: 'secret' }), false);
 await check('cannot give kudos as Cara', () => setDoc(doc(db, 'kudos', `x__${cara}`), { itemId: 'x', uid: cara }), false);
 await check('cannot delete Cara\'s post', () => deleteDoc(doc(db, 'posts', 'post-1')), false);
 await check('cannot read Cara\'s notifications', () => getDocs(query(collection(db, 'notifications'), where('userId', '==', cara))), false);
@@ -123,8 +128,15 @@ await A.signIn('eve@evil.com', 'password123');
 console.log('    Eve (not at Acme):');
 await check('cannot see who Acme sent its job to', () => getDocs(query(collectionGroup(db, 'invitations'), where('businessId', '==', 'acme.io'))), false);
 await check('cannot see Acme\'s applications', () => getDocs(query(collection(db, 'applications'), where('businessId', '==', 'acme.io'))), false);
+await check('cannot see Acme\'s leads', () => getDocs(query(collection(db, 'leads'), where('businessId', '==', 'acme.io'))), false);
+await check('cannot move Acme\'s leads', () => setDoc(doc(db, 'leads', caraLead.id), { ...caraLead, stage: 'archived' }), false);
 await check('cannot edit Acme\'s job', () => updateDoc(doc(db, 'jobs', 'job-1'), { title: 'Hacked' }), false);
 await check('cannot edit Acme\'s test', () => updateDoc(doc(db, 'tests', 'test-custom-1'), { title: 'Hacked' }), false);
+await A.signOut();
+
+await A.signIn('cara@gmail.com', 'password123');
+console.log('    Cara:');
+await check('cannot see her own stage or notes', () => getDoc(doc(db, 'leads', caraLead.id)), false);
 await A.signOut();
 
 console.log('    Dan, emailed before he had an account:');

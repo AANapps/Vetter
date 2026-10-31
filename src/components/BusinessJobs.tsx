@@ -28,6 +28,8 @@ import {
 import { formatDuration } from './TestLeaderboard';
 import { JobForm } from './JobForm';
 import { JobCandidates } from './JobCandidates';
+import { LeadChange, LeadsView } from './LeadsView';
+import { LeadRow } from '../lib/leads';
 import { ArrowLeft, Check, CheckCircle2, ChevronDown, Copy, Download, Link2, Mail, MapPin, Pencil, Plus, Search, Send, Share2, Sparkles, UserPlus, X } from 'lucide-react';
 
 interface BusinessJobsProps {
@@ -49,6 +51,9 @@ interface BusinessJobsProps {
   onInvite: (jobId: string, candidateIds: string[]) => void;
   onOpenPerson: (personId: string) => void;
   onOpenTest: (testId: string) => void;
+  // Every lead for the jobs shown; a job's page shows its own pipeline
+  leadRows: LeadRow[];
+  onUpdateLead: (row: LeadRow, change: LeadChange) => void;
 }
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -328,6 +333,8 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
   onInvite,
   onOpenPerson,
   onOpenTest,
+  leadRows,
+  onUpdateLead,
 }) => {
   const [filter, setFilter] = useState<TrackingStatus | 'all'>('all');
   const [sharing, setSharing] = useState(false);
@@ -431,6 +438,21 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
 
       <section className="bg-white border border-slate-200 rounded-xl p-5">
         <FunnelBar funnel={funnel} />
+      </section>
+
+      <section id="job-leads" className="scroll-mt-20 space-y-3">
+        <div>
+          <h2 className="text-base font-bold text-slate-900">Hiring pipeline</h2>
+          <p className="text-xs text-slate-500">Where everyone for this job is: drag them between stages, or open one to rate it, add a date and notes.</p>
+        </div>
+        <LeadsView
+          key={job.id}
+          rows={leadRows.filter((r) => r.job.id === job.id)}
+          jobs={[job]}
+          fixedJob={job}
+          onUpdateLead={onUpdateLead}
+          onOpenPerson={onOpenPerson}
+        />
       </section>
 
       <section className="bg-white border border-slate-200 rounded-xl overflow-hidden">

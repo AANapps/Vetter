@@ -1,4 +1,5 @@
-import { AppNotification, AssessmentTest, JobInvitation, JobPosting, SocialState, TEST_DIFFICULTIES, User } from '../types';
+import { AppNotification, AssessmentTest, JobInvitation, JobPosting, Lead, SocialState, TEST_DIFFICULTIES, User } from '../types';
+import { buildSeedLeads } from '../data/seedLeads';
 import {
   INITIAL_CANDIDATE,
   OTHER_CANDIDATES,
@@ -28,6 +29,8 @@ export interface AppData {
   tests: AssessmentTest[];
   social: SocialState;
   notifications: AppNotification[];
+  // Where each candidate is in each company's hiring
+  leads: Lead[];
 }
 
 const SEED_TESTS = [...STANDARD_ASSESSMENTS, ...COMPANY_ASSESSMENTS];
@@ -49,6 +52,7 @@ export function createSeedData(): AppData {
     tests: SEED_TESTS,
     social: SEED_SOCIAL,
     notifications: SEED_NOTIFICATIONS,
+    leads: buildSeedLeads(INITIAL_JOBS, everyone),
   };
 }
 
@@ -83,7 +87,7 @@ export function loadData(): AppData {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return seed;
-    const saved = JSON.parse(raw) as Omit<AppData, 'notifications'> & { exams?: SavedExam[]; notifications: (Omit<AppNotification, 'jobId'> & { jobId?: string; examId?: string })[] };
+    const saved = JSON.parse(raw) as Omit<AppData, 'notifications' | 'leads'> & { leads?: Lead[] } & { exams?: SavedExam[]; notifications: (Omit<AppNotification, 'jobId'> & { jobId?: string; examId?: string })[] };
 
     // Bundled images get new URLs on each build, so always take avatars from the seed
     const seedAvatars = new Map([seed.candidate, ...seed.otherCandidates].map((u) => [u.id, u.avatarUrl]));
@@ -133,6 +137,8 @@ export function loadData(): AppData {
       tests: [...SEED_TESTS, ...createdTests],
       // Saved before the feed existed: start from the seeded conversation
       social: saved.social ?? seed.social,
+      // Saved before leads existed: start from the seeded pipeline
+      leads: saved.leads ?? seed.leads,
       // Invites saved when they pointed at an assessment now point at its job
       notifications: saved.notifications
         ? saved.notifications.flatMap((n) => {

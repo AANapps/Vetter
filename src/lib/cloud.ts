@@ -15,7 +15,7 @@ import {
   where,
   writeBatch,
 } from 'firebase/firestore';
-import { AppNotification, AssessmentTest, Business, FeedComment, FeedPost, JobInvitation, JobPosting, SocialState, User } from '../types';
+import { AppNotification, AssessmentTest, Business, FeedComment, FeedPost, JobInvitation, JobPosting, Lead, SocialState, User } from '../types';
 import { db } from './firebase';
 import { Company } from './accounts';
 import { initialsAvatar } from '../data/seedCandidates';
@@ -63,6 +63,8 @@ export interface CloudData {
   notifications: AppNotification[];
   // For a candidate: jobs whose tests were emailed to their address, which they're put on once signed in
   emailedJobIds: string[];
+  // For a company: where each candidate is in its hiring. Never loaded for candidates
+  leads: Lead[];
 }
 
 const kudosId = (itemId: string, uid: string) => `${encodeURIComponent(itemId)}__${uid}`;
@@ -130,6 +132,7 @@ export function useCloudData(viewer: Viewer | null, enabled: boolean, onError: (
       watch('invitations', collectionGroup(d, 'invitations'), ...mine('candidateId'));
       watch('emailInvites', collectionGroup(d, 'emailInvites'), ...(viewer.role === 'candidate' ? [where('email', '==', viewer.email.toLowerCase())] : mine('businessId')));
       watch('notifications', collection(d, 'notifications'), where('userId', '==', viewer.uid));
+      if (viewer.role !== 'candidate') watch('leads', collection(d, 'leads'), ...mine('businessId'));
       stops.push(
         onSnapshot(
           doc(d, 'follows', viewer.uid),
@@ -141,7 +144,7 @@ export function useCloudData(viewer: Viewer | null, enabled: boolean, onError: (
     return () => stops.forEach((s) => s());
   }, [enabled, key]);
 
-  const needed = ['jobs', 'tests', 'profiles', 'companies', 'posts', 'comments', 'kudos', ...(viewer ? ['applications', 'invitations', 'emailInvites', 'notifications'] : [])];
+  const needed = ['jobs', 'tests', 'profiles', 'companies', 'posts', 'comments', 'kudos', ...(viewer ? ['applications', 'invitations', 'emailInvites', 'notifications'] : []), ...(viewer && viewer.role !== 'candidate' ? ['leads'] : [])];
   if (!enabled || needed.some((n) => !parts[n])) return null;
 
   const applications = (parts.applications ?? []) as Application[];
@@ -188,6 +191,7 @@ export function useCloudData(viewer: Viewer | null, enabled: boolean, onError: (
     },
     notifications: (parts.notifications ?? []) as AppNotification[],
     emailedJobIds: viewer?.role === 'candidate' ? emailInvites.map((e) => e.jobId) : [],
+    leads: (parts.leads ?? []) as Lead[],
   };
 }
 
@@ -261,4 +265,10 @@ export function apply(job: JobPosting, uid: string, profileId: string | undefine
   batch.set(doc(d, 'applications', applicationId(job.id, uid)), application);
   batch.update(doc(d, 'jobs', job.id), { applicantCount: increment(1) });
   return batch.commit();
+}
+
+// Leads a company moved on or changed. Firestore refuses undefined, so cleared fields are left out
+export function syncLeads(prev: Lead[], next: Lead[], onError: (err: unknown) => void) {
+  const changed = next.filter((l) => !same(prev.find((p) => p.id === l.id), l));
+  return run(changed.map((l) => setDoc(doc(db(), 'leads', l.id), JSON.parse(JSON.stringify(l)))), onError);
 }

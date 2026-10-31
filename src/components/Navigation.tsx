@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { UserRole } from '../types';
 import { ArrowLeftRight,
-  LogOut, Bell, Briefcase, ChevronDown, ClipboardCheck, House, Repeat, TrendingUp, Search, Users } from 'lucide-react';
+  LogOut, Bell, Briefcase, ChevronDown, ClipboardCheck, House, Repeat, SquareKanban, TrendingUp, Search, Users } from 'lucide-react';
 
 export type AppTab =
   | 'home'
@@ -14,6 +14,7 @@ export type AppTab =
   | 'business-jobs'
   | 'business-tests'
   | 'business-candidates'
+  | 'business-leads'
   | 'for-business';
 
 type TabIcon = React.ComponentType<{ className?: string }>;
@@ -29,6 +30,7 @@ export const NAV_TABS: Record<'candidate' | 'recruiter', { id: AppTab; label: st
   ],
   recruiter: [
     { id: 'business-jobs', label: 'Jobs', icon: Briefcase },
+    { id: 'business-leads', label: 'Leads', icon: SquareKanban },
     { id: 'business-tests', label: 'Tests', icon: ClipboardCheck },
     { id: 'business-candidates', label: 'Candidates', icon: Users },
   ],

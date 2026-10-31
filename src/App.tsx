@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { User, UserRole, AssessmentTest, JobPosting, Business, SocialState, AppNotification, JobInvitation } from './types';
+import { User, UserRole, AssessmentTest, JobPosting, Business, SocialState, AppNotification, JobInvitation, Lead } from './types';
 import { INITIAL_RECRUITER, INITIAL_BUSINESSES, STANDARD_ASSESSMENTS } from './data/mockData';
 import { loadData, saveData, clearData, createSeedData } from './lib/store';
 import { getPercentile } from './lib/leaderboard';
@@ -30,7 +30,10 @@ import { firebaseEnabled } from './lib/firebase';
 import { useAccount } from './lib/useAccount';
 import { loadProfile, saveProfile } from './lib/profiles';
 import { Account, accountError, signOut } from './lib/accounts';
-import { Viewer, apply, syncJobs, syncNotifications, syncSocial, syncTests, useCloudData } from './lib/cloud';
+import { Viewer, apply, syncJobs, syncLeads, syncNotifications, syncSocial, syncTests, useCloudData } from './lib/cloud';
+import { LeadsPage } from './components/LeadsPage';
+import { LeadChange } from './components/LeadsView';
+import { LeadRow, buildLeadRows, updatedLead } from './lib/leads';
 import { AuthDialog, AuthMode } from './components/AuthDialog';
 import { AccountGate, CompanyReview, TeamRequests } from './components/AccountScreens';
 import { Pulse } from './components/Pulse';
@@ -162,6 +165,7 @@ export default function App() {
   const [localTests, setLocalTests] = useState<AssessmentTest[]>(initialData.tests);
   const [localSocial, setLocalSocial] = useState<SocialState>(initialData.social);
   const [localNotifications, setLocalNotifications] = useState<AppNotification[]>(initialData.notifications);
+  const [localLeads, setLocalLeads] = useState<Lead[]>(initialData.leads);
 
   // With accounts on, everything real comes from Firebase (src/lib/cloud.ts) and changes are written back there;
   // without them, the demo's example data lives in this browser
@@ -182,6 +186,9 @@ export default function App() {
     : cloudBusinesses;
   const social = cloud ? cloud.social : localSocial;
   const notifications = cloud ? cloud.notifications : localNotifications;
+  const leads = cloud ? cloud.leads : localLeads;
+  const leadsRef = useRef(leads);
+  leadsRef.current = leads;
   const jobsRef = useRef(jobs);
   jobsRef.current = jobs;
   const testsRef = useRef(tests);
@@ -201,6 +208,8 @@ export default function App() {
       : setLocalSocial(update);
   const setNotifications = (update: Update<AppNotification[]>) =>
     firebaseEnabled ? syncNotifications(notificationsRef.current, update(notificationsRef.current), reportCloudError) : setLocalNotifications(update);
+  const setLeads = (update: Update<Lead[]>) =>
+    firebaseEnabled ? syncLeads(leadsRef.current, update(leadsRef.current), reportCloudError) : setLocalLeads(update);
 
   // The signed-in candidate, when there is one; visitors and companies aren't among the candidates
   const isCandidateAccount = firebaseEnabled && !!viewer && viewer.role === 'candidate' && candidate.id === viewer.uid;
@@ -210,8 +219,8 @@ export default function App() {
 
   useEffect(() => {
     if (firebaseEnabled) return;
-    saveData({ candidate, otherCandidates, jobs, tests, social, notifications });
-  }, [candidate, otherCandidates, jobs, tests, social, notifications]);
+    saveData({ candidate, otherCandidates, jobs, tests, social, notifications, leads });
+  }, [candidate, otherCandidates, jobs, tests, social, notifications, leads]);
 
   // Changes one person's invitation to a job's tests, adding it if they don't have one yet
   const updateInvitation = (jobId: string, candidateId: string, change: Partial<JobInvitation>) =>
@@ -644,6 +653,13 @@ export default function App() {
     setJobs((prev) => prev.map((j) => (j.id === jobId ? { ...j, ...change } : j)));
   };
 
+  // Moves a lead to a stage or changes its rating, note, tags or date, starting from what's stored now
+  const handleUpdateLead = (row: LeadRow, change: LeadChange) =>
+    setLeads((prev) => {
+      const next = updatedLead({ ...row, lead: prev.find((l) => l.id === row.id) }, change);
+      return [...prev.filter((l) => l.id !== row.id), next];
+    });
+
   const handleUpdateJobRequirements = (jobId: string, requirements: JobPosting['requirements']) => {
     setJobs((prev) => prev.map((j) => (j.id === jobId ? { ...j, requirements } : j)));
   };
@@ -702,6 +718,16 @@ export default function App() {
   const candidateSection = CANDIDATE_SECTIONS[currentTab];
   const profilePerson = profilePersonId ? allCandidates.find((c) => c.id === profilePersonId) : undefined;
   const businessSection = BUSINESS_SECTIONS[currentTab];
+  // A company's leads across its own jobs; the Vetter team's across every company's
+  const leadsBusiness = activeRole === 'admin' ? undefined : recruiterBusiness;
+  const leadsJobs = leadsBusiness ? jobs.filter((j) => j.businessId === leadsBusiness.id) : jobs;
+  const leadRows = activeRole === 'candidate' ? [] : buildLeadRows(leadsJobs, allCandidates, leads);
+  const openJobLeads = (jobId: string) => {
+    goToTab('business-jobs');
+    setSelectedJobId(jobId);
+    // Once the job's page is drawn, jump to its pipeline
+    setTimeout(() => document.getElementById('job-leads')?.scrollIntoView({ behavior: 'smooth' }), 50);
+  };
 
   return (
     <div className="min-h-screen bg-white text-slate-900 flex flex-col font-sans selection:bg-indigo-600 selection:text-white">
@@ -913,6 +939,17 @@ export default function App() {
             />
           )}
 
+          {!detailPage && activeRole !== 'candidate' && currentTab === 'business-leads' && (
+            <LeadsPage
+              business={leadsBusiness}
+              jobs={leadsJobs}
+              rows={leadRows}
+              onUpdateLead={handleUpdateLead}
+              onOpenPerson={setProfilePersonId}
+              onOpenJobLeads={openJobLeads}
+            />
+          )}
+
           {!detailPage && activeRole !== 'candidate' && currentTab === 'business-jobs' && (
             <BusinessJobs
               key={activeRole}
@@ -934,6 +971,8 @@ export default function App() {
               onInvite={handleInviteToJob}
               onOpenPerson={setProfilePersonId}
               onOpenTest={openTestPage}
+              leadRows={leadRows}
+              onUpdateLead={handleUpdateLead}
             />
           )}
 

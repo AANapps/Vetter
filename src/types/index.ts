@@ -367,3 +367,28 @@ export interface AppNotification {
   createdAt: string; // ISO timestamp
   read: boolean;
 }
+
+// Where a candidate is in a company's hiring for one job. Invited and applied are where everyone starts;
+// the rest are set by the company. Private to the company: candidates never see their stage
+export type LeadStage = 'invited' | 'applied' | 'screening' | 'interview' | 'offer' | 'hired' | 'archived';
+
+export type ArchiveReason = 'Not a fit' | 'Below pass mark' | 'Withdrew' | 'No response' | 'Hired elsewhere' | 'Role filled' | 'Other';
+
+// What the company has recorded about one candidate for one job; anyone without one is at their starting stage
+export interface Lead {
+  // jobId__candidateId
+  id: string;
+  jobId: string;
+  candidateId: string;
+  businessId: string;
+  stage: LeadStage;
+  // 1 to 5 stars
+  rating?: number;
+  note?: string;
+  archiveReason?: ArchiveReason;
+  // A date set for the interview, or for when the offer runs out
+  dueDate?: string;
+  tags?: string[];
+  updatedAt: string; // ISO timestamp
+  history: { stage: LeadStage; at: string }[];
+}
