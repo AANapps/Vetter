@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AlertCircle, ArrowUp, Check, ChevronDown, Library, Pencil, Sparkles, X } from 'lucide-react';
-import { AssessmentTest, Business, JobPosting, Question, QuestionType, TestDifficulty } from '../types';
+import { AssessmentTest, Business, JobPosting, Question, QuestionType, TestDifficulty, TestDraft } from '../types';
 import { QUESTION_STYLES } from '../lib/questionTypes';
 import { jobBrief } from '../lib/testGeneration';
 import { ChatState, sendChat } from '../lib/testChat';
@@ -17,7 +17,12 @@ interface TestGeneratorProps {
   onSaveTest: (test: AssessmentTest) => string;
   onAddToJob: (jobId: string, testIds: string[]) => void;
   // Opens the new test in the builder first, with the library tests to add once it's saved
-  onEditDraft: (draft: AssessmentTest, alsoAdd: string[]) => void;
+  // with the conversation so far, so saving a draft from the builder keeps it
+  onEditDraft: (draft: AssessmentTest, alsoAdd: string[], record: TestDraft) => void;
+  // Keeps the test and the conversation to carry on later
+  onSaveDraft: (record: TestDraft) => void;
+  // A saved draft to carry on with
+  resume?: TestDraft;
   onClose: () => void;
 }
 
@@ -36,11 +41,27 @@ const PICKABLE_STYLES = PICKABLE.map((type) => QUESTION_STYLES.find((s) => s.typ
 const styleLabel = (q: Question) => QUESTION_STYLES.find((s) => s.type === q.type)?.label ?? q.type;
 
 // Build a test by talking to Vetter: describe the job, get a draft, then ask for changes until it's right
-export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tests, onOpenTest, onSaveTest, onAddToJob, onEditDraft, onClose }) => {
+export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tests, onOpenTest, onSaveTest, onAddToJob, onEditDraft, onSaveDraft, resume, onClose }) => {
   const greeting = job
     ? `I've read the ${job.title} job description. Tell me what matters most in this hire, or just ask me to write a first draft and we'll refine it together.`
     : `Tell me about the role or the test you want: what the person does day to day, the tools they use and the level. I'll write a first draft and we'll refine it together.`;
-  const [chat, setChat] = useState<ChatState>({ messages: [{ role: 'assistant', text: greeting }], existing: [] });
+  const [chat, setChat] = useState<ChatState>(() =>
+    resume
+      ? {
+          messages: resume.messages?.length ? resume.messages : [{ role: 'assistant', text: greeting }],
+          draft: resume.test,
+          existing: (resume.existing ?? []).flatMap(({ testId, reason }) => {
+            const test = tests.find((t) => t.id === testId);
+            return test ? [{ test, reason }] : [];
+          }),
+          research: resume.research,
+          researchedFor: resume.researchedFor,
+        }
+      : { messages: [{ role: 'assistant', text: greeting }], existing: [] }
+  );
+  // What's been saved, to tell whether closing loses anything
+  const [savedChat] = useState(() => chat);
+  const [draftId] = useState(() => resume?.id ?? `draft-${Date.now()}`);
   const [input, setInput] = useState('');
   const [working, setWorking] = useState(false);
   const [chosen, setChosen] = useState<string[]>([]);
@@ -49,7 +70,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
   const [pane, setPane] = useState<'chat' | 'draft'>('chat');
   const [flash, setFlash] = useState(false);
   // The question types Vetter may use; all of them to start, so it picks what suits the job
-  const [styles, setStyles] = useState<QuestionType[]>(PICKABLE);
+  const [styles, setStyles] = useState<QuestionType[]>(resume?.styles?.length ? resume.styles : PICKABLE);
   const scroller = useRef<HTMLDivElement>(null);
   const box = useRef<HTMLTextAreaElement>(null);
 
@@ -61,9 +82,27 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
   // Questions in the draft of a type since turned off
   const offTypes = [...new Set((draft?.questions ?? []).filter((q) => !styles.includes(q.type)).map((q) => q.type))];
 
+  // The test and conversation as a draft to come back to
+  const record = (test: AssessmentTest): TestDraft => ({
+    id: draftId,
+    businessId: business?.id ?? '',
+    ...(job && { jobId: job.id }),
+    test,
+    messages: chat.messages,
+    existing: chat.existing.map((s) => ({ testId: s.test.id, reason: s.reason })),
+    ...(chat.research !== undefined && { research: chat.research, researchedFor: chat.researchedFor }),
+    styles,
+    updatedAt: new Date().toISOString(),
+  });
+  const saveDraft = () => {
+    if (!draft || working) return;
+    onSaveDraft(record(draft));
+    onClose();
+  };
+
   const close = () => {
     if (working) return;
-    if (draft && !window.confirm('Close without saving this test?')) return;
+    if (draft && chat !== savedChat && !window.confirm('Close without saving? Use Save draft to keep this test and come back to it.')) return;
     onClose();
   };
 
@@ -273,7 +312,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                         <QuestionRow key={q.id} q={q} n={i + 1} />
                       ))}
                     </ol>
-                    <button onClick={() => (onEditDraft(draft, chosen), onClose())} disabled={working} className="text-xs font-semibold text-indigo-700 hover:text-indigo-900 flex items-center gap-1 disabled:opacity-40">
+                    <button onClick={() => (onEditDraft(draft, chosen, record(draft)), onClose())} disabled={working} className="text-xs font-semibold text-indigo-700 hover:text-indigo-900 flex items-center gap-1 disabled:opacity-40">
                       <Pencil className="w-3.5 h-3.5" />
                       Edit questions by hand in the builder
                     </button>
@@ -322,17 +361,24 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
 
         <div className="px-5 py-3 border-t border-slate-200 flex items-center gap-3">
           <p className="text-[11px] text-slate-500 hidden sm:block">{draft ? 'Keep asking for changes, or save when it looks right.' : 'Nothing is saved until you say so.'}</p>
+          <button
+            onClick={saveDraft}
+            disabled={!draft || working}
+            className="ml-auto px-4 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-300 hover:border-indigo-400 disabled:opacity-40 rounded-lg"
+          >
+            Save draft
+          </button>
           {job ? (
             <button
               onClick={finish}
               disabled={addCount === 0 || working}
-              className="ml-auto px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 rounded-lg flex items-center gap-1.5"
+              className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 rounded-lg flex items-center gap-1.5"
             >
               <Check className="w-4 h-4" />
               {addCount === 0 ? 'Nothing picked yet' : `Add ${addCount} ${addCount === 1 ? 'test' : 'tests'} to the job`}
             </button>
           ) : (
-            <button onClick={finish} disabled={!draft || working} className="ml-auto px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 rounded-lg flex items-center gap-1.5">
+            <button onClick={finish} disabled={!draft || working} className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 rounded-lg flex items-center gap-1.5">
               <Check className="w-4 h-4" />
               Save test
             </button>

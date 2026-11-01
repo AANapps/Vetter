@@ -15,7 +15,7 @@ import {
   where,
   writeBatch,
 } from 'firebase/firestore';
-import { AppNotification, AssessmentTest, Business, FeedComment, FeedPost, JobInvitation, JobPosting, Lead, SocialState, User } from '../types';
+import { AppNotification, AssessmentTest, Business, FeedComment, FeedPost, JobInvitation, JobPosting, Lead, SocialState, TestDraft, User } from '../types';
 import { db } from './firebase';
 import { Company } from './accounts';
 import { initialsAvatar } from '../data/seedCandidates';
@@ -65,6 +65,8 @@ export interface CloudData {
   emailedJobIds: string[];
   // For a company: where each candidate is in its hiring. Never loaded for candidates
   leads: Lead[];
+  // Tests a company is still writing
+  testDrafts: TestDraft[];
 }
 
 const kudosId = (itemId: string, uid: string) => `${encodeURIComponent(itemId)}__${uid}`;
@@ -132,7 +134,10 @@ export function useCloudData(viewer: Viewer | null, enabled: boolean, onError: (
       watch('invitations', collectionGroup(d, 'invitations'), ...mine('candidateId'));
       watch('emailInvites', collectionGroup(d, 'emailInvites'), ...(viewer.role === 'candidate' ? [where('email', '==', viewer.email.toLowerCase())] : mine('businessId')));
       watch('notifications', collection(d, 'notifications'), where('userId', '==', viewer.uid));
-      if (viewer.role !== 'candidate') watch('leads', collection(d, 'leads'), ...mine('businessId'));
+      if (viewer.role !== 'candidate') {
+        watch('leads', collection(d, 'leads'), ...mine('businessId'));
+        watch('testDrafts', collection(d, 'testDrafts'), ...mine('businessId'));
+      }
       stops.push(
         onSnapshot(
           doc(d, 'follows', viewer.uid),
@@ -144,7 +149,7 @@ export function useCloudData(viewer: Viewer | null, enabled: boolean, onError: (
     return () => stops.forEach((s) => s());
   }, [enabled, key]);
 
-  const needed = ['jobs', 'tests', 'profiles', 'companies', 'posts', 'comments', 'kudos', ...(viewer ? ['applications', 'invitations', 'emailInvites', 'notifications'] : []), ...(viewer && viewer.role !== 'candidate' ? ['leads'] : [])];
+  const needed = ['jobs', 'tests', 'profiles', 'companies', 'posts', 'comments', 'kudos', ...(viewer ? ['applications', 'invitations', 'emailInvites', 'notifications'] : []), ...(viewer && viewer.role !== 'candidate' ? ['leads', 'testDrafts'] : [])];
   if (!enabled || needed.some((n) => !parts[n])) return null;
 
   const applications = (parts.applications ?? []) as Application[];
@@ -192,6 +197,7 @@ export function useCloudData(viewer: Viewer | null, enabled: boolean, onError: (
     notifications: (parts.notifications ?? []) as AppNotification[],
     emailedJobIds: viewer?.role === 'candidate' ? emailInvites.map((e) => e.jobId) : [],
     leads: (parts.leads ?? []) as Lead[],
+    testDrafts: ((parts.testDrafts ?? []) as TestDraft[]).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
   };
 }
 
@@ -265,6 +271,16 @@ export function apply(job: JobPosting, uid: string, profileId: string | undefine
   batch.set(doc(d, 'applications', applicationId(job.id, uid)), application);
   batch.update(doc(d, 'jobs', job.id), { applicantCount: increment(1) });
   return batch.commit();
+}
+
+// Test drafts saved, changed or thrown away
+export function syncTestDrafts(prev: TestDraft[], next: TestDraft[], onError: (err: unknown) => void) {
+  const d = db();
+  const writes = [
+    ...next.filter((t) => !same(prev.find((p) => p.id === t.id), t)).map((t) => setDoc(doc(d, 'testDrafts', t.id), JSON.parse(JSON.stringify(t)))),
+    ...prev.filter((p) => !next.some((t) => t.id === p.id)).map((p) => deleteDoc(doc(d, 'testDrafts', p.id))),
+  ];
+  return run(writes, onError);
 }
 
 // Leads a company moved on or changed. Firestore refuses undefined, so cleared fields are left out

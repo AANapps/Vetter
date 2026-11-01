@@ -375,6 +375,25 @@ export type LeadStage = 'invited' | 'applied' | 'screening' | 'interview' | 'off
 export type ArchiveReason = 'Not a fit' | 'Below pass mark' | 'Withdrew' | 'No response' | 'Hired elsewhere' | 'Role filled' | 'Other';
 
 // What the company has recorded about one candidate for one job; anyone without one is at their starting stage
+// A test still being written: kept only for its company (and the Vetter team) until it's saved as a test
+export interface TestDraft {
+  id: string;
+  // The company it's for; '' for the Vetter library
+  businessId: string;
+  // The job it was being written for, if any
+  jobId?: string;
+  test: AssessmentTest;
+  // The conversation with Vetter's AI it came from, to carry on where it left off; none if written by hand
+  messages?: { role: 'user' | 'assistant'; text: string; note?: string }[];
+  // Library tests the AI suggested alongside it, and why
+  existing?: { testId: string; reason: string }[];
+  research?: string;
+  researchedFor?: string;
+  // The question types the company allowed
+  styles?: QuestionType[];
+  updatedAt: string; // ISO timestamp
+}
+
 export interface Lead {
   // jobId__candidateId
   id: string;

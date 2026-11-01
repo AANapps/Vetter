@@ -15,6 +15,8 @@ interface TestBuilderProps {
   // A new test to start from, such as one Vetter's AI wrote; saved as a new test
   draft?: AssessmentTest;
   onSave: (test: AssessmentTest) => void;
+  // Keeps the test as a draft, unfinished questions and all, to come back to
+  onSaveDraft?: (test: AssessmentTest) => void;
   onCancel: () => void;
 }
 
@@ -24,7 +26,7 @@ const CATEGORIES = Object.keys(SKILL_IDS) as SkillCategory[];
 type Selection = 'details' | number;
 
 // Writing a test: its details, then questions in any mix of styles, tried out as a candidate before saving
-export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, draft, onSave, onCancel }) => {
+export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, draft, onSave, onSaveDraft, onCancel }) => {
   const isVetter = !business;
   const source = initial ?? draft;
   const [title, setTitle] = useState(source?.title ?? '');
@@ -101,6 +103,8 @@ export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, dra
     }
     onSave(build());
   };
+  // A draft keeps every question as written, finished or not
+  const saveDraft = () => onSaveDraft?.({ ...build(), title: title.trim() || 'Untitled test', questions, totalQuestions: questions.length });
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-50 flex flex-col text-slate-900">
@@ -129,6 +133,11 @@ export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, dra
             <span className="hidden sm:inline">Try it as a candidate</span>
             <span className="sm:hidden">Try it</span>
           </button>
+          {onSaveDraft && (
+            <button onClick={saveDraft} className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:border-indigo-400 rounded-lg">
+              Save draft
+            </button>
+          )}
           <button onClick={save} className="px-4 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg flex items-center gap-1.5">
             <Check className="w-3.5 h-3.5" />
             Save test

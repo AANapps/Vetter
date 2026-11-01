@@ -1,9 +1,9 @@
 import { isMainVersion } from '../lib/testLevels';
 import React, { useState } from 'react';
-import { User, JobPosting, AssessmentTest, Business } from '../types';
+import { User, JobPosting, AssessmentTest, Business, TestDraft } from '../types';
 import { getTestStats } from '../lib/leaderboard';
 import { JobCandidates } from './JobCandidates';
-import { CheckCircle2, Pencil, Plus, Sparkles } from 'lucide-react';
+import { CheckCircle2, FileText, Pencil, Plus, Sparkles, Trash2 } from 'lucide-react';
 import { TestBuilder } from './TestBuilder';
 
 // Jobs have their own page (BusinessJobs); this is the company's tests and the candidates ranked for each job
@@ -23,6 +23,13 @@ interface RecruiterPortalProps {
   onUpdateTest: (test: AssessmentTest) => void;
   // Vetter's AI writes a test from a description
   onGenerateTest: () => void;
+  // Tests still being written, newest first
+  drafts: TestDraft[];
+  onSaveDraft: (record: TestDraft) => void;
+  onDeleteDraft: (id: string) => void;
+  // Carries on with a draft in the AI chat, or in the builder
+  onContinueDraft: (draft: TestDraft) => void;
+  onEditDraftByHand: (draft: TestDraft) => void;
   // The company's leads pipeline, shown first in the Candidates tab
   leads?: React.ReactNode;
 }
@@ -42,6 +49,11 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   onCreateTest,
   onUpdateTest,
   onGenerateTest,
+  drafts,
+  onSaveDraft,
+  onDeleteDraft,
+  onContinueDraft,
+  onEditDraftByHand,
   leads,
 }) => {
   // A business only manages its own jobs and its own tests; the Vetter team sees every company's jobs
@@ -210,6 +222,29 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
             </div>
           )}
 
+          {/* Tests still being written */}
+          {drafts.length > 0 && (
+            <div className="space-y-4">
+              <div>
+                <h2 className="text-base font-bold text-slate-900">Drafts</h2>
+                <p className="text-xs text-slate-500">Tests you saved to finish later. Only {business ? 'your company' : 'the Vetter team'} can see them, and candidates can't take them until they're saved as tests.</p>
+              </div>
+              <ul className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {drafts.map((d) => (
+                  <DraftCard
+                    key={d.id}
+                    draft={d}
+                    job={allJobs.find((j) => j.id === d.jobId)}
+                    showCompany={isVetter}
+                    onContinue={d.messages?.length ? () => onContinueDraft(d) : undefined}
+                    onEdit={() => onEditDraftByHand(d)}
+                    onDelete={() => window.confirm(`Delete the draft "${d.test.title}"? This can't be undone.`) && onDeleteDraft(d.id)}
+                  />
+                ))}
+              </ul>
+            </div>
+          )}
+
           {/* The company's own tests */}
           {business && (
           <div className="space-y-4">
@@ -263,7 +298,23 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
         </div>
       )}
 
-      {building && <TestBuilder business={business} initial={building.initial} onSave={saveTest} onCancel={() => setBuilding(null)} />}
+      {building && (
+        <TestBuilder
+          business={business}
+          initial={building.initial}
+          onSave={saveTest}
+          // Only new tests can be kept as drafts; a saved test is edited in place
+          onSaveDraft={
+            building.initial
+              ? undefined
+              : (test) => {
+                  onSaveDraft({ id: `draft-${Date.now()}`, businessId: business?.id ?? '', test, updatedAt: '' });
+                  setBuilding(null);
+                }
+          }
+          onCancel={() => setBuilding(null)}
+        />
+      )}
     </div>
   );
 };
@@ -309,3 +360,59 @@ const TestSummaryCard: React.FC<{ test: AssessmentTest; usedBy: JobPosting[]; ra
     </div>
   </div>
 );
+
+// A test still being written: what it is so far, and ways to carry on or throw it away
+const DraftCard: React.FC<{
+  draft: TestDraft;
+  job?: JobPosting;
+  showCompany: boolean;
+  onContinue?: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}> = ({ draft, job, showCompany, onContinue, onEdit, onDelete }) => {
+  const t = draft.test;
+  const minutes = t.questions.reduce((sum, q) => sum + q.timeLimitMinutes, 0);
+  const saved = new Date(draft.updatedAt);
+  return (
+    <li className="bg-white border border-dashed border-slate-300 rounded-xl p-5 space-y-3">
+      <div className="flex items-start gap-3">
+        <FileText className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-bold text-slate-900 truncate">{t.title}</h3>
+            <span className="shrink-0 px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 text-[10px] font-semibold">Draft</span>
+          </div>
+          <p className="text-[11px] text-slate-500">
+            {t.questions.length} {t.questions.length === 1 ? 'question' : 'questions'} &middot; ~{minutes} min &middot; {t.difficulty}
+            {job && ` · for ${showCompany ? `${job.companyName}: ` : ''}${job.title}`}
+            {!job && showCompany && t.companyName && ` · ${t.companyName}`}
+          </p>
+          {!Number.isNaN(saved.getTime()) && (
+            <p className="text-[11px] text-slate-400">Saved {saved.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })} at {saved.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}</p>
+          )}
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        {onContinue && (
+          <button onClick={onContinue} className="px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5" />
+            Continue with AI
+          </button>
+        )}
+        <button
+          onClick={onEdit}
+          className={`px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 ${
+            onContinue ? 'text-slate-700 bg-white border border-slate-300 hover:border-indigo-400' : 'text-white bg-indigo-600 hover:bg-indigo-700'
+          }`}
+        >
+          <Pencil className="w-3.5 h-3.5" />
+          Edit by hand
+        </button>
+        <button onClick={onDelete} className="ml-auto px-2 py-1.5 text-xs font-semibold text-slate-500 hover:text-rose-700 flex items-center gap-1" aria-label={`Delete the draft ${t.title}`}>
+          <Trash2 className="w-3.5 h-3.5" />
+          Delete
+        </button>
+      </div>
+    </li>
+  );
+};

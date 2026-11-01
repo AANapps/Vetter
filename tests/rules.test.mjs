@@ -118,6 +118,11 @@ await check('moves Cara to interview', () => setDoc(doc(db, 'leads', caraLead.id
 await check('sees her leads', () => getDocs(query(collection(db, 'leads'), where('businessId', '==', 'acme.io'))), true);
 await check('cannot file a lead under another company', () => setDoc(doc(db, 'leads', caraLead.id), { ...caraLead, businessId: 'evil.com' }), false);
 await check('cannot use a stage that does not exist', () => setDoc(doc(db, 'leads', caraLead.id), { ...caraLead, stage: 'secret' }), false);
+const draft = { id: 'draft-1', businessId: 'acme.io', test: { id: 'draft-1', title: 'Draft', questions: [] }, updatedAt: '2026-11-01' };
+await check('saves a test draft', () => setDoc(doc(db, 'testDrafts', draft.id), draft), true);
+await check('sees her drafts', () => getDocs(query(collection(db, 'testDrafts'), where('businessId', '==', 'acme.io'))), true);
+await check('cannot move a draft to another company', () => setDoc(doc(db, 'testDrafts', draft.id), { ...draft, businessId: 'evil.com' }), false);
+await check('cannot save a draft for the Vetter library', () => setDoc(doc(db, 'testDrafts', 'draft-2'), { ...draft, id: 'draft-2', businessId: '' }), false);
 await check('cannot give kudos as Cara', () => setDoc(doc(db, 'kudos', `x__${cara}`), { itemId: 'x', uid: cara }), false);
 await check('cannot delete Cara\'s post', () => deleteDoc(doc(db, 'posts', 'post-1')), false);
 await check('cannot read Cara\'s notifications', () => getDocs(query(collection(db, 'notifications'), where('userId', '==', cara))), false);
@@ -130,6 +135,8 @@ await check('cannot see who Acme sent its job to', () => getDocs(query(collectio
 await check('cannot see Acme\'s applications', () => getDocs(query(collection(db, 'applications'), where('businessId', '==', 'acme.io'))), false);
 await check('cannot see Acme\'s leads', () => getDocs(query(collection(db, 'leads'), where('businessId', '==', 'acme.io'))), false);
 await check('cannot move Acme\'s leads', () => setDoc(doc(db, 'leads', caraLead.id), { ...caraLead, stage: 'archived' }), false);
+await check('cannot see Acme\'s drafts', () => getDocs(query(collection(db, 'testDrafts'), where('businessId', '==', 'acme.io'))), false);
+await check('cannot delete Acme\'s draft', () => deleteDoc(doc(db, 'testDrafts', 'draft-1')), false);
 await check('cannot edit Acme\'s job', () => updateDoc(doc(db, 'jobs', 'job-1'), { title: 'Hacked' }), false);
 await check('cannot edit Acme\'s test', () => updateDoc(doc(db, 'tests', 'test-custom-1'), { title: 'Hacked' }), false);
 await A.signOut();
@@ -137,6 +144,7 @@ await A.signOut();
 await A.signIn('cara@gmail.com', 'password123');
 console.log('    Cara:');
 await check('cannot see her own stage or notes', () => getDoc(doc(db, 'leads', caraLead.id)), false);
+await check('cannot see Acme\'s test drafts', () => getDoc(doc(db, 'testDrafts', 'draft-1')), false);
 await A.signOut();
 
 console.log('    Dan, emailed before he had an account:');

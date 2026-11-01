@@ -134,6 +134,15 @@ service cloud.firestore {
 
     // Where a candidate is in a company's hiring for one job (stage, rating, notes). Only that company and the Vetter
     // team can see or change it; the candidate never sees it
+    // Tests still being written: only their company and the Vetter team see them; '' is the Vetter library's
+    match /testDrafts/{draftId} {
+      allow read: if signedIn() && (isAdmin() || worksAt(resource.data.businessId));
+      allow create, update: if (isAdmin() || worksAt(request.resource.data.businessId))
+        && request.resource.data.id == draftId
+        && (resource == null || resource.data.businessId == request.resource.data.businessId);
+      allow delete: if isAdmin() || worksAt(resource.data.businessId);
+    }
+
     match /leads/{leadId} {
       allow read: if signedIn() && (isAdmin() || worksAt(resource.data.businessId));
       allow create, update: if (isAdmin() || worksAt(request.resource.data.businessId))

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { User, UserRole, AssessmentTest, JobPosting, Business, SocialState, AppNotification, JobInvitation, Lead } from './types';
+import { User, UserRole, AssessmentTest, JobPosting, Business, SocialState, AppNotification, JobInvitation, Lead, TestDraft } from './types';
 import { INITIAL_RECRUITER, INITIAL_BUSINESSES, STANDARD_ASSESSMENTS } from './data/mockData';
 import { loadData, saveData, clearData, createSeedData } from './lib/store';
 import { getPercentile } from './lib/leaderboard';
@@ -30,7 +30,7 @@ import { firebaseEnabled } from './lib/firebase';
 import { useAccount } from './lib/useAccount';
 import { loadProfile, saveProfile } from './lib/profiles';
 import { Account, accountError, signOut } from './lib/accounts';
-import { Viewer, apply, syncJobs, syncLeads, syncNotifications, syncSocial, syncTests, useCloudData } from './lib/cloud';
+import { Viewer, apply, syncJobs, syncLeads, syncNotifications, syncSocial, syncTestDrafts, syncTests, useCloudData } from './lib/cloud';
 import { LeadsPage } from './components/LeadsPage';
 import { LeadChange } from './components/LeadsView';
 import { LeadRow, buildLeadRows, updatedLead } from './lib/leads';
@@ -166,6 +166,7 @@ export default function App() {
   const [localSocial, setLocalSocial] = useState<SocialState>(initialData.social);
   const [localNotifications, setLocalNotifications] = useState<AppNotification[]>(initialData.notifications);
   const [localLeads, setLocalLeads] = useState<Lead[]>(initialData.leads);
+  const [localTestDrafts, setLocalTestDrafts] = useState<TestDraft[]>(initialData.testDrafts);
 
   // With accounts on, everything real comes from Firebase (src/lib/cloud.ts) and changes are written back there;
   // without them, the demo's example data lives in this browser
@@ -187,6 +188,9 @@ export default function App() {
   const social = cloud ? cloud.social : localSocial;
   const notifications = cloud ? cloud.notifications : localNotifications;
   const leads = cloud ? cloud.leads : localLeads;
+  const testDrafts = cloud ? cloud.testDrafts : localTestDrafts;
+  const testDraftsRef = useRef(testDrafts);
+  testDraftsRef.current = testDrafts;
   const leadsRef = useRef(leads);
   leadsRef.current = leads;
   const jobsRef = useRef(jobs);
@@ -210,6 +214,8 @@ export default function App() {
     firebaseEnabled ? syncNotifications(notificationsRef.current, update(notificationsRef.current), reportCloudError) : setLocalNotifications(update);
   const setLeads = (update: Update<Lead[]>) =>
     firebaseEnabled ? syncLeads(leadsRef.current, update(leadsRef.current), reportCloudError) : setLocalLeads(update);
+  const setTestDrafts = (update: Update<TestDraft[]>) =>
+    firebaseEnabled ? syncTestDrafts(testDraftsRef.current, update(testDraftsRef.current), reportCloudError) : setLocalTestDrafts(update);
 
   // The signed-in candidate, when there is one; visitors and companies aren't among the candidates
   const isCandidateAccount = firebaseEnabled && !!viewer && viewer.role === 'candidate' && candidate.id === viewer.uid;
@@ -219,8 +225,8 @@ export default function App() {
 
   useEffect(() => {
     if (firebaseEnabled) return;
-    saveData({ candidate, otherCandidates, jobs, tests, social, notifications, leads });
-  }, [candidate, otherCandidates, jobs, tests, social, notifications, leads]);
+    saveData({ candidate, otherCandidates, jobs, tests, social, notifications, leads, testDrafts });
+  }, [candidate, otherCandidates, jobs, tests, social, notifications, leads, testDrafts]);
 
   // Changes one person's invitation to a job's tests, adding it if they don't have one yet
   const updateInvitation = (jobId: string, candidateId: string, change: Partial<JobInvitation>) =>
@@ -316,8 +322,8 @@ export default function App() {
   const [activeTest, setActiveTest] = useState<AssessmentTest | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   // Asking Vetter's AI for tests, for a job or on their own; and the builder opened on what it wrote
-  const [generator, setGenerator] = useState<{ jobId?: string } | null>(null);
-  const [draftBuilder, setDraftBuilder] = useState<{ draft: AssessmentTest; jobId?: string; alsoAdd: string[] } | null>(null);
+  const [generator, setGenerator] = useState<{ jobId?: string; resume?: TestDraft } | null>(null);
+  const [draftBuilder, setDraftBuilder] = useState<{ draft: AssessmentTest; jobId?: string; alsoAdd: string[]; record?: TestDraft } | null>(null);
   // What the candidate's Tests page is narrowed to, e.g. a field picked on Home
   const [testField, setTestField] = useState<TestField | null>(null);
   // Opened from search
@@ -685,6 +691,17 @@ export default function App() {
     return id;
   };
 
+  // Drafts: saved (or saved again) and thrown away
+  const saveTestDraft = (record: TestDraft) => {
+    setTestDrafts((prev) => [{ ...record, updatedAt: new Date().toISOString() }, ...prev.filter((d) => d.id !== record.id)]);
+    showToast(`"${record.test.title}" saved as a draft. Find it under Tests.`);
+  };
+  const deleteTestDraft = (id?: string) => {
+    if (id && testDraftsRef.current.some((d) => d.id === id)) setTestDrafts((prev) => prev.filter((d) => d.id !== id));
+  };
+  // A company's drafts; the Vetter team sees every one
+  const visibleDrafts = activeRole === 'admin' ? testDrafts : testDrafts.filter((d) => d.businessId === recruiterBusiness?.id);
+
   const addTestsToJob = (jobId: string, testIds: string[]) => {
     const job = jobs.find((j) => j.id === jobId);
     setJobs((prev) => prev.map((j) => (j.id === jobId ? { ...j, testIds: [...new Set([...j.testIds, ...testIds])] } : j)));
@@ -979,6 +996,11 @@ export default function App() {
               onCreateTest={handleCreateTest}
               onUpdateTest={handleUpdateTest}
               onGenerateTest={() => setGenerator({})}
+              drafts={visibleDrafts}
+              onSaveDraft={saveTestDraft}
+              onDeleteDraft={deleteTestDraft}
+              onContinueDraft={(d) => setGenerator({ jobId: d.jobId, resume: d })}
+              onEditDraftByHand={(d) => setDraftBuilder({ draft: d.test, jobId: d.jobId, alsoAdd: [], record: d })}
               leads={
                 <LeadsPage
                   business={leadsBusiness}
@@ -1037,13 +1059,16 @@ export default function App() {
             setGenerator(null);
             openTestPage(testId);
           }}
+          resume={generator.resume}
+          onSaveDraft={saveTestDraft}
           onSaveTest={(test) => {
             const id = saveNewTest(test);
+            deleteTestDraft(generator.resume?.id);
             if (!generator.jobId) showToast(`"${test.title}" saved to your tests.`);
             return id;
           }}
           onAddToJob={addTestsToJob}
-          onEditDraft={(draft, alsoAdd) => setDraftBuilder({ draft, jobId: generator.jobId, alsoAdd })}
+          onEditDraft={(draft, alsoAdd, record) => setDraftBuilder({ draft, jobId: generator.jobId, alsoAdd, record })}
           onClose={() => setGenerator(null)}
         />
       )}
@@ -1052,8 +1077,14 @@ export default function App() {
         <TestBuilder
           business={testOwnerFor(draftBuilder.jobId)}
           draft={draftBuilder.draft}
+          onSaveDraft={(test) => {
+            const base = draftBuilder.record;
+            saveTestDraft(base ? { ...base, test } : { id: `draft-${Date.now()}`, businessId: testOwnerFor(draftBuilder.jobId)?.id ?? '', ...(draftBuilder.jobId && { jobId: draftBuilder.jobId }), test, updatedAt: '' });
+            setDraftBuilder(null);
+          }}
           onSave={(test) => {
             handleCreateTest(test);
+            deleteTestDraft(draftBuilder.record?.id);
             if (draftBuilder.jobId) addTestsToJob(draftBuilder.jobId, [test.id, ...draftBuilder.alsoAdd]);
             else showToast(`"${test.title}" saved to your tests.`);
             setDraftBuilder(null);
