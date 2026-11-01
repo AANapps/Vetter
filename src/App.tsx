@@ -939,17 +939,6 @@ export default function App() {
             />
           )}
 
-          {!detailPage && activeRole !== 'candidate' && currentTab === 'business-leads' && (
-            <LeadsPage
-              business={leadsBusiness}
-              jobs={leadsJobs}
-              rows={leadRows}
-              onUpdateLead={handleUpdateLead}
-              onOpenPerson={setProfilePersonId}
-              onOpenJobLeads={openJobLeads}
-            />
-          )}
-
           {!detailPage && activeRole !== 'candidate' && currentTab === 'business-jobs' && (
             <BusinessJobs
               key={activeRole}
@@ -990,6 +979,16 @@ export default function App() {
               onCreateTest={handleCreateTest}
               onUpdateTest={handleUpdateTest}
               onGenerateTest={() => setGenerator({})}
+              leads={
+                <LeadsPage
+                  business={leadsBusiness}
+                  jobs={leadsJobs}
+                  rows={leadRows}
+                  onUpdateLead={handleUpdateLead}
+                  onOpenPerson={setProfilePersonId}
+                  onOpenJobLeads={openJobLeads}
+                />
+              }
             />
           )}
           </>

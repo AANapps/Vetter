@@ -23,6 +23,8 @@ interface RecruiterPortalProps {
   onUpdateTest: (test: AssessmentTest) => void;
   // Vetter's AI writes a test from a description
   onGenerateTest: () => void;
+  // The company's leads pipeline, shown first in the Candidates tab
+  leads?: React.ReactNode;
 }
 
 // Tests written in the builder have ids like test-custom-<timestamp> or test-vetter-<timestamp>
@@ -40,6 +42,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   onCreateTest,
   onUpdateTest,
   onGenerateTest,
+  leads,
 }) => {
   // A business only manages its own jobs and its own tests; the Vetter team sees every company's jobs
   const isVetter = !business;
@@ -48,6 +51,9 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   const vetterTests = tests.filter((t) => t.type === 'standard' && isMainVersion(t));
 
   const [selectedJobId, setSelectedJobId] = useState<string>(jobs[0]?.id || '');
+  // The Candidates tab: the leads pipeline, or everyone on Vetter ranked for a job
+  const [candidatesView, setCandidatesView] = useState<'leads' | 'ranked'>(leads ? 'leads' : 'ranked');
+  const showRanked = section === 'candidates' && (candidatesView === 'ranked' || !leads);
   const selectedJob = jobs.find((j) => j.id === selectedJobId) || jobs[0];
 
   // The test builder, open on a new test or one being edited
@@ -121,10 +127,33 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
       </div>
 
       {/* Candidates */}
-      {section === 'candidates' && !selectedJob && (
+      {section === 'candidates' && leads && (
+        <div role="tablist" aria-label="Candidates" className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1 text-xs font-semibold">
+          {(
+            [
+              ['leads', 'Leads'],
+              ['ranked', 'Ranked by job'],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              role="tab"
+              aria-selected={candidatesView === id}
+              onClick={() => setCandidatesView(id)}
+              className={`px-3 py-1.5 rounded-md transition-colors ${
+                candidatesView === id ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+      {section === 'candidates' && leads && candidatesView === 'leads' && leads}
+      {showRanked && !selectedJob && (
         <p className="text-xs text-slate-500">Post a job to start seeing ranked candidates.</p>
       )}
-      {section === 'candidates' && selectedJob && (
+      {showRanked && selectedJob && (
         <div className="space-y-4">
           <div className="space-y-2">
             <h2 className="text-base font-bold text-slate-900">Candidates by Job</h2>

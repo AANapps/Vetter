@@ -14,16 +14,16 @@ interface LeadsPageProps {
   onOpenJobLeads: (jobId: string) => void;
 }
 
-// Every lead across a company's jobs, and how each job's pipeline is filling up
+// Shown in the Candidates tab: every lead across a company's jobs, and how each job's pipeline is filling up
 export const LeadsPage: React.FC<LeadsPageProps> = ({ business, jobs, rows, onUpdateLead, onOpenPerson, onOpenJobLeads }) => {
   const byJob = jobs
     .map((job) => ({ job, rows: rows.filter((r) => r.job.id === job.id) }))
     .sort((a, b) => b.rows.length - a.rows.length);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8">
+    <div className="space-y-8">
       <div className="space-y-1">
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Leads</h1>
+        <h2 className="text-base font-bold text-slate-900">Leads</h2>
         <p className="text-sm text-slate-500">
           Everyone {business ? 'you sent tests to or who applied' : 'sent tests or who applied'}, across {business ? 'your' : 'every company’s'} jobs. Move them through
           your stages, rate them and keep notes. Candidates never see their stage.
