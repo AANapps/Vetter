@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { AssessmentTest, Question } from '../types';
 import { MOCK_DATABASE } from '../lib/sqlEngine';
 import { runQuestion, gradeTest, QuestionRunResult, weightedScore } from '../lib/grading';
@@ -21,7 +21,7 @@ import { getBadgeTier } from './VerifiedSkillBadge';
 import { QUESTION_TYPE_LABELS, describeChecks } from '../lib/testRoles';
 import { ChartPreview, parseChartSpec } from './ChartPreview';
 import { AnswerInput } from './AnswerInputs';
-import { hasAnswer, isAnswerType, isWorkspaceType } from '../lib/questionTypes';
+import { groupQuestions, hasAnswer, orderedQuestions, isAnswerType, isWorkspaceType } from '../lib/questionTypes';
 import { SpreadsheetWindow } from './SpreadsheetWindow';
 import { DatabaseWindow } from './DatabaseWindow';
 import { AppWindow } from './AppWindow';
@@ -37,7 +37,10 @@ interface TestRunnerProps {
 }
 
 export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete, getPercentileFor, preview }) => {
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  // Each hands-on task is shown with the questions about it; every other question on its own
+  const groups = useMemo(() => groupQuestions(test.questions), [test.questions]);
+  const ordered = useMemo(() => groups.flatMap((g) => g.questions), [groups]);
+  const [groupIndex, setGroupIndex] = useState(0);
   const [userCodes, setUserCodes] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {};
     test.questions.forEach((q) => {
@@ -74,10 +77,17 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
   const [tabSwitches, setTabSwitches] = useState(0);
   const [focusWarning, setFocusWarning] = useState<string | null>(null);
 
-  const currentQ: Question = test.questions[currentQuestionIndex];
+  const currentGroup = groups[groupIndex];
+  // The task, or the question on its own
+  const currentQ: Question = currentGroup.questions[0];
+  const followUps = currentGroup.task ? currentGroup.questions.slice(1) : [];
+  const numberOf = (q: Question) => ordered.indexOf(q) + 1;
+  const isDone = (q: Question) =>
+    questionScores[q.id] !== undefined ||
+    (isAnswerType(q.type) && hasAnswer(q, userCodes[q.id] ?? '')) ||
+    (isWorkspaceType(q.type) && (userCodes[q.id] ?? q.starterCode) !== q.starterCode);
+  const setAnswer = (id: string, val: string) => setUserCodes((prev) => ({ ...prev, [id]: val }));
   const currentCode = userCodes[currentQ.id] || '';
-  // Spreadsheet and database tasks open their app beside a narrower brief
-  const workspace = isWorkspaceType(currentQ.type);
   // Every sample table the task's schema reference names
   const sampleTables = Array.from(currentQ.contextData?.matchAll(/Table:\s*(\w+)/g) ?? [])
     .map((m) => MOCK_DATABASE[m[1]])
@@ -224,27 +234,28 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
 
         {/* Center: Question Navigation */}
         <div className="flex items-center gap-1 p-1 bg-white border border-slate-200 rounded-lg shadow-2xs min-w-0 overflow-x-auto mx-3">
-          {test.questions.map((q, idx) => {
+          {groups.map((g, idx) => {
             // Answer-style questions count as done once answered; their result stays hidden until submit
-            const isCompleted =
-              questionScores[q.id] !== undefined ||
-              (isAnswerType(q.type) && hasAnswer(q, userCodes[q.id] ?? '')) ||
-              (isWorkspaceType(q.type) && (userCodes[q.id] ?? q.starterCode) !== q.starterCode);
+            const isCompleted = g.questions.every(isDone);
+            const taskNumber = groups.slice(0, idx + 1).filter((x) => x.task).length;
             return (
               <button
-                key={q.id}
+                key={g.questions[0].id}
                 onClick={() => {
-                  setCurrentQuestionIndex(idx);
+                  setGroupIndex(idx);
                   setRunResults(null);
                 }}
+                title={g.task ? `${g.task.title}: ${g.questions.length} ${g.questions.length === 1 ? 'part' : 'parts'}` : g.questions[0].title}
                 className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors flex items-center gap-1.5 ${
-                  currentQuestionIndex === idx
+                  groupIndex === idx
                     ? 'bg-indigo-600 text-white shadow-xs'
+                    : g.task
+                    ? 'text-indigo-700 hover:text-indigo-900'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                <span className="whitespace-nowrap">{test.questions.length > 8 ? idx + 1 : `Task ${idx + 1}`}</span>
-                {isCompleted && <CheckCircle className={`w-3 h-3 ${currentQuestionIndex === idx ? 'text-white' : 'text-emerald-600'}`} />}
+                <span className="whitespace-nowrap">{g.task ? `Task ${taskNumber}` : numberOf(g.questions[0])}</span>
+                {isCompleted && <CheckCircle className={`w-3 h-3 ${groupIndex === idx ? 'text-white' : 'text-emerald-600'}`} />}
               </button>
             );
           })}
@@ -297,13 +308,98 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
 
       {/* Main Split Workstation */}
       <div className="flex-1 flex overflow-hidden">
+        {/* A hands-on task: its window on the left, the brief and the questions about it on the right */}
+        {currentGroup.task ? (
+          <>
+            <div className="flex-1 min-w-0 p-3 bg-slate-100">
+              {currentQ.type === 'sheet' ? (
+                <SpreadsheetWindow
+                  key={currentQ.id}
+                  value={currentCode || currentQ.starterCode}
+                  onChange={handleCodeChange}
+                  fileName={currentQ.contextData || `${currentQ.title}.xlsx`}
+                  files={test.scenario?.files}
+                />
+              ) : currentQ.type === 'database' ? (
+                <DatabaseWindow
+                  key={currentQ.id}
+                  value={currentCode || currentQ.starterCode}
+                  onChange={handleCodeChange}
+                  tables={currentQ.tables ?? []}
+                  databaseName={currentQ.contextData || 'Database'}
+                  files={test.scenario?.files}
+                />
+              ) : (
+                <AppWindow key={currentQ.id} value={currentCode} onChange={handleCodeChange} html={currentQ.appHtml ?? ''} appName={currentQ.contextData || currentQ.title} />
+              )}
+            </div>
+            <aside className="w-[420px] shrink-0 border-l border-slate-200 bg-white overflow-y-auto p-6 space-y-5">
+              {test.scenario && <CaseBrief scenario={test.scenario} />}
+              <div>
+                <div className="text-xs text-slate-500 font-medium mb-1">
+                  Task {groups.slice(0, groupIndex + 1).filter((g) => g.task).length} &middot; {currentGroup.questions.length}{' '}
+                  {currentGroup.questions.length === 1 ? 'part' : 'parts'} &middot; Weight: {currentGroup.questions.reduce((n, q) => n + q.weight, 0)}%
+                </div>
+                <h2 className="text-base font-bold text-slate-900 tracking-tight">
+                  {numberOf(currentQ)}. {currentQ.title}
+                </h2>
+              </div>
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-700 whitespace-pre-wrap">{currentQ.prompt}</div>
+              {currentQ.testCases.length > 0 && (
+                <div className="space-y-2">
+                  <div className="text-xs font-bold text-slate-800">What&rsquo;s marked ({currentQ.testCases.length} checks)</div>
+                  <ul className="space-y-1.5">
+                    {currentQ.testCases.map((tc) => (
+                      <li key={tc.id} className="flex items-start gap-2 text-xs text-slate-700">
+                        <CheckCircle2 className="w-3.5 h-3.5 mt-px shrink-0 text-slate-300" />
+                        <span>{tc.description}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-[11px] text-slate-500">
+                    Marked when you submit, on the {currentQ.type === 'sheet' ? 'workbook' : currentQ.type === 'app' ? 'simulation' : 'database'} as you leave it. Your work is kept if you move to another task.
+                  </p>
+                </div>
+              )}
+              {followUps.length > 0 && (
+                <div className="space-y-4 pt-4 border-t border-slate-200">
+                  <div className="text-xs font-bold text-slate-800">Questions about this task</div>
+                  {followUps.map((q) => (
+                    <section key={q.id} className="space-y-2" aria-label={`Question ${numberOf(q)}`}>
+                      <div className="flex items-start justify-between gap-2">
+                        <h3 className="text-sm font-bold text-slate-900">
+                          {numberOf(q)}. {q.title}
+                        </h3>
+                        {isDone(q) && <CheckCircle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600" />}
+                      </div>
+                      <p className="text-xs leading-relaxed text-slate-700 whitespace-pre-wrap">{q.prompt}</p>
+                      <AnswerInput question={q} answer={userCodes[q.id] ?? ''} onChange={(val) => setAnswer(q.id, val)} />
+                    </section>
+                  ))}
+                </div>
+              )}
+              {groupIndex < groups.length - 1 && (
+                <button
+                  onClick={() => {
+                    setGroupIndex(groupIndex + 1);
+                    setRunResults(null);
+                  }}
+                  className="w-full px-3 py-2 text-xs font-semibold text-indigo-700 border border-indigo-200 hover:bg-indigo-50 rounded-lg flex items-center justify-center gap-1.5"
+                >
+                  Next <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </aside>
+          </>
+        ) : (
+        <>
         {/* Left Pane: Problem Description & Context */}
-        <div className={`${workspace ? 'w-[380px] shrink-0' : 'w-1/2'} border-r border-slate-200 flex flex-col bg-white overflow-hidden`}>
+        <div className={`w-1/2 border-r border-slate-200 flex flex-col bg-white overflow-hidden`}>
           <div className="p-6 overflow-y-auto space-y-5 flex-1">
             {test.scenario && <CaseBrief scenario={test.scenario} />}
             <div>
               <div className="text-xs text-slate-500 font-medium mb-1">
-                Question {currentQuestionIndex + 1} of {test.questions.length} &middot; Weight: {currentQ.weight}%
+                Question {numberOf(currentQ)} of {test.questions.length} &middot; Weight: {currentQ.weight}%
               </div>
               <h2 className="text-base font-bold text-slate-900 tracking-tight">{currentQ.title}</h2>
             </div>
@@ -312,23 +408,7 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
               {currentQ.prompt}
             </div>
 
-            {/* Spreadsheet and database tasks say what's marked, never the answers */}
-            {workspace && currentQ.testCases.length > 0 && (
-              <div className="space-y-2">
-                <div className="text-xs font-bold text-slate-800">What&rsquo;s marked ({currentQ.testCases.length} checks)</div>
-                <ul className="space-y-1.5">
-                  {currentQ.testCases.map((tc) => (
-                    <li key={tc.id} className="flex items-start gap-2 text-xs text-slate-700">
-                      <CheckCircle2 className="w-3.5 h-3.5 mt-px shrink-0 text-slate-300" />
-                      <span>{tc.description}</span>
-                    </li>
-                  ))}
-                </ul>
-                <p className="text-[11px] text-slate-500">Marked when you submit, on the {currentQ.type === 'sheet' ? 'workbook' : currentQ.type === 'app' ? 'app' : 'database'} as you leave it. Your work is kept if you move to another task.</p>
-              </div>
-            )}
-
-            {currentQ.contextData && !workspace && (
+            {currentQ.contextData && (
               <div className="space-y-2">
                 <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                   <span>Schema Reference</span>
@@ -340,7 +420,7 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
             )}
 
             {/* Test Cases preview */}
-            {currentQ.testCases.length > 0 && !workspace && (
+            {currentQ.testCases.length > 0 && (
             <div className="space-y-2">
               <div className="text-xs font-bold text-slate-800">Target Assertions ({currentQ.testCases.length})</div>
               <div className="space-y-2">
@@ -399,32 +479,7 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
         </div>
 
         {/* Right Pane: picking, typing or arranging for answer-style questions, otherwise the code editor & execution results */}
-        {currentQ.type === 'sheet' ? (
-          <div className="flex-1 min-w-0 p-3 bg-slate-100">
-            <SpreadsheetWindow
-              key={currentQ.id}
-              value={currentCode || currentQ.starterCode}
-              onChange={handleCodeChange}
-              fileName={currentQ.contextData || `${currentQ.title}.xlsx`}
-              files={test.scenario?.files}
-            />
-          </div>
-        ) : currentQ.type === 'database' ? (
-          <div className="flex-1 min-w-0 p-3 bg-slate-100">
-            <DatabaseWindow
-              key={currentQ.id}
-              value={currentCode || currentQ.starterCode}
-              onChange={handleCodeChange}
-              tables={currentQ.tables ?? []}
-              databaseName={currentQ.contextData || 'Database'}
-              files={test.scenario?.files}
-            />
-          </div>
-        ) : currentQ.type === 'app' ? (
-          <div className="flex-1 min-w-0 p-3 bg-slate-100">
-            <AppWindow key={currentQ.id} value={currentCode} onChange={handleCodeChange} html={currentQ.appHtml ?? ''} appName={currentQ.contextData || currentQ.title} />
-          </div>
-        ) : isAnswerType(currentQ.type) ? (
+        {isAnswerType(currentQ.type) ? (
           <div className="w-1/2 flex flex-col bg-slate-50 overflow-y-auto p-6">
             <AnswerInput key={currentQ.id} question={currentQ} answer={currentCode} onChange={handleCodeChange} />
           </div>
@@ -592,6 +647,8 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
           </div>
         </div>
         )}
+        </>
+        )}
       </div>
 
       {/* While answers are marked */}
@@ -664,7 +721,7 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
 
               <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600 space-y-1.5 max-h-64 overflow-y-auto">
                 <div className="font-bold text-slate-900">Score and feedback by task</div>
-                {test.questions.map((q, idx) => {
+                {ordered.map((q, idx) => {
                   const missed = questionFeedback[q.id] ?? [];
                   const byAi = aiMarked[q.id];
                   return (
@@ -769,14 +826,14 @@ const TestIntro: React.FC<TestIntroProps> = ({ test, acceptedRules, onAcceptedRu
       <div className="bg-white border border-slate-200 rounded-xl p-6 space-y-4 shadow-xs">
         <h2 className="text-base font-bold text-slate-900">What&rsquo;s in the test</h2>
         <ol className="divide-y divide-slate-100">
-          {test.questions.map((q, i) => (
-            <li key={q.id} className="py-3 flex items-center justify-between gap-4 text-xs">
+          {orderedQuestions(test.questions).map((q, i) => (
+            <li key={q.id} className={`py-3 flex items-center justify-between gap-4 text-xs ${q.taskId ? 'pl-5' : ''}`}>
               <div className="min-w-0">
                 <div className="font-semibold text-slate-900">
                   {i + 1}. {q.title}
                 </div>
                 <div className="text-slate-500 font-mono text-[11px] mt-0.5">
-                  {QUESTION_TYPE_LABELS[q.type]} &middot; {describeChecks(q)}
+                  {q.taskId ? 'About the task above · ' : ''}{QUESTION_TYPE_LABELS[q.type]} &middot; {describeChecks(q)}
                 </div>
               </div>
               <div className="text-right font-mono text-[11px] text-slate-500 shrink-0">

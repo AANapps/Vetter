@@ -8,6 +8,22 @@ export const isAnswerType = (type: QuestionType) => ANSWER_TYPES.includes(type);
 // Worked in an app window (a spreadsheet, a SQL workbench or a simulated product) and marked on what the candidate leaves behind
 export const isWorkspaceType = (type: QuestionType) => type === 'sheet' || type === 'database' || type === 'app';
 
+// A test as the candidate meets it: each hands-on task with the questions about it, and every other question on its own.
+// Questions about a task follow it wherever they're listed; ones whose task is gone stand alone
+export interface QuestionGroup {
+  task?: Question;
+  questions: Question[];
+}
+export function groupQuestions(questions: Question[]): QuestionGroup[] {
+  const tasks = new Set(questions.filter((q) => isWorkspaceType(q.type)).map((q) => q.id));
+  const belongs = (q: Question) => !!q.taskId && tasks.has(q.taskId) && !isWorkspaceType(q.type);
+  return questions
+    .filter((q) => !belongs(q))
+    .map((q) => (isWorkspaceType(q.type) ? { task: q, questions: [q, ...questions.filter((f) => belongs(f) && f.taskId === q.id)] } : { questions: [q] }));
+}
+// The questions in the order they're asked
+export const orderedQuestions = (questions: Question[]) => groupQuestions(questions).flatMap((g) => g.questions);
+
 // A stable shuffle per question, so the order candidates see is the same every time and grading can rebuild it.
 // Never returns the right order when there's more than one item.
 export function shuffledIndexes(seed: string, count: number): number[] {

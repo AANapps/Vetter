@@ -32,6 +32,9 @@ export const questionSchema = {
   properties: {
     // In a conversation: the id of a draft question to keep exactly as it is (the other fields are then ignored)
     keep: { type: 'string' },
+    // A hands-on task's own label (e.g. "t1"), and on a question about a task, that task's label
+    ref: { type: 'string' },
+    taskRef: { type: 'string' },
     type: { type: 'string', enum: ['choice', 'multi', 'text', 'order', 'match', 'code', 'sql', 'sheet', 'database', 'app'] },
     title: { type: 'string' },
     prompt: { type: 'string' },
@@ -69,7 +72,7 @@ export const questionSchema = {
   },
   // Every field is asked for, empty where a style doesn't use it: optional fields make the output grammar too large to
   // compile, and testCases can't be skipped where it's needed
-  required: ['keep', 'type', 'title', 'prompt', 'contextData', 'options', 'correctOption', 'correctOptions', 'acceptedAnswers', 'items', 'pairs', 'starterCode', 'solutionCode', 'testCases', 'tables', 'appHtml', 'workbook', 'solutionCells', 'dataTables', 'timeLimitMinutes', 'points'],
+  required: ['keep', 'ref', 'taskRef', 'type', 'title', 'prompt', 'contextData', 'options', 'correctOption', 'correctOptions', 'acceptedAnswers', 'items', 'pairs', 'starterCode', 'solutionCode', 'testCases', 'tables', 'appHtml', 'workbook', 'solutionCells', 'dataTables', 'timeLimitMinutes', 'points'],
   additionalProperties: false,
 };
 
@@ -119,28 +122,53 @@ export const WORKSPACE_RULES = `
   monthly_revenue ORDER BY month"), expectedOutput "" (it's worked out from solutionCode).`;
 
 export const APP_RULES = `
-- app: a working copy of the software the job uses, in which the candidate does a real task. Write at most 2, and when the
-  job names software, make at least one. Base it on the RESEARCH, so someone who uses the product daily recognises it.
-  appHtml: ONE self-contained HTML page, under 60KB:
-  • Mimic the real product: its layout and navigation, colour scheme, typography, terminology, menu and button labels, and
-    the screens the task needs, with icons drawn in inline SVG. Add enough of the surrounding interface that it feels like
-    the product, but only the parts the task touches need to work.
-  • Its <title> is the product's name alone, e.g. <title>ClickData</title>.
+- app: an interactive simulation the candidate really works in. Write at most 2. It is one of two kinds:
+  (a) SOFTWARE: a working copy of a product the job uses (a CRM, helpdesk, EPOS till, design tool, accounting package...).
+      When the job names software, make at least one. Base it on the RESEARCH, so someone who uses it daily recognises it:
+      its layout and navigation, colour scheme, typography, terminology, menu and button labels, and the screens the task
+      needs, with icons in inline SVG.
+  (b) HANDS-ON WORK: for trades and physical jobs (device and phone repair, electrical, plumbing, automotive, engineering,
+      lab and clinical work, warehouse, hospitality, beauty, manufacturing...), an interactive mock-up of the real thing,
+      drawn in detailed inline SVG, so the candidate does the job step by step. Model the exact item named, from the
+      RESEARCH: e.g. a phone repair shop testing a screen replacement on a specific model gets that phone (its real shape,
+      camera layout, buttons, screw positions and types, brackets, battery and display connectors), a tool tray (the right
+      screwdriver bits, heat pad, suction cup, picks, spudger, tweezers, adhesive), and the steps it really takes: power
+      off, heat and lift the screen, remove the right screws in the right places, disconnect the battery BEFORE the
+      display, swap the part, reconnect, test. Clicking a tool then a part does what it would; the drawing changes as parts
+      come off (exploded or opened views, zoom on the area worked on). Wrong moves have realistic consequences recorded in
+      the state (a torn flex cable, a stripped screw, a short from leaving the battery connected) without telling the
+      candidate it was wrong. Include a fault to diagnose when the job calls for it (e.g. readings on a multimeter view).
+      Make it look like the real thing, not a diagram: true proportions and colours, rounded bodies with gradients,
+      highlights and shadows, glass, metal and cable textures, labelled screws and connectors drawn where they really sit,
+      a large central view of the device that fills the stage, and a zoomed inset of the area being worked on. Spend most
+      of the page's size on the drawing and its states (closed, opened, each part removed). Tools show as recognisable icons.
+      The candidate works out the procedure: actions happen by picking a tool and using it on a part in the drawing, never
+      from a list of steps, and nothing on screen numbers the steps or shows them in the right order.
+  For both kinds, appHtml is ONE self-contained HTML page, under 60KB:
+  • Its <title> is the product's or item's name alone, e.g. <title>ClickData</title> or <title>iPhone 13</title>.
   • Everything inline: no external scripts, stylesheets, images or requests of any kind (Google Fonts are the only exception).
     No <form> submission and no alert/prompt/confirm: use buttons and in-page dialogs. It runs in a sandbox with no network.
-  • Fill it with realistic made-up data for a made-up company, enough rows that the task takes real work.
-  • The controls the task needs must really work: filters filter, charts redraw, fields save, rows can be added or edited.
+  • Fill it with realistic made-up data or detail, enough that the task takes real work (6 to 12 minutes).
+  • The controls the task needs must really work: filters filter, charts redraw, fields save, parts come off and go back.
   • Put all the script inside one (function () { ... })(), so no name clashes with the browser's own globals (top, name,
     parent, status, open, close and so on). Plain ES2020, no modules or libraries.
-  • Keep everything the candidate can change in ONE plain JSON object. On load, start from window.vetterSaved when it isn't
-    null (the candidate coming back to the task), otherwise from the starting state. Call vetter.save(state) once on load
-    and again after every change. Never show which values are checked or what they should be.
-  prompt: the task, as a manager would ask for it: the outcome wanted in 3 to 5 concrete steps, not which buttons to press.
+  • Keep everything the candidate can change in ONE plain JSON object; for hands-on work, include the steps taken in order
+    (e.g. steps: ["power_off", "heat_screen", ...]), what is attached or removed, and any damage done. On load, start from
+    window.vetterSaved when it isn't null (the candidate coming back to the task), otherwise from the starting state. Call
+    vetter.save(state) once on load and again after every change. Never show which values are checked or what they should be.
+  prompt: the task, as a manager or customer would ask for it: the outcome wanted in 3 to 5 concrete steps, not which buttons to press.
   testCases (REQUIRED for app: an app question without them is thrown away): 3 to 6 checks on the final state. input is a dotted path into the state object, e.g. "dashboard.widgets.0.type"
-  or "filters.region"; expectedOutput is its value once the task is done right ("|" between acceptable forms; a list as a
+  or "parts.battery.connected"; expectedOutput is its value once the task is done right ("|" between acceptable forms; a list as a
   JSON array, compared in any order; numbers to 2 decimal places). description says what's checked without giving the
-  answer. The starting state must fail every check. Leave starterCode and solutionCode empty.
-  Other questions may ask about what the candidate finds in the app, as long as the app shows it.`;
+  answer. The starting state must fail every check. Leave starterCode and solutionCode empty.`;
+
+// How a test is put together: hands-on tasks, each with questions about it
+export const TASK_RULES = `
+TASKS: build the test around 2 or 3 hands-on tasks (sheet, database or app). Give each task a short ref ("t1", "t2"...).
+Straight after each task, write 2 to 4 questions about it, in any answer style (choice, multi, text, order, match), with
+taskRef set to the task's ref: what the candidate found or worked out in it, why something happened, what they'd check or
+do next, what they'd tell the customer or manager. They're answered beside the task's window, so they may rely on what it
+shows. Every other question has taskRef "", and every question that isn't a task has ref "". A kept task's ref is its id.`;
 
 function instructions(req: GenerateRequest): string {
   return `You help companies on Vetter, a skills-based hiring platform, choose and write tests for a job.
@@ -160,7 +188,7 @@ Style rules (testCases is an empty list for choice, multi, text, order and match
 - match: 3 to 5 pairs; each left prompt with its right answer, all distinct.
 - code: JavaScript. starterCode defines "function solution(...)". solutionCode is a correct reference implementation. 3 to 5 testCases; input is a JSON array of the arguments, e.g. "[[3,1,2]]" calls solution([3,1,2]); expectedOutput is the JSON result.
 - sql: query only these tables: ${req.tables.map((t) => `${t.name}(${t.columns.join(', ')})`).join('; ')}. List the tables used in "tables". solutionCode is a correct SQLite query; starterCode is a comment and "SELECT ".${req.styles.includes('app') ? APP_RULES : ''}
-timeLimitMinutes is realistic for the question (1 to 2 for answer styles, 4 to 8 for code, sql and app), and across the test they add up to 15 to 20. points reflect importance.
+timeLimitMinutes is realistic for the question (1 to 3 for answer styles, 5 to 10 for code and sql, 6 to 12 for app), and across the test they add up to 25 to 35. points reflect importance; a task counts for more than a question about it.${req.styles.includes('app') ? TASK_RULES : ''}
 category must be one of: ${req.categories.join(', ')}. passingScore between 60 and 80. roles: pick from ${req.roles.join(', ')}.
 Write plainly, in British English, with no em dashes.`
     : 'Do not include "test".'
@@ -190,15 +218,22 @@ export async function researchSoftware(client: Anthropic, model: string, prompt:
         // Dynamic filtering needs the larger models; Haiku has the basic search
         tools: [model.includes('haiku') ? { type: 'web_search_20250305', name: 'web_search', max_uses: 6 } : { type: 'web_search_20260209', name: 'web_search', max_uses: 6 }],
         ...(!model.includes('haiku') && { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' as const }),
-        system: `A skills test is being written for this job, including a simulation that copies the interface of the software the job uses, so candidates can show they can really use it.
-Find the main software product the job or test names (one, the most central). If none is named, reply with exactly NONE.
-Otherwise search the web (official docs, help centre, screenshots described in reviews and tutorials) and write compact notes for a developer rebuilding its interface:
+        system: `A skills test is being written for this job, including an interactive simulation candidates work in, so they can show they can really do the job.
+Find the one thing the simulation should copy: the main software product the job or test names, or, for hands-on work, the specific device, equipment or machine (and the procedure done on it, e.g. "iPhone 13 screen replacement"). If neither is named or implied, reply with exactly NONE.
+Then search the web (official docs, help centres, repair guides such as iFixit, service manuals, tutorials) and write compact notes for a developer rebuilding it.
+For software:
 - what the product is for, and who uses it
 - the overall layout: top bar, sidebars, panels, where the main navigation sits, and what each main screen is called
 - the look: colour scheme (hex values if you can find them), typography, density, how buttons, tables and cards look
-- exact terminology: menu items, button labels, object names (e.g. what a "dashboard", "widget" or "data flow" is called)
+- exact terminology: menu items, button labels, object names
 - the core workflows a person in this job does in it, step by step, as the product does them
 - example data the product typically holds
+For a device or equipment:
+- what it looks like: dimensions and proportions, colours and finishes, where the buttons, ports, cameras and labels sit
+- what's inside, in the order it comes apart: fasteners (types, sizes, positions), brackets, connectors, cables, adhesive
+- the procedure step by step, with the tools used, the order that matters (e.g. disconnect the battery first) and the
+  common mistakes and the damage they cause
+- how a finished job is tested, and typical faults with their symptoms and readings
 Only facts you found or can be confident of. Under 900 words. No preamble.`,
         messages,
       })
@@ -209,7 +244,7 @@ Only facts you found or can be confident of. Under 900 words. No preamble.`,
     }
     const text = message.content.flatMap((block) => (block.type === 'text' ? [block.text] : [])).join('').trim();
     const searches = message.usage.server_tool_use?.web_search_requests ?? 0;
-    console.log(`[generate-test] researched the software: ${searches} searches, ${message.usage.input_tokens} in, ${message.usage.output_tokens} out`);
+    console.log(`[generate-test] researched the simulation: ${searches} searches, ${message.usage.input_tokens} in, ${message.usage.output_tokens} out`);
     return message.stop_reason === 'refusal' || /^NONE\b/.test(text) ? '' : text;
   }
   return '';
@@ -236,7 +271,7 @@ export async function generateTest(body: unknown, apiKey: string | undefined, mo
         // If Claude declines on safety grounds, Anthropic re-runs the request on its recommended fallback model.
         // Haiku has no fallback, so it's only asked for on the larger models
         ...(!model.includes('haiku') && { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' as const }),
-        system: instructions({ ...req, research, questionCount: Math.min(15, Math.max(1, Math.round(req.questionCount || 10))) }),
+        system: instructions({ ...req, research, questionCount: Math.min(15, Math.max(1, Math.round(req.questionCount || 14))) }),
         messages: [{ role: 'user', content: `The job or test the company described:\n\n${req.prompt.slice(0, MAX_PROMPT)}` }],
       })
       .finalMessage();

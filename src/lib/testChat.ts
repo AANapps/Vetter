@@ -1,6 +1,7 @@
 import { AssessmentTest, Business, Question, QuestionType, SkillCategory, TEST_DIFFICULTIES, TestDifficulty, TestRole } from '../types';
 import { MOCK_DATABASE } from './sqlEngine';
-import { ALL_ROLES, CATEGORIES, RawQuestion, Suggestion, assembleFromBank, checkQuestion, libraryFor, matchExisting } from './testGeneration';
+import { orderedQuestions } from './questionTypes';
+import { ALL_ROLES, CATEGORIES, RawQuestion, Suggestion, assembleFromBank, checkQuestion, libraryFor, linkTasks, matchExisting } from './testGeneration';
 
 // Building a test by talking to Vetter (server/testChat.ts does the AI side). Each turn sends the conversation and the
 // draft; what comes back is checked here like any AI-written test: new questions are run and broken ones left out.
@@ -42,10 +43,12 @@ export const draftForModel = (test: AssessmentTest) => ({
   passingScore: test.passingScore,
   skillsTested: test.skillsTested,
   roles: test.roles ?? [],
-  questions: test.questions.map((q, i) => ({
+  questions: orderedQuestions(test.questions).map((q, i) => ({
     number: i + 1,
     id: q.id,
     type: q.type,
+    // Tasks are referred to by id; a question about one names it
+    ...(q.taskId && { taskRef: q.taskId }),
     title: q.title,
     prompt: q.prompt,
     points: q.weight,
@@ -65,7 +68,7 @@ export const draftForModel = (test: AssessmentTest) => ({
   })),
 });
 
-type RawTest = Record<string, any> & { questions?: (RawQuestion & { keep?: string })[] };
+type RawTest = Record<string, any> & { questions?: RawQuestion[] };
 
 // The AI's new version of the draft made into a real test: kept questions carried over, new ones checked
 async function buildDraft(raw: RawTest, previous: AssessmentTest | undefined, ctx: ChatContext): Promise<{ test?: AssessmentTest; dropped: number }> {
@@ -73,7 +76,7 @@ async function buildDraft(raw: RawTest, previous: AssessmentTest | undefined, ct
   const built = await Promise.all(
     items.map((item) => (item.keep ? Promise.resolve(previous?.questions.find((q) => q.id === item.keep) ?? null) : checkQuestion(item)))
   );
-  const questions = built.filter((q): q is Question => !!q);
+  const questions = linkTasks(items, built);
   const dropped = items.length - questions.length;
   if (!questions.length) return { dropped };
   const total = questions.reduce((sum, q) => sum + q.weight, 0) || 1;

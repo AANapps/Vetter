@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AlertCircle, ArrowUp, Check, ChevronDown, Library, Pencil, Sparkles, X } from 'lucide-react';
 import { AssessmentTest, Business, JobPosting, Question, QuestionType, TestDifficulty, TestDraft } from '../types';
-import { QUESTION_STYLES } from '../lib/questionTypes';
+import { QUESTION_STYLES, isWorkspaceType } from '../lib/questionTypes';
 import { jobBrief } from '../lib/testGeneration';
 import { ChatState, sendChat } from '../lib/testChat';
 import { versionTitle } from '../lib/testLevels';
@@ -393,12 +393,13 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
 const QuestionRow: React.FC<{ q: Question; n: number }> = ({ q, n }) => {
   const [open, setOpen] = useState(false);
   return (
-    <li className="rounded-lg border border-slate-100">
+    <li className={`rounded-lg border ${q.taskId ? 'ml-6 border-slate-100 border-l-indigo-200 border-l-2' : isWorkspaceType(q.type) ? 'border-indigo-100 bg-indigo-50/30' : 'border-slate-100'}`}>
       <button onClick={() => setOpen((o) => !o)} aria-expanded={open} className="w-full px-3 py-2 flex items-start gap-2 text-left hover:bg-slate-50 rounded-lg">
         <span className="font-mono text-xs text-slate-400 mt-0.5">{n}.</span>
         <span className="min-w-0 flex-1 text-sm text-slate-800">
           {q.title}
           <span className="block text-[11px] text-slate-400">
+            {q.taskId ? 'About the task · ' : ''}
             {styleLabel(q)}
             {q.type === 'app' && q.contextData ? ` · ${q.contextData}` : ''} · {q.timeLimitMinutes} min · {q.weight}%
           </span>

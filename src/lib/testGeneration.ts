@@ -4,7 +4,7 @@ import { MOCK_DATABASE, executeSqlQuery } from './sqlEngine';
 import { runJavaScriptCode } from './codeEngine';
 import { isMainVersion, levelsOf } from './testLevels';
 import { ROLE_GROUPS } from './testRoles';
-import { questionProblems } from './questionTypes';
+import { isAnswerType, isWorkspaceType, orderedQuestions, questionProblems } from './questionTypes';
 import { probeApp } from './appSimulation';
 import { checkSheet, parseAddr, cellAddr, setCells, shiftFormula, workbookStarter, parseWorkbook } from './spreadsheet';
 import { databaseStarter } from './databaseWork';
@@ -177,6 +177,10 @@ export function assembleFromBank(opts: GenerationOptions, library: AssessmentTes
 }
 
 export type RawQuestion = Omit<Partial<Question>, 'tables'> & {
+  // A task's label, and on a question about a task, the task's label (a kept task's label is its id)
+  ref?: string;
+  taskRef?: string;
+  keep?: string;
   tables?: string[];
   points?: number;
   testCases?: { description: string; input: string; expectedOutput: string }[];
@@ -227,6 +231,28 @@ function solveWorkbook(starter: string, cells: NonNullable<RawQuestion['solution
     wb = setCells(wb, index, updates);
   }
   return JSON.stringify(wb);
+}
+
+// The AI's questions once checked, each question about a task joined to it (by id) and put straight after it.
+// A question about a task that didn't pass its checks is dropped too: it would ask about something that isn't there
+export function linkTasks(items: RawQuestion[], built: (Question | null)[]): Question[] {
+  const ids = new Map<string, string>();
+  built.forEach((q, i) => {
+    if (!q || !isWorkspaceType(q.type)) return;
+    ids.set(q.id, q.id);
+    const ref = items[i]?.ref?.trim();
+    if (ref) ids.set(ref, q.id);
+  });
+  const linked = built.flatMap((q, i): Question[] => {
+    if (!q) return [];
+    const { taskId: _old, ...plain } = q;
+    if (isWorkspaceType(q.type) || !isAnswerType(q.type)) return [plain];
+    const ref = items[i]?.keep ? q.taskId : items[i]?.taskRef?.trim();
+    if (!ref) return [plain];
+    const taskId = ids.get(ref);
+    return taskId ? [{ ...plain, taskId }] : [];
+  });
+  return orderedQuestions(linked);
 }
 
 export const uid = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
@@ -393,7 +419,7 @@ export async function generateTests(opts: GenerationOptions, tests: AssessmentTe
   const raw = body.test;
   // Styles the company didn't ask for are ignored; of the rest, ones failing the checks are counted as dropped
   const asked = ((raw.questions ?? []) as RawQuestion[]).filter((q) => opts.styles.includes(q.type as QuestionType));
-  const questions = (await Promise.all(asked.map(checkQuestion))).filter((q): q is Question => !!q);
+  const questions = linkTasks(asked, await Promise.all(asked.map(checkQuestion)));
   const dropped = asked.length - questions.length;
   if (questions.length === 0) return { existing, dropped, newTestError: "None of the AI's questions passed Vetter's checks. Try again." };
 

@@ -3,7 +3,7 @@ import { AlertCircle, ArrowDown, ArrowUp, Check, Eye, FileText, Plus, Trash2, X 
 import { AssessmentTest, Business, Question, QuestionType, SkillCategory, TEST_DIFFICULTIES, TestRole } from '../types';
 import { SKILL_IDS } from '../data/seedCandidates';
 import { ROLE_GROUPS } from '../lib/testRoles';
-import { AI_ONLY_TYPES, QUESTION_STYLES, blankQuestion, questionProblems, tidyQuestion } from '../lib/questionTypes';
+import { AI_ONLY_TYPES, QUESTION_STYLES, blankQuestion, isAnswerType, isWorkspaceType, questionProblems, tidyQuestion } from '../lib/questionTypes';
 import { QuestionEditor, inputClass, labelClass } from './QuestionEditors';
 import { TestRunner } from './TestRunner';
 
@@ -337,6 +337,26 @@ export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, dra
                 </div>
                 {problemsByQuestion[selected].length > 0 && (
                   <p className="text-[11px] text-amber-800 bg-amber-50 rounded-lg px-3 py-2">To finish: {problemsByQuestion[selected].join(' · ')}</p>
+                )}
+                {/* A question can be about one of the test's hands-on tasks, and is then asked beside its window */}
+                {isAnswerType(questions[selected].type) && questions.some((q) => isWorkspaceType(q.type)) && (
+                  <label className="block space-y-1">
+                    <span className={labelClass}>About a hands-on task</span>
+                    <select
+                      value={questions[selected].taskId ?? ''}
+                      onChange={(e) => updateQuestion(selected, { taskId: e.target.value || undefined })}
+                      className={inputClass}
+                    >
+                      <option value="">No, it stands on its own</option>
+                      {questions.map((q, i) =>
+                        isWorkspaceType(q.type) ? (
+                          <option key={q.id} value={q.id}>
+                            Question {i + 1}: {q.title || 'Untitled task'}
+                          </option>
+                        ) : null
+                      )}
+                    </select>
+                  </label>
                 )}
                 <QuestionEditor key={questions[selected].id} question={questions[selected]} onChange={(change) => updateQuestion(selected, change)} share={share(questions[selected])} />
               </div>

@@ -171,6 +171,9 @@ export interface Question {
   tables?: DataTable[];
   // App simulations: the simulated product as one HTML page (its name is in contextData). Checks read its saved state
   appHtml?: string;
+  // A question about a hands-on task (a spreadsheet, database or app question): that task's id. It's asked beside the
+  // task's window, about what the candidate did or found there
+  taskId?: string;
   testCases: TestCase[];
   timeLimitMinutes: number;
   weight: number;
