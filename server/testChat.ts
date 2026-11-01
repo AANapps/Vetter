@@ -91,8 +91,11 @@ ${
   Unless told otherwise, every test has hands-on tasks that match how the job is really done: sheet for Excel work
   (finance, ops, analysts), database for SQL work, app for any other software the job names (a CRM, helpdesk, design
   tool, accounting package...), app for physical and trade work (a mock-up of the device or equipment, e.g. a specific
-  phone for a repair technician), code for developers.
+  phone for a repair technician), code for developers, and an app of your own design (kind (c) below) for any other
+  skill best shown by doing it. Fast formats for the basics, hands-on for the hardest work.
   Prefer database to sql (sql is a single query on a fixed sample database).
+- If the company asks for something interactive that no style fits, build it as an app of kind (c): anything they can
+  describe can be made into a working page the candidate uses, checked on what they leave behind.
 Every question has every field: "" for text, [] for lists and -1 for correctOption where its style doesn't use them, and keep is "" on a new question.
 Style rules (testCases is an empty list for choice, multi, text, order and match):
 - choice: 4 options, exactly one right; correctOption is its 0-based index.
@@ -102,7 +105,7 @@ Style rules (testCases is an empty list for choice, multi, text, order and match
 - match: 3 to 5 pairs; each left prompt with its right answer, all distinct.
 - code: JavaScript. starterCode defines "function solution(...)". solutionCode is a correct reference implementation. 3 to 5 testCases; input is a JSON array of the arguments, e.g. "[[3,1,2]]" calls solution([3,1,2]); expectedOutput is the JSON result.
 - sql: query only these tables: ${req.tables.map((t) => `${t.name}(${t.columns.join(', ')})`).join('; ')}. List the tables used in "tables". solutionCode is a correct SQLite query; starterCode is a comment and "SELECT ".${WORKSPACE_RULES}${APP_RULES}
-timeLimitMinutes is realistic for the question (1 to 3 for answer styles, 5 to 10 for code, sql, sheet and database, 6 to 12 for app), and across the test they add up to 25 to 35 unless the company asks for a different length. points reflect importance; a task counts for more than a question about it.
+timeLimitMinutes is realistic for the question (2 to 4 for answer styles, as the scenario takes reading, 5 to 10 for code, sql, sheet and database, 6 to 12 for app), and across the test they add up to 25 to 35 unless the company asks for a different length. points reflect importance; a task counts for more than a question about it.
 ${TASK_RULES}
 category must be one of: ${req.categories.join(', ')}. passingScore between 60 and 80. roles: pick from ${req.roles.join(', ')}.
 software: the one product, device or equipment the app simulations copy (e.g. "Xero" or "iPhone 13"), or "" when the draft has none.

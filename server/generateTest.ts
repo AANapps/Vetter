@@ -122,7 +122,8 @@ export const WORKSPACE_RULES = `
   monthly_revenue ORDER BY month"), expectedOutput "" (it's worked out from solutionCode).`;
 
 export const APP_RULES = `
-- app: an interactive simulation the candidate really works in. Write at most 2. It is one of two kinds:
+- app: an interactive page the candidate really works in. Write up to 3. Use it for the hardest parts of the test. It is
+  one of three kinds:
   (a) SOFTWARE: a working copy of a product the job uses (a CRM, helpdesk, EPOS till, design tool, accounting package...).
       When the job names software, make at least one. Base it on the RESEARCH, so someone who uses it daily recognises it:
       its layout and navigation, colour scheme, typography, terminology, menu and button labels, and the screens the task
@@ -144,6 +145,12 @@ export const APP_RULES = `
       of the page's size on the drawing and its states (closed, opened, each part removed). Tools show as recognisable icons.
       The candidate works out the procedure: actions happen by picking a tool and using it on a part in the drawing, never
       from a list of steps, and nothing on screen numbers the steps or shows them in the right order.
+  (c) ANY OTHER FORMAT you design for the skill, when the job isn't done in one product or on one device: e.g. triaging
+      an inbox of customer emails into priority lanes, labelling the faults on a wiring diagram or floor plan, reading a
+      live dashboard and flagging the anomaly, building a staff rota that meets the rules, replying to a customer chat
+      where the customer reacts to each reply, marking up a contract or a drawing, sorting stock into the right
+      locations. Invent whatever best shows whether someone can really do the work; it doesn't have to look like any
+      existing question type. It is marked by checks on what the candidate leaves behind, like the others.
   For both kinds, appHtml is ONE self-contained HTML page, under 60KB:
   • Its <title> is the product's or item's name alone, e.g. <title>ClickData</title> or <title>iPhone 13</title>.
   • Everything inline: no external scripts, stylesheets, images or requests of any kind (Google Fonts are the only exception).
@@ -167,9 +174,17 @@ export const APP_RULES = `
 
 // How hard and how real the questions are: the same rules for a test written in one go and one built in the chat
 export const QUALITY_RULES = `
-QUESTION QUALITY: write questions a strong candidate finds demanding and a weak one can't bluff or look up quickly.
-- Every question is set in a concrete work situation with specifics: names, figures, dates, constraints, what's already
-  been tried. No definitions, acronyms, "which of these is a feature of X" or anything a search answers in seconds.
+QUESTION QUALITY: write questions that really test the candidate: a strong one finds them demanding and a weak one can't
+bluff or look up the answer quickly.
+- Every question opens with a full scenario, usually 80 to 200 words, before it asks anything: who the candidate is in
+  it, the customer, colleague or manager involved, what has happened so far, the figures, dates, records, messages or
+  readings they'd really have in front of them, the constraints, and what's already been tried. Lay out data as short
+  lines or a small table in the prompt. Then ask one clear question that depends on that detail. No definitions,
+  acronyms, "which of these is a feature of X" or anything a search answers in seconds.
+- Match the format to the difficulty. Foundation knowledge and quick judgement calls use the fast formats: choice, multi,
+  text, order and match (still scenario-led). The hardest, most job-defining work is done hands-on: an app simulation,
+  code, a spreadsheet or a database task, where the candidate has to actually do the job rather than recognise the
+  answer. Put the fast questions first and build up to the hands-on work.
 - Each one needs a judgement, a diagnosis, a calculation in more than one step, a trade-off or a priority call, the way the
   job really needs it. At least half combine two or more facts from the scenario before the answer follows.
 - Wrong options are what a capable but less experienced person would really pick: a common mistake, a half-right step,
@@ -183,7 +198,7 @@ QUESTION QUALITY: write questions a strong candidate finds demanding and a weak 
 
 // How a test is put together: hands-on tasks, each with questions about it
 export const TASK_RULES = `
-TASKS: build the test around 2 or 3 hands-on tasks (sheet, database or app). Give each task a short ref ("t1", "t2"...).
+TASKS: build the test around 2 or 3 hands-on tasks (sheet, database, app or code), which carry most of the marks. Give each task a short ref ("t1", "t2"...).
 Straight after each task, write 2 to 4 questions about it, in any answer style (choice, multi, text, order, match), with
 taskRef set to the task's ref: what the candidate found or worked out in it, why something happened, what they'd check or
 do next, what they'd tell the customer or manager. They're answered beside the task's window, so they may rely on what it
@@ -207,7 +222,7 @@ Style rules (testCases is an empty list for choice, multi, text, order and match
 - match: 3 to 5 pairs; each left prompt with its right answer, all distinct.
 - code: JavaScript. starterCode defines "function solution(...)". solutionCode is a correct reference implementation. 3 to 5 testCases; input is a JSON array of the arguments, e.g. "[[3,1,2]]" calls solution([3,1,2]); expectedOutput is the JSON result.
 - sql: query only these tables: ${req.tables.map((t) => `${t.name}(${t.columns.join(', ')})`).join('; ')}. List the tables used in "tables". solutionCode is a correct SQLite query; starterCode is a comment and "SELECT ".${req.styles.includes('app') ? APP_RULES : ''}
-timeLimitMinutes is realistic for the question (1 to 3 for answer styles, 5 to 10 for code and sql, 6 to 12 for app), and across the test they add up to 25 to 35. points reflect importance; a task counts for more than a question about it.${req.styles.includes('app') ? TASK_RULES : ''}
+timeLimitMinutes is realistic for the question (2 to 4 for answer styles, as the scenario takes reading, 5 to 10 for code and sql, 6 to 12 for app), and across the test they add up to 25 to 35. points reflect importance; a task counts for more than a question about it.${req.styles.includes('app') ? TASK_RULES : ''}
 category must be one of: ${req.categories.join(', ')}. passingScore between 60 and 80. roles: pick from ${req.roles.join(', ')}.
 Write plainly, in British English, with no em dashes.`
     : 'Do not include "test".'

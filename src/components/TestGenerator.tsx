@@ -164,10 +164,10 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
       <div role="dialog" aria-modal="true" aria-label="Build a test with Vetter" className="bg-white sm:rounded-2xl rounded-t-2xl max-w-7xl w-full h-[calc(100dvh-1rem)] sm:h-[min(52rem,calc(100vh-2rem))] flex flex-col shadow-2xl">
         <div className="px-5 pt-4 pb-3 border-b border-slate-200 flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <h2 className="text-lg font-bold text-slate-900">
+            <h2 className="text-xl font-bold text-slate-900">
               Build a test with Vetter
             </h2>
-            <p className="text-xs text-slate-500 truncate">{job ? `${job.title} · ${job.companyName}` : business ? `For ${business.name}'s jobs` : 'For the Vetter test library'}</p>
+            <p className="text-sm text-slate-500 truncate">{job ? `${job.title} · ${job.companyName}` : business ? `For ${business.name}'s jobs` : 'For the Vetter test library'}</p>
           </div>
           <button onClick={close} disabled={working} aria-label="Close" className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-40">
             <X className="w-5 h-5" />
@@ -176,7 +176,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
 
         <fieldset className="px-5 py-2 border-b border-slate-200 flex items-center sm:items-start gap-2 min-w-0">
           <legend className="sr-only">Question types Vetter may use</legend>
-          <span className="text-[11px] font-semibold text-slate-500 shrink-0 sm:pt-1.5" aria-hidden="true">
+          <span className="text-xs font-semibold text-slate-500 shrink-0 sm:pt-1.5" aria-hidden="true">
             Question types
           </span>
           <div className="flex gap-1.5 overflow-x-auto sm:flex-wrap sm:overflow-visible -my-1 py-1 min-w-0">
@@ -186,7 +186,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                 <label
                   key={s.type}
                   title={s.hint}
-                  className={`shrink-0 px-2.5 py-1 rounded-full border text-xs cursor-pointer select-none has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-indigo-300 ${
+                  className={`shrink-0 px-3 py-1 rounded-full border text-sm cursor-pointer select-none has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-indigo-300 ${
                     on ? 'bg-slate-900 border-slate-900 text-white' : 'bg-white border-slate-300 text-slate-500 hover:border-slate-500'
                   }`}
                 >
@@ -197,13 +197,13 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
             })}
           </div>
           {styles.length < PICKABLE.length && (
-            <button onClick={() => setStyles(PICKABLE)} disabled={working} className="shrink-0 sm:pt-1.5 text-[11px] font-semibold text-indigo-700 hover:text-indigo-900">
+            <button onClick={() => setStyles(PICKABLE)} disabled={working} className="shrink-0 sm:pt-1.5 text-xs font-semibold text-indigo-700 hover:text-indigo-900">
               All
             </button>
           )}
         </fieldset>
 
-        <div className="lg:hidden flex border-b border-slate-200 text-sm font-semibold" role="tablist">
+        <div className="lg:hidden flex border-b border-slate-200 text-base font-semibold" role="tablist">
           {(['chat', 'draft'] as const).map((p) => (
             <button key={p} role="tab" aria-selected={pane === p} onClick={() => setPane(p)} className={`flex-1 py-2 ${pane === p ? 'text-indigo-700 border-b-2 border-indigo-600' : 'text-slate-500'}`}>
               {p === 'chat' ? 'Chat' : draft ? `Test · ${draft.questions.length} questions` : 'Test'}
@@ -211,23 +211,23 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
           ))}
         </div>
 
-        <div className="flex-1 min-h-0 grid lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] xl:grid-cols-[minmax(0,27rem)_minmax(0,1fr)]">
+        <div className="flex-1 min-h-0 grid lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] xl:grid-cols-[minmax(0,30rem)_minmax(0,1fr)]">
           {/* The conversation */}
           <section className={`${pane === 'chat' ? 'flex' : 'hidden'} lg:flex flex-col min-h-0 lg:border-r border-slate-200`}>
-            <div ref={scroller} className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-3" aria-live="polite">
+            <div ref={scroller} className="flex-1 min-h-0 overflow-y-auto px-5 py-5 space-y-5" aria-live="polite">
               {chat.messages.map((m, i) =>
                 m.role === 'user' ? (
                   <div key={i} className="flex justify-end">
-                    <div className="max-w-[85%] px-3.5 py-2 rounded-2xl rounded-br-md bg-indigo-600 text-white text-sm whitespace-pre-wrap">{m.text}</div>
+                    <div className="max-w-[85%] px-4 py-2.5 rounded-3xl rounded-br-lg bg-indigo-600 text-white text-base leading-[1.65] whitespace-pre-wrap">{m.text}</div>
                   </div>
                 ) : (
                   <div key={i} className="flex gap-2.5">
                     <VAvatar />
                     <div className="max-w-[85%] min-w-0">
-                      <div className="px-3.5 py-2 rounded-2xl rounded-tl-md bg-slate-100 text-slate-800 text-sm whitespace-pre-wrap">{m.text}</div>
+                      <div className="px-4 py-2.5 rounded-3xl rounded-tl-lg bg-slate-100 text-slate-800 text-base leading-[1.65] whitespace-pre-wrap">{m.text}</div>
                       {m.note && (
-                        <p className="mt-1 text-[11px] text-amber-700 flex items-start gap-1">
-                          <AlertCircle className="w-3 h-3 mt-0.5 shrink-0" />
+                        <p className="mt-1.5 text-sm text-amber-700 flex items-start gap-1.5">
+                          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
                           {m.note}
                         </p>
                       )}
@@ -238,7 +238,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
               {working && (
                 <div className="flex gap-2.5">
                   <VAvatar pulse />
-                  <div className="px-3.5 py-2 rounded-2xl rounded-tl-md bg-slate-100 text-sm text-slate-600">
+                  <div className="px-4 py-2.5 rounded-3xl rounded-tl-lg bg-slate-100 text-base leading-[1.65] text-slate-600">
                     <WorkingStep first={!draft} />
                   </div>
                 </div>
@@ -249,7 +249,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
               {suggestions.length > 0 && !working && (
                 <div className="flex gap-1.5 overflow-x-auto pb-2 -mx-1 px-1">
                   {suggestions.map((s) => (
-                    <button key={s} onClick={() => send(s)} className="shrink-0 px-2.5 py-1 rounded-full border border-slate-200 text-xs text-slate-700 hover:border-indigo-400 hover:text-indigo-700">
+                    <button key={s} onClick={() => send(s)} className="shrink-0 px-3 py-1.5 rounded-full border border-slate-200 text-sm text-slate-700 hover:border-indigo-400 hover:text-indigo-700">
                       {s}
                     </button>
                   ))}
@@ -260,7 +260,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                   e.preventDefault();
                   send(input);
                 }}
-                className="flex items-end gap-2 p-1.5 border border-slate-300 rounded-xl focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100"
+                className="flex items-end gap-2 p-2 border border-slate-300 rounded-2xl focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100"
               >
                 <textarea
                   ref={box}
@@ -276,10 +276,10 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                   }}
                   aria-label="Message Vetter"
                   placeholder={draft ? 'Ask for a change, e.g. "make question 2 harder"' : job ? 'What matters most in this hire?' : 'Describe the role or the test you want'}
-                  className="flex-1 resize-none px-2 py-1.5 text-sm text-slate-900 bg-transparent focus:outline-none"
+                  className="flex-1 resize-none px-2.5 py-2 text-base leading-[1.6] text-slate-900 bg-transparent focus:outline-none"
                 />
                 <button type="submit" disabled={!input.trim() || working} aria-label="Send" className="p-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-30">
-                  <ArrowUp className="w-4 h-4" />
+                  <ArrowUp className="w-5 h-5" />
                 </button>
               </form>
             </div>
@@ -316,8 +316,8 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                   <LibraryPicks job={job} existing={chat.existing} chosen={chosen} setChosen={setChosen} onOpenTest={onOpenTest} />
                 ) : (
                   <div className="h-full flex flex-col items-center justify-center text-center gap-2 py-12">
-                    <p className="text-sm font-semibold text-slate-700">Your test appears here, as candidates will see it</p>
-                    <p className="text-xs text-slate-500 max-w-xs">
+                    <p className="text-base font-semibold text-slate-700">Your test appears here, as candidates will see it</p>
+                    <p className="text-sm text-slate-500 max-w-sm">
                       Every question Vetter writes is checked before it shows: coding answers and SQL queries are run, app simulations are tried out, and anything that fails is left out.
                       You can edit any question yourself as you go.
                     </p>
@@ -329,7 +329,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
         </div>
 
         <div className="px-5 py-3 border-t border-slate-200 flex items-center gap-3">
-          <p className="text-[11px] text-slate-500 hidden sm:block">{draft ? 'Ask Vetter for changes, or switch to Edit to change questions yourself.' : 'Nothing is saved until you say so.'}</p>
+          <p className="text-sm text-slate-500 hidden sm:block">{draft ? 'Ask Vetter for changes, or switch to Edit to change questions yourself.' : 'Nothing is saved until you say so.'}</p>
           <button
             onClick={saveDraft}
             disabled={!draft || working || savingDraft}
@@ -414,7 +414,7 @@ const LibraryPicks: React.FC<{
 const VAvatar: React.FC<{ pulse?: boolean }> = ({ pulse }) => (
   <span
     aria-hidden="true"
-    className={`mt-0.5 w-7 h-7 shrink-0 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center ${pulse ? 'animate-pulse' : ''}`}
+    className={`mt-0.5 w-8 h-8 shrink-0 rounded-full bg-indigo-600 text-white text-sm font-bold flex items-center justify-center ${pulse ? 'animate-pulse' : ''}`}
   >
     V
   </span>

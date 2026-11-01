@@ -298,11 +298,11 @@ const PreviewGroup: React.FC<{
           <div className="text-xs text-slate-500 font-medium mb-1">
             {heading} &middot; {styleLabel(first)} &middot; {first.timeLimitMinutes} min
           </div>
-          <h2 className="text-base font-bold text-slate-900">
+          <h2 className="text-lg font-bold text-slate-900">
             {numberOf(first)}. {first.title || 'Untitled question'}
           </h2>
         </div>
-        <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg text-sm leading-relaxed text-slate-700 whitespace-pre-wrap">{first.prompt || 'No question written yet.'}</div>
+        <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg text-base leading-[1.65] text-slate-700 whitespace-pre-wrap">{first.prompt || 'No question written yet.'}</div>
         {first.testCases.length > 0 && (first.type === 'sheet' || first.type === 'database' || first.type === 'app' || first.type === 'code') && (
           <div className="space-y-1.5">
             <div className="text-xs font-bold text-slate-800">What&rsquo;s marked ({first.testCases.length} checks)</div>
@@ -329,10 +329,10 @@ const PreviewGroup: React.FC<{
           <div className="text-xs font-bold text-slate-800">Questions about this task</div>
           {followUps.map((q) => (
             <section key={q.id} className="space-y-2 pt-4 first:pt-0 border-t first:border-t-0 border-slate-100" aria-label={`Question ${numberOf(q)}`}>
-              <h3 className="text-sm font-bold text-slate-900">
+              <h3 className="text-base font-bold text-slate-900">
                 {numberOf(q)}. {q.title || 'Untitled question'}
               </h3>
-              <p className="text-sm leading-relaxed text-slate-700 whitespace-pre-wrap">{q.prompt}</p>
+              <p className="text-base leading-[1.65] text-slate-700 whitespace-pre-wrap">{q.prompt}</p>
               <AnswerInput question={q} answer={answers[q.id] ?? ''} onChange={(v) => setAnswer(q.id, v)} />
             </section>
           ))}
