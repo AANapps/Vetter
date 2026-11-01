@@ -16,6 +16,7 @@ export const AnswerInput: React.FC<AnswerInputProps> = (props) => {
     choice: 'Choose one answer',
     multi: 'Select all that apply',
     text: 'Type your answer',
+    written: 'Write your answer',
     order: 'Drag the items into the right order',
     match: 'Drag each answer onto the prompt it belongs to',
   };
@@ -25,6 +26,7 @@ export const AnswerInput: React.FC<AnswerInputProps> = (props) => {
       {q.type === 'choice' && <SingleChoice {...props} />}
       {q.type === 'multi' && <MultiChoice {...props} />}
       {q.type === 'text' && <ShortAnswer {...props} />}
+      {q.type === 'written' && <WrittenAnswer {...props} />}
       {q.type === 'order' && <OrderItems {...props} />}
       {q.type === 'match' && <MatchPairs {...props} />}
       <p className="text-[11px] text-slate-500 pt-1">
@@ -85,6 +87,26 @@ const ShortAnswer: React.FC<AnswerInputProps> = ({ question: q, answer, onChange
     className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
   />
 );
+
+// A paragraph or two, with a word count; marked on the points a strong answer makes
+const WrittenAnswer: React.FC<AnswerInputProps> = ({ question: q, answer, onChange }) => {
+  const words = answer.trim() ? answer.trim().split(/\s+/).length : 0;
+  return (
+    <div className="space-y-1">
+      <textarea
+        value={answer}
+        onChange={(e) => onChange(e.target.value)}
+        aria-label={`Answer to ${q.title}`}
+        placeholder="Write your answer as you would at work"
+        rows={8}
+        className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-sm leading-relaxed text-slate-900 resize-y focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+      />
+      <div className="text-[11px] text-slate-500 text-right tabular-nums">
+        {words} {words === 1 ? 'word' : 'words'} &middot; aim for 80 to 250
+      </div>
+    </div>
+  );
+};
 
 // Drag a row by its handle, or move it with the arrow buttons
 const OrderItems: React.FC<AnswerInputProps> = ({ question: q, answer, onChange }) => {

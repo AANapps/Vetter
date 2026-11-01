@@ -4,7 +4,7 @@ import { MOCK_DATABASE, executeSqlQuery } from './sqlEngine';
 import { runJavaScriptCode } from './codeEngine';
 import { isMainVersion, levelsOf } from './testLevels';
 import { ROLE_GROUPS } from './testRoles';
-import { isAnswerType, isWorkspaceType, orderedQuestions, questionProblems } from './questionTypes';
+import { isAnswerType, isGroupType, orderedQuestions, questionProblems } from './questionTypes';
 import { probeApp } from './appSimulation';
 import { checkSheet, parseAddr, cellAddr, setCells, shiftFormula, workbookStarter, parseWorkbook } from './spreadsheet';
 import { databaseStarter } from './databaseWork';
@@ -238,7 +238,7 @@ function solveWorkbook(starter: string, cells: NonNullable<RawQuestion['solution
 export function linkTasks(items: RawQuestion[], built: (Question | null)[]): Question[] {
   const ids = new Map<string, string>();
   built.forEach((q, i) => {
-    if (!q || !isWorkspaceType(q.type)) return;
+    if (!q || !isGroupType(q.type)) return;
     ids.set(q.id, q.id);
     const ref = items[i]?.ref?.trim();
     if (ref) ids.set(ref, q.id);
@@ -246,7 +246,7 @@ export function linkTasks(items: RawQuestion[], built: (Question | null)[]): Que
   const linked = built.flatMap((q, i): Question[] => {
     if (!q) return [];
     const { taskId: _old, ...plain } = q;
-    if (isWorkspaceType(q.type) || !isAnswerType(q.type)) return [plain];
+    if (isGroupType(q.type) || !isAnswerType(q.type)) return [plain];
     const ref = items[i]?.keep ? q.taskId : items[i]?.taskRef?.trim();
     if (!ref) return [plain];
     const taskId = ids.get(ref);
@@ -260,7 +260,7 @@ export const uid = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${M
 // One AI-written question made into a real one, or null if it doesn't hold up
 export async function checkQuestion(raw: RawQuestion): Promise<Question | null> {
   const type = raw.type as QuestionType;
-  if (!['choice', 'multi', 'text', 'order', 'match', 'code', 'sql', 'sheet', 'database', 'app'].includes(type)) return null;
+  if (!['choice', 'multi', 'text', 'written', 'order', 'match', 'case', 'code', 'sql', 'sheet', 'database', 'app'].includes(type)) return null;
   const q: Question = {
     id: uid('q'),
     title: String(raw.title ?? '').trim(),
@@ -274,6 +274,18 @@ export async function checkQuestion(raw: RawQuestion): Promise<Question | null> 
   if (type === 'choice') Object.assign(q, { options: raw.options, correctOption: raw.correctOption });
   if (type === 'multi') Object.assign(q, { options: raw.options, correctOptions: [...new Set(raw.correctOptions ?? [])].filter((i) => i >= 0 && i < (raw.options?.length ?? 0)) });
   if (type === 'text') q.acceptedAnswers = raw.acceptedAnswers;
+  // The AI sends a written answer's marking points as its accepted answers
+  if (type === 'written') {
+    q.rubric = (raw.rubric ?? raw.acceptedAnswers ?? []).map((p) => String(p).trim()).filter(Boolean).slice(0, 8);
+    if (raw.solutionCode?.trim()) q.solutionCode = raw.solutionCode.trim();
+  }
+  // A case is material to read: it needs enough of it to ask about, and carries no marks of its own
+  if (type === 'case') {
+    if (q.prompt.length < 200) return null;
+    q.weight = 0;
+    if (raw.contextData?.trim()) q.contextData = raw.contextData.trim().slice(0, 80);
+    return q.title ? q : null;
+  }
   if (type === 'order') q.items = raw.items;
   if (type === 'match') q.pairs = raw.pairs;
 

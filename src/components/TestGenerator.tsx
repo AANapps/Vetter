@@ -25,6 +25,8 @@ interface TestGeneratorProps {
   onSaveDraft: (record: TestDraft) => Promise<boolean>;
   // A saved draft to carry on with
   resume?: TestDraft;
+  // A first message, filled in ready to send or change
+  seed?: string;
   onClose: () => void;
 }
 
@@ -37,11 +39,11 @@ const levelFor = (job?: JobPosting): TestDifficulty => {
 };
 
 // The question types a company can pick from, in the order shown: answer styles, then hands-on tasks
-const PICKABLE: QuestionType[] = ['choice', 'multi', 'text', 'order', 'match', 'sheet', 'database', 'app', 'code', 'sql'];
+const PICKABLE: QuestionType[] = ['choice', 'multi', 'text', 'written', 'order', 'match', 'case', 'sheet', 'database', 'app', 'code', 'sql'];
 const PICKABLE_STYLES = PICKABLE.map((type) => QUESTION_STYLES.find((s) => s.type === type)!).filter(Boolean);
 
 // Build a test by talking to Vetter: describe the job, get a draft, then ask for changes until it's right
-export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tests, onOpenTest, onSaveTest, onAddToJob, onEditDraft, onSaveDraft, resume, onClose }) => {
+export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tests, onOpenTest, onSaveTest, onAddToJob, onEditDraft, onSaveDraft, resume, seed, onClose }) => {
   const greeting = job
     ? `I've read the ${job.title} job description. Tell me what matters most in this hire, or just ask me to write a first draft and we'll refine it together.`
     : `Tell me about the role or the test you want: what the person does day to day, the tools they use and the level. I'll write a first draft and we'll refine it together.`;
@@ -62,8 +64,10 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
   // What's been saved, to tell whether closing loses anything
   const [savedChat] = useState(() => chat);
   const [draftId] = useState(() => resume?.id ?? `draft-${Date.now()}`);
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState(seed ?? '');
   const [working, setWorking] = useState(false);
+  // What Vetter is doing right now, as it reports it
+  const [stage, setStage] = useState('');
   const [savingDraft, setSavingDraft] = useState(false);
   const [chosen, setChosen] = useState<string[]>([]);
   const [keepNew, setKeepNew] = useState(true);
@@ -127,7 +131,8 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
     // The message shows at once; the reply follows
     setChat((c) => ({ ...c, messages: [...c.messages, { role: 'user', text: message }] }));
     const before = chat.draft;
-    const next = await sendChat(chat, message, ctx);
+    setStage('');
+    const next = await sendChat(chat, message, ctx, setStage);
     setChat(next);
     // New library picks start ticked, unless the job has them already
     setChosen((prev) => [...new Set([...prev.filter((id) => next.existing.some((s) => s.test.id === id)), ...next.existing.filter((s) => !chat.existing.some((e) => e.test.id === s.test.id) && !job?.testIds.includes(s.test.id)).map((s) => s.test.id)])]);
@@ -144,7 +149,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
       ? ['Write a first draft', 'Focus on the hands-on tools they use', 'Keep it under 20 minutes']
       : ['A junior accounts assistant using Excel and Xero', 'A customer support agent in Zendesk', 'A junior data analyst who writes SQL']
     : draft
-    ? [...(offTypes.length ? ['Use only the question types I picked'] : []), 'Make it harder', 'Add a hands-on task in the software', 'Make it shorter']
+    ? [...(offTypes.length ? ['Use only the question types I picked'] : []), 'Make it harder', 'Add another case study', 'Add a hands-on task in the software', 'Make it shorter']
     : [];
 
   // The company's own edits to the draft, made beside the chat; Vetter sees them on the next message
@@ -239,7 +244,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                 <div className="flex gap-2.5">
                   <VAvatar pulse />
                   <div className="px-4 py-2.5 rounded-3xl rounded-tl-lg bg-slate-100 text-base leading-[1.65] text-slate-600">
-                    <WorkingStep first={!draft} />
+                    <WorkingStep first={!draft} stage={stage} />
                   </div>
                 </div>
               )}
@@ -421,18 +426,28 @@ const VAvatar: React.FC<{ pulse?: boolean }> = ({ pulse }) => (
 );
 
 // What Vetter says while it works: the real steps first, then it keeps going round these until it's done
-const FIRST_STEPS = ['Reading the job…', 'Looking up the software it uses…', 'Choosing what to test…', 'Writing the questions…', 'Checking every answer…'];
-const EDIT_STEPS = ['Thinking it over…', 'Updating the draft…', 'Checking the new questions…'];
+const FIRST_STEPS = ['Reading the job…', 'Working out what this hire really needs…', 'Looking up the software it uses…', 'Planning the sections…', 'Writing the case studies…', 'Writing the questions…', 'Building the interactive tasks…', 'Trying out every task…', 'Checking every answer…'];
+const EDIT_STEPS = ['Thinking it over…', 'Updating the draft…', 'Building any new tasks…', 'Checking the new questions…'];
 const STILL_GOING = ['Building…', 'Working on it…', 'Putting it together…', 'Polishing the questions…', 'Double-checking…', 'Finishing up…', 'Nearly there…'];
 const STEP_MS = 10000;
 
-const WorkingStep: React.FC<{ first: boolean }> = ({ first }) => {
+// The stage Vetter reports when it has one, with how long it's been going, since a thorough test takes a few minutes
+const WorkingStep: React.FC<{ first: boolean; stage: string }> = ({ first, stage }) => {
   const steps = first ? FIRST_STEPS : EDIT_STEPS;
   const [tick, setTick] = useState(0);
+  const [seconds, setSeconds] = useState(0);
   useEffect(() => {
     setTick(0);
+    setSeconds(0);
     const timer = setInterval(() => setTick((t) => t + 1), STEP_MS);
-    return () => clearInterval(timer);
+    const clock = setInterval(() => setSeconds((s) => s + 1), 1000);
+    return () => (clearInterval(timer), clearInterval(clock));
   }, [first]);
-  return <span>{tick < steps.length ? steps[tick] : STILL_GOING[(tick - steps.length) % STILL_GOING.length]}</span>;
+  const text = stage || (tick < steps.length ? steps[tick] : STILL_GOING[(tick - steps.length) % STILL_GOING.length]);
+  return (
+    <span>
+      {text}
+      {seconds >= 5 && <span className="ml-2 text-slate-400 tabular-nums">{Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}</span>}
+    </span>
+  );
 };

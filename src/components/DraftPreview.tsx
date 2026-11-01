@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle, ChevronDown, ChevronLeft, ChevronRight, Eye, ListTree, Pencil, Plus, Trash2 } from 'lucide-react';
 import { AssessmentTest, Question, QuestionType } from '../types';
-import { QUESTION_STYLES, blankQuestion, groupQuestions, isWorkspaceType, questionProblems, tidyQuestion } from '../lib/questionTypes';
+import { QUESTION_STYLES, blankQuestion, groupQuestions, isAnswerType, isGroupType, isWorkspaceType, questionProblems, tidyQuestion } from '../lib/questionTypes';
+import { CaseMaterial } from './TestRunner';
 import { AnswerInput } from './AnswerInputs';
 import { AppWindow } from './AppWindow';
 import { CaseBrief } from './CaseBrief';
@@ -11,8 +12,8 @@ import { SpreadsheetWindow } from './SpreadsheetWindow';
 
 const styleLabel = (q: Question) => QUESTION_STYLES.find((s) => s.type === q.type)?.label ?? q.type;
 
-// Answer styles a company can add by hand; hands-on tasks are only written by Vetter
-const ADDABLE: QuestionType[] = ['choice', 'multi', 'text', 'order', 'match'];
+// Styles a company can add by hand; hands-on tasks are only written by Vetter
+const ADDABLE: QuestionType[] = ['choice', 'multi', 'text', 'written', 'order', 'match', 'case'];
 
 // The draft with its totals worked out again after a change
 const withQuestions = (test: AssessmentTest, questions: Question[]): AssessmentTest => ({
@@ -26,7 +27,7 @@ const withQuestions = (test: AssessmentTest, questions: Question[]): AssessmentT
 export function finaliseDraft(test: AssessmentTest): AssessmentTest {
   const tidy = test.questions.map(tidyQuestion);
   const total = tidy.reduce((sum, q) => sum + q.weight, 0) || 1;
-  return withQuestions(test, tidy.map((q) => ({ ...q, weight: Math.max(1, Math.round((q.weight / total) * 100)) })));
+  return withQuestions(test, tidy.map((q) => ({ ...q, weight: q.type === 'case' ? 0 : Math.max(1, Math.round((q.weight / total) * 100)) })));
 }
 
 // What still needs fixing in the company's edits before the test can be saved
@@ -57,9 +58,12 @@ export const DraftPreview: React.FC<DraftPreviewProps> = ({ test, onChange, lock
 
   const at = Math.min(index, groups.length - 1);
   const group = groups[at];
-  const numberOf = (q: Question) => ordered.indexOf(q) + 1;
-  const taskNumber = (i: number) => groups.slice(0, i + 1).filter((g) => g.task).length;
-  const label = (i: number) => (groups[i].task ? `Task ${taskNumber(i)}` : `Question ${numberOf(groups[i].questions[0])}`);
+  // Cases are read, not answered, so only questions are numbered
+  const numberOf = (q: Question) => ordered.filter((x) => x.type !== 'case').indexOf(q) + 1;
+  // Cases and tasks are numbered separately
+  const isCase = (i: number) => groups[i].task?.type === 'case';
+  const taskNumber = (i: number) => groups.slice(0, i + 1).filter((g, j) => g.task && isCase(j) === isCase(i)).length;
+  const label = (i: number) => (groups[i].task ? `${isCase(i) ? 'Case' : 'Task'} ${taskNumber(i)}` : `Question ${numberOf(groups[i].questions[0])}`);
   const totalPoints = test.questions.reduce((sum, q) => sum + q.weight, 0) || 1;
   const broken = draftProblems(test);
 
@@ -74,19 +78,22 @@ export const DraftPreview: React.FC<DraftPreviewProps> = ({ test, onChange, lock
 
   const update = (id: string, change: Partial<Question>) => onChange(withQuestions(test, test.questions.map((q) => (q.id === id ? { ...q, ...change } : q))));
   const remove = (q: Question) => {
-    const followUps = isWorkspaceType(q.type) ? test.questions.filter((f) => f.taskId === q.id) : [];
-    const what = followUps.length ? `this task and its ${followUps.length} ${followUps.length === 1 ? 'question' : 'questions'}` : 'this question';
+    const followUps = isGroupType(q.type) ? test.questions.filter((f) => f.taskId === q.id) : [];
+    const what = followUps.length ? `this ${q.type === 'case' ? 'case' : 'task'} and its ${followUps.length} ${followUps.length === 1 ? 'question' : 'questions'}` : 'this question';
     if (!window.confirm(`Delete ${what} from the draft?`)) return;
     const gone = new Set([q.id, ...followUps.map((f) => f.id)]);
     onChange(withQuestions(test, test.questions.filter((x) => !gone.has(x.id))));
   };
   const add = (type: QuestionType) => {
-    const q = blankQuestion(type);
-    // Straight after what's on screen, so it shows next
-    const last = group.questions[group.questions.length - 1];
-    const pos = test.questions.indexOf(last) + 1;
+    const blank = blankQuestion(type);
+    // Added while a case or task is on screen, an answer-style question becomes one of its questions
+    const into = group?.task && isAnswerType(type) ? group.task.id : undefined;
+    const q = into ? { ...blank, taskId: into } : blank;
+    // Straight after what's on screen, so it shows next (or with it, when it joins it)
+    const last = group?.questions[group.questions.length - 1];
+    const pos = last ? test.questions.indexOf(last) + 1 : test.questions.length;
     onChange(withQuestions(test, [...test.questions.slice(0, pos), q, ...test.questions.slice(pos)]));
-    setIndex(at + 1);
+    setIndex(into ? at : group ? at + 1 : 0);
     setMode('edit');
   };
   const move = (dir: -1 | 1) => {
@@ -126,9 +133,26 @@ export const DraftPreview: React.FC<DraftPreviewProps> = ({ test, onChange, lock
               <div className="px-3 py-2 border-b border-slate-100">
                 <div className="text-sm font-bold text-slate-900">{test.title}</div>
                 <div className="text-[11px] text-slate-500">
-                  {test.difficulty} &middot; {test.questions.length} questions &middot; ~{test.estimatedMinutes} min &middot; pass {test.passingScore}%
+                  {test.difficulty} &middot; {test.questions.filter((q) => q.type !== 'case').length} questions &middot; ~{test.estimatedMinutes} min &middot; pass {test.passingScore}%
                 </div>
               </div>
+              {test.blueprint && test.blueprint.length > 0 && (
+                <div className="px-3 py-2 border-b border-slate-100 space-y-1.5">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">What this hire needs</div>
+                  <ul className="space-y-1.5">
+                    {test.blueprint.map((b) => (
+                      <li key={b.skill} className="text-xs">
+                        <div className="flex items-baseline justify-between gap-2">
+                          <span className="font-semibold text-slate-800">{b.skill}</span>
+                          <span className="font-mono text-[11px] text-indigo-700 shrink-0">{b.weight}%</span>
+                        </div>
+                        <div className="text-[11px] text-slate-500 leading-snug">{b.why}</div>
+                        <div className="text-[11px] text-slate-400 leading-snug">Tested by: {b.how}</div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <ol className="py-1">
                 {groups.map((g, i) => (
                   <li key={g.questions[0].id}>
@@ -141,13 +165,13 @@ export const DraftPreview: React.FC<DraftPreviewProps> = ({ test, onChange, lock
                           className={`w-full px-3 py-1.5 flex items-start gap-2 text-left hover:bg-slate-50 ${i === at ? 'bg-indigo-50/60' : ''} ${j > 0 ? 'pl-8' : ''}`}
                         >
                           <span className={`text-[11px] font-mono mt-0.5 shrink-0 ${g.task && j === 0 ? 'text-indigo-700 font-bold' : 'text-slate-400'}`}>
-                            {g.task && j === 0 ? `T${taskNumber(i)}` : `${numberOf(q)}.`}
+                            {g.task && j === 0 ? `${isCase(i) ? 'C' : 'T'}${taskNumber(i)}` : `${numberOf(q)}.`}
                           </span>
                           <span className="min-w-0 flex-1">
                             <span className="block text-xs text-slate-800 truncate">{q.title || 'Untitled question'}</span>
                             <span className="block text-[10px] text-slate-400">
                               {styleLabel(q)}
-                              {q.type === 'app' && q.contextData ? ` · ${q.contextData}` : ''} · {q.timeLimitMinutes} min · {Math.round((q.weight / totalPoints) * 100)}%
+                              {q.type === 'app' && q.contextData ? ` · ${q.contextData}` : ''} · {q.timeLimitMinutes} min{q.type === 'case' ? ' to read' : ` · ${Math.round((q.weight / totalPoints) * 100)}%`}
                             </span>
                           </span>
                           {problems && <AlertCircle className="w-3.5 h-3.5 mt-0.5 text-amber-600 shrink-0" aria-label="Needs finishing" />}
@@ -221,7 +245,9 @@ export const DraftPreview: React.FC<DraftPreviewProps> = ({ test, onChange, lock
               <section key={q.id} className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-bold text-slate-900 flex-1">
-                    {group.task && j === 0 ? `${label(at)}: the hands-on part` : `Question ${numberOf(q)}${group.task ? ' (about the task)' : ''}`}
+                    {group.task && j === 0
+                      ? `${label(at)}: ${q.type === 'case' ? 'the material to read' : 'the hands-on part'}`
+                      : `Question ${numberOf(q)}${group.task ? ` (about the ${group.task.type === 'case' ? 'case' : 'task'})` : ''}`}
                   </h3>
                   <button onClick={() => remove(q)} className="p-1.5 text-slate-400 hover:text-rose-600" aria-label={`Delete question ${numberOf(q)}`} title="Delete">
                     <Trash2 className="w-4 h-4" />
@@ -276,8 +302,10 @@ const PreviewGroup: React.FC<{
       </p>
       {test.scenario && <CaseBrief scenario={test.scenario} />}
       {isTask && (
-        <div className="h-[30rem] max-h-[70vh]">
-          {first.type === 'sheet' ? (
+        <div className={first.type === 'case' ? 'max-h-[70vh] flex' : 'h-[30rem] max-h-[70vh]'}>
+          {first.type === 'case' ? (
+            <CaseMaterial question={first} />
+          ) : first.type === 'sheet' ? (
             <SpreadsheetWindow key={first.id} value={answer(first)} onChange={(v) => setAnswer(first.id, v)} fileName={first.contextData || `${first.title}.xlsx`} files={test.scenario?.files} />
           ) : first.type === 'database' ? (
             <DatabaseWindow
@@ -293,6 +321,7 @@ const PreviewGroup: React.FC<{
           )}
         </div>
       )}
+      {first.type !== 'case' && (
       <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-4">
         <div>
           <div className="text-xs text-slate-500 font-medium mb-1">
@@ -324,6 +353,7 @@ const PreviewGroup: React.FC<{
         )}
         {!isTask && !(first.type === 'code' || first.type === 'sql') && <AnswerInput key={first.id} question={first} answer={answer(first)} onChange={(v) => setAnswer(first.id, v)} />}
       </div>
+      )}
       {followUps.length > 0 && (
         <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-5">
           <div className="text-xs font-bold text-slate-800">Questions about this task</div>

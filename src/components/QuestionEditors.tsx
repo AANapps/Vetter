@@ -35,11 +35,11 @@ export const QuestionEditor: React.FC<EditorProps & { share: number }> = ({ ques
 
       <div>
         <label htmlFor={`${q.id}-prompt`} className={labelClass}>
-          Question
+          {q.type === 'case' ? 'Case material' : 'Question'}
         </label>
         <textarea
           id={`${q.id}-prompt`}
-          rows={4}
+          rows={q.type === 'case' ? 12 : 4}
           value={q.prompt}
           onChange={(e) => onChange({ prompt: e.target.value })}
           placeholder="What the candidate reads. Include any figures or context they need."
@@ -62,26 +62,45 @@ export const QuestionEditor: React.FC<EditorProps & { share: number }> = ({ ques
             className={`${inputClass} font-mono`}
           />
         </div>
-        <div>
-          <label htmlFor={`${q.id}-weight`} className={labelClass}>
-            Points <span className="font-normal text-slate-400">({share}% of score)</span>
-          </label>
-          <input
-            id={`${q.id}-weight`}
-            type="number"
-            min={1}
-            max={100}
-            value={q.weight}
-            onChange={(e) => onChange({ weight: Math.max(1, Number(e.target.value)) })}
-            className={`${inputClass} font-mono`}
-          />
-        </div>
+        {/* A case is read, not marked: its questions carry the points */}
+        {q.type !== 'case' && (
+          <div>
+            <label htmlFor={`${q.id}-weight`} className={labelClass}>
+              Points <span className="font-normal text-slate-400">({share}% of score)</span>
+            </label>
+            <input
+              id={`${q.id}-weight`}
+              type="number"
+              min={1}
+              max={100}
+              value={q.weight}
+              onChange={(e) => onChange({ weight: Math.max(1, Number(e.target.value)) })}
+              className={`${inputClass} font-mono`}
+            />
+          </div>
+        )}
       </div>
 
       <div className="pt-4 border-t border-slate-200">
         {q.type === 'choice' && <OptionsEditor question={q} onChange={onChange} multiple={false} />}
         {q.type === 'multi' && <OptionsEditor question={q} onChange={onChange} multiple />}
         {q.type === 'text' && <AcceptedAnswersEditor question={q} onChange={onChange} />}
+        {q.type === 'written' && <RubricEditor question={q} onChange={onChange} />}
+        {q.type === 'case' && (
+          <div>
+            <label htmlFor={`${q.id}-label`} className={labelClass}>
+              What the material is
+            </label>
+            <input
+              id={`${q.id}-label`}
+              value={q.contextData ?? ''}
+              onChange={(e) => onChange({ contextData: e.target.value })}
+              placeholder="e.g. Email thread with Harlow Ltd"
+              className={inputClass}
+            />
+            <p className="mt-1 text-[11px] text-slate-500">Add the questions about this case with Add a question while it's on screen.</p>
+          </div>
+        )}
         {q.type === 'order' && <OrderEditor question={q} onChange={onChange} />}
         {q.type === 'match' && <MatchEditor question={q} onChange={onChange} />}
         {q.type === 'code' && <CodeEditor question={q} onChange={onChange} />}
@@ -169,6 +188,38 @@ const AcceptedAnswersEditor: React.FC<EditorProps> = ({ question: q, onChange })
       ))}
       <AddButton label="Add another accepted answer" onClick={() => onChange({ acceptedAnswers: [...answers, ''] })} />
     </fieldset>
+  );
+};
+
+// A written answer: the points a strong answer makes, each an equal share of its marks, and a model answer
+const RubricEditor: React.FC<EditorProps> = ({ question: q, onChange }) => {
+  const points = q.rubric ?? [];
+  return (
+    <div className="space-y-4">
+      <fieldset className="space-y-2">
+        <legend className={labelClass}>Marking points</legend>
+        <p className="text-[11px] text-slate-500 -mt-1">Each one specific thing a strong answer does or says. Vetter's AI marks the answer against them, whatever the wording.</p>
+        {points.map((p, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <input
+              value={p}
+              onChange={(e) => onChange({ rubric: withItem(points, i, e.target.value) })}
+              aria-label={`Marking point ${i + 1}`}
+              placeholder="e.g. Spots that invoice INV-2231 was paid twice"
+              className={inputClass}
+            />
+            <RemoveButton label={`Remove marking point ${i + 1}`} onClick={() => onChange({ rubric: points.filter((_, x) => x !== i) })} disabled={points.length <= 1} />
+          </div>
+        ))}
+        <AddButton label="Add a marking point" onClick={() => onChange({ rubric: [...points, ''] })} />
+      </fieldset>
+      <div>
+        <label htmlFor={`${q.id}-model`} className={labelClass}>
+          Model answer <span className="font-normal text-slate-400">(optional, never shown to candidates)</span>
+        </label>
+        <textarea id={`${q.id}-model`} rows={5} value={q.solutionCode ?? ''} onChange={(e) => onChange({ solutionCode: e.target.value })} className={inputClass} />
+      </div>
+    </div>
   );
 };
 

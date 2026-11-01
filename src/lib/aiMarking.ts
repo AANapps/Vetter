@@ -4,9 +4,9 @@ import { QuestionRunResult } from './grading';
 // A second marking by Vetter's AI for code, SQL and short answers that the automatic checks didn't give full marks.
 // It can only raise a score, never lower it, and code that still fails its checks can't reach full marks.
 
-const MARKED_BY_AI: Question['type'][] = ['text', 'code', 'sql', 'schema'];
+const MARKED_BY_AI: Question['type'][] = ['text', 'written', 'code', 'sql', 'schema'];
 // The most a task can get from the AI while its automatic checks still fail
-const CAP: Partial<Record<Question['type'], number>> = { code: 90, sql: 90, schema: 90, text: 100 };
+const CAP: Partial<Record<Question['type'], number>> = { code: 90, sql: 90, schema: 90, text: 100, written: 100 };
 const TIMEOUT_MS = 45000;
 
 export interface AiMark {
@@ -16,6 +16,11 @@ export interface AiMark {
 
 function describe(q: Question, run: QuestionRunResult): { reference: string; autoResult: string } {
   if (q.type === 'text') return { reference: `Accepted answers: ${(q.acceptedAnswers ?? []).join(' | ')}`, autoResult: "Didn't match an accepted answer exactly." };
+  if (q.type === 'written')
+    return {
+      reference: `Marking points, each an equal share:\n${(q.rubric ?? []).map((p, i) => `${i + 1}. ${p}`).join('\n')}${q.solutionCode ? `\n\nModel answer:\n${q.solutionCode}` : ''}`,
+      autoResult: 'A rough first mark from matching words only; mark it properly against the points.',
+    };
   const cases = run.testCaseResults
     .map((tc) => `${tc.passed ? 'PASSED' : 'FAILED'} ${tc.description}: input ${tc.input}, expected ${tc.expected}, got ${tc.actual}${tc.error ? ` (error: ${tc.error})` : ''}`)
     .join('\n');
@@ -53,7 +58,8 @@ export async function aiMarks(test: AssessmentTest, codes: Record<string, string
       if (!q || !items.some((it) => it.id === m.id)) continue;
       // A short answer the AI judges right in meaning gets full marks: typos and extra words cost nothing
       const aiScore = q.type === 'text' && m.score >= 80 ? 100 : Math.round(m.score);
-      const score = Math.max(perQuestion[q.id], Math.min(aiScore, CAP[q.type] ?? 90));
+      // A written answer is marked by the AI alone: the first mark only matched words, which can be gamed
+      const score = q.type === 'written' ? Math.max(0, Math.min(100, aiScore)) : Math.max(perQuestion[q.id], Math.min(aiScore, CAP[q.type] ?? 90));
       result[q.id] = { score, feedback: String(m.feedback ?? '').slice(0, 300) };
     }
     return result;

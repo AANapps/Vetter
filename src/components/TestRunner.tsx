@@ -81,8 +81,10 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
   // The task, or the question on its own
   const currentQ: Question = currentGroup.questions[0];
   const followUps = currentGroup.task ? currentGroup.questions.slice(1) : [];
-  const numberOf = (q: Question) => ordered.indexOf(q) + 1;
+  // Cases are read, not answered, so only questions are numbered
+  const numberOf = (q: Question) => ordered.filter((x) => x.type !== 'case').indexOf(q) + 1;
   const isDone = (q: Question) =>
+    q.type === 'case' ||
     questionScores[q.id] !== undefined ||
     (isAnswerType(q.type) && hasAnswer(q, userCodes[q.id] ?? '')) ||
     (isWorkspaceType(q.type) && (userCodes[q.id] ?? q.starterCode) !== q.starterCode);
@@ -237,7 +239,9 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
           {groups.map((g, idx) => {
             // Answer-style questions count as done once answered; their result stays hidden until submit
             const isCompleted = g.questions.every(isDone);
-            const taskNumber = groups.slice(0, idx + 1).filter((x) => x.task).length;
+            // Cases and tasks are numbered separately
+            const isCase = g.task?.type === 'case';
+            const taskNumber = groups.slice(0, idx + 1).filter((x) => x.task && (x.task.type === 'case') === isCase).length;
             return (
               <button
                 key={g.questions[0].id}
@@ -254,7 +258,7 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                <span className="whitespace-nowrap">{g.task ? `Task ${taskNumber}` : numberOf(g.questions[0])}</span>
+                <span className="whitespace-nowrap">{g.task ? `${isCase ? 'Case' : 'Task'} ${taskNumber}` : numberOf(g.questions[0])}</span>
                 {isCompleted && <CheckCircle className={`w-3 h-3 ${groupIndex === idx ? 'text-white' : 'text-emerald-600'}`} />}
               </button>
             );
@@ -312,7 +316,9 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
         {currentGroup.task ? (
           <>
             <div className="flex-1 min-w-0 p-3 bg-slate-100">
-              {currentQ.type === 'sheet' ? (
+              {currentQ.type === 'case' ? (
+                <CaseMaterial key={currentQ.id} question={currentQ} />
+              ) : currentQ.type === 'sheet' ? (
                 <SpreadsheetWindow
                   key={currentQ.id}
                   value={currentCode || currentQ.starterCode}
@@ -337,14 +343,18 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
               {test.scenario && <CaseBrief scenario={test.scenario} />}
               <div>
                 <div className="text-xs text-slate-500 font-medium mb-1">
-                  Task {groups.slice(0, groupIndex + 1).filter((g) => g.task).length} &middot; {currentGroup.questions.length}{' '}
-                  {currentGroup.questions.length === 1 ? 'part' : 'parts'} &middot; Weight: {currentGroup.questions.reduce((n, q) => n + q.weight, 0)}%
+                  {currentQ.type === 'case' ? 'Case study' : 'Task'} &middot; {currentQ.type === 'case' ? followUps.length : currentGroup.questions.length}{' '}
+                  {(currentQ.type === 'case' ? followUps.length : currentGroup.questions.length) === 1 ? 'part' : 'parts'} &middot; Weight: {currentGroup.questions.reduce((n, q) => n + q.weight, 0)}%
                 </div>
                 <h2 className="text-base font-bold text-slate-900 tracking-tight">
-                  {numberOf(currentQ)}. {currentQ.title}
+                  {currentQ.type === 'case' ? currentQ.title : `${numberOf(currentQ)}. ${currentQ.title}`}
                 </h2>
               </div>
-              <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-700 whitespace-pre-wrap">{currentQ.prompt}</div>
+              {currentQ.type === 'case' ? (
+                <p className="text-xs text-slate-500">Read the material on the left, then answer each question. You can go back to it as often as you like.</p>
+              ) : (
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-700 whitespace-pre-wrap">{currentQ.prompt}</div>
+              )}
               {currentQ.testCases.length > 0 && (
                 <div className="space-y-2">
                   <div className="text-xs font-bold text-slate-800">What&rsquo;s marked ({currentQ.testCases.length} checks)</div>
@@ -721,7 +731,7 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
 
               <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600 space-y-1.5 max-h-64 overflow-y-auto">
                 <div className="font-bold text-slate-900">Score and feedback by task</div>
-                {ordered.map((q, idx) => {
+                {ordered.filter((q) => q.type !== 'case').map((q, idx) => {
                   const missed = questionFeedback[q.id] ?? [];
                   const byAi = aiMarked[q.id];
                   return (
@@ -826,18 +836,19 @@ const TestIntro: React.FC<TestIntroProps> = ({ test, acceptedRules, onAcceptedRu
       <div className="bg-white border border-slate-200 rounded-xl p-6 space-y-4 shadow-xs">
         <h2 className="text-base font-bold text-slate-900">What&rsquo;s in the test</h2>
         <ol className="divide-y divide-slate-100">
-          {orderedQuestions(test.questions).map((q, i) => (
+          {orderedQuestions(test.questions).map((q, _, all) => (
             <li key={q.id} className={`py-3 flex items-center justify-between gap-4 text-xs ${q.taskId ? 'pl-5' : ''}`}>
               <div className="min-w-0">
                 <div className="font-semibold text-slate-900">
-                  {i + 1}. {q.title}
+                  {q.type === 'case' ? 'Case study: ' : `${all.filter((x) => x.type !== 'case').indexOf(q) + 1}. `}
+                  {q.title}
                 </div>
                 <div className="text-slate-500 font-mono text-[11px] mt-0.5">
-                  {q.taskId ? 'About the task above · ' : ''}{QUESTION_TYPE_LABELS[q.type]} &middot; {describeChecks(q)}
+                  {q.taskId ? 'About the case or task above · ' : ''}{QUESTION_TYPE_LABELS[q.type]} &middot; {describeChecks(q)}
                 </div>
               </div>
               <div className="text-right font-mono text-[11px] text-slate-500 shrink-0">
-                <div>{q.weight}% of score</div>
+                <div>{q.type === 'case' ? 'to read' : `${q.weight}% of score`}</div>
                 <div>~{q.timeLimitMinutes} min</div>
               </div>
             </li>
@@ -851,7 +862,13 @@ const TestIntro: React.FC<TestIntroProps> = ({ test, acceptedRules, onAcceptedRu
               work the task asks for and leave it there: it&rsquo;s marked as you leave it when you submit.
             </li>
           )}
-          {test.questions.some((q) => !isAnswerType(q.type) && !isWorkspaceType(q.type)) && (
+          {test.questions.some((q) => q.type === 'case') && (
+            <li>Case studies give you material to read, such as emails, a ticket or figures, with questions about it beside it.</li>
+          )}
+          {test.questions.some((q) => q.type === 'written') && (
+            <li>Written answers are marked on the points a strong answer makes, not on length or polish. Write as you would at work.</li>
+          )}
+          {test.questions.some((q) => !isAnswerType(q.type) && !isWorkspaceType(q.type) && q.type !== 'case') && (
             <>
               <li>Press Run to check your answer against the test cases as often as you like.</li>
               <li>Every task is graded on your latest code when you submit, whether or not you pressed Run.</li>
@@ -923,5 +940,18 @@ const TestIntro: React.FC<TestIntroProps> = ({ test, acceptedRules, onAcceptedRu
         </button>
       </div>
     </div>
+  </div>
+);
+
+// A case study's material, laid out like a document to read
+export const CaseMaterial: React.FC<{ question: Question }> = ({ question: q }) => (
+  <div className="h-full overflow-y-auto bg-white border border-slate-300 rounded-lg shadow-sm">
+    <div className="px-6 py-3 border-b border-slate-200 bg-slate-50 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+      {q.contextData || 'Case material'}
+    </div>
+    <article className="px-6 py-5 max-w-3xl">
+      <h2 className="text-lg font-bold text-slate-900 mb-3">{q.title}</h2>
+      <div className="text-sm leading-[1.7] text-slate-800 whitespace-pre-wrap font-sans">{q.prompt}</div>
+    </article>
   </div>
 );

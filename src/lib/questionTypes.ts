@@ -2,11 +2,13 @@ import { Question, QuestionType } from '../types';
 
 // The answer-style questions: picked, typed or arranged rather than written as code. Their answer is kept as a
 // string like code is: the option index for multiple choice, JSON for the rest, the text itself for short answers.
-export const ANSWER_TYPES: QuestionType[] = ['choice', 'multi', 'text', 'order', 'match'];
+export const ANSWER_TYPES: QuestionType[] = ['choice', 'multi', 'text', 'written', 'order', 'match'];
 export const isAnswerType = (type: QuestionType) => ANSWER_TYPES.includes(type);
 
 // Worked in an app window (a spreadsheet, a SQL workbench or a simulated product) and marked on what the candidate leaves behind
 export const isWorkspaceType = (type: QuestionType) => type === 'sheet' || type === 'database' || type === 'app';
+// What sub-questions can belong to: a hands-on task, or a case study to read
+export const isGroupType = (type: QuestionType) => isWorkspaceType(type) || type === 'case';
 
 // A test as the candidate meets it: each hands-on task with the questions about it, and every other question on its own.
 // Questions about a task follow it wherever they're listed; ones whose task is gone stand alone
@@ -15,11 +17,11 @@ export interface QuestionGroup {
   questions: Question[];
 }
 export function groupQuestions(questions: Question[]): QuestionGroup[] {
-  const tasks = new Set(questions.filter((q) => isWorkspaceType(q.type)).map((q) => q.id));
-  const belongs = (q: Question) => !!q.taskId && tasks.has(q.taskId) && !isWorkspaceType(q.type);
+  const tasks = new Set(questions.filter((q) => isGroupType(q.type)).map((q) => q.id));
+  const belongs = (q: Question) => !!q.taskId && tasks.has(q.taskId) && !isGroupType(q.type);
   return questions
     .filter((q) => !belongs(q))
-    .map((q) => (isWorkspaceType(q.type) ? { task: q, questions: [q, ...questions.filter((f) => belongs(f) && f.taskId === q.id)] } : { questions: [q] }));
+    .map((q) => (isGroupType(q.type) ? { task: q, questions: [q, ...questions.filter((f) => belongs(f) && f.taskId === q.id)] } : { questions: [q] }));
 }
 // The questions in the order they're asked
 export const orderedQuestions = (questions: Question[]) => groupQuestions(questions).flatMap((g) => g.questions);
@@ -121,9 +123,27 @@ export function gradeAnswer(q: Question, answer: string): number {
       // Answers are indexed like the pairs, so a right match puts answer i on prompt i
       return Math.round((placed.filter((answerIndex, prompt) => answerIndex === prompt).length / placed.length) * 100);
     }
+    case 'written':
+      return roughWrittenMark(q, answer);
     default:
       return 0;
   }
+}
+
+// A first mark for a written answer, from how many of the rubric's points it touches on; Vetter's AI then marks it
+// properly (src/lib/aiMarking.ts) and its mark replaces this one. Capped, since matching words isn't judging
+const stem = (w: string) => w.slice(0, 5);
+const WORDS = /[a-z0-9]{5,}/g;
+export function roughWrittenMark(q: Question, answer: string): number {
+  const said = new Set((answer.toLowerCase().match(WORDS) ?? []).map(stem));
+  const points = (q.rubric ?? []).filter((p) => p.trim());
+  if (said.size === 0 || points.length === 0) return 0;
+  const met = points.filter((p) => {
+    const keys = [...new Set((p.toLowerCase().match(WORDS) ?? []).map(stem))];
+    return keys.length > 0 && keys.filter((k) => said.has(k)).length / keys.length >= 0.5;
+  }).length;
+  const length = Math.min(1, (answer.trim().split(/\s+/).length || 0) / 40);
+  return Math.round(Math.min(70, (met / points.length) * 100) * length);
 }
 
 // Whether the candidate has given an answer yet, for the task tabs
@@ -135,8 +155,10 @@ export const QUESTION_STYLES: { type: QuestionType; label: string; hint: string 
   { type: 'choice', label: 'Multiple choice', hint: 'Pick one right answer' },
   { type: 'multi', label: 'Select all that apply', hint: 'Tick every right answer' },
   { type: 'text', label: 'Short answer', hint: 'Type a word, number or phrase' },
+  { type: 'written', label: 'Written answer', hint: 'A paragraph or two, marked against the points a strong answer makes' },
   { type: 'order', label: 'Drag to order', hint: 'Put steps or items in sequence' },
   { type: 'match', label: 'Drag to match', hint: 'Pair each prompt with its answer' },
+  { type: 'case', label: 'Case study', hint: 'Material to read (emails, a ticket, figures) with questions on it' },
   { type: 'code', label: 'Coding', hint: 'Write a JavaScript function, run against test cases' },
   { type: 'sql', label: 'SQL query', hint: 'Query sample tables, checked against your solution' },
   { type: 'sheet', label: 'Spreadsheet task', hint: 'Work in an Excel-style spreadsheet, checked by formulas on the finished workbook' },
@@ -165,6 +187,10 @@ export function blankQuestion(type: QuestionType): Question {
       return { ...base, options: ['', '', '', ''], correctOptions: [] };
     case 'text':
       return { ...base, acceptedAnswers: [''] };
+    case 'written':
+      return { ...base, timeLimitMinutes: 6, weight: 15, rubric: ['', '', ''] };
+    case 'case':
+      return { ...base, timeLimitMinutes: 4, weight: 0 };
     case 'order':
       return { ...base, items: ['', '', ''] };
     case 'match':
@@ -201,6 +227,9 @@ export function questionProblems(q: Question): string[] {
     case 'text':
       if (filled(q.acceptedAnswers).length === 0) problems.push('Add an accepted answer');
       break;
+    case 'written':
+      if (filled(q.rubric).length === 0) problems.push('Add at least one marking point');
+      break;
     case 'order':
       if (filled(q.items).length < 3) problems.push('Add at least three items');
       break;
@@ -231,6 +260,9 @@ export function tidyQuestion(q: Question): Question {
     };
   }
   if (q.type === 'text') return { ...q, acceptedAnswers: filled(q.acceptedAnswers).map((a) => a.trim()) };
+  if (q.type === 'written') return { ...q, rubric: filled(q.rubric).map((a) => a.trim()) };
+  // A case has no answer, so no marks of its own
+  if (q.type === 'case') return { ...q, weight: 0 };
   if (q.type === 'order') return { ...q, items: filled(q.items).map((i) => i.trim()) };
   if (q.type === 'match') return { ...q, pairs: (q.pairs ?? []).filter((p) => p.left.trim() && p.right.trim()) };
   // Unfinished test cases are dropped; unnamed ones get a name candidates can read in their feedback

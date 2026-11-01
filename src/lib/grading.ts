@@ -151,6 +151,8 @@ function gradeAnswerQuestion(q: Question, answer: string): QuestionRunResult {
 
 export async function runQuestion(q: Question, code: string): Promise<QuestionRunResult> {
   if (q.type === 'sql') return runSqlQuestion(q, code);
+  // A case study is read, not answered; it carries no marks
+  if (q.type === 'case') return { type: 'code', allPassed: true, score: 100, testCaseResults: [], logs: [], totalExecutionTimeMs: 0 };
   if (q.type === 'sheet') return gradeSheetQuestion(q, code);
   if (q.type === 'database') return gradeDatabaseQuestion(q, code);
   if (q.type === 'app') return gradeAppQuestion(q, code);

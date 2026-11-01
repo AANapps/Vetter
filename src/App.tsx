@@ -322,7 +322,8 @@ export default function App() {
   const [activeTest, setActiveTest] = useState<AssessmentTest | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   // Asking Vetter's AI for tests, for a job or on their own; and the builder opened on what it wrote
-  const [generator, setGenerator] = useState<{ jobId?: string; resume?: TestDraft } | null>(null);
+  // seed: a first message ready to send, e.g. to rebuild a library test in depth
+  const [generator, setGenerator] = useState<{ jobId?: string; resume?: TestDraft; seed?: string } | null>(null);
   const [draftBuilder, setDraftBuilder] = useState<{ draft: AssessmentTest; jobId?: string; alsoAdd: string[]; record?: TestDraft } | null>(null);
   // What the candidate's Tests page is narrowed to, e.g. a field picked on Home
   const [testField, setTestField] = useState<TestField | null>(null);
@@ -1026,7 +1027,7 @@ export default function App() {
                 setJobs((prev) => prev.map((j) => (j.testIds.includes(testId) ? { ...j, testIds: j.testIds.filter((id) => id !== testId) } : j)));
                 if (test) showToast(`${test.title} deleted.`);
               }}
-              onGenerateTest={() => setGenerator({})}
+              onGenerateTest={(seed) => setGenerator({ seed })}
               drafts={visibleDrafts}
               onSaveDraft={saveTestDraft}
               onDeleteDraft={deleteTestDraft}
@@ -1091,6 +1092,7 @@ export default function App() {
             openTestPage(testId);
           }}
           resume={generator.resume}
+          seed={generator.seed}
           onSaveDraft={saveTestDraft}
           onSaveTest={(test) => {
             const id = saveNewTest(test);

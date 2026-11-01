@@ -35,7 +35,7 @@ export const questionSchema = {
     // A hands-on task's own label (e.g. "t1"), and on a question about a task, that task's label
     ref: { type: 'string' },
     taskRef: { type: 'string' },
-    type: { type: 'string', enum: ['choice', 'multi', 'text', 'order', 'match', 'code', 'sql', 'sheet', 'database', 'app'] },
+    type: { type: 'string', enum: ['choice', 'multi', 'text', 'written', 'order', 'match', 'case', 'code', 'sql', 'sheet', 'database', 'app'] },
     title: { type: 'string' },
     prompt: { type: 'string' },
     // A sheet's file name, a database's name
@@ -58,6 +58,7 @@ export const questionSchema = {
       },
     },
     tables: { type: 'array', items: { type: 'string' } },
+    // An app's page; in a conversation, the spec the page builder works from instead (server/buildApp.ts)
     appHtml: { type: 'string' },
     // Spreadsheet tasks: the starting sheets as CSV, and the cells a right answer fills in (to prove the checks)
     workbook: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' }, csv: { type: 'string' } }, required: ['name', 'csv'], additionalProperties: false } },
@@ -121,7 +122,8 @@ export const WORKSPACE_RULES = `
   (CREATE VIEW ..., UPDATE ...). testCases: 2 to 4 checks; input is a SELECT run afterwards (e.g. "SELECT * FROM
   monthly_revenue ORDER BY month"), expectedOutput "" (it's worked out from solutionCode).`;
 
-export const APP_RULES = `
+// What an app question can be: the three kinds of interactive page
+export const APP_KINDS = `
 - app: an interactive page the candidate really works in. Write up to 3. Use it for the hardest parts of the test. It is
   one of three kinds:
   (a) SOFTWARE: a working copy of a product the job uses (a CRM, helpdesk, EPOS till, design tool, accounting package...).
@@ -151,7 +153,10 @@ export const APP_RULES = `
       where the customer reacts to each reply, marking up a contract or a drawing, sorting stock into the right
       locations. Invent whatever best shows whether someone can really do the work; it doesn't have to look like any
       existing question type. It is marked by checks on what the candidate leaves behind, like the others.
-  For both kinds, appHtml is ONE self-contained HTML page, under 60KB:
+`;
+
+// How the page itself is written, whether in the same call or by the page builder (server/buildApp.ts)
+export const APP_PAGE_RULES = `  For every kind, appHtml is ONE self-contained HTML page, under 60KB:
   • Its <title> is the product's or item's name alone, e.g. <title>ClickData</title> or <title>iPhone 13</title>.
   • Everything inline: no external scripts, stylesheets, images or requests of any kind (Google Fonts are the only exception).
     No <form> submission and no alert/prompt/confirm: use buttons and in-page dialogs. It runs in a sandbox with no network.
@@ -165,12 +170,17 @@ export const APP_RULES = `
   • Keep everything the candidate can change in ONE plain JSON object; for hands-on work, include the steps taken in order
     (e.g. steps: ["power_off", "heat_screen", ...]), what is attached or removed, and any damage done. On load, start from
     window.vetterSaved when it isn't null (the candidate coming back to the task), otherwise from the starting state. Call
-    vetter.save(state) once on load and again after every change. Never show which values are checked or what they should be.
+    vetter.save(state) once on load and again after every change. Never show which values are checked or what they should be.`;
+
+// The task wording and the checks on the page's state
+export const APP_TASK_RULES = `
   prompt: the task, as a manager or customer would ask for it: the outcome wanted in 3 to 5 concrete steps, not which buttons to press.
   testCases (REQUIRED for app: an app question without them is thrown away): 3 to 6 checks on the final state. input is a dotted path into the state object, e.g. "dashboard.widgets.0.type"
   or "parts.battery.connected"; expectedOutput is its value once the task is done right ("|" between acceptable forms; a list as a
   JSON array, compared in any order; numbers to 2 decimal places). description says what's checked without giving the
   answer. The starting state must fail every check. Leave starterCode and solutionCode empty.`;
+
+export const APP_RULES = `${APP_KINDS}\n${APP_PAGE_RULES}${APP_TASK_RULES}`;
 
 // How hard and how real the questions are: the same rules for a test written in one go and one built in the chat
 export const QUALITY_RULES = `
@@ -196,13 +206,34 @@ bluff or look up the answer quickly.
 - Scale to the level: Beginner and Junior still apply what they know to a situation; Professional and Senior weigh
   competing priorities, spot what's missing and handle exceptions.`;
 
-// How a test is put together: hands-on tasks, each with questions about it
+// The two styles that give a test depth: a case to read with questions on it, and a written answer marked on its points
+export const DEPTH_STYLE_RULES = `
+- written: an extended answer of 80 to 250 words, for judgement, diagnosis, explaining a decision, a plan, or the actual
+  reply to a customer or colleague. solutionCode: a model answer a strong candidate would write. acceptedAnswers holds
+  the marking points: 3 to 6, each one specific thing a strong answer does or says, tied to the scenario (e.g. "Spots
+  that INV-2231 was paid twice", "Offers the customer a refund date, not just an apology").
+- case: a case study with no answer of its own. prompt is the material the candidate reads, 200 to 500 words, laid out
+  as the real thing: an email thread, a support ticket history, a client brief, an incident log, a report extract, a
+  patient or job record, a small table of figures. Plant the details the sub-questions turn on, plus a few that don't
+  matter. title names the case; contextData labels the material (e.g. "Email thread with Harlow Ltd"). points 0;
+  timeLimitMinutes is the reading time (3 to 6). Give it a ref; its sub-questions follow it with taskRef set to that ref.`;
+
+// How a test is put together: what the hire needs first, then sections that build up to the hands-on work
 export const TASK_RULES = `
-TASKS: build the test around 2 or 3 hands-on tasks (sheet, database, app or code), which carry most of the marks. Give each task a short ref ("t1", "t2"...).
-Straight after each task, write 2 to 4 questions about it, in any answer style (choice, multi, text, order, match), with
-taskRef set to the task's ref: what the candidate found or worked out in it, why something happened, what they'd check or
-do next, what they'd tell the customer or manager. They're answered beside the task's window, so they may rely on what it
-shows. Every other question has taskRef "", and every question that isn't a task has ref "". A kept task's ref is its id.`;
+BLUEPRINT: before writing any question, work out what this hire really needs to be able to do, from the job and the
+conversation: 4 to 7 competencies, each with why it matters in this job (what goes wrong when someone lacks it), how the
+test proves it, and its share of the marks (adding up to 100). Every question serves one of them, and the weights decide
+where the marks go.
+SECTIONS: unless the company asks otherwise, the test builds up through these, in order:
+1. Foundations: 4 to 8 fast questions (choice, multi, text, order, match), each led by its own scenario.
+2. Case studies: 1 or 2 cases, each followed by 3 to 5 sub-questions mixing fast formats with at least one written.
+3. Hands-on tasks: 2 or 3 of sheet, database or app (or code for developers), each followed by 2 to 4 sub-questions
+   about what the candidate found or did in it, including a written one where it fits (what they'd tell the customer or
+   manager, why it happened, what they'd check next).
+Size: 20 to 32 questions counting sub-questions, 45 to 75 minutes in all, never more than 45 questions.
+Sub-questions: give each case and each sheet, database or app task a short ref ("c1", "t1"...) and set taskRef on the
+questions about it; they're answered beside it, so they may rely on what it shows. Every other question has taskRef "",
+and every question that isn't a case or task has ref "". A kept case or task's ref is its id.`;
 
 function instructions(req: GenerateRequest): string {
   return `You help companies on Vetter, a skills-based hiring platform, choose and write tests for a job.
@@ -221,7 +252,7 @@ Style rules (testCases is an empty list for choice, multi, text, order and match
 - order: 4 to 6 items listed in the RIGHT order (candidates see them shuffled).
 - match: 3 to 5 pairs; each left prompt with its right answer, all distinct.
 - code: JavaScript. starterCode defines "function solution(...)". solutionCode is a correct reference implementation. 3 to 5 testCases; input is a JSON array of the arguments, e.g. "[[3,1,2]]" calls solution([3,1,2]); expectedOutput is the JSON result.
-- sql: query only these tables: ${req.tables.map((t) => `${t.name}(${t.columns.join(', ')})`).join('; ')}. List the tables used in "tables". solutionCode is a correct SQLite query; starterCode is a comment and "SELECT ".${req.styles.includes('app') ? APP_RULES : ''}
+- sql: query only these tables: ${req.tables.map((t) => `${t.name}(${t.columns.join(', ')})`).join('; ')}. List the tables used in "tables". solutionCode is a correct SQLite query; starterCode is a comment and "SELECT ".${DEPTH_STYLE_RULES}${req.styles.includes('app') ? APP_RULES : ''}
 timeLimitMinutes is realistic for the question (2 to 4 for answer styles, as the scenario takes reading, 5 to 10 for code and sql, 6 to 12 for app), and across the test they add up to 25 to 35. points reflect importance; a task counts for more than a question about it.${req.styles.includes('app') ? TASK_RULES : ''}
 category must be one of: ${req.categories.join(', ')}. passingScore between 60 and 80. roles: pick from ${req.roles.join(', ')}.
 Write plainly, in British English, with no em dashes.`
@@ -305,7 +336,7 @@ export async function generateTest(body: unknown, apiKey: string | undefined, mo
         // If Claude declines on safety grounds, Anthropic re-runs the request on its recommended fallback model.
         // Haiku has no fallback, so it's only asked for on the larger models
         ...(!model.includes('haiku') && { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' as const }),
-        system: instructions({ ...req, research, questionCount: Math.min(15, Math.max(1, Math.round(req.questionCount || 14))) }),
+        system: instructions({ ...req, research, questionCount: Math.min(45, Math.max(1, Math.round(req.questionCount || 26))) }),
         messages: [{ role: 'user', content: `The job or test the company described:\n\n${req.prompt.slice(0, MAX_PROMPT)}` }],
       })
       .finalMessage();

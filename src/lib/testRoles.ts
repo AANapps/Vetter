@@ -58,6 +58,8 @@ export const QUESTION_TYPE_LABELS: Record<Question['type'], string> = {
   schema: 'Schema design',
   multi: 'Select all that apply',
   text: 'Short answer',
+  written: 'Written answer',
+  case: 'Case study',
   order: 'Drag to order',
   match: 'Drag to match',
   sheet: 'Spreadsheet',
@@ -73,6 +75,10 @@ export function describeChecks(q: Question): string {
       return `${q.options?.length ?? 0} options`;
     case 'text':
       return 'one answer';
+    case 'written':
+      return `${q.rubric?.length ?? 0} marking points`;
+    case 'case':
+      return 'to read';
     case 'order':
       return `${q.items?.length ?? 0} items`;
     case 'match':

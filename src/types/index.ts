@@ -112,7 +112,8 @@ export interface TestResult {
 // How a question is answered: written code or SQL run against checks, or an answer picked, typed or arranged.
 // multi: tick every right option; text: a short typed answer; order: drag items into sequence; match: drag each answer onto its prompt.
 // sheet and database are worked in a spreadsheet or a database window, and marked on what the candidate leaves behind
-export type QuestionType = 'sql' | 'code' | 'scenario' | 'choice' | 'schema' | 'multi' | 'text' | 'order' | 'match' | 'sheet' | 'database' | 'app';
+// written: an extended answer marked on its rubric; case: a case study to read, with sub-questions and no answer of its own
+export type QuestionType = 'sql' | 'code' | 'scenario' | 'choice' | 'schema' | 'multi' | 'text' | 'written' | 'order' | 'match' | 'case' | 'sheet' | 'database' | 'app';
 
 // A table of sample data: the starting tables of a database task
 export interface DataTable {
@@ -162,6 +163,8 @@ export interface Question {
   items?: string[];
   // Drag to match: each prompt on the left with the answer that belongs to it
   pairs?: { left: string; right: string }[];
+  // Written answers: the points a strong answer makes, each worth an equal share (the model answer is in solutionCode)
+  rubric?: string[];
   // Hidden code run after the candidate's, whose check(input) function grades each test case.
   // Lets a task grade code that isn't a pure function, such as tests the candidate writes.
   harness?: string;
@@ -171,8 +174,8 @@ export interface Question {
   tables?: DataTable[];
   // App simulations: the simulated product as one HTML page (its name is in contextData). Checks read its saved state
   appHtml?: string;
-  // A question about a hands-on task (a spreadsheet, database or app question): that task's id. It's asked beside the
-  // task's window, about what the candidate did or found there
+  // A question about a hands-on task (a spreadsheet, database or app question) or a case study: its id. It's asked
+  // beside the task's window or the case's material, about what the candidate did, found or read there
   taskId?: string;
   testCases: TestCase[];
   timeLimitMinutes: number;
@@ -203,6 +206,16 @@ export interface AssessmentTest {
   roles?: TestRole[];
   // Simulations: one scenario that every question plays out in
   scenario?: TestScenario;
+  // What the hire needs, worked out before the questions were written: each competency, why it matters, how the test
+  // proves it, and its share of the marks
+  blueprint?: BlueprintItem[];
+}
+
+export interface BlueprintItem {
+  skill: string;
+  why: string;
+  how: string;
+  weight: number;
 }
 
 export interface SubmissionResult {

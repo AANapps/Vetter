@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { APP_RULES, QUALITY_RULES, TASK_RULES, WORKSPACE_RULES, MAX_PROMPT, PRICES, apiFailure, questionSchema, researchSoftware } from './generateTest.js';
+import { APP_KINDS, APP_TASK_RULES, DEPTH_STYLE_RULES, QUALITY_RULES, TASK_RULES, WORKSPACE_RULES, MAX_PROMPT, PRICES, apiFailure, questionSchema, researchSoftware } from './generateTest.js';
 
 /**
  * Building a test by talking to Vetter: the company says what it wants, Vetter writes a draft, and every message after
@@ -55,6 +55,8 @@ const responseSchema = {
         passingScore: { type: 'integer' },
         skillsTested: { type: 'array', items: { type: 'string' } },
         roles: { type: 'array', items: { type: 'string' } },
+        // Also the blueprint: one competency a line, "skill | weight | why | how". A separate field makes the output
+        // grammar too large to compile
         questions: { type: 'array', items: questionSchema },
       },
       required: ['title', 'description', 'category', 'difficulty', 'passingScore', 'skillsTested', 'questions'],
@@ -65,29 +67,26 @@ const responseSchema = {
   additionalProperties: false,
 };
 
-function instructions(req: ChatRequest, research: string): string {
-  return `You are Vetter's test designer, talking with a company on Vetter, a skills-based hiring platform. Together you build one skills test for a job, refining it over the conversation.
-
-HOW TO TALK
-- Reply like a sharp, friendly hiring consultant: short, plain British English, no em dashes, no markdown headings. 1 to 4 sentences usually.
-- If the first message is too vague to write a useful test (no idea of the role or what matters), ask up to 2 short questions instead of writing. Otherwise write a first draft straight away; don't interrogate.
-- After writing or changing the draft, say in a sentence what you did, then offer one or two specific ways to sharpen it (e.g. "Want a task in Xero itself?").
-- When asked to change something, change exactly that and keep the rest. Questions are numbered from 1 in the order of the draft.
-- The company can edit the draft by hand between messages. The draft you're given is always the latest: treat their edits as deliberate, keep them, and don't undo them unless asked.
-- If asked something you can't do (a style not listed below, uploading files), say so and offer the nearest thing.
-
-${
+// How every question is written and how a test is put together: shared by the chat, the planner (server/planTest.ts)
+// and the section writer (server/writeQuestions.ts)
+export interface GuideRequest {
+  styles?: string[];
+  levels: string[];
+  tables: { name: string; columns: string[] }[];
+  categories: string[];
+  roles: string[];
+}
+export const stylesNote = (req: { styles?: string[] }) =>
   req.styles?.length
     ? `QUESTION TYPES: the company has chosen to allow only these styles: ${req.styles.join(', ')}. Every new question must be one of them, and the hands-on rule below applies only if a hands-on style is among them. If the company asks in the chat for a style not on the list, use it anyway (they asked). If the draft has questions of a style no longer allowed and the company asks to use only the chosen types, rewrite those questions in allowed styles.
 
 `
-    : ''
-}THE DRAFT
-- Include "test" whenever the draft is new or changes, with every question in order. For a question that stays exactly as it is, set keep to its id and type to its type, and leave every other field empty ("", [], 0, -1). Leave "test" out when nothing changes (a question, a chat).
-- An app, sheet or database question can only be kept whole or written again from scratch.
-- 12 to 16 questions taking 25 to 35 minutes in all, unless the company asks otherwise (never more than 20). difficulty is one of: ${req.levels.join(', ')}; pick it from the job unless told.
-- Every question must be answerable from its prompt alone, and check what the job really needs, not trivia.${QUALITY_RULES}
-- Styles: choice, multi, text, order, match for any job; sheet, database and app are hands-on tasks in a working window.
+    : '';
+
+export function styleGuide(req: GuideRequest): string {
+  return `- Every question must be answerable from its prompt alone, and check what the job really needs, not trivia.${QUALITY_RULES}
+- Styles: choice, multi, text, written, order, match for any job; case for a case study with sub-questions; sheet, database
+  and app are hands-on tasks in a working window.
   Unless told otherwise, every test has hands-on tasks that match how the job is really done: sheet for Excel work
   (finance, ops, analysts), database for SQL work, app for any other software the job names (a CRM, helpdesk, design
   tool, accounting package...), app for physical and trade work (a mock-up of the device or equipment, e.g. a specific
@@ -104,10 +103,37 @@ Style rules (testCases is an empty list for choice, multi, text, order and match
 - order: 4 to 6 items listed in the RIGHT order (candidates see them shuffled).
 - match: 3 to 5 pairs; each left prompt with its right answer, all distinct.
 - code: JavaScript. starterCode defines "function solution(...)". solutionCode is a correct reference implementation. 3 to 5 testCases; input is a JSON array of the arguments, e.g. "[[3,1,2]]" calls solution([3,1,2]); expectedOutput is the JSON result.
-- sql: query only these tables: ${req.tables.map((t) => `${t.name}(${t.columns.join(', ')})`).join('; ')}. List the tables used in "tables". solutionCode is a correct SQLite query; starterCode is a comment and "SELECT ".${WORKSPACE_RULES}${APP_RULES}
-timeLimitMinutes is realistic for the question (2 to 4 for answer styles, as the scenario takes reading, 5 to 10 for code, sql, sheet and database, 6 to 12 for app), and across the test they add up to 25 to 35 unless the company asks for a different length. points reflect importance; a task counts for more than a question about it.
+- sql: query only these tables: ${req.tables.map((t) => `${t.name}(${t.columns.join(', ')})`).join('; ')}. List the tables used in "tables". solutionCode is a correct SQLite query; starterCode is a comment and "SELECT ".${DEPTH_STYLE_RULES}${WORKSPACE_RULES}${APP_KINDS}
+  In this conversation appHtml is NOT the page: a separate page builder writes each page from the spec you put in appHtml,
+  then the page is tried out. appHtml holds the complete spec for the builder, in plain text, 250 to 600 words: which kind it is and what it copies or shows; the layout
+  and screens (or the item drawn and its views); every piece of realistic data or detail it holds, spelled out (names,
+  figures, records, messages); every interaction the task needs and what it does, including wrong moves and their
+  consequences; and the state object it keeps, with its exact key names and starting values, so the checks below match.
+  A kept app keeps its page; to change one, write it again with a new spec.${APP_TASK_RULES}
+timeLimitMinutes is realistic for the question (2 to 4 for answer styles, as the scenario takes reading, 4 to 8 for written, 3 to 6 reading time for case, 5 to 10 for code, sql, sheet and database, 6 to 12 for app), and across the test they add up to 45 to 75 unless the company asks for a different length. points reflect importance; a task counts for more than a question about it.
 ${TASK_RULES}
-category must be one of: ${req.categories.join(', ')}. passingScore between 60 and 80. roles: pick from ${req.roles.join(', ')}.
+category must be one of: ${req.categories.join(', ')}. passingScore between 60 and 80. roles: pick from ${req.roles.join(', ')}.`;
+}
+
+function instructions(req: ChatRequest, research: string): string {
+  return `You are Vetter's test designer, talking with a company on Vetter, a skills-based hiring platform. Together you build one skills test for a job, refining it over the conversation.
+
+HOW TO TALK
+- Reply like a sharp, friendly hiring consultant: short, plain British English, no em dashes, no markdown headings. 1 to 4 sentences usually.
+- If the first message is too vague to write a useful test (no idea of the role or what matters), ask up to 2 short questions instead of writing. Otherwise write a first draft straight away; don't interrogate.
+- After writing or changing the draft, say in a sentence what you did, then offer one or two specific ways to sharpen it (e.g. "Want a task in Xero itself?").
+- When asked to change something, change exactly that and keep the rest. Questions are numbered from 1 in the order of the draft.
+- The company can edit the draft by hand between messages. The draft you're given is always the latest: treat their edits as deliberate, keep them, and don't undo them unless asked.
+- If asked something you can't do (a style not listed below, uploading files), say so and offer the nearest thing.
+
+${stylesNote(req)}THE DRAFT
+- Include "test" whenever the draft is new or changes, with every question in order. skillsTested IS the blueprint: one line per competency, written "skill | weight | why it matters | how the test proves it". For a question that stays exactly as it is, set keep to its id and type to its type, and leave every other field empty ("", [], 0, -1). Leave "test" out when nothing changes (a question, a chat).
+- An app, sheet or database question can only be kept whole or written again from scratch.
+- If the change means rewriting more than about half of the test (a different level, a different job, "start again"),
+  don't write it here: send lookUp "REPLAN", reply "" and no test. Vetter plans and writes the test afresh from the
+  conversation, section by section.
+- The size and sections are set out under BLUEPRINT and SECTIONS below. difficulty is one of: ${req.levels.join(', ')}; pick it from the job unless told.
+${styleGuide(req)}
 software: the one product, device or equipment the app simulations copy (e.g. "Xero" or "iPhone 13"), or "" when the draft has none.
 lookUp: when this turn should add (or rewrite) an app simulation of a product, device or equipment that the RESEARCH below doesn't cover${research ? '' : ' (there is no research yet)'}, put its name here (with the procedure for a device, e.g. "iPhone 13 screen replacement") and send only reply "" and existing, with no test; Vetter researches it and asks you again. Otherwise "".
 
@@ -175,6 +201,8 @@ export async function testChat(body: unknown, apiKey: string | undefined, model:
     let out = parse(message);
 
     // An app simulation of software not looked up yet: research it on the web, then write the turn with what was found
+    // A rewrite of most of the test: the browser runs the planner and the section writer instead
+    if (out.lookUp === 'REPLAN') return { status: 200, json: { ...out, research, researchedFor } };
     if (out.lookUp && !sameProduct(out.lookUp, researchedFor)) {
       const brief = [`The software: ${out.lookUp}`, req.job, ...req.messages.filter((m) => m.role === 'user').map((m) => m.text)].filter(Boolean).join('\n\n');
       const found = await researchSoftware(client, model, brief).catch((err) => (console.error('[test-chat] research failed', err), ''));

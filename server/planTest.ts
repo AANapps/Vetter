@@ -1,0 +1,161 @@
+import Anthropic from '@anthropic-ai/sdk';
+import { MAX_PROMPT, PRICES, apiFailure, researchSoftware } from './generateTest.js';
+import { ChatRequest, styleGuide, stylesNote } from './testChat.js';
+
+/**
+ * The first step of writing a test from the conversation: what the hire needs (the blueprint) and an outline of every
+ * question, case and task, without writing them out. It's quick, so the company hears back fast; the browser then has
+ * each section written in parallel (server/writeQuestions.ts) and each interactive page built (server/buildApp.ts),
+ * every request short enough for the host's time limit.
+ */
+
+const MAX_TURNS = 24;
+const MAX_TEXT = 4000;
+
+const ITEM_TYPES = ['choice', 'multi', 'text', 'written', 'order', 'match', 'case', 'code', 'sql', 'sheet', 'database', 'app'];
+
+const schema = {
+  type: 'object',
+  properties: {
+    reply: { type: 'string' },
+    existing: {
+      type: 'array',
+      items: { type: 'object', properties: { testId: { type: 'string' }, reason: { type: 'string' } }, required: ['testId', 'reason'], additionalProperties: false },
+    },
+    software: { type: 'string' },
+    lookUp: { type: 'string' },
+    plan: {
+      type: 'object',
+      properties: {
+        title: { type: 'string' },
+        description: { type: 'string' },
+        category: { type: 'string' },
+        difficulty: { type: 'string' },
+        passingScore: { type: 'integer' },
+        roles: { type: 'array', items: { type: 'string' } },
+        // One competency a line: "skill | weight | why it matters | how the test proves it"
+        blueprint: { type: 'array', items: { type: 'string' } },
+        items: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              ref: { type: 'string' },
+              taskRef: { type: 'string' },
+              type: { type: 'string', enum: ITEM_TYPES },
+              title: { type: 'string' },
+              // What the item is about and what it tests, for the writer: the situation, the trap, the skill
+              brief: { type: 'string' },
+              points: { type: 'integer' },
+              minutes: { type: 'integer' },
+            },
+            required: ['ref', 'taskRef', 'type', 'title', 'brief', 'points', 'minutes'],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ['title', 'description', 'category', 'difficulty', 'passingScore', 'roles', 'blueprint', 'items'],
+      additionalProperties: false,
+    },
+  },
+  required: ['reply', 'existing', 'software', 'lookUp'],
+  additionalProperties: false,
+};
+
+function instructions(req: ChatRequest, research: string): string {
+  return `You are Vetter's test designer, talking with a company on Vetter, a skills-based hiring platform. You are planning
+one skills test for a job, so that whoever passes it can really do the job and whoever can't is found out.
+
+HOW TO TALK
+- Reply like a sharp, friendly hiring consultant: short, plain British English, no em dashes, no markdown. 1 to 4 sentences.
+- If the conversation is too vague to plan a useful test (no idea of the role or what matters), ask up to 2 short
+  questions in reply and leave out "plan". Otherwise plan straight away; don't interrogate.
+- With a plan, say in a sentence or two what the test covers and why, then offer one specific way to sharpen it.
+
+THE PLAN
+Plan every item of the test, in order, without writing it out: a separate writer turns each item into a full question
+from your brief. In the plan EVERY item has its own short unique ref, plain questions and sub-questions too ("q1", "c1",
+"c1a", "t1", "t1b"...), whatever the rules below say about refs on written questions; a question about a case or task sets taskRef
+to that case or task's ref, and every other item has taskRef "". brief: 2 to 4 sentences: the situation, the specific
+detail or trap it turns on, what a strong answer shows, and which competency it serves. Vary the situations, so no two
+items test the same thing. points and minutes as the rules below say (minutes is timeLimitMinutes; a case is 0 points).
+blueprint: one line per competency, written "skill | weight | why it matters | how the test proves it".
+difficulty is one of: ${req.levels.join(', ')}; pick it from the job unless told.
+
+${stylesNote(req)}${styleGuide(req)}
+software: the one product, device or equipment the app items copy (e.g. "Xero" or "iPhone 13"), or "".
+lookUp: when the plan needs an app copying a product, device or equipment that the RESEARCH below doesn't cover${research ? '' : ' (there is no research yet)'}, put its name here (with the procedure for a device, e.g. "iPhone 13 screen replacement") and send only reply "" and existing, with no plan; Vetter researches it and asks you again. Otherwise "".
+
+${
+  req.wantExisting
+    ? `LIBRARY PICKS: "existing" lists up to 4 tests from the LIBRARY that genuinely fit the job alongside the new test, best first, each with a one-sentence reason a hiring manager would find useful. Only ids from the library.`
+    : 'Return an empty "existing" list.'
+}
+
+${research ? `RESEARCH on what the simulations copy:\n${research}\n\n` : ''}LIBRARY:
+${req.library.map((t) => `- ${t.id}: ${t.title} (${t.category}, ${t.difficulty}; skills: ${t.skills.join(', ')}; roles: ${t.roles.join(', ')}). ${t.description}`).join('\n')}`;
+}
+
+function conversation(req: ChatRequest): Anthropic.Beta.BetaMessageParam[] {
+  const turns = req.messages.slice(-MAX_TURNS).map((m) => ({ role: m.role, content: m.text.slice(0, MAX_TEXT) }));
+  while (turns.length && turns[0].role !== 'user') turns.shift();
+  const last = turns[turns.length - 1];
+  const context = [req.job ? `THE JOB:\n${req.job.slice(0, MAX_PROMPT)}` : '', req.draft ? `THE DRAFT BEING REPLACED (for reference):\n${JSON.stringify(req.draft).slice(0, 20000)}` : '']
+    .filter(Boolean)
+    .join('\n\n');
+  return [...turns.slice(0, -1), { role: 'user', content: `${context}${context ? '\n\n' : ''}THE COMPANY SAYS:\n${last.content}` }];
+}
+
+const sameProduct = (a = '', b = '') => a.trim().toLowerCase() === b.trim().toLowerCase();
+
+async function turn(client: Anthropic, model: string, req: ChatRequest, research: string) {
+  const message = await client.beta.messages
+    .stream({
+      model,
+      max_tokens: 32000,
+      output_config: { effort: 'medium', format: { type: 'json_schema', schema } },
+      ...(!model.includes('haiku') && { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' as const }),
+      system: [{ type: 'text', text: instructions(req, research), cache_control: { type: 'ephemeral' } }],
+      messages: conversation(req),
+    })
+    .finalMessage();
+  const price = PRICES[model];
+  const { input_tokens, output_tokens } = message.usage;
+  if (price) console.log(`[plan-test] ${input_tokens} in, ${output_tokens} out: $${((input_tokens * price.input + output_tokens * price.output) / 1e6).toFixed(3)}`);
+  return message;
+}
+
+export async function planTest(body: unknown, apiKey: string | undefined, model: string): Promise<{ status: number; json: unknown }> {
+  const req = body as ChatRequest;
+  if (!req || !Array.isArray(req.messages) || req.messages[req.messages.length - 1]?.role !== 'user') return { status: 400, json: { error: 'Say what you want the test to check.' } };
+  if (!apiKey) return { status: 503, json: { error: 'not-configured' } };
+
+  const client = new Anthropic({ apiKey });
+  try {
+    let research = req.research ?? '';
+    let researchedFor = req.researchedFor ?? '';
+    const parse = (m: Anthropic.Beta.BetaMessage) => JSON.parse(m.content.flatMap((b) => (b.type === 'text' ? [b.text] : [])).join(''));
+    const failed = (m: Anthropic.Beta.BetaMessage) =>
+      m.stop_reason === 'refusal'
+        ? { status: 422, json: { error: 'Vetter declined to write this. Try describing the job differently.' } }
+        : m.stop_reason === 'max_tokens'
+        ? { status: 502, json: { error: 'The plan came back incomplete. Try again.' } }
+        : null;
+
+    let message = await turn(client, model, req, research);
+    if (failed(message)) return failed(message)!;
+    let out = parse(message);
+    if (out.lookUp && !sameProduct(out.lookUp, researchedFor)) {
+      const brief = [`The software: ${out.lookUp}`, req.job, ...req.messages.filter((m) => m.role === 'user').map((m) => m.text)].filter(Boolean).join('\n\n');
+      const found = await researchSoftware(client, model, brief).catch((err) => (console.error('[plan-test] research failed', err), ''));
+      research = found || `Nothing could be found on the web about ${out.lookUp}; build it from what you know.`;
+      researchedFor = out.lookUp;
+      message = await turn(client, model, req, research);
+      if (failed(message)) return failed(message)!;
+      out = parse(message);
+    }
+    return { status: 200, json: { ...out, research, researchedFor } };
+  } catch (err) {
+    return apiFailure('plan-test', err);
+  }
+}

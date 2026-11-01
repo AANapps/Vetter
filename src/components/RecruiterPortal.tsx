@@ -23,8 +23,8 @@ interface RecruiterPortalProps {
   onUpdateTest: (test: AssessmentTest) => void;
   // Deletes a saved test and takes it off every job
   onDeleteTest: (testId: string) => void;
-  // Vetter's AI writes a test from a description
-  onGenerateTest: () => void;
+  // Vetter's AI writes a test from a description, or from a first message filled in for it
+  onGenerateTest: (seed?: string) => void;
   // Tests still being written, newest first
   drafts: TestDraft[];
   onSaveDraft: (record: TestDraft) => Promise<boolean>;
@@ -211,7 +211,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
             </div>
             <div className="flex flex-wrap gap-2 shrink-0">
               <button
-                onClick={onGenerateTest}
+                onClick={() => onGenerateTest()}
                 className="px-4 py-2 text-sm font-semibold text-indigo-700 bg-white border border-indigo-200 hover:bg-indigo-50 rounded-lg flex items-center gap-1.5"
               >
                 <Sparkles className="w-4 h-4" />
@@ -305,6 +305,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                   onEdit={isVetter ? editFor(t) : undefined}
                   // The Vetter team can delete library tests written in the builder; the built-in ones stay
                   onDelete={isVetter && isEditable(t) ? () => deleteTest(t) : undefined}
+                  onDeepen={isVetter ? () => onGenerateTest(deepenSeed(t)) : undefined}
                 />
               ))}
             </div>
@@ -333,14 +334,23 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   );
 };
 
-const TestSummaryCard: React.FC<{ test: AssessmentTest; usedBy: JobPosting[]; ranked: number; onOpen: () => void; onEdit?: () => void; onDelete?: () => void }> = ({
-  test,
-  usedBy,
-  ranked,
-  onOpen,
-  onEdit,
-  onDelete,
-}) => (
+// What the test chat is asked when the Vetter team rebuilds a library test in depth
+const deepenSeed = (t: AssessmentTest) =>
+  `Rebuild this Vetter library test in depth, as a full test with a case study, written answers and hands-on tasks:\n\n` +
+  `${t.title} (${t.difficulty}, ${t.category})\n${t.description}\nSkills: ${t.skillsTested.join(', ')}` +
+  (t.roles?.length ? `\nFor: ${t.roles.join(', ')}` : '') +
+  `\n\nIt currently has ${t.questions.length} questions: ${t.questions.map((q) => q.title).join('; ')}.`;
+
+const TestSummaryCard: React.FC<{
+  test: AssessmentTest;
+  usedBy: JobPosting[];
+  ranked: number;
+  onOpen: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
+  // Rebuilds it with the AI as a full, in-depth test
+  onDeepen?: () => void;
+}> = ({ test, usedBy, ranked, onOpen, onEdit, onDelete, onDeepen }) => (
   <div
     onClick={onOpen}
     className="bg-white border border-slate-200 rounded-xl p-5 space-y-3 shadow-2xs cursor-pointer hover:border-indigo-300 transition-colors"
@@ -359,6 +369,19 @@ const TestSummaryCard: React.FC<{ test: AssessmentTest; usedBy: JobPosting[]; ra
           >
             <Pencil className="w-3 h-3" />
             Edit
+          </button>
+        )}
+        {onDeepen && test.questions.length < 12 && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDeepen();
+            }}
+            title="Write a full, in-depth version of this test with Vetter's AI"
+            className="text-xs font-semibold text-indigo-700 hover:text-indigo-900 flex items-center gap-1"
+          >
+            <Sparkles className="w-3 h-3" />
+            Rebuild in depth
           </button>
         )}
         {onDelete && (
