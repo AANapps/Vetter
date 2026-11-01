@@ -236,7 +236,7 @@ const JobList: React.FC<BusinessJobsProps> = ({
                           onKeyDown={(e) => e.stopPropagation()}
                           aria-label={`Delete ${job.title}`}
                           title="Delete job"
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                          className="p-1.5 rounded-lg text-rose-500 hover:text-rose-700 hover:bg-rose-50"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -421,17 +421,6 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
           <span>&middot; {job.applicantCount} applicants</span>
         </p>
         <p className="text-sm text-slate-600 max-w-2xl">{job.description}</p>
-        <button
-          onClick={() => {
-            if (!confirmDeleteJob(job, candidates)) return;
-            onDeleteJob(job.id);
-            onSelect(null);
-          }}
-          className="text-xs font-semibold text-slate-500 hover:text-rose-600 flex items-center gap-1"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-          Delete job
-        </button>
       </div>
 
       <section className="bg-white border border-slate-200 rounded-xl p-5 space-y-3">
@@ -612,6 +601,21 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
       </section>
 
       <SkillRanking job={job} candidates={candidates} onUpdateJobRequirements={onUpdateJobRequirements} />
+
+      {/* Last on the page, away from everyday actions */}
+      <div className="pt-6 border-t border-slate-200 flex justify-end">
+        <button
+          onClick={() => {
+            if (!confirmDeleteJob(job, candidates)) return;
+            onDeleteJob(job.id);
+            onSelect(null);
+          }}
+          className="px-4 py-2 text-sm font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-lg flex items-center gap-1.5 shadow-xs"
+        >
+          <Trash2 className="w-4 h-4" />
+          Delete job
+        </button>
+      </div>
     </div>
   );
 };
