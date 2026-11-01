@@ -15,6 +15,12 @@ const CSP =
 function bootstrap(saved: unknown) {
   const json = JSON.stringify(saved ?? null).replace(/</g, '\\u003c');
   return `<meta http-equiv="Content-Security-Policy" content="${CSP}">
+<style>
+/* Whatever the page sets, it scrolls when it's taller or wider than the window, and a sideways swipe at its edge never
+   reaches the browser's back gesture */
+html, body { overflow: auto !important; overscroll-behavior: none !important; }
+* { overscroll-behavior-x: none; }
+</style>
 <script>
 window.vetterSaved = ${json};
 window.vetter = { saved: window.vetterSaved, save: function (state) { parent.postMessage({ source: 'vetter-app', state: JSON.parse(JSON.stringify(state)) }, '*'); } };

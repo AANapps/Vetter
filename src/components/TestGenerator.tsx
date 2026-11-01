@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AlertCircle, ArrowUp, Check, ChevronDown, Library, Pencil, X } from 'lucide-react';
-import { AssessmentTest, Business, JobPosting, Question, QuestionType, TestDifficulty, TestDraft } from '../types';
-import { QUESTION_STYLES, isWorkspaceType } from '../lib/questionTypes';
+import { AlertCircle, ArrowUp, Check, Library, X } from 'lucide-react';
+import { AssessmentTest, Business, JobPosting, QuestionType, TestDifficulty, TestDraft } from '../types';
+import { QUESTION_STYLES } from '../lib/questionTypes';
+import { DraftPreview, Dropdown, draftProblems, finaliseDraft } from './DraftPreview';
 import { jobBrief } from '../lib/testGeneration';
 import { ChatState, sendChat } from '../lib/testChat';
 import { versionTitle } from '../lib/testLevels';
@@ -38,8 +39,6 @@ const levelFor = (job?: JobPosting): TestDifficulty => {
 // The question types a company can pick from, in the order shown: answer styles, then hands-on tasks
 const PICKABLE: QuestionType[] = ['choice', 'multi', 'text', 'order', 'match', 'sheet', 'database', 'app', 'code', 'sql'];
 const PICKABLE_STYLES = PICKABLE.map((type) => QUESTION_STYLES.find((s) => s.type === type)!).filter(Boolean);
-
-const styleLabel = (q: Question) => QUESTION_STYLES.find((s) => s.type === q.type)?.label ?? q.type;
 
 // Build a test by talking to Vetter: describe the job, get a draft, then ask for changes until it's right
 export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tests, onOpenTest, onSaveTest, onAddToJob, onEditDraft, onSaveDraft, resume, onClose }) => {
@@ -148,17 +147,21 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
     ? [...(offTypes.length ? ['Use only the question types I picked'] : []), 'Make it harder', 'Add a hands-on task in the software', 'Make it shorter']
     : [];
 
+  // The company's own edits to the draft, made beside the chat; Vetter sees them on the next message
+  const editDraft = (test: AssessmentTest) => setChat((c) => ({ ...c, draft: test }));
+  const unfinished = draft && keepNew ? draftProblems(draft) : 0;
   const addCount = chosen.length + (draft && keepNew ? 1 : 0);
   const finish = () => {
+    if (unfinished) return;
     const ids = [...chosen];
-    if (draft && keepNew) ids.push(onSaveTest(draft));
+    if (draft && keepNew) ids.push(onSaveTest(finaliseDraft(draft)));
     if (job && ids.length) onAddToJob(job.id, ids);
     onClose();
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/60 backdrop-blur-sm">
-      <div role="dialog" aria-modal="true" aria-label="Build a test with Vetter" className="bg-white sm:rounded-2xl rounded-t-2xl max-w-5xl w-full h-[calc(100dvh-1rem)] sm:h-[min(52rem,calc(100vh-2rem))] flex flex-col shadow-2xl">
+      <div role="dialog" aria-modal="true" aria-label="Build a test with Vetter" className="bg-white sm:rounded-2xl rounded-t-2xl max-w-7xl w-full h-[calc(100dvh-1rem)] sm:h-[min(52rem,calc(100vh-2rem))] flex flex-col shadow-2xl">
         <div className="px-5 pt-4 pb-3 border-b border-slate-200 flex items-start justify-between gap-4">
           <div className="min-w-0">
             <h2 className="text-lg font-bold text-slate-900">
@@ -203,12 +206,12 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
         <div className="lg:hidden flex border-b border-slate-200 text-sm font-semibold" role="tablist">
           {(['chat', 'draft'] as const).map((p) => (
             <button key={p} role="tab" aria-selected={pane === p} onClick={() => setPane(p)} className={`flex-1 py-2 ${pane === p ? 'text-indigo-700 border-b-2 border-indigo-600' : 'text-slate-500'}`}>
-              {p === 'chat' ? 'Chat' : draft ? `Draft · ${draft.questions.length} questions` : 'Draft'}
+              {p === 'chat' ? 'Chat' : draft ? `Test · ${draft.questions.length} questions` : 'Test'}
             </button>
           ))}
         </div>
 
-        <div className="flex-1 min-h-0 grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+        <div className="flex-1 min-h-0 grid lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] xl:grid-cols-[minmax(0,27rem)_minmax(0,1fr)]">
           {/* The conversation */}
           <section className={`${pane === 'chat' ? 'flex' : 'hidden'} lg:flex flex-col min-h-0 lg:border-r border-slate-200`}>
             <div ref={scroller} className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-3" aria-live="polite">
@@ -282,83 +285,51 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
             </div>
           </section>
 
-          {/* The draft, updating as the conversation goes */}
-          <section className={`${pane === 'draft' ? 'block' : 'hidden'} lg:block min-h-0 overflow-y-auto px-5 py-4 bg-slate-50/60 space-y-5`}>
-            {!draft && !chat.existing.length ? (
-              <div className="h-full flex flex-col items-center justify-center text-center gap-2 py-12">
-                <p className="text-sm font-semibold text-slate-700">Your test appears here</p>
-                <p className="text-xs text-slate-500 max-w-xs">
-                  Every question Vetter writes is checked before it shows: coding answers and SQL queries are run, app simulations are tried out, and anything that fails is left out.
-                </p>
-              </div>
+          {/* The test as the candidate will see it, updating as the conversation goes and editable in place */}
+          <section className={`${pane === 'draft' ? 'block' : 'hidden'} lg:block min-h-0 bg-slate-50/60`}>
+            {draft ? (
+              <DraftPreview
+                test={draft}
+                onChange={editDraft}
+                locked={working}
+                flash={flash}
+                onOpenBuilder={() => (onEditDraft(finaliseDraft(draft), chosen, record(draft)), onClose())}
+                toolbarExtra={
+                  job && chat.existing.length > 0 ? (
+                    <Dropdown
+                      label={
+                        <>
+                          <Library className="w-3.5 h-3.5 text-indigo-600" />
+                          Library picks &middot; {chosen.length}
+                        </>
+                      }
+                      width="w-[24rem]"
+                    >
+                      {() => <LibraryPicks job={job} existing={chat.existing} chosen={chosen} setChosen={setChosen} keepNew={keepNew} setKeepNew={setKeepNew} onOpenTest={onOpenTest} />}
+                    </Dropdown>
+                  ) : undefined
+                }
+              />
             ) : (
-              <>
-                {draft && (
-                  <div className={`border rounded-xl bg-white p-4 space-y-3 transition-shadow ${flash ? 'border-indigo-400 shadow-[0_0_0_4px_rgba(99,102,241,0.15)]' : 'border-slate-200'}`}>
-                    <div className="flex items-start gap-3">
-                      {job && <input type="checkbox" checked={keepNew} onChange={(e) => setKeepNew(e.target.checked)} aria-label="Add the new test" className="mt-1 accent-indigo-600" />}
-                      <div className="min-w-0">
-                        <div className="text-base font-bold text-slate-900">{draft.title}</div>
-                        <p className="text-xs text-slate-600">{draft.description}</p>
-                        <div className="text-[11px] text-slate-500 mt-1">
-                          {draft.category} &middot; {draft.difficulty} &middot; {draft.questions.length} questions &middot; ~{draft.estimatedMinutes} min &middot; pass {draft.passingScore}%
-                        </div>
-                      </div>
-                    </div>
-                    <ol className="space-y-1.5">
-                      {draft.questions.map((q, i) => (
-                        <QuestionRow key={q.id} q={q} n={i + 1} />
-                      ))}
-                    </ol>
-                    <button onClick={() => (onEditDraft(draft, chosen, record(draft)), onClose())} disabled={working} className="text-xs font-semibold text-indigo-700 hover:text-indigo-900 flex items-center gap-1 disabled:opacity-40">
-                      <Pencil className="w-3.5 h-3.5" />
-                      Edit questions by hand in the builder
-                    </button>
+              <div className="h-full overflow-y-auto px-5 py-4 space-y-5">
+                {job && chat.existing.length > 0 ? (
+                  <LibraryPicks job={job} existing={chat.existing} chosen={chosen} setChosen={setChosen} onOpenTest={onOpenTest} />
+                ) : (
+                  <div className="h-full flex flex-col items-center justify-center text-center gap-2 py-12">
+                    <p className="text-sm font-semibold text-slate-700">Your test appears here, as candidates will see it</p>
+                    <p className="text-xs text-slate-500 max-w-xs">
+                      Every question Vetter writes is checked before it shows: coding answers and SQL queries are run, app simulations are tried out, and anything that fails is left out.
+                      You can edit any question yourself as you go.
+                    </p>
                   </div>
                 )}
-
-                {job && chat.existing.length > 0 && (
-                  <div className="space-y-2">
-                    <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
-                      <Library className="w-4 h-4 text-indigo-600" />
-                      Also from Vetter's library
-                    </h3>
-                    <ul className="divide-y divide-slate-100 border border-slate-200 rounded-xl bg-white">
-                      {chat.existing.map(({ test, reason }) => {
-                        const onJob = job.testIds.includes(test.id);
-                        return (
-                          <li key={test.id} className="px-4 py-3 flex items-start gap-3">
-                            <input
-                              type="checkbox"
-                              checked={onJob || chosen.includes(test.id)}
-                              disabled={onJob}
-                              onChange={() => setChosen((prev) => (prev.includes(test.id) ? prev.filter((x) => x !== test.id) : [...prev, test.id]))}
-                              aria-label={`Add ${test.title}`}
-                              className="mt-1 accent-indigo-600"
-                            />
-                            <div className="min-w-0 flex-1">
-                              <button onClick={() => onOpenTest(test.id)} className="text-sm font-semibold text-slate-900 hover:text-indigo-700 text-left">
-                                {versionTitle(test)}
-                              </button>
-                              <div className="text-xs text-slate-600">{reason}</div>
-                              <div className="text-[11px] text-slate-400">
-                                {test.category} &middot; ~{test.estimatedMinutes} min &middot; {test.type === 'custom' ? 'your test' : 'Vetter test'}
-                                {onJob && ' · already on this job'}
-                              </div>
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                )}
-              </>
+              </div>
             )}
           </section>
         </div>
 
         <div className="px-5 py-3 border-t border-slate-200 flex items-center gap-3">
-          <p className="text-[11px] text-slate-500 hidden sm:block">{draft ? 'Keep asking for changes, or save when it looks right.' : 'Nothing is saved until you say so.'}</p>
+          <p className="text-[11px] text-slate-500 hidden sm:block">{draft ? 'Ask Vetter for changes, or switch to Edit to change questions yourself.' : 'Nothing is saved until you say so.'}</p>
           <button
             onClick={saveDraft}
             disabled={!draft || working || savingDraft}
@@ -369,14 +340,15 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
           {job ? (
             <button
               onClick={finish}
-              disabled={addCount === 0 || working}
+              disabled={addCount === 0 || working || unfinished > 0}
+              title={unfinished ? 'Finish the questions marked under Structure first' : undefined}
               className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 rounded-lg flex items-center gap-1.5"
             >
               <Check className="w-4 h-4" />
               {addCount === 0 ? 'Nothing picked yet' : `Add ${addCount} ${addCount === 1 ? 'test' : 'tests'} to the job`}
             </button>
           ) : (
-            <button onClick={finish} disabled={!draft || working} className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 rounded-lg flex items-center gap-1.5">
+            <button onClick={finish} disabled={!draft || working || unfinished > 0} title={unfinished ? 'Finish the questions marked under Structure first' : undefined} className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 rounded-lg flex items-center gap-1.5">
               <Check className="w-4 h-4" />
               Save test
             </button>
@@ -387,57 +359,56 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
   );
 };
 
-// One question of the draft: its title, opening to show what the candidate sees and the answer
-const QuestionRow: React.FC<{ q: Question; n: number }> = ({ q, n }) => {
-  const [open, setOpen] = useState(false);
-  return (
-    <li className={`rounded-lg border ${q.taskId ? 'ml-6 border-slate-100 border-l-indigo-200 border-l-2' : isWorkspaceType(q.type) ? 'border-indigo-100 bg-indigo-50/30' : 'border-slate-100'}`}>
-      <button onClick={() => setOpen((o) => !o)} aria-expanded={open} className="w-full px-3 py-2 flex items-start gap-2 text-left hover:bg-slate-50 rounded-lg">
-        <span className="font-mono text-xs text-slate-400 mt-0.5">{n}.</span>
-        <span className="min-w-0 flex-1 text-sm text-slate-800">
-          {q.title}
-          <span className="block text-[11px] text-slate-400">
-            {q.taskId ? 'About the task · ' : ''}
-            {styleLabel(q)}
-            {q.type === 'app' && q.contextData ? ` · ${q.contextData}` : ''} · {q.timeLimitMinutes} min · {q.weight}%
-          </span>
-        </span>
-        <ChevronDown className={`w-4 h-4 text-slate-400 mt-0.5 transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
-      {open && (
-        <div className="px-3 pb-3 pl-8 space-y-2 text-xs text-slate-700">
-          <p className="whitespace-pre-wrap">{q.prompt}</p>
-          {q.options && (
-            <ul className="space-y-0.5">
-              {q.options.map((o, i) => {
-                const right = q.type === 'choice' ? q.correctOption === i : q.correctOptions?.includes(i);
-                return (
-                  <li key={i} className={right ? 'text-emerald-700 font-semibold' : ''}>
-                    {right ? '✓' : '·'} {o}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-          {q.acceptedAnswers && <p className="text-emerald-700">Accepted: {q.acceptedAnswers.join(', ')}</p>}
-          {q.items && <p className="text-emerald-700">Right order: {q.items.join(' → ')}</p>}
-          {q.pairs && (
-            <ul>
-              {q.pairs.map((p, i) => (
-                <li key={i}>
-                  {p.left} → <span className="text-emerald-700">{p.right}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-          {(q.type === 'code' || q.type === 'sql' || q.type === 'app') && q.testCases.length > 0 && (
-            <p className="text-slate-500">Checked on: {q.testCases.map((tc) => tc.description).join('; ')}</p>
-          )}
-        </div>
+// Tests from Vetter's library that suit the job, ticked to add alongside the new one
+const LibraryPicks: React.FC<{
+  job: JobPosting;
+  existing: ChatState['existing'];
+  chosen: string[];
+  setChosen: React.Dispatch<React.SetStateAction<string[]>>;
+  keepNew?: boolean;
+  setKeepNew?: (keep: boolean) => void;
+  onOpenTest: (testId: string) => void;
+}> = ({ job, existing, chosen, setChosen, keepNew, setKeepNew, onOpenTest }) => (
+  <div className="max-h-[60vh] overflow-y-auto">
+    <h3 className="px-4 pt-3 pb-1 text-sm font-bold text-slate-900 flex items-center gap-1.5">
+      <Library className="w-4 h-4 text-indigo-600" />
+      Also from Vetter's library
+    </h3>
+    <ul className="divide-y divide-slate-100">
+      {setKeepNew && (
+        <li className="px-4 py-2.5 flex items-start gap-3">
+          <input type="checkbox" checked={keepNew} onChange={(e) => setKeepNew(e.target.checked)} aria-label="Add the new test" className="mt-1 accent-indigo-600" />
+          <div className="text-sm font-semibold text-slate-900">The test you're building</div>
+        </li>
       )}
-    </li>
-  );
-};
+      {existing.map(({ test, reason }) => {
+        const onJob = job.testIds.includes(test.id);
+        return (
+          <li key={test.id} className="px-4 py-2.5 flex items-start gap-3">
+            <input
+              type="checkbox"
+              checked={onJob || chosen.includes(test.id)}
+              disabled={onJob}
+              onChange={() => setChosen((prev) => (prev.includes(test.id) ? prev.filter((x) => x !== test.id) : [...prev, test.id]))}
+              aria-label={`Add ${test.title}`}
+              className="mt-1 accent-indigo-600"
+            />
+            <div className="min-w-0 flex-1">
+              <button onClick={() => onOpenTest(test.id)} className="text-sm font-semibold text-slate-900 hover:text-indigo-700 text-left">
+                {versionTitle(test)}
+              </button>
+              <div className="text-xs text-slate-600">{reason}</div>
+              <div className="text-[11px] text-slate-400">
+                {test.category} &middot; ~{test.estimatedMinutes} min &middot; {test.type === 'custom' ? 'your test' : 'Vetter test'}
+                {onJob && ' · already on this job'}
+              </div>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  </div>
+);
 
 // Vetter in the chat: a V where the avatar goes, pulsing while it works
 const VAvatar: React.FC<{ pulse?: boolean }> = ({ pulse }) => (

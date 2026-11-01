@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { APP_RULES, TASK_RULES, WORKSPACE_RULES, MAX_PROMPT, PRICES, apiFailure, questionSchema, researchSoftware } from './generateTest.js';
+import { APP_RULES, QUALITY_RULES, TASK_RULES, WORKSPACE_RULES, MAX_PROMPT, PRICES, apiFailure, questionSchema, researchSoftware } from './generateTest.js';
 
 /**
  * Building a test by talking to Vetter: the company says what it wants, Vetter writes a draft, and every message after
@@ -73,6 +73,7 @@ HOW TO TALK
 - If the first message is too vague to write a useful test (no idea of the role or what matters), ask up to 2 short questions instead of writing. Otherwise write a first draft straight away; don't interrogate.
 - After writing or changing the draft, say in a sentence what you did, then offer one or two specific ways to sharpen it (e.g. "Want a task in Xero itself?").
 - When asked to change something, change exactly that and keep the rest. Questions are numbered from 1 in the order of the draft.
+- The company can edit the draft by hand between messages. The draft you're given is always the latest: treat their edits as deliberate, keep them, and don't undo them unless asked.
 - If asked something you can't do (a style not listed below, uploading files), say so and offer the nearest thing.
 
 ${
@@ -85,7 +86,7 @@ ${
 - Include "test" whenever the draft is new or changes, with every question in order. For a question that stays exactly as it is, set keep to its id and type to its type, and leave every other field empty ("", [], 0, -1). Leave "test" out when nothing changes (a question, a chat).
 - An app, sheet or database question can only be kept whole or written again from scratch.
 - 12 to 16 questions taking 25 to 35 minutes in all, unless the company asks otherwise (never more than 20). difficulty is one of: ${req.levels.join(', ')}; pick it from the job unless told.
-- Every question must be answerable from its prompt alone, and check what the job really needs, not trivia.
+- Every question must be answerable from its prompt alone, and check what the job really needs, not trivia.${QUALITY_RULES}
 - Styles: choice, multi, text, order, match for any job; sheet, database and app are hands-on tasks in a working window.
   Unless told otherwise, every test has hands-on tasks that match how the job is really done: sheet for Excel work
   (finance, ops, analysts), database for SQL work, app for any other software the job names (a CRM, helpdesk, design

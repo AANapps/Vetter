@@ -148,6 +148,9 @@ export const APP_RULES = `
   • Its <title> is the product's or item's name alone, e.g. <title>ClickData</title> or <title>iPhone 13</title>.
   • Everything inline: no external scripts, stylesheets, images or requests of any kind (Google Fonts are the only exception).
     No <form> submission and no alert/prompt/confirm: use buttons and in-page dialogs. It runs in a sandbox with no network.
+  • It fits any window from 900x560 up and scrolls where it doesn't: every panel, list, table and canvas whose content can
+    be taller or wider than its space has overflow:auto. Never overflow:hidden on html or body, never a fixed pixel size
+    for the whole page, and no horizontal swipe or wheel handlers on the page itself.
   • Fill it with realistic made-up data or detail, enough that the task takes real work (6 to 12 minutes).
   • The controls the task needs must really work: filters filter, charts redraw, fields save, parts come off and go back.
   • Put all the script inside one (function () { ... })(), so no name clashes with the browser's own globals (top, name,
@@ -161,6 +164,22 @@ export const APP_RULES = `
   or "parts.battery.connected"; expectedOutput is its value once the task is done right ("|" between acceptable forms; a list as a
   JSON array, compared in any order; numbers to 2 decimal places). description says what's checked without giving the
   answer. The starting state must fail every check. Leave starterCode and solutionCode empty.`;
+
+// How hard and how real the questions are: the same rules for a test written in one go and one built in the chat
+export const QUALITY_RULES = `
+QUESTION QUALITY: write questions a strong candidate finds demanding and a weak one can't bluff or look up quickly.
+- Every question is set in a concrete work situation with specifics: names, figures, dates, constraints, what's already
+  been tried. No definitions, acronyms, "which of these is a feature of X" or anything a search answers in seconds.
+- Each one needs a judgement, a diagnosis, a calculation in more than one step, a trade-off or a priority call, the way the
+  job really needs it. At least half combine two or more facts from the scenario before the answer follows.
+- Wrong options are what a capable but less experienced person would really pick: a common mistake, a half-right step,
+  the right action in the wrong order. Options are similar in length and wording, so the answer can't be spotted by
+  its form, and never "all of the above" or "none of the above".
+- Short answers are a number or term worked out from the scenario, not recalled.
+- Tasks carry the snags of real work: messy or inconsistent data, an edge case, a conflicting request, a trap a careless
+  person falls into. Checks reward doing it properly, not just doing something.
+- Scale to the level: Beginner and Junior still apply what they know to a situation; Professional and Senior weigh
+  competing priorities, spot what's missing and handle exceptions.`;
 
 // How a test is put together: hands-on tasks, each with questions about it
 export const TASK_RULES = `
@@ -178,7 +197,7 @@ ${req.wantExisting ? `Pick up to 4 tests from the LIBRARY that genuinely fit the
 ${
   req.wantNewTest
     ? `Write one new test of exactly ${req.questionCount} questions at ${req.level} level that checks what the job really needs, without repeating what the picked library tests already cover.
-Use only these question styles: ${req.styles.join(', ')}. Mix them where it suits the job. Every question must be answerable from its prompt alone.
+Use only these question styles: ${req.styles.join(', ')}. Mix them where it suits the job. Every question must be answerable from its prompt alone.${QUALITY_RULES}
 Every question has every field: "" for text, [] for lists and -1 for correctOption where its style doesn't use them, and keep is "".
 Style rules (testCases is an empty list for choice, multi, text, order and match):
 - choice: 4 options, exactly one right; correctOption is its 0-based index.

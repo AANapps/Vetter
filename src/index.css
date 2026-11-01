@@ -311,3 +311,7 @@ button:is(
 .cursor-pointer.p-4.bg-indigo-50\/70 {
   box-shadow: 0 2px 4px rgba(15, 23, 42, 0.05), 0 12px 32px rgba(var(--vivid-violet), 0.22) !important;
 }
+
+/* A sideways swipe or trackpad scroll that runs past the edge of a spreadsheet, table or app mock-up would otherwise
+   carry on to the page and send the browser back a page, losing the candidate's place */
+html, body { overscroll-behavior-x: none; }
