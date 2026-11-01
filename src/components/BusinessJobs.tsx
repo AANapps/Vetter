@@ -99,6 +99,14 @@ export const BusinessJobs: React.FC<BusinessJobsProps> = (props) => {
   return selected ? <JobDetail {...props} job={selected} /> : <JobList {...props} jobs={jobs} />;
 };
 
+// Asks before a job is deleted, saying how many people it was sent to
+const confirmDeleteJob = (job: JobPosting, candidates: User[]) => {
+  const emails = new Set(candidates.filter((c) => job.invitations.some((i) => i.candidateId === c.id)).map((c) => c.email.toLowerCase()));
+  const sentTo = job.invitations.length + (job.invitedEmails ?? []).filter((e) => !emails.has(e)).length;
+  const warning = sentTo ? ` It was sent to ${sentTo} ${sentTo === 1 ? 'person' : 'people'}; they'll lose access to it, though anyone who took a test keeps their result.` : '';
+  return window.confirm(`Delete ${job.title}? It comes off the job board and your jobs for good.${warning} This can't be undone.`);
+};
+
 const JobList: React.FC<BusinessJobsProps> = ({
   business,
   businesses,
@@ -107,6 +115,7 @@ const JobList: React.FC<BusinessJobsProps> = ({
   candidates,
   onSelect,
   onCreateJob,
+  onDeleteJob,
   onEmail,
   onInvite,
   onOpenPerson,
@@ -212,12 +221,26 @@ const JobList: React.FC<BusinessJobsProps> = ({
                             : `${job.testIds.length} ${job.testIds.length === 1 ? 'test' : 'tests'} · ~${totalMinutes(job, tests)} min · pass ${job.testPassingScore}`}
                         </div>
                       </div>
-                      {job.testIds.length > 0 && (
-                        <ShareButton
-                          onClick={() => setSharing(job)}
-                          className="shrink-0 px-3 py-1.5 text-xs text-slate-700 bg-white border border-slate-300 hover:border-indigo-400 rounded-lg"
-                        />
-                      )}
+                      <div className="shrink-0 flex items-center gap-1">
+                        {job.testIds.length > 0 && (
+                          <ShareButton
+                            onClick={() => setSharing(job)}
+                            className="shrink-0 px-3 py-1.5 text-xs text-slate-700 bg-white border border-slate-300 hover:border-indigo-400 rounded-lg"
+                          />
+                        )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (confirmDeleteJob(job, candidates)) onDeleteJob(job.id);
+                          }}
+                          onKeyDown={(e) => e.stopPropagation()}
+                          aria-label={`Delete ${job.title}`}
+                          title="Delete job"
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                     <FunnelBar funnel={funnel} compact />
                   </div>
@@ -400,11 +423,7 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
         <p className="text-sm text-slate-600 max-w-2xl">{job.description}</p>
         <button
           onClick={() => {
-            const sentTo = rows.length + pendingEmails.length;
-            const warning = sentTo
-              ? ` It was sent to ${sentTo} ${sentTo === 1 ? 'person' : 'people'}; they'll lose access to it, though anyone who took a test keeps their result.`
-              : '';
-            if (!window.confirm(`Delete ${job.title}? It comes off the job board and your jobs for good.${warning} This can't be undone.`)) return;
+            if (!confirmDeleteJob(job, candidates)) return;
             onDeleteJob(job.id);
             onSelect(null);
           }}

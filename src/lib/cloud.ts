@@ -244,7 +244,8 @@ export function syncJobs(prev: JobPosting[], next: JobPosting[], onError: (err: 
 
 export function syncTests(prev: AssessmentTest[], next: AssessmentTest[], onError: (err: unknown) => void) {
   const changed = next.filter((t) => prev.find((p) => p.id === t.id) !== t);
-  return run(changed.map((t) => setDoc(doc(db(), 'tests', t.id), t)), onError);
+  const gone = prev.filter((p) => !next.some((t) => t.id === p.id));
+  return run([...changed.map((t) => setDoc(doc(db(), 'tests', t.id), t)), ...gone.map((t) => deleteDoc(doc(db(), 'tests', t.id)))], onError);
 }
 
 export function syncNotifications(prev: AppNotification[], next: AppNotification[], onError: (err: unknown) => void) {

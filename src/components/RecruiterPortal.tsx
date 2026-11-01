@@ -21,6 +21,8 @@ interface RecruiterPortalProps {
   tests: AssessmentTest[];
   onCreateTest: (newTest: AssessmentTest) => void;
   onUpdateTest: (test: AssessmentTest) => void;
+  // Deletes a saved test and takes it off every job
+  onDeleteTest: (testId: string) => void;
   // Vetter's AI writes a test from a description
   onGenerateTest: () => void;
   // Tests still being written, newest first
@@ -48,6 +50,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   tests,
   onCreateTest,
   onUpdateTest,
+  onDeleteTest,
   onGenerateTest,
   drafts,
   onSaveDraft,
@@ -82,6 +85,15 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   };
   // Tests written here can be edited; seeded ones come from code
   const editFor = (t: AssessmentTest) => (isEditable(t) ? () => setBuilding({ initial: t }) : undefined);
+  const deleteTest = (t: AssessmentTest) => {
+    const onJobs = allJobs.filter((j) => j.testIds.includes(t.id));
+    const taken = getTestStats(t, allCandidates).candidatesRanked;
+    const warnings = [
+      onJobs.length ? `It comes off ${onJobs.length === 1 ? onJobs[0].title : `${onJobs.length} jobs`}, and candidates there won't be asked to take it.` : '',
+      taken ? `${taken} ${taken === 1 ? 'person has' : 'people have'} taken it; their scores stay on their record but it won't show any more.` : '',
+    ].filter(Boolean);
+    if (window.confirm(`Delete ${t.title}? ${warnings.join(' ')} This can't be undone.`.replace(/\s+/g, ' '))) onDeleteTest(t.id);
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
@@ -266,6 +278,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                     ranked={getTestStats(t, allCandidates).candidatesRanked}
                     onOpen={() => onOpenTest(t.id)}
                     onEdit={editFor(t)}
+                    onDelete={() => deleteTest(t)}
                   />
                 ))}
               </div>
@@ -290,6 +303,8 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                   ranked={getTestStats(t, allCandidates).candidatesRanked}
                   onOpen={() => onOpenTest(t.id)}
                   onEdit={isVetter ? editFor(t) : undefined}
+                  // The Vetter team can delete library tests written in the builder; the built-in ones stay
+                  onDelete={isVetter && isEditable(t) ? () => deleteTest(t) : undefined}
                 />
               ))}
             </div>
@@ -318,12 +333,13 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   );
 };
 
-const TestSummaryCard: React.FC<{ test: AssessmentTest; usedBy: JobPosting[]; ranked: number; onOpen: () => void; onEdit?: () => void }> = ({
+const TestSummaryCard: React.FC<{ test: AssessmentTest; usedBy: JobPosting[]; ranked: number; onOpen: () => void; onEdit?: () => void; onDelete?: () => void }> = ({
   test,
   usedBy,
   ranked,
   onOpen,
   onEdit,
+  onDelete,
 }) => (
   <div
     onClick={onOpen}
@@ -343,6 +359,19 @@ const TestSummaryCard: React.FC<{ test: AssessmentTest; usedBy: JobPosting[]; ra
           >
             <Pencil className="w-3 h-3" />
             Edit
+          </button>
+        )}
+        {onDelete && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            aria-label={`Delete ${test.title}`}
+            title="Delete test"
+            className="text-slate-400 hover:text-rose-600"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
           </button>
         )}
       </span>

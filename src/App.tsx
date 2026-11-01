@@ -1019,6 +1019,13 @@ export default function App() {
               tests={tests}
               onCreateTest={handleCreateTest}
               onUpdateTest={handleUpdateTest}
+              onDeleteTest={(testId) => {
+                const test = tests.find((t) => t.id === testId);
+                setTests((prev) => prev.filter((t) => t.id !== testId));
+                // No job keeps asking for a test that's gone
+                setJobs((prev) => prev.map((j) => (j.testIds.includes(testId) ? { ...j, testIds: j.testIds.filter((id) => id !== testId) } : j)));
+                if (test) showToast(`${test.title} deleted.`);
+              }}
               onGenerateTest={() => setGenerator({})}
               drafts={visibleDrafts}
               onSaveDraft={saveTestDraft}
