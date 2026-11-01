@@ -30,7 +30,7 @@ import { JobForm } from './JobForm';
 import { JobCandidates } from './JobCandidates';
 import { LeadChange, LeadsView } from './LeadsView';
 import { LeadRow } from '../lib/leads';
-import { ArrowLeft, Check, CheckCircle2, ChevronDown, Copy, Download, Link2, Mail, MapPin, Pencil, Plus, Search, Send, Share2, Sparkles, UserPlus, X } from 'lucide-react';
+import { ArrowLeft, Check, CheckCircle2, ChevronDown, Copy, Download, Link2, Mail, MapPin, Pencil, Plus, Search, Send, Share2, Sparkles, Trash2, UserPlus, X } from 'lucide-react';
 
 interface BusinessJobsProps {
   // The company signed in; without one, the Vetter team sees every company's jobs
@@ -54,6 +54,8 @@ interface BusinessJobsProps {
   // Every lead for the jobs shown; a job's page shows its own pipeline
   leadRows: LeadRow[];
   onUpdateLead: (row: LeadRow, change: LeadChange) => void;
+  // Takes the job down for good, with who it was sent to
+  onDeleteJob: (jobId: string) => void;
 }
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -335,6 +337,7 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
   onOpenTest,
   leadRows,
   onUpdateLead,
+  onDeleteJob,
 }) => {
   const [filter, setFilter] = useState<TrackingStatus | 'all'>('all');
   const [sharing, setSharing] = useState(false);
@@ -395,6 +398,21 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
           <span>&middot; {job.applicantCount} applicants</span>
         </p>
         <p className="text-sm text-slate-600 max-w-2xl">{job.description}</p>
+        <button
+          onClick={() => {
+            const sentTo = rows.length + pendingEmails.length;
+            const warning = sentTo
+              ? ` It was sent to ${sentTo} ${sentTo === 1 ? 'person' : 'people'}; they'll lose access to it, though anyone who took a test keeps their result.`
+              : '';
+            if (!window.confirm(`Delete ${job.title}? It comes off the job board and your jobs for good.${warning} This can't be undone.`)) return;
+            onDeleteJob(job.id);
+            onSelect(null);
+          }}
+          className="text-xs font-semibold text-slate-500 hover:text-rose-600 flex items-center gap-1"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+          Delete job
+        </button>
       </div>
 
       <section className="bg-white border border-slate-200 rounded-xl p-5 space-y-3">

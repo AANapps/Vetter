@@ -115,6 +115,7 @@ service cloud.firestore {
         );
         allow update: if (isAdmin() || worksAt(resource.data.businessId))
           || (uid() == candidateId && changed().hasOnly(['openedAt', 'startedAt']));
+        allow delete: if isAdmin() || worksAt(resource.data.businessId);
       }
 
       // Addresses the job's tests were emailed to; the person at one can see theirs once they sign in

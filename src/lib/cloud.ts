@@ -230,6 +230,15 @@ export function syncJobs(prev: JobPosting[], next: JobPosting[], onError: (err: 
       writes.push(setDoc(doc(d, 'jobs', job.id, 'emailInvites', email), { email, jobId: job.id, businessId, invitedAt: new Date().toISOString().split('T')[0] }));
     }
   }
+  // A deleted job goes with who it was sent to, so no one is left on a job that's gone
+  for (const job of prev) {
+    if (next.some((j) => j.id === job.id)) continue;
+    writes.push(deleteDoc(doc(d, 'jobs', job.id)));
+    // Tidying only: the job is already gone if these are refused (rules not yet published)
+    for (const inv of job.invitations)
+      deleteDoc(doc(d, 'jobs', job.id, 'invitations', inv.candidateId)).catch((err) => console.warn('Removing an invitation failed', err));
+    for (const email of job.invitedEmails ?? []) writes.push(deleteDoc(doc(d, 'jobs', job.id, 'emailInvites', email)));
+  }
   return run(writes, onError);
 }
 

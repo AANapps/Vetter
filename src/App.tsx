@@ -997,6 +997,12 @@ export default function App() {
               onOpenTest={openTestPage}
               leadRows={leadRows}
               onUpdateLead={handleUpdateLead}
+              onDeleteJob={(jobId) => {
+                const job = jobs.find((j) => j.id === jobId);
+                setJobs((prev) => prev.filter((j) => j.id !== jobId));
+                if (selectedJobId === jobId) setSelectedJobId(null);
+                if (job) showToast(`${job.title} deleted.`);
+              }}
             />
           )}
 
