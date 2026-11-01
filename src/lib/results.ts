@@ -42,3 +42,12 @@ export function addTestResult(user: User, test: AssessmentTest, result: TestResu
   }
   return { ...user, testResults, verifiedSkills };
 }
+
+// Takes a test off the candidate's record: every attempt at it, and the verified skill it earned
+export function removeTestResults(user: User, testId: string): User {
+  return {
+    ...user,
+    testResults: user.testResults.filter((r) => r.testId !== testId),
+    verifiedSkills: user.verifiedSkills.filter((s) => s.testId !== testId),
+  };
+}

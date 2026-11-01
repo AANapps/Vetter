@@ -4,7 +4,7 @@ import { INITIAL_RECRUITER, INITIAL_BUSINESSES, STANDARD_ASSESSMENTS } from './d
 import { loadData, saveData, clearData, createSeedData } from './lib/store';
 import { getPercentile } from './lib/leaderboard';
 import { initialsAvatar, withComputedPercentiles } from './data/seedCandidates';
-import { addTestResult } from './lib/results';
+import { addTestResult, removeTestResults } from './lib/results';
 import { simulateAttempt, simulateJobTestStep } from './lib/liveActivity';
 import { Navigation, AppTab, NAV_TABS } from './components/Navigation';
 import { CandidatePortal, CandidateSection } from './components/CandidatePortal';
@@ -887,6 +887,13 @@ export default function App() {
                 setCandidate((prev) => ({ ...prev, jobProfiles, activeProfileId }))
               }
               onUpdateStudies={(studies) => setCandidate((prev) => ({ ...prev, ...studies }))}
+              onDeleteTest={(testId) => {
+                // Everyone's standing on the test moves up a place
+                const everyone = withComputedPercentiles([removeTestResults(candidate, testId), ...otherCandidates]);
+                setCandidate(everyone[0]);
+                setOtherCandidates(everyone.slice(1));
+                showToast('Test deleted from your record.');
+              }}
               jobPageId={jobPageId}
               onOpenJob={openJobPage}
               testField={testField}

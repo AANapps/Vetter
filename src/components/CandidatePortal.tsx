@@ -48,6 +48,8 @@ interface CandidatePortalProps {
   onApplyJob: (jobId: string, profileId: string) => void;
   onUpdateProfiles: (profiles: JobProfile[], activeProfileId: string) => void;
   onUpdateStudies: (studies: Studies) => void;
+  // Takes a test the candidate took off their record
+  onDeleteTest: (testId: string) => void;
   // The roles the Tests page is narrowed to (a role, an industry, or a field picked on Home), or null for every test
   testField: TestField | null;
   onTestFieldChange: (field: TestField | null) => void;
@@ -72,6 +74,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   onApplyJob,
   onUpdateProfiles,
   onUpdateStudies,
+  onDeleteTest,
   jobPageId,
   onOpenJob,
   testField,
@@ -426,7 +429,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
             <div>
               <h2 className="text-base font-bold text-slate-900">Your tests</h2>
               <p className="text-xs text-slate-500">
-                Everything you've taken. Others see your Vetter tests; results on a company's test go to that company only.
+                Everything you've taken. Others see your Vetter tests; results on a company's test go to that company only. You can delete a test unless its result was sent to a company.
               </p>
             </div>
             <TestHistory
@@ -436,6 +439,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
               businesses={businesses}
               companyResultsFor="all"
               onOpenTest={onOpenTest}
+              onDelete={onDeleteTest}
               emptyText="You haven't taken a test yet."
             />
           </div>
