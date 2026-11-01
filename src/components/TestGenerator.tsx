@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AlertCircle, ArrowUp, Check, ChevronDown, Library, Pencil, Sparkles, X } from 'lucide-react';
+import { AlertCircle, ArrowUp, Check, ChevronDown, Library, Pencil, X } from 'lucide-react';
 import { AssessmentTest, Business, JobPosting, Question, QuestionType, TestDifficulty, TestDraft } from '../types';
 import { QUESTION_STYLES, isWorkspaceType } from '../lib/questionTypes';
 import { jobBrief } from '../lib/testGeneration';
@@ -161,8 +161,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
       <div role="dialog" aria-modal="true" aria-label="Build a test with Vetter" className="bg-white sm:rounded-2xl rounded-t-2xl max-w-5xl w-full h-[calc(100dvh-1rem)] sm:h-[min(52rem,calc(100vh-2rem))] flex flex-col shadow-2xl">
         <div className="px-5 pt-4 pb-3 border-b border-slate-200 flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-indigo-600" />
+            <h2 className="text-lg font-bold text-slate-900">
               Build a test with Vetter
             </h2>
             <p className="text-xs text-slate-500 truncate">{job ? `${job.title} · ${job.companyName}` : business ? `For ${business.name}'s jobs` : 'For the Vetter test library'}</p>
@@ -220,9 +219,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                   </div>
                 ) : (
                   <div key={i} className="flex gap-2.5">
-                    <span className="mt-0.5 w-7 h-7 shrink-0 rounded-full bg-indigo-50 flex items-center justify-center">
-                      <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                    </span>
+                    <VAvatar />
                     <div className="max-w-[85%] min-w-0">
                       <div className="px-3.5 py-2 rounded-2xl rounded-tl-md bg-slate-100 text-slate-800 text-sm whitespace-pre-wrap">{m.text}</div>
                       {m.note && (
@@ -237,9 +234,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
               )}
               {working && (
                 <div className="flex gap-2.5">
-                  <span className="mt-0.5 w-7 h-7 shrink-0 rounded-full bg-indigo-50 flex items-center justify-center">
-                    <Sparkles className="w-3.5 h-3.5 text-indigo-600 animate-pulse" />
-                  </span>
+                  <VAvatar pulse />
                   <div className="px-3.5 py-2 rounded-2xl rounded-tl-md bg-slate-100 text-sm text-slate-600">
                     <WorkingStep first={!draft} />
                   </div>
@@ -291,7 +286,6 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
           <section className={`${pane === 'draft' ? 'block' : 'hidden'} lg:block min-h-0 overflow-y-auto px-5 py-4 bg-slate-50/60 space-y-5`}>
             {!draft && !chat.existing.length ? (
               <div className="h-full flex flex-col items-center justify-center text-center gap-2 py-12">
-                <Sparkles className="w-8 h-8 text-slate-300" />
                 <p className="text-sm font-semibold text-slate-700">Your test appears here</p>
                 <p className="text-xs text-slate-500 max-w-xs">
                   Every question Vetter writes is checked before it shows: coding answers and SQL queries are run, app simulations are tried out, and anything that fails is left out.
@@ -445,16 +439,29 @@ const QuestionRow: React.FC<{ q: Question; n: number }> = ({ q, n }) => {
   );
 };
 
-const FIRST_STEPS = ['Reading the job…', 'Looking up the software it uses…', 'Choosing what to test…', 'Writing the questions…', 'Checking every answer…', 'Nearly there…'];
-const EDIT_STEPS = ['Thinking it over…', 'Updating the draft…', 'Checking the new questions…', 'Nearly there…'];
+// Vetter in the chat: a V where the avatar goes, pulsing while it works
+const VAvatar: React.FC<{ pulse?: boolean }> = ({ pulse }) => (
+  <span
+    aria-hidden="true"
+    className={`mt-0.5 w-7 h-7 shrink-0 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center ${pulse ? 'animate-pulse' : ''}`}
+  >
+    V
+  </span>
+);
 
-// What Vetter is doing, moving on every few seconds and holding on the last step
+// What Vetter says while it works: the real steps first, then it keeps going round these until it's done
+const FIRST_STEPS = ['Reading the job…', 'Looking up the software it uses…', 'Choosing what to test…', 'Writing the questions…', 'Checking every answer…'];
+const EDIT_STEPS = ['Thinking it over…', 'Updating the draft…', 'Checking the new questions…'];
+const STILL_GOING = ['Building…', 'Working on it…', 'Putting it together…', 'Polishing the questions…', 'Double-checking…', 'Finishing up…', 'Nearly there…'];
+const STEP_MS = 10000;
+
 const WorkingStep: React.FC<{ first: boolean }> = ({ first }) => {
   const steps = first ? FIRST_STEPS : EDIT_STEPS;
-  const [step, setStep] = useState(0);
+  const [tick, setTick] = useState(0);
   useEffect(() => {
-    const timer = setInterval(() => setStep((s) => Math.min(s + 1, steps.length - 1)), first ? 8000 : 5000);
+    setTick(0);
+    const timer = setInterval(() => setTick((t) => t + 1), STEP_MS);
     return () => clearInterval(timer);
-  }, [first, steps.length]);
-  return <span>{steps[step]}</span>;
+  }, [first]);
+  return <span>{tick < steps.length ? steps[tick] : STILL_GOING[(tick - steps.length) % STILL_GOING.length]}</span>;
 };
