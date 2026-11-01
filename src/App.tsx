@@ -30,7 +30,7 @@ import { firebaseEnabled } from './lib/firebase';
 import { useAccount } from './lib/useAccount';
 import { loadProfile, saveProfile } from './lib/profiles';
 import { Account, accountError, signOut } from './lib/accounts';
-import { Viewer, apply, syncJobs, syncLeads, syncNotifications, syncSocial, syncTestDrafts, syncTests, useCloudData } from './lib/cloud';
+import { Viewer, apply, syncJobs, syncLeads, syncNotifications, syncSocial, putTestDraft, syncTestDrafts, syncTests, useCloudData } from './lib/cloud';
 import { LeadsPage } from './components/LeadsPage';
 import { LeadChange } from './components/LeadsView';
 import { LeadRow, buildLeadRows, updatedLead } from './lib/leads';
@@ -692,9 +692,20 @@ export default function App() {
   };
 
   // Drafts: saved (or saved again) and thrown away
-  const saveTestDraft = (record: TestDraft) => {
-    setTestDrafts((prev) => [{ ...record, updatedAt: new Date().toISOString() }, ...prev.filter((d) => d.id !== record.id)]);
-    showToast(`"${record.test.title}" saved as a draft. Find it under Tests.`);
+  // Resolves true once the draft is really kept; on failure the editor stays open so nothing is lost
+  const saveTestDraft = async (record: TestDraft): Promise<boolean> => {
+    const saved = { ...record, updatedAt: new Date().toISOString() };
+    if (firebaseEnabled) {
+      try {
+        await putTestDraft(saved);
+      } catch (err) {
+        const why = (err as { code?: string })?.code === 'draft/too-large' ? 'it is too big to store. Remove a question or two and try again.' : accountError(err);
+        showToast(`Couldn't save the draft: ${why} It's still open, so nothing is lost.`);
+        return false;
+      }
+    } else setLocalTestDrafts((prev) => [saved, ...prev.filter((d) => d.id !== saved.id)]);
+    showToast(`"${record.test.title}" saved as a draft. Find it under Tests, where you can reopen it.`);
+    return true;
   };
   const deleteTestDraft = (id?: string) => {
     if (id && testDraftsRef.current.some((d) => d.id === id)) setTestDrafts((prev) => prev.filter((d) => d.id !== id));
@@ -1077,10 +1088,10 @@ export default function App() {
         <TestBuilder
           business={testOwnerFor(draftBuilder.jobId)}
           draft={draftBuilder.draft}
-          onSaveDraft={(test) => {
+          onSaveDraft={async (test) => {
             const base = draftBuilder.record;
-            saveTestDraft(base ? { ...base, test } : { id: `draft-${Date.now()}`, businessId: testOwnerFor(draftBuilder.jobId)?.id ?? '', ...(draftBuilder.jobId && { jobId: draftBuilder.jobId }), test, updatedAt: '' });
-            setDraftBuilder(null);
+            const record = base ? { ...base, test } : { id: `draft-${Date.now()}`, businessId: testOwnerFor(draftBuilder.jobId)?.id ?? '', ...(draftBuilder.jobId && { jobId: draftBuilder.jobId }), test, updatedAt: '' };
+            if (await saveTestDraft(record)) setDraftBuilder(null);
           }}
           onSave={(test) => {
             handleCreateTest(test);

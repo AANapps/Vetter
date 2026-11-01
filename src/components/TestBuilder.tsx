@@ -16,7 +16,7 @@ interface TestBuilderProps {
   draft?: AssessmentTest;
   onSave: (test: AssessmentTest) => void;
   // Keeps the test as a draft, unfinished questions and all, to come back to
-  onSaveDraft?: (test: AssessmentTest) => void;
+  onSaveDraft?: (test: AssessmentTest) => void | Promise<unknown>;
   onCancel: () => void;
 }
 
@@ -104,7 +104,16 @@ export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, dra
     onSave(build());
   };
   // A draft keeps every question as written, finished or not
-  const saveDraft = () => onSaveDraft?.({ ...build(), title: title.trim() || 'Untitled test', questions, totalQuestions: questions.length });
+  const [savingDraft, setSavingDraft] = useState(false);
+  const saveDraft = async () => {
+    if (savingDraft) return;
+    setSavingDraft(true);
+    try {
+      await onSaveDraft?.({ ...build(), title: title.trim() || 'Untitled test', questions, totalQuestions: questions.length });
+    } finally {
+      setSavingDraft(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-50 flex flex-col text-slate-900">
@@ -134,8 +143,8 @@ export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, dra
             <span className="sm:hidden">Try it</span>
           </button>
           {onSaveDraft && (
-            <button onClick={saveDraft} className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:border-indigo-400 rounded-lg">
-              Save draft
+            <button onClick={saveDraft} disabled={savingDraft} className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:border-indigo-400 disabled:opacity-40 rounded-lg">
+              {savingDraft ? 'Saving…' : 'Save draft'}
             </button>
           )}
           <button onClick={save} className="px-4 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg flex items-center gap-1.5">

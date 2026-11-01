@@ -20,7 +20,8 @@ interface TestGeneratorProps {
   // with the conversation so far, so saving a draft from the builder keeps it
   onEditDraft: (draft: AssessmentTest, alsoAdd: string[], record: TestDraft) => void;
   // Keeps the test and the conversation to carry on later
-  onSaveDraft: (record: TestDraft) => void;
+  // Resolves true once it's saved
+  onSaveDraft: (record: TestDraft) => Promise<boolean>;
   // A saved draft to carry on with
   resume?: TestDraft;
   onClose: () => void;
@@ -64,6 +65,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
   const [draftId] = useState(() => resume?.id ?? `draft-${Date.now()}`);
   const [input, setInput] = useState('');
   const [working, setWorking] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
   const [chosen, setChosen] = useState<string[]>([]);
   const [keepNew, setKeepNew] = useState(true);
   // On phones the chat and the draft share the screen as tabs
@@ -94,10 +96,12 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
     styles,
     updatedAt: new Date().toISOString(),
   });
-  const saveDraft = () => {
-    if (!draft || working) return;
-    onSaveDraft(record(draft));
-    onClose();
+  const saveDraft = async () => {
+    if (!draft || working || savingDraft) return;
+    setSavingDraft(true);
+    const saved = await onSaveDraft(record(draft));
+    setSavingDraft(false);
+    if (saved) onClose();
   };
 
   const close = () => {
@@ -363,10 +367,10 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
           <p className="text-[11px] text-slate-500 hidden sm:block">{draft ? 'Keep asking for changes, or save when it looks right.' : 'Nothing is saved until you say so.'}</p>
           <button
             onClick={saveDraft}
-            disabled={!draft || working}
+            disabled={!draft || working || savingDraft}
             className="ml-auto px-4 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-300 hover:border-indigo-400 disabled:opacity-40 rounded-lg"
           >
-            Save draft
+            {savingDraft ? 'Saving…' : 'Save draft'}
           </button>
           {job ? (
             <button

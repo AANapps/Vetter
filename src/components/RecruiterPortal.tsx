@@ -25,7 +25,7 @@ interface RecruiterPortalProps {
   onGenerateTest: () => void;
   // Tests still being written, newest first
   drafts: TestDraft[];
-  onSaveDraft: (record: TestDraft) => void;
+  onSaveDraft: (record: TestDraft) => Promise<boolean>;
   onDeleteDraft: (id: string) => void;
   // Carries on with a draft in the AI chat, or in the builder
   onContinueDraft: (draft: TestDraft) => void;
@@ -307,9 +307,8 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
           onSaveDraft={
             building.initial
               ? undefined
-              : (test) => {
-                  onSaveDraft({ id: `draft-${Date.now()}`, businessId: business?.id ?? '', test, updatedAt: '' });
-                  setBuilding(null);
+              : async (test) => {
+                  if (await onSaveDraft({ id: `draft-${Date.now()}`, businessId: business?.id ?? '', test, updatedAt: '' })) setBuilding(null);
                 }
           }
           onCancel={() => setBuilding(null)}
@@ -379,7 +378,9 @@ const DraftCard: React.FC<{
         <FileText className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h3 className="text-sm font-bold text-slate-900 truncate">{t.title}</h3>
+            <button onClick={onContinue ?? onEdit} className="text-sm font-bold text-slate-900 hover:text-indigo-700 truncate text-left" title="Reopen this draft">
+              {t.title}
+            </button>
             <span className="shrink-0 px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 text-[10px] font-semibold">Draft</span>
           </div>
           <p className="text-[11px] text-slate-500">

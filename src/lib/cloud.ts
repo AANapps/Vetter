@@ -273,6 +273,22 @@ export function apply(job: JobPosting, uid: string, profileId: string | undefine
   return batch.commit();
 }
 
+// Saves one test draft and only resolves once Firebase has it, so the company is never told a draft is saved when it
+// isn't. Firestore refuses documents over 1 MiB and the write never settles offline, so both are turned into errors.
+export async function putTestDraft(draft: TestDraft) {
+  const data = JSON.parse(JSON.stringify(draft));
+  if (new Blob([JSON.stringify(data)]).size > 1_000_000) throw Object.assign(new Error('too-large'), { code: 'draft/too-large' });
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(Object.assign(new Error('timeout'), { code: 'auth/network-request-failed' })), 20000);
+  });
+  try {
+    await Promise.race([setDoc(doc(db(), 'testDrafts', draft.id), data), timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // Test drafts saved, changed or thrown away
 export function syncTestDrafts(prev: TestDraft[], next: TestDraft[], onError: (err: unknown) => void) {
   const d = db();
