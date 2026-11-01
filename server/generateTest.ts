@@ -160,7 +160,7 @@ Style rules (testCases is an empty list for choice, multi, text, order and match
 - match: 3 to 5 pairs; each left prompt with its right answer, all distinct.
 - code: JavaScript. starterCode defines "function solution(...)". solutionCode is a correct reference implementation. 3 to 5 testCases; input is a JSON array of the arguments, e.g. "[[3,1,2]]" calls solution([3,1,2]); expectedOutput is the JSON result.
 - sql: query only these tables: ${req.tables.map((t) => `${t.name}(${t.columns.join(', ')})`).join('; ')}. List the tables used in "tables". solutionCode is a correct SQLite query; starterCode is a comment and "SELECT ".${req.styles.includes('app') ? APP_RULES : ''}
-timeLimitMinutes is realistic for the question (2 to 5 for answer styles, 10 to 20 for code, sql and app). points reflect importance.
+timeLimitMinutes is realistic for the question (1 to 2 for answer styles, 4 to 8 for code, sql and app), and across the test they add up to 15 to 20. points reflect importance.
 category must be one of: ${req.categories.join(', ')}. passingScore between 60 and 80. roles: pick from ${req.roles.join(', ')}.
 Write plainly, in British English, with no em dashes.`
     : 'Do not include "test".'
@@ -236,7 +236,7 @@ export async function generateTest(body: unknown, apiKey: string | undefined, mo
         // If Claude declines on safety grounds, Anthropic re-runs the request on its recommended fallback model.
         // Haiku has no fallback, so it's only asked for on the larger models
         ...(!model.includes('haiku') && { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' as const }),
-        system: instructions({ ...req, research, questionCount: Math.min(15, Math.max(1, Math.round(req.questionCount || 6))) }),
+        system: instructions({ ...req, research, questionCount: Math.min(15, Math.max(1, Math.round(req.questionCount || 10))) }),
         messages: [{ role: 'user', content: `The job or test the company described:\n\n${req.prompt.slice(0, MAX_PROMPT)}` }],
       })
       .finalMessage();

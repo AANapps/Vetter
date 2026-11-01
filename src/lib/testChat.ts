@@ -138,7 +138,7 @@ export async function sendChat(state: ChatState, text: string, ctx: ChatContext)
     // Without the AI, the first turn still gets a start from Vetter's own tests and questions
     if (failure === 'not-configured' && !state.draft) {
       const brief = [ctx.job, ...messages.filter((m) => m.role === 'user').map((m) => m.text)].filter(Boolean).join('\n\n');
-      const draft = assembleFromBank({ prompt: brief, wantNewTest: true, wantExisting: ctx.wantExisting, questionCount: 6, styles: ctx.styles, level: ctx.level, title: ctx.jobTitle }, library, ctx.tests, ctx.business);
+      const draft = assembleFromBank({ prompt: brief, wantNewTest: true, wantExisting: ctx.wantExisting, questionCount: 10, styles: ctx.styles, level: ctx.level, title: ctx.jobTitle }, library, ctx.tests, ctx.business);
       const existing = ctx.wantExisting ? matchExisting(brief, library) : [];
       const reply = draft
         ? `I can't write new questions here, so I've put a draft together from the best-fitting questions in Vetter's tests. ${NOT_CONFIGURED} You can still edit every question in the builder.`

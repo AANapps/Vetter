@@ -84,7 +84,7 @@ ${
 }THE DRAFT
 - Include "test" whenever the draft is new or changes, with every question in order. For a question that stays exactly as it is, set keep to its id and type to its type, and leave every other field empty ("", [], 0, -1). Leave "test" out when nothing changes (a question, a chat).
 - An app, sheet or database question can only be kept whole or written again from scratch.
-- 4 to 12 questions unless the company asks otherwise (never more than 15). Default 6. difficulty is one of: ${req.levels.join(', ')}; pick it from the job unless told.
+- About 10 questions (8 to 12) taking 15 to 20 minutes in all, unless the company asks otherwise (never more than 15). difficulty is one of: ${req.levels.join(', ')}; pick it from the job unless told.
 - Every question must be answerable from its prompt alone, and check what the job really needs, not trivia.
 - Styles: choice, multi, text, order, match for any job; sheet, database and app are hands-on tasks in a working window.
   Unless told otherwise, every test has at least one hands-on task that matches how the job is really done: sheet for
@@ -100,7 +100,7 @@ Style rules (testCases is an empty list for choice, multi, text, order and match
 - match: 3 to 5 pairs; each left prompt with its right answer, all distinct.
 - code: JavaScript. starterCode defines "function solution(...)". solutionCode is a correct reference implementation. 3 to 5 testCases; input is a JSON array of the arguments, e.g. "[[3,1,2]]" calls solution([3,1,2]); expectedOutput is the JSON result.
 - sql: query only these tables: ${req.tables.map((t) => `${t.name}(${t.columns.join(', ')})`).join('; ')}. List the tables used in "tables". solutionCode is a correct SQLite query; starterCode is a comment and "SELECT ".${WORKSPACE_RULES}${APP_RULES}
-timeLimitMinutes is realistic for the question (2 to 5 for answer styles, 8 to 20 for code, sql, sheet, database and app). points reflect importance.
+timeLimitMinutes is realistic for the question (1 to 2 for answer styles, 4 to 8 for code, sql, sheet, database and app), and across the test they add up to 15 to 20 unless the company asks for a different length. Keep hands-on tasks focused enough to finish in that time. points reflect importance.
 category must be one of: ${req.categories.join(', ')}. passingScore between 60 and 80. roles: pick from ${req.roles.join(', ')}.
 software: the one product the app simulations copy (e.g. "Xero"), or "" when the draft has none.
 lookUp: when this turn should add (or rewrite) an app simulation of a product that the RESEARCH below doesn't cover${research ? '' : ' (there is no research yet)'}, put the product's name here and send only reply "" and existing, with no test; Vetter researches it and asks you again. Otherwise "".
