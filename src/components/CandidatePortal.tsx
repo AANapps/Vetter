@@ -18,6 +18,8 @@ import {
   Pencil,
   Plus,
   GraduationCap,
+  SlidersHorizontal,
+  X,
 } from 'lucide-react';
 import { VerifiedSkillBadge, TierLegend, getBadgeTier } from './VerifiedSkillBadge';
 import { JobApplicationModal } from './JobApplicationModal';
@@ -29,7 +31,7 @@ import { ProfileSidebar } from './ProfileSidebar';
 import { TestHistory } from './TestHistory';
 import { JobFilters } from './JobFilters';
 import { CITIES } from '../lib/geo';
-import { JobFilterState, countActiveFilters, defaultJobFilters, jobMatchesFilters } from '../lib/jobFilters';
+import { JobFilterState, MAX_RADIUS, countActiveFilters, defaultJobFilters, jobMatchesFilters } from '../lib/jobFilters';
 
 export type CandidateSection = 'profile' | 'jobs' | 'tests';
 
@@ -112,6 +114,8 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
 
   // Job board: every active job through the sidebar filters, sorted by newest or best fit
   const activeFilterCount = countActiveFilters(jobFilters, defaultJobFilters(homeCity));
+  // What's set inside the Filters popup, apart from the search and the place, which sit on the board itself
+  const popupFilterCount = countActiveFilters({ ...jobFilters, keyword: '', location: homeCity, radius: MAX_RADIUS }, defaultJobFilters(homeCity));
   const boardJobs = rankedJobs
     .filter((match) => {
       const job = activeJobs.find((j) => j.id === match.jobId)!;
@@ -497,61 +501,109 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
 
       {/* SECTION 2: JOB BOARD */}
       {view === 'jobs' && (
-        <div className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[280px_minmax(0,1fr)] gap-6 items-start">
-          {/* Filters: a column on the left; on phones a full-screen sheet behind the Filters button */}
-          <div
-            className={`${
-              showMobileFilters ? 'fixed inset-0 z-50 bg-slate-50 overflow-y-auto p-4 pb-24' : 'hidden'
-            } lg:block lg:static lg:z-auto lg:bg-transparent lg:p-0 lg:pb-0 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto`}
-          >
-            <JobFilters
-              jobs={activeJobs}
-              filters={jobFilters}
-              onChange={setJobFilters}
-              onClear={() => setJobFilters(defaultJobFilters(homeCity))}
-              activeCount={activeFilterCount}
-            />
-            <div className="lg:hidden fixed bottom-0 inset-x-0 p-4 bg-white border-t border-slate-200">
-              <button
-                onClick={() => setShowMobileFilters(false)}
-                className="w-full py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg"
-              >
-                Show {boardJobs.length} {boardJobs.length === 1 ? 'job' : 'jobs'}
-              </button>
-            </div>
+        <div className="space-y-6 min-w-0">
+          <div>
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Job Board</h1>
+            <p className="text-xs text-slate-500">
+              {boardJobs.length === activeJobs.length
+                ? `${activeJobs.length} open jobs.`
+                : `${boardJobs.length} of ${activeJobs.length} open jobs match your search.`}{' '}
+              Your fit score is based on your verified skills.
+            </p>
           </div>
 
-        <div className="space-y-6 min-w-0">
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <h1 className="text-xl font-bold text-slate-900 tracking-tight">Job Board</h1>
-              <p className="text-xs text-slate-500">
-                {boardJobs.length === activeJobs.length
-                  ? `${activeJobs.length} open jobs.`
-                  : `${boardJobs.length} of ${activeJobs.length} open jobs match your filters.`}{' '}
-                Your fit score is based on your verified skills.
-              </p>
+          {/* Search, where, the rest of the filters behind a button, and the order */}
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="flex-1 flex flex-col sm:flex-row bg-white border border-slate-300 rounded-xl shadow-2xs focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100 min-w-0">
+              <label className="flex-1 flex items-center gap-2 px-3 min-w-0">
+                <Search className="w-4 h-4 text-slate-400 shrink-0" />
+                <input
+                  type="search"
+                  value={jobFilters.keyword}
+                  onChange={(e) => setJobFilters((f) => ({ ...f, keyword: e.target.value }))}
+                  placeholder="Job title, company or skill"
+                  aria-label="Search jobs"
+                  className="w-full py-2.5 text-sm text-slate-900 placeholder-slate-400 bg-transparent focus:outline-none"
+                />
+              </label>
+              <label className="flex items-center gap-2 px-3 border-t sm:border-t-0 sm:border-l border-slate-200 sm:w-60">
+                <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
+                <select
+                  value={jobFilters.radius >= MAX_RADIUS ? '' : jobFilters.location}
+                  onChange={(e) => {
+                    const city = e.target.value;
+                    // A place on its own means near it: 50 miles to start, changed under Filters
+                    setJobFilters((f) => (city ? { ...f, location: city, radius: f.radius >= MAX_RADIUS ? 50 : f.radius } : { ...f, radius: MAX_RADIUS }));
+                  }}
+                  aria-label="Location"
+                  className="w-full py-2.5 text-sm text-slate-900 bg-transparent focus:outline-none cursor-pointer"
+                >
+                  <option value="">Anywhere</option>
+                  {Object.keys(CITIES)
+                    .sort()
+                    .map((city) => (
+                      <option key={city} value={city}>
+                        {city}
+                      </option>
+                    ))}
+                </select>
+              </label>
             </div>
-
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2">
               <button
-                onClick={() => setShowMobileFilters((s) => !s)}
-                aria-expanded={showMobileFilters}
-                className="lg:hidden px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white rounded-lg"
+                onClick={() => setShowMobileFilters(true)}
+                aria-haspopup="dialog"
+                className={`px-4 py-2.5 text-sm font-semibold rounded-xl border flex items-center gap-1.5 shadow-2xs ${
+                  popupFilterCount > 0 ? 'bg-indigo-50 border-indigo-300 text-indigo-700' : 'bg-white border-slate-300 text-slate-700 hover:border-indigo-400'
+                }`}
               >
+                <SlidersHorizontal className="w-4 h-4" />
                 Filters
-                {activeFilterCount > 0 && ` (${activeFilterCount})`}
+                {popupFilterCount > 0 && <span className="ml-0.5 px-1.5 rounded-full bg-indigo-600 text-white text-[11px] tabular-nums">{popupFilterCount}</span>}
               </button>
               <select
                 value={jobSort}
                 onChange={(e) => setJobSort(e.target.value as typeof jobSort)}
-                className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-700 font-medium shadow-2xs"
+                aria-label="Sort jobs"
+                className="px-3 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-700 font-medium shadow-2xs"
               >
                 <option value="newest">Newest first</option>
                 <option value="fit">Best fit first</option>
               </select>
             </div>
           </div>
+
+          {showMobileFilters && (
+            <div
+              className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/50"
+              onClick={(e) => e.target === e.currentTarget && setShowMobileFilters(false)}
+              onKeyDown={(e) => e.key === 'Escape' && setShowMobileFilters(false)}
+            >
+              <div role="dialog" aria-modal="true" aria-label="Filters" className="bg-white w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[90dvh]">
+                <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+                  <h2 className="text-base font-bold text-slate-900">Filters</h2>
+                  <button onClick={() => setShowMobileFilters(false)} aria-label="Close" autoFocus className="p-1 text-slate-400 hover:text-slate-700">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">
+                  <JobFilters jobs={activeJobs} filters={jobFilters} onChange={setJobFilters} />
+                </div>
+                <div className="px-5 py-3 border-t border-slate-200 flex items-center gap-3">
+                  <button
+                    onClick={() => setJobFilters((f) => ({ ...defaultJobFilters(homeCity), keyword: f.keyword, location: f.location, radius: f.radius >= MAX_RADIUS ? MAX_RADIUS : f.radius }))}
+                    disabled={popupFilterCount === 0}
+                    className="text-sm font-semibold text-slate-600 hover:text-slate-900 disabled:opacity-40"
+                  >
+                    Clear filters
+                  </button>
+                  <button onClick={() => setShowMobileFilters(false)} className="ml-auto px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg">
+                    Show {boardJobs.length} {boardJobs.length === 1 ? 'job' : 'jobs'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {boardJobs.length === 0 && (
             <div className="bg-white border border-slate-200 rounded-xl p-8 text-center text-xs text-slate-500 shadow-xs space-y-2">
@@ -668,7 +720,6 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
               );
             })}
           </div>
-        </div>
         </div>
       )}
 

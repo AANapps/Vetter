@@ -1,15 +1,11 @@
 import React from 'react';
 import { JobPosting } from '../types';
-import { CITIES } from '../lib/geo';
 import { JobFilterState, MAX_RADIUS, MAX_SALARY } from '../lib/jobFilters';
-import { Search } from 'lucide-react';
 
 interface JobFiltersProps {
   jobs: JobPosting[];
   filters: JobFilterState;
   onChange: (filters: JobFilterState) => void;
-  onClear: () => void;
-  activeCount: number;
 }
 
 const WORK_TYPES: JobPosting['workType'][] = ['Remote', 'Hybrid', 'On-site'];
@@ -28,7 +24,7 @@ const uniqueSorted = (values: (string | undefined)[]) =>
   Array.from(new Set(values.filter((v): v is string => !!v))).sort();
 
 const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-  <div role="group" aria-label={title} className="py-4 border-t border-slate-100 space-y-2.5">
+  <div role="group" aria-label={title} className="py-4 first:pt-0 border-t first:border-t-0 border-slate-100 space-y-2.5">
     <h3 className="text-xs font-bold text-slate-900">{title}</h3>
     {children}
   </div>
@@ -47,7 +43,7 @@ const Checkbox: React.FC<{ label: string; checked: boolean; onChange: (checked: 
   </label>
 );
 
-export const JobFilters: React.FC<JobFiltersProps> = ({ jobs, filters, onChange, onClear, activeCount }) => {
+export const JobFilters: React.FC<JobFiltersProps> = ({ jobs, filters, onChange }) => {
   const set = <K extends keyof JobFilterState>(key: K, value: JobFilterState[K]) => onChange({ ...filters, [key]: value });
   const toggle = <K extends 'categories' | 'workTypes' | 'employmentTypes' | 'experienceLevels' | 'companies'>(
     key: K,
@@ -76,50 +72,11 @@ export const JobFilters: React.FC<JobFiltersProps> = ({ jobs, filters, onChange,
   const sliderClass = 'w-full accent-indigo-600 cursor-grab active:cursor-grabbing';
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-bold text-slate-900">
-          Filters
-          {activeCount > 0 && <span className="ml-1.5 text-[11px] font-mono text-indigo-700">({activeCount})</span>}
-        </h2>
-        {activeCount > 0 && (
-          <button onClick={onClear} className="text-[11px] font-semibold text-indigo-700 hover:underline">
-            Clear all
-          </button>
-        )}
-      </div>
-
-      <Section title="Keyword">
-        <div className="relative">
-          <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Title, company, skill..."
-            value={filters.keyword}
-            onChange={(e) => set('keyword', e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500"
-          />
-        </div>
-      </Section>
-
-      <Section title="Location">
-        <select
-          value={filters.location}
-          onChange={(e) => set('location', e.target.value)}
-          aria-label="Search from"
-          className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-700"
-        >
-          {Object.keys(CITIES)
-            .sort()
-            .map((city) => (
-              <option key={city} value={city}>
-                {city}
-              </option>
-            ))}
-        </select>
+    <div>
+      <Section title="Distance">
         <div className="space-y-1">
           <div className="flex items-center justify-between text-[11px]">
-            <span className="text-slate-500">Search radius</span>
+            <span className="text-slate-500">From {filters.location}</span>
             <span className="font-semibold text-slate-800">{formatRadius(filters.radius)}</span>
           </div>
           <input
