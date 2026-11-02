@@ -85,23 +85,23 @@ export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose }) 
   ].filter(Boolean) as string[];
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-stone-100 text-slate-900 font-sans" role="dialog" aria-modal="true" aria-label={`${test.title}: before you start`}>
+    <div className="fixed inset-0 z-50 flex flex-col bg-slate-50 text-slate-900 font-sans" role="dialog" aria-modal="true" aria-label={`${test.title}: before you start`}>
       {/* Exam header */}
-      <header className="shrink-0 bg-slate-950 text-white">
+      <header className="shrink-0 bg-white border-b border-slate-200">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-3">
-          <span className="w-7 h-7 rounded bg-white text-slate-950 flex items-center justify-center text-xs font-black">V</span>
+          <span className="w-8 h-8 rounded-md tier-solid tier-solid-silver flex items-center justify-center text-sm font-extrabold shrink-0">V</span>
           <div className="min-w-0">
-            <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Vetter assessment</div>
-            <div className="text-sm font-semibold truncate">{test.title}</div>
+            <div className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Vetter assessment</div>
+            <div className="text-sm font-bold text-slate-900 truncate">{test.title}</div>
           </div>
           <div className="ml-auto hidden sm:block text-right">
-            <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Reference</div>
-            <div className="text-xs font-mono tabular-nums">{reference}</div>
+            <div className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Reference</div>
+            <div className="text-xs font-mono tabular-nums text-slate-700">{reference}</div>
           </div>
           <button
             onClick={onClose}
             disabled={countdown !== null}
-            className="ml-2 p-1.5 rounded text-slate-400 hover:text-white hover:bg-white/10 disabled:opacity-30"
+            className="ml-2 p-1.5 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-30"
             aria-label="Leave"
             title="Leave without starting"
           >
@@ -118,8 +118,8 @@ export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose }) 
                 className="w-full text-left disabled:cursor-default"
                 aria-current={i === slide ? 'step' : undefined}
               >
-                <div className={`h-0.5 rounded-full ${i <= slide ? 'bg-white' : 'bg-white/20'}`} />
-                <div className={`mt-1.5 text-[11px] flex items-center gap-1 ${i === slide ? 'text-white font-semibold' : i < slide ? 'text-slate-300' : 'text-slate-500'}`}>
+                <div className={`h-0.5 rounded-full ${i <= slide ? 'bg-indigo-600' : 'bg-slate-200'}`} />
+                <div className={`mt-1.5 text-[11px] flex items-center gap-1 ${i === slide ? 'text-indigo-700 font-semibold' : i < slide ? 'text-slate-700' : 'text-slate-400'}`}>
                   {i < slide ? <Check className="w-3 h-3" /> : <span className="font-mono">{i + 1}.</span>}
                   <span className="truncate">{s.title}</span>
                 </div>
@@ -132,13 +132,13 @@ export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose }) 
       {/* The page */}
       <main className="flex-1 min-h-0 overflow-y-auto">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
-          <article key={slide} className="bg-white border border-stone-300 shadow-[0_1px_0_rgba(0,0,0,0.04),0_12px_32px_-16px_rgba(0,0,0,0.25)] animate-in fade-in duration-200">
-            <div className="px-6 sm:px-10 pt-8 pb-5 border-b-2 border-slate-900 flex items-end justify-between gap-4">
+          <article key={slide} className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden animate-in fade-in duration-200">
+            <div className="px-6 sm:px-10 pt-8 pb-5 border-b border-slate-200 flex items-end justify-between gap-4">
               <div>
                 <Label>
                   Section {slide + 1} of {SLIDES.length}
                 </Label>
-                <h1 className="mt-1 font-serif text-2xl sm:text-3xl text-slate-950">{SLIDES[slide].title}</h1>
+                <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900">{SLIDES[slide].title}</h1>
               </div>
               <div className="text-right text-[11px] text-slate-500 font-mono hidden sm:block">
                 {test.category} &middot; {test.difficulty}
@@ -150,10 +150,10 @@ export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose }) 
                 <>
                   <div>
                     <Label>Assessment</Label>
-                    <h2 className="mt-1 font-serif text-xl text-slate-950">{test.title}</h2>
+                    <h2 className="mt-1 text-lg font-bold text-slate-900">{test.title}</h2>
                     <p className="mt-2">{test.description}</p>
                   </div>
-                  <dl className="grid grid-cols-2 sm:grid-cols-4 border border-slate-300 divide-x divide-y sm:divide-y-0 divide-slate-300">
+                  <dl className="grid grid-cols-2 sm:grid-cols-4 border border-slate-200 rounded-xl overflow-hidden divide-x divide-y sm:divide-y-0 divide-slate-200">
                     {[
                       ['Duration', `${test.estimatedMinutes} minutes`],
                       ['Questions', `${answerable.length}`],
@@ -162,12 +162,12 @@ export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose }) 
                     ].map(([k, v]) => (
                       <div key={k} className="p-4">
                         <dt className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">{k}</dt>
-                        <dd className="mt-1 font-semibold text-slate-950">{v}</dd>
+                        <dd className="mt-1 font-semibold text-slate-900">{v}</dd>
                       </div>
                     ))}
                   </dl>
                   {test.scenario && <CaseBrief scenario={test.scenario} defaultOpen />}
-                  <p className="border-l-4 border-slate-900 pl-4 text-slate-800">
+                  <p className="border-l-4 border-indigo-600 pl-4 text-slate-800">
                     Read every section before you begin. The clock starts only when you press <strong>Begin the test</strong>, and it can&rsquo;t be
                     paused once it has.
                   </p>
@@ -177,9 +177,9 @@ export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose }) 
               {slide === 1 && (
                 <>
                   <p>The test is made up of the following. Marks show each part&rsquo;s share of your final score.</p>
-                  <table className="w-full text-xs border-t border-slate-300">
+                  <table className="w-full text-xs border-t border-slate-200">
                     <thead>
-                      <tr className="text-left text-[10px] uppercase tracking-[0.15em] text-slate-500 border-b border-slate-300">
+                      <tr className="text-left text-[10px] uppercase tracking-[0.15em] text-slate-500 border-b border-slate-200">
                         <th className="py-2 pr-3 font-semibold w-10">No.</th>
                         <th className="py-2 pr-3 font-semibold">Item</th>
                         <th className="py-2 pr-3 font-semibold text-right">Marks</th>
@@ -223,9 +223,9 @@ export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose }) 
               {slide === 2 && (
                 <>
                   <div className="flex flex-col sm:flex-row sm:items-center gap-6">
-                    <div className="shrink-0 border-2 border-slate-900 px-8 py-5 text-center">
+                    <div className="shrink-0 border-2 border-indigo-600 rounded-xl px-8 py-5 text-center">
                       <Label>Time allowed</Label>
-                      <div className="mt-1 font-mono text-5xl font-bold tabular-nums text-slate-950">
+                      <div className="mt-1 font-mono text-5xl font-bold tabular-nums text-indigo-700">
                         {String(test.estimatedMinutes).padStart(2, '0')}:00
                       </div>
                     </div>
@@ -258,10 +258,10 @@ export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose }) 
                       </li>
                     ))}
                   </ol>
-                  <div className="border border-slate-900 p-5 space-y-4 bg-stone-50">
+                  <div className="border border-indigo-200 rounded-xl p-5 space-y-4 bg-indigo-50/40">
                     <Label>Candidate declaration</Label>
                     <label className="flex items-start gap-3 cursor-pointer text-slate-900">
-                      <input type="checkbox" checked={accepted} onChange={(e) => setAccepted(e.target.checked)} className="mt-1 w-4 h-4 accent-slate-900" />
+                      <input type="checkbox" checked={accepted} onChange={(e) => setAccepted(e.target.checked)} className="mt-1 w-4 h-4 accent-indigo-600" />
                       <span>
                         I have read the rules above. I will take this test alone, without outside help, and I understand that breaking the rules can
                         void my result.
@@ -273,7 +273,7 @@ export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose }) 
                         value={signature}
                         onChange={(e) => setSignature(e.target.value)}
                         autoComplete="name"
-                        className="mt-1 w-full sm:w-80 px-0 py-1.5 bg-transparent border-0 border-b-2 border-slate-400 focus:border-slate-900 focus:outline-none font-serif italic text-lg text-slate-950"
+                        className="mt-1 w-full sm:w-80 px-0 py-1.5 bg-transparent border-0 border-b-2 border-slate-300 focus:border-indigo-600 focus:outline-none text-base font-semibold text-slate-900"
                       />
                     </label>
                     <div className="text-[11px] text-slate-500 font-mono">
@@ -288,15 +288,15 @@ export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose }) 
       </main>
 
       {/* Moving through */}
-      <footer className="shrink-0 bg-white border-t border-stone-300">
+      <footer className="shrink-0 bg-white border-t border-slate-200">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-3">
           {slide > 0 ? (
-            <button onClick={() => setSlide(slide - 1)} className="px-3 py-2 text-xs font-semibold text-slate-600 hover:text-slate-950 flex items-center gap-1.5">
+            <button onClick={() => setSlide(slide - 1)} className="px-3 py-2 text-xs font-semibold text-slate-600 hover:text-indigo-700 flex items-center gap-1.5">
               <ArrowLeft className="w-3.5 h-3.5" />
               Back
             </button>
           ) : (
-            <button onClick={onClose} className="px-3 py-2 text-xs font-semibold text-slate-600 hover:text-slate-950">
+            <button onClick={onClose} className="px-3 py-2 text-xs font-semibold text-slate-600 hover:text-indigo-700">
               Not now
             </button>
           )}
@@ -308,7 +308,7 @@ export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose }) 
               onClick={() => setCountdown(3)}
               disabled={!ready}
               title={ready ? undefined : 'Tick the declaration and sign with your name first'}
-              className="px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.12em] text-white bg-slate-950 hover:bg-black disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-5 py-2.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
             >
               <Lock className="w-3.5 h-3.5" />
               Begin the test
@@ -316,7 +316,7 @@ export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose }) 
           ) : (
             <button
               onClick={() => setSlide(slide + 1)}
-              className="px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.12em] text-white bg-slate-950 hover:bg-black flex items-center gap-2"
+              className="px-5 py-2.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs flex items-center gap-2"
             >
               Continue
               <ArrowRight className="w-3.5 h-3.5" />
@@ -327,7 +327,7 @@ export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose }) 
 
       {/* The last seconds before the clock starts */}
       {countdown !== null && countdown > 0 && (
-        <div className="absolute inset-0 z-10 bg-slate-950 text-white flex flex-col items-center justify-center gap-4" aria-live="assertive">
+        <div className="absolute inset-0 z-10 bg-slate-900 text-white flex flex-col items-center justify-center gap-4" aria-live="assertive">
           <Label>
             <span className="text-slate-400">Your test begins in</span>
           </Label>
