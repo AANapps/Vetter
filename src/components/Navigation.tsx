@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Pic } from './Pic';
 import { UserRole } from '../types';
 import { ArrowLeftRight,
-  LogOut, Bell, Briefcase, ChevronDown, ClipboardCheck, House, Repeat, TrendingUp, Search, Users } from 'lucide-react';
+  LogOut, Bell, Briefcase, ChevronDown, ClipboardCheck, House, Repeat, Search, Users } from 'lucide-react';
 
 export type AppTab =
   | 'home'
@@ -27,7 +27,7 @@ export const NAV_TABS: Record<'candidate' | 'recruiter', { id: AppTab; label: st
     { id: 'tests', label: 'Tests', icon: ClipboardCheck },
     { id: 'jobs', label: 'Jobs', icon: Briefcase },
     { id: 'learn', label: 'Career switch', icon: Repeat },
-    { id: 'upskill', label: 'Upskill', icon: TrendingUp },
+    // Upskill (/upskill/) is hidden for now; its page still works by address
   ],
   recruiter: [
     { id: 'business-home', label: 'Home', icon: House },
@@ -81,7 +81,7 @@ const Wordmark: React.FC<{ onClick: () => void }> = ({ onClick }) => (
   <button
     onClick={onClick}
     aria-label="Vetter home"
-    className="w-9 h-9 rounded-md tier-solid tier-solid-silver flex items-center justify-center text-base font-extrabold tracking-tight shrink-0"
+    className="w-9 h-9 rounded-md bg-indigo-900 hover:bg-indigo-950 text-white font-pixel flex items-center justify-center text-base shrink-0 transition-colors"
   >
     V
   </button>
@@ -319,15 +319,14 @@ const VisitorHeader: React.FC<{ currentTab: AppTab; onTabChange: (tab: AppTab) =
     { id: 'tests', label: 'Tests' },
     { id: 'jobs', label: 'Jobs' },
     { id: 'learn', label: 'Career switch' },
-    { id: 'upskill', label: 'Upskill' },
     { id: 'for-business', label: 'For business' },
   ];
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-2">
         <button onClick={() => onTabChange('home')} aria-label="Vetter home" className="flex items-center gap-2 mr-4">
-          <span className="w-8 h-8 rounded-md tier-solid tier-solid-silver flex items-center justify-center text-sm font-extrabold">V</span>
-          <span className="text-lg font-extrabold tracking-tight text-slate-900">Vetter</span>
+          <span className="w-8 h-8 rounded-md bg-indigo-900 text-white font-pixel flex items-center justify-center text-sm">V</span>
+          <span className="font-pixel text-lg text-indigo-950">Vetter</span>
         </button>
         <nav className="hidden md:flex items-center gap-1">
           {links.map((l) => (
