@@ -77,6 +77,9 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
   const [secondsRemaining, setSecondsRemaining] = useState(test.estimatedMinutes * 60);
   const [tabSwitches, setTabSwitches] = useState(0);
   const [focusWarning, setFocusWarning] = useState<string | null>(null);
+  // Shown when the candidate comes back after leaving the tab, and before they exit
+  const [leftTab, setLeftTab] = useState(false);
+  const [confirmingExit, setConfirmingExit] = useState(false);
 
   const currentGroup = groups[groupIndex];
   // The task, or the question on its own
@@ -125,12 +128,23 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
           setFocusWarning(`Focus lost: tab switch detected (${next} event${next > 1 ? 's' : ''})`);
           return next;
         });
+        if (!preview) setLeftTab(true);
       }
+    };
+    // Closing or reloading the tab mid-test: the browser asks first, as the answers would be lost
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (preview) return;
+      e.preventDefault();
+      e.returnValue = '';
     };
 
     window.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => window.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [hasStarted]);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [hasStarted, preview]);
 
   const formatTime = (secs: number) => {
     const m = Math.floor(secs / 60);
@@ -211,7 +225,7 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
       <div className="h-14 border-b border-slate-200 bg-white px-6 flex items-center justify-between shrink-0 shadow-xs">
         <div className="flex items-center gap-4 min-w-0">
           <button
-            onClick={onClose}
+            onClick={() => (preview ? onClose() : setConfirmingExit(true))}
             className="text-xs font-semibold text-slate-600 hover:text-slate-900 px-2.5 py-1 rounded-md hover:bg-slate-100 transition-colors"
           >
             &larr; Exit
@@ -655,6 +669,75 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
         </>
         )}
       </div>
+
+      {/* Back after leaving the tab: it's recorded, and leaving the test itself means starting again */}
+      {leftTab && !confirmingExit && !isSubmitting && !showCompletionModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in" role="alertdialog" aria-modal="true" aria-labelledby="left-tab-title">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center shrink-0">
+                <ShieldAlert className="w-5 h-5 text-amber-600" />
+              </div>
+              <div className="space-y-1">
+                <h3 id="left-tab-title" className="text-base font-bold text-slate-900">You left the test</h3>
+                <p className="text-xs text-slate-500">
+                  Leaving this tab has been recorded ({tabSwitches} {tabSwitches === 1 ? 'time' : 'times'}) and lowers your focus score, which the
+                  company sees with your result.
+                </p>
+              </div>
+            </div>
+            <ul className="text-xs text-slate-700 space-y-1.5 list-disc pl-5">
+              <li>Stay on this tab until you submit. The clock kept running while you were away.</li>
+              <li>
+                If you close this tab, reload the page or exit the test, your answers are lost and <strong>you&rsquo;ll have to retake the test</strong>{' '}
+                from the start.
+              </li>
+            </ul>
+            <button
+              onClick={() => setLeftTab(false)}
+              autoFocus
+              className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-lg shadow-xs"
+            >
+              I understand, back to the test
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Exiting mid-test */}
+      {confirmingExit && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in" role="alertdialog" aria-modal="true" aria-labelledby="exit-title">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-rose-50 border border-rose-200 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5 text-rose-600" />
+              </div>
+              <div className="space-y-1">
+                <h3 id="exit-title" className="text-base font-bold text-slate-900">Leave the test?</h3>
+                <p className="text-xs text-slate-600">
+                  Your answers so far will be lost and nothing is submitted. <strong>You&rsquo;ll have to retake the test</strong> from the start, with
+                  the full time.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-col-reverse sm:flex-row gap-2">
+              <button
+                onClick={onClose}
+                className="flex-1 py-2.5 px-4 text-xs font-semibold text-rose-700 bg-white border border-rose-200 hover:bg-rose-50 rounded-lg"
+              >
+                Leave and lose my answers
+              </button>
+              <button
+                onClick={() => setConfirmingExit(false)}
+                autoFocus
+                className="flex-1 py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-lg shadow-xs"
+              >
+                Stay in the test
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* While answers are marked */}
       {isSubmitting && (
