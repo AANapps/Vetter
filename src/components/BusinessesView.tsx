@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { PageGuide } from './PageGuide';
 import { Business, JobPosting, AssessmentTest } from '../types';
 import { Award, Search } from 'lucide-react';
 
@@ -38,10 +37,10 @@ export const BusinessesView: React.FC<BusinessesViewProps> = ({
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <PageGuide label="Companies" className="mb-1">
-            See who's hiring on Vetter, their open jobs, and the tests those jobs use.
-          </PageGuide>
           <h1 className="text-xl font-bold text-slate-900 tracking-tight">Companies</h1>
+          <p className="text-xs text-slate-500 mt-1">
+            Companies hiring on Vetter, their open jobs, and the tests attached to them.
+          </p>
         </div>
 
         {/* Search & Industry Filter */}

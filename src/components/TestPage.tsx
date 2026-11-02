@@ -1,5 +1,4 @@
 import React from 'react';
-import { PageGuide } from './PageGuide';
 import { BackButton } from './BackButton';
 import { Link2, Play } from 'lucide-react';
 import { AssessmentTest, Business, JobPosting, User, UserRole } from '../types';
@@ -60,9 +59,6 @@ export const TestPage: React.FC<TestPageProps> = ({
   return (
     <div className="max-w-5xl mx-auto px-6 py-8 space-y-6">
       <BackButton onClick={onBack}>All tests</BackButton>
-      {viewerRole === 'candidate' && (
-        <PageGuide label="Test">Take it for a verified score that companies can see on your profile. Retake it any time to improve.</PageGuide>
-      )}
 
       {referredByCompany && (
         <p className="px-4 py-3 bg-indigo-50 border border-indigo-200 rounded-xl text-xs text-indigo-900">
