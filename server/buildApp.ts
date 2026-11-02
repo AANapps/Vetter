@@ -17,9 +17,13 @@ export interface BuildAppRequest {
   testCases: { description: string; input: string; expectedOutput: string }[];
   // Notes on the software or device it copies, when there are any
   research?: string;
+  // A repair: the page as built, and what went wrong when Vetter clicked through it
+  fix?: { html: string; problems: string[] };
 }
 
 const MAX_TEXT = 8000;
+// A page is under 60KB, so the one being repaired fits whole
+const MAX_PAGE = 90000;
 
 const schema = {
   type: 'object',
@@ -74,6 +78,13 @@ export async function buildApp(body: unknown, apiKey: string | undefined, model:
               `THE TASK AS THE CANDIDATE READS IT:\n${String(req.prompt ?? '').slice(0, MAX_TEXT)}`,
               `THE PAGE SPEC:\n${req.brief.slice(0, MAX_TEXT)}`,
               `THE PLANNED CHECKS:\n${JSON.stringify((req.testCases ?? []).slice(0, 8))}`,
+              ...(req.fix?.html
+                ? [
+                    `THE PAGE AS YOU BUILT IT:\n${String(req.fix.html).slice(0, MAX_PAGE)}`,
+                    `PROBLEMS FOUND WHEN VETTER CLICKED THROUGH IT:\n${(req.fix.problems ?? []).slice(0, 30).map((p) => `- ${String(p).slice(0, 200)}`).join('\n')}`,
+                    'Return the whole page again with every problem fixed: make each control named above do what its label says in this kind of product, or grey it out (disabled, reduced opacity, cursor:not-allowed, a "Not available in this test" title) when it is outside the task. Fix any errors. Keep everything that already works, the data and the state paths the checks read.',
+                  ]
+                : []),
             ].join('\n\n'),
           },
         ],

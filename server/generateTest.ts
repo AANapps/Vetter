@@ -127,9 +127,17 @@ export const APP_KINDS = `
 - app: an interactive page the candidate really works in. Write up to 3. Use it for the hardest parts of the test. It is
   one of three kinds:
   (a) SOFTWARE: a working copy of a product the job uses (a CRM, helpdesk, EPOS till, design tool, accounting package...).
-      When the job names software, make at least one. Base it on the RESEARCH, so someone who uses it daily recognises it:
-      its layout and navigation, colour scheme, typography, terminology, menu and button labels, and the screens the task
-      needs, with icons in inline SVG.
+      When the job names software, make at least one. Build it the way a skilled developer would build the real web app,
+      based on the RESEARCH, so someone who uses it daily feels at home within seconds: the same overall layout and
+      navigation (top bar, side menu, tabs, breadcrumbs, search, record pages), the same workflow and order of screens, the
+      same terminology and button labels for common actions, and the same kinds of tables, forms, filters and dialogs.
+      It must look like a polished production app, not a mock-up: proper spacing, type scale, hover and focus states,
+      empty states and validation messages.
+      NO COPYRIGHT OR TRADEMARK INFRINGEMENT: give it an invented product name and a simple original logo (a geometric mark
+      drawn in SVG), never the real product's name, logo, icons, illustrations, screenshots, help text or marketing copy.
+      Draw every icon yourself as simple original SVG. Use a colour scheme in the same spirit (e.g. a dark blue top bar)
+      but your own palette, not the brand's exact colours. Generic industry terms (Opportunity, Ticket, Invoice, Pipeline)
+      are fine; slogans and branded feature names are not.
   (b) HANDS-ON WORK: for trades and physical jobs (device and phone repair, electrical, plumbing, automotive, engineering,
       lab and clinical work, warehouse, hospitality, beauty, manufacturing...), an interactive mock-up of the real thing,
       drawn in detailed inline SVG, so the candidate does the job step by step. Model the exact item named, from the
@@ -141,6 +149,7 @@ export const APP_KINDS = `
       come off (exploded or opened views, zoom on the area worked on). Wrong moves have realistic consequences recorded in
       the state (a torn flex cable, a stripped screw, a short from leaving the battery connected) without telling the
       candidate it was wrong. Include a fault to diagnose when the job calls for it (e.g. readings on a multimeter view).
+      Draw it yourself in original SVG and leave every maker's logo and branding off the device.
       Make it look like the real thing, not a diagram: true proportions and colours, rounded bodies with gradients,
       highlights and shadows, glass, metal and cable textures, labelled screws and connectors drawn where they really sit,
       a large central view of the device that fills the stage, and a zoomed inset of the area being worked on. Spend most
@@ -157,14 +166,25 @@ export const APP_KINDS = `
 
 // How the page itself is written, whether in the same call or by the page builder (server/buildApp.ts)
 export const APP_PAGE_RULES = `  For every kind, appHtml is ONE self-contained HTML page, under 60KB:
-  • Its <title> is the product's or item's name alone, e.g. <title>ClickData</title> or <title>iPhone 13</title>.
+  • Its <title> is the product's or item's name alone: the invented name for software, e.g. <title>ClickData</title>, or
+    the item worked on, e.g. <title>Phone repair: 6.1" handset</title>. Never a real brand's logo anywhere on the page.
   • Everything inline: no external scripts, stylesheets, images or requests of any kind (Google Fonts are the only exception).
     No <form> submission and no alert/prompt/confirm: use buttons and in-page dialogs. It runs in a sandbox with no network.
   • It fits any window from 900x560 up and scrolls where it doesn't: every panel, list, table and canvas whose content can
     be taller or wider than its space has overflow:auto. Never overflow:hidden on html or body, never a fixed pixel size
     for the whole page, and no horizontal swipe or wheel handlers on the page itself.
   • Fill it with realistic made-up data or detail, enough that the task takes real work (6 to 12 minutes).
-  • The controls the task needs must really work: filters filter, charts redraw, fields save, parts come off and go back.
+  • EVERY CONTROL WORKS. Every visible button, link, tab, menu item, icon button and row action does what its label says
+    in this kind of product: navigation opens its screen, New opens a working form, Save saves and the record appears
+    wherever it should, Delete removes it (after an in-page confirm), sort and filter re-order and narrow, Export makes a
+    download, settings toggles change behaviour. Nothing is decorative and nothing silently does nothing. A feature
+    outside the task's scope is shown greyed out: the disabled attribute (or aria-disabled="true" on non-buttons),
+    reduced opacity, cursor:not-allowed and a title like "Not available in this test". Don't add controls you won't
+    make work or grey out.
+  • THE LOGIC FLOWS like the real thing: one source of truth for the data, so a change on one screen shows on every
+    other (lists, counts, totals, badges, charts, dashboards); statuses move only through valid steps; required fields
+    and bad input get inline errors; undo or cancel puts things back; numbers recalculate. A candidate who does the work
+    correctly in any sensible order ends with the right state.
   • Put all the script inside one (function () { ... })(), so no name clashes with the browser's own globals (top, name,
     parent, status, open, close and so on). Plain ES2020, no modules or libraries.
   • Keep everything the candidate can change in ONE plain JSON object; for hands-on work, include the steps taken in order

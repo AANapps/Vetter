@@ -1,5 +1,6 @@
 import { AssessmentTest, BlueprintItem, Business, Question, QuestionType, SkillCategory, TEST_DIFFICULTIES, TestDifficulty, TestRole } from '../types';
 import { MOCK_DATABASE } from './sqlEngine';
+import { probeApp } from './appSimulation';
 import { isGroupType, orderedQuestions } from './questionTypes';
 import { ALL_ROLES, CATEGORIES, RawQuestion, Suggestion, assembleFromBank, checkQuestion, libraryFor, linkTasks, matchExisting } from './testGeneration';
 
@@ -75,19 +76,43 @@ type RawTest = Record<string, any> & { questions?: RawQuestion[] };
 
 // Builds an app question's page from the designer's spec, in its own request. Resolves with the question ready to
 // check, or as it was when the build failed (it's then dropped by the checks)
+// Then clicks through it out of sight, and when a control does nothing or throws an error, sends it back once with the
+// list to fix
 async function buildAppPage(item: RawQuestion, research?: string): Promise<RawQuestion> {
-  try {
-    const res = await fetch('/api/build-app', {
+  const request = (fix?: { html: string; problems: string[] }) =>
+    fetch('/api/build-app', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: item.title, prompt: item.prompt, brief: item.appHtml, testCases: item.testCases ?? [], research }),
-    });
-    if (!res.ok) return item;
-    const page = (await res.json()) as { appHtml?: string; testCases?: RawQuestion['testCases'] };
-    return { ...item, appHtml: page.appHtml ?? '', testCases: page.testCases?.length ? page.testCases : item.testCases };
+      body: JSON.stringify({ title: item.title, prompt: item.prompt, brief: item.appHtml, testCases: item.testCases ?? [], research, ...(fix && { fix }) }),
+    }).then(async (res) => (res.ok ? ((await res.json()) as { appHtml?: string; testCases?: RawQuestion['testCases'] }) : null));
+  try {
+    const page = await request();
+    if (!page?.appHtml) return item;
+    const built: RawQuestion = { ...item, appHtml: page.appHtml, testCases: page.testCases?.length ? page.testCases : item.testCases };
+    const problems = await appProblems(built);
+    if (!problems.length) return built;
+    const fixed = await request({ html: built.appHtml!, problems }).catch(() => null);
+    if (!fixed?.appHtml) return built;
+    const repaired: RawQuestion = { ...built, appHtml: fixed.appHtml, testCases: fixed.testCases?.length ? fixed.testCases : built.testCases };
+    // The repair is kept unless it made things worse: it must still load
+    const after = await probeApp(repaired.appHtml!, checksOf(repaired));
+    return after.state ? repaired : built;
   } catch {
     return item;
   }
+}
+
+const checksOf = (q: RawQuestion) => (q.testCases ?? []).filter((tc) => tc.input?.trim() && tc.expectedOutput?.trim());
+
+// What's wrong with a built page when every control is clicked: ones that do nothing, ones that throw, or a page that
+// won't load at all
+async function appProblems(q: RawQuestion): Promise<string[]> {
+  const probe = await probeApp(q.appHtml ?? '', checksOf(q), 6000, true);
+  if (!probe.state) return probe.problem ? [probe.problem] : [];
+  return [
+    ...(probe.audit?.dead ?? []).map((name) => `The control "${name}" does nothing when clicked`),
+    ...(probe.audit?.errors ?? []).map((err) => `Clicking ${err}`),
+  ];
 }
 
 // What the hire needs, as the AI worked it out ("skill | weight | why | how" a line): blank rows dropped and the
