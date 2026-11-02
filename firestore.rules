@@ -172,6 +172,24 @@ service cloud.firestore {
       allow delete: if isAdmin() || worksAt(resource.data.businessId);
     }
 
+    // Career switch course sign-ups: anyone can leave their details (signed in or not), only the Vetter team reads
+    // them. See src/lib/courseSignups.ts
+    match /courseSignups/{signupId} {
+      allow read, update, delete: if isAdmin();
+      allow create: if request.resource.data.keys().hasOnly(['courseId', 'courseTitle', 'price', 'name', 'email', 'phone', 'note', 'uid', 'createdAt'])
+        && request.resource.data.keys().hasAll(['courseId', 'courseTitle', 'price', 'name', 'email', 'phone', 'createdAt'])
+        && request.resource.data.courseId is string && request.resource.data.courseId.size() <= 100
+        && request.resource.data.courseTitle is string && request.resource.data.courseTitle.size() <= 200
+        && request.resource.data.price is number
+        && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 100
+        && request.resource.data.email is string && request.resource.data.email.size() <= 200
+        && request.resource.data.email.matches('^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$')
+        && request.resource.data.phone is string && request.resource.data.phone.size() >= 7 && request.resource.data.phone.size() <= 25
+        && request.resource.data.get('note', '') is string && request.resource.data.get('note', '').size() <= 1000
+        && (!('uid' in request.resource.data) || (signedIn() && request.resource.data.uid == uid()))
+        && request.resource.data.createdAt == request.time;
+    }
+
     // An application, seen by the candidate and the company they applied to
     match /applications/{applicationId} {
       allow read: if signedIn() && (uid() == resource.data.candidateId || isAdmin() || worksAt(resource.data.businessId));

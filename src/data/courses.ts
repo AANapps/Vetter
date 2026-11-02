@@ -30,6 +30,8 @@ export interface Course {
   format: CourseFormat;
   level: 'Beginner' | 'Intermediate' | 'Advanced';
   weeks: number;
+  // Price in US dollars. Courses are sold by sign-up: the Vetter team contacts each person, there's no checkout
+  price: number;
   hoursPerWeek: number;
   audiences: CourseAudience[];
   skills: string[];
@@ -48,6 +50,8 @@ const r = (title: string, minutes = 10): CourseLesson => ({ title, kind: 'readin
 const x = (title: string, minutes = 25): CourseLesson => ({ title, kind: 'exercise', minutes });
 const p = (title: string, minutes = 120): CourseLesson => ({ title, kind: 'project', minutes });
 
+export const coursePriceLabel = (c: Pick<Course, 'price'>) => `$${c.price.toLocaleString('en-US')}`;
+
 export const COURSES: Course[] = [
   {
     id: 'data-analysis-bootcamp',
@@ -59,6 +63,7 @@ export const COURSES: Course[] = [
     format: 'Bootcamp',
     level: 'Beginner',
     weeks: 12,
+    price: 5000,
     hoursPerWeek: 10,
     audiences: ['career-switchers', 'employees'],
     skills: ['Excel', 'SQL', 'Data cleaning', 'Dashboards', 'Statistics', 'Storytelling with data'],
@@ -129,6 +134,7 @@ export const COURSES: Course[] = [
     format: 'Course',
     level: 'Beginner',
     weeks: 4,
+    price: 3500,
     hoursPerWeek: 4,
     audiences: ['career-switchers', 'employees'],
     skills: ['SQL', 'Joins', 'Aggregation', 'Window functions'],
@@ -153,6 +159,7 @@ export const COURSES: Course[] = [
     format: 'Course',
     level: 'Beginner',
     weeks: 3,
+    price: 3000,
     hoursPerWeek: 3,
     audiences: ['career-switchers', 'employees'],
     skills: ['Excel', 'Lookups', 'Pivot tables', 'Reporting'],
@@ -176,6 +183,7 @@ export const COURSES: Course[] = [
     format: 'Bootcamp',
     level: 'Beginner',
     weeks: 8,
+    price: 4500,
     hoursPerWeek: 8,
     audiences: ['career-switchers', 'employees'],
     skills: ['Test case design', 'Bug reports', 'API testing', 'SQL', 'Regression testing'],
@@ -202,6 +210,7 @@ export const COURSES: Course[] = [
     format: 'Course',
     level: 'Intermediate',
     weeks: 6,
+    price: 4000,
     hoursPerWeek: 6,
     audiences: ['career-switchers', 'employees'],
     skills: ['React', 'State management', 'TypeScript', 'Accessibility', 'Performance'],
@@ -226,6 +235,7 @@ export const COURSES: Course[] = [
     format: 'Course',
     level: 'Intermediate',
     weeks: 6,
+    price: 4000,
     hoursPerWeek: 6,
     audiences: ['career-switchers', 'employees'],
     skills: ['REST', 'Database design', 'Retries and backoff', 'Idempotency'],
@@ -249,6 +259,7 @@ export const COURSES: Course[] = [
     format: 'Course',
     level: 'Beginner',
     weeks: 5,
+    price: 3750,
     hoursPerWeek: 4,
     audiences: ['career-switchers', 'employees'],
     skills: ['Campaign planning', 'SEO', 'Paid social', 'Email', 'Marketing metrics'],
@@ -271,6 +282,7 @@ export const COURSES: Course[] = [
     format: 'Course',
     level: 'Beginner',
     weeks: 4,
+    price: 3500,
     hoursPerWeek: 4,
     audiences: ['career-switchers', 'employees'],
     skills: ['Prospecting', 'Discovery calls', 'Pipeline management', 'Negotiation'],
@@ -293,6 +305,7 @@ export const COURSES: Course[] = [
     format: 'Course',
     level: 'Beginner',
     weeks: 4,
+    price: 3500,
     hoursPerWeek: 3,
     audiences: ['employees', 'career-switchers'],
     skills: ['Scoping', 'Planning', 'Risk management', 'Stakeholder updates', 'Agile'],
@@ -315,6 +328,7 @@ export const COURSES: Course[] = [
     format: 'Course',
     level: 'Beginner',
     weeks: 4,
+    price: 3500,
     hoursPerWeek: 3,
     audiences: ['career-switchers', 'employees'],
     skills: ['Financial statements', 'Ratios', 'Cash flow', 'Budgeting'],
@@ -337,6 +351,7 @@ export const COURSES: Course[] = [
     format: 'Course',
     level: 'Intermediate',
     weeks: 3,
+    price: 3000,
     hoursPerWeek: 4,
     audiences: ['career-switchers'],
     skills: ['Structuring', 'Market sizing', 'Chart reading', 'Recommendations'],

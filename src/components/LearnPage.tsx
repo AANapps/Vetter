@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ArrowRight, BadgeCheck, Briefcase, Building2, Clock, Repeat, TrendingUp } from 'lucide-react';
-import { COURSES, Course, courseHours, courseLessons } from '../data/courses';
+import { COURSES, Course, courseHours, courseLessons, coursePriceLabel } from '../data/courses';
 import { CourseProgress } from '../lib/courseProgress';
 
 // Two ways in: switching to a new career, or upskilling in the job you have
@@ -42,7 +42,7 @@ const TRACKS: Record<
     label: 'Career switch',
     title: 'Switch to a career you want',
     intro:
-      "Bootcamps and courses for changing careers, whatever you do now. Each one ends in a Vetter test, so you finish with a verified score companies hire on, and you don't need the experience on your CV.",
+      "Bootcamps and courses for changing careers, whatever you do now. Each one ends in a Vetter test, so you finish with a verified score companies hire on, and you don't need the experience on your CV. Sign up for one and we'll contact you to talk it through.",
     audience: 'career-switchers',
   },
   upskill: {
@@ -63,8 +63,6 @@ export const percentDone = (course: Course, progress: CourseProgress) => {
 };
 
 export const CourseCard: React.FC<{ course: Course; progress: CourseProgress; onOpen: () => void }> = ({ course, progress, onOpen }) => {
-  const started = !!progress[course.id];
-  const pct = percentDone(course, progress);
   return (
     <button
       onClick={onOpen}
@@ -77,6 +75,7 @@ export const CourseCard: React.FC<{ course: Course; progress: CourseProgress; on
       </div>
       <h3 className="mt-2 text-lg font-bold text-slate-900 group-hover:text-indigo-700">{course.title}</h3>
       <p className="mt-1 text-sm text-slate-600 flex-1">{course.tagline}</p>
+      <p className="mt-3 text-base font-bold text-slate-900">{coursePriceLabel(course)}</p>
       <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
         <span className="inline-flex items-center gap-1">
           <Clock className="w-3.5 h-3.5" />
@@ -88,14 +87,6 @@ export const CourseCard: React.FC<{ course: Course; progress: CourseProgress; on
           {course.testIds.length} verified {course.testIds.length === 1 ? 'test' : 'tests'}
         </span>
       </div>
-      {started && (
-        <div className="mt-4">
-          <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
-            <div className="h-full bg-indigo-600" style={{ width: `${pct}%` }} />
-          </div>
-          <span className="mt-1 block text-[11px] font-semibold text-indigo-700">{pct}% done</span>
-        </div>
-      )}
     </button>
   );
 };

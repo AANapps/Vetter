@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { BackButton } from './BackButton';
 import { BadgeCheck, BookOpen, Briefcase, Building2, Check, ChevronDown, Clock, FlaskConical, Hammer, PlayCircle, Target, Users } from 'lucide-react';
 import { AssessmentTest, JobPosting, User } from '../types';
-import { COURSES, Course, LessonKind, courseHours, courseLessons } from '../data/courses';
+import { COURSES, Course, LessonKind, courseHours, coursePriceLabel, courseLessons } from '../data/courses';
+import { CourseSignupDialog } from './CourseSignupDialog';
 import { CourseProgress } from '../lib/courseProgress';
-import { CourseCard, percentDone } from './LearnPage';
+import { CourseCard } from './LearnPage';
 
 interface CoursePageProps {
   course: Course;
@@ -12,9 +13,9 @@ interface CoursePageProps {
   jobs: JobPosting[];
   // The signed-in candidate, to show their scores on the course's tests
   candidate?: User;
+  // The signed-in account, saved with a sign-up
+  uid?: string;
   progress: CourseProgress;
-  onEnroll: () => void;
-  onToggleLesson: (key: string) => void;
   onOpenTest: (testId: string) => void;
   onOpenJob: (jobId: string) => void;
   onOpenCourse: (courseId: string) => void;
@@ -38,18 +39,15 @@ export const CoursePage: React.FC<CoursePageProps> = ({
   tests,
   jobs,
   candidate,
+  uid,
   progress,
-  onEnroll,
-  onToggleLesson,
   onOpenTest,
   onOpenJob,
   onOpenCourse,
   onTrainTeam,
   onBack,
 }) => {
-  const enrolled = progress[course.id];
-  const done = new Set(enrolled?.done ?? []);
-  const pct = percentDone(course, progress);
+  const [signingUp, setSigningUp] = useState(false);
   const lessons = courseLessons(course);
   const [openModules, setOpenModules] = useState<Set<number>>(() => new Set([0]));
   const courseTests = course.testIds.flatMap((id) => tests.filter((t) => t.id === id));
@@ -57,7 +55,6 @@ export const CoursePage: React.FC<CoursePageProps> = ({
     .filter((j) => j.status === 'active' && course.jobKeywords.some((k) => j.title.toLowerCase().includes(k)))
     .slice(0, 3);
   const others = COURSES.filter((c) => c.id !== course.id && c.category === course.category).slice(0, 3);
-  const nextLesson = lessons.find((l) => !done.has(l.key));
 
   const toggleModule = (i: number) =>
     setOpenModules((prev) => {
@@ -95,9 +92,11 @@ export const CoursePage: React.FC<CoursePageProps> = ({
               </div>
             </div>
 
-            {/* Enrol, or where you're up to */}
+            {/* Price and sign-up: no checkout, the Vetter team contacts each person */}
             <div className="rounded-2xl bg-white text-slate-900 p-6 shadow-xl">
-              <dl className="grid grid-cols-2 gap-4 text-sm">
+              <p className="text-3xl font-extrabold tracking-tight">{coursePriceLabel(course)}</p>
+              <p className="mt-1 text-xs text-slate-500">Sign up and we'll contact you about start dates and payment.</p>
+              <dl className="mt-5 pt-5 border-t border-slate-200 grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <dt className="text-xs text-slate-500">Length</dt>
                   <dd className="font-bold">{course.weeks} weeks</dd>
@@ -118,27 +117,9 @@ export const CoursePage: React.FC<CoursePageProps> = ({
               <p className="mt-4 flex items-center gap-1.5 text-xs text-slate-500">
                 <Users className="w-3.5 h-3.5" /> For {course.audiences.map((a) => AUDIENCE_LABELS[a].toLowerCase()).join(' and ')}
               </p>
-              {enrolled ? (
-                <div className="mt-5">
-                  <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
-                    <div className="h-full bg-indigo-600 transition-all" style={{ width: `${pct}%` }} />
-                  </div>
-                  <p className="mt-2 text-xs font-semibold text-indigo-700">
-                    {pct}% done · {done.size} of {lessons.length} lessons
-                  </p>
-                  {nextLesson ? (
-                    <p className="mt-3 text-sm text-slate-600">
-                      Next: <span className="font-semibold text-slate-900">{nextLesson.title}</span>
-                    </p>
-                  ) : (
-                    <p className="mt-3 text-sm font-semibold text-emerald-700">All lessons done. Take the tests below to get verified.</p>
-                  )}
-                </div>
-              ) : (
-                <button onClick={onEnroll} className="mt-5 w-full py-3 rounded-full bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700">
-                  Start learning, free
-                </button>
-              )}
+              <button onClick={() => setSigningUp(true)} className="mt-5 w-full py-3 rounded-full bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700">
+                Sign up
+              </button>
               <button onClick={onTrainTeam} className="mt-3 w-full inline-flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900">
                 <Building2 className="w-3.5 h-3.5" /> Enrol your team
               </button>
@@ -171,17 +152,10 @@ export const CoursePage: React.FC<CoursePageProps> = ({
             <ol className="mt-4 rounded-2xl border border-slate-200 divide-y divide-slate-200 overflow-hidden">
               {course.modules.map((m, mi) => {
                 const isOpen = openModules.has(mi);
-                const moduleDone = m.lessons.every((_, li) => done.has(`${mi}.${li}`));
                 return (
                   <li key={m.title}>
                     <button onClick={() => toggleModule(mi)} aria-expanded={isOpen} className="w-full flex items-start gap-3 p-4 text-left hover:bg-slate-50">
-                      <span
-                        className={`w-7 h-7 shrink-0 rounded-full flex items-center justify-center text-xs font-bold ${
-                          moduleDone && enrolled ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600'
-                        }`}
-                      >
-                        {moduleDone && enrolled ? <Check className="w-4 h-4" /> : mi + 1}
-                      </span>
+                      <span className="w-7 h-7 shrink-0 rounded-full flex items-center justify-center text-xs font-bold bg-slate-100 text-slate-600">{mi + 1}</span>
                       <span className="flex-1 min-w-0">
                         <span className="block font-semibold text-slate-900">{m.title}</span>
                         <span className="block text-xs text-slate-500 mt-0.5">{m.summary}</span>
@@ -193,25 +167,12 @@ export const CoursePage: React.FC<CoursePageProps> = ({
                         {m.lessons.map((l, li) => {
                           const key = `${mi}.${li}`;
                           const Icon = LESSON_ICONS[l.kind];
-                          const isDone = done.has(key);
                           return (
                             <li key={key} className="flex items-center gap-3 pl-14 pr-4 py-2">
                               <Icon className="w-4 h-4 text-slate-400 shrink-0" />
-                              <span className={`flex-1 min-w-0 text-sm ${isDone ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{l.title}</span>
+                              <span className="flex-1 min-w-0 text-sm text-slate-700">{l.title}</span>
                               <span className="text-[11px] text-slate-400 capitalize hidden sm:inline">{l.kind}</span>
                               <span className="text-[11px] text-slate-400 tabular-nums w-12 text-right">{minutesLabel(l.minutes)}</span>
-                              {enrolled && (
-                                <button
-                                  onClick={() => onToggleLesson(key)}
-                                  aria-label={isDone ? `Mark ${l.title} not done` : `Mark ${l.title} done`}
-                                  aria-pressed={isDone}
-                                  className={`w-5 h-5 shrink-0 rounded border flex items-center justify-center ${
-                                    isDone ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-slate-300 hover:border-indigo-500'
-                                  }`}
-                                >
-                                  {isDone && <Check className="w-3.5 h-3.5" />}
-                                </button>
-                              )}
                             </li>
                           );
                         })}
@@ -302,6 +263,7 @@ export const CoursePage: React.FC<CoursePageProps> = ({
           )}
         </aside>
       </div>
+      {signingUp && <CourseSignupDialog course={course} candidate={candidate} uid={uid} onClose={() => setSigningUp(false)} />}
     </div>
   );
 };

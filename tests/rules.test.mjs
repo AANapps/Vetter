@@ -5,7 +5,7 @@ const root = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const env = { VITE_FIREBASE_API_KEY: 'demo-key', VITE_FIREBASE_AUTH_DOMAIN: 'demo-vetter.firebaseapp.com', VITE_FIREBASE_PROJECT_ID: 'demo-vetter', VITE_FIREBASE_APP_ID: 'demo-app', VITE_FIREBASE_EMULATORS: 'true' };
 const define = Object.fromEntries(Object.entries(env).map(([k, v]) => [`import.meta.env.${k}`, JSON.stringify(v)]));
 const { A, F, P, C } = (await runnerImport(`${root}/tests/rulesEntry.ts`, { configFile: false, root, define, logLevel: 'silent' })).module;
-const { doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, collection, collectionGroup, query, where, increment } = (await runnerImport('firebase/firestore', { configFile: false, root, logLevel: 'silent' })).module;
+const { doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, collection, collectionGroup, query, where, increment, addDoc, serverTimestamp } = (await runnerImport('firebase/firestore', { configFile: false, root, logLevel: 'silent' })).module;
 const PROJECT = 'demo-vetter';
 let pass = 0, fail = 0;
 const check = async (name, fn, shouldWork) => {
@@ -171,6 +171,14 @@ console.log('    status:', (await account(mo)).status);
 await check('cannot approve their own review', () => updateDoc(doc(db, 'companies', `review-${mo}`), { status: 'active' }), false);
 await A.signOut();
 
+console.log('Course sign-ups (signed out)');
+const signup = { courseId: 'data-analysis-bootcamp', courseTitle: 'Data Analysis Bootcamp', price: 5000, name: 'Sam', email: 'sam@example.com', phone: '+44 7700 900123', note: '' };
+await check('signs up with email and phone', () => addDoc(collection(db, 'courseSignups'), { ...signup, createdAt: serverTimestamp() }), true);
+await check('cannot sign up without a phone', () => { const { phone, ...rest } = signup; return addDoc(collection(db, 'courseSignups'), { ...rest, createdAt: serverTimestamp() }); }, false);
+await check('cannot sign up with a bad email', () => addDoc(collection(db, 'courseSignups'), { ...signup, email: 'not-an-email', createdAt: serverTimestamp() }), false);
+await check('cannot claim to be someone signed in', () => addDoc(collection(db, 'courseSignups'), { ...signup, uid: 'someone', createdAt: serverTimestamp() }), false);
+await check('cannot read sign-ups', () => getDocs(collection(db, 'courseSignups')), false);
+
 console.log('Vetter team');
 // Admins are made by hand in the Firebase console; here, through the emulator's rule-free access
 await fetch(`http://127.0.0.1:8080/v1/projects/${PROJECT}/databases/(default)/documents/users/${cara}?updateMask.fieldPaths=role`, {
@@ -180,6 +188,7 @@ await A.signIn('cara@gmail.com', 'password123');
 const queue = await A.companiesInReview();
 console.log('    review queue:', queue.map((c) => c.name).join(', '));
 await check('admin approves Mo', () => A.decideCompany(queue[0], true), true);
+await check('admin reads course sign-ups', async () => { if ((await getDocs(collection(db, 'courseSignups'))).size !== 1) throw new Error('missing'); }, true);
 console.log('    Mo now:', (await account(mo)).status);
 await A.signOut();
 

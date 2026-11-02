@@ -972,9 +972,8 @@ export default function App() {
               tests={tests}
               jobs={jobs}
               candidate={activeRole === 'candidate' && !isVisitor ? candidate : undefined}
+              uid={account?.uid}
               progress={courseProgress.progress}
-              onEnroll={() => requireAccount('Create a free account to start this course and track your progress.', () => courseProgress.enroll(coursePage.id))}
-              onToggleLesson={(key) => courseProgress.toggleLesson(coursePage.id, key)}
               onOpenTest={openTestPage}
               onOpenJob={openJobPage}
               onOpenCourse={openCoursePage}
