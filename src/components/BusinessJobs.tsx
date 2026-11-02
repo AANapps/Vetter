@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { AssessmentTest, Business, JobPosting, TrialResult, User } from '../types';
 import { JobDetailsModal } from './JobDetails';
+import { TIERS, tiersOf } from '../lib/tiers';
 import { calculateCandidateJobMatch } from '../lib/matchingAlgorithm';
 import {
   TRACKING_LABELS,
@@ -379,12 +380,16 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
   const funnel = jobFunnel(job, rows, candidates);
   const jobTests = jobTestsOf(job, tests);
   const shown = filter === 'all' ? rows : rows.filter((r) => r.status === filter);
+  // Everyone's tier by their overall score, from the whole list so a filter doesn't move anyone
+  const tiers = tiersOf(rows, (r) => r.progress.score);
+  const columns = 5 + jobTests.length + (jobTests.length > 1 ? 1 : 0);
   const accountEmails = new Set(candidates.map((c) => c.email.toLowerCase()));
   const pendingEmails = (job.invitedEmails ?? []).filter((e) => !accountEmails.has(e));
 
   const downloadCsv = () => {
-    const header = ['Name', 'Email', 'Got it by', 'Status', ...jobTests.map((t) => versionTitle(t)), 'Overall', 'Minutes', 'Last activity'];
+    const header = ['Tier', 'Name', 'Email', 'Got it by', 'Status', ...jobTests.map((t) => versionTitle(t)), 'Overall', 'Minutes', 'Last activity'];
     const lines = rows.map((r) => [
+      TIERS[tiers.get(r)!].label,
       r.candidate.name,
       r.candidate.email,
       VIA_LABELS[r.invitation.via ?? 'invite'],
@@ -524,7 +529,10 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
 
       <section className="bg-white border border-slate-200 rounded-xl overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center gap-3">
-          <h2 className="text-base font-bold text-slate-900">Candidates</h2>
+          <div>
+            <h2 className="text-base font-bold text-slate-900">Candidates</h2>
+            <p className="text-[11px] text-slate-500">In tiers by overall score: the top quarter, the next two, then the rest.</p>
+          </div>
           <div className="flex flex-wrap gap-1.5 sm:ml-4">
             {FILTERS.map((f) => {
               const count = f.id === 'all' ? rows.length : rows.filter((r) => r.status === f.id).length;
@@ -573,10 +581,31 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {shown.map((r) => {
+                {shown.map((r, i) => {
                   const place = r.progress.score !== undefined ? rows.indexOf(r) + 1 : undefined;
+                  const tier = tiers.get(r)!;
+                  const startsTier = i === 0 || tiers.get(shown[i - 1]) !== tier;
+                  const inTier = shown.filter((x) => tiers.get(x) === tier);
+                  const scores = inTier.map((x) => x.progress.score).filter((s): s is number => s !== undefined);
                   return (
-                    <tr key={r.candidate.id} className="hover:bg-slate-50/70">
+                    <React.Fragment key={r.candidate.id}>
+                    {startsTier && (
+                      <tr className={TIERS[tier].soft}>
+                        <td colSpan={columns} className="px-5 py-2">
+                          <span className="flex items-center gap-2">
+                            <span className={`w-2 h-2 rounded-full ${TIERS[tier].tone}`} aria-hidden="true" />
+                            <span className={`font-bold ${TIERS[tier].text}`}>{TIERS[tier].label}</span>
+                            <span className="text-slate-500">
+                              {inTier.length} {inTier.length === 1 ? 'candidate' : 'candidates'}
+                              {scores.length > 0 &&
+                                ` · ${Math.min(...scores) === Math.max(...scores) ? `scored ${scores[0]}` : `scores ${Math.min(...scores)}–${Math.max(...scores)}`}`}
+                              {scores.length < inTier.length && ` · ${inTier.length - scores.length} not finished`}
+                            </span>
+                          </span>
+                        </td>
+                      </tr>
+                    )}
+                    <tr className="hover:bg-slate-50/70">
                       <td className="px-5 py-3 font-mono text-slate-400 tabular-nums">{place ?? '–'}</td>
                       <td className="px-2 py-3">
                         <button onClick={() => onOpenPerson(r.candidate.id)} className="flex items-center gap-2.5 text-left group">
@@ -627,6 +656,7 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
                           : '–'}
                       </td>
                     </tr>
+                    </React.Fragment>
                   );
                 })}
               </tbody>
