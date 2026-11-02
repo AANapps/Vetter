@@ -14,6 +14,8 @@ interface TestBuilderProps {
   initial?: AssessmentTest;
   // A new test to start from, such as one Vetter's AI wrote; saved as a new test
   draft?: AssessmentTest;
+  // The draft is a copy of an existing test, not something the AI wrote
+  isCopy?: boolean;
   onSave: (test: AssessmentTest) => void;
   // Keeps the test as a draft, unfinished questions and all, to come back to
   onSaveDraft?: (test: AssessmentTest) => void | Promise<unknown>;
@@ -26,7 +28,7 @@ const CATEGORIES = Object.keys(SKILL_IDS) as SkillCategory[];
 type Selection = 'details' | number;
 
 // Writing a test: its details, then questions in any mix of styles, tried out as a candidate before saving
-export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, draft, onSave, onSaveDraft, onCancel }) => {
+export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, draft, isCopy, onSave, onSaveDraft, onCancel }) => {
   const isVetter = !business;
   const source = initial ?? draft;
   const [title, setTitle] = useState(source?.title ?? '');
@@ -124,7 +126,7 @@ export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, dra
             <X className="w-5 h-5" />
           </button>
           <div className="min-w-0">
-            <h1 className="text-sm font-bold truncate">{initial ? `Edit ${initial.title}` : draft ? 'Review the AI draft' : 'New test'}</h1>
+            <h1 className="text-sm font-bold truncate">{initial ? `Edit ${initial.title}` : draft ? (isCopy ? `Your copy of ${draft.title}` : 'Review the AI draft') : 'New test'}</h1>
             <p className="text-[11px] text-slate-500 truncate">
               {business ? `For ${business.name}'s jobs` : 'For the Vetter test library, open to every candidate'} &middot; {questions.length}{' '}
               {questions.length === 1 ? 'question' : 'questions'} &middot; ~{minutes} min

@@ -227,7 +227,8 @@ service cloud.firestore {
       // told it's joining an existing one
       allow read: if resource.data.status == 'active' || signedIn();
 
-      allow create: if signedIn() && verified() && request.resource.data.ownerUid == uid() && (
+      // The plan is set by the Vetter team only, never by the company that pays for it
+      allow create: if signedIn() && verified() && request.resource.data.ownerUid == uid() && !('plan' in request.resource.data) && (
         // A company's id is its email domain, claimed only by a verified address at that domain
         (companyId == emailDomain() && !(emailDomain() in freeDomains())
           && request.resource.data.domain == companyId && request.resource.data.status == 'active')

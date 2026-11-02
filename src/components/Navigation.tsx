@@ -11,6 +11,7 @@ export type AppTab =
   | 'companies'
   | 'learn'
   | 'upskill'
+  | 'business-home'
   | 'business-jobs'
   | 'business-tests'
   | 'business-candidates'
@@ -28,6 +29,7 @@ export const NAV_TABS: Record<'candidate' | 'recruiter', { id: AppTab; label: st
     { id: 'upskill', label: 'Upskill', icon: TrendingUp },
   ],
   recruiter: [
+    { id: 'business-home', label: 'Home', icon: House },
     { id: 'business-jobs', label: 'Your jobs', icon: Briefcase },
     { id: 'business-tests', label: 'Tests', icon: ClipboardCheck },
     { id: 'business-candidates', label: 'Candidates', icon: Users },

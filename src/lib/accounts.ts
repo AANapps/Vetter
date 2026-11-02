@@ -49,6 +49,8 @@ export interface Company {
   // Only for the Vetter team's review queue, from the owner's account; companies' records are public, so it isn't kept there
   ownerEmail?: string;
   status: 'active' | 'pending-review' | 'rejected';
+  // The plan it pays for, set by the Vetter team
+  plan?: 'free' | 'per-job' | 'growth' | 'scale';
 }
 
 export interface MemberRequest {

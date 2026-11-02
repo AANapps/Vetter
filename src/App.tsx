@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { User, UserRole, AssessmentTest, JobPosting, Business, SocialState, AppNotification, JobInvitation, Lead, TestDraft, TrialResult } from './types';
+import { User, UserRole, AssessmentTest, JobPosting, Business, SocialState, AppNotification, JobInvitation, Lead, TestDraft, TrialResult, hasAiTests } from './types';
 import { INITIAL_RECRUITER, INITIAL_BUSINESSES, STANDARD_ASSESSMENTS } from './data/mockData';
 import { loadData, saveData, clearData, createSeedData } from './lib/store';
 import { getPercentile } from './lib/leaderboard';
@@ -44,6 +44,9 @@ import { LearnPage } from './components/LearnPage';
 import { CoursePage } from './components/CoursePage';
 import { COURSES, courseIdFromPath, coursePath, isLearnIndexPath, isUpskillIndexPath } from './data/courses';
 import { useCourseProgress } from './lib/courseProgress';
+import { BusinessHome } from './components/BusinessHome';
+import { PlansDialog } from './components/PlansDialog';
+import { AdvisorTurn } from './lib/testAdvisor';
 
 const CANDIDATE_SECTIONS: Partial<Record<AppTab, CandidateSection>> = {
   profile: 'profile',
@@ -120,6 +123,7 @@ const TAB_PATHS: Record<AppTab, string> = {
   companies: '/companies/',
   learn: '/learn/',
   upskill: '/upskill/',
+  'business-home': '/business/',
   'business-jobs': '/business/jobs/',
   'business-tests': '/business/tests/',
   'business-candidates': '/business/candidates/',
@@ -135,7 +139,7 @@ const businessJobIdFromPath = () => {
 // The pages each side has; companies is on both
 const SIDE_TABS: Record<'candidate' | 'staff', AppTab[]> = {
   candidate: ['home', 'tests', 'jobs', 'learn', 'upskill', 'profile', 'companies', 'for-business'],
-  staff: ['business-jobs', 'business-tests', 'business-candidates', 'companies'],
+  staff: ['business-home', 'business-jobs', 'business-tests', 'business-candidates', 'companies'],
 };
 const sideOf = (role: UserRole) => (role === 'candidate' ? 'candidate' : 'staff');
 
@@ -190,6 +194,7 @@ export default function App() {
           websiteUrl: company.website,
           description: '',
           techStack: [],
+          ...(company.plan && { plan: company.plan }),
         }
       : undefined;
   const recruiter: User =
@@ -380,7 +385,12 @@ export default function App() {
   // Asking Vetter's AI for tests, for a job or on their own; and the builder opened on what it wrote
   // seed: a first message ready to send, e.g. to rebuild a library test in depth
   const [generator, setGenerator] = useState<{ jobId?: string; resume?: TestDraft; seed?: string } | null>(null);
-  const [draftBuilder, setDraftBuilder] = useState<{ draft: AssessmentTest; jobId?: string; alsoAdd: string[]; record?: TestDraft } | null>(null);
+  // draft: what the builder starts from; none for a blank test written by hand
+  const [draftBuilder, setDraftBuilder] = useState<{ draft?: AssessmentTest; isCopy?: boolean; jobId?: string; alsoAdd: string[]; record?: TestDraft } | null>(null);
+  // The company home's chat with Vetter, kept while moving between pages
+  const [advisorTurns, setAdvisorTurns] = useState<AdvisorTurn[]>([]);
+  // Plans, shown when AI test creation is asked for without one
+  const [plansOpen, setPlansOpen] = useState(false);
   // What the candidate's Tests page is narrowed to, e.g. a field picked on Home
   const [testField, setTestField] = useState<TestField | null>(null);
   // Opened from search
@@ -389,6 +399,9 @@ export default function App() {
 
   // None while a new company is still being set up
   const recruiterBusiness: Business | undefined = businesses.find((b) => b.id === recruiter.businessId);
+  // Tests written by AI come with a paid plan; the Vetter team always has them. Everything else is free
+  const aiAllowed = activeRole === 'admin' || hasAiTests(recruiterBusiness);
+  const openGenerator = (g: { jobId?: string; resume?: TestDraft; seed?: string }) => (aiAllowed ? setGenerator(g) : setPlansOpen(true));
 
   // A signed-in account sees its own side of Vetter; the Vetter team keeps the view switcher
   // Once it's known who's looking, the address is checked against their side: another side's page sends them to their own
@@ -1102,6 +1115,39 @@ export default function App() {
             />
           )}
 
+          {!detailPage && activeRole !== 'candidate' && currentTab === 'business-home' && (
+            <BusinessHome
+              business={activeRole === 'admin' ? undefined : recruiterBusiness}
+              jobs={activeRole === 'admin' ? jobs : jobs.filter((j) => j.businessId === recruiterBusiness?.id)}
+              tests={tests}
+              ownTestCount={tests.filter((t) => (activeRole === 'admin' ? t.type === 'standard' : t.type === 'custom' && t.businessId === recruiterBusiness?.id)).length}
+              draftCount={testDrafts.filter((d) => d.businessId === (activeRole === 'admin' ? '' : recruiterBusiness?.id)).length}
+              aiAllowed={aiAllowed}
+              planName={
+                activeRole === 'admin'
+                  ? 'Vetter team'
+                  : hasAiTests(recruiterBusiness)
+                  ? `${recruiterBusiness!.plan!.replace('-', ' ').replace(/^./, (c) => c.toUpperCase())} plan`
+                  : 'Free plan'
+              }
+              turns={advisorTurns}
+              onTurns={setAdvisorTurns}
+              onUseTest={(test) => {
+                const ours = activeRole === 'admin' ? jobs : jobs.filter((j) => j.businessId === recruiterBusiness?.id);
+                if (ours.length === 0) {
+                  showToast(`Post a job first, then add "${test.title}" to it.`);
+                  goToTab('business-jobs');
+                } else setEditingTests({ addTestIds: [test.id] });
+              }}
+              onEditCopy={(test) => setDraftBuilder({ draft: test, isCopy: true, alsoAdd: [] })}
+              onBuildWithAI={(brief) => openGenerator(brief ? { seed: brief } : {})}
+              onCreateOwn={() => setDraftBuilder({ alsoAdd: [] })}
+              onSeePlans={() => setPlansOpen(true)}
+              onOpenTest={openTestPage}
+              onGoTo={goToTab}
+            />
+          )}
+
           {!detailPage && activeRole !== 'candidate' && currentTab === 'business-jobs' && (
             <BusinessJobs
               key={activeRole}
@@ -1114,7 +1160,7 @@ export default function App() {
               onSelect={openBusinessJob}
               onCreateJob={handleCreateJob}
               onEditTests={(jobId) => setEditingTests({ jobId, addTestIds: [] })}
-              onSuggestTests={(jobId) => setGenerator({ jobId })}
+              onSuggestTests={(jobId) => openGenerator({ jobId })}
               onUpdateJobRequirements={handleUpdateJobRequirements}
               onEmail={handleEmailJob}
               onInvite={handleInviteToJob}
@@ -1154,11 +1200,11 @@ export default function App() {
                 setJobs((prev) => prev.map((j) => (j.testIds.includes(testId) ? { ...j, testIds: j.testIds.filter((id) => id !== testId) } : j)));
                 if (test) showToast(`${test.title} deleted.`);
               }}
-              onGenerateTest={(seed) => setGenerator({ seed })}
+              onGenerateTest={(seed) => openGenerator({ seed })}
               drafts={visibleDrafts}
               onSaveDraft={saveTestDraft}
               onDeleteDraft={deleteTestDraft}
-              onContinueDraft={(d) => setGenerator({ jobId: d.jobId, resume: d })}
+              onContinueDraft={(d) => openGenerator({ jobId: d.jobId, resume: d })}
               onEditDraftByHand={(d) => setDraftBuilder({ draft: d.test, jobId: d.jobId, alsoAdd: [], record: d })}
               leads={
                 <LeadsPage
@@ -1190,6 +1236,8 @@ export default function App() {
       </div>
 
       {authDialog && <AuthDialog initialMode={authDialog.mode} reason={authDialog.reason} initialRole={authDialog.role} onClose={() => setAuthDialog(null)} />}
+
+      {plansOpen && <PlansDialog onClose={() => setPlansOpen(false)} />}
 
       {editingTests && (
         <JobTestsEditor
@@ -1235,6 +1283,7 @@ export default function App() {
         <TestBuilder
           business={testOwnerFor(draftBuilder.jobId)}
           draft={draftBuilder.draft}
+          isCopy={draftBuilder.isCopy}
           onSaveDraft={async (test) => {
             const base = draftBuilder.record;
             const record = base ? { ...base, test } : { id: `draft-${Date.now()}`, businessId: testOwnerFor(draftBuilder.jobId)?.id ?? '', ...(draftBuilder.jobId && { jobId: draftBuilder.jobId }), test, updatedAt: '' };

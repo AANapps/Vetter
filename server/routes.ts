@@ -4,6 +4,7 @@ import { testChat } from './testChat.js';
 import { buildApp } from './buildApp.js';
 import { planTest } from './planTest.js';
 import { writeQuestions } from './writeQuestions.js';
+import { testAdvisor } from './testAdvisor.js';
 
 // The AI endpoints, answered by server.ts in production and the Vite dev server in development
 type Env = Record<string, string | undefined>;
@@ -30,6 +31,8 @@ export const API_ROUTES: Record<string, Handler> = {
   '/api/write-questions': logged('write-questions', (body, env) => writeQuestions(body, env.ANTHROPIC_API_KEY, testModel(env))),
   // Each interactive page of a test, built in its own request so a long test fits the host's time limit
   '/api/build-app': logged('build-app', (body, env) => buildApp(body, env.ANTHROPIC_API_KEY, testModel(env))),
+  // The company home's chat recommends tests and plans; it writes nothing, so a quicker model is enough by default
+  '/api/test-advisor': logged('test-advisor', (body, env) => testAdvisor(body, env.ANTHROPIC_API_KEY, env.ADVISOR_MODEL || 'claude-sonnet-5-5')),
   // Marking can use its own model; by default the same one
   '/api/grade-answers': logged('grade-answers', (body, env) => gradeAnswers(body, env.ANTHROPIC_API_KEY, env.GRADING_MODEL || testModel(env))),
 };

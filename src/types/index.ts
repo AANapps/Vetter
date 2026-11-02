@@ -271,7 +271,13 @@ export interface Business {
   websiteUrl: string;
   description: string;
   techStack: string[];
+  // The plan it pays for; unset or 'free' has no AI test creation. Only the Vetter team sets it
+  plan?: BusinessPlan;
 }
+
+export type BusinessPlan = 'free' | 'per-job' | 'growth' | 'scale';
+// AI-written tests and simulations come with any paid plan
+export const hasAiTests = (business?: Business) => !!business?.plan && business.plan !== 'free';
 
 export interface JobRequirement {
   skillId: string;
