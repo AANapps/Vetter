@@ -60,6 +60,57 @@
   .pulse-core { animation: none; }
 }
 
+/* The company home's chat: a faint drifting colour wash behind glass, and a slowly turning multicolour border on the
+   message box that brightens when typing and speeds up while Vetter is thinking */
+@property --ai-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+@keyframes ai-spin { to { --ai-angle: 360deg; } }
+@keyframes ai-drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(4%, -3%) scale(1.08); }
+  66% { transform: translate(-3%, 4%) scale(0.95); }
+}
+@keyframes ai-shimmer { to { background-position: -200% 0; } }
+.ai-aurora {
+  position: absolute; inset: 0; z-index: -1; pointer-events: none; overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, #000 60%, transparent); mask-image: linear-gradient(to bottom, #000 60%, transparent);
+}
+.ai-aurora span {
+  position: absolute; width: 42vw; height: 42vw; max-width: 620px; max-height: 620px; border-radius: 9999px;
+  filter: blur(90px); opacity: 0.16; animation: ai-drift 22s ease-in-out infinite;
+}
+.ai-aurora span:nth-child(1) { background: #5b8def; top: -10%; left: 10%; }
+.ai-aurora span:nth-child(2) { background: #a66cf0; top: 20%; right: 0; animation-delay: -7s; animation-duration: 26s; }
+.ai-aurora span:nth-child(3) { background: #f07fb4; bottom: -15%; left: 30%; animation-delay: -14s; opacity: 0.11; }
+.ai-aurora span:nth-child(4) { background: #3fc6c0; bottom: 0; left: -10%; animation-delay: -4s; animation-duration: 30s; opacity: 0.1; }
+.ai-ring {
+  --ai-colors: #4f8bf5, #9b6cf6, #ec6fae, #f5a35b, #3fc6c0, #4f8bf5;
+  position: relative; border-radius: 1.25rem; padding: 1.5px;
+  background: conic-gradient(from var(--ai-angle), var(--ai-colors));
+  animation: ai-spin 8s linear infinite;
+}
+.ai-ring::before {
+  content: ''; position: absolute; inset: -6px; z-index: -1; border-radius: inherit;
+  background: conic-gradient(from var(--ai-angle), var(--ai-colors));
+  filter: blur(14px); opacity: 0.12; transition: opacity 0.3s;
+}
+.ai-ring:focus-within::before { opacity: 0.22; }
+.ai-ring[data-busy='true'] { animation-duration: 2.2s; }
+.ai-ring[data-busy='true']::before { opacity: 0.28; }
+.ai-glass { background: rgba(255, 255, 255, 0.72); backdrop-filter: blur(18px) saturate(1.4); -webkit-backdrop-filter: blur(18px) saturate(1.4); }
+.ai-glass-solid { background: rgba(255, 255, 255, 0.96); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); }
+.ai-mark { background: conic-gradient(from var(--ai-angle), #4f8bf5, #9b6cf6, #ec6fae, #4f8bf5); animation: ai-spin 6s linear infinite; }
+.ai-shimmer {
+  background: linear-gradient(90deg, #64748b 0%, #9b6cf6 25%, #4f8bf5 50%, #64748b 75%); background-size: 200% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent; animation: ai-shimmer 2.4s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-aurora span, .ai-ring, .ai-mark, .ai-shimmer { animation: none; }
+}
+
 @layer base {
   html, body {
     background-color: #ffffff;

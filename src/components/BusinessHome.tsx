@@ -82,6 +82,14 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
   ];
 
   return (
+    <div className="relative isolate">
+      {/* Faint colour drifting behind the glass */}
+      <div className="ai-aurora" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+        <span />
+      </div>
     <div className="max-w-6xl mx-auto px-4 sm:px-6 grid grid-cols-1 lg:grid-cols-[17rem_minmax(0,1fr)] gap-8">
       {/* The chat */}
       <section className="min-w-0 flex flex-col min-h-[calc(100vh-7.5rem)]">
@@ -89,6 +97,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
           {turns.length === 0 ? (
             <div className="pt-10 sm:pt-20 space-y-6 text-center">
               <div className="space-y-2">
+                <span className="ai-mark mx-auto w-11 h-11 rounded-2xl text-white text-lg font-extrabold flex items-center justify-center shadow-lg shadow-indigo-200">V</span>
                 <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">Who are you hiring?</h1>
                 <p className="text-sm text-slate-500 max-w-md mx-auto">
                   Tell Vetter the role and level. You&rsquo;ll get a short plan for testing it, the ready-made tests that fit, and any simulations worth
@@ -100,7 +109,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
                   <button
                     key={s}
                     onClick={() => send(s)}
-                    className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-full hover:border-indigo-300 hover:text-indigo-700 transition-colors"
+                    className="ai-glass px-3 py-1.5 text-xs font-medium text-slate-700 border border-white/80 shadow-xs rounded-full hover:border-indigo-300 hover:text-indigo-700 transition-colors"
                   >
                     {s}
                   </button>
@@ -125,7 +134,9 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
             turns.map((turn, i) =>
               turn.role === 'user' ? (
                 <div key={i} className="flex justify-end">
-                  <p className="max-w-[85%] px-4 py-2.5 bg-indigo-600 text-white text-sm rounded-2xl rounded-br-md whitespace-pre-wrap">{turn.text}</p>
+                  <p className="max-w-[85%] px-4 py-2.5 bg-gradient-to-br from-indigo-600 to-violet-500 text-white text-sm rounded-2xl rounded-br-md whitespace-pre-wrap shadow-md shadow-indigo-200/60">
+                    {turn.text}
+                  </p>
                 </div>
               ) : (
                 <AdvisorReply
@@ -143,8 +154,8 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
           )}
           {thinking && (
             <div className="flex items-center gap-2 text-sm text-slate-500">
-              <span className="w-6 h-6 rounded-md bg-indigo-600 text-white text-[11px] font-extrabold flex items-center justify-center">V</span>
-              <span className="animate-pulse">Looking through the library…</span>
+              <span className="ai-mark w-7 h-7 rounded-lg text-white text-xs font-extrabold flex items-center justify-center">V</span>
+              <span className="ai-shimmer font-medium">Looking through the library…</span>
             </div>
           )}
           <div ref={endRef} />
@@ -155,9 +166,10 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
             e.preventDefault();
             send(input);
           }}
-          className="sticky bottom-16 md:bottom-0 pb-4 pt-2 bg-white"
+          className="sticky bottom-16 md:bottom-0 pb-4 pt-6 bg-gradient-to-t from-white via-white/85 to-transparent"
         >
-          <div className="flex items-end gap-2 p-2 bg-white border border-slate-300 rounded-2xl shadow-sm focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100">
+          <div className="ai-ring" data-busy={thinking}>
+          <div className="ai-glass-solid flex items-end gap-2 p-2 rounded-[calc(1.25rem-1.5px)]">
             <textarea
               ref={inputRef}
               value={input}
@@ -177,12 +189,13 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
               type="submit"
               disabled={!input.trim() || thinking}
               aria-label="Send"
-              className="w-9 h-9 shrink-0 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center disabled:opacity-40"
+              className="w-9 h-9 shrink-0 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-500 hover:brightness-110 text-white flex items-center justify-center disabled:opacity-40"
             >
               <ArrowUp className="w-4 h-4" />
             </button>
           </div>
-          <p className="mt-1.5 text-[11px] text-slate-400 text-center">
+          </div>
+          <p className="mt-2 text-[11px] text-slate-400 text-center">
             Advice is free. {aiAllowed ? 'AI test creation is on your plan.' : 'Creating custom tests with AI needs a subscription.'}
           </p>
         </form>
@@ -190,7 +203,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
 
       {/* The menu, on the left */}
       <aside className="hidden lg:block lg:order-first py-8">
-        <div className="sticky top-20 space-y-5">
+        <div className="ai-glass sticky top-20 space-y-5 p-3 rounded-2xl border border-white/80 shadow-sm">
           <nav aria-label="Company pages" className="space-y-1">
             {menu.map((m) => (
               <button
@@ -249,6 +262,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
         </div>
       </aside>
     </div>
+    </div>
   );
 };
 
@@ -262,8 +276,8 @@ const AdvisorReply: React.FC<{
   onOpenTest: (testId: string) => void;
 }> = ({ turn, aiAllowed, onUseTest, onEditCopy, onBuildWithAI, onSeePlans, onOpenTest }) => (
   <div className="flex gap-3">
-    <span className="w-7 h-7 shrink-0 rounded-lg bg-indigo-600 text-white text-xs font-extrabold flex items-center justify-center">V</span>
-    <div className="min-w-0 flex-1 space-y-4">
+    <span className="ai-mark w-7 h-7 shrink-0 rounded-lg text-white text-xs font-extrabold flex items-center justify-center">V</span>
+    <div className="ai-glass min-w-0 flex-1 space-y-4 p-4 sm:p-5 rounded-2xl rounded-tl-md border border-white/80 shadow-sm">
       <p className={`text-sm leading-relaxed whitespace-pre-wrap ${turn.error ? 'text-rose-700' : 'text-slate-800'}`}>{turn.text}</p>
 
       {!!turn.roadmap?.length && (
