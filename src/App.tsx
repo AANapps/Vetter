@@ -307,10 +307,11 @@ export default function App() {
     if (invitation && !invitation.openedAt) updateInvitation(jobPageId, candidateRef.current.id, { openedAt: new Date().toISOString() });
   }, [jobPageId, activeRole]);
 
-  // Companies opening a job's link land on that job's results
+  // Companies opening a job's link land on that job's results, unless they opened it from the job board
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const fromJobBoard = useRef(false);
   useEffect(() => {
-    if (!jobPageId || activeRole === 'candidate') return;
+    if (!jobPageId || activeRole === 'candidate' || fromJobBoard.current) return;
     setSelectedJobId(jobPageId);
     setCurrentTab('business-jobs');
   }, [jobPageId, activeRole]);
@@ -320,6 +321,8 @@ export default function App() {
   // When a candidate takes one of a job's tests from the job, the job they're applying to
   const [activeTestJobId, setActiveTestJobId] = useState<string | null>(null);
   const [activeTest, setActiveTest] = useState<AssessmentTest | null>(null);
+  // A company or the Vetter team taking a test themselves: a full run, with nothing saved
+  const [practiceTest, setPracticeTest] = useState<AssessmentTest | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   // Asking Vetter's AI for tests, for a job or on their own; and the builder opened on what it wrote
   // seed: a first message ready to send, e.g. to rebuild a library test in depth
@@ -444,7 +447,8 @@ export default function App() {
     ) : firebaseEnabled && user && (!user.emailVerified || !account || account.status !== 'active') ? (
       <AccountGate user={user} account={account} company={company} />
     ) : null;
-  const startTest = (test: AssessmentTest) => requireAccount('Create a free account to take this test and get a verified score.', () => setActiveTest(test));
+  const startTest = (test: AssessmentTest) =>
+    activeRole !== 'candidate' ? setPracticeTest(test) : requireAccount('Create a free account to take this test and get a verified score.', () => setActiveTest(test));
 
   const showToast = (message: string) => {
     setToast(message);
@@ -456,6 +460,7 @@ export default function App() {
     else if (window.location.hash || window.location.pathname !== '/') navigateTo('/' + window.location.search);
     if (tab === 'for-business') history.replaceState(null, '', '/#/business');
     if (tab === 'business-jobs') setSelectedJobId(null);
+    fromJobBoard.current = false;
     setCurrentTab(tab);
   };
 
@@ -478,6 +483,7 @@ export default function App() {
   };
 
   const openJobPage = (jobId: string) => {
+    fromJobBoard.current = activeRole !== 'candidate';
     setCurrentTab('jobs');
     const job = jobs.find((j) => j.id === jobId);
     navigateTo(job ? jobPath(job) : `/jobs/${encodeURIComponent(jobId)}/`);
@@ -642,6 +648,10 @@ export default function App() {
 
   // A candidate starting one of a job's tests from the job: the company sees them on the job from now
   const startJobTest = (test: AssessmentTest, jobId: string) => {
+    if (activeRole !== 'candidate') {
+      setPracticeTest(test);
+      return;
+    }
     if (isVisitor) {
       setAuthDialog({ mode: 'sign-up', reason: 'Create a free account to take this job’s tests and apply.' });
       return;
@@ -857,6 +867,7 @@ export default function App() {
               candidates={allCandidates}
               jobs={jobs}
               viewerRole={activeRole}
+              viewerBusinessId={recruiterBusiness?.id}
               currentCandidateId={activeRole === 'candidate' ? candidate.id : undefined}
               referredByCompany={
                 activeRole === 'candidate'
@@ -865,7 +876,7 @@ export default function App() {
               }
               onSend={activeRole === 'candidate' ? undefined : () => setEditingTests({ addTestIds: [testPageTest.id] })}
               onStartTest={startTest}
-              onOpenJob={activeRole === 'candidate' ? openJobPage : undefined}
+              onOpenJob={openJobPage}
               onOpenTest={openTestPage}
               onBack={() => goToTab(activeRole === 'candidate' ? 'tests' : 'business-tests')}
             />
@@ -903,6 +914,32 @@ export default function App() {
                 if (isVisitor) setAuthDialog({ mode: 'sign-up', reason: 'Create a free account to apply. Your verified scores go with your application.' });
                 return !isVisitor;
               }}
+            />
+          )}
+
+          {/* Companies see the job board as candidates do, and can try any job's tests */}
+          {!detailPage && activeRole !== 'candidate' && currentTab === 'jobs' && (
+            <CandidatePortal
+              key="company-board"
+              section="jobs"
+              companyView
+              onNavigate={(section) => goToTab(section)}
+              candidate={VISITOR}
+              allCandidates={allCandidates}
+              onOpenTest={openTestPage}
+              tests={tests}
+              jobs={jobs}
+              businesses={businesses}
+              onStartTest={startTest}
+              onStartJobTest={startJobTest}
+              onApplyJob={() => {}}
+              onUpdateProfiles={() => {}}
+              onUpdateStudies={() => {}}
+              onDeleteTest={() => {}}
+              jobPageId={jobPageId}
+              onOpenJob={openJobPage}
+              testField={null}
+              onTestFieldChange={() => {}}
             />
           )}
 
@@ -1135,6 +1172,16 @@ export default function App() {
           }}
           onComplete={handleCompleteTest}
           getPercentileFor={(score) => getPercentile(score, activeTest.id, allCandidates, candidate.id)}
+        />
+      )}
+
+      {practiceTest && (
+        <TestRunner
+          test={practiceTest}
+          preview
+          onClose={() => setPracticeTest(null)}
+          onComplete={() => setPracticeTest(null)}
+          getPercentileFor={(score) => getPercentile(score, practiceTest.id, allCandidates, '')}
         />
       )}
 

@@ -14,6 +14,8 @@ interface TestPageProps {
   candidates: User[];
   jobs: JobPosting[];
   viewerRole: UserRole;
+  // The company looking, who can try their own tests as well as Vetter's
+  viewerBusinessId?: string;
   currentCandidateId?: string;
   // The company whose link the candidate came from
   referredByCompany?: Business;
@@ -32,6 +34,7 @@ export const TestPage: React.FC<TestPageProps> = ({
   candidates,
   jobs,
   viewerRole,
+  viewerBusinessId,
   currentCandidateId,
   referredByCompany,
   onSend,
@@ -46,7 +49,11 @@ export const TestPage: React.FC<TestPageProps> = ({
   const yourEntry = leaderboard.find((e) => e.candidate.id === currentCandidateId);
   const usedByJobs = jobs.filter((j) => j.testIds.includes(test.id) && j.status === 'active');
   // Candidates take company tests through the jobs they're attached to, or the company's own link
-  const canStart = viewerRole === 'candidate' && (test.type === 'standard' || referredByCompany?.id === test.businessId);
+  // Companies try Vetter's tests and their own (the Vetter team any test) as practice runs that aren't saved
+  const canStart =
+    viewerRole === 'candidate'
+      ? test.type === 'standard' || referredByCompany?.id === test.businessId
+      : viewerRole === 'admin' || test.type === 'standard' || (!!viewerBusinessId && test.businessId === viewerBusinessId);
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-8 space-y-6">
@@ -115,7 +122,7 @@ export const TestPage: React.FC<TestPageProps> = ({
             >
               <Play className="w-3.5 h-3.5 fill-current" />
               <span>
-                {yourEntry ? 'Retake' : 'Start'} {test.difficulty} test
+                {viewerRole !== 'candidate' ? 'Try' : yourEntry ? 'Retake' : 'Start'} {test.difficulty} test
               </span>
             </button>
           )}

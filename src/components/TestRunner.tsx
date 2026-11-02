@@ -687,7 +687,7 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
                   <h3 className="text-lg font-bold text-slate-900">{preview ? 'Preview finished' : 'Test complete!'}</h3>
                   <p className="text-xs text-slate-500">
                     {preview
-                      ? 'This is how candidates are scored. Nothing is saved.'
+                      ? 'This is how candidates are scored. Your score isn’t saved.'
                       : test.type === 'standard'
                       ? 'Your score is saved to your profile and this test’s leaderboard'
                       : `Your score is saved and shared with ${test.companyName}`}
@@ -774,7 +774,7 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
                 onClick={handleConfirmFinish}
                 className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-lg transition-colors flex items-center justify-center gap-2 shadow-xs"
               >
-                <span>{preview ? 'Back to the builder' : 'Save Result'}</span>
+                <span>{preview ? 'Done' : 'Save Result'}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>

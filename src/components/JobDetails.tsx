@@ -212,7 +212,8 @@ interface JobDetailsProps {
   tests: AssessmentTest[];
   business?: Business;
   isApplied: boolean;
-  onApply: () => void;
+  // Left out when a company is looking: they see the job as candidates do, but can't apply or see a fit
+  onApply?: () => void;
   // One of the job's tests: passing them all can send the application
   onStartJobTest: (test: AssessmentTest) => void;
   onOpenTest: (testId: string) => void;
@@ -333,7 +334,7 @@ export const JobDetails: React.FC<JobDetailsProps> = ({
             )}
           </div>
           {testRows}
-          {allTaken &&
+          {allTaken && onApply &&
             (isApplied ? (
               <div className="px-4 py-2.5 font-semibold text-emerald-800 bg-emerald-50 rounded-lg flex items-center gap-1.5">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
@@ -411,7 +412,7 @@ const JobHeader: React.FC<{
   match: CandidateJobMatch;
   titleAs: 'h1' | 'h2';
   isApplied: boolean;
-  onApply: () => void;
+  onApply?: () => void;
   children?: React.ReactNode;
 }> = ({ job, match, titleAs: Title, isApplied, onApply, children }) => (
   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -433,7 +434,7 @@ const JobHeader: React.FC<{
           <span className="font-mono text-slate-700 font-medium">{job.salaryRange}</span>
         </div>
         <div className="flex flex-wrap items-center gap-3 pt-2">
-          {isApplied ? (
+          {!onApply ? null : isApplied ? (
             <span className="px-4 py-2 text-xs font-semibold text-emerald-800 bg-emerald-50 rounded-lg flex items-center gap-1.5">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
               <span>Applied</span>
@@ -451,11 +452,13 @@ const JobHeader: React.FC<{
         </div>
       </div>
     </div>
-    <div className="sm:text-right shrink-0">
-      <div className="text-[11px] text-slate-500 font-medium">Your Fit</div>
-      <div className="text-2xl font-extrabold font-mono tabular-nums text-indigo-600">{match.overallFitPercentage}%</div>
-      <div className="text-[10px] text-slate-500 font-medium">{match.matchTier}</div>
-    </div>
+    {onApply && (
+      <div className="sm:text-right shrink-0">
+        <div className="text-[11px] text-slate-500 font-medium">Your Fit</div>
+        <div className="text-2xl font-extrabold font-mono tabular-nums text-indigo-600">{match.overallFitPercentage}%</div>
+        <div className="text-[10px] text-slate-500 font-medium">{match.matchTier}</div>
+      </div>
+    )}
   </div>
 );
 
