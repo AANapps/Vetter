@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { BackButton } from './BackButton';
 import { AssessmentTest, Question } from '../types';
 import { MOCK_DATABASE } from '../lib/sqlEngine';
 import { runQuestion, gradeTest, QuestionRunResult, weightedScore } from '../lib/grading';
@@ -27,6 +28,65 @@ import { AppWindow } from './AppWindow';
 import { CaseBrief } from './CaseBrief';
 import { TestIntro } from './TestIntro';
 
+// The question column can be dragged wider or narrower; the width is remembered in this browser
+function useResizable(key: string, initial: number) {
+  const [size, setSize] = useState(() => {
+    try {
+      const saved = Number(localStorage.getItem(key));
+      return saved > 0 ? saved : initial;
+    } catch {
+      return initial;
+    }
+  });
+  const [dragging, setDragging] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  // measure: the new size from the pointer's position in the container
+  const start = (measure: (x: number, rect: DOMRect) => number) => (e: React.PointerEvent) => {
+    e.preventDefault();
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setDragging(true);
+    let latest = size;
+    const move = (ev: PointerEvent) => {
+      latest = measure(ev.clientX, rect);
+      setSize(latest);
+    };
+    const up = () => {
+      setDragging(false);
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      try {
+        localStorage.setItem(key, String(Math.round(latest)));
+      } catch {
+        /* not remembered */
+      }
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+  return { size, setSize, dragging, containerRef, start };
+}
+
+const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n));
+
+// The bar between the question and the work, dragged sideways (or nudged with the arrow keys) to resize
+const ResizeHandle: React.FC<{ onPointerDown: (e: React.PointerEvent) => void; onNudge: (by: number) => void; dragging: boolean }> = ({ onPointerDown, onNudge, dragging }) => (
+  <div
+    role="separator"
+    aria-orientation="vertical"
+    aria-label="Drag to resize the question column"
+    tabIndex={0}
+    onPointerDown={onPointerDown}
+    onKeyDown={(e) => {
+      if (e.key === 'ArrowLeft') onNudge(-1);
+      if (e.key === 'ArrowRight') onNudge(1);
+    }}
+    className={`group relative w-2 shrink-0 cursor-col-resize flex items-center justify-center focus:outline-none ${dragging ? 'bg-indigo-100' : 'bg-slate-100 hover:bg-indigo-50 focus-visible:bg-indigo-50'}`}
+  >
+    <span className={`h-10 w-1 rounded-full transition-colors ${dragging ? 'bg-indigo-500' : 'bg-slate-300 group-hover:bg-indigo-400 group-focus-visible:bg-indigo-400'}`} />
+  </div>
+);
+
 interface TestRunnerProps {
   test: AssessmentTest;
   onClose: () => void;
@@ -47,6 +107,9 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
   const groups = useMemo(() => groupQuestions(test.questions), [test.questions]);
   const ordered = useMemo(() => groups.flatMap((g) => g.questions), [groups]);
   const [groupIndex, setGroupIndex] = useState(0);
+  // The question column's width: a share of the screen beside code, pixels beside a task's window
+  const codeSplit = useResizable('vetter-split-code', 50);
+  const taskSplit = useResizable('vetter-split-task', 420);
   const [userCodes, setUserCodes] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {};
     test.questions.forEach((q) => {
@@ -277,12 +340,7 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
       {/* Top Header Bar */}
       <div className="h-14 border-b border-slate-200 bg-white px-6 flex items-center justify-between shrink-0 shadow-xs">
         <div className="flex items-center gap-4 min-w-0">
-          <button
-            onClick={() => (preview ? onClose() : setConfirmingExit(true))}
-            className="text-xs font-semibold text-slate-600 hover:text-slate-900 px-2.5 py-1 rounded-md hover:bg-slate-100 transition-colors"
-          >
-            &larr; Exit
-          </button>
+          <BackButton onClick={() => (preview ? onClose() : setConfirmingExit(true))}>Exit</BackButton>
           <div className="h-4 w-px bg-slate-200" />
           <div>
             <h1 className="text-sm font-bold text-slate-900 tracking-tight truncate max-w-[22vw]">{test.title}</h1>
@@ -370,7 +428,9 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
       )}
 
       {/* Main Split Workstation */}
-      <div className="flex-1 flex overflow-hidden">
+      <div ref={currentGroup.task ? taskSplit.containerRef : codeSplit.containerRef} className="flex-1 flex overflow-hidden">
+        {/* While resizing, a cover keeps the drag from being caught by the work window (an app runs in a frame) */}
+        {(codeSplit.dragging || taskSplit.dragging) && <div className="fixed inset-0 z-40 cursor-col-resize" />}
         {/* A hands-on task: its window on the left, the brief and the questions about it on the right */}
         {currentGroup.task ? (
           <>
@@ -398,7 +458,12 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
                 <AppWindow key={currentQ.id} value={currentCode} onChange={handleCodeChange} html={currentQ.appHtml ?? ''} appName={currentQ.contextData || currentQ.title} />
               )}
             </div>
-            <aside className="w-[420px] shrink-0 border-l border-slate-200 bg-white overflow-y-auto p-6 space-y-5">
+            <ResizeHandle
+              dragging={taskSplit.dragging}
+              onPointerDown={taskSplit.start((x, rect) => clamp(rect.right - x, 320, rect.width * 0.65))}
+              onNudge={(by) => taskSplit.setSize((w) => clamp(w - by * 24, 320, 900))}
+            />
+            <aside style={{ width: taskSplit.size }} className="shrink-0 bg-white overflow-y-auto p-6 space-y-5">
               {test.scenario && <CaseBrief scenario={test.scenario} />}
               <div>
                 <div className="text-xs text-slate-500 font-medium mb-1">
@@ -475,7 +540,7 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
         ) : (
         <>
         {/* Left Pane: Problem Description & Context */}
-        <div className={`w-1/2 border-r border-slate-200 flex flex-col bg-white overflow-hidden`}>
+        <div style={{ width: `${codeSplit.size}%` }} className="shrink-0 flex flex-col bg-white overflow-hidden">
           <div className="p-6 overflow-y-auto space-y-5 flex-1">
             {test.scenario && <CaseBrief scenario={test.scenario} />}
             <div>
@@ -561,7 +626,12 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
         </div>
 
         {/* Right Pane: picking, typing or arranging for answer-style questions, otherwise the code editor & execution results */}
-        <div className="w-1/2 flex flex-col bg-slate-50 overflow-hidden">
+        <ResizeHandle
+          dragging={codeSplit.dragging}
+          onPointerDown={codeSplit.start((x, rect) => clamp(((x - rect.left) / rect.width) * 100, 25, 75))}
+          onNudge={(by) => codeSplit.setSize((w) => clamp(w + by * 3, 25, 75))}
+        />
+        <div className="flex-1 min-w-0 flex flex-col bg-slate-50 overflow-hidden">
           {/* Editor Action Toolbar */}
           <div className="px-4 py-2 bg-slate-100 border-b border-slate-200 flex items-center justify-between shrink-0">
             <div className="text-xs text-slate-600 font-mono flex items-center gap-2 font-semibold">
@@ -729,14 +799,13 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
 
       {/* Moving through the test: back, where you are and how much is answered, then next (or submit on the last) */}
       <footer className="shrink-0 border-t border-slate-200 bg-white px-4 sm:px-6 py-3 flex items-center gap-4">
-        <button
-          onClick={() => goToGroup(groupIndex - 1)}
-          disabled={groupIndex === 0}
-          className="px-4 py-2.5 text-sm font-semibold text-slate-700 bg-white border border-slate-200 hover:border-slate-300 rounded-lg flex items-center gap-1.5 disabled:opacity-0 disabled:pointer-events-none"
-        >
-          <ArrowRight className="w-4 h-4 rotate-180" />
-          Previous
-        </button>
+        {groupIndex > 0 ? (
+          <BackButton onClick={() => goToGroup(groupIndex - 1)} className="py-2.5">
+            Previous
+          </BackButton>
+        ) : (
+          <span className="w-[7.5rem]" aria-hidden="true" />
+        )}
         <div className="flex-1 min-w-0 max-w-md mx-auto text-center space-y-1.5">
           <div className="text-sm font-semibold text-slate-900">
             {groupLabel(groupIndex)}

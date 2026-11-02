@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { BackButton } from './BackButton';
 import { ArrowLeft, ArrowRight, Check, Clock, FileText, Lock, ShieldCheck, X } from 'lucide-react';
 import { AssessmentTest } from '../types';
 import { QUESTION_TYPE_LABELS, describeChecks } from '../lib/testRoles';
@@ -331,10 +332,7 @@ export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose, on
       <footer className="shrink-0 bg-white border-t border-slate-200">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-3">
           {slide > 0 ? (
-            <button onClick={() => setSlide(slide - 1)} className="px-3 py-2 text-xs font-semibold text-slate-600 hover:text-indigo-700 flex items-center gap-1.5">
-              <ArrowLeft className="w-3.5 h-3.5" />
-              Back
-            </button>
+            <BackButton onClick={() => setSlide(slide - 1)}>Back</BackButton>
           ) : (
             <button onClick={onClose} className="px-3 py-2 text-xs font-semibold text-slate-600 hover:text-indigo-700">
               Not now

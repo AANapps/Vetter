@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { BackButton } from './BackButton';
 import { CheckCircle2, ChevronLeft, ChevronRight, MapPin, Play, Send, X } from 'lucide-react';
 import { AssessmentTest, Business, CandidateJobMatch, JobPosting, User } from '../types';
 import { attemptsAt, jobTestProgress, jobTestsOf } from '../lib/jobTests';
@@ -532,9 +533,7 @@ export const JobDetailsModal: React.FC<JobDetailsProps & { onClose: () => void; 
 // The job's own page, linkable at /jobs/<slug>/
 export const JobPage: React.FC<JobDetailsProps & { onBack: () => void }> = ({ onBack, ...props }) => (
   <div className="space-y-6">
-    <button onClick={onBack} className="text-xs font-semibold text-slate-500 hover:text-indigo-700 transition-colors">
-      &larr; Job Board
-    </button>
+    <BackButton onClick={onBack}>Job Board</BackButton>
     <div className="bg-white rounded-2xl overflow-hidden">
       <div className="p-6 border-b border-slate-200">
         <JobHeader job={props.job} match={props.match} titleAs="h1" isApplied={props.isApplied} onApply={props.onApply} />

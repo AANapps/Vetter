@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { BackButton } from './BackButton';
 import { AssessmentTest, JobPosting } from '../types';
 import { isMainVersion, levelsOf } from '../lib/testLevels';
 import { ArrowLeft, ArrowRight, Check, Search, X } from 'lucide-react';
@@ -205,10 +206,7 @@ export const JobTestsEditor: React.FC<JobTestsEditorProps> = ({ jobs, tests, add
 
           <div className="px-6 py-4 border-t border-slate-200 flex items-center gap-3">
             {step > 0 && (
-              <button type="button" onClick={() => setStep(step - 1)} className="px-3 py-2 text-sm font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1.5">
-                <ArrowLeft className="w-4 h-4" />
-                Back
-              </button>
+              <BackButton onClick={() => setStep(step - 1)}>Back</BackButton>
             )}
             {step === 0 && (
               <span className="text-xs text-slate-500">

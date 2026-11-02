@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { BackButton } from './BackButton';
 import { BadgeCheck, BookOpen, Briefcase, Building2, Check, ChevronDown, Clock, FlaskConical, Hammer, PlayCircle, Target, Users } from 'lucide-react';
 import { AssessmentTest, JobPosting, User } from '../types';
 import { COURSES, Course, LessonKind, courseHours, courseLessons } from '../data/courses';
@@ -70,9 +71,9 @@ export const CoursePage: React.FC<CoursePageProps> = ({
     <div>
       <section className="bg-slate-900 text-white">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 pb-12">
-          <button onClick={onBack} className="text-xs font-semibold text-slate-400 hover:text-white transition-colors">
-            &larr; All courses
-          </button>
+          <BackButton onClick={onBack} tone="dark">
+            All courses
+          </BackButton>
           <div className="mt-6 grid gap-8 lg:grid-cols-[1fr_340px] items-start">
             <div>
               <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wider">

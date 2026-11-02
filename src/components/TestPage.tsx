@@ -1,4 +1,5 @@
 import React from 'react';
+import { BackButton } from './BackButton';
 import { Link2, Play } from 'lucide-react';
 import { AssessmentTest, Business, JobPosting, User, UserRole } from '../types';
 import { getLeaderboard, getTestStats } from '../lib/leaderboard';
@@ -57,9 +58,7 @@ export const TestPage: React.FC<TestPageProps> = ({
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-8 space-y-6">
-      <button onClick={onBack} className="text-xs font-semibold text-slate-500 hover:text-indigo-700 transition-colors">
-        &larr; All tests
-      </button>
+      <BackButton onClick={onBack}>All tests</BackButton>
 
       {referredByCompany && (
         <p className="px-4 py-3 bg-indigo-50 border border-indigo-200 rounded-xl text-xs text-indigo-900">
