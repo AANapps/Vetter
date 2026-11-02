@@ -728,7 +728,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
       {view === 'tests' && (
         <div className="grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)] gap-6 items-start">
           {/* Browse by industry and role */}
-          <aside className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs space-y-5 lg:sticky lg:top-20">
+          <aside className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs space-y-5 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:overscroll-contain [scrollbar-width:thin]">
             <div className="space-y-1">
               <h2 className="text-sm font-bold text-slate-900 mb-2">Browse by role</h2>
               <RoleButton label="All tests" count={vetterTests.length} active={!testField} onClick={() => onTestFieldChange(null)} />
