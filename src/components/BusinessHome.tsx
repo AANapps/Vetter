@@ -134,7 +134,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
             turns.map((turn, i) =>
               turn.role === 'user' ? (
                 <div key={i} className="flex justify-end">
-                  <p className="max-w-[85%] px-4 py-2.5 bg-gradient-to-br from-indigo-600 to-indigo-900 text-white text-sm rounded-2xl rounded-br-md whitespace-pre-wrap shadow-md shadow-indigo-200/60">
+                  <p className="max-w-[85%] px-4 py-2.5 bg-indigo-600 text-white text-sm rounded-2xl rounded-br-md whitespace-pre-wrap shadow-md shadow-indigo-200/60">
                     {turn.text}
                   </p>
                 </div>
@@ -166,7 +166,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
             e.preventDefault();
             send(input);
           }}
-          className="sticky bottom-16 md:bottom-0 pb-4 pt-6 bg-gradient-to-t from-white via-white/85 to-transparent"
+          className="sticky bottom-16 md:bottom-0 pb-4 pt-6 bg-white"
         >
           <div className="ai-ring" data-busy={thinking}>
           <div className="ai-glass-solid flex items-end gap-2 p-2 rounded-[calc(1.25rem-1.5px)]">
@@ -189,7 +189,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
               type="submit"
               disabled={!input.trim() || thinking}
               aria-label="Send"
-              className="w-9 h-9 shrink-0 rounded-xl bg-gradient-to-br from-indigo-600 to-indigo-900 hover:brightness-110 text-white flex items-center justify-center disabled:opacity-40"
+              className="w-9 h-9 shrink-0 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center disabled:opacity-40"
             >
               <ArrowUp className="w-4 h-4" />
             </button>

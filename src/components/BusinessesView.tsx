@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Pic } from './Pic';
 import { Business, JobPosting, AssessmentTest } from '../types';
 import { Award, Search } from 'lucide-react';
 
@@ -90,7 +91,7 @@ export const BusinessesView: React.FC<BusinessesViewProps> = ({
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-xl overflow-hidden border border-slate-200 bg-slate-100 shrink-0">
-                      <img
+                      <Pic
                         src={biz.logo}
                         alt={biz.name}
                         referrerPolicy="no-referrer"

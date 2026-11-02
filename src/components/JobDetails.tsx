@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { Pic } from './Pic';
 import { BackButton } from './BackButton';
 import { CheckCircle2, ChevronLeft, ChevronRight, MapPin, Play, Send, X } from 'lucide-react';
 import { AssessmentTest, Business, CandidateJobMatch, JobPosting, User } from '../types';
@@ -432,7 +433,7 @@ const JobHeader: React.FC<{
   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
     <div className="flex items-start gap-4 min-w-0">
       <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-slate-100">
-        <img src={job.companyLogo} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
+        <Pic src={job.companyLogo} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
       </div>
       <div className="space-y-1 min-w-0">
         <div className="text-xs text-slate-500">

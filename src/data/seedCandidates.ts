@@ -14,7 +14,8 @@ function mulberry32(seed: number) {
 
 export const hashString = (s: string) => [...s].reduce((h, c) => (Math.imul(h, 31) + c.charCodeAt(0)) | 0, 7);
 
-const AVATAR_COLOURS = ['#6c47ff', '#c048ff', '#00a060', '#e88000', '#e41e54', '#0e8ce4', '#d67830', '#5834ff'];
+// Muted to sit with the navy theme; Pic uses the same list when it draws initials as text
+export const AVATAR_COLOURS = ['#2b3a6e', '#1f2b57', '#334155', '#0f766e', '#047857', '#b45309', '#9f1239', '#0369a1'];
 
 // Initials avatar as an inline SVG, so seeded candidates need no image hosting
 export function initialsAvatar(name: string): string {
@@ -25,7 +26,7 @@ export function initialsAvatar(name: string): string {
     .join('')
     .toUpperCase();
   const colour = AVATAR_COLOURS[Math.abs(hashString(name)) % AVATAR_COLOURS.length];
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" fill="${colour}"/><text x="50%" y="50%" dy=".35em" text-anchor="middle" font-family="Source Sans 3, Arial, sans-serif" font-size="26" font-weight="700" fill="#fff">${initials}</text></svg>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" fill="${colour}"/><text x="50%" y="50%" dy=".35em" text-anchor="middle" font-family="Source Sans 3, Arial, sans-serif" font-size="26" font-weight="600" fill="#fff">${initials}</text></svg>`;
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 

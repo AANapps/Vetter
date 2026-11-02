@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Pic } from './Pic';
 import { CandidateJobMatch, JobPosting, User } from '../types';
 import { rankCandidatesForJob } from '../lib/matchingAlgorithm';
 import { applicationProfileOf } from '../lib/jobProfiles';
@@ -154,7 +155,7 @@ export const JobCandidates: React.FC<JobCandidatesProps> = ({ job, allCandidates
                 className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${isOpen ? 'bg-indigo-50/50' : 'hover:bg-slate-50'}`}
               >
                 <span className="w-6 text-xs font-mono text-slate-400 tabular-nums shrink-0">{idx + 1}</span>
-                <img src={c.candidateAvatar} alt="" referrerPolicy="no-referrer" className="w-9 h-9 rounded-full object-cover bg-slate-100 shrink-0" />
+                <Pic src={c.candidateAvatar} alt="" referrerPolicy="no-referrer" className="w-9 h-9 rounded-full object-cover bg-slate-100 shrink-0" />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-sm font-semibold text-slate-900 truncate">{c.candidateName}</span>

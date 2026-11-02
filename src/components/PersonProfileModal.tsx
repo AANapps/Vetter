@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { Pic } from './Pic';
 import { AssessmentTest, Business, User } from '../types';
 import { VerifiedSkillBadge } from './VerifiedSkillBadge';
 import { TestHistory } from './TestHistory';
@@ -58,7 +59,7 @@ export const PersonProfileModal: React.FC<PersonProfileModalProps> = ({
         </button>
 
         <div className="flex items-center gap-4 pr-8">
-          <img
+          <Pic
             src={person.avatarUrl}
             alt=""
             referrerPolicy="no-referrer"

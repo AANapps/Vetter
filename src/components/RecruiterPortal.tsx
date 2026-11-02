@@ -1,4 +1,5 @@
 import { isMainVersion } from '../lib/testLevels';
+import { Pic } from './Pic';
 import React, { useState } from 'react';
 import { User, JobPosting, AssessmentTest, Business, TestDraft } from '../types';
 import { getTestStats } from '../lib/leaderboard';
@@ -138,7 +139,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-start sm:items-center gap-5">
             <div className="w-16 h-16 rounded-2xl overflow-hidden border border-slate-200 shrink-0 bg-slate-100 shadow-xs">
-              <img
+              <Pic
                 src={business ? business.logo : recruiter.avatarUrl}
                 alt={business ? business.name : 'Vetter'}
                 referrerPolicy="no-referrer"

@@ -1,4 +1,5 @@
 import React, { useCallback, useState } from 'react';
+import { Pic } from './Pic';
 import { User, AssessmentTest, JobPosting, CandidateJobMatch, Business, TestRole, TEST_DIFFICULTIES, JobProfile } from '../types';
 import { activeProfileOf, asProfile, profilesOf } from '../lib/jobProfiles';
 import { ROLE_GROUPS, TestField } from '../lib/testRoles';
@@ -242,7 +243,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-start sm:items-center gap-5">
             <div className="w-16 h-16 rounded-2xl overflow-hidden border border-slate-200 shrink-0 bg-slate-100 shadow-xs">
-              <img
+              <Pic
                 src={candidate.avatarUrl}
                 alt={candidate.name}
                 referrerPolicy="no-referrer"
@@ -463,7 +464,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                 {appliedJobs.map((job) => (
                   <div key={job.id} className="p-4 flex flex-wrap items-center justify-between gap-3 text-xs">
                     <div className="flex items-center gap-3">
-                      <img
+                      <Pic
                         src={job.companyLogo}
                         alt={job.companyName}
                         referrerPolicy="no-referrer"
@@ -629,7 +630,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                       {/* Company & Role Details */}
                       <div className="flex items-start gap-4">
                         <div className="w-12 h-12 rounded-xl overflow-hidden border border-slate-200 shrink-0 bg-slate-100">
-                          <img
+                          <Pic
                             src={job.companyLogo}
                             alt={match.companyName}
                             referrerPolicy="no-referrer"

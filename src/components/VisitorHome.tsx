@@ -1,4 +1,5 @@
 import React from 'react';
+import { Pic } from './Pic';
 import { ArrowRight, BadgeCheck, Briefcase, ClipboardCheck, Clock, Trophy } from 'lucide-react';
 import { AssessmentTest, JobPosting } from '../types';
 import { AppTab } from './Navigation';
@@ -132,7 +133,7 @@ export const VisitorHome: React.FC<VisitorHomeProps> = ({ tests, jobs, onOpenTes
             {latestJobs.map((j) => (
               <li key={j.id}>
                 <button onClick={() => onOpenJob(j.id)} className="group w-full rounded-2xl bg-white p-5 text-left flex items-center gap-4">
-                  <img src={j.companyLogo} alt="" referrerPolicy="no-referrer" className="w-11 h-11 rounded-lg object-cover bg-slate-100 shrink-0" />
+                  <Pic src={j.companyLogo} alt="" referrerPolicy="no-referrer" className="w-11 h-11 rounded-lg object-cover bg-slate-100 shrink-0" />
                   <span className="min-w-0 flex-1">
                     <span className="block font-bold text-slate-900 group-hover:text-indigo-700 truncate">{j.title}</span>
                     <span className="block text-xs text-slate-500 truncate">

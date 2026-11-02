@@ -1,4 +1,5 @@
 import { isMainVersion } from '../lib/testLevels';
+import { Pic } from './Pic';
 import React, { useEffect, useRef, useState } from 'react';
 import { AssessmentTest, Business, User } from '../types';
 import { Search, X } from 'lucide-react';
@@ -180,7 +181,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
                             {r.title.slice(0, 2).toUpperCase()}
                           </div>
                         ) : (
-                          <img
+                          <Pic
                             src={r.image}
                             alt=""
                             referrerPolicy="no-referrer"

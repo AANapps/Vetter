@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Pic } from './Pic';
 import { AssessmentTest, Business, JobPosting, User } from '../types';
 import { STATUS_LABELS, invitesFor, totalMinutes } from '../lib/jobTests';
 import { jobIdFromPath } from '../lib/jobSeo';
@@ -72,7 +73,7 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, jobs, t
     <div className="@container space-y-8 min-w-0">
       {visitor ? (
         <section className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
-          <div className="h-14 bg-gradient-to-r from-indigo-600 to-indigo-900" />
+          <div className="h-14 bg-indigo-700" />
           <div className="px-5 pb-5 pt-4 space-y-3">
             <h1 className="text-lg font-bold text-slate-900 tracking-tight">Get hired on what you can do</h1>
             <p className="text-sm text-slate-600">Take a free test, get a verified score, and apply to jobs that hire on skill rather than CVs.</p>
@@ -91,10 +92,10 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, jobs, t
       <>
       {/* Who you are at a glance: photo, name, what you do, and your record on Vetter */}
       <section className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
-        <div className="h-14 bg-gradient-to-r from-indigo-600 to-indigo-900" />
+        <div className="h-14 bg-indigo-700" />
         <div className="px-5 pb-5 -mt-8 space-y-3">
           <button onClick={() => onGoTo('profile')} aria-label="Open your profile" className="block rounded-full">
-            <img
+            <Pic
               src={candidate.avatarUrl}
               alt=""
               referrerPolicy="no-referrer"
@@ -153,7 +154,7 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, jobs, t
                   className="group w-full text-left bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl p-5 flex items-center gap-4 transition-colors shadow-xs"
                 >
                   {business && (
-                    <img src={business.logo} alt="" referrerPolicy="no-referrer" className="w-12 h-12 rounded-xl object-cover bg-slate-100 shrink-0" />
+                    <Pic src={business.logo} alt="" referrerPolicy="no-referrer" className="w-12 h-12 rounded-xl object-cover bg-slate-100 shrink-0" />
                   )}
                   <div className="min-w-0 flex-1 space-y-1.5">
                     <div className="text-xs font-semibold text-slate-500">{job.companyName}</div>

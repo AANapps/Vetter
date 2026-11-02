@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Pic } from './Pic';
 import { AssessmentTest, Business, FeedComment, JobPosting, SocialState, User } from '../types';
 import {
   FeedFilter,
@@ -46,7 +47,7 @@ const Avatar: React.FC<{ src: string; size?: 'sm' | 'md' }> = ({ src, size = 'md
   <div
     className={`${size === 'sm' ? 'w-7 h-7' : 'w-10 h-10'} rounded-full overflow-hidden border border-slate-200 shrink-0 bg-slate-100`}
   >
-    <img src={src} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
+    <Pic src={src} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
   </div>
 );
 

@@ -1,4 +1,5 @@
 import { isMainVersion } from '../lib/testLevels';
+import { Pic } from './Pic';
 import React from 'react';
 import { AssessmentTest, CandidateJobMatch, JobPosting, User } from '../types';
 import { getBestTestScore } from '../lib/matchingAlgorithm';
@@ -94,7 +95,7 @@ export const ProfileSidebar: React.FC<ProfileSidebarProps> = ({ candidate, tests
               const job = activeJobs.find((j) => j.id === match.jobId)!;
               return (
                 <li key={match.jobId} className="flex items-start gap-3">
-                  <img
+                  <Pic
                     src={job.companyLogo}
                     alt=""
                     referrerPolicy="no-referrer"

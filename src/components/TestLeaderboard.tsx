@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Pic } from './Pic';
 import { ChevronDown } from 'lucide-react';
 import { LeaderboardEntry } from '../lib/leaderboard';
 import { getBadgeTier } from './VerifiedSkillBadge';
@@ -27,7 +28,7 @@ const LeaderboardRow: React.FC<{ entry: LeaderboardEntry; passingScore: number; 
     >
       <RankDisc rank={entry.rank} />
       <div className="flex items-center gap-2.5 min-w-0">
-        <img
+        <Pic
           src={entry.candidate.avatarUrl}
           alt=""
           referrerPolicy="no-referrer"

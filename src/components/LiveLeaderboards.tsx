@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { Pic } from './Pic';
 import { ArrowDown, ArrowUp, ChevronRight } from 'lucide-react';
 import { AssessmentTest, User } from '../types';
 import { LeaderboardEntry, getLeaderboard } from '../lib/leaderboard';
@@ -144,7 +145,7 @@ const LiveRow: React.FC<{
     >
       <RankDisc rank={entry.rank} />
       <div className="flex items-center gap-2 min-w-0">
-        <img src={entry.candidate.avatarUrl} alt="" referrerPolicy="no-referrer" className="w-6 h-6 rounded-full object-cover shrink-0 bg-slate-100" />
+        <Pic src={entry.candidate.avatarUrl} alt="" referrerPolicy="no-referrer" className="w-6 h-6 rounded-full object-cover shrink-0 bg-slate-100" />
         <div className="min-w-0">
           <div className="font-semibold text-slate-900 truncate">
             {entry.candidate.name}

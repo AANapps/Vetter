@@ -1,4 +1,5 @@
 import React from 'react';
+import { Pic } from './Pic';
 import { Business, User } from '../types';
 import { suggestedPeople } from '../lib/feed';
 
@@ -59,7 +60,7 @@ export const FollowSuggestions: React.FC<FollowSuggestionsProps> = ({ viewer, al
 
 const Avatar: React.FC<{ src: string }> = ({ src }) => (
   <div className="w-7 h-7 rounded-full overflow-hidden border border-slate-200 shrink-0 bg-slate-100">
-    <img src={src} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
+    <Pic src={src} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
   </div>
 );
 

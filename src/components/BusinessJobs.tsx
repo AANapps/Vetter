@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Pic } from './Pic';
 import { BackButton } from './BackButton';
 import { AssessmentTest, Business, JobPosting, TrialResult, User } from '../types';
 import { JobDetailsModal } from './JobDetails';
@@ -268,7 +269,7 @@ const JobList: React.FC<BusinessJobsProps> = ({
                     const pass = result.score >= job.testPassingScore;
                     return (
                       <li key={`${job.id}-${row.candidate.id}-${testId}-${result.completedTime ?? result.completedAt}`} className="flex items-start gap-2.5 text-xs">
-                        <img src={row.candidate.avatarUrl} alt="" referrerPolicy="no-referrer" className="w-7 h-7 rounded-full object-cover bg-slate-100 shrink-0" />
+                        <Pic src={row.candidate.avatarUrl} alt="" referrerPolicy="no-referrer" className="w-7 h-7 rounded-full object-cover bg-slate-100 shrink-0" />
                         <div className="min-w-0 flex-1">
                           <button onClick={() => onOpenPerson(row.candidate.id)} className="font-semibold text-slate-900 hover:text-indigo-700">
                             {row.candidate.name}
@@ -608,7 +609,7 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
                       <td className="px-5 py-3 font-mono text-slate-400 tabular-nums">{place ?? '–'}</td>
                       <td className="px-2 py-3">
                         <button onClick={() => onOpenPerson(r.candidate.id)} className="flex items-center gap-2.5 text-left group">
-                          <img src={r.candidate.avatarUrl} alt="" referrerPolicy="no-referrer" className="w-8 h-8 rounded-full object-cover bg-slate-100 shrink-0" />
+                          <Pic src={r.candidate.avatarUrl} alt="" referrerPolicy="no-referrer" className="w-8 h-8 rounded-full object-cover bg-slate-100 shrink-0" />
                           <span className="min-w-0">
                             <span className="block font-semibold text-slate-900 group-hover:text-indigo-700 whitespace-nowrap">{r.candidate.name}</span>
                             <span className="block text-slate-500 whitespace-nowrap">
@@ -1005,7 +1006,7 @@ const SharePanel: React.FC<{
                         onChange={(e) => setChosen((prev) => (e.target.checked ? [...prev, c.id] : prev.filter((x) => x !== c.id)))}
                         className="accent-indigo-600"
                       />
-                      <img src={c.avatarUrl} alt="" referrerPolicy="no-referrer" className="w-6 h-6 rounded-full object-cover bg-slate-100" />
+                      <Pic src={c.avatarUrl} alt="" referrerPolicy="no-referrer" className="w-6 h-6 rounded-full object-cover bg-slate-100" />
                       <span className="min-w-0 flex-1">
                         <span className="block font-semibold text-slate-900 truncate">{c.name}</span>
                         <span className="block text-slate-500 truncate">
