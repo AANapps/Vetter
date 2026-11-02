@@ -302,7 +302,7 @@ const PreviewGroup: React.FC<{
       </p>
       {test.scenario && <CaseBrief scenario={test.scenario} />}
       {isTask && (
-        <div className={first.type === 'case' ? 'max-h-[70vh] flex' : 'h-[30rem] max-h-[70vh]'}>
+        <div className={first.type === 'case' ? 'max-h-[70vh] overflow-y-auto rounded-lg' : 'h-[30rem] max-h-[70vh]'}>
           {first.type === 'case' ? (
             <CaseMaterial question={first} />
           ) : first.type === 'sheet' ? (
