@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { User, JobPosting, AssessmentTest, Business, TestDraft } from '../types';
 import { getTestStats } from '../lib/leaderboard';
 import { JobCandidates } from './JobCandidates';
-import { CheckCircle2, FileText, Pencil, Plus, Sparkles, Trash2 } from 'lucide-react';
+import { CheckCircle2, FileText, Pencil, Plus, Search, Sparkles, Trash2 } from 'lucide-react';
 import { TestBuilder } from './TestBuilder';
 
 // Jobs have their own page (BusinessJobs); this is the company's tests and the candidates ranked for each job
@@ -66,6 +66,41 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   const vetterTests = tests.filter((t) => t.type === 'standard' && isMainVersion(t));
 
   const [selectedJobId, setSelectedJobId] = useState<string>(jobs[0]?.id || '');
+  // The Tests page: one list of the company's tests and Vetter's, narrowed by source, category and a search
+  const [testQuery, setTestQuery] = useState('');
+  const [testSource, setTestSource] = useState<'all' | 'yours' | 'vetter' | 'on-jobs'>('all');
+  const [testCategory, setTestCategory] = useState('');
+  const usedByOf = (t: AssessmentTest) => jobs.filter((j) => j.testIds.includes(t.id));
+  const allTests = [...companyTests, ...vetterTests];
+  const sourceTabs = (
+    isVetter
+      ? [
+          ['all', 'All'],
+          ['on-jobs', 'On a job'],
+        ]
+      : [
+          ['all', 'All'],
+          ['yours', 'Yours'],
+          ['vetter', 'Vetter'],
+          ['on-jobs', 'On your jobs'],
+        ]
+  ) as [typeof testSource, string][];
+  const inSource = (t: AssessmentTest, src: typeof testSource) =>
+    src === 'all' || (src === 'yours' ? t.type === 'custom' : src === 'vetter' ? t.type === 'standard' : usedByOf(t).length > 0);
+  const countFor = (src: typeof testSource) => allTests.filter((t) => inSource(t, src)).length;
+  const categories = [...new Set(allTests.map((t) => t.category))].sort();
+  const tq = testQuery.trim().toLowerCase();
+  // Tests on the company's jobs first, then its own, then the library by category
+  const shownTests = allTests
+    .filter((t) => inSource(t, testSource) && (!testCategory || t.category === testCategory))
+    .filter((t) => !tq || `${t.title} ${t.category} ${t.skillsTested.join(' ')}`.toLowerCase().includes(tq))
+    .sort(
+      (a, b) =>
+        Number(usedByOf(b).length > 0) - Number(usedByOf(a).length > 0) ||
+        Number(b.type === 'custom') - Number(a.type === 'custom') ||
+        a.category.localeCompare(b.category) ||
+        a.title.localeCompare(b.title)
+    );
   // The Candidates tab: the leads pipeline, or everyone on Vetter ranked for a job
   const [candidatesView, setCandidatesView] = useState<'leads' | 'ranked'>(leads ? 'leads' : 'ranked');
   const showRanked = section === 'candidates' && (candidatesView === 'ranked' || !leads);
@@ -96,8 +131,9 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
-      {/* Company Header */}
+    <div className={`${section === 'tests' ? 'max-w-6xl px-4 sm:px-6' : 'max-w-7xl px-6'} mx-auto py-8 space-y-8`}>
+      {/* Company Header: the Tests page has its own, like Your jobs */}
+      {section !== 'tests' && (
       <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-xs">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-start sm:items-center gap-5">
@@ -149,6 +185,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
           </div>
         </div>
       </div>
+      )}
 
       {/* Candidates */}
       {section === 'candidates' && leads && (
@@ -198,28 +235,29 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
         </div>
       )}
 
-      {/* Tests */}
+      {/* Tests: the company's own and Vetter's library in one list */}
       {section === 'tests' && (
-        <div className="space-y-8">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-5 bg-indigo-50/60 border border-indigo-100 rounded-xl">
-            <div>
-              <h2 className="text-base font-bold text-slate-900">Write a test</h2>
-              <p className="text-xs text-slate-600">
-                Mix multiple choice, select-all, short answers, drag to order, drag to match, coding and SQL.{' '}
-                {isVetter ? 'Tests you write join the Vetter library for every candidate.' : 'Use it on any of your jobs.'}
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+            <div className="space-y-1">
+              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Tests</h1>
+              <p className="text-sm text-slate-500 max-w-xl">
+                {isVetter
+                  ? 'The Vetter library. Tests you write join it for every candidate.'
+                  : `Tests ${business.name} wrote and Vetter's library, together. Add any of them to a job from the job.`}
               </p>
             </div>
-            <div className="flex flex-wrap gap-2 shrink-0">
+            <div className="flex flex-wrap gap-2 self-start">
               <button
                 onClick={() => onGenerateTest()}
-                className="px-4 py-2 text-sm font-semibold text-indigo-700 bg-white border border-indigo-200 hover:bg-indigo-50 rounded-lg flex items-center gap-1.5"
+                className="px-4 py-2.5 text-sm font-semibold text-indigo-700 bg-white border border-indigo-200 hover:bg-indigo-50 rounded-lg flex items-center gap-2"
               >
                 <Sparkles className="w-4 h-4" />
                 Write with AI
               </button>
               <button
                 onClick={() => setBuilding({})}
-                className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg flex items-center gap-1.5 shadow-xs"
+                className="px-4 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg flex items-center gap-2 shadow-xs"
               >
                 <Plus className="w-4 h-4" />
                 Create a test
@@ -234,12 +272,26 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
             </div>
           )}
 
+          <dl className="grid grid-cols-2 md:grid-cols-4 gap-px bg-slate-200 rounded-xl overflow-hidden border border-slate-200">
+            {[
+              { label: 'Tests', value: allTests.length },
+              { label: isVetter ? 'Written in the builder' : 'Written by you', value: isVetter ? vetterTests.filter(isEditable).length : companyTests.length },
+              { label: isVetter ? 'On a job' : 'On your jobs', value: allTests.filter((t) => usedByOf(t).length > 0).length },
+              { label: 'Drafts', value: drafts.length },
+            ].map((st) => (
+              <div key={st.label} className="bg-white px-5 py-4">
+                <dt className="text-xs text-slate-500">{st.label}</dt>
+                <dd className="text-2xl font-bold text-slate-900 font-mono tabular-nums">{st.value}</dd>
+              </div>
+            ))}
+          </dl>
+
           {/* Tests still being written */}
           {drafts.length > 0 && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div>
-                <h2 className="text-base font-bold text-slate-900">Drafts</h2>
-                <p className="text-xs text-slate-500">Tests you saved to finish later. Only {business ? 'your company' : 'the Vetter team'} can see them, and candidates can't take them until they're saved as tests.</p>
+                <h2 className="text-sm font-bold text-slate-900">Drafts</h2>
+                <p className="text-xs text-slate-500">Only {business ? 'your company' : 'the Vetter team'} can see these. Candidates can't take them until they're saved.</p>
               </div>
               <ul className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {drafts.map((d) => (
@@ -257,60 +309,81 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
             </div>
           )}
 
-          {/* The company's own tests */}
-          {business && (
-          <div className="space-y-4">
-            <div>
-              <h2 className="text-base font-bold text-slate-900">Your Tests</h2>
-              <p className="text-xs text-slate-500">
-                Tests written by {business.name}. Only you can attach them to jobs.
-              </p>
+          {/* Find a test */}
+          <div className="flex flex-col md:flex-row md:items-center gap-3">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                value={testQuery}
+                onChange={(e) => setTestQuery(e.target.value)}
+                placeholder="Search by name, skill or category"
+                aria-label="Search tests"
+                className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+              />
             </div>
-            {companyTests.length === 0 ? (
-              <p className="text-xs text-slate-500">You haven't written any tests yet. Use Create a test above.</p>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {companyTests.map((t) => (
-                  <TestSummaryCard
-                    key={t.id}
-                    test={t}
-                    usedBy={jobs.filter((j) => j.testIds.includes(t.id))}
-                    ranked={getTestStats(t, allCandidates).candidatesRanked}
-                    onOpen={() => onOpenTest(t.id)}
-                    onEdit={editFor(t)}
-                    onDelete={() => deleteTest(t)}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-          )}
-
-          {/* Vetter's library */}
-          <div className="space-y-4">
-            <div>
-              <h2 className="text-base font-bold text-slate-900">Vetter Test Library</h2>
-              <p className="text-xs text-slate-500">
-                Standard tests made by Vetter. Candidates' scores on these appear as verified skills.
-              </p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {vetterTests.map((t) => (
-                <TestSummaryCard
-                  key={t.id}
-                  test={t}
-                  usedBy={jobs.filter((j) => j.testIds.includes(t.id))}
-                  ranked={getTestStats(t, allCandidates).candidatesRanked}
-                  onOpen={() => onOpenTest(t.id)}
-                  onEdit={isVetter ? editFor(t) : undefined}
-                  // The Vetter team can delete library tests written in the builder; the built-in ones stay
-                  onDelete={isVetter && isEditable(t) ? () => deleteTest(t) : undefined}
-                  onDeepen={isVetter ? () => onGenerateTest(deepenSeed(t)) : undefined}
-                />
+            <div role="tablist" aria-label="Which tests" className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1 text-xs font-semibold self-start">
+              {sourceTabs.map(([id, label]) => (
+                <button
+                  key={id}
+                  role="tab"
+                  aria-selected={testSource === id}
+                  onClick={() => setTestSource(id)}
+                  className={`px-3 py-1.5 rounded-md transition-colors ${testSource === id ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
+                >
+                  {label} <span className="font-mono text-slate-400">{countFor(id)}</span>
+                </button>
               ))}
             </div>
+            <select
+              value={testCategory}
+              onChange={(e) => setTestCategory(e.target.value)}
+              aria-label="Category"
+              className="px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm self-start"
+            >
+              <option value="">All categories</option>
+              {categories.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
           </div>
 
+          <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+            <div className="hidden md:grid grid-cols-[minmax(0,1fr)_7rem_4rem_5rem_7rem_6rem] gap-4 px-5 py-2.5 bg-slate-50 border-b border-slate-200 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+              <span>Test</span>
+              <span>Length</span>
+              <span className="text-right">Pass</span>
+              <span className="text-right">Ranked</span>
+              <span>Jobs</span>
+              <span />
+            </div>
+            {shownTests.length === 0 ? (
+              <p className="px-5 py-8 text-center text-sm text-slate-500">
+                {testSource === 'yours' && companyTests.length === 0 ? "You haven't written any tests yet. Use Create a test above." : 'No tests match.'}
+              </p>
+            ) : (
+              <ul className="divide-y divide-slate-100">
+                {shownTests.map((t) => {
+                  const own = t.type === 'custom';
+                  return (
+                    <TestRow
+                      key={t.id}
+                      test={t}
+                      own={own}
+                      usedBy={usedByOf(t)}
+                      ranked={getTestStats(t, allCandidates).candidatesRanked}
+                      onOpen={() => onOpenTest(t.id)}
+                      onEdit={own || isVetter ? editFor(t) : undefined}
+                      // The Vetter team can delete library tests written in the builder; the built-in ones stay
+                      onDelete={own ? () => deleteTest(t) : isVetter && isEditable(t) ? () => deleteTest(t) : undefined}
+                      onDeepen={isVetter ? () => onGenerateTest(deepenSeed(t)) : undefined}
+                    />
+                  );
+                })}
+              </ul>
+            )}
+          </div>
         </div>
       )}
 
@@ -341,8 +414,10 @@ const deepenSeed = (t: AssessmentTest) =>
   (t.roles?.length ? `\nFor: ${t.roles.join(', ')}` : '') +
   `\n\nIt currently has ${t.questions.length} questions: ${t.questions.map((q) => q.title).join('; ')}.`;
 
-const TestSummaryCard: React.FC<{
+// One test on one line: what it is and whose, how long, how it's doing, the jobs it's on, and what can be done to it
+const TestRow: React.FC<{
   test: AssessmentTest;
+  own: boolean;
   usedBy: JobPosting[];
   ranked: number;
   onOpen: () => void;
@@ -350,67 +425,70 @@ const TestSummaryCard: React.FC<{
   onDelete?: () => void;
   // Rebuilds it with the AI as a full, in-depth test
   onDeepen?: () => void;
-}> = ({ test, usedBy, ranked, onOpen, onEdit, onDelete, onDeepen }) => (
-  <div
-    onClick={onOpen}
-    className="bg-white border border-slate-200 rounded-xl p-5 space-y-3 shadow-2xs cursor-pointer hover:border-indigo-300 transition-colors"
-  >
-    <div className="flex items-center justify-between gap-2">
-      <span className="text-[11px] font-mono uppercase tracking-wider text-indigo-700 font-bold">{test.category}</span>
-      <span className="flex items-center gap-3">
-        <span className="text-xs text-slate-500 font-medium">{test.difficulty}</span>
-        {onEdit && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit();
-            }}
-            className="text-xs font-semibold text-indigo-700 hover:text-indigo-900 flex items-center gap-1"
+}> = ({ test, own, usedBy, ranked, onOpen, onEdit, onDelete, onDeepen }) => {
+  const stop = (fn: () => void) => (e: React.MouseEvent) => {
+    e.stopPropagation();
+    fn();
+  };
+  return (
+    <li
+      onClick={onOpen}
+      className="grid grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(0,1fr)_7rem_4rem_5rem_7rem_6rem] gap-x-4 gap-y-1 items-center px-5 py-3.5 cursor-pointer hover:bg-slate-50/80 transition-colors"
+    >
+      <div className="min-w-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-sm font-semibold text-slate-900 truncate">{test.title}</span>
+          <span
+            className={`shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded ${own ? 'bg-emerald-50 text-emerald-700' : 'bg-indigo-50 text-indigo-700'}`}
           >
-            <Pencil className="w-3 h-3" />
-            Edit
+            {own ? 'Yours' : 'Vetter'}
+          </span>
+        </div>
+        <div className="text-xs text-slate-500 truncate">
+          {test.category} &middot; {test.difficulty}
+          <span className="md:hidden">
+            {' '}
+            &middot; ~{test.estimatedMinutes} min &middot; pass {test.passingScore} &middot; {usedBy.length ? `on ${usedBy.length} ${usedBy.length === 1 ? 'job' : 'jobs'}` : 'not on a job'}
+          </span>
+        </div>
+      </div>
+      <div className="hidden md:block text-xs text-slate-600 font-mono tabular-nums">
+        ~{test.estimatedMinutes} min
+        <div className="text-slate-400">
+          {test.totalQuestions} {test.totalQuestions === 1 ? 'task' : 'tasks'}
+        </div>
+      </div>
+      <div className="hidden md:block text-right text-xs font-mono tabular-nums text-slate-700">{test.passingScore}</div>
+      <div className="hidden md:block text-right text-xs font-mono tabular-nums text-slate-700">{ranked}</div>
+      <div className="hidden md:block text-xs min-w-0">
+        {usedBy.length ? (
+          <span className="block truncate font-medium text-slate-800" title={usedBy.map((j) => j.title).join(', ')}>
+            {usedBy.length === 1 ? usedBy[0].title : `${usedBy.length} jobs`}
+          </span>
+        ) : (
+          <span className="text-slate-300">&ndash;</span>
+        )}
+      </div>
+      <div className="flex items-center justify-end gap-3">
+        {onDeepen && test.questions.length < 12 && (
+          <button onClick={stop(onDeepen)} title="Write a full, in-depth version of this test with Vetter's AI" aria-label={`Rebuild ${test.title} in depth`} className="text-indigo-600 hover:text-indigo-900">
+            <Sparkles className="w-3.5 h-3.5" />
           </button>
         )}
-        {onDeepen && test.questions.length < 12 && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onDeepen();
-            }}
-            title="Write a full, in-depth version of this test with Vetter's AI"
-            className="text-xs font-semibold text-indigo-700 hover:text-indigo-900 flex items-center gap-1"
-          >
-            <Sparkles className="w-3 h-3" />
-            Rebuild in depth
+        {onEdit && (
+          <button onClick={stop(onEdit)} title="Edit" aria-label={`Edit ${test.title}`} className="text-slate-400 hover:text-indigo-700">
+            <Pencil className="w-3.5 h-3.5" />
           </button>
         )}
         {onDelete && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete();
-            }}
-            aria-label={`Delete ${test.title}`}
-            title="Delete test"
-            className="text-slate-400 hover:text-rose-600"
-          >
+          <button onClick={stop(onDelete)} title="Delete test" aria-label={`Delete ${test.title}`} className="text-slate-400 hover:text-rose-600">
             <Trash2 className="w-3.5 h-3.5" />
           </button>
         )}
-      </span>
-    </div>
-    <h3 className="text-sm font-bold text-slate-900">{test.title}</h3>
-    <p className="text-xs text-slate-600 leading-relaxed">{test.description}</p>
-    <div className="pt-3 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500 font-mono">
-      <span>
-        ~{test.estimatedMinutes} mins &middot; {test.totalQuestions} {test.totalQuestions === 1 ? 'task' : 'tasks'} &middot; pass {test.passingScore}
-      </span>
-      <span>
-        {ranked} ranked &middot; {usedBy.length > 0 ? `on ${usedBy.length} of your jobs` : 'not on your jobs'}
-      </span>
-    </div>
-  </div>
-);
+      </div>
+    </li>
+  );
+};
 
 // A test still being written: what it is so far, and ways to carry on or throw it away
 const DraftCard: React.FC<{
