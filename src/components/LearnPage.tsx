@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ArrowRight, BadgeCheck, Briefcase, Building2, Clock, Repeat, TrendingUp } from 'lucide-react';
-import { COURSES, Course, courseHours, courseLessons, coursePriceLabel } from '../data/courses';
+import { COURSES, COURSE_CATEGORIES, Course, courseHours, courseLessons, coursePriceLabel } from '../data/courses';
 import { CourseProgress } from '../lib/courseProgress';
 
 // Two ways in: switching to a new career, or upskilling in the job you have
@@ -15,12 +15,15 @@ interface LearnPageProps {
 
 // Where career switchers often come from and the course that gets them there
 const SWITCH_PATHS: { from: string; to: string; courseId: string }[] = [
+  { from: 'Developer or analyst', to: 'AI engineer', courseId: 'ai-engineering-bootcamp' },
+  { from: 'Retail or hospitality', to: 'Sales development rep', courseId: 'sales-development-bootcamp' },
+  { from: 'Admin or office work', to: 'Paralegal', courseId: 'paralegal-bootcamp' },
+  { from: 'Bookkeeping or admin', to: 'Accountant', courseId: 'accounting-bootcamp' },
   { from: 'Retail or hospitality', to: 'Data analyst', courseId: 'data-analysis-bootcamp' },
+  { from: 'IT support', to: 'Security analyst', courseId: 'cybersecurity-analyst-bootcamp' },
   { from: 'Customer support', to: 'QA tester', courseId: 'software-testing-bootcamp' },
-  { from: 'Teaching', to: 'Project manager', courseId: 'project-management' },
-  { from: 'Admin or office work', to: 'Finance analyst', courseId: 'finance-fundamentals' },
-  { from: 'Hospitality or events', to: 'B2B sales', courseId: 'b2b-sales' },
-  { from: 'Graduate, any degree', to: 'Consultant', courseId: 'consulting-case-interviews' },
+  { from: 'Creative or marketing', to: 'Product designer', courseId: 'ux-design' },
+  { from: 'Office manager', to: 'HR advisor', courseId: 'hr-people-operations' },
 ];
 
 // What people in a role usually add to get better at it, or to move up
@@ -42,7 +45,7 @@ const TRACKS: Record<
     label: 'Career switch',
     title: 'Switch to a career you want',
     intro:
-      "Bootcamps and courses for changing careers, whatever you do now. Each one ends in a Vetter test, so you finish with a verified score companies hire on, and you don't need the experience on your CV. Sign up for one and we'll contact you to talk it through.",
+      "Bootcamps and courses for changing careers, whatever you do now: AI, sales, law, accounting, data, software, design and more. Most end in a Vetter test, so you finish with a verified score companies hire on, and you don't need the experience on your CV. Sign up for one and we'll contact you to talk it through.",
     audience: 'career-switchers',
   },
   upskill: {
@@ -55,7 +58,7 @@ const TRACKS: Record<
   },
 };
 
-const CATEGORIES = ['All', ...new Set(COURSES.map((c) => c.category))];
+const CATEGORIES = ['All', ...COURSE_CATEGORIES.filter((cat) => COURSES.some((c) => c.category === cat))];
 
 export const percentDone = (course: Course, progress: CourseProgress) => {
   const done = progress[course.id]?.done.length ?? 0;
@@ -82,10 +85,12 @@ export const CourseCard: React.FC<{ course: Course; progress: CourseProgress; on
           {course.weeks} weeks · {courseHours(course)} hrs
         </span>
         <span>{course.level}</span>
-        <span className="inline-flex items-center gap-1">
-          <BadgeCheck className="w-3.5 h-3.5 text-emerald-600" />
-          {course.testIds.length} verified {course.testIds.length === 1 ? 'test' : 'tests'}
-        </span>
+        {course.testIds.length > 0 && (
+          <span className="inline-flex items-center gap-1">
+            <BadgeCheck className="w-3.5 h-3.5 text-emerald-600" />
+            {course.testIds.length} verified {course.testIds.length === 1 ? 'test' : 'tests'}
+          </span>
+        )}
       </div>
     </button>
   );
@@ -99,7 +104,6 @@ export const LearnPage: React.FC<LearnPageProps> = ({ track, progress, onOpenCou
   const t = TRACKS[track];
   const Icon = t.icon;
   const forTrack = COURSES.filter((c) => c.audiences.includes(t.audience));
-  const inProgress = forTrack.filter((c) => progress[c.id] && percentDone(c, progress) < 100);
   // Switchers see bootcamps first; employees see the shortest courses first
   const shown = forTrack
     .filter((c) => category === 'All' || c.category === category)
@@ -153,17 +157,6 @@ export const LearnPage: React.FC<LearnPageProps> = ({ track, progress, onOpenCou
       </section>
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 space-y-10">
-        {inProgress.length > 0 && (
-          <section>
-            <h2 className="text-lg font-bold text-slate-900">Continue learning</h2>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {inProgress.map((c) => (
-                <CourseCard key={c.id} course={c} progress={progress} onOpen={() => onOpenCourse(c.id)} />
-              ))}
-            </div>
-          </section>
-        )}
-
         <section>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-lg font-bold text-slate-900">{track === 'switch' ? 'Bootcamps and courses' : 'Courses'}</h2>
