@@ -134,7 +134,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
             turns.map((turn, i) =>
               turn.role === 'user' ? (
                 <div key={i} className="flex justify-end">
-                  <p className="max-w-[85%] px-4 py-2.5 bg-gradient-to-br from-indigo-600 to-violet-500 text-white text-sm rounded-2xl rounded-br-md whitespace-pre-wrap shadow-md shadow-indigo-200/60">
+                  <p className="max-w-[85%] px-4 py-2.5 bg-gradient-to-br from-indigo-600 to-indigo-900 text-white text-sm rounded-2xl rounded-br-md whitespace-pre-wrap shadow-md shadow-indigo-200/60">
                     {turn.text}
                   </p>
                 </div>
@@ -189,7 +189,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
               type="submit"
               disabled={!input.trim() || thinking}
               aria-label="Send"
-              className="w-9 h-9 shrink-0 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-500 hover:brightness-110 text-white flex items-center justify-center disabled:opacity-40"
+              className="w-9 h-9 shrink-0 rounded-xl bg-gradient-to-br from-indigo-600 to-indigo-900 hover:brightness-110 text-white flex items-center justify-center disabled:opacity-40"
             >
               <ArrowUp className="w-4 h-4" />
             </button>

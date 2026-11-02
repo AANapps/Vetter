@@ -1,36 +1,36 @@
 @import "tailwindcss";
 
 @theme {
-  /* Core Blue-Purple Primary Palette (#5b50e5) */
-  --color-primary-50: #f5f4fe;
-  --color-primary-100: #ebe8fd;
-  --color-primary-200: #d9d5fc;
-  --color-primary-300: #bcb4fa;
-  --color-primary-400: #9b8df6;
-  --color-primary-500: #7864f1;
-  --color-primary-600: #5b50e5; /* The core Blue Purple */
-  --color-primary-700: #4b3ed0;
-  --color-primary-800: #3d32ab;
-  --color-primary-900: #342c88;
-  --color-primary-950: #1f1a58;
+  /* Core palette: a deep navy, close to the slate-900 panels (600 is the main accent) */
+  --color-primary-50: #f3f5fa;
+  --color-primary-100: #e4e8f3;
+  --color-primary-200: #c9d1e6;
+  --color-primary-300: #a3afd1;
+  --color-primary-400: #6f7fb0;
+  --color-primary-500: #47578f;
+  --color-primary-600: #2b3a6e;
+  --color-primary-700: #1f2b57;
+  --color-primary-800: #172145;
+  --color-primary-900: #111833;
+  --color-primary-950: #0b1022;
 
-  /* Align Tailwind indigo palette directly to the signature Blue-Purple spectrum */
-  --color-indigo-50: #f5f4fe;
-  --color-indigo-100: #ebe8fd;
-  --color-indigo-200: #d9d5fc;
-  --color-indigo-300: #bcb4fa;
-  --color-indigo-400: #9b8df6;
-  --color-indigo-500: #7864f1;
-  --color-indigo-600: #5b50e5; /* Electric Blue-Purple */
-  --color-indigo-700: #4b3ed0;
-  --color-indigo-800: #3d32ab;
-  --color-indigo-900: #342c88;
-  --color-indigo-950: #1f1a58;
+  /* Tailwind's indigo is remapped to the same navy, so every indigo-* class follows the theme */
+  --color-indigo-50: #f3f5fa;
+  --color-indigo-100: #e4e8f3;
+  --color-indigo-200: #c9d1e6;
+  --color-indigo-300: #a3afd1;
+  --color-indigo-400: #6f7fb0;
+  --color-indigo-500: #47578f;
+  --color-indigo-600: #2b3a6e;
+  --color-indigo-700: #1f2b57;
+  --color-indigo-800: #172145;
+  --color-indigo-900: #111833;
+  --color-indigo-950: #0b1022;
 
   /* Dedicated Blurple token alias */
-  --color-blurple: #5b50e5;
-  --color-blurple-hover: #4b3ed0;
-  --color-blurple-light: #f5f4fe;
+  --color-blurple: #2b3a6e;
+  --color-blurple-hover: #1f2b57;
+  --color-blurple-light: #f3f5fa;
 
   /* LinkedIn Font Stack */
   --font-sans: 'Source Sans 3', -apple-system, system-ui, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', 'Fira Sans', Ubuntu, Oxygen, 'Oxygen Sans', Cantarell, 'Droid Sans', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Lucida Grande', Helvetica, Arial, sans-serif;

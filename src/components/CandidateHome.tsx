@@ -72,7 +72,7 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, jobs, t
     <div className="@container space-y-8 min-w-0">
       {visitor ? (
         <section className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
-          <div className="h-14 bg-gradient-to-r from-indigo-600 to-violet-500" />
+          <div className="h-14 bg-gradient-to-r from-indigo-600 to-indigo-900" />
           <div className="px-5 pb-5 pt-4 space-y-3">
             <h1 className="text-lg font-bold text-slate-900 tracking-tight">Get hired on what you can do</h1>
             <p className="text-sm text-slate-600">Take a free test, get a verified score, and apply to jobs that hire on skill rather than CVs.</p>
@@ -91,7 +91,7 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, jobs, t
       <>
       {/* Who you are at a glance: photo, name, what you do, and your record on Vetter */}
       <section className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
-        <div className="h-14 bg-gradient-to-r from-indigo-600 to-violet-500" />
+        <div className="h-14 bg-gradient-to-r from-indigo-600 to-indigo-900" />
         <div className="px-5 pb-5 -mt-8 space-y-3">
           <button onClick={() => onGoTo('profile')} aria-label="Open your profile" className="block rounded-full">
             <img

@@ -2,9 +2,9 @@ import React from 'react';
 
 // Metal palettes for the podium medals: light, mid and deep tones, plus rim and number colours
 const METALS: Record<number, { light: string; mid: string; deep: string; rim: string; text: string; ribbon: [string, string] }> = {
-  1: { light: '#fff4c7', mid: '#e8b53e', deep: '#9a680c', rim: '#7a5208', text: '#5a3c00', ribbon: ['#5b50e5', '#3f36b8'] },
-  2: { light: '#ffffff', mid: '#c5cdd8', deep: '#6f7c8f', rim: '#56627a', text: '#2a3445', ribbon: ['#5b50e5', '#3f36b8'] },
-  3: { light: '#ffe0c6', mid: '#cf8853', deep: '#7c3f18', rim: '#663212', text: '#4a2208', ribbon: ['#5b50e5', '#3f36b8'] },
+  1: { light: '#fff4c7', mid: '#e8b53e', deep: '#9a680c', rim: '#7a5208', text: '#5a3c00', ribbon: ['#2b3a6e', '#172145'] },
+  2: { light: '#ffffff', mid: '#c5cdd8', deep: '#6f7c8f', rim: '#56627a', text: '#2a3445', ribbon: ['#2b3a6e', '#172145'] },
+  3: { light: '#ffe0c6', mid: '#cf8853', deep: '#7c3f18', rim: '#663212', text: '#4a2208', ribbon: ['#2b3a6e', '#172145'] },
 };
 
 // Gold, silver and bronze medals for the podium; plain numbers after that
