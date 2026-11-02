@@ -706,7 +706,7 @@ export default function App() {
     setActiveAttempt({ number: used + 1, limit });
   };
 
-  // The clock starting on one of a job's tests: the company sees the try from now, finished or not
+  // The candidate signed and pressed Begin on one of a job's tests: the try counts from now, finished or not
   const recordJobTestStart = (test: AssessmentTest, jobId: string) => {
     const invitation = jobsRef.current.find((j) => j.id === jobId)?.invitations.find((i) => i.candidateId === candidate.id);
     const now = new Date().toISOString();

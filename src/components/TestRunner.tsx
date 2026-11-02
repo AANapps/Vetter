@@ -36,7 +36,7 @@ interface TestRunnerProps {
   preview?: boolean;
   // Where the score goes, when it isn't the candidate's profile: e.g. a company trying its own test
   savedNote?: string;
-  // Taken for a job: called when the clock starts, so the try is recorded even if it's never submitted
+  // Taken for a job: called once the candidate signs and presses Begin, so the try is recorded even if never submitted
   onBegin?: () => void;
   // Which try at the job's test this is, and how many the job allows
   attempt?: { number: number; limit?: number };
@@ -212,14 +212,16 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
     onComplete(test.id, finalScore, finalDuration);
   };
 
-  const beganRef = useRef(false);
+  // Signed and Begin pressed: the try counts from here, so it's recorded once, before the countdown
+  const committedRef = useRef(false);
+  const handleCommit = () => {
+    if (committedRef.current) return;
+    committedRef.current = true;
+    onBegin?.();
+  };
   const handleBegin = () => {
-    // Only once, so a try is never recorded twice
-    if (beganRef.current) return;
-    beganRef.current = true;
     startedAtRef.current = Date.now();
     setHasStarted(true);
-    onBegin?.();
   };
 
   // What leaving costs: for a job, the try is already recorded and counts; otherwise only the answers are lost
@@ -249,13 +251,9 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
       <strong>You&rsquo;ll have to retake the test</strong> from the start, with the full time.
     </>
   );
-  const attemptNote = attempt
-    ? `${attempt.limit !== undefined ? `This is attempt ${attempt.number} of ${attempt.limit}. ` : ''}Once the clock starts the attempt is recorded for the company, and leaving without submitting still counts as an attempt.`
-    : undefined;
-
   if (!hasStarted) {
     return (
-      <TestIntro test={test} onBegin={handleBegin} onClose={onClose} attemptNote={attemptNote} />
+      <TestIntro test={test} onBegin={handleBegin} onClose={onClose} onCommit={handleCommit} attempt={attempt} />
     );
   }
 

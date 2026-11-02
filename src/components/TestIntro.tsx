@@ -24,8 +24,10 @@ interface TestIntroProps {
   test: AssessmentTest;
   onBegin: () => void;
   onClose: () => void;
-  // Taken for a job: which attempt this is and that leaving still uses it
-  attemptNote?: string;
+  // Signed and Begin pressed: from here the try counts, before the countdown even ends
+  onCommit?: () => void;
+  // Taken for a job: which try this is, and how many the job allows (no limit when unset)
+  attempt?: { number: number; limit?: number };
 }
 
 // A short, steady reference for this sitting, shown like an exam paper's number
@@ -38,12 +40,42 @@ const referenceFor = (testId: string) => {
   ).padStart(2, '0')}`;
 };
 
+// The job's attempt limit, stated plainly: what's allowed, which try this is, and exactly when it starts to count
+const AttemptTerms: React.FC<{ attempt: { number: number; limit?: number }; isLast: boolean }> = ({ attempt, isLast }) => (
+  <div className={`rounded-xl border p-5 space-y-2 ${isLast ? 'border-rose-200 bg-rose-50/60' : 'border-amber-200 bg-amber-50/60'}`}>
+    <Label>Attempts</Label>
+    <p className="font-semibold text-slate-900">
+      {attempt.limit !== undefined ? (
+        <>
+          This job allows {attempt.limit} {attempt.limit === 1 ? 'attempt' : 'attempts'} at this test. This is attempt {attempt.number} of {attempt.limit}
+          {isLast ? ': your last.' : '.'}
+        </>
+      ) : (
+        <>This job has no limit on attempts. This is attempt {attempt.number}, and the company sees every one.</>
+      )}
+    </p>
+    <ul className="list-disc pl-5 space-y-1 text-slate-700">
+      <li>
+        Nothing counts until you sign the declaration and press <strong>Begin the test</strong>. Until then you can leave freely.
+      </li>
+      <li>From that moment the attempt is recorded for the company and counts, even if you close, reload or exit without submitting.</li>
+      {attempt.limit !== undefined && <li>Only your first {attempt.limit === 1 ? 'attempt counts' : `${attempt.limit} attempts count`} towards the job.</li>}
+    </ul>
+  </div>
+);
+
 const Label: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">{children}</div>
 );
 
 // Before the clock starts: the test read like an exam's front pages, one at a time, ending in a signed declaration
-export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose, attemptNote }) => {
+export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose, onCommit, attempt }) => {
+  const isLastAttempt = attempt?.limit !== undefined && attempt.number >= attempt.limit;
+  const attemptLabel = !attempt
+    ? 'Timed, single sitting'
+    : attempt.limit !== undefined
+    ? `${attempt.number} of ${attempt.limit}`
+    : `${attempt.number} (no limit)`;
   const [slide, setSlide] = useState(0);
   const [accepted, setAccepted] = useState(false);
   const [signature, setSignature] = useState('');
@@ -160,7 +192,7 @@ export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose, at
                       ['Duration', `${test.estimatedMinutes} minutes`],
                       ['Questions', `${answerable.length}`],
                       ['Pass mark', `${test.passingScore} / 100`],
-                      ['Attempt', 'Timed, single sitting'],
+                      ['Attempt', attemptLabel],
                     ].map(([k, v]) => (
                       <div key={k} className="p-4">
                         <dt className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">{k}</dt>
@@ -173,6 +205,7 @@ export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose, at
                     Read every section before you begin. The clock starts only when you press <strong>Begin the test</strong>, and it can&rsquo;t be
                     paused once it has.
                   </p>
+                  {attempt && <AttemptTerms attempt={attempt} isLast={isLastAttempt} />}
                 </>
               )}
 
@@ -245,7 +278,6 @@ export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose, at
                     <li>
                       Closing or leaving the test before you submit <strong>throws away your answers</strong>. There is no pause.
                     </li>
-                    {attemptNote && <li className="font-semibold text-slate-900">{attemptNote}</li>}
                   </ol>
                 </>
               )}
@@ -261,6 +293,7 @@ export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose, at
                       </li>
                     ))}
                   </ol>
+                  {attempt && <AttemptTerms attempt={attempt} isLast={isLastAttempt} />}
                   <div className="border border-indigo-200 rounded-xl p-5 space-y-4 bg-indigo-50/40">
                     <Label>Candidate declaration</Label>
                     <label className="flex items-start gap-3 cursor-pointer text-slate-900">
@@ -268,6 +301,10 @@ export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose, at
                       <span>
                         I have read the rules above. I will take this test alone, without outside help, and I understand that breaking the rules can
                         void my result.
+                        {attempt &&
+                          ` I understand that pressing Begin uses ${
+                            attempt.limit !== undefined ? `attempt ${attempt.number} of ${attempt.limit}` : 'an attempt'
+                          }, even if I leave without submitting.`}
                       </span>
                     </label>
                     <label className="block">
@@ -308,7 +345,10 @@ export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose, at
           </span>
           {last ? (
             <button
-              onClick={() => setCountdown(3)}
+              onClick={() => {
+                onCommit?.();
+                setCountdown(3);
+              }}
               disabled={!ready}
               title={ready ? undefined : 'Tick the declaration and sign with your name first'}
               className="px-5 py-2.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
