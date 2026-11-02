@@ -110,23 +110,58 @@ const SITE_TITLE = 'Vetter - Skills-Based Hiring';
 // A company's link to a test carries ?ref=<business id>, like an affiliate link
 const refFromHash = () => new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('ref');
 
-// Home is the tests companies sent you; a company starts on its jobs
-const initialTab = (): AppTab =>
-  window.location.hash === '#/business' || window.location.hash === '#/pricing'
-    ? 'for-business'
-    : jobIdFromUrl() || isJobsIndexPath(window.location.pathname)
-    ? 'jobs'
-    : courseIdFromPath(window.location.pathname) || isLearnIndexPath(window.location.pathname)
-    ? 'learn'
-    : isUpskillIndexPath(window.location.pathname)
-    ? 'upskill'
-    : idFromHash('tests')
-    ? 'tests'
-    : 'home';
+// Every main page has its own address, so back and forward move between them and a refresh stays put.
+// Pop-ups (a job's details, a person's profile, editors) have none
+const TAB_PATHS: Record<AppTab, string> = {
+  home: '/',
+  profile: '/profile/',
+  jobs: '/jobs/',
+  tests: '/tests/',
+  companies: '/companies/',
+  learn: '/learn/',
+  upskill: '/upskill/',
+  'business-jobs': '/business/jobs/',
+  'business-tests': '/business/tests/',
+  'business-candidates': '/business/candidates/',
+  'for-business': '/#/business',
+};
+
+// A company's own job, at /business/jobs/<id>/
+const businessJobIdFromPath = () => {
+  const match = window.location.pathname.match(/^\/business\/jobs\/([^/]+)\/?$/);
+  return match ? decodeURIComponent(match[1]) : null;
+};
+
+// The pages each side has; companies is on both
+const SIDE_TABS: Record<'candidate' | 'staff', AppTab[]> = {
+  candidate: ['home', 'tests', 'jobs', 'learn', 'upskill', 'profile', 'companies', 'for-business'],
+  staff: ['business-jobs', 'business-tests', 'business-candidates', 'companies'],
+};
+const sideOf = (role: UserRole) => (role === 'candidate' ? 'candidate' : 'staff');
+
+// The page the address is for. A test page sits under each side's Tests; a course opened from Upskill keeps Upskill
+const tabFromUrl = (role: UserRole, current?: AppTab): AppTab => {
+  const { pathname, hash } = window.location;
+  if (hash === '#/business' || hash === '#/pricing') return 'for-business';
+  if (idFromHash('tests')) return role === 'candidate' ? 'tests' : 'business-tests';
+  if (jobIdFromUrl() || isJobsIndexPath(pathname)) return role === 'candidate' ? 'jobs' : 'business-jobs';
+  if (courseIdFromPath(pathname)) return current === 'upskill' ? 'upskill' : 'learn';
+  if (isLearnIndexPath(pathname)) return 'learn';
+  if (isUpskillIndexPath(pathname)) return 'upskill';
+  if (businessJobIdFromPath()) return 'business-jobs';
+  const path = pathname.endsWith('/') ? pathname : `${pathname}/`;
+  return (Object.entries(TAB_PATHS).find(([, p]) => p === path)?.[0] as AppTab | undefined) ?? 'home';
+};
+const initialTab = (): AppTab => tabFromUrl('candidate');
 
 export default function App() {
   const [activeRole, setActiveRole] = useState<UserRole>('candidate');
   const [currentTab, setCurrentTab] = useState<AppTab>(initialTab);
+  // Read when the address changes, which happens outside React
+  const roleRef = useRef(activeRole);
+  roleRef.current = activeRole;
+  const currentTabRef = useRef(currentTab);
+  currentTabRef.current = currentTab;
 
   // Core data: candidates, jobs, tests and companies, loaded from the store and saved on every change
   const [initialData] = useState(loadData);
@@ -263,15 +298,31 @@ export default function App() {
   const courseProgress = useCourseProgress();
   const [testPageId, setTestPageId] = useState<string | null>(() => idFromHash('tests'));
   const [jobPageId, setJobPageId] = useState<string | null>(jobIdFromUrl);
+  // The company's job open on its side, at /business/jobs/<id>/
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(businessJobIdFromPath);
   // Each course has its own page at /learn/<id>/
   const [coursePageId, setCoursePageId] = useState<string | null>(() => courseIdFromPath(window.location.pathname));
   const syncPagesFromUrl = () => {
     setTestPageId(idFromHash('tests'));
     setJobPageId(jobIdFromUrl());
     setCoursePageId(courseIdFromPath(window.location.pathname));
+    setSelectedJobId(businessJobIdFromPath());
+    const role = roleRef.current;
+    const tab = tabFromUrl(role, currentTabRef.current);
+    // An address for the other side's page (e.g. back to Home after signing in as a company): your side's first page
+    if (!SIDE_TABS[sideOf(role)].includes(tab)) {
+      const home = SIDE_TABS[sideOf(role)][0];
+      history.replaceState(null, '', TAB_PATHS[home]);
+      setCurrentTab(home);
+      return;
+    }
+    setCurrentTab(tab);
   };
-  const navigateTo = (url: string) => {
-    history.pushState(null, '', url);
+  // Opening the page already open adds nothing to the history
+  // replace: a redirect rather than a step, so back doesn't land on it
+  const navigateTo = (url: string, replace = false) => {
+    const here = window.location.pathname + window.location.search + window.location.hash;
+    if (url !== here) history[replace ? 'replaceState' : 'pushState'](null, '', url);
     syncPagesFromUrl();
   };
   useEffect(() => {
@@ -309,12 +360,11 @@ export default function App() {
     if (invitation && !invitation.openedAt) updateInvitation(jobPageId, candidateRef.current.id, { openedAt: new Date().toISOString() });
   }, [jobPageId, activeRole]);
 
-  // Companies opening a job's link land on that job's results
-  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  // Companies opening a job's link land on that job's results, at its own address on their side
   useEffect(() => {
     if (!jobPageId || activeRole === 'candidate') return;
-    setSelectedJobId(jobPageId);
-    setCurrentTab('business-jobs');
+    history.replaceState(null, '', `/business/jobs/${encodeURIComponent(jobPageId)}/`);
+    syncPagesFromUrl();
   }, [jobPageId, activeRole]);
   // Choosing a job's tests: the job (or every job, when sending a test from its page) and any tests to add
   const [editingTests, setEditingTests] = useState<{ jobId?: string; addTestIds: string[] } | null>(null);
@@ -341,13 +391,23 @@ export default function App() {
   const recruiterBusiness: Business | undefined = businesses.find((b) => b.id === recruiter.businessId);
 
   // A signed-in account sees its own side of Vetter; the Vetter team keeps the view switcher
+  // Once it's known who's looking, the address is checked against their side: another side's page sends them to their own
   useEffect(() => {
-    if (!firebaseEnabled) return;
-    const role: UserRole = !account ? 'candidate' : account.role === 'recruiter' ? 'recruiter' : account.role === 'admin' ? 'admin' : 'candidate';
+    if (firebaseEnabled && accountLoading) return;
+    const role: UserRole = !firebaseEnabled
+      ? activeRole
+      : !account
+      ? 'candidate'
+      : account.role === 'recruiter'
+      ? 'recruiter'
+      : account.role === 'admin'
+      ? 'admin'
+      : 'candidate';
     if (role !== activeRole) handleRoleChange(role);
     // The business page is for visitors: someone who signs in there goes to their own side
-    else if (user && currentTab === 'for-business') goToTab(NAV_TABS[role === 'candidate' ? 'candidate' : 'recruiter'][0].id);
-  }, [account?.role, user?.uid]);
+    else if (user && currentTab === 'for-business') goToTab(NAV_TABS[role === 'candidate' ? 'candidate' : 'recruiter'][0].id, true);
+    else syncPagesFromUrl();
+  }, [accountLoading, account?.role, user?.uid]);
 
   // A candidate account's profile and progress come from their account, so they follow them to any device. Until
   // it has loaded, nothing is saved back (a blank profile mustn't overwrite theirs); saving stays off if it can't load
@@ -458,23 +518,25 @@ export default function App() {
     setTimeout(() => setToast(null), 4000);
   };
 
-  const goToTab = (tab: AppTab) => {
-    if (tab === 'learn' || tab === 'upskill') navigateTo(`/${tab}/`);
-    else if (window.location.hash || window.location.pathname !== '/') navigateTo('/' + window.location.search);
-    if (tab === 'for-business') history.replaceState(null, '', '/#/business');
-    if (tab === 'business-jobs') setSelectedJobId(null);
+  const goToTab = (tab: AppTab, replace = false) => {
+    const path = TAB_PATHS[tab];
+    navigateTo(tab === 'home' ? '/' + window.location.search : path, replace);
     setCurrentTab(tab);
   };
 
+  // One of a company's jobs, or the list of them
+  const openBusinessJob = (jobId: string | null) => {
+    navigateTo(jobId ? `/business/jobs/${encodeURIComponent(jobId)}/` : TAB_PATHS['business-jobs']);
+    window.scrollTo(0, 0);
+  };
+
   const openTestPage = (testId: string) => {
-    setCurrentTab(activeRole === 'candidate' ? 'tests' : 'business-tests');
     navigateTo(`/#/tests/${encodeURIComponent(testId)}`);
     window.scrollTo(0, 0);
   };
 
   // A course opened from Upskill keeps that tab, so back returns there
   const openCoursePage = (courseId: string) => {
-    setCurrentTab((tab) => (tab === 'upskill' ? 'upskill' : 'learn'));
     const course = COURSES.find((c) => c.id === courseId);
     navigateTo(course ? coursePath(course) : '/learn/');
     window.scrollTo(0, 0);
@@ -485,7 +547,6 @@ export default function App() {
   };
 
   const openJobPage = (jobId: string) => {
-    setCurrentTab('jobs');
     const job = jobs.find((j) => j.id === jobId);
     navigateTo(job ? jobPath(job) : `/jobs/${encodeURIComponent(jobId)}/`);
     window.scrollTo(0, 0);
@@ -565,9 +626,14 @@ export default function App() {
     }));
 
   // Switch between the candidate, business and Vetter team views
+  // A page the new side has stays open, so signing in or refreshing keeps your place; otherwise its first page
   const handleRoleChange = (nextRole: UserRole) => {
     setActiveRole(nextRole);
-    goToTab(NAV_TABS[nextRole === 'candidate' ? 'candidate' : 'recruiter'][0].id);
+    roleRef.current = nextRole;
+    const here = tabFromUrl(nextRole, currentTabRef.current);
+    const onPage = window.location.pathname !== '/' || window.location.hash;
+    if (onPage && SIDE_TABS[sideOf(nextRole)].includes(here) && here !== 'for-business') syncPagesFromUrl();
+    else goToTab(NAV_TABS[nextRole === 'candidate' ? 'candidate' : 'recruiter'][0].id, true);
   };
   // The business and Vetter team views share the same pages
   const staffUser = activeRole === 'admin' ? VETTER_TEAM : recruiter;
@@ -813,8 +879,7 @@ export default function App() {
   const leadsJobs = leadsBusiness ? jobs.filter((j) => j.businessId === leadsBusiness.id) : jobs;
   const leadRows = activeRole === 'candidate' ? [] : buildLeadRows(leadsJobs, allCandidates, leads);
   const openJobLeads = (jobId: string) => {
-    goToTab('business-jobs');
-    setSelectedJobId(jobId);
+    openBusinessJob(jobId);
     // Once the job's page is drawn, jump to its pipeline
     setTimeout(() => document.getElementById('job-leads')?.scrollIntoView({ behavior: 'smooth' }), 50);
   };
@@ -1046,10 +1111,7 @@ export default function App() {
               tests={tests}
               candidates={allCandidates}
               selectedJobId={selectedJobId}
-              onSelect={(id) => {
-                setSelectedJobId(id);
-                window.scrollTo(0, 0);
-              }}
+              onSelect={openBusinessJob}
               onCreateJob={handleCreateJob}
               onEditTests={(jobId) => setEditingTests({ jobId, addTestIds: [] })}
               onSuggestTests={(jobId) => setGenerator({ jobId })}
@@ -1066,7 +1128,7 @@ export default function App() {
               onDeleteJob={(jobId) => {
                 const job = jobs.find((j) => j.id === jobId);
                 setJobs((prev) => prev.filter((j) => j.id !== jobId));
-                if (selectedJobId === jobId) setSelectedJobId(null);
+                if (selectedJobId === jobId) openBusinessJob(null);
                 if (job) showToast(`${job.title} deleted.`);
               }}
             />
@@ -1139,9 +1201,7 @@ export default function App() {
           onSave={(jobId, change) => {
             handleSaveJobTests(jobId, change);
             setEditingTests(null);
-            goToTab('business-jobs');
-            setSelectedJobId(jobId);
-            window.scrollTo(0, 0);
+            openBusinessJob(jobId);
           }}
           onCancel={() => setEditingTests(null)}
         />
