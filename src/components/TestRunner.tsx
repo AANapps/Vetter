@@ -36,9 +36,13 @@ interface TestRunnerProps {
   preview?: boolean;
   // Where the score goes, when it isn't the candidate's profile: e.g. a company trying its own test
   savedNote?: string;
+  // Taken for a job: called when the clock starts, so the try is recorded even if it's never submitted
+  onBegin?: () => void;
+  // Which try at the job's test this is, and how many the job allows
+  attempt?: { number: number; limit?: number };
 }
 
-export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete, getPercentileFor, preview, savedNote }) => {
+export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete, getPercentileFor, preview, savedNote, onBegin, attempt }) => {
   // Each hands-on task is shown with the questions about it; every other question on its own
   const groups = useMemo(() => groupQuestions(test.questions), [test.questions]);
   const ordered = useMemo(() => groups.flatMap((g) => g.questions), [groups]);
@@ -208,14 +212,50 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
     onComplete(test.id, finalScore, finalDuration);
   };
 
+  const beganRef = useRef(false);
   const handleBegin = () => {
+    // Only once, so a try is never recorded twice
+    if (beganRef.current) return;
+    beganRef.current = true;
     startedAtRef.current = Date.now();
     setHasStarted(true);
+    onBegin?.();
   };
+
+  // What leaving costs: for a job, the try is already recorded and counts; otherwise only the answers are lost
+  const attemptsLeftAfter = attempt?.limit !== undefined ? attempt.limit - attempt.number : undefined;
+  const leavingCost = attempt ? (
+    <>
+      The company sees this attempt as <strong>started and not submitted</strong>
+      {attempt.limit !== undefined && (
+        <>
+          , and it uses attempt {attempt.number} of {attempt.limit}
+          {attemptsLeftAfter === 0 ? (
+            <>
+              . <strong>You won&rsquo;t be able to take this test again</strong>
+            </>
+          ) : (
+            <>
+              {' '}
+              ({attemptsLeftAfter} left)
+            </>
+          )}
+        </>
+      )}
+      .
+    </>
+  ) : (
+    <>
+      <strong>You&rsquo;ll have to retake the test</strong> from the start, with the full time.
+    </>
+  );
+  const attemptNote = attempt
+    ? `${attempt.limit !== undefined ? `This is attempt ${attempt.number} of ${attempt.limit}. ` : ''}Once the clock starts the attempt is recorded for the company, and leaving without submitting still counts as an attempt.`
+    : undefined;
 
   if (!hasStarted) {
     return (
-      <TestIntro test={test} onBegin={handleBegin} onClose={onClose} />
+      <TestIntro test={test} onBegin={handleBegin} onClose={onClose} attemptNote={attemptNote} />
     );
   }
 
@@ -688,10 +728,7 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
             </div>
             <ul className="text-xs text-slate-700 space-y-1.5 list-disc pl-5">
               <li>Stay on this tab until you submit. The clock kept running while you were away.</li>
-              <li>
-                If you close this tab, reload the page or exit the test, your answers are lost and <strong>you&rsquo;ll have to retake the test</strong>{' '}
-                from the start.
-              </li>
+              <li>If you close this tab, reload the page or exit the test, your answers are lost. {leavingCost}</li>
             </ul>
             <button
               onClick={() => setLeftTab(false)}
@@ -714,10 +751,7 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
               </div>
               <div className="space-y-1">
                 <h3 id="exit-title" className="text-base font-bold text-slate-900">Leave the test?</h3>
-                <p className="text-xs text-slate-600">
-                  Your answers so far will be lost and nothing is submitted. <strong>You&rsquo;ll have to retake the test</strong> from the start, with
-                  the full time.
-                </p>
+                <p className="text-xs text-slate-600">Your answers so far will be lost and nothing is submitted. {leavingCost}</p>
               </div>
             </div>
             <div className="flex flex-col-reverse sm:flex-row gap-2">

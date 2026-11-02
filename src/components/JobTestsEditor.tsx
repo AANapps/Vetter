@@ -9,7 +9,7 @@ interface JobTestsEditorProps {
   tests: AssessmentTest[];
   // Tests to add, e.g. when sending one from its page
   addTestIds?: string[];
-  onSave: (jobId: string, change: Pick<JobPosting, 'testIds' | 'testPassingScore' | 'testsRequired'>) => void;
+  onSave: (jobId: string, change: Pick<JobPosting, 'testIds' | 'testPassingScore' | 'testsRequired' | 'maxAttempts'>) => void;
   onCancel: () => void;
 }
 
@@ -17,6 +17,9 @@ const inputClass =
   'w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100';
 
 const STEPS = ['Pick tests', 'Details'] as const;
+
+// A job's attempts per test: what it's set to, or 2 for a job getting its first tests (0 is no limit)
+const attemptsFor = (job: JobPosting | undefined) => job?.maxAttempts ?? (job?.testIds.length ? 0 : 2);
 
 // Choosing a job's tests is two steps: pick them, then set the pass mark and whether they're needed to apply
 export const JobTestsEditor: React.FC<JobTestsEditorProps> = ({ jobs, tests, addTestIds = [], onSave, onCancel }) => {
@@ -34,12 +37,14 @@ export const JobTestsEditor: React.FC<JobTestsEditorProps> = ({ jobs, tests, add
   const pickedTests = picked.map((p) => tests.find((t) => t.id === p.testId)).filter((t): t is AssessmentTest => !!t);
   const [passingScore, setPassingScore] = useState(() => job?.testPassingScore ?? 70);
   const [required, setRequired] = useState(() => job?.testsRequired ?? true);
+  const [maxAttempts, setMaxAttempts] = useState(() => attemptsFor(job));
   const switchJob = (id: string) => {
     const next = jobs.find((j) => j.id === id);
     setJobId(id);
     setPicked(pickedFor(next));
     setPassingScore(next?.testPassingScore ?? 70);
     setRequired(next?.testsRequired ?? true);
+    setMaxAttempts(attemptsFor(next));
   };
 
   const tq = testQuery.trim().toLowerCase();
@@ -54,7 +59,7 @@ export const JobTestsEditor: React.FC<JobTestsEditorProps> = ({ jobs, tests, add
   const save = (e: React.FormEvent) => {
     e.preventDefault();
     if (!job || pickedTests.length === 0) return;
-    onSave(job.id, { testIds: pickedTests.map((t) => t.id), testPassingScore: passingScore, testsRequired: required });
+    onSave(job.id, { testIds: pickedTests.map((t) => t.id), testPassingScore: passingScore, testsRequired: required, maxAttempts });
   };
 
   return (
@@ -178,6 +183,21 @@ export const JobTestsEditor: React.FC<JobTestsEditorProps> = ({ jobs, tests, add
                     <input type="checkbox" checked={required} onChange={(e) => setRequired(e.target.checked)} className="accent-indigo-600" />
                     Required to apply
                   </label>
+                </div>
+                <div>
+                  <label htmlFor="a-attempts" className="block text-xs font-semibold text-slate-700 mb-1">
+                    Attempts per test
+                  </label>
+                  <select id="a-attempts" value={maxAttempts} onChange={(e) => setMaxAttempts(Number(e.target.value))} className={inputClass}>
+                    <option value={1}>1: one sitting, no retakes</option>
+                    <option value={2}>2: one retake</option>
+                    <option value={3}>3: two retakes</option>
+                    <option value={0}>No limit</option>
+                  </select>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Every start counts, including one left without submitting, and you see those on the job. Fewer attempts means less chance to
+                    learn the questions and come back.
+                  </p>
                 </div>
               </>
             )}

@@ -312,6 +312,8 @@ export interface JobPosting {
   testIds: string[];
   // Average score across the job's tests needed to pass
   testPassingScore: number;
+  // How many times a candidate may start each of the job's tests; 0 or unset is no limit. Starts left unsubmitted count
+  maxAttempts?: number;
   // Candidates must pass the tests before they can apply
   testsRequired: boolean;
   // Everyone the job's tests have been sent to, and addresses emailed that have no Vetter account yet
@@ -386,8 +388,16 @@ export interface JobInvitation {
   // When they first opened the job, and first started one of its tests
   openedAt?: string; // ISO timestamp
   startedAt?: string; // ISO timestamp
+  // Every time they began one of the job's tests; one with no finishedAt was left without submitting
+  attempts?: JobTestAttempt[];
   // The login address the invitation was emailed to, for people picked from Vetter's candidates
   emailedTo?: string;
+}
+
+export interface JobTestAttempt {
+  testId: string;
+  startedAt: string; // ISO timestamp
+  finishedAt?: string; // ISO timestamp
 }
 
 export interface AppNotification {

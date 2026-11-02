@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { User, JobPosting, AssessmentTest, JobProfile } from '../types';
-import { jobTestProgress, jobTestsOf } from '../lib/jobTests';
+import { attemptsAt, jobTestProgress, jobTestsOf } from '../lib/jobTests';
 import { bestProfileFor } from '../lib/jobProfiles';
 import {
   X,
@@ -48,9 +48,11 @@ export const JobApplicationModal: React.FC<JobApplicationModalProps> = ({
   const passingScore = job.testPassingScore;
   const hasPassed = progress.status === 'passed';
   // The next to take, or once all are taken and the average is short, the weakest to retake
+  // Only tests with tries left can be taken again
+  const takeable = jobTests.filter((t) => attemptsAt(job, candidate, t.id).left !== 0);
   const nextTest =
-    jobTests.find((t) => progress.scores[t.id] === undefined) ??
-    (hasPassed ? undefined : [...jobTests].sort((a, b) => (progress.scores[a.id] ?? 0) - (progress.scores[b.id] ?? 0))[0]);
+    takeable.find((t) => progress.scores[t.id] === undefined) ??
+    (hasPassed ? undefined : [...takeable].sort((a, b) => (progress.scores[a.id] ?? 0) - (progress.scores[b.id] ?? 0))[0]);
   const testBlocksApplication = jobTests.length > 0 && job.testsRequired && !hasPassed;
   const isApplied = candidate.appliedJobIds?.includes(job.id);
 
@@ -185,7 +187,7 @@ export const JobApplicationModal: React.FC<JobApplicationModalProps> = ({
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2 text-xs text-amber-900">
                 <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
                 <div>
-                  <span className="font-bold">Below pass mark:</span> you {jobTests.length > 1 ? 'averaged' : 'scored'} {progress.score}/100. Retake a test to reach {passingScore}.
+                  <span className="font-bold">Below pass mark:</span> you {jobTests.length > 1 ? 'averaged' : 'scored'} {progress.score}/100.{takeable.length > 0 ? ` Retake a test to reach ${passingScore}.` : ' You have no attempts left.'}
                 </div>
               </div>
             ) : (

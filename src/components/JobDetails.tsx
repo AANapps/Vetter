@@ -1,8 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { CheckCircle2, ChevronLeft, ChevronRight, MapPin, Play, Send, X } from 'lucide-react';
 import { AssessmentTest, Business, CandidateJobMatch, JobPosting, User } from '../types';
-import { getBestTestScore } from '../lib/matchingAlgorithm';
-import { jobTestsOf } from '../lib/jobTests';
+import { attemptsAt, jobTestProgress, jobTestsOf } from '../lib/jobTests';
 
 const DAY_MS = 86400000;
 
@@ -62,18 +61,24 @@ export interface JobTest {
   test: AssessmentTest;
   score?: number;
   target: number;
+  // Tries left at it, when the job limits them
+  attemptsLeft?: number;
 }
 
-export const getJobTests = (job: JobPosting, candidate: User, tests: AssessmentTest[]): JobTest[] =>
-  jobTestsOf(job, tests).map((test) => ({
+// The score is the one the job counts: with an attempt limit, the best of the first tries only
+export const getJobTests = (job: JobPosting, candidate: User, tests: AssessmentTest[]): JobTest[] => {
+  const progress = jobTestProgress(job, candidate);
+  return jobTestsOf(job, tests).map((test) => ({
     key: test.id,
     label: job.testsRequired ? 'Required to apply' : 'For this job',
     required: job.testsRequired,
     name: test.title,
     test,
-    score: getBestTestScore(candidate, test.id),
+    score: progress.scores[test.id],
     target: job.testPassingScore,
+    attemptsLeft: attemptsAt(job, candidate, test.id).left,
   }));
+};
 
 // A job's tests on the job board, one block each: what it's for, then to do or your result.
 // More than three slide sideways, three to a view
@@ -244,6 +249,7 @@ export const JobDetails: React.FC<JobDetailsProps> = ({
           test={t.test}
           score={t.score}
           target={t.target}
+          attemptsLeft={t.attemptsLeft}
           onStart={() => onStartJobTest(t.test)}
           onOpenTest={onOpenTest}
         />
@@ -365,9 +371,10 @@ const TestRow: React.FC<{
   test: AssessmentTest;
   score?: number;
   target: number;
+  attemptsLeft?: number;
   onStart: () => void;
   onOpenTest: (testId: string) => void;
-}> = ({ label, labelTone, test, score, target, onStart, onOpenTest }) => {
+}> = ({ label, labelTone, test, score, target, attemptsLeft, onStart, onOpenTest }) => {
   const passed = score !== undefined && score >= target;
   return (
     <li className="px-4 py-2.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
@@ -392,15 +399,21 @@ const TestRow: React.FC<{
             </span>
           </span>
         )}
-        <button
-          onClick={onStart}
-          className={`px-2.5 py-1.5 text-[11px] font-semibold rounded-md transition-colors flex items-center gap-1 ${
-            score === undefined ? 'text-white bg-indigo-600 hover:bg-indigo-700' : 'text-slate-700 bg-white'
-          }`}
-        >
-          {score === undefined && <Play className="w-3 h-3 fill-current" />}
-          <span>{score === undefined ? 'Take test' : 'Retake'}</span>
-        </button>
+        {attemptsLeft === 0 ? (
+          <span className="text-[11px] font-medium text-slate-500">No attempts left</span>
+        ) : (
+          <button
+            onClick={onStart}
+            title={attemptsLeft !== undefined ? `${attemptsLeft} ${attemptsLeft === 1 ? 'attempt' : 'attempts'} left` : undefined}
+            className={`px-2.5 py-1.5 text-[11px] font-semibold rounded-md transition-colors flex items-center gap-1 ${
+              score === undefined ? 'text-white bg-indigo-600 hover:bg-indigo-700' : 'text-slate-700 bg-white'
+            }`}
+          >
+            {score === undefined && <Play className="w-3 h-3 fill-current" />}
+            <span>{score === undefined ? 'Take test' : 'Retake'}</span>
+            {attemptsLeft !== undefined && <span className="font-normal opacity-75">&middot; {attemptsLeft} left</span>}
+          </button>
+        )}
       </div>
     </li>
   );

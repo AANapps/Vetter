@@ -387,13 +387,14 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
   const pendingEmails = (job.invitedEmails ?? []).filter((e) => !accountEmails.has(e));
 
   const downloadCsv = () => {
-    const header = ['Tier', 'Name', 'Email', 'Got it by', 'Status', ...jobTests.map((t) => versionTitle(t)), 'Overall', 'Minutes', 'Last activity'];
+    const header = ['Tier', 'Name', 'Email', 'Got it by', 'Status', 'Not submitted', ...jobTests.map((t) => versionTitle(t)), 'Overall', 'Minutes', 'Last activity'];
     const lines = rows.map((r) => [
       TIERS[tiers.get(r)!].label,
       r.candidate.name,
       r.candidate.email,
       VIA_LABELS[r.invitation.via ?? 'invite'],
       TRACKING_LABELS[r.status],
+      r.progress.unsubmitted,
       ...jobTests.map((t) => r.progress.scores[t.id] ?? ''),
       r.progress.score ?? '',
       r.progress.seconds ? Math.round(r.progress.seconds / 60) : '',
@@ -623,6 +624,15 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
                       </td>
                       <td className="px-2 py-3">
                         <span className={`px-2 py-0.5 rounded-full font-semibold whitespace-nowrap ${STATUS_STYLES[r.status]}`}>{TRACKING_LABELS[r.status]}</span>
+                        {/* Tries begun and never submitted: closed, reloaded or exited mid-test, so they may have seen the questions */}
+                        {r.progress.unsubmitted > 0 && (
+                          <span
+                            title="Started a test and left without submitting (closed, reloaded or exited). They saw the questions on that try."
+                            className="block mt-1 text-[11px] font-semibold text-rose-700 whitespace-nowrap"
+                          >
+                            {r.progress.unsubmitted} not submitted
+                          </span>
+                        )}
                       </td>
                       {jobTests.map((t) => {
                         const s = r.progress.scores[t.id];

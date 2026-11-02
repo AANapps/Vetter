@@ -23,7 +23,7 @@ import { BusinessJobs } from './components/BusinessJobs';
 import { JobTestsEditor } from './components/JobTestsEditor';
 import { TestGenerator } from './components/TestGenerator';
 import { TestBuilder } from './components/TestBuilder';
-import { jobTestProgress, withInvitation } from './lib/jobTests';
+import { attemptsAt, jobTestProgress, withAttemptFinished, withAttemptStarted, withInvitation } from './lib/jobTests';
 import { CandidateHome } from './components/CandidateHome';
 import { CheckCircle2 } from 'lucide-react';
 import { firebaseEnabled } from './lib/firebase';
@@ -322,6 +322,8 @@ export default function App() {
   // When a candidate takes one of a job's tests from the job, the job they're applying to
   const [activeTestJobId, setActiveTestJobId] = useState<string | null>(null);
   const [activeTest, setActiveTest] = useState<AssessmentTest | null>(null);
+  // Which try at the job's test this is, and the job's limit, when it has one
+  const [activeAttempt, setActiveAttempt] = useState<{ number: number; limit?: number } | null>(null);
   // A company or the Vetter team taking a test themselves, as a candidate would; the score is saved for their team
   const [trialTest, setTrialTest] = useState<{ test: AssessmentTest; jobId?: string } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -604,7 +606,11 @@ export default function App() {
     if (!completedTest) return;
 
     // Taken for a job, or from a company's link to the test: that company gets the result
-    const job = activeTestJobId ? jobs.find((j) => j.id === activeTestJobId) : undefined;
+    const jobAsWas = activeTestJobId ? jobs.find((j) => j.id === activeTestJobId) : undefined;
+    // The job's record of this try is marked submitted, so the company no longer sees it as left unfinished
+    const finishedAttempts = jobAsWas && withAttemptFinished(jobAsWas.invitations.find((i) => i.candidateId === candidate.id), testId, new Date().toISOString());
+    if (jobAsWas && finishedAttempts) updateInvitation(jobAsWas.id, candidate.id, { attempts: finishedAttempts });
+    const job = jobAsWas && finishedAttempts ? withInvitation(jobAsWas, candidate.id, { attempts: finishedAttempts }, today()) : jobAsWas;
     const referredBy = job?.businessId ?? candidate.testReferrals?.filter((r) => r.testId === testId).at(-1)?.businessId;
     const updatedCandidate = addTestResult(candidate, completedTest, {
       testId,
@@ -630,7 +636,10 @@ export default function App() {
       } else if (progress.status === 'passed') {
         showToast(`You passed ${job.title}'s tests with ${progress.score}/100.`);
       } else if (progress.status === 'failed') {
-        showToast(`You averaged ${progress.score}/100. ${job.title} needs ${job.testPassingScore}. You can retake a test.`);
+        const canRetake = job.testIds.some((id) => attemptsAt(job, updatedCandidate, id).left !== 0);
+        showToast(
+          `You averaged ${progress.score}/100. ${job.title} needs ${job.testPassingScore}.${canRetake ? ' You can retake a test.' : ' You have no attempts left.'}`
+        );
       } else {
         showToast(`You scored ${finalScore}/100. ${progress.done} of ${progress.total} of ${job.title}'s tests done.`);
       }
@@ -643,6 +652,7 @@ export default function App() {
 
     setActiveTestJobId(null);
     setActiveTest(null);
+    setActiveAttempt(null);
   };
 
   // Whose trials these are: the company's, or the Vetter team's
@@ -684,17 +694,30 @@ export default function App() {
       setAuthDialog({ mode: 'sign-up', reason: 'Create a free account to take this job’s tests and apply.' });
       return;
     }
-    const invitation = jobs.find((j) => j.id === jobId)?.invitations.find((i) => i.candidateId === candidate.id);
-    if (!invitation?.startedAt) updateInvitation(jobId, candidate.id, { startedAt: new Date().toISOString() });
+    const job = jobs.find((j) => j.id === jobId);
+    if (!job) return;
+    const { used, limit, left } = attemptsAt(job, candidate, test.id);
+    if (left === 0) {
+      showToast(`You've used all ${limit} ${limit === 1 ? 'attempt' : 'attempts'} ${job.companyName} allows at "${test.title}".`);
+      return;
+    }
     setActiveTest(test);
     setActiveTestJobId(jobId);
+    setActiveAttempt({ number: used + 1, limit });
+  };
+
+  // The clock starting on one of a job's tests: the company sees the try from now, finished or not
+  const recordJobTestStart = (test: AssessmentTest, jobId: string) => {
+    const invitation = jobsRef.current.find((j) => j.id === jobId)?.invitations.find((i) => i.candidateId === candidate.id);
+    const now = new Date().toISOString();
+    updateInvitation(jobId, candidate.id, { attempts: withAttemptStarted(invitation, test.id, now), ...(invitation?.startedAt ? {} : { startedAt: now }) });
   };
 
   const handleCreateJob = (newJob: JobPosting) => {
     setJobs((prev) => [newJob, ...prev]);
   };
 
-  const handleSaveJobTests = (jobId: string, change: Pick<JobPosting, 'testIds' | 'testPassingScore' | 'testsRequired'>) => {
+  const handleSaveJobTests = (jobId: string, change: Pick<JobPosting, 'testIds' | 'testPassingScore' | 'testsRequired' | 'maxAttempts'>) => {
     setJobs((prev) => prev.map((j) => (j.id === jobId ? { ...j, ...change } : j)));
   };
 
@@ -1174,7 +1197,10 @@ export default function App() {
           onClose={() => {
             setActiveTest(null);
             setActiveTestJobId(null);
+            setActiveAttempt(null);
           }}
+          onBegin={activeTestJobId ? () => recordJobTestStart(activeTest, activeTestJobId) : undefined}
+          attempt={activeAttempt ?? undefined}
           onComplete={handleCompleteTest}
           getPercentileFor={(score) => getPercentile(score, activeTest.id, allCandidates, candidate.id)}
         />

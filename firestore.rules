@@ -100,7 +100,12 @@ service cloud.firestore {
       // link (or an emailed invitation) and records when they opened it and started
       match /invitations/{candidateId} {
         function candidateOwnFields() {
-          return request.resource.data.keys().hasOnly(['candidateId', 'invitedAt', 'via', 'openedAt', 'startedAt', 'jobId', 'businessId']);
+          return request.resource.data.keys().hasOnly(['candidateId', 'invitedAt', 'via', 'openedAt', 'startedAt', 'attempts', 'jobId', 'businessId']);
+        }
+        // Tries at the job's tests only ever grow: a candidate can't wipe a start they left unsubmitted
+        function attemptsKept() {
+          return !('attempts' in resource.data)
+            || (request.resource.data.get('attempts', []) is list && request.resource.data.get('attempts', []).size() >= resource.data.attempts.size());
         }
         function sameJob() {
           return request.resource.data.jobId == jobId && request.resource.data.businessId == jobDoc(jobId).get('businessId', '');
@@ -114,7 +119,7 @@ service cloud.firestore {
           ))
         );
         allow update: if (isAdmin() || worksAt(resource.data.businessId))
-          || (uid() == candidateId && changed().hasOnly(['openedAt', 'startedAt']));
+          || (uid() == candidateId && changed().hasOnly(['openedAt', 'startedAt', 'attempts']) && attemptsKept());
         allow delete: if isAdmin() || worksAt(resource.data.businessId);
       }
 

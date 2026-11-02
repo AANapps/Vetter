@@ -1,4 +1,4 @@
-import { AssessmentTest, JobInvitation, JobPosting, User } from '../types';
+import { AssessmentTest, JobInvitation, JobPosting, JobTestAttempt, TestResult, User } from '../types';
 import { jobPath } from './jobSeo';
 
 export interface JobTestProgress {
@@ -12,29 +12,73 @@ export interface JobTestProgress {
   // Time spent on the counted attempts, and when the latest of them was finished
   seconds: number;
   lastActivity?: string;
+  // Tests begun from the job and left without submitting (closed, reloaded or exited), across all its tests
+  unsubmitted: number;
 }
 
-// How a candidate is doing on a job's tests. Tests are ordinary tests, so a score counts however and whenever it was taken
+const invitationOf = (job: JobPosting, candidateId: string) => job.invitations.find((i) => i.candidateId === candidateId);
+
+// Every try at one test, oldest first: each finished result, and each start from the job that was never submitted
+function attemptLog(job: JobPosting, candidate: User, testId: string) {
+  const finished = candidate.testResults
+    .filter((r) => r.testId === testId)
+    .map((r) => ({ at: r.completedTime ?? r.completedAt, result: r as TestResult | undefined }));
+  const unsubmitted = (invitationOf(job, candidate.id)?.attempts ?? [])
+    .filter((a) => a.testId === testId && !a.finishedAt)
+    .map((a) => ({ at: a.startedAt, result: undefined as TestResult | undefined }));
+  return [...finished, ...unsubmitted].sort((a, b) => a.at.localeCompare(b.at));
+}
+
+// The job's attempt limit per test, or undefined for none
+export const attemptLimit = (job: JobPosting) => job.maxAttempts || undefined;
+
+// How many tries at one of a job's tests the candidate has used and has left; left is undefined when there's no limit
+export function attemptsAt(job: JobPosting, candidate: User, testId: string) {
+  const used = attemptLog(job, candidate, testId).length;
+  const limit = attemptLimit(job);
+  return { used, limit, left: limit === undefined ? undefined : Math.max(0, limit - used) };
+}
+
+// How a candidate is doing on a job's tests. Tests are ordinary tests, so a score counts however and whenever it was
+// taken, except that with an attempt limit only the first tries count (a start left unsubmitted uses one up)
 export function jobTestProgress(job: JobPosting, candidate: User): JobTestProgress {
   let seconds = 0;
   let lastActivity: string | undefined;
   const scores = Object.fromEntries(
     job.testIds.map((testId) => {
-      const results = candidate.testResults.filter((r) => r.testId === testId);
-      if (!results.length) return [testId, undefined];
-      const best = results.reduce((a, b) => (b.score > a.score ? b : a));
+      const log = attemptLog(job, candidate, testId);
+      const limit = attemptLimit(job);
+      const counted = (limit === undefined ? log : log.slice(0, limit)).flatMap((e) => (e.result ? [e.result] : []));
+      if (!counted.length) return [testId, undefined];
+      const best = counted.reduce((a, b) => (b.score > a.score ? b : a));
       seconds += best.durationSeconds ?? 0;
-      const finished = results.map((r) => r.completedTime ?? r.completedAt).sort().at(-1)!;
+      const finished = counted.map((r) => r.completedTime ?? r.completedAt).sort().at(-1)!;
       if (!lastActivity || finished > lastActivity) lastActivity = finished;
       return [testId, best.score];
     })
   );
+  const unsubmitted = (invitationOf(job, candidate.id)?.attempts ?? []).filter((a) => !a.finishedAt && job.testIds.includes(a.testId)).length;
   const taken = Object.values(scores).filter((s): s is number => s !== undefined);
   const done = taken.length;
   const total = job.testIds.length;
-  if (done < total || total === 0) return { scores, done, total, seconds, lastActivity, status: done === 0 ? 'not-started' : 'in-progress' };
+  if (done < total || total === 0)
+    return { scores, done, total, seconds, lastActivity, unsubmitted, status: done === 0 && !unsubmitted ? 'not-started' : 'in-progress' };
   const score = Math.round(taken.reduce((a, b) => a + b, 0) / total);
-  return { scores, done, total, score, seconds, lastActivity, status: score >= job.testPassingScore ? 'passed' : 'failed' };
+  return { scores, done, total, score, seconds, lastActivity, unsubmitted, status: score >= job.testPassingScore ? 'passed' : 'failed' };
+}
+
+// A start of one of the job's tests, recorded on the candidate's invitation
+export const withAttemptStarted = (invitation: JobInvitation | undefined, testId: string, at: string): JobTestAttempt[] => [
+  ...(invitation?.attempts ?? []),
+  { testId, startedAt: at },
+];
+
+// The latest unsubmitted start of a test, marked as submitted
+export function withAttemptFinished(invitation: JobInvitation | undefined, testId: string, at: string): JobTestAttempt[] | undefined {
+  const attempts = invitation?.attempts ?? [];
+  const i = attempts.map((a, idx) => (a.testId === testId && !a.finishedAt ? idx : -1)).filter((idx) => idx >= 0).at(-1);
+  if (i === undefined) return undefined;
+  return attempts.map((a, idx) => (idx === i ? { ...a, finishedAt: at } : a));
 }
 
 export const jobTestsOf = (job: JobPosting, tests: AssessmentTest[]) =>

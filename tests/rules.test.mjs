@@ -99,6 +99,11 @@ await check('sees her invitation and notification', async () => {
 await check('marks it read', () => updateDoc(doc(db, 'notifications', 'note-1'), { read: true }), true);
 await check('records starting the tests', () => updateDoc(doc(db, 'jobs', 'job-1', 'invitations', cara), { startedAt: new Date().toISOString() }), true);
 await check('cannot change how she was invited', () => updateDoc(doc(db, 'jobs', 'job-1', 'invitations', cara), { via: 'link' }), false);
+const t1 = { testId: 'test-1', startedAt: '2026-11-02T09:00:00.000Z' };
+const t2 = { testId: 'test-1', startedAt: '2026-11-02T10:00:00.000Z' };
+await check('records starting a test attempt', () => updateDoc(doc(db, 'jobs', 'job-1', 'invitations', cara), { attempts: [t1] }), true);
+await check('records a second attempt and submitting the first', () => updateDoc(doc(db, 'jobs', 'job-1', 'invitations', cara), { attempts: [{ ...t1, finishedAt: '2026-11-02T09:30:00.000Z' }, t2] }), true);
+await check('cannot wipe an attempt she left unsubmitted', () => updateDoc(doc(db, 'jobs', 'job-1', 'invitations', cara), { attempts: [t1] }), false);
 await check('applies', () => C.apply(job, cara, undefined), true);
 console.log('    applicants:', (await getDoc(doc(db, 'jobs', 'job-1'))).data().applicantCount);
 await check('cannot add applicants without applying', () => updateDoc(doc(db, 'jobs', 'job-1'), { applicantCount: increment(1) }), false);

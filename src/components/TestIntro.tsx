@@ -24,6 +24,8 @@ interface TestIntroProps {
   test: AssessmentTest;
   onBegin: () => void;
   onClose: () => void;
+  // Taken for a job: which attempt this is and that leaving still uses it
+  attemptNote?: string;
 }
 
 // A short, steady reference for this sitting, shown like an exam paper's number
@@ -41,7 +43,7 @@ const Label: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 );
 
 // Before the clock starts: the test read like an exam's front pages, one at a time, ending in a signed declaration
-export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose }) => {
+export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose, attemptNote }) => {
   const [slide, setSlide] = useState(0);
   const [accepted, setAccepted] = useState(false);
   const [signature, setSignature] = useState('');
@@ -243,6 +245,7 @@ export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose }) 
                     <li>
                       Closing or leaving the test before you submit <strong>throws away your answers</strong>. There is no pause.
                     </li>
+                    {attemptNote && <li className="font-semibold text-slate-900">{attemptNote}</li>}
                   </ol>
                 </>
               )}
