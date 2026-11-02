@@ -18,14 +18,14 @@ import {
   Award,
 } from 'lucide-react';
 import { getBadgeTier } from './VerifiedSkillBadge';
-import { QUESTION_TYPE_LABELS, describeChecks } from '../lib/testRoles';
 import { ChartPreview, parseChartSpec } from './ChartPreview';
 import { AnswerInput } from './AnswerInputs';
-import { groupQuestions, hasAnswer, orderedQuestions, isAnswerType, isWorkspaceType } from '../lib/questionTypes';
+import { groupQuestions, hasAnswer, isAnswerType, isWorkspaceType } from '../lib/questionTypes';
 import { SpreadsheetWindow } from './SpreadsheetWindow';
 import { DatabaseWindow } from './DatabaseWindow';
 import { AppWindow } from './AppWindow';
 import { CaseBrief } from './CaseBrief';
+import { TestIntro } from './TestIntro';
 
 interface TestRunnerProps {
   test: AssessmentTest;
@@ -66,7 +66,6 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
   const [aiMarked, setAiMarked] = useState<Record<string, AiMark>>({});
   // The intro screen shows first; the clock and proctoring only begin once the candidate starts
   const [hasStarted, setHasStarted] = useState(false);
-  const [acceptedRules, setAcceptedRules] = useState(false);
 
   // The timer's auto-submit runs inside a long-lived interval, so it reads the latest code from a ref
   const userCodesRef = useRef(userCodes);
@@ -202,13 +201,7 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
 
   if (!hasStarted) {
     return (
-      <TestIntro
-        test={test}
-        acceptedRules={acceptedRules}
-        onAcceptedRulesChange={setAcceptedRules}
-        onBegin={handleBegin}
-        onClose={onClose}
-      />
+      <TestIntro test={test} onBegin={handleBegin} onClose={onClose} />
     );
   }
 
@@ -789,163 +782,6 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
   );
 };
 
-
-const INTEGRITY_RULES = [
-  'Stay on this tab for the whole test. Switching tabs, windows or apps is recorded and lowers your focus score.',
-  'Work alone. No help from other people, and no AI assistants or code generators.',
-  'Don’t search the web or look up solutions. Write your answers yourself.',
-  'Don’t copy, screenshot or share the questions, during or after the test.',
-  'One attempt at a time, on your own account. Breaking these rules can void your score.',
-];
-
-interface TestIntroProps {
-  test: AssessmentTest;
-  acceptedRules: boolean;
-  onAcceptedRulesChange: (accepted: boolean) => void;
-  onBegin: () => void;
-  onClose: () => void;
-}
-
-const TestIntro: React.FC<TestIntroProps> = ({ test, acceptedRules, onAcceptedRulesChange, onBegin, onClose }) => (
-  <div className="fixed inset-0 z-50 bg-slate-50 overflow-y-auto text-slate-900 font-sans">
-    <div className="max-w-3xl mx-auto px-6 py-8 space-y-6">
-      <button
-        onClick={onClose}
-        className="text-xs font-semibold text-slate-500 hover:text-indigo-700 transition-colors"
-      >
-        &larr; Back
-      </button>
-
-      {/* Intro */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 space-y-3 shadow-xs">
-        <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono uppercase tracking-wider">
-          <span className="text-indigo-700 font-bold">{test.category}</span>
-          <span className="text-slate-300">&middot;</span>
-          <span className="text-slate-500">{test.difficulty}</span>
-        </div>
-        <h1 className="text-xl font-bold text-slate-900 tracking-tight">{test.title}</h1>
-        <p className="text-sm text-slate-600 leading-relaxed">{test.description}</p>
-        {test.scenario && (
-          <div className="pt-2">
-            <CaseBrief scenario={test.scenario} defaultOpen />
-          </div>
-        )}
-        <p className="text-sm text-slate-600 leading-relaxed">
-          Read this page before you start. Once you press <span className="font-semibold text-slate-900">Start test</span>, the clock
-          begins and can&rsquo;t be paused.
-        </p>
-      </div>
-
-      {/* Rundown */}
-      <div className="bg-white border border-slate-200 rounded-xl p-6 space-y-4 shadow-xs">
-        <h2 className="text-base font-bold text-slate-900">What&rsquo;s in the test</h2>
-        <ol className="divide-y divide-slate-100">
-          {orderedQuestions(test.questions).map((q, _, all) => (
-            <li key={q.id} className={`py-3 flex items-center justify-between gap-4 text-xs ${q.taskId ? 'pl-5' : ''}`}>
-              <div className="min-w-0">
-                <div className="font-semibold text-slate-900">
-                  {q.type === 'case' ? 'Case study: ' : `${all.filter((x) => x.type !== 'case').indexOf(q) + 1}. `}
-                  {q.title}
-                </div>
-                <div className="text-slate-500 font-mono text-[11px] mt-0.5">
-                  {q.taskId ? 'About the case or task above · ' : ''}{QUESTION_TYPE_LABELS[q.type]} &middot; {describeChecks(q)}
-                </div>
-              </div>
-              <div className="text-right font-mono text-[11px] text-slate-500 shrink-0">
-                <div>{q.type === 'case' ? 'to read' : `${q.weight}% of score`}</div>
-                <div>~{q.timeLimitMinutes} min</div>
-              </div>
-            </li>
-          ))}
-        </ol>
-        <ul className="text-xs text-slate-600 leading-relaxed space-y-1.5 list-disc pl-4">
-          <li>Move between tasks freely using the tabs at the top. Do them in any order.</li>
-          {test.questions.some((q) => isWorkspaceType(q.type)) && (
-            <li>
-              Spreadsheet, database and app tasks open a working spreadsheet, SQL workbench or a copy of the software the job uses. Do the
-              work the task asks for and leave it there: it&rsquo;s marked as you leave it when you submit.
-            </li>
-          )}
-          {test.questions.some((q) => q.type === 'case') && (
-            <li>Case studies give you material to read, such as emails, a ticket or figures, with questions about it beside it.</li>
-          )}
-          {test.questions.some((q) => q.type === 'written') && (
-            <li>Written answers are marked on the points a strong answer makes, not on length or polish. Write as you would at work.</li>
-          )}
-          {test.questions.some((q) => !isAnswerType(q.type) && !isWorkspaceType(q.type) && q.type !== 'case') && (
-            <>
-              <li>Press Run to check your answer against the test cases as often as you like.</li>
-              <li>Every task is graded on your latest code when you submit, whether or not you pressed Run.</li>
-            </>
-          )}
-          {test.questions.some((q) => isAnswerType(q.type)) && (
-            <li>
-              Questions you answer by picking, typing or dragging are marked when you submit, and you can change them until then.
-              Select-all, ordering and matching questions give credit for each part you get right.
-            </li>
-          )}
-          <li>
-            You need <span className="font-semibold text-slate-900">{test.passingScore}/100</span> to pass.
-          </li>
-        </ul>
-      </div>
-
-      {/* Timing */}
-      <div className="bg-white border border-slate-200 rounded-xl p-6 space-y-3 shadow-xs">
-        <div className="flex items-center justify-between gap-4">
-          <h2 className="text-base font-bold text-slate-900">This test is timed</h2>
-          <div className="flex items-center gap-2 text-xs font-mono text-slate-700 bg-slate-50 px-3 py-1.5 rounded-md border border-slate-200">
-            <Clock className="w-3.5 h-3.5 text-amber-600" />
-            <span className="tabular-nums font-semibold">{test.estimatedMinutes} min</span>
-          </div>
-        </div>
-        <ul className="text-xs text-slate-600 leading-relaxed space-y-1.5 list-disc pl-4">
-          <li>You have {test.estimatedMinutes} minutes for all {test.questions.length} tasks. The countdown shows at the top of the screen.</li>
-          <li>The per-task times above are a guide, not a limit. Spend your time how you like.</li>
-          <li>When the clock reaches zero, your test is submitted automatically with whatever you&rsquo;ve written.</li>
-          <li>Your finishing time is recorded and breaks ties on the leaderboard.</li>
-          <li>Leaving the test before you submit throws away your progress.</li>
-        </ul>
-      </div>
-
-      {/* Anti-cheating */}
-      <div className="bg-white border border-slate-200 rounded-xl p-6 space-y-3 shadow-xs">
-        <h2 className="text-base font-bold text-slate-900">Anti-cheating rules</h2>
-        <ul className="text-xs text-slate-600 leading-relaxed space-y-1.5 list-disc pl-4">
-          {INTEGRITY_RULES.map((rule) => (
-            <li key={rule}>{rule}</li>
-          ))}
-        </ul>
-        <label className="flex items-start gap-2.5 pt-3 border-t border-slate-200 text-xs text-slate-800 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={acceptedRules}
-            onChange={(e) => onAcceptedRulesChange(e.target.checked)}
-            className="mt-0.5 accent-indigo-600"
-          />
-          <span>I&rsquo;ve read the rules and will take this test on my own, without outside help.</span>
-        </label>
-      </div>
-
-      <div className="flex items-center justify-end gap-3">
-        <button
-          onClick={onClose}
-          className="px-4 py-2.5 text-xs font-semibold text-slate-600 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition-colors"
-        >
-          Not now
-        </button>
-        <button
-          onClick={onBegin}
-          disabled={!acceptedRules}
-          className="px-4 py-2.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors flex items-center gap-2 shadow-xs"
-        >
-          <Play className="w-3.5 h-3.5 fill-current" />
-          <span>Start test</span>
-        </button>
-      </div>
-    </div>
-  </div>
-);
 
 // A case study's material, laid out like a document to read
 export const CaseMaterial: React.FC<{ question: Question }> = ({ question: q }) => (
