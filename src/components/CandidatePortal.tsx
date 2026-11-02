@@ -1,4 +1,5 @@
 import React, { useCallback, useState } from 'react';
+import { PageGuide } from './PageGuide';
 import { User, AssessmentTest, JobPosting, CandidateJobMatch, Business, TestRole, TEST_DIFFICULTIES, JobProfile } from '../types';
 import { activeProfileOf, asProfile, profilesOf } from '../lib/jobProfiles';
 import { ROLE_GROUPS, TestField } from '../lib/testRoles';
@@ -198,6 +199,11 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
         </div>
       )}
 
+      {view === 'profile' && (
+        <PageGuide label="Your profile">
+          What companies see: your verified skills, test results and experience. Keep it up to date.
+        </PageGuide>
+      )}
       {view === 'profile' && (
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-6 items-start">
       <div className="min-w-0 space-y-8">
@@ -503,6 +509,9 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
       {view === 'jobs' && (
         <div className="space-y-6 min-w-0">
           <div>
+            <PageGuide label="Jobs" className="mb-1">
+              Find a job, take its tests, and apply. Companies see your scores with your application.
+            </PageGuide>
             <h1 className="text-xl font-bold text-slate-900 tracking-tight">Job Board</h1>
             <p className="text-xs text-slate-500">
               {boardJobs.length === activeJobs.length
@@ -799,6 +808,9 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
 
         <div className="space-y-6 min-w-0">
           <div>
+            <PageGuide label="Tests" className="mb-1">
+              Prove what you can do. Your best score on each test shows on your profile for companies to see.
+            </PageGuide>
             <h1 className="text-xl font-bold text-slate-900 tracking-tight">
               {!testField
                 ? 'Tests'
@@ -807,8 +819,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                 : `${testField.label} tests`}
             </h1>
             <p className="text-xs text-slate-500">
-              Take any test, any time, as often as you like. Your best score on each becomes a verified skill on your
-              profile, where companies can see it. Tests that companies write for their own jobs are taken from the Job Board.
+              Free, any time, as often as you like. Tests companies write for their own jobs are on the Job Board.
             </p>
           </div>
 

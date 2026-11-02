@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { PageGuide } from './components/PageGuide';
 import { User, UserRole, AssessmentTest, JobPosting, Business, SocialState, AppNotification, JobInvitation, Lead, TestDraft, TrialResult, hasAiTests } from './types';
 import { INITIAL_RECRUITER, INITIAL_BUSINESSES, STANDARD_ASSESSMENTS } from './data/mockData';
 import { loadData, saveData, clearData, createSeedData } from './lib/store';
@@ -1062,7 +1063,11 @@ export default function App() {
             />
           )}
           {!detailPage && !isVisitor && activeRole === 'candidate' && currentTab === 'home' && (
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 grid grid-cols-1 lg:grid-cols-[minmax(0,300px)_minmax(0,1fr)_minmax(0,280px)] gap-6 items-start">
+            <>
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-6">
+              <PageGuide label="Home">Tests companies have sent you, jobs that fit your skills, and what other candidates are doing.</PageGuide>
+            </div>
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-4 pb-8 grid grid-cols-1 lg:grid-cols-[minmax(0,300px)_minmax(0,1fr)_minmax(0,280px)] gap-6 items-start">
               <CandidateHome
                 candidate={candidate}
                 jobs={jobs}
@@ -1102,6 +1107,7 @@ export default function App() {
                 }}
               />
             </div>
+            </>
           )}
 
           {!detailPage && currentTab === 'companies' && (
