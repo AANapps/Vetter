@@ -97,6 +97,21 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
     (isAnswerType(q.type) && hasAnswer(q, userCodes[q.id] ?? '')) ||
     (isWorkspaceType(q.type) && (userCodes[q.id] ?? q.starterCode) !== q.starterCode);
   const setAnswer = (id: string, val: string) => setUserCodes((prev) => ({ ...prev, [id]: val }));
+  // What a step is called: Task 2, Case 1, or the question's number
+  const groupLabel = (idx: number) => {
+    const g = groups[idx];
+    if (!g.task) return `Question ${numberOf(g.questions[0])}`;
+    const isCase = g.task.type === 'case';
+    const n = groups.slice(0, idx + 1).filter((x) => x.task && (x.task.type === 'case') === isCase).length;
+    return `${isCase ? 'Case' : 'Task'} ${n}`;
+  };
+  const goToGroup = (idx: number) => {
+    setGroupIndex(idx);
+    setRunResults(null);
+  };
+  const answeredCount = ordered.filter((q) => q.type !== 'case' && isDone(q)).length;
+  const questionCount = ordered.filter((q) => q.type !== 'case').length;
+  const isLastGroup = groupIndex === groups.length - 1;
   const currentCode = userCodes[currentQ.id] || '';
   // Every sample table the task's schema reference names
   const sampleTables = Array.from(currentQ.contextData?.matchAll(/Table:\s*(\w+)/g) ?? [])
@@ -292,10 +307,7 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
             return (
               <button
                 key={g.questions[0].id}
-                onClick={() => {
-                  setGroupIndex(idx);
-                  setRunResults(null);
-                }}
+                onClick={() => goToGroup(idx)}
                 title={g.task ? `${g.task.title}: ${g.questions.length} ${g.questions.length === 1 ? 'part' : 'parts'}` : g.questions[0].title}
                 className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors flex items-center gap-1.5 ${
                   groupIndex === idx
@@ -393,14 +405,14 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
                   {currentQ.type === 'case' ? 'Case study' : 'Task'} &middot; {currentQ.type === 'case' ? followUps.length : currentGroup.questions.length}{' '}
                   {(currentQ.type === 'case' ? followUps.length : currentGroup.questions.length) === 1 ? 'part' : 'parts'} &middot; Weight: {currentGroup.questions.reduce((n, q) => n + q.weight, 0)}%
                 </div>
-                <h2 className="text-base font-bold text-slate-900 tracking-tight">
+                <h2 className="text-lg font-bold text-slate-900 tracking-tight">
                   {currentQ.type === 'case' ? currentQ.title : `${numberOf(currentQ)}. ${currentQ.title}`}
                 </h2>
               </div>
               {currentQ.type === 'case' ? (
-                <p className="text-xs text-slate-500">Read the material on the left, then answer each question. You can go back to it as often as you like.</p>
+                <p className="text-sm text-slate-500">Read the material on the left, then answer each question. You can go back to it as often as you like.</p>
               ) : (
-                <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-700 whitespace-pre-wrap">{currentQ.prompt}</div>
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg text-sm leading-relaxed text-slate-800 whitespace-pre-wrap">{currentQ.prompt}</div>
               )}
               {currentQ.testCases.length > 0 && (
                 <div className="space-y-2">
@@ -424,30 +436,42 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
                   {followUps.map((q) => (
                     <section key={q.id} className="space-y-2" aria-label={`Question ${numberOf(q)}`}>
                       <div className="flex items-start justify-between gap-2">
-                        <h3 className="text-sm font-bold text-slate-900">
+                        <h3 className="text-base font-bold text-slate-900">
                           {numberOf(q)}. {q.title}
                         </h3>
                         {isDone(q) && <CheckCircle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600" />}
                       </div>
-                      <p className="text-xs leading-relaxed text-slate-700 whitespace-pre-wrap">{q.prompt}</p>
+                      <p className="text-sm leading-relaxed text-slate-800 whitespace-pre-wrap">{q.prompt}</p>
                       <AnswerInput question={q} answer={userCodes[q.id] ?? ''} onChange={(val) => setAnswer(q.id, val)} />
                     </section>
                   ))}
                 </div>
               )}
-              {groupIndex < groups.length - 1 && (
-                <button
-                  onClick={() => {
-                    setGroupIndex(groupIndex + 1);
-                    setRunResults(null);
-                  }}
-                  className="w-full px-3 py-2 text-xs font-semibold text-indigo-700 border border-indigo-200 hover:bg-indigo-50 rounded-lg flex items-center justify-center gap-1.5"
-                >
-                  Next <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              )}
             </aside>
           </>
+        ) : isAnswerType(currentQ.type) ? (
+          // A question to answer on its own: one column, the question first and large, the answers under it
+          <div className="flex-1 overflow-y-auto bg-slate-50">
+            <div className="max-w-3xl mx-auto px-6 py-10 space-y-6">
+              {test.scenario && <CaseBrief scenario={test.scenario} />}
+              <div className="space-y-3">
+                <div className="text-xs font-semibold uppercase tracking-wider text-indigo-700">
+                  Question {numberOf(currentQ)} of {questionCount}
+                  <span className="text-slate-400 font-medium normal-case tracking-normal"> &middot; {currentQ.weight}% of the score</span>
+                </div>
+                <h2 className="text-2xl font-bold text-slate-900 tracking-tight">{currentQ.title}</h2>
+                <p className="text-lg leading-relaxed text-slate-800 whitespace-pre-wrap">{currentQ.prompt}</p>
+                {currentQ.contextData && (
+                  <div className="p-3 bg-indigo-50/50 border border-indigo-200 rounded-lg text-sm font-mono text-indigo-950 overflow-x-auto whitespace-pre-wrap">
+                    {currentQ.contextData}
+                  </div>
+                )}
+              </div>
+              <div className="pt-2">
+                <AnswerInput key={currentQ.id} question={currentQ} answer={currentCode} onChange={handleCodeChange} />
+              </div>
+            </div>
+          </div>
         ) : (
         <>
         {/* Left Pane: Problem Description & Context */}
@@ -455,13 +479,14 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
           <div className="p-6 overflow-y-auto space-y-5 flex-1">
             {test.scenario && <CaseBrief scenario={test.scenario} />}
             <div>
-              <div className="text-xs text-slate-500 font-medium mb-1">
-                Question {numberOf(currentQ)} of {test.questions.length} &middot; Weight: {currentQ.weight}%
+              <div className="text-xs font-semibold uppercase tracking-wider text-indigo-700 mb-1.5">
+                Question {numberOf(currentQ)} of {questionCount}
+                <span className="text-slate-400 font-medium normal-case tracking-normal"> &middot; {currentQ.weight}% of the score</span>
               </div>
-              <h2 className="text-base font-bold text-slate-900 tracking-tight">{currentQ.title}</h2>
+              <h2 className="text-xl font-bold text-slate-900 tracking-tight">{currentQ.title}</h2>
             </div>
 
-            <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-700 whitespace-pre-wrap font-sans shadow-2xs">
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg text-[15px] leading-relaxed text-slate-800 whitespace-pre-wrap font-sans shadow-2xs">
               {currentQ.prompt}
             </div>
 
@@ -536,11 +561,6 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
         </div>
 
         {/* Right Pane: picking, typing or arranging for answer-style questions, otherwise the code editor & execution results */}
-        {isAnswerType(currentQ.type) ? (
-          <div className="w-1/2 flex flex-col bg-slate-50 overflow-y-auto p-6">
-            <AnswerInput key={currentQ.id} question={currentQ} answer={currentCode} onChange={handleCodeChange} />
-          </div>
-        ) : (
         <div className="w-1/2 flex flex-col bg-slate-50 overflow-hidden">
           {/* Editor Action Toolbar */}
           <div className="px-4 py-2 bg-slate-100 border-b border-slate-200 flex items-center justify-between shrink-0">
@@ -703,10 +723,51 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
             </div>
           </div>
         </div>
-        )}
         </>
         )}
       </div>
+
+      {/* Moving through the test: back, where you are and how much is answered, then next (or submit on the last) */}
+      <footer className="shrink-0 border-t border-slate-200 bg-white px-4 sm:px-6 py-3 flex items-center gap-4">
+        <button
+          onClick={() => goToGroup(groupIndex - 1)}
+          disabled={groupIndex === 0}
+          className="px-4 py-2.5 text-sm font-semibold text-slate-700 bg-white border border-slate-200 hover:border-slate-300 rounded-lg flex items-center gap-1.5 disabled:opacity-0 disabled:pointer-events-none"
+        >
+          <ArrowRight className="w-4 h-4 rotate-180" />
+          Previous
+        </button>
+        <div className="flex-1 min-w-0 max-w-md mx-auto text-center space-y-1.5">
+          <div className="text-sm font-semibold text-slate-900">
+            {groupLabel(groupIndex)}
+            <span className="font-normal text-slate-500">
+              {' '}
+              &middot; {answeredCount} of {questionCount} answered
+            </span>
+          </div>
+          <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden" aria-hidden="true">
+            <div className="h-full bg-indigo-600 rounded-full transition-all" style={{ width: `${questionCount ? (answeredCount / questionCount) * 100 : 0}%` }} />
+          </div>
+        </div>
+        {isLastGroup ? (
+          <button
+            onClick={handleSubmitTest}
+            disabled={isSubmitting}
+            className="px-5 py-2.5 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-lg flex items-center gap-1.5 shadow-xs"
+          >
+            {isSubmitting ? 'Marking…' : answeredCount < questionCount ? `Submit (${questionCount - answeredCount} unanswered)` : 'Submit test'}
+            <CheckCircle2 className="w-4 h-4" />
+          </button>
+        ) : (
+          <button
+            onClick={() => goToGroup(groupIndex + 1)}
+            className="px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg flex items-center gap-1.5 shadow-xs"
+          >
+            Next: {groupLabel(groupIndex + 1)}
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        )}
+      </footer>
 
       {/* Back after leaving the tab: it's recorded, and leaving the test itself means starting again */}
       {leftTab && !confirmingExit && !isSubmitting && !showCompletionModal && (

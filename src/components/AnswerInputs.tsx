@@ -22,7 +22,7 @@ export const AnswerInput: React.FC<AnswerInputProps> = (props) => {
   };
   return (
     <div className="space-y-3">
-      <h3 className="text-xs font-bold text-slate-800">{heading[q.type]}</h3>
+      <h3 className="text-sm font-bold text-slate-800">{heading[q.type]}</h3>
       {q.type === 'choice' && <SingleChoice {...props} />}
       {q.type === 'multi' && <MultiChoice {...props} />}
       {q.type === 'text' && <ShortAnswer {...props} />}
@@ -38,7 +38,7 @@ export const AnswerInput: React.FC<AnswerInputProps> = (props) => {
 };
 
 const optionClass = (selected: boolean) =>
-  `flex items-start gap-3 p-4 rounded-lg bg-white cursor-pointer text-sm transition-colors ${
+  `flex items-start gap-3 p-4 rounded-lg bg-white cursor-pointer text-base transition-colors ${
     selected ? 'ring-2 ring-indigo-500 text-slate-900' : 'text-slate-700 hover:bg-slate-100'
   }`;
 
@@ -84,7 +84,7 @@ const ShortAnswer: React.FC<AnswerInputProps> = ({ question: q, answer, onChange
     onChange={(e) => onChange(e.target.value)}
     aria-label={`Answer to ${q.title}`}
     placeholder="Your answer"
-    className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+    className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-base text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
   />
 );
 
@@ -99,7 +99,7 @@ const WrittenAnswer: React.FC<AnswerInputProps> = ({ question: q, answer, onChan
         aria-label={`Answer to ${q.title}`}
         placeholder="Write your answer as you would at work"
         rows={8}
-        className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-sm leading-relaxed text-slate-900 resize-y focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+        className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-base leading-relaxed text-slate-900 resize-y focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
       />
       <div className="text-[11px] text-slate-500 text-right tabular-nums">
         {words} {words === 1 ? 'word' : 'words'} &middot; aim for 80 to 250
@@ -137,7 +137,7 @@ const OrderItems: React.FC<AnswerInputProps> = ({ question: q, answer, onChange 
             setDragging(null);
           }}
           onDragEnd={() => setDragging(null)}
-          className={`flex items-center gap-2 p-3 bg-white rounded-lg border text-sm text-slate-800 cursor-grab active:cursor-grabbing ${
+          className={`flex items-center gap-2 p-3 bg-white rounded-lg border text-base text-slate-800 cursor-grab active:cursor-grabbing ${
             dragging === position ? 'border-indigo-400 opacity-50' : 'border-slate-200'
           }`}
         >
@@ -214,7 +214,7 @@ const MatchPairs: React.FC<AnswerInputProps> = ({ question: q, answer, onChange 
             }}
             className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center p-3 bg-white rounded-lg border border-slate-200"
           >
-            <span className="text-sm text-slate-800">{pair.left}</span>
+            <span className="text-base text-slate-800">{pair.left}</span>
             <div
               role={held !== null ? 'button' : undefined}
               tabIndex={held !== null ? 0 : undefined}
