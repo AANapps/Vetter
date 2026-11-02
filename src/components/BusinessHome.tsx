@@ -33,7 +33,7 @@ const STARTERS = [
 ];
 
 // A company's home: a chat with Vetter about who they're hiring, which answers with a roadmap, the library tests that
-// fit and custom pieces worth building. The menu sits on the right
+// fit and custom pieces worth building. The menu sits on the left
 export const BusinessHome: React.FC<BusinessHomeProps> = ({
   business,
   jobs,
@@ -82,7 +82,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
   ];
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_17rem] gap-8">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 grid grid-cols-1 lg:grid-cols-[17rem_minmax(0,1fr)] gap-8">
       {/* The chat */}
       <section className="min-w-0 flex flex-col min-h-[calc(100vh-7.5rem)]">
         <div className="flex-1 py-8 space-y-6">
@@ -188,8 +188,8 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
         </form>
       </section>
 
-      {/* The menu, on the right */}
-      <aside className="hidden lg:block py-8">
+      {/* The menu, on the left */}
+      <aside className="hidden lg:block lg:order-first py-8">
         <div className="sticky top-20 space-y-5">
           <nav aria-label="Company pages" className="space-y-1">
             {menu.map((m) => (
