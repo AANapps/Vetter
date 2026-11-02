@@ -1,83 +1,37 @@
 import React from 'react';
-import {
-  BarChart3,
-  Briefcase,
-  Bug,
-  Cloud,
-  Database,
-  Globe,
-  Handshake,
-  HeartPulse,
-  KanbanSquare,
-  Landmark,
-  LayoutTemplate,
-  LucideIcon,
-  Megaphone,
-  Server,
-} from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { AssessmentTest } from '../types';
-import { FieldIcon, HOME_FIELDS, TestField } from '../lib/testRoles';
+import { HOME_FIELDS, TestField } from '../lib/testRoles';
 import { isMainVersion } from '../lib/testLevels';
-
-const ICONS: Record<FieldIcon, LucideIcon> = {
-  globe: Globe,
-  layout: LayoutTemplate,
-  chart: BarChart3,
-  finance: Landmark,
-  server: Server,
-  megaphone: Megaphone,
-  health: HeartPulse,
-  database: Database,
-  handshake: Handshake,
-  cloud: Cloud,
-  kanban: KanbanSquare,
-  bug: Bug,
-  briefcase: Briefcase,
-};
-
-// Tints cycle along the strip so neighbouring cards look different
-const TINTS = [
-  'bg-indigo-50 text-indigo-700',
-  'bg-emerald-50 text-emerald-700',
-  'bg-amber-50 text-amber-700',
-  'bg-sky-50 text-sky-700',
-  'bg-rose-50 text-rose-700',
-];
 
 // On Home in place of trending tests: fields of work drifting past; picking one opens the Tests page on its tests.
 // It pauses while hovered or focused, and holds still (scrolling sideways instead) for people who prefer less motion
 export const FieldSlider: React.FC<{ tests: AssessmentTest[]; onOpenField: (field: TestField) => void }> = ({ tests, onOpenField }) => {
   const mains = tests.filter((t) => t.type === 'standard' && isMainVersion(t));
-  const fields = HOME_FIELDS.map((f, i) => ({
+  const fields = HOME_FIELDS.map((f) => ({
     ...f,
-    tint: TINTS[i % TINTS.length],
     count: mains.filter((t) => t.roles?.some((r) => f.roles.includes(r))).length,
   })).filter((f) => f.count > 0);
 
-  const card = (f: (typeof fields)[number], copy: number) => {
-    const Icon = ICONS[f.icon];
-    return (
-      // Spaced with padding rather than a gap, so half the strip's width is exactly one set of cards
-      <li key={`${f.label}-${copy}`} aria-hidden={copy > 0 || undefined} className={`shrink-0 pr-3 ${copy > 0 ? 'motion-reduce:hidden' : ''}`}>
-        <button
-          onClick={() => onOpenField(f)}
-          tabIndex={copy > 0 ? -1 : undefined}
-          className="w-44 h-full text-left bg-white border border-slate-200 hover:border-indigo-300 rounded-xl p-4 space-y-3 transition-colors shadow-xs group"
-        >
-          <span className={`w-9 h-9 rounded-lg flex items-center justify-center ${f.tint}`}>
-            <Icon className="w-4.5 h-4.5" />
-          </span>
-          <span className="block">
-            <span className="block text-sm font-bold text-slate-900 group-hover:text-indigo-700 leading-snug">{f.label}</span>
-            <span className="block text-[11px] text-slate-500 mt-0.5">{f.blurb}</span>
-          </span>
-          <span className="block text-[11px] font-semibold text-indigo-700">
+  const card = (f: (typeof fields)[number], copy: number) => (
+    // Spaced with padding rather than a gap, so half the strip's width is exactly one set of cards
+    <li key={`${f.label}-${copy}`} aria-hidden={copy > 0 || undefined} className={`shrink-0 pr-2.5 ${copy > 0 ? 'motion-reduce:hidden' : ''}`}>
+      <button
+        onClick={() => onOpenField(f)}
+        tabIndex={copy > 0 ? -1 : undefined}
+        className="group w-52 h-full text-left bg-white border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/40 rounded-xl px-4 py-3.5 flex flex-col gap-1 transition-colors"
+      >
+        <span className="text-sm font-semibold text-slate-900 group-hover:text-indigo-700 leading-snug truncate">{f.label}</span>
+        <span className="text-xs text-slate-500 leading-snug line-clamp-1">{f.blurb}</span>
+        <span className="mt-2 w-full flex items-center justify-between text-xs">
+          <span className="font-mono tabular-nums text-slate-500">
             {f.count} {f.count === 1 ? 'test' : 'tests'}
           </span>
-        </button>
-      </li>
-    );
-  };
+          <ArrowRight className="w-3.5 h-3.5 text-indigo-600 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
+        </span>
+      </button>
+    </li>
+  );
 
   return (
     <section className="space-y-3">
