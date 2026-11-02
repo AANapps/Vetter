@@ -60,8 +60,6 @@ interface CandidatePortalProps {
   // Set when the candidate is on a job's own page (/jobs/<slug>/)
   jobPageId?: string | null;
   onOpenJob: (jobId: string) => void;
-  // A company looking at the job board as candidates see it: no applying and no fit, and tests are practice runs
-  companyView?: boolean;
 }
 
 export const CandidatePortal: React.FC<CandidatePortalProps> = ({
@@ -84,7 +82,6 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   testField,
   onTestFieldChange,
   canApply,
-  companyView,
 }) => {
   // Tests page filters
   const [difficultyFilter, setDifficultyFilter] = useState<AssessmentTest['difficulty'][]>([]);
@@ -151,12 +148,10 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
     tests,
     business: businesses.find((b) => b.id === job.businessId),
     isApplied: !!candidate.appliedJobIds?.includes(job.id),
-    onApply: companyView
-      ? undefined
-      : () => {
-          beforeLeaving();
-          openApplication(job);
-        },
+    onApply: () => {
+      beforeLeaving();
+      openApplication(job);
+    },
     onStartJobTest: (test: AssessmentTest) => {
       beforeLeaving();
       if (onStartJobTest) onStartJobTest(test, job.id);
@@ -513,9 +508,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
               {boardJobs.length === activeJobs.length
                 ? `${activeJobs.length} open jobs.`
                 : `${boardJobs.length} of ${activeJobs.length} open jobs match your search.`}{' '}
-              {companyView
-                ? 'Every job on Vetter, as candidates see it. Start any of a job’s tests to try it yourself: your score isn’t saved.'
-                : 'Your fit score is based on your verified skills.'}
+              Your fit score is based on your verified skills.
             </p>
           </div>
 
@@ -677,7 +670,6 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
 
                       {/* Match Fit Score & Apply CTA */}
                       <div className="flex items-center gap-4 shrink-0 justify-between md:justify-end border-t md:border-t-0 pt-4 md:pt-0 border-slate-200">
-                        {!companyView && (
                         <div className="text-right">
                           <div className="text-[11px] text-slate-500 font-medium">Your Fit</div>
                           <div
@@ -693,9 +685,8 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                           </div>
                           <div className="text-[10px] text-slate-500 font-medium">{match.matchTier}</div>
                         </div>
-                        )}
 
-                        {companyView ? null : isApplied ? (
+                        {isApplied ? (
                           <div className="px-4 py-2 text-xs font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-1.5 shadow-2xs">
                             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                             <span>Applied</span>

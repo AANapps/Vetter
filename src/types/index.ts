@@ -96,6 +96,21 @@ export interface TestReferral {
 }
 
 // Every test a candidate completes, Vetter-made or company-made
+// A company (or the Vetter team) taking a test themselves to see it as a candidate would. Saved for their team,
+// never on a leaderboard or among a job's candidates
+export interface TrialResult {
+  id: string;
+  businessId: string;
+  testId: string;
+  // The job it was taken from, when it was
+  jobId?: string;
+  score: number;
+  completedAt: string;
+  durationSeconds: number;
+  takenBy: string;
+  takenByName: string;
+}
+
 export interface TestResult {
   testId: string;
   score: number;

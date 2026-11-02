@@ -15,7 +15,7 @@ import {
   where,
   writeBatch,
 } from 'firebase/firestore';
-import { AppNotification, AssessmentTest, Business, FeedComment, FeedPost, JobInvitation, JobPosting, Lead, SocialState, TestDraft, User } from '../types';
+import { AppNotification, AssessmentTest, Business, FeedComment, FeedPost, JobInvitation, JobPosting, Lead, SocialState, TestDraft, TrialResult, User } from '../types';
 import { db } from './firebase';
 import { Company } from './accounts';
 import { initialsAvatar } from '../data/seedCandidates';
@@ -67,6 +67,7 @@ export interface CloudData {
   leads: Lead[];
   // Tests a company is still writing
   testDrafts: TestDraft[];
+  trials: TrialResult[];
 }
 
 const kudosId = (itemId: string, uid: string) => `${encodeURIComponent(itemId)}__${uid}`;
@@ -137,6 +138,7 @@ export function useCloudData(viewer: Viewer | null, enabled: boolean, onError: (
       if (viewer.role !== 'candidate') {
         watch('leads', collection(d, 'leads'), ...mine('businessId'));
         watch('testDrafts', collection(d, 'testDrafts'), ...mine('businessId'));
+        watch('trials', collection(d, 'trials'), ...mine('businessId'));
       }
       stops.push(
         onSnapshot(
@@ -149,7 +151,7 @@ export function useCloudData(viewer: Viewer | null, enabled: boolean, onError: (
     return () => stops.forEach((s) => s());
   }, [enabled, key]);
 
-  const needed = ['jobs', 'tests', 'profiles', 'companies', 'posts', 'comments', 'kudos', ...(viewer ? ['applications', 'invitations', 'emailInvites', 'notifications'] : []), ...(viewer && viewer.role !== 'candidate' ? ['leads', 'testDrafts'] : [])];
+  const needed = ['jobs', 'tests', 'profiles', 'companies', 'posts', 'comments', 'kudos', ...(viewer ? ['applications', 'invitations', 'emailInvites', 'notifications'] : []), ...(viewer && viewer.role !== 'candidate' ? ['leads', 'testDrafts', 'trials'] : [])];
   if (!enabled || needed.some((n) => !parts[n])) return null;
 
   const applications = (parts.applications ?? []) as Application[];
@@ -198,6 +200,7 @@ export function useCloudData(viewer: Viewer | null, enabled: boolean, onError: (
     emailedJobIds: viewer?.role === 'candidate' ? emailInvites.map((e) => e.jobId) : [],
     leads: (parts.leads ?? []) as Lead[],
     testDrafts: ((parts.testDrafts ?? []) as TestDraft[]).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
+    trials: ((parts.trials ?? []) as TrialResult[]).sort((a, b) => b.completedAt.localeCompare(a.completedAt)),
   };
 }
 
@@ -307,6 +310,11 @@ export function syncTestDrafts(prev: TestDraft[], next: TestDraft[], onError: (e
     ...prev.filter((p) => !next.some((t) => t.id === p.id)).map((p) => deleteDoc(doc(d, 'testDrafts', p.id))),
   ];
   return run(writes, onError);
+}
+
+// A company's own try at a test, saved for its team
+export function putTrial(trial: TrialResult, onError: (err: unknown) => void) {
+  return run([setDoc(doc(db(), 'trials', trial.id), JSON.parse(JSON.stringify(trial)))], onError);
 }
 
 // Leads a company moved on or changed. Firestore refuses undefined, so cleared fields are left out

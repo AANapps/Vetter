@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { AssessmentTest, Business, JobPosting, User } from '../types';
+import { AssessmentTest, Business, JobPosting, TrialResult, User } from '../types';
+import { JobDetailsModal } from './JobDetails';
+import { calculateCandidateJobMatch } from '../lib/matchingAlgorithm';
 import {
   TRACKING_LABELS,
   TrackingRow,
@@ -56,6 +58,11 @@ interface BusinessJobsProps {
   onUpdateLead: (row: LeadRow, change: LeadChange) => void;
   // Takes the job down for good, with who it was sent to
   onDeleteJob: (jobId: string) => void;
+  // The company taking one of the job's tests itself, as a candidate would; its score is saved as a trial
+  onTryTest: (test: AssessmentTest, jobId: string) => void;
+  // The company's saved tries, and the same as a stand-in candidate, so the job shows the team's best scores
+  trials: TrialResult[];
+  trialUser: User;
 }
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -361,9 +368,13 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
   leadRows,
   onUpdateLead,
   onDeleteJob,
+  onTryTest,
+  trials,
+  trialUser,
 }) => {
   const [filter, setFilter] = useState<TrackingStatus | 'all'>('all');
   const [sharing, setSharing] = useState(false);
+  const [asCandidate, setAsCandidate] = useState(false);
   const rows = jobTracking(job, candidates).sort(rank);
   const funnel = jobFunnel(job, rows, candidates);
   const jobTests = jobTestsOf(job, tests);
@@ -402,13 +413,21 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
         {!business && <div className="text-xs font-semibold text-indigo-700">{job.companyName}</div>}
         <div className="flex items-start justify-between gap-4">
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{job.title}</h1>
-          {jobTests.length > 0 && (
-            <ShareButton
-              onClick={() => setSharing(true)}
-              label="Share tests"
-              className="shrink-0 px-4 py-2 text-sm text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs"
-            />
-          )}
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => setAsCandidate(true)}
+              className="px-4 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-300 hover:border-indigo-400 rounded-lg"
+            >
+              See it as a candidate
+            </button>
+            {jobTests.length > 0 && (
+              <ShareButton
+                onClick={() => setSharing(true)}
+                label="Share tests"
+                className="px-4 py-2 text-sm text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs"
+              />
+            )}
+          </div>
         </div>
         <p className="text-xs text-slate-500 flex flex-wrap items-center gap-x-2 gap-y-1">
           <span className="flex items-center gap-1">
@@ -458,7 +477,29 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
             </span>
           </div>
         )}
+        {jobTests.length > 0 && <TeamTries job={job} jobTests={jobTests} trials={trials} onTryTest={onTryTest} />}
       </section>
+
+      {asCandidate && (
+        <JobDetailsModal
+          job={job}
+          match={calculateCandidateJobMatch(trialUser, job)}
+          candidate={trialUser}
+          allCandidates={candidates}
+          tests={tests}
+          business={business}
+          isApplied={false}
+          onStartJobTest={(test) => {
+            setAsCandidate(false);
+            onTryTest(test, job.id);
+          }}
+          onOpenTest={(testId) => {
+            setAsCandidate(false);
+            onOpenTest(testId);
+          }}
+          onClose={() => setAsCandidate(false)}
+        />
+      )}
 
       {sharing && <ShareDialog job={job} candidates={candidates} onEmail={onEmail} onInvite={onInvite} onClose={() => setSharing(false)} />}
 
@@ -995,3 +1036,57 @@ const EmailPreview: React.FC<{ to: string; subject: string; body: string }> = ({
     <p className="px-3 py-2.5 whitespace-pre-line text-slate-700 break-words">{body}</p>
   </div>
 );
+
+// The team taking the job's tests themselves: a button for each, and every try they've saved, newest first
+const TeamTries: React.FC<{ job: JobPosting; jobTests: AssessmentTest[]; trials: TrialResult[]; onTryTest: (test: AssessmentTest, jobId: string) => void }> = ({
+  job,
+  jobTests,
+  trials,
+  onTryTest,
+}) => {
+  const ours = trials.filter((t) => jobTests.some((jt) => jt.id === t.testId)).sort((a, b) => b.completedAt.localeCompare(a.completedAt));
+  return (
+    <div className="pt-3 border-t border-slate-100 space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-semibold text-slate-800">Try them yourself:</span>
+        {jobTests.map((t, i) => (
+          <button
+            key={t.id}
+            onClick={() => onTryTest(t, job.id)}
+            className="text-xs font-semibold px-2.5 py-1 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-full"
+          >
+            Take {jobTests.length > 1 ? `test ${i + 1}` : 'the test'}
+          </button>
+        ))}
+      </div>
+      <p className="text-[11px] text-slate-500">Exactly as candidates get it. Your scores are saved here for your team, and never count among the job's candidates.</p>
+      {ours.length > 0 && (
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="text-left text-[11px] text-slate-500">
+              <th className="py-1 font-medium">Who</th>
+              <th className="py-1 font-medium">Test</th>
+              <th className="py-1 font-medium text-right">Score</th>
+              <th className="py-1 font-medium text-right">Time</th>
+              <th className="py-1 font-medium text-right">When</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {ours.map((t) => {
+              const test = jobTests.find((jt) => jt.id === t.testId)!;
+              return (
+                <tr key={t.id}>
+                  <td className="py-1.5 text-slate-800">{t.takenByName}</td>
+                  <td className="py-1.5 text-slate-600">{versionTitle(test)}</td>
+                  <td className={`py-1.5 text-right font-mono font-semibold ${t.score >= job.testPassingScore ? 'text-emerald-700' : 'text-amber-700'}`}>{t.score}/100</td>
+                  <td className="py-1.5 text-right text-slate-500">{formatDuration(t.durationSeconds)}</td>
+                  <td className="py-1.5 text-right text-slate-500">{formatDay(t.completedAt)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+};

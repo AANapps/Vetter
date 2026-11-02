@@ -34,9 +34,11 @@ interface TestRunnerProps {
   getPercentileFor: (score: number) => number;
   // Tried out from the test builder: nothing is saved
   preview?: boolean;
+  // Where the score goes, when it isn't the candidate's profile: e.g. a company trying its own test
+  savedNote?: string;
 }
 
-export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete, getPercentileFor, preview }) => {
+export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete, getPercentileFor, preview, savedNote }) => {
   // Each hands-on task is shown with the questions about it; every other question on its own
   const groups = useMemo(() => groupQuestions(test.questions), [test.questions]);
   const ordered = useMemo(() => groups.flatMap((g) => g.questions), [groups]);
@@ -687,7 +689,9 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
                   <h3 className="text-lg font-bold text-slate-900">{preview ? 'Preview finished' : 'Test complete!'}</h3>
                   <p className="text-xs text-slate-500">
                     {preview
-                      ? 'This is how candidates are scored. Your score isn’t saved.'
+                      ? 'This is how candidates are scored. Nothing is saved.'
+                      : savedNote
+                      ? savedNote
                       : test.type === 'standard'
                       ? 'Your score is saved to your profile and this test’s leaderboard'
                       : `Your score is saved and shared with ${test.companyName}`}
@@ -774,7 +778,7 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
                 onClick={handleConfirmFinish}
                 className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-lg transition-colors flex items-center justify-center gap-2 shadow-xs"
               >
-                <span>{preview ? 'Done' : 'Save Result'}</span>
+                <span>{preview ? 'Back to the builder' : 'Save Result'}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>

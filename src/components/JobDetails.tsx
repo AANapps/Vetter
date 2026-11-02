@@ -329,7 +329,7 @@ export const JobDetails: React.FC<JobDetailsProps> = ({
             {jobTests.length > 0 && (
               <p className="text-[11px] text-slate-500">
                 Pass mark {job.testPassingScore}
-                {jobTests.length > 1 ? ' on average' : ''}. Each also counts on your profile.
+                {jobTests.length > 1 ? ' on average' : ''}.{onApply ? ' Each also counts on your profile.' : ''}
               </p>
             )}
           </div>
@@ -463,7 +463,7 @@ const JobHeader: React.FC<{
 );
 
 // The full listing as a pop-up over the job board: a quick view of the job page
-export const JobDetailsModal: React.FC<JobDetailsProps & { onClose: () => void; onOpenPage: () => void }> = ({
+export const JobDetailsModal: React.FC<JobDetailsProps & { onClose: () => void; onOpenPage?: () => void }> = ({
   onClose,
   onOpenPage,
   ...props
@@ -495,9 +495,11 @@ export const JobDetailsModal: React.FC<JobDetailsProps & { onClose: () => void; 
       >
         <div className="sm:sticky top-0 z-10 bg-white border-b border-slate-200 p-6 pr-14">
           <JobHeader job={job} match={match} titleAs="h2" isApplied={props.isApplied} onApply={props.onApply}>
-            <button onClick={onOpenPage} className="text-xs font-semibold text-indigo-700 hover:underline">
-              Open job page &rarr;
-            </button>
+            {onOpenPage && (
+              <button onClick={onOpenPage} className="text-xs font-semibold text-indigo-700 hover:underline">
+                Open job page &rarr;
+              </button>
+            )}
           </JobHeader>
           <button
             onClick={onClose}

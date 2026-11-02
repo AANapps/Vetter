@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { User, UserRole, AssessmentTest, JobPosting, Business, SocialState, AppNotification, JobInvitation, Lead, TestDraft } from './types';
+import { User, UserRole, AssessmentTest, JobPosting, Business, SocialState, AppNotification, JobInvitation, Lead, TestDraft, TrialResult } from './types';
 import { INITIAL_RECRUITER, INITIAL_BUSINESSES, STANDARD_ASSESSMENTS } from './data/mockData';
 import { loadData, saveData, clearData, createSeedData } from './lib/store';
 import { getPercentile } from './lib/leaderboard';
@@ -30,7 +30,7 @@ import { firebaseEnabled } from './lib/firebase';
 import { useAccount } from './lib/useAccount';
 import { loadProfile, saveProfile } from './lib/profiles';
 import { Account, accountError, signOut } from './lib/accounts';
-import { Viewer, apply, syncJobs, syncLeads, syncNotifications, syncSocial, putTestDraft, syncTestDrafts, syncTests, useCloudData } from './lib/cloud';
+import { Viewer, apply, syncJobs, syncLeads, syncNotifications, syncSocial, putTestDraft, putTrial, syncTestDrafts, syncTests, useCloudData } from './lib/cloud';
 import { LeadsPage } from './components/LeadsPage';
 import { LeadChange } from './components/LeadsView';
 import { LeadRow, buildLeadRows, updatedLead } from './lib/leads';
@@ -167,6 +167,7 @@ export default function App() {
   const [localNotifications, setLocalNotifications] = useState<AppNotification[]>(initialData.notifications);
   const [localLeads, setLocalLeads] = useState<Lead[]>(initialData.leads);
   const [localTestDrafts, setLocalTestDrafts] = useState<TestDraft[]>(initialData.testDrafts);
+  const [localTrials, setLocalTrials] = useState<TrialResult[]>(initialData.trials);
 
   // With accounts on, everything real comes from Firebase (src/lib/cloud.ts) and changes are written back there;
   // without them, the demo's example data lives in this browser
@@ -189,6 +190,7 @@ export default function App() {
   const notifications = cloud ? cloud.notifications : localNotifications;
   const leads = cloud ? cloud.leads : localLeads;
   const testDrafts = cloud ? cloud.testDrafts : localTestDrafts;
+  const trials = cloud ? cloud.trials : localTrials;
   const testDraftsRef = useRef(testDrafts);
   testDraftsRef.current = testDrafts;
   const leadsRef = useRef(leads);
@@ -225,8 +227,8 @@ export default function App() {
 
   useEffect(() => {
     if (firebaseEnabled) return;
-    saveData({ candidate, otherCandidates, jobs, tests, social, notifications, leads, testDrafts });
-  }, [candidate, otherCandidates, jobs, tests, social, notifications, leads, testDrafts]);
+    saveData({ candidate, otherCandidates, jobs, tests, social, notifications, leads, testDrafts, trials });
+  }, [candidate, otherCandidates, jobs, tests, social, notifications, leads, testDrafts, trials]);
 
   // Changes one person's invitation to a job's tests, adding it if they don't have one yet
   const updateInvitation = (jobId: string, candidateId: string, change: Partial<JobInvitation>) =>
@@ -307,11 +309,10 @@ export default function App() {
     if (invitation && !invitation.openedAt) updateInvitation(jobPageId, candidateRef.current.id, { openedAt: new Date().toISOString() });
   }, [jobPageId, activeRole]);
 
-  // Companies opening a job's link land on that job's results, unless they opened it from the job board
+  // Companies opening a job's link land on that job's results
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
-  const fromJobBoard = useRef(false);
   useEffect(() => {
-    if (!jobPageId || activeRole === 'candidate' || fromJobBoard.current) return;
+    if (!jobPageId || activeRole === 'candidate') return;
     setSelectedJobId(jobPageId);
     setCurrentTab('business-jobs');
   }, [jobPageId, activeRole]);
@@ -321,8 +322,8 @@ export default function App() {
   // When a candidate takes one of a job's tests from the job, the job they're applying to
   const [activeTestJobId, setActiveTestJobId] = useState<string | null>(null);
   const [activeTest, setActiveTest] = useState<AssessmentTest | null>(null);
-  // A company or the Vetter team taking a test themselves: a full run, with nothing saved
-  const [practiceTest, setPracticeTest] = useState<AssessmentTest | null>(null);
+  // A company or the Vetter team taking a test themselves, as a candidate would; the score is saved for their team
+  const [trialTest, setTrialTest] = useState<{ test: AssessmentTest; jobId?: string } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   // Asking Vetter's AI for tests, for a job or on their own; and the builder opened on what it wrote
   // seed: a first message ready to send, e.g. to rebuild a library test in depth
@@ -448,7 +449,7 @@ export default function App() {
       <AccountGate user={user} account={account} company={company} />
     ) : null;
   const startTest = (test: AssessmentTest) =>
-    activeRole !== 'candidate' ? setPracticeTest(test) : requireAccount('Create a free account to take this test and get a verified score.', () => setActiveTest(test));
+    activeRole !== 'candidate' ? setTrialTest({ test }) : requireAccount('Create a free account to take this test and get a verified score.', () => setActiveTest(test));
 
   const showToast = (message: string) => {
     setToast(message);
@@ -460,7 +461,6 @@ export default function App() {
     else if (window.location.hash || window.location.pathname !== '/') navigateTo('/' + window.location.search);
     if (tab === 'for-business') history.replaceState(null, '', '/#/business');
     if (tab === 'business-jobs') setSelectedJobId(null);
-    fromJobBoard.current = false;
     setCurrentTab(tab);
   };
 
@@ -483,7 +483,6 @@ export default function App() {
   };
 
   const openJobPage = (jobId: string) => {
-    fromJobBoard.current = activeRole !== 'candidate';
     setCurrentTab('jobs');
     const job = jobs.find((j) => j.id === jobId);
     navigateTo(job ? jobPath(job) : `/jobs/${encodeURIComponent(jobId)}/`);
@@ -646,10 +645,39 @@ export default function App() {
     setActiveTest(null);
   };
 
+  // Whose trials these are: the company's, or the Vetter team's
+  const trialOwner = activeRole === 'admin' ? VETTER_TEAM.id : recruiterBusiness?.id;
+  const ourTrials = trialOwner ? trials.filter((t) => t.businessId === trialOwner) : [];
+  // The team's tries as a candidate's results, so a job seen as a candidate shows the team's scores on its tests
+  const trialUser: User = {
+    ...VISITOR,
+    id: 'company-trial',
+    name: staffUser.name,
+    testResults: ourTrials.map((t) => ({ testId: t.testId, score: t.score, completedAt: t.completedAt.split('T')[0], durationSeconds: t.durationSeconds })),
+  };
+  const saveTrial = (testId: string, score: number, durationSeconds: number, jobId?: string) => {
+    if (!trialOwner) return showToast('Your score couldn’t be saved until your company is set up.');
+    const now = new Date();
+    const trial: TrialResult = {
+      id: `trial-${now.getTime()}-${Math.random().toString(36).slice(2, 7)}`,
+      businessId: trialOwner,
+      testId,
+      ...(jobId ? { jobId } : {}),
+      score,
+      completedAt: now.toISOString(),
+      durationSeconds,
+      takenBy: account?.uid ?? staffUser.id,
+      takenByName: staffUser.name,
+    };
+    if (firebaseEnabled) putTrial(trial, reportCloudError);
+    else setLocalTrials((prev) => [trial, ...prev]);
+    showToast(`You scored ${score}/100. Saved to your team's trials.`);
+  };
+
   // A candidate starting one of a job's tests from the job: the company sees them on the job from now
   const startJobTest = (test: AssessmentTest, jobId: string) => {
     if (activeRole !== 'candidate') {
-      setPracticeTest(test);
+      setTrialTest({ test, jobId });
       return;
     }
     if (isVisitor) {
@@ -876,7 +904,7 @@ export default function App() {
               }
               onSend={activeRole === 'candidate' ? undefined : () => setEditingTests({ addTestIds: [testPageTest.id] })}
               onStartTest={startTest}
-              onOpenJob={openJobPage}
+              onOpenJob={activeRole === 'candidate' ? openJobPage : undefined}
               onOpenTest={openTestPage}
               onBack={() => goToTab(activeRole === 'candidate' ? 'tests' : 'business-tests')}
             />
@@ -914,32 +942,6 @@ export default function App() {
                 if (isVisitor) setAuthDialog({ mode: 'sign-up', reason: 'Create a free account to apply. Your verified scores go with your application.' });
                 return !isVisitor;
               }}
-            />
-          )}
-
-          {/* Companies see the job board as candidates do, and can try any job's tests */}
-          {!detailPage && activeRole !== 'candidate' && currentTab === 'jobs' && (
-            <CandidatePortal
-              key="company-board"
-              section="jobs"
-              companyView
-              onNavigate={(section) => goToTab(section)}
-              candidate={VISITOR}
-              allCandidates={allCandidates}
-              onOpenTest={openTestPage}
-              tests={tests}
-              jobs={jobs}
-              businesses={businesses}
-              onStartTest={startTest}
-              onStartJobTest={startJobTest}
-              onApplyJob={() => {}}
-              onUpdateProfiles={() => {}}
-              onUpdateStudies={() => {}}
-              onDeleteTest={() => {}}
-              jobPageId={jobPageId}
-              onOpenJob={openJobPage}
-              testField={null}
-              onTestFieldChange={() => {}}
             />
           )}
 
@@ -1035,6 +1037,9 @@ export default function App() {
               onOpenTest={openTestPage}
               leadRows={leadRows}
               onUpdateLead={handleUpdateLead}
+              onTryTest={startJobTest}
+              trials={ourTrials}
+              trialUser={trialUser}
               onDeleteJob={(jobId) => {
                 const job = jobs.find((j) => j.id === jobId);
                 setJobs((prev) => prev.filter((j) => j.id !== jobId));
@@ -1175,13 +1180,16 @@ export default function App() {
         />
       )}
 
-      {practiceTest && (
+      {trialTest && (
         <TestRunner
-          test={practiceTest}
-          preview
-          onClose={() => setPracticeTest(null)}
-          onComplete={() => setPracticeTest(null)}
-          getPercentileFor={(score) => getPercentile(score, practiceTest.id, allCandidates, '')}
+          test={trialTest.test}
+          savedNote="Saved for your team as a trial. It isn't on any leaderboard or among any job's candidates."
+          onClose={() => setTrialTest(null)}
+          onComplete={(testId, score, durationSeconds) => {
+            saveTrial(testId, score, durationSeconds, trialTest.jobId);
+            setTrialTest(null);
+          }}
+          getPercentileFor={(score) => getPercentile(score, trialTest.test.id, allCandidates, '')}
         />
       )}
 

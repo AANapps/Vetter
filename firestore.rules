@@ -144,6 +144,17 @@ service cloud.firestore {
       allow delete: if isAdmin() || worksAt(resource.data.businessId);
     }
 
+    // A company's own tries at tests, seen only by its team and the Vetter team
+    match /trials/{trialId} {
+      allow read: if signedIn() && (isAdmin() || worksAt(resource.data.businessId));
+      allow create: if (isAdmin() || worksAt(request.resource.data.businessId))
+        && request.resource.data.id == trialId
+        && request.resource.data.takenBy == uid()
+        && request.resource.data.keys().hasOnly(['id', 'businessId', 'testId', 'jobId', 'score', 'completedAt',
+          'durationSeconds', 'takenBy', 'takenByName']);
+      allow delete: if isAdmin() || worksAt(resource.data.businessId);
+    }
+
     match /leads/{leadId} {
       allow read: if signedIn() && (isAdmin() || worksAt(resource.data.businessId));
       allow create, update: if (isAdmin() || worksAt(request.resource.data.businessId))

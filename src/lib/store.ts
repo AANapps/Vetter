@@ -1,4 +1,4 @@
-import { AppNotification, AssessmentTest, JobInvitation, JobPosting, Lead, SocialState, TEST_DIFFICULTIES, TestDraft, User } from '../types';
+import { AppNotification, AssessmentTest, JobInvitation, JobPosting, Lead, SocialState, TEST_DIFFICULTIES, TestDraft, TrialResult, User } from '../types';
 import { buildSeedLeads } from '../data/seedLeads';
 import {
   INITIAL_CANDIDATE,
@@ -33,6 +33,8 @@ export interface AppData {
   leads: Lead[];
   // Tests still being written
   testDrafts: TestDraft[];
+  // Companies' own tries at tests
+  trials: TrialResult[];
 }
 
 const SEED_TESTS = [...STANDARD_ASSESSMENTS, ...COMPANY_ASSESSMENTS];
@@ -56,6 +58,7 @@ export function createSeedData(): AppData {
     notifications: SEED_NOTIFICATIONS,
     leads: buildSeedLeads(INITIAL_JOBS, everyone),
     testDrafts: [],
+    trials: [],
   };
 }
 
@@ -90,7 +93,7 @@ export function loadData(): AppData {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return seed;
-    const saved = JSON.parse(raw) as Omit<AppData, 'notifications' | 'leads' | 'testDrafts'> & { leads?: Lead[]; testDrafts?: TestDraft[] } & { exams?: SavedExam[]; notifications: (Omit<AppNotification, 'jobId'> & { jobId?: string; examId?: string })[] };
+    const saved = JSON.parse(raw) as Omit<AppData, 'notifications' | 'leads' | 'testDrafts' | 'trials'> & { leads?: Lead[]; testDrafts?: TestDraft[]; trials?: TrialResult[] } & { exams?: SavedExam[]; notifications: (Omit<AppNotification, 'jobId'> & { jobId?: string; examId?: string })[] };
 
     // Bundled images get new URLs on each build, so always take avatars from the seed
     const seedAvatars = new Map([seed.candidate, ...seed.otherCandidates].map((u) => [u.id, u.avatarUrl]));
@@ -143,6 +146,7 @@ export function loadData(): AppData {
       // Saved before leads existed: start from the seeded pipeline
       leads: saved.leads ?? seed.leads,
       testDrafts: saved.testDrafts ?? [],
+      trials: saved.trials ?? [],
       // Invites saved when they pointed at an assessment now point at its job
       notifications: saved.notifications
         ? saved.notifications.flatMap((n) => {
