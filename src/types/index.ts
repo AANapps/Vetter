@@ -123,6 +123,15 @@ export interface TestResult {
   referredBy?: string;
   // What the integrity monitor saw while they took it (src/lib/integrity.ts)
   integrity?: IntegrityReport;
+  // Module tests: the score in each core area, and the highest level passed all the way up from Beginner
+  breakdown?: ResultBreakdown;
+}
+
+export interface ResultBreakdown {
+  aspects: { id: string; name: string; score: number }[];
+  tiers: { tier: TestDifficulty; score: number }[];
+  // Unset when even the Beginner questions fell short
+  levelReached?: TestDifficulty;
 }
 
 // 'choice' is multiple choice, for roles where writing code isn't the job;
@@ -198,6 +207,17 @@ export interface Question {
   testCases: TestCase[];
   timeLimitMinutes: number;
   weight: number;
+  // Tests built on a module skeleton: the core area of the skill it tests (an id from the test's aspects) and the
+  // level it belongs to. A test at one level asks every level up to its own, so a Senior pass covers Beginner too
+  aspect?: string;
+  tier?: TestDifficulty;
+}
+
+// One core area of a module, such as CSS & Layout in Frontend. Every level of the module tests every area
+export interface TestAspect {
+  id: string;
+  name: string;
+  summary: string;
 }
 
 export type TestDifficulty = 'Beginner' | 'Junior' | 'Professional' | 'Senior';
@@ -224,6 +244,9 @@ export interface AssessmentTest {
   roles?: TestRole[];
   // Simulations: one scenario that every question plays out in
   scenario?: TestScenario;
+  // Module tests: the core areas every level covers; each question names one. Companies can add their own questions
+  // to any area at any level
+  aspects?: TestAspect[];
   // What the hire needs, worked out before the questions were written: each competency, why it matters, how the test
   // proves it, and its share of the marks
   blueprint?: BlueprintItem[];

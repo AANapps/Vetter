@@ -1,12 +1,13 @@
 import React from 'react';
 import { BackButton } from './BackButton';
-import { Link2, Play } from 'lucide-react';
-import { AssessmentTest, Business, JobPosting, User, UserRole } from '../types';
+import { Link2, Play, PlusCircle } from 'lucide-react';
+import { AssessmentTest, Business, JobPosting, TEST_DIFFICULTIES, User, UserRole } from '../types';
 import { getLeaderboard, getTestStats } from '../lib/leaderboard';
 import { TestLeaderboard, formatDuration } from './TestLeaderboard';
 import { QUESTION_TYPE_LABELS, describeChecks } from '../lib/testRoles';
 import { levelsOf } from '../lib/testLevels';
 import { LevelPicker } from './LevelPicker';
+import { TIER_BLURB } from '../lib/modules';
 
 interface TestPageProps {
   test: AssessmentTest;
@@ -22,6 +23,8 @@ interface TestPageProps {
   referredByCompany?: Business;
   // Companies and the Vetter team add the test to one of their jobs, then send it from there
   onSend?: () => void;
+  // Companies take a copy of a Vetter module test to add their own questions to its areas and levels
+  onCustomize?: () => void;
   onStartTest: (test: AssessmentTest) => void;
   onOpenJob?: (jobId: string) => void;
   onOpenTest: (testId: string) => void;
@@ -39,6 +42,7 @@ export const TestPage: React.FC<TestPageProps> = ({
   currentCandidateId,
   referredByCompany,
   onSend,
+  onCustomize,
   onStartTest,
   onOpenJob,
   onOpenTest,
@@ -55,6 +59,9 @@ export const TestPage: React.FC<TestPageProps> = ({
     viewerRole === 'candidate'
       ? test.type === 'standard' || referredByCompany?.id === test.businessId
       : viewerRole === 'admin' || test.type === 'standard' || (!!viewerBusinessId && test.businessId === viewerBusinessId);
+
+  const aspectName = (id: string) => test.aspects?.find((a) => a.id === id)?.name ?? id;
+  const levelsAsked = TEST_DIFFICULTIES.filter((t) => test.questions.some((q) => q.tier === t));
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-8 space-y-6">
@@ -114,6 +121,17 @@ export const TestPage: React.FC<TestPageProps> = ({
             </button>
           )}
 
+          {onCustomize && test.aspects && (
+            <button
+              onClick={onCustomize}
+              title="Keep Vetter's questions and add your own to any area and level"
+              className="px-4 py-2.5 text-xs font-semibold text-indigo-700 bg-white border border-indigo-200 hover:border-indigo-400 rounded-lg transition-colors flex items-center gap-2 shrink-0 self-start"
+            >
+              <PlusCircle className="w-3.5 h-3.5" />
+              <span>Add your own questions</span>
+            </button>
+          )}
+
           {canStart && (
             <button
               onClick={() => onStartTest(test)}
@@ -154,6 +172,48 @@ export const TestPage: React.FC<TestPageProps> = ({
 
       <TestLeaderboard entries={leaderboard} passingScore={test.passingScore} currentCandidateId={currentCandidateId} />
 
+      {/* Module tests: the core areas every level covers, and what this level adds */}
+      {test.aspects && test.questions.some((q) => q.aspect) && (
+        <div className="bg-white border border-slate-200 rounded-xl p-6 space-y-4 shadow-xs">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-base font-bold text-slate-900">What it covers</h2>
+            <p className="text-xs text-slate-500">{TIER_BLURB[test.difficulty]}. Pass a level and you've shown every level below it.</p>
+          </div>
+          <div className="overflow-x-auto -mx-2">
+            <table className="w-full text-xs min-w-[520px]">
+              <thead>
+                <tr className="text-left text-[10px] font-mono uppercase tracking-wider text-slate-400">
+                  <th className="font-semibold px-2 py-1.5">Area</th>
+                  {levelsAsked.map((t) => (
+                    <th key={t} className="font-semibold px-2 py-1.5 text-center">
+                      {t}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {test.aspects.map((a) => (
+                  <tr key={a.id}>
+                    <td className="px-2 py-2 align-top">
+                      <div className="font-semibold text-slate-900">{a.name}</div>
+                      <div className="text-[11px] text-slate-500">{a.summary}</div>
+                    </td>
+                    {levelsAsked.map((t) => {
+                      const n = test.questions.filter((q) => q.aspect === a.id && q.tier === t).length;
+                      return (
+                        <td key={t} className="px-2 py-2 text-center align-top font-mono tabular-nums text-slate-700">
+                          {n || <span className="text-slate-300">–</span>}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* What's in the test */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-2 bg-white border border-slate-200 rounded-xl p-6 space-y-4 shadow-xs">
@@ -168,6 +228,12 @@ export const TestPage: React.FC<TestPageProps> = ({
                   <div className="text-slate-500 font-mono text-[11px] mt-0.5">
                     {QUESTION_TYPE_LABELS[q.type]} &middot; {describeChecks(q)}
                   </div>
+                  {q.aspect && (
+                    <div className="mt-1 flex flex-wrap gap-1.5 text-[10px]">
+                      <span className="px-1.5 py-px rounded bg-slate-100 text-slate-600">{aspectName(q.aspect)}</span>
+                      {q.tier && <span className="px-1.5 py-px rounded bg-indigo-50 text-indigo-700">{q.tier}</span>}
+                    </div>
+                  )}
                 </div>
                 <div className="text-right font-mono text-[11px] text-slate-500 shrink-0">
                   <div>{q.weight}% of score</div>

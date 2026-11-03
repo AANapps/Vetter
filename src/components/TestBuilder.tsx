@@ -39,6 +39,8 @@ export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, dra
   const [skills, setSkills] = useState((source?.skillsTested ?? []).join(', '));
   const [roles, setRoles] = useState<TestRole[]>(source?.roles ?? []);
   const [questions, setQuestions] = useState<Question[]>(source?.questions ?? []);
+  // A copy of a Vetter module test keeps its core areas; every question, Vetter's or the company's, sits in one at a level
+  const aspects = source?.aspects;
   const [selected, setSelected] = useState<Selection>('details');
   const [picking, setPicking] = useState(false);
   const [showProblems, setShowProblems] = useState(false);
@@ -58,7 +60,10 @@ export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, dra
   const updateQuestion = (index: number, change: Partial<Question>) =>
     setQuestions((prev) => prev.map((q, i) => (i === index ? { ...q, ...change } : q)));
   const addQuestion = (type: QuestionType) => {
-    setQuestions((prev) => [...prev, blankQuestion(type)]);
+    // In a module test a new question joins the area of the one being looked at, at the test's own level
+    const near = typeof selected === 'number' ? questions[selected] : undefined;
+    const placed = aspects?.length ? { aspect: near?.aspect ?? aspects[0].id, tier: difficulty } : {};
+    setQuestions((prev) => [...prev, { ...blankQuestion(type), ...placed }]);
     setSelected(questions.length);
     setPicking(false);
   };
@@ -95,6 +100,7 @@ export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, dra
       questions: tidy.map((q) => ({ ...q, weight: Math.round((q.weight / total) * 100) })),
       skillsTested: skillsTested.length ? skillsTested : [category],
       ...(isVetter && { roles }),
+      ...(aspects && { aspects }),
     };
   };
 
@@ -188,8 +194,9 @@ export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, dra
                   <span className="font-mono text-[11px] text-slate-400 w-4 shrink-0">{i + 1}</span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-medium">{q.title || 'Untitled'}</span>
-                    <span className="block text-[10px] text-slate-500">
+                    <span className="block text-[10px] text-slate-500 truncate">
                       {QUESTION_STYLES.find((s) => s.type === q.type)?.label ?? q.type} &middot; {share(q)}%
+                      {q.aspect && ` · ${aspects?.find((a) => a.id === q.aspect)?.name ?? q.aspect}${q.tier ? `, ${q.tier}` : ''}`}
                     </span>
                   </span>
                 </OutlineButton>
@@ -368,6 +375,43 @@ export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, dra
                       )}
                     </select>
                   </label>
+                )}
+                {aspects && aspects.length > 0 && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <label className="block space-y-1">
+                      <span className={labelClass}>Area it tests</span>
+                      <select
+                        value={questions[selected].aspect ?? ''}
+                        onChange={(e) => updateQuestion(selected, { aspect: e.target.value || undefined })}
+                        className={inputClass}
+                      >
+                        <option value="">None</option>
+                        {aspects.map((a) => (
+                          <option key={a.id} value={a.id}>
+                            {a.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="block space-y-1">
+                      <span className={labelClass}>Level</span>
+                      <select
+                        value={questions[selected].tier ?? ''}
+                        onChange={(e) => updateQuestion(selected, { tier: (e.target.value || undefined) as Question['tier'] })}
+                        className={inputClass}
+                      >
+                        <option value="">Not set</option>
+                        {TEST_DIFFICULTIES.map((d) => (
+                          <option key={d} value={d}>
+                            {d}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <p className="sm:col-span-2 -mt-1 text-[11px] text-slate-500">
+                      Results show a score for each area and the level reached, so place your questions where they belong.
+                    </p>
+                  </div>
                 )}
                 <QuestionEditor key={questions[selected].id} question={questions[selected]} onChange={(change) => updateQuestion(selected, change)} share={share(questions[selected])} />
               </div>

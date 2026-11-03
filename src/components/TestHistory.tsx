@@ -1,5 +1,6 @@
 import React from 'react';
-import { AssessmentTest, Business, User } from '../types';
+import { AssessmentTest, Business, TestDifficulty, User } from '../types';
+import { tierIndex } from '../lib/modules';
 import { getLeaderboard } from '../lib/leaderboard';
 import { CheckCircle2, ChevronRight, Lock, Trash2, XCircle } from 'lucide-react';
 import { IntegrityBadge } from './IntegrityBadge';
@@ -44,7 +45,12 @@ export const TestHistory: React.FC<TestHistoryProps> = ({ person, tests, candida
       const entry = board.find((e) => e.candidate.id === person.id);
       const monitored = attempts.filter((r) => r.integrity).sort((a, b) => (a.completedTime ?? a.completedAt).localeCompare(b.completedTime ?? b.completedAt)).at(-1);
       const sittings = monitored?.integrity ? [{ testTitle: test.title, completedAt: monitored.completedTime ?? monitored.completedAt, report: monitored.integrity }] : [];
-      return [{ test, best, attempts: attempts.length, last, rank: entry?.rank, of: board.length, sharedWith, sittings }];
+      // Module tests: the highest level reached on any attempt
+      const reached = attempts
+        .map((r) => r.breakdown?.levelReached)
+        .filter((l): l is TestDifficulty => !!l)
+        .sort((a, b) => tierIndex(b) - tierIndex(a))[0];
+      return [{ test, best, attempts: attempts.length, last, rank: entry?.rank, of: board.length, sharedWith, sittings, reached }];
     })
     .sort((a, b) => b.last.localeCompare(a.last));
 
@@ -52,7 +58,7 @@ export const TestHistory: React.FC<TestHistoryProps> = ({ person, tests, candida
 
   return (
     <ul className="divide-y divide-slate-100 border border-slate-200 rounded-xl bg-white">
-      {rows.map(({ test, best, attempts, last, rank, of, sharedWith, sittings }) => {
+      {rows.map(({ test, best, attempts, last, rank, of, sharedWith, sittings, reached }) => {
         const passed = best >= test.passingScore;
         const Row = onOpenTest ? 'button' : 'div';
         return (
@@ -65,7 +71,8 @@ export const TestHistory: React.FC<TestHistoryProps> = ({ person, tests, candida
               <span className="min-w-0 flex-1">
                 <span className="block text-sm font-semibold text-slate-900 group-hover:text-indigo-700 truncate">{test.title}</span>
                 <span className="block text-xs text-slate-500">
-                  {test.type === 'standard' ? test.difficulty : `${test.companyName}'s test`} &middot; {formatDay(last)}
+                  {test.type === 'standard' ? test.difficulty : `${test.companyName}'s test`}
+                  {reached && reached !== test.difficulty && ` (reached ${reached})`} &middot; {formatDay(last)}
                   {attempts > 1 && ` · ${attempts} attempts`}
                   {sharedWith.length > 0 &&
                     ` · sent to ${sharedWith.map((id) => businesses.find((b) => b.id === id)?.name ?? 'a company').join(', ')}`}

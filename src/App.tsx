@@ -1,6 +1,6 @@
 import type { IntegrityReport } from './lib/integrity';
 import React, { useEffect, useRef, useState } from 'react';
-import { User, UserRole, AssessmentTest, JobPosting, Business, SocialState, AppNotification, JobInvitation, Lead, TestDraft, TrialResult, hasAiTests } from './types';
+import { User, UserRole, AssessmentTest, JobPosting, Business, SocialState, AppNotification, JobInvitation, Lead, TestDraft, TrialResult, ResultBreakdown, hasAiTests } from './types';
 import { INITIAL_RECRUITER, INITIAL_BUSINESSES, STANDARD_ASSESSMENTS } from './data/mockData';
 import { loadData, saveData, clearData, createSeedData } from './lib/store';
 import { getPercentile } from './lib/leaderboard';
@@ -681,7 +681,7 @@ export default function App() {
   };
 
   // Complete a test in the runner
-  const handleCompleteTest = (testId: string, finalScore: number, durationSeconds: number, integrity?: IntegrityReport) => {
+  const handleCompleteTest = (testId: string, finalScore: number, durationSeconds: number, integrity?: IntegrityReport, breakdown?: ResultBreakdown) => {
     const completedTest = tests.find((t) => t.id === testId);
     if (!completedTest) return;
 
@@ -700,6 +700,7 @@ export default function App() {
       durationSeconds,
       referredBy,
       ...(integrity && { integrity }),
+      ...(breakdown && { breakdown }),
     });
 
     // A new score shifts everyone's standing on this test
@@ -1005,6 +1006,11 @@ export default function App() {
                   : undefined
               }
               onSend={activeRole === 'candidate' ? undefined : () => setEditingTests({ addTestIds: [testPageTest.id] })}
+              onCustomize={
+                activeRole === 'recruiter' && recruiterBusiness && testPageTest.type === 'standard'
+                  ? () => setDraftBuilder({ draft: testPageTest, isCopy: true, alsoAdd: [] })
+                  : undefined
+              }
               onStartTest={startTest}
               onOpenJob={activeRole === 'candidate' ? openJobPage : undefined}
               onOpenTest={openTestPage}

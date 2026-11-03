@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { BackButton } from './BackButton';
-import { AssessmentTest, Question } from '../types';
+import { AssessmentTest, Question, ResultBreakdown } from '../types';
+import { breakdownFor } from '../lib/modules';
+import { ResultBreakdownPanel } from './ResultBreakdownPanel';
 import { MOCK_DATABASE } from '../lib/sqlEngine';
 import { runQuestion, gradeTest, QuestionRunResult, weightedScore } from '../lib/grading';
 import { AiMark, aiMarks } from '../lib/aiMarking';
@@ -91,7 +93,7 @@ const ResizeHandle: React.FC<{ onPointerDown: (e: React.PointerEvent) => void; o
 interface TestRunnerProps {
   test: AssessmentTest;
   onClose: () => void;
-  onComplete: (testId: string, finalScore: number, durationSeconds: number, integrity?: IntegrityReport) => void;
+  onComplete: (testId: string, finalScore: number, durationSeconds: number, integrity?: IntegrityReport, breakdown?: ResultBreakdown) => void;
   getPercentileFor: (score: number) => number;
   // Tried out from the test builder: nothing is saved
   preview?: boolean;
@@ -127,6 +129,8 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [finalScore, setFinalScore] = useState(0);
   const [finalPercentile, setFinalPercentile] = useState(0);
+  // Module tests: the score by level and by area, and the level reached
+  const [breakdown, setBreakdown] = useState<ResultBreakdown | undefined>();
   const [finalDuration, setFinalDuration] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   // After the automatic checks, Vetter's AI takes a second look at code and written answers that fell short
@@ -297,6 +301,7 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
     setQuestionScores(perQuestion);
     setQuestionFeedback(feedback);
     setFinalScore(score);
+    setBreakdown(breakdownFor(test, perQuestion));
     setFinalPercentile(getPercentileFor(score));
     setFinalDuration(Math.round((Date.now() - startedAtRef.current) / 1000));
     setIsSubmitting(false);
@@ -304,7 +309,7 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
   };
 
   const handleConfirmFinish = () => {
-    onComplete(test.id, finalScore, finalDuration, integrityRef.current);
+    onComplete(test.id, finalScore, finalDuration, integrityRef.current, breakdown);
   };
 
   // Signed and Begin pressed: the try counts from here, so it's recorded once, before the countdown
@@ -993,6 +998,8 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
                   <div className="text-[11px] text-indigo-700 mt-1 font-medium">{earnedTier.sublabel}</div>
                 </div>
               </div>
+
+              {breakdown && <ResultBreakdownPanel breakdown={breakdown} testLevel={test.difficulty} />}
 
               <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600 space-y-1.5 max-h-64 overflow-y-auto">
                 <div className="font-bold text-slate-900">Score and feedback by task</div>
