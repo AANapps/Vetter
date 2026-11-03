@@ -9,6 +9,8 @@ import { withLevelVersions } from './levelVersions';
 import { EXTRA_QUESTIONS } from './extraQuestions';
 import { withModules } from './modules';
 import { ANALYST_TOOL_TESTS } from './modules/analyst';
+import { ANALYST_TOOL_TESTS_2 } from './modules/analystTools2';
+import { ANALYST_SKILL_TESTS } from './modules/analystTools3';
 import { withExtras } from './questionKit';
 import { SEED_INVITATIONS } from './seedInvitations';
 
@@ -626,6 +628,8 @@ Example: solution(["/users/:id"], "/users/7") returns { route: "/users/:id", par
   ...INDUSTRY_TESTS,
   ...ANALYSIS_SIMULATIONS,
   ...ANALYST_TOOL_TESTS,
+  ...ANALYST_TOOL_TESTS_2,
+  ...ANALYST_SKILL_TESTS,
   ...SIMULATION_TESTS,
 ])));
 

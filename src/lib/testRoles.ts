@@ -22,15 +22,15 @@ export interface TestSection {
 
 export const ROLE_SECTIONS: Partial<Record<TestRole, TestSection[]>> = {
   'Data Analyst': [
-    { id: 'excel', label: 'Excel', blurb: 'Lookups, formulas and reports in a real spreadsheet.', testIds: ['test-excel-01'] },
-    { id: 'sql', label: 'SQL', blurb: 'Querying, joining and checking data in a database.', testIds: ['test-sql-02', 'test-qasql-01'] },
-    { id: 'power-bi', label: 'Power BI', blurb: 'Power Query, data models, DAX and reports.', testIds: ['test-pbi-01'] },
-    { id: 'tableau', label: 'Tableau', blurb: 'Calculations, LODs, charts and dashboards.', testIds: ['test-tab-01'] },
-    { id: 'python', label: 'Python', blurb: 'pandas for loading, cleaning and aggregating data.', testIds: ['test-py-01'] },
-    { id: 'cleaning', label: 'Data Cleaning', blurb: 'Finding and fixing bad data before it reaches a decision.', testIds: ['test-clean-01'] },
-    { id: 'reporting', label: 'Dashboards & Reporting', blurb: 'KPIs and reports people can act on.', testIds: ['test-dash-01'] },
-    { id: 'metrics', label: 'Metrics & Statistics', blurb: 'Business metrics, A/B tests and the statistics behind them.', testIds: ['test-da-01'] },
-    { id: 'simulations', label: 'Job Simulations', blurb: 'A day of real analyst work, across every tool.', testIds: ['test-sim-da-01'] },
+    { id: 'excel', label: 'Excel', blurb: 'Lookups, formulas and reports in a real spreadsheet.', testIds: ['test-excel-01', 'test-excel-02'] },
+    { id: 'sql', label: 'SQL', blurb: 'Querying, joining and checking data in a database.', testIds: ['test-sql-02', 'test-sql-03', 'test-qasql-01'] },
+    { id: 'power-bi', label: 'Power BI', blurb: 'Power Query, data models, DAX and reports.', testIds: ['test-pbi-01', 'test-pbi-02'] },
+    { id: 'tableau', label: 'Tableau', blurb: 'Calculations, LODs, charts and dashboards.', testIds: ['test-tab-01', 'test-tab-02'] },
+    { id: 'python', label: 'Python', blurb: 'pandas for loading, cleaning and aggregating data.', testIds: ['test-py-01', 'test-py-02'] },
+    { id: 'cleaning', label: 'Data Cleaning', blurb: 'Finding and fixing bad data before it reaches a decision.', testIds: ['test-clean-01', 'test-clean-02'] },
+    { id: 'reporting', label: 'Dashboards & Reporting', blurb: 'KPIs and reports people can act on.', testIds: ['test-dash-01', 'test-dash-02'] },
+    { id: 'metrics', label: 'Metrics & Statistics', blurb: 'Business metrics, A/B tests and the statistics behind them.', testIds: ['test-da-01', 'test-stats-01'] },
+    { id: 'simulations', label: 'Job Simulations', blurb: 'A day of real analyst work, across every tool.', testIds: ['test-sim-da-01', 'test-sim-da-02'] },
   ],
 };
 

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Pic } from './Pic';
 import { User, AssessmentTest, JobPosting, CandidateJobMatch, Business, TestRole, TEST_DIFFICULTIES, JobProfile } from '../types';
 import { activeProfileOf, asProfile, profilesOf } from '../lib/jobProfiles';
@@ -21,6 +21,7 @@ import {
   GraduationCap,
   SlidersHorizontal,
   X,
+  ChevronRight,
 } from 'lucide-react';
 import { VerifiedSkillBadge, TierLegend, getBadgeTier } from './VerifiedSkillBadge';
 import { JobApplicationModal } from './JobApplicationModal';
@@ -202,11 +203,35 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
       ].filter((g) => g.tests.length > 0)
     : [{ id: null, label: null, blurb: '', tests: filteredTests }];
 
+  // A role's sections open in a panel to the right of the left menu while the pointer is on the role or the panel
+  const [flyout, setFlyout] = useState<{ role: TestRole; top: number; left: number } | null>(null);
+  const flyoutTimer = useRef<number | undefined>(undefined);
+  const keepFlyout = () => window.clearTimeout(flyoutTimer.current);
+  const openFlyout = (role: TestRole, el: HTMLElement) => {
+    keepFlyout();
+    const row = el.getBoundingClientRect();
+    const menu = (el.closest('aside') ?? el).getBoundingClientRect();
+    const height = (ROLE_SECTIONS[role]?.length ?? 0) * 46 + 56;
+    setFlyout({ role, left: menu.right + 8, top: Math.max(72, Math.min(row.top - 8, window.innerHeight - height - 16)) });
+  };
+  const closeFlyoutSoon = () => {
+    keepFlyout();
+    flyoutTimer.current = window.setTimeout(() => setFlyout(null), 180);
+  };
+  // Its position is worked out on opening, so scrolling closes it
+  useEffect(() => {
+    if (!flyout) return;
+    const close = () => setFlyout(null);
+    window.addEventListener('scroll', close, { passive: true });
+    return () => window.removeEventListener('scroll', close);
+  }, [flyout]);
+
   // A section picked in the left menu: open its role's tests, then scroll to it once it's on the page
   const [pendingSection, setPendingSection] = useState<string | null>(null);
   const jumpToSection = (role: TestRole, sectionId: string) => {
     if (!(testField && testField.roles.length === 1 && testField.roles[0] === role)) onTestFieldChange({ label: role, roles: [role] });
     setPendingSection(sectionId);
+    setFlyout(null);
   };
   useEffect(() => {
     if (!pendingSection) return;
@@ -788,14 +813,25 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                   );
                   const sections = ROLE_SECTIONS[role];
                   if (!sections) return button;
-                  // Its sections open on hover (or focus), and stay open while the role's tests are showing
+                  // On wide screens its sections open in a panel to the right on hover or focus; on narrow ones, where
+                  // the menu sits above the tests, they're listed under the role while its tests are showing
                   const open = sectionsFor(testField) === sections;
                   return (
-                    <div key={role} className="group/role">
-                      {button}
-                      <div
-                        className={`${open ? 'block' : 'hidden group-hover/role:block group-focus-within/role:block'} ml-3 mt-0.5 mb-1 pl-2 border-l border-slate-200 space-y-0.5`}
-                      >
+                    <div
+                      key={role}
+                      onMouseEnter={(e) => openFlyout(role, e.currentTarget)}
+                      onMouseLeave={closeFlyoutSoon}
+                      onFocus={(e) => openFlyout(role, e.currentTarget)}
+                      className="relative"
+                    >
+                      <div className="flex items-center">
+                        <div className="flex-1 min-w-0">{button}</div>
+                        <ChevronRight
+                          aria-hidden
+                          className={`hidden lg:block w-3.5 h-3.5 shrink-0 ml-0.5 ${flyout?.role === role ? 'text-indigo-600' : 'text-slate-300'}`}
+                        />
+                      </div>
+                      <div className={`${open ? 'block' : 'hidden'} lg:hidden ml-3 mt-0.5 mb-1 pl-2 border-l border-slate-200 space-y-0.5`}>
                         {sections.map((sec) => (
                           <button
                             key={sec.id}
@@ -853,6 +889,37 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
               ))}
             </div>
           </aside>
+
+          {flyout && ROLE_SECTIONS[flyout.role] && (
+            <div
+              role="menu"
+              aria-label={`${flyout.role} sections`}
+              onMouseEnter={keepFlyout}
+              onMouseLeave={closeFlyoutSoon}
+              style={{ top: flyout.top, left: flyout.left }}
+              className="hidden lg:block fixed z-40 w-72 bg-white border border-slate-200 rounded-xl shadow-lg p-2"
+            >
+              <div className="px-2 pt-1 pb-2 text-[10px] font-mono uppercase tracking-wider font-semibold text-slate-400">
+                {flyout.role} tests by tool
+              </div>
+              {ROLE_SECTIONS[flyout.role]!.map((sec) => (
+                <button
+                  key={sec.id}
+                  role="menuitem"
+                  onClick={() => jumpToSection(flyout.role, sec.id)}
+                  className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-indigo-50 group/sec transition-colors"
+                >
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-semibold text-slate-800 group-hover/sec:text-indigo-700">{sec.label}</span>
+                    <span className="font-mono text-[10px] text-slate-400 tabular-nums">
+                      {vetterTests.filter((t) => sec.testIds.includes(t.id)).length}
+                    </span>
+                  </span>
+                  <span className="block text-[11px] text-slate-500 leading-snug">{sec.blurb}</span>
+                </button>
+              ))}
+            </div>
+          )}
 
         <div className="space-y-6 min-w-0">
           <div>
