@@ -1,3 +1,4 @@
+import { seedIntegrity } from '../lib/integrity';
 import { AssessmentTest, TestResult, User, VerifiedSkill } from '../types';
 import { getPercentile } from '../lib/leaderboard';
 
@@ -129,6 +130,8 @@ export function buildSeedCandidates(tests: AssessmentTest[]): User[] {
           score: score(r),
           completedAt,
           durationSeconds: Math.round(test.estimatedMinutes * 60 * (0.35 + r() * 0.6)),
+          // Its own stream, so adding it leaves scores and leaderboards as they were
+          integrity: seedIntegrity(mulberry32(hashString(`${name}:${test.id}:${a}:integrity`))),
         });
         completedAt = dateBetween(r, completedAt, '2026-10-15');
       }
@@ -195,9 +198,10 @@ export function withSeedDurations(user: User, tests: AssessmentTest[]): User {
   return {
     ...user,
     testResults: user.testResults.map((r) => {
-      if (r.durationSeconds !== undefined) return r;
+      const withIntegrity = r.integrity ? r : { ...r, integrity: seedIntegrity(mulberry32(hashString(`${user.id}:${r.testId}:${r.completedAt}:integrity`))) };
+      if (r.durationSeconds !== undefined) return withIntegrity;
       const minutes = tests.find((t) => t.id === r.testId)?.estimatedMinutes ?? 20;
-      return { ...r, durationSeconds: Math.round(minutes * 60 * (0.4 + rand() * 0.5)) };
+      return { ...withIntegrity, durationSeconds: Math.round(minutes * 60 * (0.4 + rand() * 0.5)) };
     }),
   };
 }

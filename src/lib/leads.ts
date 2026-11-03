@@ -1,3 +1,4 @@
+import { IntegritySitting, isAutoRejected, jobSittings } from './integrity';
 import { ArchiveReason, CareerStage, JobPosting, Lead, LeadStage, User } from '../types';
 import { JobTestProgress, jobTestProgress } from './jobTests';
 import { calculateCandidateJobMatch } from './matchingAlgorithm';
@@ -20,7 +21,7 @@ export const LEAD_STAGES: { id: LeadStage; label: string; dot: string; chip: str
 ];
 export const stageInfo = (stage: LeadStage) => LEAD_STAGES.find((s) => s.id === stage)!;
 
-export const ARCHIVE_REASONS: ArchiveReason[] = ['Not a fit', 'Below pass mark', 'Withdrew', 'No response', 'Hired elsewhere', 'Role filled', 'Other'];
+export const ARCHIVE_REASONS: ArchiveReason[] = ['Not a fit', 'Below pass mark', 'Suspected cheating', 'Withdrew', 'No response', 'Hired elsewhere', 'Role filled', 'Other'];
 
 export type LeadSource = 'applied' | 'link' | 'email' | 'invite';
 export const SOURCE_LABELS: Record<LeadSource, string> = {
@@ -53,11 +54,16 @@ export interface LeadRow {
   testStatus: LeadTestStatus;
   fit: number;
   tier: string;
+  // What the integrity monitor saw on the job's tests, and whether that set the application aside automatically
+  integrity: IntegritySitting[];
+  autoRejected: boolean;
+  // The archive reason, the company's own or 'Suspected cheating' for one set aside automatically
+  archiveReason?: ArchiveReason;
 }
 
 export const leadId = (jobId: string, candidateId: string) => `${jobId}__${candidateId}`;
 
-export function buildLeadRows(jobs: JobPosting[], candidates: User[], leads: Lead[]): LeadRow[] {
+export function buildLeadRows(jobs: JobPosting[], candidates: User[], leads: Lead[], testTitles: Record<string, string> = {}): LeadRow[] {
   const byId = new Map(candidates.map((c) => [c.id, c]));
   const stored = new Map(leads.map((l) => [l.id, l]));
   return jobs.flatMap((job) => {
@@ -75,6 +81,9 @@ export function buildLeadRows(jobs: JobPosting[], candidates: User[], leads: Lea
       const applied = !!candidate.appliedJobIds?.includes(job.id);
       const progress = jobTestProgress(job, candidate);
       const match = calculateCandidateJobMatch(candidate, job);
+      const integrity = jobSittings(candidate.testResults, job, testTitles);
+      // Applications that look highly suspicious go straight to Archived, until the company moves them itself
+      const autoRejected = applied && !lead && isAutoRejected(integrity);
       const addedAt = lead?.history[0]?.at ?? invitation?.invitedAt ?? job.postedDate;
       const lastActivity = [lead?.updatedAt, progress.lastActivity, invitation?.startedAt, invitation?.openedAt, addedAt]
         .filter((d): d is string => !!d)
@@ -86,7 +95,7 @@ export function buildLeadRows(jobs: JobPosting[], candidates: User[], leads: Lea
           job,
           candidate,
           lead,
-          stage: lead?.stage ?? (applied ? 'applied' : 'invited'),
+          stage: lead?.stage ?? (autoRejected ? 'archived' : applied ? 'applied' : 'invited'),
           source: applied ? 'applied' : invitation?.via ?? 'invite',
           applied,
           addedAt,
@@ -95,6 +104,9 @@ export function buildLeadRows(jobs: JobPosting[], candidates: User[], leads: Lea
           testStatus: job.testIds.length ? progress.status : 'no-tests',
           fit: match.overallFitPercentage,
           tier: match.matchTier,
+          integrity,
+          autoRejected,
+          archiveReason: lead?.archiveReason ?? (autoRejected ? 'Suspected cheating' : undefined),
         },
       ];
     });
@@ -183,7 +195,7 @@ export function matchesLeadFilters(row: LeadRow, f: LeadFilters, now = Date.now(
   if (c.yearsExperience < f.minYears) return false;
   if (f.addedWithin && daysAgo(row.addedAt, now) > f.addedWithin) return false;
   if (f.idleFor && daysAgo(row.lastActivity, now) < f.idleFor) return false;
-  if (f.archiveReasons.length && (!row.lead?.archiveReason || !f.archiveReasons.includes(row.lead.archiveReason))) return false;
+  if (f.archiveReasons.length && (!row.archiveReason || !f.archiveReasons.includes(row.archiveReason))) return false;
   if (f.tag.trim() && !row.lead?.tags?.some((t) => t.toLowerCase() === f.tag.trim().toLowerCase())) return false;
   if (f.hasNote && !row.lead?.note?.trim()) return false;
   if (f.hasDueDate && !row.lead?.dueDate) return false;

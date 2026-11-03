@@ -26,7 +26,8 @@ import { SpreadsheetWindow } from './SpreadsheetWindow';
 import { DatabaseWindow } from './DatabaseWindow';
 import { AppWindow } from './AppWindow';
 import { CaseBrief } from './CaseBrief';
-import { TestIntro } from './TestIntro';
+import { CheatingWarning, TestIntro } from './TestIntro';
+import { IntegrityReport, countScreens, startIntegrityMonitor } from '../lib/integrity';
 
 // The question column can be dragged wider or narrower; the width is remembered in this browser
 function useResizable(key: string, initial: number) {
@@ -90,7 +91,7 @@ const ResizeHandle: React.FC<{ onPointerDown: (e: React.PointerEvent) => void; o
 interface TestRunnerProps {
   test: AssessmentTest;
   onClose: () => void;
-  onComplete: (testId: string, finalScore: number, durationSeconds: number) => void;
+  onComplete: (testId: string, finalScore: number, durationSeconds: number, integrity?: IntegrityReport) => void;
   getPercentileFor: (score: number) => number;
   // Tried out from the test builder: nothing is saved
   preview?: boolean;
@@ -142,8 +143,14 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
 
   // Timing and Integrity Proctor
   const [secondsRemaining, setSecondsRemaining] = useState(test.estimatedMinutes * 60);
-  const [tabSwitches, setTabSwitches] = useState(0);
+  // Everything the integrity monitor has seen so far, and the finished report once submitted
+  const [flags, setFlags] = useState({ away: 0, pastes: 0, total: 0 });
   const [focusWarning, setFocusWarning] = useState<string | null>(null);
+  const monitorRef = useRef<ReturnType<typeof startIntegrityMonitor> | null>(null);
+  const integrityRef = useRef<IntegrityReport | undefined>(undefined);
+  // Screens counted with the candidate's permission when they pressed Begin
+  const screensRef = useRef<Awaited<ReturnType<typeof countScreens>> | null>(null);
+  const currentQuestionRef = useRef<string | undefined>(undefined);
   // Shown when the candidate comes back after leaving the tab, and before they exit
   const [leftTab, setLeftTab] = useState(false);
   const [confirmingExit, setConfirmingExit] = useState(false);
@@ -151,6 +158,7 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
   const currentGroup = groups[groupIndex];
   // The task, or the question on its own
   const currentQ: Question = currentGroup.questions[0];
+  currentQuestionRef.current = currentQ.id;
   const followUps = currentGroup.task ? currentGroup.questions.slice(1) : [];
   // Cases are read, not answered, so only questions are numbered
   const numberOf = (q: Question) => ordered.filter((x) => x.type !== 'case').indexOf(q) + 1;
@@ -200,31 +208,38 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
     return () => clearInterval(interval);
   }, [hasStarted]);
 
-  // Anti-cheat tab visibility detector
+  // The integrity monitor: tabs, windows, resizing, copy and paste, screens. Leaving the test brings up a warning
   useEffect(() => {
     if (!hasStarted) return;
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        setTabSwitches((c) => {
-          const next = c + 1;
-          setFocusWarning(`Focus lost: tab switch detected (${next} event${next > 1 ? 's' : ''})`);
-          return next;
+    const monitor = startIntegrityMonitor(
+      () => currentQuestionRef.current,
+      (e, r) => {
+        setFlags({
+          away: r.tabSwitches + r.windowSwitches,
+          pastes: r.externalPastes,
+          total: r.tabSwitches + r.windowSwitches + r.externalPastes + r.resizes + r.copies + r.cuts + r.screenshotKeys,
         });
-        if (!preview) setLeftTab(true);
+        if (e.type === 'tab-hidden' || e.type === 'window-blur') {
+          const away = r.tabSwitches + r.windowSwitches;
+          setFocusWarning(`You left the test: recorded (${away} ${away === 1 ? 'time' : 'times'})`);
+          if (!preview) setLeftTab(true);
+        }
+        if (e.type === 'paste-external') setFocusWarning('Pasted text from outside the test: recorded');
+        if (e.type === 'screens-changed' && (r.screens ?? 1) > 1) setFocusWarning('A second screen was connected: recorded');
       }
-    };
+    );
+    if (screensRef.current) monitor.setScreens(screensRef.current);
+    monitorRef.current = monitor;
     // Closing or reloading the tab mid-test: the browser asks first, as the answers would be lost
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (preview) return;
       e.preventDefault();
       e.returnValue = '';
     };
-
-    window.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => {
-      window.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('beforeunload', handleBeforeUnload);
+      if (monitorRef.current === monitor) integrityRef.current ??= monitor.stop();
     };
   }, [hasStarted, preview]);
 
@@ -264,6 +279,8 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
     if (submittedRef.current) return;
     submittedRef.current = true;
     setIsSubmitting(true);
+    integrityRef.current = monitorRef.current?.stop() ?? integrityRef.current;
+    monitorRef.current = null;
 
     const graded = await gradeTest(test, userCodesRef.current);
     setIsAiMarking(true);
@@ -287,7 +304,7 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
   };
 
   const handleConfirmFinish = () => {
-    onComplete(test.id, finalScore, finalDuration);
+    onComplete(test.id, finalScore, finalDuration, integrityRef.current);
   };
 
   // Signed and Begin pressed: the try counts from here, so it's recorded once, before the countdown
@@ -296,6 +313,11 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
     if (committedRef.current) return;
     committedRef.current = true;
     onBegin?.();
+    // Counting screens needs the candidate's permission in Chrome and Edge, asked now while they've just clicked
+    if (!preview) countScreens(true).then((s) => {
+      screensRef.current = s;
+      monitorRef.current?.setScreens(s);
+    });
   };
   const handleBegin = () => {
     startedAtRef.current = Date.now();
@@ -391,14 +413,14 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
 
           <div
             className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md border font-medium ${
-              tabSwitches > 0
+              flags.total > 0
                 ? 'bg-amber-50 border-amber-200 text-amber-800'
                 : 'bg-slate-50 border-slate-200 text-slate-600'
             }`}
-            title="Monitors tab visibility and focus for test integrity"
+            title="Monitored: tab and window switches, resizing, copy and paste, and screens connected"
           >
             <Eye className="w-3 h-3 text-indigo-600" />
-            <span>Focus: {tabSwitches === 0 ? '100%' : `${Math.max(60, 100 - tabSwitches * 10)}%`}</span>
+            <span>{flags.total === 0 ? 'Monitored' : `Monitored · ${flags.total} recorded`}</span>
           </div>
 
           <button
@@ -849,8 +871,8 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
               <div className="space-y-1">
                 <h3 id="left-tab-title" className="text-base font-bold text-slate-900">You left the test</h3>
                 <p className="text-xs text-slate-500">
-                  Leaving this tab has been recorded ({tabSwitches} {tabSwitches === 1 ? 'time' : 'times'}) and lowers your focus score, which the
-                  company sees with your result.
+                  Leaving the test has been recorded ({flags.away} {flags.away === 1 ? 'time' : 'times'}), with how long you were away. The company
+                  sees it with your result.
                 </p>
               </div>
             </div>
@@ -858,6 +880,7 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
               <li>Stay on this tab until you submit. The clock kept running while you were away.</li>
               <li>If you close this tab, reload the page or exit the test, your answers are lost. {leavingCost}</li>
             </ul>
+            <CheatingWarning compact />
             <button
               onClick={() => setLeftTab(false)}
               autoFocus

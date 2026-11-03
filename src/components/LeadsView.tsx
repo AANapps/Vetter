@@ -36,6 +36,7 @@ import {
   stageInfo,
 } from '../lib/leads';
 import { CANDIDATE_LEVELS, CAREER_STAGES } from '../lib/audience';
+import { IntegrityBadge } from './IntegrityBadge';
 
 export type LeadChange = Partial<Pick<Lead, 'stage' | 'rating' | 'note' | 'archiveReason' | 'dueDate' | 'tags'>>;
 
@@ -239,6 +240,11 @@ export const LeadsView: React.FC<LeadsViewProps> = ({ rows, jobs, fixedJob, onUp
           <div className="text-[11px] text-slate-500 truncate">{fixedJob ? r.candidate.title : r.job.title}</div>
         </div>
       </div>
+      {(r.integrity.length > 0 || r.progress.done > 0) && (
+        <div>
+          <IntegrityBadge sittings={r.integrity} />
+        </div>
+      )}
       <div className="flex items-center justify-between gap-2 text-[11px]">
         <span className="text-slate-500">
           Tests <ScoreText row={r} />
@@ -259,9 +265,9 @@ export const LeadsView: React.FC<LeadsViewProps> = ({ rows, jobs, fixedJob, onUp
           )}
         </span>
       </div>
-      {(r.lead?.tags?.length || r.lead?.archiveReason) && (
+      {(r.lead?.tags?.length || r.archiveReason) && (
         <div className="flex flex-wrap gap-1">
-          {r.lead?.archiveReason && <span className="px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 text-[10px] font-medium">{r.lead.archiveReason}</span>}
+          {r.archiveReason && <span className="px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 text-[10px] font-medium">{r.autoRejected ? 'Suspected cheating · set aside automatically' : r.archiveReason}</span>}
           {r.lead?.tags?.map((t) => (
             <span key={t} className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-medium">
               {t}
@@ -606,6 +612,9 @@ export const LeadsView: React.FC<LeadsViewProps> = ({ rows, jobs, fixedJob, onUp
                           <span className="block font-semibold text-slate-900 whitespace-nowrap">{r.candidate.name}</span>
                           <span className="block text-slate-500 whitespace-nowrap">{r.candidate.location}</span>
                         </span>
+                        <span className="ml-1" onClick={(e) => e.stopPropagation()}>
+                          <IntegrityBadge sittings={r.integrity} />
+                        </span>
                       </span>
                     </td>
                     {!fixedJob && <td className="px-2 py-2.5 text-slate-700 whitespace-nowrap">{r.job.title}</td>}
@@ -696,6 +705,10 @@ const LeadPanel: React.FC<{
             <div className="text-xs text-slate-500">
               {c.location} · {c.yearsExperience} yrs · wants {c.workPreference.toLowerCase()}
             </div>
+            <div className="mt-1.5 flex flex-wrap items-center gap-2">
+              <IntegrityBadge sittings={row.integrity} size="md" />
+              {row.autoRejected && <span className="text-[11px] text-rose-700">Rejected automatically for suspected cheating. The candidate isn’t told.</span>}
+            </div>
           </div>
           <button onClick={onClose} aria-label="Close" className="p-1 text-slate-400 hover:text-slate-900">
             <X className="w-5 h-5" />
@@ -732,7 +745,7 @@ const LeadPanel: React.FC<{
             </div>
             {row.stage === 'archived' && (
               <select
-                value={row.lead?.archiveReason ?? 'Other'}
+                value={row.archiveReason ?? 'Other'}
                 onChange={(e) => onChange({ archiveReason: e.target.value as ArchiveReason })}
                 aria-label="Archive reason"
                 className="mt-2 w-full h-9 px-2 rounded-lg border border-slate-200 text-sm bg-white"

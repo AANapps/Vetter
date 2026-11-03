@@ -17,6 +17,7 @@ interface PersonProfileModalProps {
   businesses: Business[];
   // Which company results the viewer may see (see TestHistory)
   companyResultsFor: 'all' | string | null;
+  showIntegrity?: boolean;
   onOpenTest: (testId: string) => void;
 }
 
@@ -31,6 +32,7 @@ export const PersonProfileModal: React.FC<PersonProfileModalProps> = ({
   candidates,
   businesses,
   companyResultsFor,
+  showIntegrity,
   onOpenTest,
 }) => {
   useEffect(() => {
@@ -112,6 +114,7 @@ export const PersonProfileModal: React.FC<PersonProfileModalProps> = ({
             candidates={candidates}
             businesses={businesses}
             companyResultsFor={companyResultsFor}
+            showIntegrity={showIntegrity}
             onOpenTest={(testId) => {
               onClose();
               onOpenTest(testId);

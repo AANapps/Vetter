@@ -1,3 +1,4 @@
+import type { IntegrityReport } from './lib/integrity';
 import React, { useEffect, useRef, useState } from 'react';
 import { User, UserRole, AssessmentTest, JobPosting, Business, SocialState, AppNotification, JobInvitation, Lead, TestDraft, TrialResult, hasAiTests } from './types';
 import { INITIAL_RECRUITER, INITIAL_BUSINESSES, STANDARD_ASSESSMENTS } from './data/mockData';
@@ -680,7 +681,7 @@ export default function App() {
   };
 
   // Complete a test in the runner
-  const handleCompleteTest = (testId: string, finalScore: number, durationSeconds: number) => {
+  const handleCompleteTest = (testId: string, finalScore: number, durationSeconds: number, integrity?: IntegrityReport) => {
     const completedTest = tests.find((t) => t.id === testId);
     if (!completedTest) return;
 
@@ -698,6 +699,7 @@ export default function App() {
       completedTime: new Date().toISOString(),
       durationSeconds,
       referredBy,
+      ...(integrity && { integrity }),
     });
 
     // A new score shifts everyone's standing on this test
@@ -890,7 +892,7 @@ export default function App() {
   // A company's leads across its own jobs; the Vetter team's across every company's
   const leadsBusiness = activeRole === 'admin' ? undefined : recruiterBusiness;
   const leadsJobs = leadsBusiness ? jobs.filter((j) => j.businessId === leadsBusiness.id) : jobs;
-  const leadRows = activeRole === 'candidate' ? [] : buildLeadRows(leadsJobs, allCandidates, leads);
+  const leadRows = activeRole === 'candidate' ? [] : buildLeadRows(leadsJobs, allCandidates, leads, Object.fromEntries(tests.map((t) => [t.id, t.title])));
   const openJobLeads = (jobId: string) => {
     openBusinessJob(jobId);
     // Once the job's page is drawn, jump to its pipeline
@@ -1344,6 +1346,7 @@ export default function App() {
               ? recruiterBusiness?.id ?? null
               : null
           }
+          showIntegrity={activeRole === 'recruiter' || activeRole === 'admin'}
           onOpenTest={openTestPage}
         />
       )}

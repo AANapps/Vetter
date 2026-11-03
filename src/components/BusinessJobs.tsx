@@ -680,7 +680,7 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
         )}
       </section>
 
-      <SkillRanking job={job} candidates={candidates} onUpdateJobRequirements={onUpdateJobRequirements} />
+      <SkillRanking job={job} candidates={candidates} tests={tests} onUpdateJobRequirements={onUpdateJobRequirements} />
 
       {/* Last on the page, away from everyday actions */}
       <div className="pt-6 border-t border-slate-200 flex justify-end">
@@ -705,7 +705,8 @@ const SkillRanking: React.FC<{
   job: JobPosting;
   candidates: User[];
   onUpdateJobRequirements: BusinessJobsProps['onUpdateJobRequirements'];
-}> = ({ job, candidates, onUpdateJobRequirements }) => {
+  tests: AssessmentTest[];
+}> = ({ job, candidates, tests, onUpdateJobRequirements }) => {
   const [open, setOpen] = useState(false);
   const setMin = (index: number, minScore: number) =>
     onUpdateJobRequirements(
@@ -742,7 +743,7 @@ const SkillRanking: React.FC<{
               </div>
             ))}
           </div>
-          <JobCandidates key={job.id} job={job} allCandidates={candidates} />
+          <JobCandidates key={job.id} job={job} allCandidates={candidates} testTitles={Object.fromEntries(tests.map((t) => [t.id, t.title]))} />
         </div>
       )}
     </section>

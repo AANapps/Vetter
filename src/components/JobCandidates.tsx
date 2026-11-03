@@ -4,12 +4,18 @@ import { CandidateJobMatch, JobPosting, User } from '../types';
 import { rankCandidatesForJob } from '../lib/matchingAlgorithm';
 import { applicationProfileOf } from '../lib/jobProfiles';
 import { distanceMiles } from '../lib/geo';
-import { Award, CheckCircle2, ChevronDown, AlertTriangle, MinusCircle } from 'lucide-react';
+import { Award, CheckCircle2, ChevronDown, AlertTriangle, MinusCircle, ShieldAlert } from 'lucide-react';
+import { IntegrityBadge } from './IntegrityBadge';
+import { isAutoRejected, jobSittings } from '../lib/integrity';
 
 interface JobCandidatesProps {
   job: JobPosting;
   allCandidates: User[];
+  // Test titles for the integrity details
+  testTitles?: Record<string, string>;
 }
+
+const sittingsFor = (person: User, job: JobPosting, testTitles: Record<string, string>) => jobSittings(person.testResults, job, testTitles);
 
 const PAGE_SIZE = 10;
 
@@ -85,7 +91,7 @@ const PointIcon: React.FC<{ tone: Point['tone'] }> = ({ tone }) =>
 const fitColour = (fit: number) => (fit >= 85 ? 'text-indigo-600' : fit >= 75 ? 'text-violet-600' : 'text-amber-600');
 
 // A job's candidates, best fit first; each one opens to show why they suit the job (or don't)
-export const JobCandidates: React.FC<JobCandidatesProps> = ({ job, allCandidates }) => {
+export const JobCandidates: React.FC<JobCandidatesProps> = ({ job, allCandidates, testTitles = {} }) => {
   const [appliedOnly, setAppliedOnly] = useState(false);
   const [meetsRequiredOnly, setMeetsRequiredOnly] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -96,38 +102,15 @@ export const JobCandidates: React.FC<JobCandidatesProps> = ({ job, allCandidates
   const hasApplied = (id: string) => !!people.get(id)?.appliedJobIds?.includes(job.id);
   const ranked = rankCandidatesForJob(allCandidates, job);
   const applicants = ranked.filter((c) => hasApplied(c.candidateId)).length;
-  const visible = ranked.filter((c) => (!appliedOnly || hasApplied(c.candidateId)) && (!meetsRequiredOnly || c.meetsAllHardRequirements));
+  const filtered = ranked.filter((c) => (!appliedOnly || hasApplied(c.candidateId)) && (!meetsRequiredOnly || c.meetsAllHardRequirements));
+  const sittings = new Map(filtered.map((c) => [c.candidateId, sittingsFor(people.get(c.candidateId)!, job, testTitles)]));
+  // Applications rated highly suspicious are set aside automatically, out of the ranking, for a person to review
+  const isSetAside = (id: string) => hasApplied(id) && isAutoRejected(sittings.get(id) ?? []);
+  const visible = filtered.filter((c) => !isSetAside(c.candidateId));
+  const setAside = filtered.filter((c) => isSetAside(c.candidateId));
+  const [showSetAside, setShowSetAside] = useState(false);
 
-  return (
-    <div className="space-y-3">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h4 className="text-sm font-bold text-slate-900">Candidates</h4>
-          <p className="text-xs text-slate-500">
-            {ranked.length} on Vetter ranked for this job &middot; {applicants} applied. Open a candidate to see their fit.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer font-medium">
-            <input type="checkbox" checked={appliedOnly} onChange={(e) => setAppliedOnly(e.target.checked)} className="accent-indigo-600" />
-            <span>Applied only</span>
-          </label>
-          <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer font-medium">
-            <input
-              type="checkbox"
-              checked={meetsRequiredOnly}
-              onChange={(e) => setMeetsRequiredOnly(e.target.checked)}
-              className="accent-indigo-600"
-            />
-            <span>Meets required scores</span>
-          </label>
-        </div>
-      </div>
-
-      {visible.length === 0 && <p className="text-xs text-slate-500 py-4">No candidates match these filters.</p>}
-
-      <ul className="border border-slate-200 rounded-xl divide-y divide-slate-200 overflow-hidden bg-white">
-        {visible.slice(0, shown).map((c, idx) => {
+  const renderRow = (c: CandidateJobMatch, idx: number) => {
           const person = people.get(c.candidateId)!;
           const isOpen = expandedId === c.candidateId;
           const applied = hasApplied(c.candidateId);
@@ -149,10 +132,11 @@ export const JobCandidates: React.FC<JobCandidatesProps> = ({ job, allCandidates
 
           return (
             <li key={c.candidateId}>
+              <div className={`flex items-center ${isOpen ? 'bg-indigo-50/50' : ''}`}>
               <button
                 onClick={() => setExpandedId(isOpen ? null : c.candidateId)}
                 aria-expanded={isOpen}
-                className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${isOpen ? 'bg-indigo-50/50' : 'hover:bg-slate-50'}`}
+                className={`flex-1 min-w-0 flex items-center gap-3 px-4 py-3 text-left transition-colors ${isOpen ? '' : 'hover:bg-slate-50'}`}
               >
                 <span className="w-6 text-xs font-mono text-slate-400 tabular-nums shrink-0">{idx + 1}</span>
                 <Pic src={c.candidateAvatar} alt="" referrerPolicy="no-referrer" className="w-9 h-9 rounded-full object-cover bg-slate-100 shrink-0" />
@@ -177,6 +161,10 @@ export const JobCandidates: React.FC<JobCandidatesProps> = ({ job, allCandidates
                 </div>
                 <ChevronDown className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
               </button>
+              <div className="pr-4 shrink-0 w-24 sm:w-36 flex justify-end">
+                <IntegrityBadge sittings={sittings.get(c.candidateId) ?? []} />
+              </div>
+              </div>
 
               {isOpen && (
                 <div className="px-4 pb-5 pt-2 bg-indigo-50/30 grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -276,7 +264,38 @@ export const JobCandidates: React.FC<JobCandidatesProps> = ({ job, allCandidates
               )}
             </li>
           );
-        })}
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h4 className="text-sm font-bold text-slate-900">Candidates</h4>
+          <p className="text-xs text-slate-500">
+            {ranked.length} on Vetter ranked for this job &middot; {applicants} applied. Open a candidate to see their fit.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer font-medium">
+            <input type="checkbox" checked={appliedOnly} onChange={(e) => setAppliedOnly(e.target.checked)} className="accent-indigo-600" />
+            <span>Applied only</span>
+          </label>
+          <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer font-medium">
+            <input
+              type="checkbox"
+              checked={meetsRequiredOnly}
+              onChange={(e) => setMeetsRequiredOnly(e.target.checked)}
+              className="accent-indigo-600"
+            />
+            <span>Meets required scores</span>
+          </label>
+        </div>
+      </div>
+
+      {visible.length === 0 && <p className="text-xs text-slate-500 py-4">No candidates match these filters.</p>}
+
+      <ul className="border border-slate-200 rounded-xl divide-y divide-slate-200 overflow-hidden bg-white">
+        {visible.slice(0, shown).map((c, idx) => renderRow(c, idx))}
       </ul>
 
       {visible.length > shown && (
@@ -286,6 +305,25 @@ export const JobCandidates: React.FC<JobCandidatesProps> = ({ job, allCandidates
         >
           Show more ({visible.length - shown} left)
         </button>
+      )}
+
+      {setAside.length > 0 && (
+        <div className="border border-rose-200 rounded-xl bg-rose-50/40">
+          <button
+            onClick={() => setShowSetAside((v) => !v)}
+            aria-expanded={showSetAside}
+            className="w-full flex items-center gap-2 px-4 py-3 text-left text-xs font-semibold text-rose-900"
+          >
+            <ShieldAlert className="w-4 h-4 text-rose-600 shrink-0" />
+            <span className="flex-1">
+              Set aside for suspected cheating ({setAside.length}). Rejected automatically and not told; review before you decide.
+            </span>
+            <ChevronDown className={`w-4 h-4 text-rose-400 shrink-0 transition-transform ${showSetAside ? 'rotate-180' : ''}`} />
+          </button>
+          {showSetAside && (
+            <ul className="border-t border-rose-200 divide-y divide-slate-200 bg-white rounded-b-xl overflow-hidden">{setAside.map((c, idx) => renderRow(c, idx))}</ul>
+          )}
+        </div>
       )}
     </div>
   );

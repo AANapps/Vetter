@@ -2,6 +2,7 @@ import React from 'react';
 import { AssessmentTest, Business, User } from '../types';
 import { getLeaderboard } from '../lib/leaderboard';
 import { CheckCircle2, ChevronRight, Lock, Trash2, XCircle } from 'lucide-react';
+import { IntegrityBadge } from './IntegrityBadge';
 
 interface TestHistoryProps {
   person: User;
@@ -16,12 +17,14 @@ interface TestHistoryProps {
   // The person's own list: takes a test off their record. Results already sent to a company stay, so a poor score
   // can't be hidden from an employer
   onDelete?: (testId: string) => void;
+  // Companies and the Vetter team see the integrity label on each test; candidates don't
+  showIntegrity?: boolean;
 }
 
 const formatDay = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
 // Every test someone has taken, best score first: Vetter's tests with their rank, and company tests where the viewer may see them
-export const TestHistory: React.FC<TestHistoryProps> = ({ person, tests, candidates, businesses, companyResultsFor, onOpenTest, emptyText, onDelete }) => {
+export const TestHistory: React.FC<TestHistoryProps> = ({ person, tests, candidates, businesses, companyResultsFor, onOpenTest, emptyText, onDelete, showIntegrity }) => {
   const rows = [...new Set(person.testResults.map((r) => r.testId))]
     .flatMap((testId) => {
       const test = tests.find((t) => t.id === testId);
@@ -39,7 +42,9 @@ export const TestHistory: React.FC<TestHistoryProps> = ({ person, tests, candida
       const last = attempts.map((r) => r.completedTime ?? r.completedAt).sort().at(-1)!;
       const board = test.type === 'standard' ? getLeaderboard(testId, candidates) : [];
       const entry = board.find((e) => e.candidate.id === person.id);
-      return [{ test, best, attempts: attempts.length, last, rank: entry?.rank, of: board.length, sharedWith }];
+      const monitored = attempts.filter((r) => r.integrity).sort((a, b) => (a.completedTime ?? a.completedAt).localeCompare(b.completedTime ?? b.completedAt)).at(-1);
+      const sittings = monitored?.integrity ? [{ testTitle: test.title, completedAt: monitored.completedTime ?? monitored.completedAt, report: monitored.integrity }] : [];
+      return [{ test, best, attempts: attempts.length, last, rank: entry?.rank, of: board.length, sharedWith, sittings }];
     })
     .sort((a, b) => b.last.localeCompare(a.last));
 
@@ -47,7 +52,7 @@ export const TestHistory: React.FC<TestHistoryProps> = ({ person, tests, candida
 
   return (
     <ul className="divide-y divide-slate-100 border border-slate-200 rounded-xl bg-white">
-      {rows.map(({ test, best, attempts, last, rank, of, sharedWith }) => {
+      {rows.map(({ test, best, attempts, last, rank, of, sharedWith, sittings }) => {
         const passed = best >= test.passingScore;
         const Row = onOpenTest ? 'button' : 'div';
         return (
@@ -77,6 +82,11 @@ export const TestHistory: React.FC<TestHistoryProps> = ({ person, tests, candida
               </span>
               {onOpenTest && <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />}
             </Row>
+            {showIntegrity && (
+              <span className="pr-3 shrink-0">
+                <IntegrityBadge sittings={sittings} />
+              </span>
+            )}
             {onDelete &&
               (sharedWith.length > 0 ? (
                 <span

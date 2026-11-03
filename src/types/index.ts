@@ -1,3 +1,4 @@
+import type { IntegrityReport } from '../lib/integrity';
 export type UserRole = 'candidate' | 'recruiter' | 'admin';
 
 // The skill a test verifies
@@ -120,6 +121,8 @@ export interface TestResult {
   durationSeconds?: number;
   // The company whose link the candidate took the test from
   referredBy?: string;
+  // What the integrity monitor saw while they took it (src/lib/integrity.ts)
+  integrity?: IntegrityReport;
 }
 
 // 'choice' is multiple choice, for roles where writing code isn't the job;
@@ -419,7 +422,7 @@ export interface AppNotification {
 // the rest are set by the company. Private to the company: candidates never see their stage
 export type LeadStage = 'invited' | 'applied' | 'screening' | 'interview' | 'offer' | 'hired' | 'archived';
 
-export type ArchiveReason = 'Not a fit' | 'Below pass mark' | 'Withdrew' | 'No response' | 'Hired elsewhere' | 'Role filled' | 'Other';
+export type ArchiveReason = 'Not a fit' | 'Below pass mark' | 'Suspected cheating' | 'Withdrew' | 'No response' | 'Hired elsewhere' | 'Role filled' | 'Other';
 
 // What the company has recorded about one candidate for one job; anyone without one is at their starting stage
 // A test still being written: kept only for its company (and the Vetter team) until it's saved as a test

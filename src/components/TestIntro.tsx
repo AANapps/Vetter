@@ -1,18 +1,22 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { BackButton } from './BackButton';
-import { ArrowLeft, ArrowRight, Check, Clock, FileText, Lock, ShieldCheck, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ArrowRight, Check, Clock, FileText, Lock, ShieldCheck, X } from 'lucide-react';
 import { AssessmentTest } from '../types';
 import { QUESTION_TYPE_LABELS, describeChecks } from '../lib/testRoles';
 import { groupQuestions, isAnswerType, isWorkspaceType } from '../lib/questionTypes';
 import { CaseBrief } from './CaseBrief';
 
 export const INTEGRITY_RULES = [
-  'Stay on this tab for the whole test. Switching tabs, windows or apps is recorded and lowers your focus score.',
-  'Work alone. No help from other people, and no AI assistants or code generators.',
-  'Don’t search the web or look up solutions. Write your answers yourself.',
-  'Don’t copy, screenshot or share the questions, during or after the test.',
-  'One attempt at a time, on your own account. Breaking these rules can void your score.',
+  'Stay on this tab, in this window, for the whole test. Switching tabs, windows or apps is recorded, with how long you were away.',
+  'Use one screen. Vetter records how many screens are connected, and when your window is resized or made small enough to leave room beside it.',
+  'Copying, cutting and pasting are recorded. Pasting in text from outside the test counts heavily against you.',
+  'Work alone. No help from other people, and no AI assistants, code generators or web searches.',
+  'Don’t screenshot, copy or share the questions, during or after the test. One attempt at a time, on your own account.',
 ];
+
+// Shown before and during every test
+export const CHEATING_WARNING =
+  'Cheating applications are automatically rejected. They are quietly set aside with no feedback, and the company may blacklist you.';
 
 const SLIDES = [
   { title: 'Information', icon: FileText },
@@ -294,6 +298,7 @@ export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose, on
                       </li>
                     ))}
                   </ol>
+                  <CheatingWarning />
                   {attempt && <AttemptTerms attempt={attempt} isLast={isLastAttempt} />}
                   <div className="border border-indigo-200 rounded-xl p-5 space-y-4 bg-indigo-50/40">
                     <Label>Candidate declaration</Label>
@@ -381,3 +386,12 @@ export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose, on
     </div>
   );
 };
+
+export const CheatingWarning: React.FC<{ compact?: boolean }> = ({ compact }) => (
+  <div role="note" className={`flex items-start gap-2.5 border border-rose-300 bg-rose-50 text-rose-900 rounded-xl ${compact ? 'px-3 py-2 text-xs' : 'p-4 text-sm'}`}>
+    <AlertTriangle className={`${compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} text-rose-600 shrink-0 mt-0.5`} />
+    <span>
+      <strong className="font-semibold">Cheating is detected.</strong> {CHEATING_WARNING}
+    </span>
+  </div>
+);

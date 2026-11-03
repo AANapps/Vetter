@@ -232,7 +232,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
               ))}
             </select>
           </div>
-          <JobCandidates key={selectedJob.id} job={selectedJob} allCandidates={allCandidates} />
+          <JobCandidates key={selectedJob.id} job={selectedJob} allCandidates={allCandidates} testTitles={Object.fromEntries(tests.map((t) => [t.id, t.title]))} />
         </div>
       )}
 
