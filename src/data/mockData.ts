@@ -2,7 +2,7 @@ import { User, AssessmentTest, JobPosting, Business } from '../types';
 import CANDIDATE_AVATAR from '../assets/images/candidate_avatar_dev_1792329815461.jpg';
 import RECRUITER_AVATAR from '../assets/images/recruiter_avatar_tech_1792329815454.jpg';
 import { ROLE_ASSESSMENTS } from './roleTests';
-import { INDUSTRY_TESTS } from './industryTests';
+import { CONSULTING_TEST, INDUSTRY_TESTS } from './industryTests';
 import { SIMULATION_TESTS } from './simulationTests';
 import { ANALYSIS_SIMULATIONS } from './analysisSimulations';
 import { withLevelVersions } from './levelVersions';
@@ -608,119 +608,7 @@ Example: solution(["/users/:id"], "/users/7") returns { route: "/users/:id", par
       },
     ],
   },
-  {
-    id: 'test-cs-01',
-    title: 'Case Interview & Business Problem Solving',
-    category: 'Consulting',
-    difficulty: 'Junior',
-    type: 'standard',
-    description: 'The core of a consulting case: diagnosing profit problems, break-even maths, market sizing, structuring a problem and prioritising options.',
-    estimatedMinutes: 20,
-    passingScore: 75,
-    totalQuestions: 5,
-    skillsTested: ['Business Problem Solving', 'Market Sizing', 'Structured Thinking'],
-    roles: ['Consultant', 'Business Analyst'],
-    questions: [
-      {
-        id: 'q-cs-1',
-        title: 'Profit Decline',
-        type: 'choice',
-        prompt: `A retail client’s profits fell 20% this year while revenue stayed flat.
-
-Where should you look first?`,
-        starterCode: '',
-        options: [
-          'Costs: which fixed or variable costs rose',
-          'A new marketing campaign to grow revenue',
-          'Raising prices across the range',
-          'Competitors’ revenue growth',
-        ],
-        correctOption: 0,
-        testCases: [],
-        timeLimitMinutes: 4,
-        weight: 20,
-      },
-      {
-        id: 'q-cs-2',
-        title: 'Break-even Volume',
-        type: 'choice',
-        prompt: `A product sells for $50 a unit and costs $30 a unit to make. Fixed costs are $600,000 a year.
-
-How many units must the client sell each year to break even?`,
-        starterCode: '',
-        options: [
-          '12,000',
-          '20,000',
-          '30,000',
-          '60,000',
-        ],
-        correctOption: 2,
-        testCases: [],
-        timeLimitMinutes: 4,
-        weight: 20,
-      },
-      {
-        id: 'q-cs-3',
-        title: 'Market Sizing',
-        type: 'choice',
-        prompt: `A city has 2 million people, with 2.5 people per household on average. 30% of households own a dog, and each of those households buys 12 bags of dog food a year.
-
-How many bags of dog food does the city buy each year?`,
-        starterCode: '',
-        options: [
-          '2.88 million',
-          '7.2 million',
-          '1.2 million',
-          '960,000',
-        ],
-        correctOption: 0,
-        testCases: [],
-        timeLimitMinutes: 5,
-        weight: 20,
-      },
-      {
-        id: 'q-cs-4',
-        title: 'Structuring the Problem',
-        type: 'choice',
-        prompt: `A client asks why sales are falling. Which way of splitting the problem is mutually exclusive and collectively exhaustive (MECE)?`,
-        starterCode: '',
-        options: [
-          'Fewer customers buying, or each customer spending less',
-          'Marketing, competitors and the economy',
-          'Online sales, sales to new customers and discounted sales',
-          'Product quality, customer service and marketing',
-        ],
-        correctOption: 0,
-        testCases: [],
-        timeLimitMinutes: 4,
-        weight: 20,
-      },
-      {
-        id: 'q-cs-5',
-        title: 'Prioritising Initiatives',
-        type: 'choice',
-        prompt: `The client can fund one initiative this quarter:
-
-A: $2.0M impact, 8 weeks of effort
-B: $1.5M impact, 2 weeks
-C: $0.5M impact, 1 week
-D: $3.0M impact, 20 weeks
-
-Which gives the most impact per week of effort?`,
-        starterCode: '',
-        options: [
-          'A',
-          'B',
-          'C',
-          'D',
-        ],
-        correctOption: 1,
-        testCases: [],
-        timeLimitMinutes: 3,
-        weight: 20,
-      },
-    ],
-  },
+  CONSULTING_TEST,
   ...ROLE_ASSESSMENTS,
   ...INDUSTRY_TESTS,
   ...ANALYSIS_SIMULATIONS,
