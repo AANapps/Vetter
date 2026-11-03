@@ -1139,12 +1139,12 @@ export default function App() {
               }
               turns={advisorTurns}
               onTurns={setAdvisorTurns}
-              onUseTest={(test) => {
+              onUseTests={(picked) => {
                 const ours = activeRole === 'admin' ? jobs : jobs.filter((j) => j.businessId === recruiterBusiness?.id);
                 if (ours.length === 0) {
-                  showToast(`Post a job first, then add "${test.title}" to it.`);
+                  showToast(picked.length === 1 ? `Post a job first, then add "${picked[0].title}" to it.` : `Post a job first, then add these ${picked.length} tests to it.`);
                   goToTab('business-jobs');
-                } else setEditingTests({ addTestIds: [test.id] });
+                } else setEditingTests({ addTestIds: picked.map((t) => t.id) });
               }}
               onEditCopy={(test) => setDraftBuilder({ draft: test, isCopy: true, alsoAdd: [] })}
               onBuildWithAI={(brief) => openGenerator(brief ? { seed: brief } : {})}
