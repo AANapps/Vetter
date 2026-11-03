@@ -2,10 +2,11 @@ import { AssessmentTest, DataTable } from '../types';
 import { workbookStarter } from '../lib/spreadsheet';
 import { databaseStarter } from '../lib/databaseWork';
 import { toCsv } from '../lib/csv';
+import { choice, match, multi, short, withExtras, written } from './questionKit';
 import { dayAfter, fractionOrPercent, pad2, percentAnswers, round1, round2, seeded, sum, tc } from './simulationKit';
 
 /**
- * Fifteen-minute simulations, one for each part of data analysis: spreadsheets, SQL, data cleaning, reporting and
+ * Half-hour simulations, one for each part of data analysis: spreadsheets, SQL, data cleaning, reporting and
  * business metrics. Each is set in its own made-up company, with generated data and answers worked out from it.
  */
 
@@ -739,4 +740,232 @@ The Daily sheet has visitors, free-trial starts and purchases per day for each v
   ],
 };
 
-export const ANALYSIS_SIMULATIONS: AssessmentTest[] = [excelTest, sqlTest, cleaningTest, dashboardTest, metricsTest];
+// =====================================================================================================
+// More questions on each simulation's data, so every one has ten: the numbers behind the work, the fundamentals,
+// and a short written call the candidate would make in the job
+// =====================================================================================================
+
+// A sum of money, in the forms people type it
+const moneyAnswers = (n: number) => {
+  const whole = Math.round(n);
+  const grouped = whole.toLocaleString('en-GB');
+  return [...new Set([String(whole), grouped, `£${grouped}`, `£${whole}`, n.toFixed(2), `£${n.toFixed(2)}`])];
+};
+const largest = <T,>(items: T[], value: (x: T) => number) => items.reduce((best, x) => (value(x) > value(best) ? x : best));
+
+// Larkfield
+const LARK_TOP_REVENUE = largest(CATEGORIES, (c) => larkRevenue(c));
+const LARK_TOP_MARGIN_POUNDS = largest(CATEGORIES, (c) => larkMargin(c));
+const excelExtras = [
+  choice('q-xl-5', 'Biggest Seller', 'Which category brought in the most revenue in March?', CATEGORIES, CATEGORIES.indexOf(LARK_TOP_REVENUE), { minutes: 2 }),
+  short('q-xl-6', 'Total Margin', "What was March's total margin in £, to the nearest pound?", moneyAnswers(larkMargin()), { minutes: 2 }),
+  choice(
+    'q-xl-7',
+    'Fill Down',
+    'You write =D2*$K$1 in E2 and fill it down to E61. What does the $ do?',
+    ['Formats the result as money', 'Keeps the reference to K1 fixed while D2 moves down a row each time', 'Makes the formula faster', 'Rounds to two decimals'],
+    1
+  ),
+  match('q-xl-8', 'The Right Function', 'Match each function to its job.', [
+    ['XLOOKUP', 'Find a value by key in any column'],
+    ['SUMIFS', 'Total the rows that meet several conditions'],
+    ['COUNTIF', 'Count cells that match a condition'],
+    ['IFERROR', 'Show something else when a formula errors'],
+    ['INDEX/MATCH', 'Look up to the left in older Excel'],
+  ]),
+  choice(
+    'q-xl-9',
+    'Marketplace Fees',
+    'Owen mentions Marketplace orders pay a 15% commission, which your report ignores. What does that mean?',
+    ['Nothing: commission is an overhead', 'Margin is overstated, most for categories that sell a lot on Marketplace; take the commission off by channel', 'Revenue is overstated by 15%', 'Only the Summary needs changing, not the orders'],
+    1
+  ),
+  written(
+    'q-xl-10',
+    'Advise Owen',
+    `Owen asks: “Should we put next season's budget into ${LARK_BEST}, since it has the best margin?” Reply in a few sentences.`,
+    [
+      'Margin % is not margin £: a category with a lower % can still earn the most profit in pounds',
+      `Names the category that made the most margin in £ (${LARK_TOP_MARGIN_POUNDS}) and weighs it against ${LARK_BEST}`,
+      'One month (March) is too little to set a season’s budget: seasonality and demand matter',
+      'Mentions what the numbers leave out: discounts on some orders, Marketplace commission, stock and demand limits',
+      'Gives a clear recommendation and what they’d check next',
+    ],
+    `Not on margin % alone. ${LARK_BEST} has the best margin %, but ${LARK_TOP_MARGIN_POUNDS} earned the most margin in pounds, and that's what pays the bills. March is one month before the camping season, so I'd look at last year's spring and summer too. Marketplace commission and the 10% discounts also change the picture. I'd budget by margin in £ per category over several months, then shift some budget towards ${LARK_BEST} if demand is there.`
+  ),
+];
+
+// Tidepool
+const tpMonth = (m: string) => TIDEPOOL.orders.filter((o) => o.order_date.startsWith(m));
+const TP_MARCH_DELIVERED = tpMonth('2026-03').filter((o) => o.status === 'delivered').length;
+const TP_FEB_REFUND_PCT = round1((tpMonth('2026-02').filter((o) => o.status === 'refunded').length / tpMonth('2026-02').length) * 100);
+const tpRegionRevenue = (r: string) =>
+  sum(TIDEPOOL.orders.filter((o) => o.status === 'delivered' && TIDEPOOL.customers.find((c) => c.customer_id === o.customer_id)!.region === r).map((o) => o.amount));
+const TP_TOP_REGION = largest(REGIONS, tpRegionRevenue);
+const sqlExtras = [
+  short('q-tp-5', 'March Orders', 'How many delivered orders were there in March 2026?', [String(TP_MARCH_DELIVERED)], { minutes: 2 }),
+  short('q-tp-6', 'February Refunds', 'What share of February orders were refunded, as a % to 1 decimal place?', percentAnswers(TP_FEB_REFUND_PCT), { minutes: 3 }),
+  choice('q-tp-7', 'Best Region', 'Which region had the most delivered revenue in Q1?', REGIONS, REGIONS.indexOf(TP_TOP_REGION), { minutes: 2 }),
+  choice(
+    'q-tp-8',
+    'Ties in a Top 3',
+    'Two customers tie for 3rd place. Which function gives exactly three rows per region?',
+    ['RANK()', 'DENSE_RANK()', 'ROW_NUMBER(), with a tie-breaker in ORDER BY', 'COUNT()'],
+    2
+  ),
+  choice(
+    'q-tp-9',
+    'Revenue per Customer',
+    'Rosa wants monthly revenue per active customer. What do you divide by?',
+    ['Every customer in the customers table', 'COUNT(DISTINCT customer_id) of customers with a delivered order that month', 'The number of orders', 'Customers who signed up that month'],
+    1
+  ),
+  written(
+    'q-tp-10',
+    'Summary for Leadership',
+    'Write Rosa three or four sentences on Q1 for the leadership team.',
+    [
+      'Gives the monthly revenue trend, with numbers',
+      `Explains the February dip: refunds jumped to about ${TP_FEB_REFUND_PCT}% of orders, against about 2% in other months`,
+      'Says demand held up: customers kept ordering; the loss came after the order',
+      'Puts a rough £ figure on revenue lost to refunds',
+      'Recommends an action, e.g. fix the courier problem and track refund rate weekly',
+    ],
+    `Delivered revenue dipped in February and recovered in March. Demand didn't fall: customers ordered as usual, but ${TP_FEB_REFUND_PCT}% of February boxes were refunded, against about 2% in January and March, which points to the courier problems. That cost us roughly the difference in refunds × the average box. We should hold the courier to account and put refund rate on the weekly dashboard so a spike is caught within days.`
+  ),
+];
+
+// Brightwell
+const cleaningExtras = [
+  short('q-bw-5', 'Members Left', 'How many members are on the clean list?', [String(UNIQUE_MEMBERS)], { minutes: 1 }),
+  short('q-bw-6', 'Visits Left', 'How many visits are left once the test check-ins are gone?', [String(VISITS.filter((v) => v.member_id !== 'TEST').length)], { minutes: 2 }),
+  choice('q-bw-7', 'Tidy a Name', 'Which formula turns "  tom  OKAFOR" in B6 into "Tom Okafor"?', ['=PROPER(TRIM(B6))', '=UPPER(TRIM(B6))', '=TRIM(B6)', '=PROPER(B6)'], 0),
+  choice(
+    'q-bw-8',
+    "Leeds's Format",
+    'How could you tell Leeds wrote day first, not month first?',
+    ['Leeds is in the UK', 'Some Leeds dates have a first number above 12, which can only be a day', 'The dates were sorted', 'Day-first dates are longer'],
+    1
+  ),
+  multi(
+    'q-bw-9',
+    'Before You Load',
+    'Which checks would you run before Monday’s load? Tick all that apply.',
+    ['Row counts match the export, less what you removed on purpose', 'No email appears twice', 'Every plan is Basic, Plus or Premium', 'Every visit’s member exists in the member list', 'Rows are sorted alphabetically'],
+    [0, 1, 2, 3]
+  ),
+  written(
+    'q-bw-10',
+    '“They Paid Us!”',
+    'Femi asks why you removed three members: “They paid us!” Explain what you did, and how nobody loses their history.',
+    [
+      'They were the same people signed up twice (same email, different capitals or spaces), not separate members',
+      'Kept each person’s first registration (the lower ID)',
+      'Moves visits and payments from the removed IDs onto the kept ones, rather than just deleting',
+      'Keeps a log of old ID → kept ID for audit',
+      'Checks whether any were billed twice and flags refunds',
+    ],
+    `They weren't three extra members: Ben Carter, Grace Lee and Priya Shah each signed up twice with the same email, written differently. I kept each person's first account and removed the later one. Before the load I'll move any visits and payments from the later IDs to the kept ones and keep a list of which ID merged into which. If either account was billed, that person may have paid twice, so I'll flag them for a refund.`
+  ),
+];
+
+// Harrow & Finch
+const hfChannelConv = (channel: string, weeks: number[]) =>
+  sum(HARROW.daily.filter((r) => r.channel === channel && weeks.includes(r.week)).map((r) => r.orders)) /
+  sum(HARROW.traffic.filter((r) => r.channel === channel && weeks.includes(r.week)).map((r) => r.sessions));
+const HF_EMAIL_W8 = round1(hfChannelConv('Email', [8]) * 100);
+const HF_EMAIL_BEFORE = round1(hfChannelConv('Email', [1, 2, 3, 4, 5, 6, 7]) * 100);
+const HF_BEST = largest(HF_CHANNELS.map((c) => c.channel), (c) => hfChannelConv(c, [1, 2, 3, 4, 5, 6, 7]));
+const dashboardExtras = [
+  short('q-hf-5', 'Email in Week 8', 'What was Email’s conversion rate in week 8 (orders ÷ sessions), as a % to 1 decimal place?', percentAnswers(HF_EMAIL_W8), { minutes: 3 }),
+  choice('q-hf-6', 'Best Channel', 'Over weeks 1–7, which channel converted best?', HF_CHANNELS.map((c) => c.channel), HF_CHANNELS.findIndex((c) => c.channel === HF_BEST), { minutes: 2 }),
+  choice(
+    'q-hf-7',
+    'Read the Numbers',
+    'Orders are up 20% and sessions up 50%. What happened to conversion?',
+    ['Up 30%', 'Down 20%', 'Down 30%', 'No change'],
+    1
+  ),
+  match('q-hf-8', 'Pick the Chart', 'Match each job to the chart that does it best.', [
+    ['A trend over time', 'Line chart'],
+    ['Comparing categories', 'Bar chart'],
+    ['Parts of a total across groups', 'Stacked bar'],
+    ['How two measures relate', 'Scatter plot'],
+    ['Exact values to look up', 'Table'],
+  ]),
+  choice(
+    'q-hf-9',
+    "Finance's Number",
+    'Your week 8 revenue doesn’t match Finance’s. What’s the likely reason, and what do you do?',
+    ['Your formula is wrong; copy their number', 'You’re counting it differently (refunds, VAT, order or payment date); agree one definition and note it on the pack', 'Finance is wrong', 'Average the two'],
+    1
+  ),
+  written(
+    'q-hf-10',
+    'The Headline',
+    'Write the headline for this week’s pack in two sentences, then one recommendation.',
+    [
+      'Revenue is up, driven by a surge of Email visitors from the promotion',
+      `Email conversion fell to about ${HF_EMAIL_W8}% from about ${HF_EMAIL_BEFORE}% before, so most new visitors didn’t buy`,
+      'Other channels were steady, so the rise is not a broad improvement',
+      'A clear recommendation, e.g. judge the bought-in list on profit and unsubscribes before repeating it',
+      'Short and plain enough for leadership',
+    ],
+    `Revenue rose in week 8, almost all from the Email promotion, which brought about 3.5 times the usual visitors. But only ${HF_EMAIL_W8}% of them bought, against ${HF_EMAIL_BEFORE}% normally, and the other channels didn't change. Before we email a bought-in list again, check the profit after costs and the unsubscribe and spam rates.`
+  ),
+];
+
+// Pocketly
+const PK_TRIAL_A = round1((pk('A', 'trials') / pk('A', 'visitors')) * 100);
+const metricsExtras = [
+  short('q-pk-5', 'Trial Rate', "What was A's trial-start rate (trials ÷ visitors), as a % to 1 decimal place?", percentAnswers(PK_TRIAL_A), { minutes: 2 }),
+  choice(
+    'q-pk-6',
+    'The Deciding Metric',
+    'Which metric should decide this test?',
+    ['Whichever looks best at the end', 'The one agreed before it started: purchases per visitor', 'Trial starts, as they’re higher', 'Time on page'],
+    1
+  ),
+  choice(
+    'q-pk-7',
+    'Smaller Effects',
+    'To reliably detect an uplift half as big, roughly how many visitors do you need?',
+    ['The same', 'Twice as many', 'About four times as many', 'Half as many'],
+    2
+  ),
+  multi(
+    'q-pk-8',
+    'Spoiling a Test',
+    'Which of these could make the result untrustworthy? Tick all that apply.',
+    ['The same people see both versions', 'A bug breaks B on one browser', 'The split came out 60/40 when it should be 50/50', 'A sale ran for both groups during the test'],
+    [0, 1, 2]
+  ),
+  match('q-pk-9', 'Terms', 'Match each term to its meaning.', [
+    ['Conversion rate', 'Purchases ÷ visitors'],
+    ['Relative uplift', 'B’s rate ÷ A’s rate − 1'],
+    ['Absolute uplift', 'B’s rate − A’s rate'],
+    ['p-value', 'Chance of a gap this big if there’s really no difference'],
+    ['Novelty effect', 'People react to the change itself, then it fades'],
+  ]),
+  written(
+    'q-pk-10',
+    'Reply to Jun',
+    'Write Jun a short reply: ship B or not, and what happens next?',
+    [
+      'Gives the overall result in numbers (conversion for each, or the uplift)',
+      'Points out B’s lead comes from the first few days and then almost disappears, which looks like novelty',
+      'Does not call it a win on this evidence',
+      'Next step: run longer with a sample size and end date fixed in advance, without stopping early',
+      'Mentions other checks, e.g. trial starts, refunds, or segments such as mobile',
+    ],
+    `Not yet. Overall B converted ${(PK_CONV_B * 100).toFixed(2)}% against A's ${(PK_CONV_A * 100).toFixed(2)}%, but nearly all of that lead came in the first four days; since then the two have been almost level, which looks like novelty. Let's run it another two to three weeks with the sample size and end date fixed now, and decide only then. I'll also check refunds and mobile separately.`
+  ),
+];
+
+export const ANALYSIS_SIMULATIONS: AssessmentTest[] = [
+  withExtras(excelTest, excelExtras),
+  withExtras(sqlTest, sqlExtras),
+  withExtras(cleaningTest, cleaningExtras),
+  withExtras(dashboardTest, dashboardExtras),
+  withExtras(metricsTest, metricsExtras),
+];
