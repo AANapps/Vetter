@@ -6,6 +6,8 @@ import { CONSULTING_TEST, INDUSTRY_TESTS } from './industryTests';
 import { SIMULATION_TESTS } from './simulationTests';
 import { ANALYSIS_SIMULATIONS } from './analysisSimulations';
 import { withLevelVersions } from './levelVersions';
+import { EXTRA_QUESTIONS } from './extraQuestions';
+import { withExtras } from './questionKit';
 import { SEED_INVITATIONS } from './seedInvitations';
 
 // Seed each candidate's test history from the tests behind their verified skills
@@ -231,7 +233,15 @@ export const INITIAL_RECRUITER: User = {
 };
 
 // Vetter-made tests, each followed by its versions at other levels
-export const STANDARD_ASSESSMENTS: AssessmentTest[] = withLevelVersions([
+function withAllExtras(tests: AssessmentTest[]): AssessmentTest[] {
+  return tests.map((t) => {
+    const extras = EXTRA_QUESTIONS[t.familyId ?? t.id];
+    return extras ? withExtras(t, extras) : t;
+  });
+}
+
+// Every level of every Vetter test has ten questions: hands-on tasks topped up with fundamentals and real problems
+export const STANDARD_ASSESSMENTS: AssessmentTest[] = withAllExtras(withLevelVersions([
   {
     id: 'test-sql-01',
     title: 'SQL Queries: Joins, Aggregations & Window Functions',
@@ -613,7 +623,7 @@ Example: solution(["/users/:id"], "/users/7") returns { route: "/users/:id", par
   ...INDUSTRY_TESTS,
   ...ANALYSIS_SIMULATIONS,
   ...SIMULATION_TESTS,
-]);
+]));
 
 // Company-made tests, written by a business for its own jobs
 export const COMPANY_ASSESSMENTS: AssessmentTest[] = [

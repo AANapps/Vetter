@@ -62,3 +62,28 @@ export const caseStudy = (id: string, title: string, material: string, label = '
   ...base(id, title, 'case', material, minutes, 0),
   contextData: label,
 });
+
+// A test topped up to ten questions with extra ones. Its own tasks keep handsOnShare of the marks between them, in
+// their old proportions; the extra questions share the rest by their own weights. Totals are worked out again
+export function withExtras<T extends { questions: Question[]; estimatedMinutes: number; totalQuestions: number }>(test: T, extras: Question[], handsOnShare = 60, target = 10): T {
+  const own = test.questions;
+  const answered = own.filter((q) => q.type !== 'case').length;
+  const added = extras.slice(0, Math.max(0, target - answered));
+  if (added.length === 0) return test;
+  const ownTotal = own.reduce((n, q) => n + q.weight, 0) || 1;
+  const addedTotal = added.reduce((n, q) => n + q.weight, 0) || 1;
+  const questions = [
+    ...own.map((q) => ({ ...q, weight: q.type === 'case' ? 0 : Math.max(1, Math.round((q.weight / ownTotal) * handsOnShare)) })),
+    ...added.map((q) => ({ ...q, weight: q.type === 'case' ? 0 : Math.max(1, Math.round((q.weight / addedTotal) * (100 - handsOnShare))) })),
+  ];
+  // Rounding can leave the total a point or two off 100; the heaviest question takes the difference
+  const drift = 100 - questions.reduce((n, q) => n + q.weight, 0);
+  const heaviest = questions.reduce((best, q, i) => (q.weight > questions[best].weight ? i : best), 0);
+  questions[heaviest] = { ...questions[heaviest], weight: questions[heaviest].weight + drift };
+  return {
+    ...test,
+    questions,
+    totalQuestions: questions.filter((q) => q.type !== 'case').length,
+    estimatedMinutes: questions.reduce((n, q) => n + q.timeLimitMinutes, 0),
+  };
+}
