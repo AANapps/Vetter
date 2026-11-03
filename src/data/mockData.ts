@@ -8,6 +8,7 @@ import { ANALYSIS_SIMULATIONS } from './analysisSimulations';
 import { withLevelVersions } from './levelVersions';
 import { EXTRA_QUESTIONS } from './extraQuestions';
 import { withModules } from './modules';
+import { ANALYST_TOOL_TESTS } from './modules/analyst';
 import { withExtras } from './questionKit';
 import { SEED_INVITATIONS } from './seedInvitations';
 
@@ -624,6 +625,7 @@ Example: solution(["/users/:id"], "/users/7") returns { route: "/users/:id", par
   ...ROLE_ASSESSMENTS,
   ...INDUSTRY_TESTS,
   ...ANALYSIS_SIMULATIONS,
+  ...ANALYST_TOOL_TESTS,
   ...SIMULATION_TESTS,
 ])));
 

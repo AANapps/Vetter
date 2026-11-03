@@ -1,8 +1,8 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Pic } from './Pic';
 import { User, AssessmentTest, JobPosting, CandidateJobMatch, Business, TestRole, TEST_DIFFICULTIES, JobProfile } from '../types';
 import { activeProfileOf, asProfile, profilesOf } from '../lib/jobProfiles';
-import { ROLE_GROUPS, TestField } from '../lib/testRoles';
+import { ROLE_GROUPS, ROLE_SECTIONS, TestField, sectionsFor } from '../lib/testRoles';
 import { isMainVersion, levelsOf } from '../lib/testLevels';
 import { LevelPicker } from './LevelPicker';
 import { rankJobsForCandidate, getBestTestScore, calculateCandidateJobMatch } from '../lib/matchingAlgorithm';
@@ -187,6 +187,34 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
     if (testStatusFilter === 'not-taken' && taken) return false;
     return true;
   });
+
+  // A role with sections (Excel, SQL, Power BI…) shows its tests under a heading for each; any other list is one group
+  const testSections = sectionsFor(testField);
+  const testGroups: { id: string | null; label: string | null; blurb: string; tests: AssessmentTest[] }[] = testSections
+    ? [
+        ...testSections.map((sec) => ({ id: sec.id, label: sec.label, blurb: sec.blurb, tests: filteredTests.filter((t) => sec.testIds.includes(t.id)) })),
+        {
+          id: 'more',
+          label: 'More tests',
+          blurb: 'Other tests for this role.',
+          tests: filteredTests.filter((t) => !testSections.some((sec) => sec.testIds.includes(t.id))),
+        },
+      ].filter((g) => g.tests.length > 0)
+    : [{ id: null, label: null, blurb: '', tests: filteredTests }];
+
+  // A section picked in the left menu: open its role's tests, then scroll to it once it's on the page
+  const [pendingSection, setPendingSection] = useState<string | null>(null);
+  const jumpToSection = (role: TestRole, sectionId: string) => {
+    if (!(testField && testField.roles.length === 1 && testField.roles[0] === role)) onTestFieldChange({ label: role, roles: [role] });
+    setPendingSection(sectionId);
+  };
+  useEffect(() => {
+    if (!pendingSection) return;
+    const el = document.getElementById(`test-section-${pendingSection}`);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // Not there yet while the role's page is opening; once it's open and the section still isn't (filtered out), give up
+    if (el || testSections) setPendingSection(null);
+  }, [pendingSection, testSections]);
 
   return (
     // The profile reads like a LinkedIn profile: an ~804px column beside suggested tests and jobs; the boards use the full width
@@ -748,15 +776,43 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                 >
                   {group.industry}
                 </button>
-                {group.roles.map((role) => (
-                  <RoleButton
-                    key={role}
-                    label={role}
-                    count={vetterTests.filter((t) => t.roles?.includes(role)).length}
-                    active={testField?.label === role}
-                    onClick={() => onTestFieldChange({ label: role, roles: [role] })}
-                  />
-                ))}
+                {group.roles.map((role) => {
+                  const button = (
+                    <RoleButton
+                      key={role}
+                      label={role}
+                      count={vetterTests.filter((t) => t.roles?.includes(role)).length}
+                      active={testField?.label === role}
+                      onClick={() => onTestFieldChange({ label: role, roles: [role] })}
+                    />
+                  );
+                  const sections = ROLE_SECTIONS[role];
+                  if (!sections) return button;
+                  // Its sections open on hover (or focus), and stay open while the role's tests are showing
+                  const open = sectionsFor(testField) === sections;
+                  return (
+                    <div key={role} className="group/role">
+                      {button}
+                      <div
+                        className={`${open ? 'block' : 'hidden group-hover/role:block group-focus-within/role:block'} ml-3 mt-0.5 mb-1 pl-2 border-l border-slate-200 space-y-0.5`}
+                      >
+                        {sections.map((sec) => (
+                          <button
+                            key={sec.id}
+                            onClick={() => jumpToSection(role, sec.id)}
+                            title={sec.blurb}
+                            className="w-full flex items-center justify-between gap-2 px-2 py-1 rounded text-[11px] text-left text-slate-600 hover:text-indigo-700 hover:bg-slate-50 transition-colors"
+                          >
+                            <span>{sec.label}</span>
+                            <span className="font-mono text-[10px] text-slate-400 tabular-nums">
+                              {vetterTests.filter((t) => sec.testIds.includes(t.id)).length}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             ))}
 
@@ -819,8 +875,23 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
             </div>
           )}
 
+          {testGroups.map((group, gi) => (
+          <section
+            key={group.id ?? 'all'}
+            id={group.id ? `test-section-${group.id}` : undefined}
+            className={`space-y-3 scroll-mt-24 ${group.label && gi > 0 ? 'pt-6 border-t border-slate-200' : ''}`}
+          >
+          {group.label && (
+            <div>
+              <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                {group.label}
+                <span className="font-mono text-[11px] font-normal text-slate-400 tabular-nums">{group.tests.length}</span>
+              </h2>
+              <p className="text-xs text-slate-500">{group.blurb}</p>
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {filteredTests.map((main) => {
+            {group.tests.map((main) => {
               const versions = levelsOf(main, tests);
               // The level shown: the one picked on this card, else the first matching the difficulty filter
               const t =
@@ -915,6 +986,8 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
               );
             })}
           </div>
+          </section>
+          ))}
         </div>
         </div>
       )}

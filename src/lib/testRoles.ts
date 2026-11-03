@@ -11,6 +11,33 @@ export const ROLE_GROUPS: { industry: string; roles: TestRole[] }[] = [
   { industry: 'Operations', roles: ['Project Manager'] },
 ];
 
+// A role's tests in labelled sections, by tool or skill. The Tests page groups them under these headings, and the
+// left menu lists them under the role. A test in no section is shown last, under "More tests"
+export interface TestSection {
+  id: string;
+  label: string;
+  blurb: string;
+  testIds: string[];
+}
+
+export const ROLE_SECTIONS: Partial<Record<TestRole, TestSection[]>> = {
+  'Data Analyst': [
+    { id: 'excel', label: 'Excel', blurb: 'Lookups, formulas and reports in a real spreadsheet.', testIds: ['test-excel-01'] },
+    { id: 'sql', label: 'SQL', blurb: 'Querying, joining and checking data in a database.', testIds: ['test-sql-02', 'test-qasql-01'] },
+    { id: 'power-bi', label: 'Power BI', blurb: 'Power Query, data models, DAX and reports.', testIds: ['test-pbi-01'] },
+    { id: 'tableau', label: 'Tableau', blurb: 'Calculations, LODs, charts and dashboards.', testIds: ['test-tab-01'] },
+    { id: 'python', label: 'Python', blurb: 'pandas for loading, cleaning and aggregating data.', testIds: ['test-py-01'] },
+    { id: 'cleaning', label: 'Data Cleaning', blurb: 'Finding and fixing bad data before it reaches a decision.', testIds: ['test-clean-01'] },
+    { id: 'reporting', label: 'Dashboards & Reporting', blurb: 'KPIs and reports people can act on.', testIds: ['test-dash-01'] },
+    { id: 'metrics', label: 'Metrics & Statistics', blurb: 'Business metrics, A/B tests and the statistics behind them.', testIds: ['test-da-01'] },
+    { id: 'simulations', label: 'Job Simulations', blurb: 'A day of real analyst work, across every tool.', testIds: ['test-sim-da-01'] },
+  ],
+};
+
+// The sections the Tests page shows for a field: only when it is one role that has them
+export const sectionsFor = (field: TestField | null): TestSection[] | null =>
+  field && field.roles.length === 1 ? ROLE_SECTIONS[field.roles[0]] ?? null : null;
+
 // A set of roles the Tests page can be narrowed to: one role, an industry, or a field from Home
 export interface TestField {
   label: string;

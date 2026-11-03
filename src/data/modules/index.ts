@@ -8,6 +8,7 @@ import { DATABASE_MODULE } from './database';
 import { QA_CASES_MODULE, QA_API_MODULE } from './qa';
 import { EXCEL_MODULE, ANALYST_SQL_MODULE, CLEANING_MODULE, DASHBOARD_MODULE, METRICS_MODULE, DA_SIM_MODULE } from './data';
 import { INDUSTRY_MODULES } from './industry';
+import { ANALYST_TOOL_MODULES } from './analyst';
 
 /**
  * Vetter's module tests. From each module's bank (see kit.ts) come four tests, Beginner to Senior, each asking every
@@ -30,6 +31,7 @@ export const MODULES: ModuleSkeleton[] = [
   METRICS_MODULE,
   DA_SIM_MODULE,
   ...INDUSTRY_MODULES,
+  ...ANALYST_TOOL_MODULES,
 ];
 
 const DEFAULT_PASS: Record<TestDifficulty, number> = { Beginner: 70, Junior: 70, Professional: 75, Senior: 75 };
