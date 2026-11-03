@@ -401,7 +401,9 @@ export default function App() {
   // None while a new company is still being set up
   const recruiterBusiness: Business | undefined = businesses.find((b) => b.id === recruiter.businessId);
   // Tests written by AI come with a paid plan; the Vetter team always has them. Everything else is free
-  const aiAllowed = activeRole === 'admin' || hasAiTests(recruiterBusiness);
+  // For now every company gets AI test creation, whatever its plan; set to false to put it back behind paid plans
+  const AI_TESTS_FOR_ALL = true;
+  const aiAllowed = AI_TESTS_FOR_ALL || activeRole === 'admin' || hasAiTests(recruiterBusiness);
   const openGenerator = (g: { jobId?: string; resume?: TestDraft; seed?: string }) => (aiAllowed ? setGenerator(g) : setPlansOpen(true));
 
   // A signed-in account sees its own side of Vetter; the Vetter team keeps the view switcher
