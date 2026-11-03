@@ -23,6 +23,7 @@ import { PersonProfileModal } from './components/PersonProfileModal';
 import { BusinessJobs } from './components/BusinessJobs';
 import { JobTestsEditor } from './components/JobTestsEditor';
 import { TestGenerator } from './components/TestGenerator';
+import { TestPlan, TestPlanDialog } from './components/TestPlanDialog';
 import { TestBuilder } from './components/TestBuilder';
 import { attemptsAt, jobTestProgress, withAttemptFinished, withAttemptStarted, withInvitation } from './lib/jobTests';
 import { CandidateHome } from './components/CandidateHome';
@@ -386,6 +387,19 @@ export default function App() {
   // Asking Vetter's AI for tests, for a job or on their own; and the builder opened on what it wrote
   // seed: a first message ready to send, e.g. to rebuild a library test in depth
   const [generator, setGenerator] = useState<{ jobId?: string; resume?: TestDraft; seed?: string } | null>(null);
+  // What a company picked in the home chat, ready-made and AI tests together, and which AI test is being built from it.
+  // A test saved while one is being built is marked done on the plan; moving from the AI chat to the builder keeps it
+  const [testPlan, setTestPlan] = useState<TestPlan | null>(null);
+  const [planBuilding, setPlanBuilding] = useState<number | null>(null);
+  // Back to the chat hides the plan without losing it (or the AI tests built for it)
+  const [planOpen, setPlanOpen] = useState(false);
+  const planToBuilder = useRef(false);
+  const markPlanBuilt = (testId: string) => {
+    if (planBuilding === null) return;
+    const index = planBuilding;
+    setTestPlan((p) => (p ? { ...p, ideas: p.ideas.map((x, i) => (i === index ? { ...x, testId } : x)) } : p));
+    setPlanBuilding(null);
+  };
   // draft: what the builder starts from; none for a blank test written by hand
   const [draftBuilder, setDraftBuilder] = useState<{ draft?: AssessmentTest; isCopy?: boolean; jobId?: string; alsoAdd: string[]; record?: TestDraft } | null>(null);
   // The company home's chat with Vetter, kept while moving between pages
@@ -1141,12 +1155,13 @@ export default function App() {
               }
               turns={advisorTurns}
               onTurns={setAdvisorTurns}
-              onUseTests={(picked) => {
-                const ours = activeRole === 'admin' ? jobs : jobs.filter((j) => j.businessId === recruiterBusiness?.id);
-                if (ours.length === 0) {
-                  showToast(picked.length === 1 ? `Post a job first, then add "${picked[0].title}" to it.` : `Post a job first, then add these ${picked.length} tests to it.`);
-                  goToTab('business-jobs');
-                } else setEditingTests({ addTestIds: picked.map((t) => t.id) });
+              onContinue={(ready, ideas) => {
+                // Picking again keeps AI tests already built for ideas still picked
+                setTestPlan((prev) => ({
+                  readyIds: ready.map((t) => t.id),
+                  ideas: ideas.map((idea) => prev?.ideas.find((x) => x.idea.brief === idea.brief) ?? { idea }),
+                }));
+                setPlanOpen(true);
               }}
               onEditCopy={(test) => setDraftBuilder({ draft: test, isCopy: true, alsoAdd: [] })}
               onBuildWithAI={(brief) => openGenerator(brief ? { seed: brief } : {})}
@@ -1264,6 +1279,32 @@ export default function App() {
         />
       )}
 
+      {/* The test plan shows on the company home, and steps aside while a test is built, viewed or added to a job */}
+      {testPlan && planOpen && !generator && !draftBuilder && !editingTests && !detailPage && currentTab === 'business-home' && (
+        <TestPlanDialog
+          plan={testPlan}
+          tests={tests}
+          onChange={setTestPlan}
+          onBuild={(i) => {
+            setPlanBuilding(i);
+            openGenerator({ seed: testPlan.ideas[i].idea.brief });
+          }}
+          onOpenTest={openTestPage}
+          onAddToJob={(ids) => {
+            const ours = activeRole === 'admin' ? jobs : jobs.filter((j) => j.businessId === recruiterBusiness?.id);
+            if (ours.length === 0) {
+              showToast(`Post a job first, then add your ${ids.length === 1 ? 'test' : `${ids.length} tests`} to it. Your plan is kept until then.`);
+              goToTab('business-jobs');
+            } else {
+              setEditingTests({ addTestIds: ids });
+              setTestPlan(null);
+              setPlanOpen(false);
+            }
+          }}
+          onBack={() => setPlanOpen(false)}
+        />
+      )}
+
       {generator && (
         <TestGenerator
           job={generator.jobId ? jobs.find((j) => j.id === generator.jobId) : undefined}
@@ -1280,11 +1321,19 @@ export default function App() {
             const id = saveNewTest(test);
             deleteTestDraft(generator.resume?.id);
             if (!generator.jobId) showToast(`"${test.title}" saved to your tests.`);
+            markPlanBuilt(id);
             return id;
           }}
           onAddToJob={addTestsToJob}
-          onEditDraft={(draft, alsoAdd, record) => setDraftBuilder({ draft, jobId: generator.jobId, alsoAdd, record })}
-          onClose={() => setGenerator(null)}
+          onEditDraft={(draft, alsoAdd, record) => {
+            planToBuilder.current = true;
+            setDraftBuilder({ draft, jobId: generator.jobId, alsoAdd, record });
+          }}
+          onClose={() => {
+            setGenerator(null);
+            if (!planToBuilder.current) setPlanBuilding(null);
+            planToBuilder.current = false;
+          }}
         />
       )}
 
@@ -1303,9 +1352,10 @@ export default function App() {
             deleteTestDraft(draftBuilder.record?.id);
             if (draftBuilder.jobId) addTestsToJob(draftBuilder.jobId, [test.id, ...draftBuilder.alsoAdd]);
             else showToast(`"${test.title}" saved to your tests.`);
+            markPlanBuilt(test.id);
             setDraftBuilder(null);
           }}
-          onCancel={() => setDraftBuilder(null)}
+          onCancel={() => (setDraftBuilder(null), setPlanBuilding(null))}
         />
       )}
 

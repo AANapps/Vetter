@@ -16,8 +16,8 @@ interface BusinessHomeProps {
   // The conversation, kept by the app so it survives moving between pages
   turns: AdvisorTurn[];
   onTurns: (turns: AdvisorTurn[]) => void;
-  // The ready-made tests picked across the chat, taken on together to the next step
-  onUseTests: (tests: AssessmentTest[]) => void;
+  // Everything picked across the chat, ready-made tests and AI tests to build, taken on together to the test plan
+  onContinue: (tests: AssessmentTest[], ideas: CustomIdea[]) => void;
   onEditCopy: (test: AssessmentTest) => void;
   onBuildWithAI: (brief: string) => void;
   onCreateOwn: () => void;
@@ -45,7 +45,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
   planName,
   turns,
   onTurns,
-  onUseTests,
+  onContinue,
   onEditCopy,
   onBuildWithAI,
   onCreateOwn,
@@ -59,6 +59,12 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
   const [picked, setPicked] = useState<string[]>([]);
   const togglePick = (id: string) => setPicked((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   const pickAll = (ids: string[]) => setPicked((prev) => (ids.every((id) => prev.includes(id)) ? prev.filter((x) => !ids.includes(x)) : [...new Set([...prev, ...ids])]));
+  // AI tests worth building, picked the same way; one idea is told apart from another by its brief
+  const [pickedIdeas, setPickedIdeas] = useState<CustomIdea[]>([]);
+  const toggleIdea = (idea: CustomIdea) =>
+    setPickedIdeas((prev) => (prev.some((x) => x.brief === idea.brief) ? prev.filter((x) => x.brief !== idea.brief) : [...prev, idea]));
+  const pickCount = picked.length + pickedIdeas.length;
+  const clearPicks = () => (setPicked([]), setPickedIdeas([]));
   const pickedTests = picked.flatMap((id) => {
     const t = tests.find((x) => x.id === id);
     return t ? [t] : [];
@@ -153,6 +159,8 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
                   turn={turn}
                   aiAllowed={aiAllowed}
                   picked={picked}
+                  pickedIdeas={pickedIdeas}
+                  onToggleIdea={toggleIdea}
                   onTogglePick={togglePick}
                   onPickAll={pickAll}
                   onEditCopy={onEditCopy}
@@ -179,12 +187,15 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
           }}
           className="sticky bottom-16 md:bottom-0 pb-4 pt-6 bg-white"
         >
-          {pickedTests.length > 0 && (
+          {pickCount > 0 && (
             <div className="mb-3 p-3 bg-white border border-indigo-200 rounded-2xl shadow-md shadow-indigo-100/60 flex flex-col sm:flex-row sm:items-center gap-3">
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-semibold text-slate-900">
-                  {pickedTests.length} {pickedTests.length === 1 ? 'test' : 'tests'} picked
-                  <span className="font-normal text-slate-500"> &middot; ~{pickedTests.reduce((n, t) => n + t.estimatedMinutes, 0)} min in all</span>
+                  {pickCount} picked
+                  <span className="font-normal text-slate-500">
+                    {pickedTests.length > 0 && <> &middot; {pickedTests.length} ready-made (~{pickedTests.reduce((n, t) => n + t.estimatedMinutes, 0)} min)</>}
+                    {pickedIdeas.length > 0 && <> &middot; {pickedIdeas.length} to build with AI</>}
+                  </span>
                 </div>
                 <ul className="mt-1.5 flex flex-wrap gap-1.5">
                   {pickedTests.map((t) => (
@@ -195,18 +206,27 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
                       </button>
                     </li>
                   ))}
+                  {pickedIdeas.map((idea) => (
+                    <li key={idea.brief} className="pl-2 pr-1 py-0.5 bg-violet-50 text-violet-800 text-[11px] font-medium rounded-full flex items-center gap-1">
+                      <Wand2 className="w-3 h-3 shrink-0" />
+                      <span className="truncate max-w-[14rem]">{idea.title}</span>
+                      <button type="button" onClick={() => toggleIdea(idea)} aria-label={`Remove ${idea.title}`} className="p-0.5 rounded-full hover:bg-violet-100">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </li>
+                  ))}
                 </ul>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <button type="button" onClick={() => setPicked([])} className="px-2.5 py-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900">
+                <button type="button" onClick={clearPicks} className="px-2.5 py-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900">
                   Clear
                 </button>
                 <button
                   type="button"
-                  onClick={() => onUseTests(pickedTests)}
+                  onClick={() => onContinue(pickedTests, pickedIdeas)}
                   className="px-3.5 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg flex items-center gap-1.5"
                 >
-                  Continue with {pickedTests.length === 1 ? 'this test' : `these ${pickedTests.length}`}
+                  Review your test plan
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -281,7 +301,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
             </button>
             {turns.length > 0 && (
               <button
-                onClick={() => (onTurns([]), setPicked([]))}
+                onClick={() => (onTurns([]), clearPicks())}
                 className="w-full px-3 py-2 text-sm font-semibold text-slate-500 hover:text-slate-900 rounded-lg flex items-center gap-2"
               >
                 <MessageSquarePlus className="w-4 h-4" />
@@ -314,13 +334,15 @@ const AdvisorReply: React.FC<{
   turn: AdvisorTurn;
   aiAllowed: boolean;
   picked: string[];
+  pickedIdeas: CustomIdea[];
+  onToggleIdea: (idea: CustomIdea) => void;
   onTogglePick: (testId: string) => void;
   onPickAll: (testIds: string[]) => void;
   onEditCopy: (test: AssessmentTest) => void;
   onBuildWithAI: (brief: string) => void;
   onSeePlans: () => void;
   onOpenTest: (testId: string) => void;
-}> = ({ turn, aiAllowed, picked, onTogglePick, onPickAll, onEditCopy, onBuildWithAI, onSeePlans, onOpenTest }) => (
+}> = ({ turn, aiAllowed, picked, pickedIdeas, onToggleIdea, onTogglePick, onPickAll, onEditCopy, onSeePlans, onOpenTest }) => (
   <div className="flex gap-3">
     <span className="ai-mark w-7 h-7 shrink-0 rounded-lg text-white text-xs font-extrabold flex items-center justify-center">V</span>
     <div className="ai-glass min-w-0 flex-1 space-y-4 p-4 sm:p-5 rounded-2xl rounded-tl-md border border-white/80 shadow-sm">
@@ -405,7 +427,7 @@ const AdvisorReply: React.FC<{
           <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Worth building</h3>
           <ul className="space-y-3">
             {turn.custom.map((c, i) => (
-              <CustomCard key={i} idea={c} aiAllowed={aiAllowed} onBuild={() => onBuildWithAI(c.brief)} onSeePlans={onSeePlans} />
+              <CustomCard key={i} idea={c} aiAllowed={aiAllowed} picked={pickedIdeas.some((x) => x.brief === c.brief)} onToggle={() => onToggleIdea(c)} onSeePlans={onSeePlans} />
             ))}
           </ul>
           {!aiAllowed && (
@@ -419,8 +441,13 @@ const AdvisorReply: React.FC<{
   </div>
 );
 
-const CustomCard: React.FC<{ idea: CustomIdea; aiAllowed: boolean; onBuild: () => void; onSeePlans: () => void }> = ({ idea, aiAllowed, onBuild, onSeePlans }) => (
-  <li className="p-4 border border-dashed border-indigo-200 bg-indigo-50/30 rounded-xl flex flex-col sm:flex-row sm:items-center gap-3">
+// An AI test worth building: picked here, built from the test plan alongside the ready-made picks
+const CustomCard: React.FC<{ idea: CustomIdea; aiAllowed: boolean; picked: boolean; onToggle: () => void; onSeePlans: () => void }> = ({ idea, aiAllowed, picked, onToggle, onSeePlans }) => (
+  <li
+    className={`p-4 border rounded-xl flex flex-col sm:flex-row sm:items-center gap-3 transition-colors ${
+      picked ? 'border-violet-500 ring-2 ring-violet-100 bg-white' : 'border-dashed border-indigo-200 bg-indigo-50/30'
+    }`}
+  >
     <div className="min-w-0 flex-1">
       <div className="flex items-center gap-2">
         <span className="text-sm font-semibold text-slate-900">{idea.title}</span>
@@ -429,9 +456,16 @@ const CustomCard: React.FC<{ idea: CustomIdea; aiAllowed: boolean; onBuild: () =
       <p className="text-xs text-slate-600 mt-1">{idea.why}</p>
     </div>
     {aiAllowed ? (
-      <button onClick={onBuild} className="shrink-0 px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg flex items-center gap-1.5 self-start sm:self-auto">
-        <Wand2 className="w-3.5 h-3.5" />
-        Build with AI
+      <button
+        onClick={onToggle}
+        aria-pressed={picked}
+        aria-label={`Pick ${idea.title} to build with AI`}
+        className={`shrink-0 px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 self-start sm:self-auto ${
+          picked ? 'text-violet-700 bg-violet-50 border border-violet-300' : 'text-white bg-indigo-600 hover:bg-indigo-700 border border-indigo-600'
+        }`}
+      >
+        {picked ? <Check className="w-3.5 h-3.5" /> : <Wand2 className="w-3.5 h-3.5" />}
+        {picked ? 'Picked to build' : 'Pick to build with AI'}
       </button>
     ) : (
       <button
