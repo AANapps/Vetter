@@ -12,13 +12,15 @@ interface JobFormProps {
   tests: AssessmentTest[];
   onSave: (job: JobPosting) => void;
   onCancel: () => void;
+  // Tests to start with, already ticked (e.g. from a test plan), by the version to use
+  initialTestIds?: string[];
 }
 
 const inputClass =
   'w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-indigo-500';
 
 // The one job form, used by companies and by the Vetter team
-export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, onSave, onCancel }) => {
+export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, onSave, onCancel, initialTestIds = [] }) => {
   const [businessId, setBusinessId] = useState(businesses[0]?.id ?? '');
   const business = businesses.find((b) => b.id === businessId) ?? businesses[0];
   const companyTests = tests.filter((t) => t.type === 'custom' && t.businessId === business?.id);
@@ -37,7 +39,15 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
   const [description, setDescription] = useState('');
   // The tests candidates are ranked on, by main version: the level picked, its minimum score and importance
   type Pick = { testId: string; minScore: number; importance: 'required' | 'preferred' };
-  const [picked, setPicked] = useState<Record<string, Pick>>({});
+  // Keyed by the test's main version, as the list below is
+  const [picked, setPicked] = useState<Record<string, Pick>>(() =>
+    Object.fromEntries(
+      initialTestIds.flatMap((id) => {
+        const t = tests.find((x) => x.id === id);
+        return t ? [[t.familyId ?? t.id, { testId: t.id, minScore: 70, importance: 'required' as const }]] : [];
+      })
+    )
+  );
   const [pickError, setPickError] = useState(false);
   const pickedTests = Object.values(picked)
     .map((p) => tests.find((t) => t.id === p.testId))

@@ -27,6 +27,8 @@ interface TestGeneratorProps {
   resume?: TestDraft;
   // A first message, filled in ready to send or change
   seed?: string;
+  // Sends the first message straight away, so Vetter starts building as the chat opens
+  autoSend?: boolean;
   onClose: () => void;
 }
 
@@ -43,7 +45,7 @@ const PICKABLE: QuestionType[] = ['choice', 'multi', 'text', 'written', 'order',
 const PICKABLE_STYLES = PICKABLE.map((type) => QUESTION_STYLES.find((s) => s.type === type)!).filter(Boolean);
 
 // Build a test by talking to Vetter: describe the job, get a draft, then ask for changes until it's right
-export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tests, onOpenTest, onSaveTest, onAddToJob, onEditDraft, onSaveDraft, resume, seed, onClose }) => {
+export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tests, onOpenTest, onSaveTest, onAddToJob, onEditDraft, onSaveDraft, resume, seed, autoSend, onClose }) => {
   const greeting = job
     ? `I've read the ${job.title} job description. Tell me what matters most in this hire, or just ask me to write a first draft and we'll refine it together.`
     : `Tell me about the role or the test you want: what the person does day to day, the tools they use and the level. I'll write a first draft and we'll refine it together.`;
@@ -143,6 +145,15 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
     setWorking(false);
     box.current?.focus();
   };
+
+  // Once only, even if React mounts the chat twice
+  const autoSent = useRef(false);
+  useEffect(() => {
+    if (!autoSend || !seed || resume || autoSent.current) return;
+    autoSent.current = true;
+    send(seed);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const suggestions = !started
     ? job

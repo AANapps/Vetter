@@ -24,6 +24,8 @@ import { BusinessJobs } from './components/BusinessJobs';
 import { JobTestsEditor } from './components/JobTestsEditor';
 import { TestGenerator } from './components/TestGenerator';
 import { TestPlan, TestPlanDialog } from './components/TestPlanDialog';
+import { JobForm } from './components/JobForm';
+import { CustomIdea } from './lib/testAdvisor';
 import { TestBuilder } from './components/TestBuilder';
 import { attemptsAt, jobTestProgress, withAttemptFinished, withAttemptStarted, withInvitation } from './lib/jobTests';
 import { CandidateHome } from './components/CandidateHome';
@@ -386,18 +388,22 @@ export default function App() {
   const [toast, setToast] = useState<string | null>(null);
   // Asking Vetter's AI for tests, for a job or on their own; and the builder opened on what it wrote
   // seed: a first message ready to send, e.g. to rebuild a library test in depth
-  const [generator, setGenerator] = useState<{ jobId?: string; resume?: TestDraft; seed?: string } | null>(null);
-  // What a company picked in the home chat, ready-made and AI tests together, and which AI test is being built from it.
-  // A test saved while one is being built is marked done on the plan; moving from the AI chat to the builder keeps it
+  // autoSend: the seed is sent as the chat opens, so building starts at once
+  const [generator, setGenerator] = useState<{ jobId?: string; resume?: TestDraft; seed?: string; autoSend?: boolean } | null>(null);
+  // What a company took from the home chat (ready-made picks, AI tests built or started, the reply's other AI ideas)
+  // and the brief of the AI test being built for it. A test saved while one is being built is marked built on the
+  // plan; moving from the AI chat to the builder keeps it. The plan then asks whether to create a job for them all
   const [testPlan, setTestPlan] = useState<TestPlan | null>(null);
-  const [planBuilding, setPlanBuilding] = useState<number | null>(null);
+  const [planBuilding, setPlanBuilding] = useState<string | null>(null);
   // Back to the chat hides the plan without losing it (or the AI tests built for it)
   const [planOpen, setPlanOpen] = useState(false);
+  // The job being created from the plan, with its tests already ticked
+  const [planJobTests, setPlanJobTests] = useState<string[] | null>(null);
   const planToBuilder = useRef(false);
   const markPlanBuilt = (testId: string) => {
     if (planBuilding === null) return;
-    const index = planBuilding;
-    setTestPlan((p) => (p ? { ...p, ideas: p.ideas.map((x, i) => (i === index ? { ...x, testId } : x)) } : p));
+    const brief = planBuilding;
+    setTestPlan((p) => (p ? { ...p, ideas: p.ideas.map((x) => (x.idea.brief === brief ? { ...x, testId } : x)) } : p));
     setPlanBuilding(null);
   };
   // draft: what the builder starts from; none for a blank test written by hand
@@ -418,7 +424,14 @@ export default function App() {
   // For now every company gets AI test creation, whatever its plan; set to false to put it back behind paid plans
   const AI_TESTS_FOR_ALL = true;
   const aiAllowed = AI_TESTS_FOR_ALL || activeRole === 'admin' || hasAiTests(recruiterBusiness);
-  const openGenerator = (g: { jobId?: string; resume?: TestDraft; seed?: string }) => (aiAllowed ? setGenerator(g) : setPlansOpen(true));
+  const openGenerator = (g: { jobId?: string; resume?: TestDraft; seed?: string; autoSend?: boolean }) => (aiAllowed ? setGenerator(g) : setPlansOpen(true));
+  // Builds one of the home chat's AI ideas straight away; the test plan opens with it once it's saved (or closed)
+  const startPlanBuild = (idea: CustomIdea) => {
+    setPlanBuilding(idea.brief);
+    setPlanOpen(true);
+    openGenerator({ seed: idea.brief, autoSend: true });
+  };
+  const ourJobs = activeRole === 'admin' ? jobs : jobs.filter((j) => j.businessId === recruiterBusiness?.id);
 
   // A signed-in account sees its own side of Vetter; the Vetter team keeps the view switcher
   // Once it's known who's looking, the address is checked against their side: another side's page sends them to their own
@@ -1155,13 +1168,18 @@ export default function App() {
               }
               turns={advisorTurns}
               onTurns={setAdvisorTurns}
-              onContinue={(ready, ideas) => {
-                // Picking again keeps AI tests already built for ideas still picked
-                setTestPlan((prev) => ({
-                  readyIds: ready.map((t) => t.id),
-                  ideas: ideas.map((idea) => prev?.ideas.find((x) => x.idea.brief === idea.brief) ?? { idea }),
-                }));
+              onContinue={(ready) => {
+                // AI tests already built stay on the plan
+                setTestPlan((prev) => ({ readyIds: ready.map((t) => t.id), ideas: prev?.ideas ?? [], suggestions: prev?.suggestions ?? [] }));
                 setPlanOpen(true);
+              }}
+              onBuildIdea={(idea, picked, others) => {
+                setTestPlan((prev) => ({
+                  readyIds: picked.map((t) => t.id),
+                  ideas: prev?.ideas.some((x) => x.idea.brief === idea.brief) ? prev.ideas : [...(prev?.ideas ?? []), { idea }],
+                  suggestions: others,
+                }));
+                startPlanBuild(idea);
               }}
               onEditCopy={(test) => setDraftBuilder({ draft: test, isCopy: true, alsoAdd: [] })}
               onBuildWithAI={(brief) => openGenerator(brief ? { seed: brief } : {})}
@@ -1280,28 +1298,42 @@ export default function App() {
       )}
 
       {/* The test plan shows on the company home, and steps aside while a test is built, viewed or added to a job */}
-      {testPlan && planOpen && !generator && !draftBuilder && !editingTests && !detailPage && currentTab === 'business-home' && (
+      {testPlan && planOpen && !generator && !draftBuilder && !editingTests && !planJobTests && !detailPage && currentTab === 'business-home' && (
         <TestPlanDialog
           plan={testPlan}
           tests={tests}
+          hasJobs={ourJobs.length > 0}
           onChange={setTestPlan}
-          onBuild={(i) => {
-            setPlanBuilding(i);
-            openGenerator({ seed: testPlan.ideas[i].idea.brief });
+          onBuild={(idea) => {
+            setTestPlan((p) => (p && !p.ideas.some((x) => x.idea.brief === idea.brief) ? { ...p, ideas: [...p.ideas, { idea }] } : p));
+            startPlanBuild(idea);
           }}
           onOpenTest={openTestPage}
+          onCreateJob={setPlanJobTests}
           onAddToJob={(ids) => {
-            const ours = activeRole === 'admin' ? jobs : jobs.filter((j) => j.businessId === recruiterBusiness?.id);
-            if (ours.length === 0) {
-              showToast(`Post a job first, then add your ${ids.length === 1 ? 'test' : `${ids.length} tests`} to it. Your plan is kept until then.`);
-              goToTab('business-jobs');
-            } else {
-              setEditingTests({ addTestIds: ids });
-              setTestPlan(null);
-              setPlanOpen(false);
-            }
+            setEditingTests({ addTestIds: ids });
+            setTestPlan(null);
+            setPlanOpen(false);
           }}
           onBack={() => setPlanOpen(false)}
+        />
+      )}
+
+      {planJobTests && (
+        <JobForm
+          businesses={recruiterBusiness && activeRole !== 'admin' ? [recruiterBusiness] : businesses}
+          postedBy={activeRole === 'admin' ? 'vetter' : 'company'}
+          tests={tests}
+          initialTestIds={planJobTests}
+          onSave={(job) => {
+            handleCreateJob(job);
+            setPlanJobTests(null);
+            setTestPlan(null);
+            setPlanOpen(false);
+            showToast(`"${job.title}" is posted with ${job.testIds.length} ${job.testIds.length === 1 ? 'test' : 'tests'}.`);
+            openBusinessJob(job.id);
+          }}
+          onCancel={() => setPlanJobTests(null)}
         />
       )}
 
@@ -1316,6 +1348,7 @@ export default function App() {
           }}
           resume={generator.resume}
           seed={generator.seed}
+          autoSend={generator.autoSend}
           onSaveDraft={saveTestDraft}
           onSaveTest={(test) => {
             const id = saveNewTest(test);
