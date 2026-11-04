@@ -371,7 +371,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
           ))}
         </div>
 
-        <div className="flex-1 min-h-0 grid lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] xl:grid-cols-[minmax(0,30rem)_minmax(0,1fr)]">
+        <div className="flex-1 min-h-0 grid grid-rows-[minmax(0,1fr)] lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] xl:grid-cols-[minmax(0,30rem)_minmax(0,1fr)]">
           {/* The conversation */}
           <section className={`${pane === 'chat' ? 'flex' : 'hidden'} lg:flex flex-col min-h-0 lg:border-r border-slate-200`}>
             <div ref={scroller} className="flex-1 min-h-0 overflow-y-auto px-5 py-5 space-y-5" aria-live="polite">
@@ -416,7 +416,8 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
               )}
             </div>
 
-            <div className="px-4 pb-4 pt-2 border-t border-slate-100">
+            {/* The message box, held at the bottom while the conversation scrolls above it */}
+            <div className="shrink-0 px-4 pb-4 pt-2 border-t border-slate-100 bg-white">
               {credit?.billing && !working && !draft && (
                 <p className="pb-2 text-sm text-slate-500">
                   {(() => {
@@ -489,7 +490,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
           </section>
 
           {/* The test as the candidate will see it, updating as the conversation goes and editable in place */}
-          <section className={`${pane === 'draft' ? 'block' : 'hidden'} lg:block min-h-0 bg-slate-50/60`}>
+          <section className={`${pane === 'draft' ? 'block' : 'hidden'} lg:block min-h-0 overflow-hidden bg-slate-50/60`}>
             {draft ? (
               <DraftPreview
                 test={draft}
