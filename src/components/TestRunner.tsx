@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { AnswerRecord, answerRecords } from '../lib/submissions';
 import { BackButton } from './BackButton';
 import { AssessmentTest, Question, ResultBreakdown, timerOf } from '../types';
 import { breakdownFor } from '../lib/modules';
@@ -93,7 +94,8 @@ const ResizeHandle: React.FC<{ onPointerDown: (e: React.PointerEvent) => void; o
 interface TestRunnerProps {
   test: AssessmentTest;
   onClose: () => void;
-  onComplete: (testId: string, finalScore: number, durationSeconds: number, integrity?: IntegrityReport, breakdown?: ResultBreakdown) => void;
+  // answers: what the candidate wrote and how each was marked, kept for the company the test was taken for
+  onComplete: (testId: string, finalScore: number, durationSeconds: number, integrity?: IntegrityReport, breakdown?: ResultBreakdown, answers?: AnswerRecord[]) => void;
   getPercentileFor: (score: number) => number;
   // Tried out from the test builder: nothing is saved
   preview?: boolean;
@@ -136,6 +138,7 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
   // After the automatic checks, Vetter's AI takes a second look at code and written answers that fell short
   const [isAiMarking, setIsAiMarking] = useState(false);
   const [aiMarked, setAiMarked] = useState<Record<string, AiMark>>({});
+  const answersRef = useRef<AnswerRecord[] | undefined>(undefined);
   // The intro screen shows first; the clock and proctoring only begin once the candidate starts
   const [hasStarted, setHasStarted] = useState(false);
 
@@ -301,6 +304,7 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
     }
     const score = weightedScore(test, perQuestion);
     setAiMarked(marks);
+    answersRef.current = answerRecords(test, userCodesRef.current, perQuestion, feedback, graded.runs, marks);
     setQuestionScores(perQuestion);
     setQuestionFeedback(feedback);
     setFinalScore(score);
@@ -312,7 +316,7 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
   };
 
   const handleConfirmFinish = () => {
-    onComplete(test.id, finalScore, finalDuration, integrityRef.current, breakdown);
+    onComplete(test.id, finalScore, finalDuration, integrityRef.current, breakdown, answersRef.current);
   };
 
   // Signed and Begin pressed: the try counts from here, so it's recorded once, before the countdown

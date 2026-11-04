@@ -4,8 +4,9 @@ import { CandidateJobMatch, JobPosting, User } from '../types';
 import { rankCandidatesForJob } from '../lib/matchingAlgorithm';
 import { applicationProfileOf } from '../lib/jobProfiles';
 import { distanceMiles } from '../lib/geo';
-import { Award, CheckCircle2, ChevronDown, AlertTriangle, MinusCircle, ShieldAlert } from 'lucide-react';
+import { Award, CheckCircle2, ChevronDown, AlertTriangle, FileText, MinusCircle, ShieldAlert } from 'lucide-react';
 import { IntegrityBadge } from './IntegrityBadge';
+import { AnswersDialog } from './AnswersDialog';
 import { isAutoRejected, jobSittings } from '../lib/integrity';
 
 interface JobCandidatesProps {
@@ -97,6 +98,8 @@ export const JobCandidates: React.FC<JobCandidatesProps> = ({ job, allCandidates
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [shown, setShown] = useState(PAGE_SIZE);
   const [statuses, setStatuses] = useState<Record<string, string>>({});
+  // The candidate whose answers are open
+  const [answersFor, setAnswersFor] = useState<{ id: string; name: string } | null>(null);
 
   const people = new Map(allCandidates.map((c) => [c.id, c]));
   const hasApplied = (id: string) => !!people.get(id)?.appliedJobIds?.includes(job.id);
@@ -226,11 +229,20 @@ export const JobCandidates: React.FC<JobCandidatesProps> = ({ job, allCandidates
                     </ul>
 
                     {job.testIds.length > 0 && (
-                      <div className="flex items-center gap-1.5 text-[11px] text-slate-500 pt-1">
-                        <Award className="w-3.5 h-3.5 text-indigo-600" />
-                        <span>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] text-slate-500 pt-1">
+                        <span className="flex items-center gap-1.5">
+                          <Award className="w-3.5 h-3.5 text-indigo-600" />
                           {job.testIds.length} {job.testIds.length === 1 ? 'test' : 'tests'} for this job &middot; pass mark {job.testPassingScore}
                         </span>
+                        {person.testResults.some((r) => job.testIds.includes(r.testId)) && (
+                          <button
+                            onClick={() => setAnswersFor({ id: c.candidateId, name: c.candidateName })}
+                            className="px-2.5 py-1 rounded-lg border border-indigo-200 bg-white text-xs font-semibold text-indigo-700 hover:border-indigo-400 flex items-center gap-1.5"
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                            See their answers
+                          </button>
+                        )}
                       </div>
                     )}
 
@@ -268,6 +280,9 @@ export const JobCandidates: React.FC<JobCandidatesProps> = ({ job, allCandidates
 
   return (
     <div className="space-y-3">
+      {answersFor && job.businessId && (
+        <AnswersDialog businessId={job.businessId} candidateId={answersFor.id} candidateName={answersFor.name} testIds={job.testIds} onClose={() => setAnswersFor(null)} />
+      )}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h4 className="text-sm font-bold text-slate-900">Candidates</h4>

@@ -149,6 +149,17 @@ service cloud.firestore {
       allow delete: if isAdmin() || worksAt(resource.data.businessId);
     }
 
+    // What a candidate answered on a test taken for a company (src/lib/submissions.ts): the candidate, that company and
+    // the Vetter team can read it; nobody else, as the answers would give the test away. Written once, by the candidate
+    match /submissions/{submissionId} {
+      allow read: if signedIn() && (isAdmin() || worksAt(resource.data.businessId) || resource.data.candidateId == uid());
+      allow create: if signedIn() && request.resource.data.candidateId == uid()
+        && request.resource.data.id == submissionId
+        && request.resource.data.businessId is string && request.resource.data.businessId != ''
+        && request.resource.data.answers is list;
+      allow update, delete: if isAdmin();
+    }
+
     // A company's own tries at tests, seen only by its team and the Vetter team
     match /trials/{trialId} {
       allow read: if signedIn() && (isAdmin() || worksAt(resource.data.businessId));

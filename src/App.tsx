@@ -1,4 +1,5 @@
 import type { IntegrityReport } from './lib/integrity';
+import { AnswerRecord, saveSubmission } from './lib/submissions';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { User, UserRole, AssessmentTest, JobPosting, Business, SocialState, AppNotification, JobInvitation, Lead, TestDraft, TrialResult, ResultBreakdown, hasAiTests, madeWithAI } from './types';
 import { INITIAL_RECRUITER, INITIAL_BUSINESSES, STANDARD_ASSESSMENTS } from './data/mockData';
@@ -753,7 +754,7 @@ export default function App() {
   };
 
   // Complete a test in the runner
-  const handleCompleteTest = (testId: string, finalScore: number, durationSeconds: number, integrity?: IntegrityReport, breakdown?: ResultBreakdown) => {
+  const handleCompleteTest = (testId: string, finalScore: number, durationSeconds: number, integrity?: IntegrityReport, breakdown?: ResultBreakdown, answers?: AnswerRecord[]) => {
     const completedTest = tests.find((t) => t.id === testId);
     if (!completedTest) return;
 
@@ -774,6 +775,23 @@ export default function App() {
       ...(integrity && { integrity }),
       ...(breakdown && { breakdown }),
     });
+
+    // Taken for a company: it can read the answers behind the score, privately (src/lib/submissions.ts)
+    if (referredBy && answers?.length) {
+      const completedAt = new Date().toISOString();
+      saveSubmission({
+        id: `${testId}__${candidate.id}__${Date.now()}`,
+        candidateId: candidate.id,
+        candidateName: candidate.name,
+        businessId: referredBy,
+        ...(job && { jobId: job.id }),
+        testId,
+        testTitle: completedTest.title,
+        score: finalScore,
+        completedAt,
+        answers,
+      }).catch((err) => console.error("Couldn't keep the answers for the company", err));
+    }
 
     // A new score shifts everyone's standing on this test
     const everyone = withComputedPercentiles([updatedCandidate, ...otherCandidates]);

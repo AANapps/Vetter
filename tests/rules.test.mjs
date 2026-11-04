@@ -105,6 +105,12 @@ await check('records starting a test attempt', () => updateDoc(doc(db, 'jobs', '
 await check('records a second attempt and submitting the first', () => updateDoc(doc(db, 'jobs', 'job-1', 'invitations', cara), { attempts: [{ ...t1, finishedAt: '2026-11-02T09:30:00.000Z' }, t2] }), true);
 await check('cannot wipe an attempt she left unsubmitted', () => updateDoc(doc(db, 'jobs', 'job-1', 'invitations', cara), { attempts: [t1] }), false);
 await check('applies', () => C.apply(job, cara, undefined), true);
+const sub = { id: `test-1__${cara}__1`, candidateId: cara, candidateName: 'Cara B', businessId: 'acme.io', jobId: 'job-1', testId: 'test-1', testTitle: 'T', score: 80, completedAt: '2026-11-04T10:00:00.000Z', answers: [{ id: 'q1', answer: 'B' }] };
+await check('keeps her answers for Acme', () => setDoc(doc(db, 'submissions', sub.id), sub), true);
+await check('reads back her own answers', () => getDoc(doc(db, 'submissions', sub.id)), true);
+await check('cannot change her answers afterwards', () => updateDoc(doc(db, 'submissions', sub.id), { score: 100 }), false);
+await check('cannot keep answers as someone else', () => setDoc(doc(db, 'submissions', 'x'), { ...sub, id: 'x', candidateId: eve }), false);
+await check('cannot keep answers without a company', () => setDoc(doc(db, 'submissions', 'y'), { ...sub, id: 'y', businessId: '' }), false);
 console.log('    applicants:', (await getDoc(doc(db, 'jobs', 'job-1'))).data().applicantCount);
 await check('cannot add applicants without applying', () => updateDoc(doc(db, 'jobs', 'job-1'), { applicantCount: increment(1) }), false);
 await check('cannot edit the job', () => updateDoc(doc(db, 'jobs', 'job-1'), { title: 'Hacked' }), false);
@@ -121,6 +127,8 @@ await check('sees Cara\'s application', () => getDocs(query(collection(db, 'appl
 const caraLead = { id: `job-1__${cara}`, jobId: 'job-1', candidateId: cara, businessId: 'acme.io', stage: 'interview', note: 'Strong', updatedAt: '2026-10-31', history: [{ stage: 'interview', at: '2026-10-31' }] };
 await check('moves Cara to interview', () => setDoc(doc(db, 'leads', caraLead.id), caraLead), true);
 await check('sees her leads', () => getDocs(query(collection(db, 'leads'), where('businessId', '==', 'acme.io'))), true);
+await check('reads Cara\'s answers on Acme\'s test', async () => { const s = await getDocs(query(collection(db, 'submissions'), where('businessId', '==', 'acme.io'), where('candidateId', '==', cara))); if (s.size !== 1) throw new Error(`${s.size}`); }, true);
+await check('cannot change Cara\'s answers', () => updateDoc(doc(db, 'submissions', `test-1__${cara}__1`), { score: 10 }), false);
 await check('cannot file a lead under another company', () => setDoc(doc(db, 'leads', caraLead.id), { ...caraLead, businessId: 'evil.com' }), false);
 await check('cannot use a stage that does not exist', () => setDoc(doc(db, 'leads', caraLead.id), { ...caraLead, stage: 'secret' }), false);
 const draft = { id: 'draft-1', businessId: 'acme.io', test: { id: 'draft-1', title: 'Draft', questions: [] }, updatedAt: '2026-11-01' };
@@ -141,6 +149,8 @@ await check('cannot see Acme\'s applications', () => getDocs(query(collection(db
 await check('cannot see Acme\'s leads', () => getDocs(query(collection(db, 'leads'), where('businessId', '==', 'acme.io'))), false);
 await check('cannot move Acme\'s leads', () => setDoc(doc(db, 'leads', caraLead.id), { ...caraLead, stage: 'archived' }), false);
 await check('cannot see Acme\'s drafts', () => getDocs(query(collection(db, 'testDrafts'), where('businessId', '==', 'acme.io'))), false);
+await check('cannot read Cara\'s answers on Acme\'s test', () => getDocs(query(collection(db, 'submissions'), where('businessId', '==', 'acme.io'), where('candidateId', '==', cara))), false);
+await check('cannot read them by id either', () => getDoc(doc(db, 'submissions', `test-1__${cara}__1`)), false);
 await check('cannot delete Acme\'s draft', () => deleteDoc(doc(db, 'testDrafts', 'draft-1')), false);
 await check('cannot edit Acme\'s job', () => updateDoc(doc(db, 'jobs', 'job-1'), { title: 'Hacked' }), false);
 await check('cannot edit Acme\'s test', () => updateDoc(doc(db, 'tests', 'test-custom-1'), { title: 'Hacked' }), false);
