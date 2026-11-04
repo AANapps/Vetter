@@ -455,6 +455,8 @@ export interface TestDraft {
   businessId: string;
   // The job it was being written for, if any
   jobId?: string;
+  // When it holds unsaved changes to a test already saved, that test's id; saving it updates that test
+  editsTestId?: string;
   test: AssessmentTest;
   // The conversation with Vetter's AI it came from, to carry on where it left off; none if written by hand
   messages?: { role: 'user' | 'assistant'; text: string; note?: string }[];

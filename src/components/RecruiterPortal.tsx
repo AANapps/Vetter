@@ -512,7 +512,7 @@ const DraftCard: React.FC<{
             <button onClick={onContinue ?? onEdit} className="text-sm font-bold text-slate-900 hover:text-indigo-700 truncate text-left" title="Reopen this draft">
               {t.title}
             </button>
-            <span className="shrink-0 px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 text-[10px] font-semibold">Draft</span>
+            <span className="shrink-0 px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 text-[10px] font-semibold">{draft.editsTestId ? 'Unsaved changes' : 'Draft'}</span>
           </div>
           <p className="text-[11px] text-slate-500">
             {t.questions.length} {t.questions.length === 1 ? 'question' : 'questions'} &middot; ~{minutes} min &middot; {t.difficulty}

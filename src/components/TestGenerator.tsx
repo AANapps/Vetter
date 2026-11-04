@@ -17,6 +17,10 @@ interface TestGeneratorProps {
   // Saves the new test as it is and returns its id
   onSaveTest: (test: AssessmentTest) => string;
   onAddToJob: (jobId: string, testIds: string[]) => void;
+  // A saved test to change by asking Vetter: the chat starts from it, and saving updates it in place
+  editing?: AssessmentTest;
+  // Saves the changed test over the one being edited
+  onUpdateTest: (test: AssessmentTest) => void;
   // Opens the new test in the builder first, with the library tests to add once it's saved
   // with the conversation so far, so saving a draft from the builder keeps it
   onEditDraft: (draft: AssessmentTest, alsoAdd: string[], record: TestDraft) => void;
@@ -45,8 +49,12 @@ const PICKABLE: QuestionType[] = ['choice', 'multi', 'text', 'written', 'order',
 const PICKABLE_STYLES = PICKABLE.map((type) => QUESTION_STYLES.find((s) => s.type === type)!).filter(Boolean);
 
 // Build a test by talking to Vetter: describe the job, get a draft, then ask for changes until it's right
-export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tests, onOpenTest, onSaveTest, onAddToJob, onEditDraft, onSaveDraft, resume, seed, autoSend, onClose }) => {
-  const greeting = job
+export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tests, onOpenTest, onSaveTest, onAddToJob, editing, onUpdateTest, onEditDraft, onSaveDraft, resume, seed, autoSend, onClose }) => {
+  // The saved test being changed, opened from its job or from a draft of changes to it
+  const [original] = useState(() => editing ?? (resume?.editsTestId ? tests.find((t) => t.id === resume.editsTestId) : undefined));
+  const greeting = original
+    ? `This is "${original.title}" as it stands. Tell me what to change: harder or easier, shorter, a different tool, rewrite question 3, add a case study. Keep asking until it's right, then save the changes.`
+    : job
     ? `I've read the ${job.title} job description. Tell me what matters most in this hire, or just ask me to write a first draft and we'll refine it together.`
     : `Tell me about the role or the test you want: what the person does day to day, the tools they use and the level. I'll write a first draft and we'll refine it together.`;
   const [chat, setChat] = useState<ChatState>(() =>
@@ -61,7 +69,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
           research: resume.research,
           researchedFor: resume.researchedFor,
         }
-      : { messages: [{ role: 'assistant', text: greeting }], existing: [] }
+      : { messages: [{ role: 'assistant', text: greeting }], existing: [], ...(original && { draft: original }) }
   );
   // What's been saved, to tell whether closing loses anything
   const [savedChat] = useState(() => chat);
@@ -83,18 +91,33 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
 
   const draft = chat.draft;
   const started = chat.messages.some((m) => m.role === 'user');
-  const ctx = { job: job ? jobBrief(job) : undefined, jobTitle: job?.title, level: levelFor(job), wantExisting: !!job, tests, business, styles };
+  // Changing a saved test doesn't pick library tests to go with it
+  const ctx = { job: job ? jobBrief(job) : undefined, jobTitle: job?.title, level: original?.difficulty ?? levelFor(job), wantExisting: !!job && !original, tests, business, styles };
   // At least one type stays on
   const toggleStyle = (type: QuestionType) => setStyles((prev) => (prev.includes(type) ? (prev.length > 1 ? prev.filter((t) => t !== type) : prev) : PICKABLE.filter((t) => t === type || prev.includes(t))));
   // Questions in the draft of a type since turned off
   const offTypes = [...new Set((draft?.questions ?? []).filter((q) => !styles.includes(q.type)).map((q) => q.type))];
+
+  // The changed test in the place of the one being edited: same id, owner and level family, so its jobs keep it
+  const asSaved = (test: AssessmentTest): AssessmentTest =>
+    original
+      ? {
+          ...original,
+          ...test,
+          id: original.id,
+          type: original.type,
+          ...(original.familyId && { familyId: original.familyId }),
+          ...(original.businessId && { businessId: original.businessId, companyName: original.companyName }),
+        }
+      : test;
 
   // The test and conversation as a draft to come back to
   const record = (test: AssessmentTest): TestDraft => ({
     id: draftId,
     businessId: business?.id ?? '',
     ...(job && { jobId: job.id }),
-    test,
+    ...(original && { editsTestId: original.id }),
+    test: original ? asSaved(test) : test,
     messages: chat.messages,
     existing: chat.existing.map((s) => ({ testId: s.test.id, reason: s.reason })),
     ...(chat.research !== undefined && { research: chat.research, researchedFor: chat.researchedFor }),
@@ -111,7 +134,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
 
   const close = () => {
     if (working) return;
-    if (draft && chat !== savedChat && !window.confirm('Close without saving? Use Save draft to keep this test and come back to it.')) return;
+    if (draft && chat !== savedChat && !window.confirm(original ? 'Close without saving your changes? Use Save draft to keep them and come back to them.' : 'Close without saving? Use Save draft to keep this test and come back to it.')) return;
     onClose();
   };
 
@@ -155,7 +178,9 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const suggestions = !started
+  const suggestions = original && !started
+    ? ['Make it harder', 'Make it shorter', 'Add a hands-on task in the software', 'Rewrite the weakest question']
+    : !started
     ? job
       ? ['Write a first draft', 'Focus on the hands-on tools they use', 'Keep it under 20 minutes']
       : ['A junior accounts assistant using Excel and Xero', 'A customer support agent in Zendesk', 'A junior data analyst who writes SQL']
@@ -169,6 +194,11 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
   const addCount = chosen.length + (draft && keepNew ? 1 : 0);
   const finish = () => {
     if (unfinished) return;
+    if (original) {
+      if (draft) onUpdateTest(asSaved(finaliseDraft(draft)));
+      onClose();
+      return;
+    }
     const ids = [...chosen];
     if (draft && keepNew) ids.push(onSaveTest(finaliseDraft(draft)));
     if (job && ids.length) onAddToJob(job.id, ids);
@@ -181,7 +211,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
         <div className="px-5 pt-4 pb-3 border-b border-slate-200 flex items-start justify-between gap-4">
           <div className="min-w-0">
             <h2 className="text-xl font-bold text-slate-900">
-              Build a test with Vetter
+              {original ? `Edit ${original.title}` : 'Build a test with Vetter'}
             </h2>
             <p className="text-sm text-slate-500 truncate">{job ? `${job.title} · ${job.companyName}` : business ? `For ${business.name}'s jobs` : 'For the Vetter test library'}</p>
           </div>
@@ -309,9 +339,9 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                 onChange={editDraft}
                 locked={working}
                 flash={flash}
-                onOpenBuilder={() => (onEditDraft(finaliseDraft(draft), chosen, record(draft)), onClose())}
+                onOpenBuilder={() => (onEditDraft(asSaved(finaliseDraft(draft)), chosen, record(draft)), onClose())}
                 toolbarExtra={
-                  job && chat.existing.length > 0 ? (
+                  job && !original && chat.existing.length > 0 ? (
                     <Dropdown
                       label={
                         <>
@@ -353,7 +383,17 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
           >
             {savingDraft ? 'Saving…' : 'Save draft'}
           </button>
-          {job ? (
+          {original ? (
+            <button
+              onClick={finish}
+              disabled={!draft || chat.draft === original || working || unfinished > 0}
+              title={unfinished ? 'Finish the questions marked under Structure first' : undefined}
+              className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 rounded-lg flex items-center gap-1.5"
+            >
+              <Check className="w-4 h-4" />
+              Save changes
+            </button>
+          ) : job ? (
             <button
               onClick={finish}
               disabled={addCount === 0 || working || unfinished > 0}

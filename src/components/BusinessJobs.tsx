@@ -51,6 +51,8 @@ interface BusinessJobsProps {
   onEditTests: (jobId: string) => void;
   // Vetter's AI suggests library tests for the job and writes a new one
   onSuggestTests: (jobId: string) => void;
+  // Reopens one of the company's own tests in the chat with Vetter, to change it by asking
+  onEditTestWithAI: (jobId: string, testId: string) => void;
   onUpdateJobRequirements: (jobId: string, requirements: JobPosting['requirements']) => void;
   onEmail: (jobId: string, emails: string[]) => void;
   onInvite: (jobId: string, candidateIds: string[]) => void;
@@ -363,6 +365,7 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
   onSelect,
   onEditTests,
   onSuggestTests,
+  onEditTestWithAI,
   onUpdateJobRequirements,
   onEmail,
   onInvite,
@@ -467,15 +470,32 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
           </p>
         ) : (
           <div className="flex flex-wrap items-center gap-2">
-            {jobTests.map((t, i) => (
-              <button
-                key={t.id}
-                onClick={() => onOpenTest(t.id)}
-                className="text-xs px-2.5 py-1 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 rounded-full text-slate-700"
-              >
-                {i + 1}. {versionTitle(t)}
-              </button>
-            ))}
+            {jobTests.map((t, i) =>
+              // The company's own tests can be changed by asking Vetter; library tests are shared, so they stay as they are
+              t.type === 'custom' && t.businessId === job.businessId ? (
+                <span key={t.id} className="inline-flex items-stretch text-xs bg-slate-50 border border-slate-200 rounded-full text-slate-700 overflow-hidden">
+                  <button onClick={() => onOpenTest(t.id)} className="pl-2.5 pr-2 py-1 hover:bg-indigo-50 hover:text-indigo-800">
+                    {i + 1}. {versionTitle(t)}
+                  </button>
+                  <button
+                    onClick={() => onEditTestWithAI(job.id, t.id)}
+                    title="Change this test by asking Vetter"
+                    className="pl-2 pr-2.5 py-1 border-l border-slate-200 font-semibold text-indigo-700 hover:bg-indigo-50 hover:text-indigo-900 flex items-center gap-1"
+                  >
+                    <Pencil className="w-3 h-3" />
+                    Edit
+                  </button>
+                </span>
+              ) : (
+                <button
+                  key={t.id}
+                  onClick={() => onOpenTest(t.id)}
+                  className="text-xs px-2.5 py-1 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 rounded-full text-slate-700"
+                >
+                  {i + 1}. {versionTitle(t)}
+                </button>
+              )
+            )}
             <span className="text-xs text-slate-500">
               &middot; ~{totalMinutes(job, tests)} min &middot; pass mark {job.testPassingScore}
               {jobTests.length > 1 ? ' average' : ''} &middot; {job.testsRequired ? 'required to apply' : 'optional'}
