@@ -1,5 +1,5 @@
 import type { IntegrityReport } from './lib/integrity';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { User, UserRole, AssessmentTest, JobPosting, Business, SocialState, AppNotification, JobInvitation, Lead, TestDraft, TrialResult, ResultBreakdown, hasAiTests } from './types';
 import { INITIAL_RECRUITER, INITIAL_BUSINESSES, STANDARD_ASSESSMENTS } from './data/mockData';
 import { loadData, saveData, clearData, createSeedData } from './lib/store';
@@ -335,6 +335,10 @@ export default function App() {
     if (url !== here) history[replace ? 'replaceState' : 'pushState'](null, '', url);
     syncPagesFromUrl();
   };
+  // A new page starts at the top, however it was reached: a link, a tab, back or forward
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0);
+  }, [currentTab, testPageId, jobPageId, coursePageId, selectedJobId]);
   useEffect(() => {
     window.addEventListener('hashchange', syncPagesFromUrl);
     window.addEventListener('popstate', syncPagesFromUrl);
