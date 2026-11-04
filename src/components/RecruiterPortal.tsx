@@ -100,28 +100,28 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   for (const t of vetterTests) rolesByCategory.set(t.category, [...new Set([...(rolesByCategory.get(t.category) ?? []), ...(t.roles ?? [])])]);
   const rolesOf = (t: AssessmentTest): TestRole[] => (t.roles?.length ? t.roles : rolesByCategory.get(t.category) ?? []);
   const inField = (t: AssessmentTest, roles: TestRole[]) => rolesOf(t).some((r) => roles.includes(r));
-  // The industry a test is listed under when nothing's picked: the first it belongs to, so it shows once
-  const industryOf = (t: AssessmentTest) => ROLE_GROUPS.find((g) => inField(t, g.roles))?.industry ?? 'Other';
   const sourced = allTests.filter((t) => inSource(t, testSource));
   const tq = testQuery.trim().toLowerCase();
   const grouped = !testField && !tq;
-  const industryRank = (t: AssessmentTest) => {
-    const i = ROLE_GROUPS.findIndex((g) => g.industry === industryOf(t));
-    return i < 0 ? ROLE_GROUPS.length : i;
-  };
   // Tests on the company's jobs first, then its own, then the library
   const shownTests = sourced
     .filter((t) => !testField || inField(t, testField.roles))
     .filter((t) => !tq || `${t.title} ${t.category} ${t.skillsTested.join(' ')}`.toLowerCase().includes(tq))
     .sort(
       (a, b) =>
-        // Split under industry headings: in the menu's order, Other last
-        (grouped ? industryRank(a) - industryRank(b) : 0) ||
         Number(usedByOf(b).length > 0) - Number(usedByOf(a).length > 0) ||
         Number(b.type === 'custom') - Number(a.type === 'custom') ||
         a.category.localeCompare(b.category) ||
         a.title.localeCompare(b.title)
     );
+  // With nothing picked, the list is split under each industry's heading, in the menu's order; a test for roles in two
+  // industries is under both, so each heading's count matches the menu's. Tests for no listed role go last
+  const sections: { heading: string | null; tests: AssessmentTest[] }[] = grouped
+    ? [
+        ...ROLE_GROUPS.map((g) => ({ heading: g.industry, tests: shownTests.filter((t) => inField(t, g.roles)) })),
+        { heading: 'Other', tests: shownTests.filter((t) => !ROLE_GROUPS.some((g) => inField(t, g.roles))) },
+      ].filter((sec) => sec.tests.length > 0)
+    : [{ heading: null, tests: shownTests }];
   // The Candidates tab: the leads pipeline, or everyone on Vetter ranked for a job
   const [candidatesView, setCandidatesView] = useState<'leads' | 'ranked'>(leads ? 'leads' : 'ranked');
   const showRanked = section === 'candidates' && (candidatesView === 'ranked' || !leads);
@@ -427,35 +427,33 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
               </p>
             ) : (
               <ul className="divide-y divide-slate-100">
-                {shownTests.flatMap((t, i) => {
-                  const own = t.type === 'custom';
-                  // Without a role picked, the list is split under each industry's heading
-                  const heading = grouped ? industryOf(t) : null;
-                  const first = heading && shownTests.findIndex((o) => industryOf(o) === heading) === i;
-                  const row = (
-                    <TestRow
-                      key={t.id}
-                      test={t}
-                      own={own}
-                      usedBy={usedByOf(t)}
-                      ranked={getTestStats(t, allCandidates).candidatesRanked}
-                      onOpen={() => onOpenTest(t.id)}
-                      onEdit={own ? () => onEditOwnTest(t.id) : isVetter ? editFor(t) : undefined}
-                      // The Vetter team can delete library tests written in the builder; the built-in ones stay
-                      onDelete={own ? () => deleteTest(t) : isVetter && isEditable(t) ? () => deleteTest(t) : undefined}
-                      onDeepen={isVetter ? () => onGenerateTest(deepenSeed(t)) : undefined}
-                    />
-                  );
-                  return first
+                {sections.flatMap(({ heading, tests: inSection }) => [
+                  ...(heading
                     ? [
                         <li key={`h-${heading}`} className="px-5 pt-5 pb-2 bg-slate-50/70 flex items-baseline justify-between gap-3">
                           <h3 className="text-[11px] font-mono uppercase tracking-wider font-semibold text-slate-500">{heading}</h3>
-                          <span className="text-[11px] font-mono text-slate-400 tabular-nums">{shownTests.filter((o) => industryOf(o) === heading).length}</span>
+                          <span className="text-[11px] font-mono text-slate-400 tabular-nums">{inSection.length}</span>
                         </li>,
-                        row,
                       ]
-                    : [row];
-                })}
+                    : []),
+                  ...inSection.map((t) => {
+                    const own = t.type === 'custom';
+                    return (
+                      <TestRow
+                        key={`${heading ?? ''}-${t.id}`}
+                        test={t}
+                        own={own}
+                        usedBy={usedByOf(t)}
+                        ranked={getTestStats(t, allCandidates).candidatesRanked}
+                        onOpen={() => onOpenTest(t.id)}
+                        onEdit={own ? () => onEditOwnTest(t.id) : isVetter ? editFor(t) : undefined}
+                        // The Vetter team can delete library tests written in the builder; the built-in ones stay
+                        onDelete={own ? () => deleteTest(t) : isVetter && isEditable(t) ? () => deleteTest(t) : undefined}
+                        onDeepen={isVetter ? () => onGenerateTest(deepenSeed(t)) : undefined}
+                      />
+                    );
+                  }),
+                ])}
               </ul>
             )}
           </div>
