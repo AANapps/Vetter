@@ -6,6 +6,8 @@ import { DraftPreview, Dropdown, draftProblems, finaliseDraft } from './DraftPre
 import { jobBrief } from '../lib/testGeneration';
 import { ChatState, sendChat } from '../lib/testChat';
 import { versionTitle } from '../lib/testLevels';
+import { Credit, loadCredit, pounds } from '../lib/aiRequest';
+import { CreditsDialog } from './CreditsDialog';
 
 interface TestGeneratorProps {
   // The job the tests are for; without one, Vetter only writes a test
@@ -87,6 +89,20 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
   );
   const [questionCount, setQuestionCount] = useState<number | undefined>(() => resume?.questionCount ?? (original ? countOf(original) : undefined));
   const [difficulty, setDifficulty] = useState<TestDifficulty | undefined>(() => resume?.difficulty ?? resume?.test.difficulty ?? original?.difficulty);
+  // The company's AI credit, shown in the header; nothing shows when the site doesn't charge
+  const [credit, setCredit] = useState<Credit | null>(null);
+  const [topUpOpen, setTopUpOpen] = useState(false);
+  useEffect(() => {
+    loadCredit().then((c) => !c.error && setCredit(c));
+  }, []);
+  // Closing the top-up: with credit added after running out, the message that ran out is sent again
+  const closeTopUp = () => {
+    setTopUpOpen(false);
+    const last = chat.messages[chat.messages.length - 1];
+    const asked = chat.messages[chat.messages.length - 2];
+    if (last?.needsCredit && asked?.role === 'user' && (credit?.balance ?? 0) > 0) send(asked.text, true);
+  };
+
   // The app task open on the right, which the next message is about unless the company sets it aside
   const [viewing, setViewing] = useState<{ id: string; label: string; app: string } | undefined>();
   const [aboutWhole, setAboutWhole] = useState(false);
@@ -178,6 +194,8 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
     }
     setWorking(false);
     box.current?.focus();
+    // The balance after what that turn used
+    loadCredit().then((c) => !c.error && setCredit(c));
   };
 
   // Once only, even if React mounts the chat twice
@@ -235,9 +253,22 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
             </h2>
             <p className="text-sm text-slate-500 truncate">{job ? `${job.title} · ${job.companyName}` : business ? `For ${business.name}'s jobs` : 'For the Vetter test library'}</p>
           </div>
-          <button onClick={close} disabled={working} aria-label="Close" className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-40">
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-3 shrink-0">
+            {credit?.billing && credit.balance !== undefined && (
+              <button
+                onClick={() => setTopUpOpen(true)}
+                title="Your AI credit: top up any time"
+                className="px-3 py-1 rounded-full border border-slate-200 hover:border-indigo-400 text-sm text-slate-700 flex items-center gap-1.5"
+              >
+                <span className="text-slate-500">Credit</span>
+                <span className="font-semibold tabular-nums">{pounds(credit.balance)}</span>
+                <span className="text-indigo-700 font-semibold">Top up</span>
+              </button>
+            )}
+            <button onClick={close} disabled={working} aria-label="Close" className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-40">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* What Vetter may write: picked before it starts, locked while it works, changeable once it's done */}
@@ -316,11 +347,13 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                       <div className="px-4 py-2.5 rounded-3xl rounded-tl-lg bg-slate-100 text-slate-800 text-base leading-[1.65] whitespace-pre-wrap">{m.text}</div>
                       {m.failed && i === chat.messages.length - 1 && !working && chat.messages[i - 1]?.role === 'user' && (
                         <button
-                          onClick={() => send(chat.messages[i - 1].text, true)}
+                          onClick={() => (m.needsCredit ? setTopUpOpen(true) : send(chat.messages[i - 1].text, true))}
                           disabled={!ready}
-                          className="mt-1.5 px-3 py-1 rounded-full border border-indigo-300 text-sm font-semibold text-indigo-700 hover:bg-indigo-50 disabled:opacity-40"
+                          className={`mt-1.5 px-3 py-1 rounded-full text-sm font-semibold disabled:opacity-40 ${
+                            m.needsCredit ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'border border-indigo-300 text-indigo-700 hover:bg-indigo-50'
+                          }`}
                         >
-                          Try again
+                          {m.needsCredit ? 'Top up and carry on' : 'Try again'}
                         </button>
                       )}
                       {m.note && (
@@ -484,6 +517,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
           )}
         </div>
       </div>
+      {topUpOpen && credit && <CreditsDialog credit={credit} onUpdated={setCredit} onClose={closeTopUp} />}
     </div>
   );
 };

@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { meter } from './meter.js';
 import { APP_PAGE_RULES, PRICES, apiFailure } from './generateTest.js';
 
 /**
@@ -99,6 +100,7 @@ export async function buildApp(body: unknown, apiKey: string | undefined, model:
         ],
       })
       .finalMessage();
+    meter(model, message.usage);
 
     const price = PRICES[model];
     const { input_tokens, output_tokens } = message.usage;

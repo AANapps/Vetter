@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { meter } from './meter.js';
 
 /**
  * Second marking for answers the automatic checks didn't give full marks: Claude judges how close the candidate
@@ -110,6 +111,7 @@ export async function gradeAnswers(body: unknown, apiKey: string | undefined, mo
         messages: [{ role: 'user', content: `Mark these answers.\n\n${content}` }],
       })
       .finalMessage();
+    meter(model, message.usage);
 
     const price = PRICES[model];
     const { input_tokens, output_tokens } = message.usage;

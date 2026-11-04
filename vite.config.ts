@@ -34,7 +34,7 @@ export default defineConfig(({mode}) => {
                 } catch {
                   // Answered as a bad request
                 }
-                const {status, json} = await handle(body, env);
+                const {status, json} = await handle(body, env, {authorization: req.headers.authorization, origin: req.headers.origin});
                 res.statusCode = status;
                 res.setHeader('Content-Type', 'application/json');
                 res.end(JSON.stringify(json));

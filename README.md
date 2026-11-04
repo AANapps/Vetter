@@ -42,6 +42,25 @@ answers `/api/generate-test`, which companies use to have Vetter suggest tests f
   putting together the best-fitting questions from its own tests. With it, the new test's questions are written fresh.
 - `npm run dev` answers the same endpoint, using the same settings.
 
+### Companies paying for AI with credit
+
+Set `STRIPE_SECRET_KEY` (a Stripe secret key: `sk_test_...` to try it, `sk_live_...` for real money) and companies
+pay for writing and changing tests with credit they buy in advance. Without it, nothing is charged.
+
+- Each company's balance is the credit on its own Stripe customer (made automatically, found by `metadata.companyId`),
+  so only the server can change it. Customers, top-ups and every charge show in the Stripe dashboard.
+- Every AI request that writes or changes a test is charged what it really cost in Claude usage, times
+  `CREDIT_MARKUP` (default `2`), converted to pence. It needs at least 10p left to start. Browsing the home chat and
+  marking candidates' answers are free to the company.
+- Companies buy £10, £25 or £50 packs in the test creator (Credit · Top up). Stripe Checkout opens in a new tab so
+  their test and conversation stay open; the credit shows as soon as it's paid, and the message that ran out is sent
+  again. No webhook is needed: paid sessions are credited when the tab returns, and on any later balance check.
+- The Vetter team (admin accounts) is never charged.
+- Sign-ins are checked on the server with the Firebase project id (`VITE_FIREBASE_PROJECT_ID`, or `FIREBASE_PROJECT_ID`).
+- Set `SITE_URL` so Stripe sends people back to the right address.
+- Keep the Anthropic account topped up (turn on auto-reload in the Anthropic Console): companies' credit pays you,
+  but every request still runs on Vetter's own Anthropic balance.
+
 ## Putting it online (with AI test creation)
 
 The site needs a host that runs `server.js`; static hosts (GitHub Pages, Netlify, AI Studio's preview) can't run

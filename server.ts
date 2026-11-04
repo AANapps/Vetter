@@ -19,7 +19,7 @@ app.use(express.json({ limit: '300kb' }));
 
 for (const [route, handle] of Object.entries(API_ROUTES)) {
   app.post(route, async (req, res) => {
-    const { status, json } = await handle(req.body, process.env);
+    const { status, json } = await handle(req.body, process.env, { authorization: req.headers.authorization, origin: req.headers.origin });
     res.status(status).json(json);
   });
 }

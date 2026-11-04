@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { meter } from './meter.js';
 
 /**
  * Writes a test from a prompt or job description with Claude, and picks tests from the library that fit.
@@ -284,11 +285,8 @@ ${req.library.map((t) => `- ${t.id}: ${t.title} (${t.category}, ${t.difficulty};
 }
 
 // Dollars per million tokens for the model used, to log what each test costs
-export const PRICES: Record<string, { input: number; output: number }> = {
-  'claude-opus-5-5': { input: 4, output: 20 },
-  'claude-sonnet-5-5': { input: 2, output: 10 },
-  'claude-haiku-5-5': { input: 0.1, output: 0.5 },
-};
+import { PRICES } from './meter.js';
+export { PRICES };
 
 // Researches the software the job uses, for app simulations to copy: plain notes, or empty when no product is named.
 // Web search runs on Anthropic's side; a long search pauses the turn, which is resumed a few times at most
@@ -323,6 +321,7 @@ Only facts you found or can be confident of. Under 900 words. No preamble.`,
         messages,
       })
       .finalMessage();
+    meter(model, message.usage);
     if (message.stop_reason === 'pause_turn') {
       messages.push({ role: 'assistant', content: message.content });
       continue;
@@ -360,6 +359,7 @@ export async function generateTest(body: unknown, apiKey: string | undefined, mo
         messages: [{ role: 'user', content: `The job or test the company described:\n\n${req.prompt.slice(0, MAX_PROMPT)}` }],
       })
       .finalMessage();
+    meter(model, message.usage);
 
     const price = PRICES[model];
     const { input_tokens, output_tokens } = message.usage;

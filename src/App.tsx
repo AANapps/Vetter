@@ -23,6 +23,7 @@ import { PersonProfileModal } from './components/PersonProfileModal';
 import { BusinessJobs } from './components/BusinessJobs';
 import { JobTestsEditor } from './components/JobTestsEditor';
 import { TestGenerator } from './components/TestGenerator';
+import { confirmTopUp, pounds } from './lib/aiRequest';
 import { TestPlan, TestPlanDialog } from './components/TestPlanDialog';
 import { JobForm } from './components/JobForm';
 import { CustomIdea } from './lib/testAdvisor';
@@ -557,10 +558,32 @@ export default function App() {
   const startTest = (test: AssessmentTest) =>
     activeRole !== 'candidate' ? setTrialTest({ test }) : requireAccount('Create a free account to take this test and get a verified score.', () => setActiveTest(test));
 
-  const showToast = (message: string) => {
+  const showToast = (message: string, ms = 4000) => {
     setToast(message);
-    setTimeout(() => setToast(null), 4000);
+    setTimeout(() => setToast(null), ms);
   };
+
+  // Back from paying for AI credit (Stripe opened in its own tab): the payment is confirmed and credited, and the
+  // company told it can go back to the tab it was working in. Once signed in, since the credit is the company's
+  const creditReturn = useRef(new URLSearchParams(window.location.search));
+  useEffect(() => {
+    const params = creditReturn.current;
+    const status = params.get('credits');
+    if (!status || (firebaseEnabled && !user)) return;
+    creditReturn.current = new URLSearchParams();
+    const url = new URL(window.location.href);
+    url.searchParams.delete('credits');
+    url.searchParams.delete('session_id');
+    window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
+    const sessionId = params.get('session_id');
+    if (status !== 'paid' || !sessionId) return showToast('Payment cancelled. Nothing was charged.');
+    confirmTopUp(sessionId).then((c) =>
+      showToast(
+        c.error ? c.error : c.added ? `${pounds(c.added)} of AI credit added. Close this tab and carry on where you were.` : "Your payment is still going through. It'll show in a minute.",
+        10000
+      )
+    );
+  }, [user?.uid]);
 
   const goToTab = (tab: AppTab, replace = false) => {
     const path = TAB_PATHS[tab];

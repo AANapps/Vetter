@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { meter } from './meter.js';
 import { PRICES, apiFailure } from './generateTest.js';
 
 /**
@@ -75,6 +76,7 @@ export async function testAdvisor(body: unknown, apiKey: string | undefined, mod
       system: [{ type: 'text', text: instructions(req), cache_control: { type: 'ephemeral' } }],
       messages: req.messages.slice(-MAX_TURNS).map((m) => ({ role: m.role, content: String(m.text).slice(0, MAX_TEXT) })),
     });
+    meter(model, message.usage);
     if (message.stop_reason === 'refusal') return { status: 422, json: { error: 'Vetter couldn’t help with that. Try describing the role differently.' } };
     const price = PRICES[model];
     const { input_tokens, output_tokens } = message.usage;

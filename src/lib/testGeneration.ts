@@ -9,6 +9,7 @@ import { probeApp } from './appSimulation';
 import { checkSheet, parseAddr, cellAddr, setCells, shiftFormula, workbookStarter, parseWorkbook } from './spreadsheet';
 import { databaseStarter } from './databaseWork';
 import { openTaskDatabase, queryRows } from './sqlEngine';
+import { aiFetch } from './aiRequest';
 
 // Asking Vetter for a job's tests: library tests that fit, and a new test written for it (by the server's AI).
 // Everything the AI returns is checked here: unknown tests dropped, coding and SQL answers run, broken questions removed.
@@ -386,16 +387,12 @@ export async function generateTests(opts: GenerationOptions, tests: AssessmentTe
   let body: { existing?: { testId: string; reason: string }[]; test?: Record<string, any>; error?: string } = {};
   let failure: string | undefined;
   try {
-    const res = await fetch('/api/generate-test', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...opts,
-        library: library.map((t) => ({ id: t.id, title: t.title, category: t.category, difficulty: t.difficulty, skills: t.skillsTested, roles: t.roles ?? [], description: t.description })),
-        roles: ALL_ROLES,
-        categories: CATEGORIES,
-        tables: Object.values(MOCK_DATABASE).map((t) => ({ name: t.name, columns: t.columns })),
-      }),
+    const res = await aiFetch('/api/generate-test', {
+      ...opts,
+      library: library.map((t) => ({ id: t.id, title: t.title, category: t.category, difficulty: t.difficulty, skills: t.skillsTested, roles: t.roles ?? [], description: t.description })),
+      roles: ALL_ROLES,
+      categories: CATEGORIES,
+      tables: Object.values(MOCK_DATABASE).map((t) => ({ name: t.name, columns: t.columns })),
     });
     body = await res.json().catch(() => ({}));
     // No endpoint at all (a static host) is the same as the AI not being set up

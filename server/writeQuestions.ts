@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { meter } from './meter.js';
 import { MAX_PROMPT, PRICES, apiFailure, questionSchema } from './generateTest.js';
 import { GuideRequest, styleGuide } from './testChat.js';
 
@@ -78,6 +79,7 @@ export async function writeQuestions(body: unknown, apiKey: string | undefined, 
         messages: [{ role: 'user', content }],
       })
       .finalMessage();
+    meter(model, message.usage);
     const price = PRICES[model];
     const { input_tokens, output_tokens } = message.usage;
     if (price) console.log(`[write-questions] ${req.write.length} items, ${input_tokens} in, ${output_tokens} out: $${((input_tokens * price.input + output_tokens * price.output) / 1e6).toFixed(3)}`);

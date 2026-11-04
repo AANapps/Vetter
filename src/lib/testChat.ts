@@ -2,6 +2,7 @@ import { AssessmentTest, BlueprintItem, Business, Question, QuestionType, SkillC
 import { MOCK_DATABASE } from './sqlEngine';
 import { probeApp } from './appSimulation';
 import { isGroupType, orderedQuestions } from './questionTypes';
+import { aiFetch } from './aiRequest';
 import { ALL_ROLES, CATEGORIES, RawQuestion, Suggestion, assembleFromBank, checkQuestion, libraryFor, linkTasks, matchExisting } from './testGeneration';
 
 // Building a test by talking to Vetter (server/testChat.ts does the AI side). Each turn sends the conversation and the
@@ -14,6 +15,8 @@ export interface ChatMessage {
   note?: string;
   // The turn failed (the AI was unavailable or errored), so it can be sent again as it was
   failed?: boolean;
+  // It failed because the company's AI credit ran out: topping up lets it carry on
+  needsCredit?: boolean;
 }
 
 export interface ChatState {
@@ -86,11 +89,7 @@ type RawTest = Record<string, any> & { questions?: RawQuestion[] };
 // list to fix
 async function buildAppPage(item: RawQuestion, research?: string): Promise<RawQuestion> {
   const request = (fix?: { html: string; problems: string[] }) =>
-    fetch('/api/build-app', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: item.title, prompt: item.prompt, brief: item.appHtml, testCases: item.testCases ?? [], research, ...(fix && { fix }) }),
-    }).then(async (res) => (res.ok ? ((await res.json()) as { appHtml?: string; testCases?: RawQuestion['testCases'] }) : null));
+    aiFetch('/api/build-app', { title: item.title, prompt: item.prompt, brief: item.appHtml, testCases: item.testCases ?? [], research, ...(fix && { fix }) }).then(async (res) => (res.ok ? ((await res.json()) as { appHtml?: string; testCases?: RawQuestion['testCases'] }) : null));
   try {
     const page = await request();
     if (!page?.appHtml) return item;
@@ -114,11 +113,7 @@ async function editAppPage(question: Question, change: string, taskPrompt: strin
   const checks = question.testCases.map(({ description, input, expectedOutput }) => ({ description, input, expectedOutput }));
   const prompt = taskPrompt?.trim() || question.prompt;
   try {
-    const res = await fetch('/api/build-app', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: question.title, prompt, brief: change, testCases: checks, research, edit: { html: question.appHtml ?? '', change } }),
-    });
+    const res = await aiFetch('/api/build-app', { title: question.title, prompt, brief: change, testCases: checks, research, edit: { html: question.appHtml ?? '', change } });
     if (!res.ok) return null;
     const page = (await res.json()) as { appHtml?: string; testCases?: RawQuestion['testCases'] };
     if (!page.appHtml) return null;
@@ -210,8 +205,10 @@ const NOT_CONFIGURED = "Vetter's AI isn't available on this site: it runs on Vet
 // Posts to one of Vetter's AI endpoints; a failure comes back as the reason, 'not-configured' when there's no AI
 async function post(path: string, payload: unknown): Promise<{ body: Record<string, any>; failure?: string }> {
   try {
-    const res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const res = await aiFetch(path, payload);
     const body = await res.json().catch(() => ({}));
+    // The company's credit has run out: it can top up and carry on
+    if (res.status === 402) return { body, failure: 'no-credit' };
     // No endpoint at all (a static host) is the same as the AI not being set up
     if (!res.ok) return { body, failure: body.error === 'not-configured' || res.status === 404 ? 'not-configured' : body.error || `The AI request failed (${res.status}).` };
     return { body };
@@ -358,6 +355,11 @@ export async function sendChat(state: ChatState, text: string, ctx: ChatContext,
       return { ...state, messages: [...messages, { role: 'assistant', text: reply }], draft, existing };
     }
     const reply = failure === 'not-configured' ? `${NOT_CONFIGURED} Open the draft in the builder to change it by hand.` : failure;
+    if (failure === 'no-credit')
+      return {
+        ...state,
+        messages: [...messages, { role: 'assistant', text: "You've used up your AI credit. Top up to carry on: your test and this conversation are kept, and I'll pick up right here.", failed: true, needsCredit: true }],
+      };
     return { ...state, messages: [...messages, { role: 'assistant', text: reply, failed: true }] };
   }
 

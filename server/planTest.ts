@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { meter } from './meter.js';
 import { MAX_PROMPT, PRICES, apiFailure, researchSoftware } from './generateTest.js';
 import { ChatRequest, styleGuide, stylesNote } from './testChat.js';
 
@@ -132,6 +133,7 @@ async function turn(client: Anthropic, model: string, req: ChatRequest, research
       messages: conversation(req),
     })
     .finalMessage();
+    meter(model, message.usage);
   const price = PRICES[model];
   const { input_tokens, output_tokens } = message.usage;
   if (price) console.log(`[plan-test] ${input_tokens} in, ${output_tokens} out: $${((input_tokens * price.input + output_tokens * price.output) / 1e6).toFixed(3)}`);
