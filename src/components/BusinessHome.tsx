@@ -105,7 +105,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
       </div>
     <div className="max-w-6xl mx-auto px-4 sm:px-6 grid grid-cols-1 lg:grid-cols-[17rem_minmax(0,1fr)] gap-8">
       {/* The chat */}
-      <section className="min-w-0 flex flex-col min-h-[calc(100vh-7.5rem)]">
+      <section className="min-w-0 flex flex-col min-h-[calc(100dvh-3.5rem-4rem)] md:min-h-[calc(100dvh-3.5rem)]">
         <div className="flex-1 py-8 space-y-6">
           {turns.length === 0 ? (
             <div className="pt-10 sm:pt-20 space-y-6 text-center">
@@ -182,7 +182,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
             e.preventDefault();
             send(input);
           }}
-          className="sticky bottom-16 md:bottom-0 pb-4 pt-6 bg-white"
+          className="sticky bottom-16 md:bottom-0 pb-3 pt-2"
         >
           {pickedTests.length > 0 && (
             <div className="mb-3 p-3 bg-white border border-indigo-200 rounded-2xl shadow-md shadow-indigo-100/60 flex flex-col sm:flex-row sm:items-center gap-3">
