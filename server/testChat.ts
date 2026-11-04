@@ -23,6 +23,8 @@ export interface ChatRequest {
   // How many questions the company asked for, counting sub-questions, and the level it picked
   questionCount?: number;
   difficulty?: string;
+  // The task the company has open beside the chat, when it's an app simulation
+  viewing?: { id: string; label: string; app: string };
   library: { id: string; title: string; category: string; difficulty: string; skills: string[]; roles: string[]; description: string }[];
   roles: string[];
   categories: string[];
@@ -48,6 +50,16 @@ const responseSchema = {
     software: { type: 'string' },
     // A product to research before an app simulation of it is written, or ""
     lookUp: { type: 'string' },
+    // Changes to app pages already in the draft, made in place by the page builder
+    appEdits: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: { id: { type: 'string' }, change: { type: 'string' }, taskPrompt: { type: 'string' } },
+        required: ['id', 'change', 'taskPrompt'],
+        additionalProperties: false,
+      },
+    },
     test: {
       type: 'object',
       properties: {
@@ -66,7 +78,7 @@ const responseSchema = {
       additionalProperties: false,
     },
   },
-  required: ['reply', 'existing', 'software', 'lookUp'],
+  required: ['reply', 'existing', 'software', 'lookUp', 'appEdits'],
   additionalProperties: false,
 };
 
@@ -140,7 +152,14 @@ HOW TO TALK
 
 ${stylesNote(req)}THE DRAFT
 - Include "test" whenever the draft is new or changes, with every question in order. skillsTested IS the blueprint: one line per competency, written "skill | weight | why it matters | how the test proves it". For a question that stays exactly as it is, set keep to its id and type to its type, and leave every other field empty ("", [], 0, -1). Leave "test" out when nothing changes (a question, a chat).
-- An app, sheet or database question can only be kept whole or written again from scratch.
+- A sheet or database question can only be kept whole or written again from scratch.
+- APP CHANGES: to change an app page already in the draft (a new screen, a button that should do something, different
+  data, a fix, a different look), don't rewrite it: keep the question (keep its id) and add an entry to "appEdits" with
+  its id, "change": a precise, complete description of what to change on the page for the page builder (it sees the
+  page's code, not this conversation), and "taskPrompt": the task's new text for the candidate if the change means it
+  should read differently, otherwise "". Change the questions about it in "test" too if they no longer fit. Vetter's
+  page builder makes the change and tries the page out. appEdits is [] when no app page changes. Write an app again from
+  scratch only when asked for a different product or a new task.
 - If the change means rewriting more than about half of the test (a different level, a different job, "start again"),
   don't write it here: send lookUp "REPLAN", reply "" and no test. Vetter plans and writes the test afresh from the
   conversation, section by section.
@@ -168,6 +187,9 @@ function conversation(req: ChatRequest): Anthropic.Beta.BetaMessageParam[] {
   const context = [
     req.job ? `THE JOB:\n${req.job.slice(0, MAX_PROMPT)}` : '',
     req.draft ? `THE DRAFT AS IT STANDS:\n${JSON.stringify(req.draft)}` : 'THERE IS NO DRAFT YET.',
+    req.viewing
+      ? `THE COMPANY HAS OPEN BESIDE THE CHAT: ${req.viewing.label}, the app "${req.viewing.app}" (question id ${req.viewing.id}). Unless they say otherwise, "this", "it", "here", "the app", a screen, button or field they mention means this page, so change it through appEdits.`
+      : '',
     req.wantExisting ? `LIBRARY TESTS PICKED SO FAR: ${req.existing.length ? req.existing.join(', ') : 'none'}` : '',
   ]
     .filter(Boolean)

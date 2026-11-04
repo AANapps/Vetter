@@ -43,11 +43,13 @@ interface DraftPreviewProps {
   onOpenBuilder: () => void;
   // More buttons for the toolbar, e.g. the library picks
   toolbarExtra?: React.ReactNode;
+  // Told which task or question is on screen, with its label ("Task 2"), so the chat can talk about it
+  onViewing?: (question: Question | undefined, label: string) => void;
 }
 
 // The draft as the candidate will meet it, one task or question at a time, with the outline in a dropdown and every
 // question editable in place while the conversation goes on
-export const DraftPreview: React.FC<DraftPreviewProps> = ({ test, onChange, locked, flash, onOpenBuilder, toolbarExtra }) => {
+export const DraftPreview: React.FC<DraftPreviewProps> = ({ test, onChange, locked, flash, onOpenBuilder, toolbarExtra, onViewing }) => {
   const groups = useMemo(() => groupQuestions(test.questions), [test.questions]);
   const ordered = useMemo(() => groups.flatMap((g) => g.questions), [groups]);
   const [index, setIndex] = useState(0);
@@ -71,6 +73,12 @@ export const DraftPreview: React.FC<DraftPreviewProps> = ({ test, onChange, lock
     setIndex(Math.max(0, Math.min(groups.length - 1, i)));
     body.current?.scrollTo({ top: 0 });
   };
+  const shown = group?.questions[0];
+  const shownLabel = group ? label(at) : '';
+  useEffect(() => {
+    onViewing?.(shown, shownLabel);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shown?.id, shownLabel]);
   // Back to preview while Vetter works, so nothing half-edited is replaced under the company
   useEffect(() => {
     if (locked) setMode('preview');
@@ -317,7 +325,7 @@ const PreviewGroup: React.FC<{
               files={test.scenario?.files}
             />
           ) : (
-            <AppWindow key={`${first.id}-${first.appHtml?.length ?? 0}`} value={answers[first.id] ?? ''} onChange={(v) => setAnswer(first.id, v)} html={first.appHtml ?? ''} appName={first.contextData || first.title} />
+            <AppWindow key={`${first.id}-${first.appHtml?.length ?? 0}-${first.starterCode?.length ?? 0}`} value={answers[first.id] ?? ''} onChange={(v) => setAnswer(first.id, v)} html={first.appHtml ?? ''} appName={first.contextData || first.title} />
           )}
         </div>
       )}

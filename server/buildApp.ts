@@ -19,6 +19,8 @@ export interface BuildAppRequest {
   research?: string;
   // A repair: the page as built, and what went wrong when Vetter clicked through it
   fix?: { html: string; problems: string[] };
+  // A change the company asked for: the page as it is, and what to change
+  edit?: { html: string; change: string };
 }
 
 const MAX_TEXT = 8000;
@@ -83,6 +85,13 @@ export async function buildApp(body: unknown, apiKey: string | undefined, model:
                     `THE PAGE AS YOU BUILT IT:\n${String(req.fix.html).slice(0, MAX_PAGE)}`,
                     `PROBLEMS FOUND WHEN VETTER CLICKED THROUGH IT:\n${(req.fix.problems ?? []).slice(0, 30).map((p) => `- ${String(p).slice(0, 200)}`).join('\n')}`,
                     'Return the whole page again with every problem fixed: make each control named above do what its label says in this kind of product, or grey it out (disabled, reduced opacity, cursor:not-allowed, a "Not available in this test" title) when it is outside the task. Fix any errors. Keep everything that already works, the data and the state paths the checks read.',
+                  ]
+                : []),
+              ...(req.edit?.html
+                ? [
+                    `THE PAGE AS IT IS NOW:\n${String(req.edit.html).slice(0, MAX_PAGE)}`,
+                    `THE CHANGE THE COMPANY ASKED FOR:\n${String(req.edit.change ?? '').slice(0, MAX_TEXT)}`,
+                    'Return the whole page again with exactly that change made, done properly and working (new screens, controls, data or behaviour all fully functional, as in the real product). Keep everything else as it is: the look, the data the task\'s questions rely on, and the state paths the checks read, unless the change needs them to change; then update the checks to match.',
                   ]
                 : []),
             ].join('\n\n'),

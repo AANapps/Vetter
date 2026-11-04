@@ -12,6 +12,8 @@ export interface ChatMessage {
   text: string;
   // Something about the turn worth showing under the reply, e.g. questions that failed the checks
   note?: string;
+  // The turn failed (the AI was unavailable or errored), so it can be sent again as it was
+  failed?: boolean;
 }
 
 export interface ChatState {
@@ -35,6 +37,8 @@ export interface ChatContext {
   styles: QuestionType[];
   // How many questions the company wants, counting sub-questions
   questionCount?: number;
+  // The app task open beside the chat, which "this" and "the app" mean
+  viewing?: { id: string; label: string; app: string };
 }
 
 // The draft as the AI sees it: everything it needs to change a question, except app pages, which it can only keep whole
@@ -103,6 +107,31 @@ async function buildAppPage(item: RawQuestion, research?: string): Promise<RawQu
     return item;
   }
 }
+
+// An app page changed as the company asked: the builder gets the page as it is and the change, and the result is
+// checked like a new page (it must load and its checks must still fail at the start). Null when it doesn't hold up
+async function editAppPage(question: Question, change: string, taskPrompt: string, research?: string): Promise<Question | null> {
+  const checks = question.testCases.map(({ description, input, expectedOutput }) => ({ description, input, expectedOutput }));
+  const prompt = taskPrompt?.trim() || question.prompt;
+  try {
+    const res = await fetch('/api/build-app', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: question.title, prompt, brief: change, testCases: checks, research, edit: { html: question.appHtml ?? '', change } }),
+    });
+    if (!res.ok) return null;
+    const page = (await res.json()) as { appHtml?: string; testCases?: RawQuestion['testCases'] };
+    if (!page.appHtml) return null;
+    const checked = await checkQuestion({ type: 'app', title: question.title, prompt, appHtml: page.appHtml, testCases: (page.testCases?.length ? page.testCases : checks) as RawQuestion['testCases'], points: question.weight, timeLimitMinutes: question.timeLimitMinutes });
+    // Same question, so the questions about it stay joined to it
+    return checked ? { ...question, prompt, appHtml: checked.appHtml, contextData: checked.contextData, starterCode: checked.starterCode, testCases: checked.testCases } : null;
+  } catch {
+    return null;
+  }
+}
+
+const withChangedQuestions = (test: AssessmentTest, changed: Question[]): AssessmentTest =>
+  changed.length ? { ...test, questions: test.questions.map((q) => changed.find((c) => c.id === q.id) ?? q) } : test;
 
 const checksOf = (q: RawQuestion) => (q.testCases ?? []).filter((tc) => tc.input?.trim() && tc.expectedOutput?.trim());
 
@@ -286,6 +315,7 @@ export async function sendChat(state: ChatState, text: string, ctx: ChatContext,
     wantExisting: ctx.wantExisting,
     styles: ctx.styles,
     questionCount: ctx.questionCount,
+    viewing: ctx.viewing,
     difficulty: ctx.level,
     library: library.map((t) => ({ id: t.id, title: t.title, category: t.category, difficulty: t.difficulty, skills: t.skillsTested, roles: t.roles ?? [], description: t.description })),
     roles: ALL_ROLES,
@@ -328,7 +358,7 @@ export async function sendChat(state: ChatState, text: string, ctx: ChatContext,
       return { ...state, messages: [...messages, { role: 'assistant', text: reply }], draft, existing };
     }
     const reply = failure === 'not-configured' ? `${NOT_CONFIGURED} Open the draft in the builder to change it by hand.` : failure;
-    return { ...state, messages: [...messages, { role: 'assistant', text: reply }] };
+    return { ...state, messages: [...messages, { role: 'assistant', text: reply, failed: true }] };
   }
 
   const picked: Suggestion[] = ((body.existing ?? []) as { testId: string; reason: string }[]).flatMap(({ testId, reason }) => {
@@ -341,6 +371,16 @@ export async function sendChat(state: ChatState, text: string, ctx: ChatContext,
     const built = staged ?? (await buildDraft(body.test, state.draft, ctx, body.research ?? state.research));
     if (built.test) draft = built.test;
     if (built.dropped) note = built.test ? `${built.dropped} ${built.dropped === 1 ? 'question' : 'questions'} failed Vetter's checks and ${built.dropped === 1 ? 'was' : 'were'} left out.` : "None of the new questions passed Vetter's checks, so the draft wasn't changed. Try asking again.";
+  }
+  // Changes to app pages in the draft, made in place by the page builder, side by side
+  const edits = ((body.appEdits ?? []) as { id: string; change: string; taskPrompt: string }[]).filter((e) => e.change?.trim() && draft?.questions.some((q) => q.id === e.id && q.type === 'app'));
+  if (draft && edits.length) {
+    progress(edits.length === 1 ? 'Changing the app…' : `Changing ${edits.length} apps…`);
+    const research = body.research ?? state.research;
+    const changed = await Promise.all(edits.map((e) => editAppPage(draft!.questions.find((q) => q.id === e.id)!, e.change, e.taskPrompt, research)));
+    const failed = changed.filter((q) => !q).length;
+    draft = withChangedQuestions(draft, changed.filter((q): q is Question => !!q));
+    if (failed) note = [note, `${failed === 1 ? "One app change didn't" : `${failed} app changes didn't`} pass Vetter's checks, so ${failed === 1 ? 'that app was' : 'those apps were'} left as ${failed === 1 ? 'it was' : 'they were'}. Try asking again.`].filter(Boolean).join(' ');
   }
   return {
     messages: [...messages, { role: 'assistant', text: String(body.reply ?? '').trim() || 'Done.', ...(note && { note }) }],

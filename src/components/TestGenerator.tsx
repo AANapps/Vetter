@@ -87,6 +87,10 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
   );
   const [questionCount, setQuestionCount] = useState<number | undefined>(() => resume?.questionCount ?? (original ? countOf(original) : undefined));
   const [difficulty, setDifficulty] = useState<TestDifficulty | undefined>(() => resume?.difficulty ?? resume?.test.difficulty ?? original?.difficulty);
+  // The app task open on the right, which the next message is about unless the company sets it aside
+  const [viewing, setViewing] = useState<{ id: string; label: string; app: string } | undefined>();
+  const [aboutWhole, setAboutWhole] = useState(false);
+  const focus = !aboutWhole && viewing && chat.draft?.questions.some((q) => q.id === viewing.id) ? viewing : undefined;
   const ready = styles.length > 0 && !!questionCount && !!difficulty;
   // What's still to pick, said above the message box
   const missing = [!styles.length && 'the question types', !questionCount && 'how many questions', !difficulty && 'the difficulty'].filter(Boolean) as string[];
@@ -96,7 +100,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
   const draft = chat.draft;
   const started = chat.messages.some((m) => m.role === 'user');
   // Changing a saved test doesn't pick library tests to go with it
-  const ctx = { job: job ? jobBrief(job) : undefined, jobTitle: job?.title, level: difficulty ?? 'Junior', questionCount, wantExisting: !!job && !original, tests, business, styles };
+  const ctx = { job: job ? jobBrief(job) : undefined, jobTitle: job?.title, level: difficulty ?? 'Junior', questionCount, wantExisting: !!job && !original, tests, business, styles, viewing: focus };
   const toggleStyle = (type: QuestionType) => setStyles((prev) => (prev.includes(type) ? prev.filter((t) => t !== type) : PICKABLE.filter((t) => t === type || prev.includes(t))));
   // Questions in the draft of a type since turned off
   const offTypes = [...new Set((draft?.questions ?? []).filter((q) => !styles.includes(q.type)).map((q) => q.type))];
@@ -153,16 +157,18 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
     scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: 'smooth' });
   }, [chat.messages.length, working]);
 
-  const send = async (text: string) => {
+  // again: the last message sent once more, in place of it and the failed reply
+  const send = async (text: string, again = false) => {
     const message = text.trim();
     if (!message || working || !ready) return;
-    setInput('');
+    if (!again) setInput('');
     setWorking(true);
+    const base = again ? { ...chat, messages: chat.messages.slice(0, -2) } : chat;
     // The message shows at once; the reply follows
-    setChat((c) => ({ ...c, messages: [...c.messages, { role: 'user', text: message }] }));
+    setChat({ ...base, messages: [...base.messages, { role: 'user', text: message }] });
     const before = chat.draft;
     setStage('');
-    const next = await sendChat(chat, message, ctx, setStage);
+    const next = await sendChat(base, message, ctx, setStage);
     setChat(next);
     // New library picks start ticked, unless the job has them already
     setChosen((prev) => [...new Set([...prev.filter((id) => next.existing.some((s) => s.test.id === id)), ...next.existing.filter((s) => !chat.existing.some((e) => e.test.id === s.test.id) && !job?.testIds.includes(s.test.id)).map((s) => s.test.id)])]);
@@ -308,6 +314,15 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                     <VAvatar />
                     <div className="max-w-[85%] min-w-0">
                       <div className="px-4 py-2.5 rounded-3xl rounded-tl-lg bg-slate-100 text-slate-800 text-base leading-[1.65] whitespace-pre-wrap">{m.text}</div>
+                      {m.failed && i === chat.messages.length - 1 && !working && chat.messages[i - 1]?.role === 'user' && (
+                        <button
+                          onClick={() => send(chat.messages[i - 1].text, true)}
+                          disabled={!ready}
+                          className="mt-1.5 px-3 py-1 rounded-full border border-indigo-300 text-sm font-semibold text-indigo-700 hover:bg-indigo-50 disabled:opacity-40"
+                        >
+                          Try again
+                        </button>
+                      )}
                       {m.note && (
                         <p className="mt-1.5 text-sm text-amber-700 flex items-start gap-1.5">
                           <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
@@ -344,6 +359,17 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                   ))}
                 </div>
               )}
+              {focus && (
+                <div className="pb-2 flex items-center gap-2 text-sm">
+                  <span className="min-w-0 truncate px-2.5 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-800">
+                    Changing <span className="font-semibold">{focus.label}: {focus.app}</span>
+                  </span>
+                  <button onClick={() => setAboutWhole(true)} disabled={working} className="shrink-0 text-xs font-semibold text-slate-500 hover:text-slate-800 flex items-center gap-1">
+                    <X className="w-3.5 h-3.5" />
+                    Whole test instead
+                  </button>
+                </div>
+              )}
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -364,7 +390,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                     }
                   }}
                   aria-label="Message Vetter"
-                  placeholder={draft ? 'Ask for a change, e.g. "make question 2 harder"' : job ? 'What matters most in this hire?' : 'Describe the role or the test you want'}
+                  placeholder={focus ? `Ask for a change to ${focus.app}, e.g. "add a refunds screen"` : draft ? 'Ask for a change, e.g. "make question 2 harder"' : job ? 'What matters most in this hire?' : 'Describe the role or the test you want'}
                   className="flex-1 resize-none px-2.5 py-2 text-base leading-[1.6] text-slate-900 bg-transparent focus:outline-none"
                 />
                 <button type="submit" disabled={!input.trim() || working || !ready} aria-label="Send" className="p-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-30">
@@ -380,6 +406,10 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
               <DraftPreview
                 test={draft}
                 onChange={editDraft}
+                onViewing={(q, label) => {
+                  setViewing(q?.type === 'app' ? { id: q.id, label, app: q.contextData || q.title } : undefined);
+                  setAboutWhole(false);
+                }}
                 locked={working}
                 flash={flash}
                 onOpenBuilder={() => (onEditDraft(asSaved(finaliseDraft(draft)), chosen, record(draft)), onClose())}
