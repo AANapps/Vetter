@@ -8,8 +8,8 @@ import { testAdvisor } from './testAdvisor.js';
 
 // The AI endpoints, answered by server.ts in production and the Vite dev server in development
 type Env = Record<string, string | undefined>;
-// Opus by default: writing a test that really tests someone is worth the most capable model
-const testModel = (env: Env) => env.CLAUDE_MODEL || 'claude-opus-5-5';
+// Sonnet by default, at about half Opus's cost; set CLAUDE_MODEL=claude-opus-5-5 for the most capable model
+const testModel = (env: Env) => env.CLAUDE_MODEL || 'claude-sonnet-5-5';
 
 type Handler = (body: unknown, env: Env) => Promise<{ status: number; json: unknown }>;
 

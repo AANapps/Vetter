@@ -34,7 +34,7 @@ View your app in AI Studio: https://ai.studio/apps/98dedbef-fe5a-411c-840c-6b597
 answers `/api/generate-test`, which companies use to have Vetter suggest tests for a job and write new ones.
 
 - Set `ANTHROPIC_API_KEY` (in `.env.local` or `.env`, or the host's environment). It stays on the server.
-- Optionally set `CLAUDE_MODEL` (defaults to `claude-haiku-5-5`, the cheapest; `claude-sonnet-5-5` or `claude-opus-5-5` write stronger questions). Each test written logs its token use and cost in the server output.
+- Optionally set `CLAUDE_MODEL` (defaults to `claude-sonnet-5-5`; `claude-opus-5-5` writes stronger questions at about twice the cost, `claude-haiku-5-5` is the cheapest). Each test written logs its token use and cost in the server output.
 - Candidates' code, SQL and short answers that the automatic checks don't give full marks are marked again by
   Claude, which gives partial credit for near misses and ignores typos (`/api/grade-answers`; set `GRADING_MODEL`
   to use a different model). It can only raise a score. Without a key, the automatic marks stand.
