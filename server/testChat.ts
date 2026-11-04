@@ -45,7 +45,7 @@ export interface ChatRequest {
 const MAX_TURNS = 24;
 const MAX_TEXT = 4000;
 
-const responseSchema = {
+export const responseSchema = {
   type: 'object',
   properties: {
     reply: { type: 'string' },
@@ -57,16 +57,10 @@ const responseSchema = {
     software: { type: 'string' },
     // A product to research before an app simulation of it is written, or ""
     lookUp: { type: 'string' },
-    // Changes to app pages already in the draft, made in place by the page builder
-    appEdits: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: { id: { type: 'string' }, change: { type: 'string' }, taskPrompt: { type: 'string' } },
-        required: ['id', 'change', 'taskPrompt'],
-        additionalProperties: false,
-      },
-    },
+    // Changes to app pages already in the draft, made in place by the page builder: one a line, "id ## change ## new
+    // task text or empty" (made into objects by appEditsOf). One string, not a list: a list here, of objects or even of
+    // strings, makes the output grammar too large to compile and every request fails
+    appEdits: { type: 'string' },
     test: {
       type: 'object',
       properties: {
@@ -180,11 +174,12 @@ ${stylesNote(req)}THE DRAFT
 - Include "test" whenever the draft is new or changes, with every question in order. skillsTested IS the blueprint: one line per competency, written "skill | weight | why it matters | how the test proves it". For a question that stays exactly as it is, set keep to its id and type to its type, and leave every other field empty ("", [], 0, -1). Leave "test" out when nothing changes (a question, a chat).
 - A sheet or database question can only be kept whole or written again from scratch.
 - APP CHANGES: to change an app page already in the draft (a new screen, a button that should do something, different
-  data, a fix, a different look), don't rewrite it: keep the question (keep its id) and add an entry to "appEdits" with
-  its id, "change": a precise, complete description of what to change on the page for the page builder (it sees the
-  page's code, not this conversation), and "taskPrompt": the task's new text for the candidate if the change means it
-  should read differently, otherwise "". Change the questions about it in "test" too if they no longer fit. Vetter's
-  page builder makes the change and tries the page out. appEdits is [] when no app page changes. Write an app again from
+  data, a fix, a different look), don't rewrite it: keep the question (keep its id) and add a line to "appEdits" (one line per page),
+  written "<question id> ## <change> ## <new task text>": the change is a precise, complete description of what to change
+  on the page for the page builder (it sees the page's code, not this conversation); the new task text is what the
+  candidate now reads, if the change means the task should read differently, otherwise leave it empty (end the line
+  with "##"). Don't use "##" anywhere else in the line. Change the questions about it in "test" too if they no longer fit. Vetter's
+  page builder makes the change and tries the page out. appEdits is "" when no app page changes. Write an app again from
   scratch only when asked for a different product or a new task.
 - If the change means rewriting more than about half of the test (a different level, a different job, "start again"),
   don't write it here: send lookUp "REPLAN", reply "" and no test. Vetter plans and writes the test afresh from the
@@ -221,6 +216,15 @@ function conversation(req: ChatRequest): Anthropic.Beta.BetaMessageParam[] {
     .filter(Boolean)
     .join('\n\n');
   return [...turns.slice(0, -1), { role: 'user', content: `${context}\n\nTHE COMPANY SAYS:\n${last.content}` }];
+}
+
+// The model's appEdits lines as the browser takes them: { id, change, taskPrompt }
+export function appEditsOf(text: unknown): { id: string; change: string; taskPrompt: string }[] {
+  if (typeof text !== 'string') return [];
+  return text.split('\n').flatMap((line) => {
+    const [id, change, ...task] = String(line).split('##').map((part) => part.trim());
+    return id && change ? [{ id, change, taskPrompt: task.join('##').trim() }] : [];
+  });
 }
 
 const sameProduct = (a = '', b = '') => a.trim().toLowerCase() === b.trim().toLowerCase();
@@ -263,7 +267,7 @@ export async function testChat(body: unknown, apiKey: string | undefined, model:
 
     // An app simulation of software not looked up yet: research it on the web, then write the turn with what was found
     // A rewrite of most of the test: the browser runs the planner and the section writer instead
-    if (out.lookUp === 'REPLAN') return { status: 200, json: { ...out, research, researchedFor } };
+    if (out.lookUp === 'REPLAN') return { status: 200, json: { ...out, appEdits: appEditsOf(out.appEdits), research, researchedFor } };
     if (out.lookUp && !sameProduct(out.lookUp, researchedFor)) {
       const brief = [`The software: ${out.lookUp}`, req.job, ...req.messages.filter((m) => m.role === 'user').map((m) => m.text)].filter(Boolean).join('\n\n');
       const found = await researchSoftware(client, model, brief).catch((err) => (console.error('[test-chat] research failed', err), ''));
@@ -275,7 +279,7 @@ export async function testChat(body: unknown, apiKey: string | undefined, model:
       if (message.stop_reason === 'max_tokens') return { status: 502, json: { error: 'The test came back incomplete. Try asking for fewer questions.' } };
       out = parse(message);
     }
-    return { status: 200, json: { ...out, research, researchedFor } };
+    return { status: 200, json: { ...out, appEdits: appEditsOf(out.appEdits), research, researchedFor } };
   } catch (err) {
     return apiFailure('test-chat', err);
   }
