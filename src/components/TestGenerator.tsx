@@ -287,7 +287,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/60 backdrop-blur-sm">
-      <div role="dialog" aria-modal="true" aria-label="Build a test with Vetter" className="bg-white sm:rounded-2xl rounded-t-2xl max-w-7xl w-full h-[calc(100dvh-1rem)] sm:h-[min(52rem,calc(100vh-2rem))] flex flex-col shadow-2xl">
+      <div role="dialog" aria-modal="true" aria-label="Build a test with Vetter" className="bg-white sm:rounded-2xl rounded-t-2xl max-w-7xl w-full h-[calc(100dvh-1rem)] sm:h-[min(52rem,calc(100vh-2rem))] flex flex-col shadow-2xl overflow-hidden">
         <div className="px-5 pt-4 pb-3 border-b border-slate-200 flex items-start justify-between gap-4">
           <div className="min-w-0">
             <h2 className="text-xl font-bold text-slate-900">
@@ -295,7 +295,41 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
             </h2>
             <p className="text-sm text-slate-500 truncate">{job ? `${job.title} · ${job.companyName}` : business ? `For ${business.name}'s jobs` : 'For the Vetter test library'}</p>
           </div>
-          <div className="flex items-center gap-3 shrink-0">
+          {/* Saving lives up here, so the chat's message box is the bottom of the window */}
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            <button
+              onClick={saveDraft}
+              disabled={!draft || working || savingDraft}
+              className="px-3 py-1.5 text-sm font-semibold text-slate-700 bg-white border border-slate-300 hover:border-indigo-400 disabled:opacity-40 rounded-lg"
+            >
+              {savingDraft ? 'Saving…' : 'Save draft'}
+            </button>
+            {original ? (
+              <button
+                onClick={finish}
+                disabled={!draft || chat.draft === original || working || unfinished > 0}
+                title={unfinished ? 'Finish the questions marked under Structure first' : undefined}
+                className="px-3 sm:px-4 py-1.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 rounded-lg flex items-center gap-1.5"
+              >
+                <Check className="w-4 h-4" />
+                Save changes
+              </button>
+            ) : job ? (
+              <button
+                onClick={finish}
+                disabled={addCount === 0 || working || unfinished > 0}
+                title={unfinished ? 'Finish the questions marked under Structure first' : undefined}
+                className="px-3 sm:px-4 py-1.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 rounded-lg flex items-center gap-1.5"
+              >
+                <Check className="w-4 h-4" />
+                {addCount === 0 ? 'Nothing picked yet' : `Add ${addCount} ${addCount === 1 ? 'test' : 'tests'} to the job`}
+              </button>
+            ) : (
+              <button onClick={finish} disabled={!draft || working || unfinished > 0} title={unfinished ? 'Finish the questions marked under Structure first' : undefined} className="px-3 sm:px-4 py-1.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 rounded-lg flex items-center gap-1.5">
+                <Check className="w-4 h-4" />
+                Save test
+              </button>
+            )}
             {credit?.billing && credit.balance !== undefined && (
               <button
                 onClick={() => setTopUpOpen(true)}
@@ -331,7 +365,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
           {/* How many questions: typed, or stepped with the arrows (or the arrow keys); empty, Vetter decides */}
           <div className={`flex items-center gap-1.5 text-xs font-semibold text-slate-700 ${working ? 'opacity-40' : ''}`}>
             <label htmlFor="question-count">Questions:</label>
-            <div className="flex items-stretch rounded-lg border border-slate-300 bg-white hover:border-indigo-400 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100 overflow-hidden">
+            <div className="flex items-stretch rounded-lg bg-white ring-1 ring-slate-300 hover:ring-indigo-400 focus-within:ring-2 focus-within:ring-indigo-500 overflow-hidden">
               <input
                 id="question-count"
                 type="text"
@@ -570,42 +604,6 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
           </section>
         </div>
 
-        <div className="px-5 py-3 border-t border-slate-200 flex items-center gap-3">
-          <p className="text-sm text-slate-500 hidden sm:block">{draft ? 'Ask Vetter for changes, or switch to Edit to change questions yourself.' : 'Nothing is saved until you say so.'}</p>
-          <button
-            onClick={saveDraft}
-            disabled={!draft || working || savingDraft}
-            className="ml-auto px-4 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-300 hover:border-indigo-400 disabled:opacity-40 rounded-lg"
-          >
-            {savingDraft ? 'Saving…' : 'Save draft'}
-          </button>
-          {original ? (
-            <button
-              onClick={finish}
-              disabled={!draft || chat.draft === original || working || unfinished > 0}
-              title={unfinished ? 'Finish the questions marked under Structure first' : undefined}
-              className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 rounded-lg flex items-center gap-1.5"
-            >
-              <Check className="w-4 h-4" />
-              Save changes
-            </button>
-          ) : job ? (
-            <button
-              onClick={finish}
-              disabled={addCount === 0 || working || unfinished > 0}
-              title={unfinished ? 'Finish the questions marked under Structure first' : undefined}
-              className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 rounded-lg flex items-center gap-1.5"
-            >
-              <Check className="w-4 h-4" />
-              {addCount === 0 ? 'Nothing picked yet' : `Add ${addCount} ${addCount === 1 ? 'test' : 'tests'} to the job`}
-            </button>
-          ) : (
-            <button onClick={finish} disabled={!draft || working || unfinished > 0} title={unfinished ? 'Finish the questions marked under Structure first' : undefined} className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 rounded-lg flex items-center gap-1.5">
-              <Check className="w-4 h-4" />
-              Save test
-            </button>
-          )}
-        </div>
       </div>
       {topUpOpen && credit && <CreditsDialog credit={credit} onUpdated={setCredit} onClose={closeTopUp} />}
     </div>
