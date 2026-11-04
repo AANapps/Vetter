@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AlertCircle, ArrowUp, Check, Library, X } from 'lucide-react';
+import { AlertCircle, ArrowUp, Check, ChevronDown, ChevronUp, Library, X } from 'lucide-react';
 import { AssessmentTest, Business, JobPosting, QuestionType, TEST_DIFFICULTIES, TestDifficulty, TestDraft } from '../types';
 import { QUESTION_STYLES } from '../lib/questionTypes';
 import { DraftPreview, Dropdown, draftProblems, finaliseDraft } from './DraftPreview';
@@ -39,7 +39,10 @@ interface TestGeneratorProps {
 }
 
 // How many questions a company can ask for, counting the questions about a case or task
-const COUNTS = [5, 10, 15, 20, 25, 30];
+// The number of questions a company can ask for, and where the up and down buttons start from an empty box
+const MIN_COUNT = 1;
+const MAX_COUNT = 45;
+const START_COUNT = 10;
 // Timers a company can pick, in minutes
 const TIMERS = [10, 15, 20, 30, 45, 60, 90, 120];
 const minutesOf = (test: AssessmentTest) => test.questions.reduce((sum, q) => sum + q.timeLimitMinutes, 0);
@@ -90,18 +93,19 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
   const [styles, setStyles] = useState<QuestionType[]>(() =>
     resume?.styles?.length ? resume.styles : original ? PICKABLE.filter((t) => original.questions.some((q) => q.type === t)) : []
   );
-  const [counts, setCounts] = useState<number[]>(() => resume?.questionCounts ?? (resume?.questionCount ? [resume.questionCount] : original ? [countOf(original)] : []));
+  // How many questions: a number typed or stepped, or empty for Vetter to decide (drafts from when several could be
+  // ticked keep a single pick)
+  const [questionCount, setQuestionCount] = useState<number | undefined>(
+    () => resume?.questionCount ?? (resume?.questionCounts?.length === 1 ? resume.questionCounts[0] : undefined) ?? (resume ? undefined : original ? countOf(original) : undefined)
+  );
+  const clampCount = (n: number) => Math.min(MAX_COUNT, Math.max(MIN_COUNT, Math.round(n)));
+  const stepCount = (by: number) => setQuestionCount((n) => (n === undefined ? START_COUNT : clampCount(n + by)));
   const [levels, setLevels] = useState<TestDifficulty[]>(() =>
     resume?.difficulties ?? (resume?.difficulty ? [resume.difficulty] : original ? [original.difficulty] : resume?.test.difficulty ? [resume.test.difficulty] : [])
   );
-  // One count is exact; several are a range to stay within
-  const sortedCounts = [...counts].sort((a, b) => a - b);
-  const questionCount = counts.length === 1 ? counts[0] : undefined;
-  const questionRange: [number, number] | undefined = counts.length > 1 ? [sortedCounts[0], sortedCounts[sortedCounts.length - 1]] : undefined;
   // The levels in order; the highest names the test
   const pickedLevels = TEST_DIFFICULTIES.filter((d) => levels.includes(d));
   const difficulty = pickedLevels[pickedLevels.length - 1];
-  const countOptions = [...new Set([...COUNTS, ...counts])].sort((a, b) => a - b);
   // The timer: minutes, no limit, or undefined for Vetter to size it from the questions
   const [timeLimit, setTimeLimitState] = useState<number | 'none' | undefined>(() => resume?.timeLimit ?? resume?.test.timeLimit ?? original?.timeLimit);
   // A timer is the test's own setting, not something to write: it's put on the draft straight away
@@ -134,7 +138,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
   const draft = chat.draft;
   const started = chat.messages.some((m) => m.role === 'user');
   // Changing a saved test doesn't pick library tests to go with it
-  const ctx = { job: job ? jobBrief(job) : undefined, jobTitle: job?.title, level: difficulty, levels: pickedLevels, questionCount, questionRange, timeLimit, wantExisting: !!job && !original, tests, business, styles, viewing: focus };
+  const ctx = { job: job ? jobBrief(job) : undefined, jobTitle: job?.title, level: difficulty, levels: pickedLevels, questionCount, timeLimit, wantExisting: !!job && !original, tests, business, styles, viewing: focus };
   const toggleStyle = (type: QuestionType) => setStyles((prev) => (prev.includes(type) ? prev.filter((t) => t !== type) : PICKABLE.filter((t) => t === type || prev.includes(t))));
   const toggle = <T,>(set: React.Dispatch<React.SetStateAction<T[]>>, value: T) => set((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]));
   // The types Vetter may use: any, when none are ticked
@@ -171,7 +175,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
     ...(chat.research !== undefined && { research: chat.research, researchedFor: chat.researchedFor }),
     styles,
     ...(timeLimit !== undefined && { timeLimit }),
-    questionCounts: counts,
+    ...(questionCount && { questionCount }),
     difficulties: pickedLevels,
     updatedAt: new Date().toISOString(),
   });
@@ -256,7 +260,6 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
         ...(offTypes.length ? ['Use only the question types I picked'] : []),
         ...(pickedLevels.length === 1 && draft.difficulty !== difficulty ? [`Make it ${difficulty} level`] : []),
         ...(questionCount && countOf(draft) !== questionCount ? [`Make it ${questionCount} questions`] : []),
-        ...(questionRange && (countOf(draft) < questionRange[0] || countOf(draft) > questionRange[1]) ? [`Make it ${questionRange[0]} to ${questionRange[1]} questions`] : []),
         ...(typeof timeLimit === 'number' && Math.abs(minutesOf(draft) - timeLimit) > Math.max(5, timeLimit * 0.2) ? [`Fit the questions into ${timeLimit} minutes`] : []),
         'Make it harder',
         ...(allowed.includes('case') ? ['Add another case study'] : []),
@@ -325,17 +328,48 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
               </PickList>
             )}
           </Dropdown>
-          <Dropdown label={<>Questions: <Summary text={counts.length ? (questionRange ? `${questionRange[0]} to ${questionRange[1]}` : String(questionCount)) : undefined} /></>} width="w-56" disabled={working}>
-            {() => (
-              <PickList legend="How many questions" picked={counts.length} onClear={() => setCounts([])} note="Tick two or more for a range.">
-                {countOptions.map((n) => (
-                  <PickRow key={n} on={counts.includes(n)} onChange={() => toggle(setCounts, n)}>
-                    {n} questions
-                  </PickRow>
-                ))}
-              </PickList>
+          {/* How many questions: typed, or stepped with the arrows (or the arrow keys); empty, Vetter decides */}
+          <div className={`flex items-center gap-1.5 text-xs font-semibold text-slate-700 ${working ? 'opacity-40' : ''}`}>
+            <label htmlFor="question-count">Questions:</label>
+            <div className="flex items-stretch rounded-lg border border-slate-300 bg-white hover:border-indigo-400 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100 overflow-hidden">
+              <input
+                id="question-count"
+                type="text"
+                inputMode="numeric"
+                value={questionCount ?? ''}
+                placeholder="Vetter decides"
+                disabled={working}
+                onChange={(e) => {
+                  const digits = e.target.value.replace(/\D/g, '').slice(0, 2);
+                  setQuestionCount(digits ? clampCount(Number(digits)) : undefined);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    stepCount(e.key === 'ArrowUp' ? 1 : -1);
+                  }
+                }}
+                aria-describedby="question-count-hint"
+                className="w-28 px-2 py-1 text-xs font-semibold text-slate-900 placeholder:font-normal placeholder:text-slate-500 bg-transparent focus:outline-none tabular-nums"
+              />
+              <span id="question-count-hint" className="sr-only">
+                From {MIN_COUNT} to {MAX_COUNT}. Leave it empty for Vetter to decide.
+              </span>
+              <div className="flex flex-col border-l border-slate-200">
+                <button type="button" onClick={() => stepCount(1)} disabled={working || questionCount === MAX_COUNT} aria-label="One more question" className="px-1.5 flex-1 text-slate-500 hover:bg-slate-50 hover:text-indigo-700 disabled:opacity-30">
+                  <ChevronUp className="w-3 h-3" />
+                </button>
+                <button type="button" onClick={() => stepCount(-1)} disabled={working || questionCount === MIN_COUNT} aria-label="One fewer question" className="px-1.5 flex-1 border-t border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-indigo-700 disabled:opacity-30">
+                  <ChevronDown className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+            {questionCount !== undefined && (
+              <button type="button" onClick={() => setQuestionCount(undefined)} disabled={working} aria-label="Clear: let Vetter decide" title="Let Vetter decide" className="text-slate-400 hover:text-slate-700">
+                <X className="w-3.5 h-3.5" />
+              </button>
             )}
-          </Dropdown>
+          </div>
           <Dropdown label={<>Time limit: <Summary text={timeLimit === 'none' ? 'None' : timeLimit ? `${timeLimit} min` : undefined} /></>} width="w-56" disabled={working}>
             {(close) => (
               <PickList legend="Time limit" picked={timeLimit === undefined ? 0 : 1} onClear={() => (setTimeLimit(undefined), close())} note="Vetter decides: the time the questions add up to.">
@@ -422,7 +456,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                 <p className="pb-2 text-sm text-slate-500">
                   {(() => {
                     // Unpicked, a typical test of about 15 questions with any kind of task
-                    const [fewest, most] = questionRange ?? [questionCount ?? 15, questionCount ?? 15];
+                    const [fewest, most] = [questionCount ?? 15, questionCount ?? 15];
                     const handsOn = allowed.some((t) => t === 'sheet' || t === 'database' || t === 'app' || t === 'code');
                     const low = estimateTest(fewest, handsOn, allowed.includes('app')).low;
                     const high = estimateTest(most, handsOn, allowed.includes('app')).high;
