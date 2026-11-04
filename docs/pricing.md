@@ -16,6 +16,9 @@ existing tests from the library is free (Vetter matches them itself).
 These are estimates; the server logs the real tokens and cost of every test it writes. Measured on Haiku: $0.001 for a
 5-question test, $0.003 for a 6-question senior test with coding.
 
+> Out of date (November 2026): tests are now planned, written section by section and given working app simulations,
+> on Sonnet by default, so a full test costs far more than this table says. See "AI credit and plans" below.
+
 AI marking (a second look at code, SQL and short answers that weren't fully right) costs about $0.0002–0.0005 per
 candidate on Haiku, so 1,000 candidates is roughly 20–50p.
 
@@ -42,6 +45,53 @@ These are the plans on the pricing page (`src/components/PricingSection.tsx`), o
 
 Annual billing is two months free. Watch how many jobs a typical employer posts: if most post 4 or more, consider
 £199 for Growth; if few free employers reach 25 candidates, lower that limit.
+
+## AI credit and plans (November 2026)
+
+Companies now pay for AI test writing from prepaid credit (Stripe), charged at real Claude cost × `CREDIT_MARKUP`
+(see the README). The question: a monthly plan plus paid credit on top, is that viable?
+
+**It's viable, and the numbers are comfortable.** At cost, on Sonnet, a full test with app simulations is roughly
+£0.60–£2, and a change is pennies. Estimates, to check against real usage in Stripe:
+
+| Plan | Price | 20 full tests a month costs us |
+|---|---|---|
+| Per job | £79 per job | (2–5 tests per job) ~£2–£8 |
+| Growth | £149/mo | ~£12–£40 |
+| Scale | £349/mo | heavy users maybe £50–£100 |
+
+The subscription alone covers normal AI use with a big margin. Credits matter mainly as a cap on heavy users (someone
+rebuilding app simulations all day), so one company can't cost more than it pays.
+
+**The problem is how it looks.** The pricing page sells "AI-written tests and simulations" as part of every paid plan.
+A company paying £149/month that then has to buy credit before its first AI test will feel charged twice. That loses
+customers or causes complaints.
+
+**What the code does today** (as of commit a49b301): the credit system doesn't look at the plan. Once Stripe is
+on, every company pays from credit, Growth and Scale included. The free plan also has AI switched on for now
+(`AI_TESTS_FOR_ALL = true` in `src/App.tsx`).
+
+**Recommendation: an AI allowance in every plan, top-ups only beyond it.**
+
+| Plan | Included AI credit | Roughly |
+|---|---|---|
+| Free | £2 once (a trial) | 1–2 tests |
+| Per job | £10 per job | 5–10 tests or lots of changes |
+| Growth | £25 a month | 15–30 tests a month |
+| Scale | £60 a month | 40+ tests a month |
+
+- The allowance resets each month (or job) and doesn't roll over; bought credit is used after it and never expires.
+- The pricing page says something like "Includes £25 of AI test writing each month · top up any time".
+- The subscription still feels like it includes AI, most companies never pay extra, and heavy users pay for what they use.
+
+**Limits:**
+- Plans aren't paid online yet (the Vetter team switches them on), so the allowance would follow whatever plan is set on
+  the company.
+- The amounts above are suggestions; set them from real usage in the Stripe dashboard.
+- The server would read the company's plan from its company record on each request, alongside the sign-in check it
+  already does.
+
+Not built yet.
 
 ## Principles
 
