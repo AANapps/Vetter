@@ -1,7 +1,8 @@
 import { isMainVersion } from '../lib/testLevels';
 import { Pic } from './Pic';
 import React, { useState } from 'react';
-import { User, JobPosting, AssessmentTest, Business, TestDraft } from '../types';
+import { User, JobPosting, AssessmentTest, Business, TestDraft, TestRole } from '../types';
+import { ROLE_GROUPS } from '../lib/testRoles';
 import { getTestStats } from '../lib/leaderboard';
 import { JobCandidates } from './JobCandidates';
 import { CheckCircle2, FileText, Pencil, Plus, Search, Sparkles, Trash2 } from 'lucide-react';
@@ -70,10 +71,11 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   const vetterTests = tests.filter((t) => t.type === 'standard' && isMainVersion(t));
 
   const [selectedJobId, setSelectedJobId] = useState<string>(jobs[0]?.id || '');
-  // The Tests page: one list of the company's tests and Vetter's, narrowed by source, category and a search
+  // The Tests page: one list of the company's tests and Vetter's, browsed by industry and role (as candidates browse
+  // them), narrowed by source and a search
   const [testQuery, setTestQuery] = useState('');
   const [testSource, setTestSource] = useState<'all' | 'yours' | 'vetter' | 'on-jobs'>('all');
-  const [testCategory, setTestCategory] = useState('');
+  const [testField, setTestField] = useState<{ label: string; roles: TestRole[] } | null>(null);
   const usedByOf = (t: AssessmentTest) => jobs.filter((j) => j.testIds.includes(t.id));
   const allTests = [...companyTests, ...vetterTests];
   const sourceTabs = (
@@ -92,14 +94,29 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   const inSource = (t: AssessmentTest, src: typeof testSource) =>
     src === 'all' || (src === 'yours' ? t.type === 'custom' : src === 'vetter' ? t.type === 'standard' : usedByOf(t).length > 0);
   const countFor = (src: typeof testSource) => allTests.filter((t) => inSource(t, src)).length;
-  const categories = [...new Set(allTests.map((t) => t.category))].sort();
+  // A test's roles: its own, or for a company's test (which has none) the roles the library's tests of its category
+  // are for, so it's filed beside them
+  const rolesByCategory = new Map<string, TestRole[]>();
+  for (const t of vetterTests) rolesByCategory.set(t.category, [...new Set([...(rolesByCategory.get(t.category) ?? []), ...(t.roles ?? [])])]);
+  const rolesOf = (t: AssessmentTest): TestRole[] => (t.roles?.length ? t.roles : rolesByCategory.get(t.category) ?? []);
+  const inField = (t: AssessmentTest, roles: TestRole[]) => rolesOf(t).some((r) => roles.includes(r));
+  // The industry a test is listed under when nothing's picked: the first it belongs to, so it shows once
+  const industryOf = (t: AssessmentTest) => ROLE_GROUPS.find((g) => inField(t, g.roles))?.industry ?? 'Other';
+  const sourced = allTests.filter((t) => inSource(t, testSource));
   const tq = testQuery.trim().toLowerCase();
-  // Tests on the company's jobs first, then its own, then the library by category
-  const shownTests = allTests
-    .filter((t) => inSource(t, testSource) && (!testCategory || t.category === testCategory))
+  const grouped = !testField && !tq;
+  const industryRank = (t: AssessmentTest) => {
+    const i = ROLE_GROUPS.findIndex((g) => g.industry === industryOf(t));
+    return i < 0 ? ROLE_GROUPS.length : i;
+  };
+  // Tests on the company's jobs first, then its own, then the library
+  const shownTests = sourced
+    .filter((t) => !testField || inField(t, testField.roles))
     .filter((t) => !tq || `${t.title} ${t.category} ${t.skillsTested.join(' ')}`.toLowerCase().includes(tq))
     .sort(
       (a, b) =>
+        // Split under industry headings: in the menu's order, Other last
+        (grouped ? industryRank(a) - industryRank(b) : 0) ||
         Number(usedByOf(b).length > 0) - Number(usedByOf(a).length > 0) ||
         Number(b.type === 'custom') - Number(a.type === 'custom') ||
         a.category.localeCompare(b.category) ||
@@ -313,6 +330,39 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
             </div>
           )}
 
+          <div className="grid grid-cols-1 lg:grid-cols-[15rem_minmax(0,1fr)] gap-6 items-start">
+          {/* Browse by industry and role, as candidates do */}
+          <aside className="hidden lg:block bg-white border border-slate-200 rounded-xl p-4 space-y-4 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:overscroll-contain [scrollbar-width:thin]">
+            <div className="space-y-1">
+              <h2 className="text-sm font-bold text-slate-900 mb-2">Browse by role</h2>
+              <RoleButton label="All tests" count={sourced.length} active={!testField} onClick={() => setTestField(null)} />
+            </div>
+            {ROLE_GROUPS.map((group) => (
+              <div key={group.industry} className="space-y-1">
+                <button
+                  onClick={() => setTestField({ label: group.industry, roles: group.roles })}
+                  aria-pressed={testField?.label === group.industry}
+                  className={`w-full flex items-center justify-between text-left text-[10px] font-mono uppercase tracking-wider font-semibold px-2 hover:text-indigo-700 ${
+                    testField?.label === group.industry ? 'text-indigo-700' : 'text-slate-400'
+                  }`}
+                >
+                  <span>{group.industry}</span>
+                  <span className="tabular-nums">{sourced.filter((t) => inField(t, group.roles)).length}</span>
+                </button>
+                {group.roles.map((role) => (
+                  <RoleButton
+                    key={role}
+                    label={role}
+                    count={sourced.filter((t) => inField(t, [role])).length}
+                    active={testField?.label === role}
+                    onClick={() => setTestField({ label: role, roles: [role] })}
+                  />
+                ))}
+              </div>
+            ))}
+          </aside>
+
+          <div className="space-y-4 min-w-0">
           {/* Find a test */}
           <div className="flex flex-col md:flex-row md:items-center gap-3">
             <div className="relative flex-1">
@@ -339,16 +389,25 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
               ))}
             </div>
             <select
-              value={testCategory}
-              onChange={(e) => setTestCategory(e.target.value)}
-              aria-label="Category"
-              className="px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm self-start"
+              value={testField?.label ?? ''}
+              onChange={(e) => {
+                const v = e.target.value;
+                const group = ROLE_GROUPS.find((g) => g.industry === v);
+                setTestField(!v ? null : group ? { label: v, roles: group.roles } : { label: v, roles: [v as TestRole] });
+              }}
+              aria-label="Role"
+              className="lg:hidden px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm self-start"
             >
-              <option value="">All categories</option>
-              {categories.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
+              <option value="">All roles</option>
+              {ROLE_GROUPS.map((g) => (
+                <optgroup key={g.industry} label={g.industry}>
+                  <option value={g.industry}>All of {g.industry}</option>
+                  {g.roles.map((r) => (
+                    <option key={r} value={r}>
+                      {r}
+                    </option>
+                  ))}
+                </optgroup>
               ))}
             </select>
           </div>
@@ -368,9 +427,12 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
               </p>
             ) : (
               <ul className="divide-y divide-slate-100">
-                {shownTests.map((t) => {
+                {shownTests.flatMap((t, i) => {
                   const own = t.type === 'custom';
-                  return (
+                  // Without a role picked, the list is split under each industry's heading
+                  const heading = grouped ? industryOf(t) : null;
+                  const first = heading && shownTests.findIndex((o) => industryOf(o) === heading) === i;
+                  const row = (
                     <TestRow
                       key={t.id}
                       test={t}
@@ -384,9 +446,20 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                       onDeepen={isVetter ? () => onGenerateTest(deepenSeed(t)) : undefined}
                     />
                   );
+                  return first
+                    ? [
+                        <li key={`h-${heading}`} className="px-5 pt-5 pb-2 bg-slate-50/70 flex items-baseline justify-between gap-3">
+                          <h3 className="text-[11px] font-mono uppercase tracking-wider font-semibold text-slate-500">{heading}</h3>
+                          <span className="text-[11px] font-mono text-slate-400 tabular-nums">{shownTests.filter((o) => industryOf(o) === heading).length}</span>
+                        </li>,
+                        row,
+                      ]
+                    : [row];
                 })}
               </ul>
             )}
+          </div>
+          </div>
           </div>
         </div>
       )}
@@ -551,3 +624,14 @@ const DraftCard: React.FC<{
     </li>
   );
 };
+
+const RoleButton: React.FC<{ label: string; count: number; active: boolean; onClick: () => void }> = ({ label, count, active, onClick }) => (
+  <button
+    onClick={onClick}
+    aria-pressed={active}
+    className={`w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded-md text-xs text-left transition-colors ${active ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-700 hover:bg-slate-50'}`}
+  >
+    <span>{label}</span>
+    <span className="font-mono text-[11px] text-slate-400 tabular-nums">{count}</span>
+  </button>
+);
