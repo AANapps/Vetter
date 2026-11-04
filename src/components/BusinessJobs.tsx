@@ -479,7 +479,7 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
                   </button>
                   <button
                     onClick={() => onEditTestWithAI(job.id, t.id)}
-                    title="Change this test by asking Vetter"
+                    title="Edit this test"
                     className="pl-2 pr-2.5 py-1 border-l border-slate-200 font-semibold text-indigo-700 hover:bg-indigo-50 hover:text-indigo-900 flex items-center gap-1"
                   >
                     <Pencil className="w-3 h-3" />

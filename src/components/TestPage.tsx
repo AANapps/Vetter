@@ -1,6 +1,6 @@
 import React from 'react';
 import { BackButton } from './BackButton';
-import { Link2, Play, PlusCircle } from 'lucide-react';
+import { Link2, Pencil, Play, PlusCircle } from 'lucide-react';
 import { AssessmentTest, Business, JobPosting, TEST_DIFFICULTIES, User, UserRole, timerOf } from '../types';
 import { getLeaderboard, getTestStats } from '../lib/leaderboard';
 import { TestLeaderboard, formatDuration } from './TestLeaderboard';
@@ -25,6 +25,8 @@ interface TestPageProps {
   onSend?: () => void;
   // Companies take a copy of a Vetter module test to add their own questions to its areas and levels
   onCustomize?: () => void;
+  // The company's own test: opens where it's edited
+  onEdit?: () => void;
   onStartTest: (test: AssessmentTest) => void;
   onOpenJob?: (jobId: string) => void;
   onOpenTest: (testId: string) => void;
@@ -43,6 +45,7 @@ export const TestPage: React.FC<TestPageProps> = ({
   referredByCompany,
   onSend,
   onCustomize,
+  onEdit,
   onStartTest,
   onOpenJob,
   onOpenTest,
@@ -118,6 +121,17 @@ export const TestPage: React.FC<TestPageProps> = ({
             >
               <Link2 className="w-3.5 h-3.5" />
               <span>Add to a job</span>
+            </button>
+          )}
+
+          {onEdit && (
+            <button
+              onClick={onEdit}
+              title="Ask Vetter for changes, or edit the questions yourself"
+              className="px-4 py-2.5 text-xs font-semibold text-indigo-700 bg-white border border-indigo-200 hover:border-indigo-400 rounded-lg transition-colors flex items-center gap-2 shrink-0 self-start"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              <span>Edit</span>
             </button>
           )}
 

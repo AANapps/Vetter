@@ -426,6 +426,15 @@ export default function App() {
   // For now every company gets AI test creation, whatever its plan; set to false to put it back behind paid plans
   const AI_TESTS_FOR_ALL = true;
   const aiAllowed = AI_TESTS_FOR_ALL || activeRole === 'admin' || hasAiTests(recruiterBusiness);
+  // A company's own test is edited in one place: the test chat, where it can ask Vetter for changes, edit questions by
+  // hand and open the full builder. Without AI tests on its plan, straight to the builder. Changes saved as a draft
+  // earlier are picked up where they were left
+  const editOwnTest = (testId: string, jobId?: string) => {
+    const pending = testDrafts.find((d) => d.editsTestId === testId);
+    const test = tests.find((t) => t.id === testId);
+    if (!aiAllowed) return pending ? setDraftBuilder({ draft: pending.test, jobId: pending.jobId, alsoAdd: [], record: pending }) : test && setDraftBuilder({ draft: test, jobId, alsoAdd: [] });
+    setGenerator(pending ? { jobId: pending.jobId ?? jobId, resume: pending } : { jobId, editTestId: testId });
+  };
   const openGenerator = (g: { jobId?: string; resume?: TestDraft; seed?: string; autoSend?: boolean; editTestId?: string }) => (aiAllowed ? setGenerator(g) : setPlansOpen(true));
   // Builds one of the home chat's AI ideas straight away; the test plan opens with it once it's saved (or closed)
   const startPlanBuild = (idea: CustomIdea) => {
@@ -1064,6 +1073,11 @@ export default function App() {
                   ? () => setDraftBuilder({ draft: testPageTest, isCopy: true, alsoAdd: [] })
                   : undefined
               }
+              onEdit={
+                activeRole === 'recruiter' && recruiterBusiness && testPageTest.type === 'custom' && testPageTest.businessId === recruiterBusiness.id
+                  ? () => editOwnTest(testPageTest.id)
+                  : undefined
+              }
               onStartTest={startTest}
               onOpenJob={activeRole === 'candidate' ? openJobPage : undefined}
               onOpenTest={openTestPage}
@@ -1227,11 +1241,7 @@ export default function App() {
               onCreateJob={handleCreateJob}
               onEditTests={(jobId) => setEditingTests({ jobId, addTestIds: [] })}
               onSuggestTests={(jobId) => openGenerator({ jobId })}
-              onEditTestWithAI={(jobId, testId) => {
-                // Changes saved as a draft earlier are picked up where they were left
-                const pending = testDrafts.find((d) => d.editsTestId === testId);
-                openGenerator(pending ? { jobId, resume: pending } : { jobId, editTestId: testId });
-              }}
+              onEditTestWithAI={(jobId, testId) => editOwnTest(testId, jobId)}
               onUpdateJobRequirements={handleUpdateJobRequirements}
               onEmail={handleEmailJob}
               onInvite={handleInviteToJob}
@@ -1277,11 +1287,7 @@ export default function App() {
               onDeleteDraft={deleteTestDraft}
               onContinueDraft={(d) => openGenerator({ jobId: d.jobId, resume: d })}
               onEditDraftByHand={(d) => setDraftBuilder({ draft: d.test, jobId: d.jobId, alsoAdd: [], record: d })}
-              onEditTestWithAI={(testId) => {
-                // Changes saved as a draft earlier are picked up where they were left
-                const pending = testDrafts.find((d) => d.editsTestId === testId);
-                openGenerator(pending ? { jobId: pending.jobId, resume: pending } : { editTestId: testId });
-              }}
+              onEditOwnTest={editOwnTest}
               leads={
                 <LeadsPage
                   business={leadsBusiness}
