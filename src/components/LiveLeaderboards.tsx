@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Pic } from './Pic';
 import { ArrowDown, ArrowUp, ChevronRight } from 'lucide-react';
-import { AssessmentTest, User } from '../types';
+import { AssessmentTest, User, isPublic } from '../types';
 import { LeaderboardEntry, getLeaderboard } from '../lib/leaderboard';
 import { trendingTests } from '../lib/feed';
 import { isMainVersion } from '../lib/testLevels';
@@ -24,7 +24,7 @@ interface LiveLeaderboardsProps {
 // Home's narrow right-hand column: the busiest tests' leaderboards, moving as people take them
 export const LiveLeaderboards: React.FC<LiveLeaderboardsProps> = ({ tests, allCandidates, viewerId, onOpenTest }) => {
   const trending = trendingTests(allCandidates, tests, BOARD_COUNT).map((t) => t.test);
-  const boards = trending.length > 0 ? trending : tests.filter((t) => t.type === 'standard' && isMainVersion(t)).slice(0, BOARD_COUNT);
+  const boards = trending.length > 0 ? trending : tests.filter((t) => isPublic(t) && isMainVersion(t)).slice(0, BOARD_COUNT);
 
   // Which boards to show stays put while trending reshuffles underneath, so the tabs don't jump
   const [boardIds] = useState(() => boards.map((t) => t.id));

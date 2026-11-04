@@ -1,10 +1,10 @@
-import { AssessmentTest, TestResult, User, VerifiedSkill } from '../types';
+import { AssessmentTest, TestResult, User, VerifiedSkill, isPublic } from '../types';
 import { levelForScore } from '../data/seedCandidates';
 
 // Records a finished attempt. Only Vetter-made tests become verified skills; company tests are scored for their own jobs
 export function addTestResult(user: User, test: AssessmentTest, result: TestResult): User {
   const testResults = [...user.testResults, result];
-  if (test.type !== 'standard') return { ...user, testResults };
+  if (!isPublic(test)) return { ...user, testResults };
 
   const bestScore = Math.max(...testResults.filter((r) => r.testId === test.id).map((r) => r.score));
   const skillName = test.skillsTested[0] || test.title;

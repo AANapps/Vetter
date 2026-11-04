@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pic } from './Pic';
 import { ArrowRight, BadgeCheck, Briefcase, ClipboardCheck, Clock, Trophy } from 'lucide-react';
-import { AssessmentTest, JobPosting } from '../types';
+import { AssessmentTest, JobPosting, isPublic } from '../types';
 import { AppTab } from './Navigation';
 
 interface VisitorHomeProps {
@@ -22,7 +22,7 @@ const STEPS = [
 // What a signed-out visitor sees first: what Vetter is in one line, a path for each audience, and real tests and jobs
 export const VisitorHome: React.FC<VisitorHomeProps> = ({ tests, jobs, onOpenTest, onOpenJob, onGoTo, onJoin }) => {
   // Vetter's own tests, one per family (not every level of each)
-  const popularTests = tests.filter((t) => t.type === 'standard' && (!t.familyId || t.familyId === t.id)).slice(0, 6);
+  const popularTests = tests.filter((t) => isPublic(t) && (!t.familyId || t.familyId === t.id)).slice(0, 6);
   const latestJobs = [...jobs].sort((a, b) => b.postedDate.localeCompare(a.postedDate)).slice(0, 4);
 
   return (

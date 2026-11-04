@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AssessmentTest, Business, JobPosting } from '../types';
+import { AssessmentTest, Business, JobPosting, isPublic } from '../types';
 import { CITIES } from '../lib/geo';
 import { EMPLOYMENT_TYPES, EXPERIENCE_LEVELS, formatSalaryRange } from '../lib/jobFilters';
 import { Plus } from 'lucide-react';
@@ -25,7 +25,7 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
   const business = businesses.find((b) => b.id === businessId) ?? businesses[0];
   const companyTests = tests.filter((t) => t.type === 'custom' && t.businessId === business?.id);
   // Each Vetter test once; its level is chosen when it's ticked
-  const vetterTests = tests.filter((t) => t.type === 'standard' && isMainVersion(t));
+  const vetterTests = tests.filter((t) => isPublic(t) && isMainVersion(t) && t.businessId !== business?.id);
 
   const [title, setTitle] = useState('');
   const [department, setDepartment] = useState('Core Engineering');

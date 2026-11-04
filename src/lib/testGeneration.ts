@@ -1,4 +1,4 @@
-import { AssessmentTest, Business, JobPosting, Question, QuestionType, SkillCategory, TestDifficulty, TestRole } from '../types';
+import { AssessmentTest, Business, JobPosting, Question, QuestionType, SkillCategory, TestDifficulty, TestRole, isPublic } from '../types';
 import { SKILL_IDS } from '../data/seedCandidates';
 import { MOCK_DATABASE, executeSqlQuery } from './sqlEngine';
 import { runJavaScriptCode } from './codeEngine';
@@ -60,7 +60,7 @@ export const jobBrief = (job: JobPosting) =>
 
 // The tests a company can use: Vetter's library, plus its own
 export const libraryFor = (tests: AssessmentTest[], business?: Business) =>
-  tests.filter((t) => isMainVersion(t) && (t.type === 'standard' || (business && t.businessId === business.id)));
+  tests.filter((t) => isMainVersion(t) && (isPublic(t) || (business && t.businessId === business.id)));
 
 // Words too common in job ads to say anything about fit
 const STOP = new Set(

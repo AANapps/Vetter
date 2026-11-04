@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
-import { AssessmentTest } from '../types';
+import { AssessmentTest, isPublic } from '../types';
 import { HOME_FIELDS, TestField } from '../lib/testRoles';
 import { isMainVersion } from '../lib/testLevels';
 
@@ -73,7 +73,7 @@ export const FieldSlider: React.FC<{ tests: AssessmentTest[]; onOpenField: (fiel
     const from = glide.current ? glide.current.to : pos.current;
     glide.current = { from, to: from + by, start: performance.now() };
   };
-  const mains = tests.filter((t) => t.type === 'standard' && isMainVersion(t));
+  const mains = tests.filter((t) => isPublic(t) && isMainVersion(t));
   const fields = HOME_FIELDS.map((f) => ({
     ...f,
     count: mains.filter((t) => t.roles?.some((r) => f.roles.includes(r))).length,

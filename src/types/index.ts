@@ -222,6 +222,10 @@ export interface TestAspect {
 
 export type TestDifficulty = 'Beginner' | 'Junior' | 'Professional' | 'Senior';
 
+// In the public library, for every company to use and every candidate to take: Vetter's own tests, and companies'
+// tests the Vetter team approved
+export const isPublic = (test: Pick<AssessmentTest, 'type' | 'publicStatus'>) => test.type === 'standard' || test.publicStatus === 'approved';
+
 // Whether a test is changed by asking Vetter (made in the test chat) or by hand. Tests saved before this was recorded
 // are told apart by what only the chat leaves: a blueprint (which the builder used to drop on saving), or question ids
 // from the chat's id maker, q-<time>-<5 characters>; the builder's have 4
@@ -253,6 +257,12 @@ export interface AssessmentTest {
   timeLimit?: number | 'none';
   // Written (or since enhanced) in the test chat with Vetter's AI, or in the builder by hand
   madeWith?: 'ai' | 'hand';
+  // A company's test offered to everyone: the company asks (pending), the Vetter team approves it or turns it down
+  // (with why). Approved, it's in every company's library and on the candidates' Tests page. Changing it sends it back
+  // for approval
+  publicStatus?: 'pending' | 'approved' | 'rejected';
+  publicAskedAt?: string;
+  publicNote?: string;
   passingScore: number;
   totalQuestions: number;
   questions: Question[];

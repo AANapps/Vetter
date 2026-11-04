@@ -1,5 +1,5 @@
 import { familyIdOf, isMainVersion } from './testLevels';
-import { AssessmentTest, Business, FeedPost, JobPosting, User } from '../types';
+import { AssessmentTest, Business, FeedPost, JobPosting, User, isPublic } from '../types';
 import { getLeaderboard } from './leaderboard';
 import { hashString } from '../data/seedCandidates';
 
@@ -30,7 +30,7 @@ export function buildFeed(
   businesses: Business[],
   posts: FeedPost[]
 ): FeedItem[] {
-  const standardTests = tests.filter((t) => t.type === 'standard');
+  const standardTests = tests.filter((t) => isPublic(t));
   const boards = new Map(standardTests.map((t) => [t.id, getLeaderboard(t.id, candidates)]));
 
   const results: FeedItem[] = candidates.flatMap((actor) =>
@@ -128,7 +128,7 @@ export function trendingTests(candidates: User[], tests: AssessmentTest[], limit
   if (!latest) return [];
   const cutoff = new Date(new Date(latest).getTime() - 30 * 86400000).toISOString().split('T')[0];
   return tests
-    .filter((t) => t.type === 'standard' && isMainVersion(t))
+    .filter((t) => isPublic(t) && isMainVersion(t))
     .map((test) => {
       // A test's attempts at every level count together
       const ids = new Set(tests.filter((t) => familyIdOf(t) === test.id).map((t) => t.id));

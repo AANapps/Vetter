@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Pic } from './Pic';
-import { AssessmentTest, Business, JobPosting, User } from '../types';
+import { AssessmentTest, Business, JobPosting, User, isPublic } from '../types';
 import { STATUS_LABELS, invitesFor, totalMinutes } from '../lib/jobTests';
 import { jobIdFromPath } from '../lib/jobSeo';
 import { activeProfileOf } from '../lib/jobProfiles';
@@ -51,7 +51,7 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, jobs, t
   const takenIds = new Set(candidate.testResults.map((r) => r.testId));
   const theirCategories = new Set(candidate.verifiedSkills.map((s) => s.category));
   const suggested = tests
-    .filter((t) => t.type === 'standard' && isMainVersion(t) && !takenIds.has(t.id))
+    .filter((t) => isPublic(t) && isMainVersion(t) && !takenIds.has(t.id))
     .sort((a, b) => Number(theirCategories.has(b.category)) - Number(theirCategories.has(a.category)))
     .slice(0, 3);
   const bestScore = candidate.testResults.length ? Math.max(...candidate.testResults.map((r) => r.score)) : undefined;

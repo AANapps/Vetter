@@ -1,5 +1,5 @@
 import React from 'react';
-import { AssessmentTest, Business, TestDifficulty, User } from '../types';
+import { AssessmentTest, Business, TestDifficulty, User, isPublic } from '../types';
 import { tierIndex } from '../lib/modules';
 import { getLeaderboard } from '../lib/leaderboard';
 import { CheckCircle2, ChevronRight, Lock, Trash2, XCircle } from 'lucide-react';
@@ -37,11 +37,11 @@ export const TestHistory: React.FC<TestHistoryProps> = ({ person, tests, candida
         (id): id is string => !!id
       );
       const sharedWith = companyResultsFor === 'all' ? sentTo : sentTo.filter((id) => id === companyResultsFor);
-      const visible = companyResultsFor === 'all' || test.type === 'standard' || sharedWith.length > 0;
+      const visible = companyResultsFor === 'all' || isPublic(test) || sharedWith.length > 0;
       if (!visible) return [];
       const best = Math.max(...attempts.map((r) => r.score));
       const last = attempts.map((r) => r.completedTime ?? r.completedAt).sort().at(-1)!;
-      const board = test.type === 'standard' ? getLeaderboard(testId, candidates) : [];
+      const board = isPublic(test) ? getLeaderboard(testId, candidates) : [];
       const entry = board.find((e) => e.candidate.id === person.id);
       const monitored = attempts.filter((r) => r.integrity).sort((a, b) => (a.completedTime ?? a.completedAt).localeCompare(b.completedTime ?? b.completedAt)).at(-1);
       const sittings = monitored?.integrity ? [{ testTitle: test.title, completedAt: monitored.completedTime ?? monitored.completedAt, report: monitored.integrity }] : [];

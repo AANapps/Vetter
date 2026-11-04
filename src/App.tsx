@@ -1,7 +1,8 @@
 import type { IntegrityReport } from './lib/integrity';
+import { PublicTestReview } from './components/PublicTestReview';
 import { AnswerRecord, saveSubmission } from './lib/submissions';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { User, UserRole, AssessmentTest, JobPosting, Business, SocialState, AppNotification, JobInvitation, Lead, TestDraft, TrialResult, ResultBreakdown, hasAiTests, madeWithAI } from './types';
+import { User, UserRole, AssessmentTest, JobPosting, Business, SocialState, AppNotification, JobInvitation, Lead, TestDraft, TrialResult, ResultBreakdown, hasAiTests, madeWithAI, isPublic } from './types';
 import { INITIAL_RECRUITER, INITIAL_BUSINESSES, STANDARD_ASSESSMENTS } from './data/mockData';
 import { loadData, saveData, clearData, createSeedData } from './lib/store';
 import { getPercentile } from './lib/leaderboard';
@@ -819,7 +820,7 @@ export default function App() {
       if (!jobPageId) goToTab('jobs');
     } else if (!testPageId) {
       // Started from a test page: stay there so the candidate sees where they now rank
-      goToTab(completedTest.type === 'standard' ? 'profile' : 'jobs');
+      goToTab(isPublic(completedTest) ? 'profile' : 'jobs');
     }
 
     setActiveTestJobId(null);
@@ -908,9 +909,37 @@ export default function App() {
     setTests((prev) => [newTest, ...prev]);
   };
 
+  // A test's content changed: its place in the public library stays with it, except that a company's change to an
+  // approved test sends it back for the Vetter team to approve again (firestore.rules insists on it)
   const handleUpdateTest = (test: AssessmentTest) => {
-    setTests((prev) => prev.map((t) => (t.id === test.id ? test : t)));
+    const before = tests.find((t) => t.id === test.id);
+    const recheck = before?.publicStatus === 'approved' && activeRole !== 'admin';
+    const kept: AssessmentTest = {
+      ...test,
+      publicStatus: recheck ? 'pending' : before?.publicStatus,
+      publicAskedAt: recheck ? new Date().toISOString() : before?.publicAskedAt,
+      publicNote: before?.publicNote,
+    };
+    setTests((prev) => prev.map((t) => (t.id === test.id ? kept : t)));
+    if (recheck) showToast(`"${test.title}" was changed, so it's waiting for Vetter to approve it again before it's public.`);
   };
+
+  // The public library: a company offers its test (filed under the roles the library's tests of its category are
+  // for, as its own has none), takes it back, and the Vetter team decides
+  const setPublic = (testId: string, change: (t: AssessmentTest) => AssessmentTest) => setTests((prev) => prev.map((t) => (t.id === testId ? change(t) : t)));
+  const askToPublish = (testId: string) => {
+    const test = tests.find((t) => t.id === testId);
+    if (!test) return;
+    const roles = test.roles?.length ? test.roles : [...new Set(tests.filter((t) => t.type === 'standard' && t.category === test.category).flatMap((t) => t.roles ?? []))];
+    setPublic(testId, (t) => ({ ...t, roles, publicStatus: 'pending', publicAskedAt: new Date().toISOString(), publicNote: undefined }));
+    showToast(`"${test.title}" is waiting for Vetter to approve it. Once approved, other companies can use it and candidates can take it.`);
+  };
+  const withdrawPublic = (testId: string) => {
+    setPublic(testId, (t) => ({ ...t, publicStatus: undefined, publicAskedAt: undefined, publicNote: undefined }));
+    showToast('Taken out of the public library. Only your company can use it now.');
+  };
+  const decidePublic = (testId: string, approve: boolean, note?: string) =>
+    setPublic(testId, (t) => ({ ...t, publicStatus: approve ? 'approved' : 'rejected', publicNote: approve ? undefined : note?.trim() || undefined }));
 
   // Who a new test belongs to: the job's company, or the company signed in, or the Vetter library
   const testOwnerFor = (jobId?: string) => {
@@ -1062,6 +1091,7 @@ export default function App() {
           <>
           {activeRole === 'recruiter' && company && account && company.ownerUid === account.uid && companyBusiness && <TeamRequests company={company} />}
           {activeRole === 'admin' && firebaseEnabled && account?.role === 'admin' && <CompanyReview />}
+          {activeRole === 'admin' && !testPageTest && <PublicTestReview tests={tests} onOpen={openTestPage} onDecide={decidePublic} />}
           {!testPageTest && (currentTab === 'learn' || currentTab === 'upskill') && coursePage && (
             <CoursePage
               course={coursePage}
@@ -1109,6 +1139,10 @@ export default function App() {
                   ? () => editOwnTest(testPageTest.id)
                   : undefined
               }
+              {...(activeRole === 'recruiter' && recruiterBusiness && testPageTest.type === 'custom' && testPageTest.businessId === recruiterBusiness.id && {
+                onAskToPublish: () => askToPublish(testPageTest.id),
+                onWithdrawPublic: () => withdrawPublic(testPageTest.id),
+              })}
               onStartTest={startTest}
               onOpenJob={activeRole === 'candidate' ? openJobPage : undefined}
               onOpenTest={openTestPage}

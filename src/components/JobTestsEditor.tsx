@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { BackButton } from './BackButton';
-import { AssessmentTest, JobPosting } from '../types';
+import { AssessmentTest, JobPosting, isPublic } from '../types';
 import { isMainVersion, levelsOf } from '../lib/testLevels';
 import { ArrowLeft, ArrowRight, Check, Search, X } from 'lucide-react';
 
@@ -50,7 +50,7 @@ export const JobTestsEditor: React.FC<JobTestsEditorProps> = ({ jobs, tests, add
 
   const tq = testQuery.trim().toLowerCase();
   const choices = tests
-    .filter((t) => isMainVersion(t) && (t.type === 'standard' || t.businessId === job?.businessId))
+    .filter((t) => isMainVersion(t) && (isPublic(t) || t.businessId === job?.businessId))
     .filter((t) => !tq || `${t.title} ${t.category} ${t.companyName ?? ''} ${t.skillsTested.join(' ')}`.toLowerCase().includes(tq));
   const minutes = pickedTests.reduce((sum, t) => sum + t.estimatedMinutes, 0);
 

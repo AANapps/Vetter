@@ -75,6 +75,11 @@ const noop = (e) => { throw e; };
 await A.signIn('alice@acme.io', 'password123');
 await check('Alice posts a job for Acme', () => C.syncJobs([], [job], noop), true);
 await check('Alice writes a test for Acme', () => C.syncTests([], [{ id: 'test-custom-1', title: 'Acme SQL', type: 'custom', businessId: 'acme.io', questions: [] }], noop), true);
+const acmeTest = { id: 'test-custom-1', title: 'Acme SQL', type: 'custom', businessId: 'acme.io', questions: [] };
+await check('cannot write a test that is already public', () => setDoc(doc(db, 'tests', 'test-custom-9'), { ...acmeTest, id: 'test-custom-9', publicStatus: 'approved' }), false);
+await check('cannot approve her own test for the public library', () => setDoc(doc(db, 'tests', 'test-custom-1'), { ...acmeTest, publicStatus: 'approved' }), false);
+await check('cannot mark it turned down either', () => setDoc(doc(db, 'tests', 'test-custom-1'), { ...acmeTest, publicStatus: 'rejected' }), false);
+await check('asks for it to join the public library', () => setDoc(doc(db, 'tests', 'test-custom-1'), { ...acmeTest, publicStatus: 'pending' }), true);
 await check('Alice cannot post a job for another company', () => C.syncJobs([], [{ ...job, id: 'job-x', businessId: 'rival.io' }], noop), false);
 await check('Alice cannot make a Vetter library test', () => setDoc(doc(db, 'tests', 'test-vetter-1'), { id: 'test-vetter-1', type: 'standard', title: 'x' }), false);
 await check('Alice sends the job to Cara and tells her', async () => {
@@ -198,8 +203,16 @@ await A.signIn('cara@gmail.com', 'password123');
 const queue = await A.companiesInReview();
 console.log('    review queue:', queue.map((c) => c.name).join(', '));
 await check('admin approves Mo', () => A.decideCompany(queue[0], true), true);
+await check('admin approves Acme\'s test for the public library', () => updateDoc(doc(db, 'tests', 'test-custom-1'), { publicStatus: 'approved' }), true);
 await check('admin reads course sign-ups', async () => { if ((await getDocs(collection(db, 'courseSignups'))).size !== 1) throw new Error('missing'); }, true);
 console.log('    Mo now:', (await account(mo)).status);
+await A.signOut();
+
+await A.signIn('alice@acme.io', 'password123');
+console.log('    Alice, with her test public:');
+await check('cannot change it and keep it approved', () => updateDoc(doc(db, 'tests', 'test-custom-1'), { title: 'Changed quietly' }), false);
+await check('changes it, which sends it back for approval', () => updateDoc(doc(db, 'tests', 'test-custom-1'), { title: 'Changed', publicStatus: 'pending' }), true);
+await check('takes it out of the public library', () => setDoc(doc(db, 'tests', 'test-custom-1'), { ...acmeTest, title: 'Changed' }), true);
 await A.signOut();
 
 console.log(`\n${pass} passed, ${fail} failed`);

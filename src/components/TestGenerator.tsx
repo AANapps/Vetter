@@ -676,7 +676,7 @@ const LibraryPicks: React.FC<{
               </button>
               <div className="text-xs text-slate-600">{reason}</div>
               <div className="text-[11px] text-slate-400">
-                {test.category} &middot; ~{test.estimatedMinutes} min &middot; {test.type === 'custom' ? 'your test' : 'Vetter test'}
+                {test.category} &middot; ~{test.estimatedMinutes} min{test.type === 'custom' && <> &middot; {test.businessId === job.businessId ? 'your test' : `by ${test.companyName}`}</>}
                 {onJob && ' · already on this job'}
               </div>
             </div>

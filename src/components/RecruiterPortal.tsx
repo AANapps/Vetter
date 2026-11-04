@@ -1,7 +1,7 @@
 import { isMainVersion } from '../lib/testLevels';
 import { Pic } from './Pic';
 import React, { useState } from 'react';
-import { User, JobPosting, AssessmentTest, Business, TestDraft, TestRole } from '../types';
+import { User, JobPosting, AssessmentTest, Business, TestDraft, TestRole, isPublic } from '../types';
 import { ROLE_GROUPS } from '../lib/testRoles';
 import { getTestStats } from '../lib/leaderboard';
 import { JobCandidates } from './JobCandidates';
@@ -68,7 +68,8 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   const isVetter = !business;
   const jobs = isVetter ? allJobs : allJobs.filter((j) => j.businessId === business.id);
   const companyTests = isVetter ? [] : tests.filter((t) => t.type === 'custom' && t.businessId === business.id);
-  const vetterTests = tests.filter((t) => t.type === 'standard' && isMainVersion(t));
+  // The public library: Vetter's tests and other companies' approved ones (a company's own are in companyTests)
+  const vetterTests = tests.filter((t) => isPublic(t) && isMainVersion(t) && (isVetter || t.businessId !== business.id));
 
   const [selectedJobId, setSelectedJobId] = useState<string>(jobs[0]?.id || '');
   // The Tests page: one list of the company's tests and Vetter's, browsed by industry and role (as candidates browse
@@ -87,12 +88,12 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
       : [
           ['all', 'All'],
           ['yours', 'Yours'],
-          ['vetter', 'Vetter'],
+          ['vetter', 'Library'],
           ['on-jobs', 'On your jobs'],
         ]
   ) as [typeof testSource, string][];
   const inSource = (t: AssessmentTest, src: typeof testSource) =>
-    src === 'all' || (src === 'yours' ? t.type === 'custom' : src === 'vetter' ? t.type === 'standard' : usedByOf(t).length > 0);
+    src === 'all' || (src === 'yours' ? t.type === 'custom' : src === 'vetter' ? vetterTests.includes(t) : usedByOf(t).length > 0);
   const countFor = (src: typeof testSource) => allTests.filter((t) => inSource(t, src)).length;
   // A test's roles: its own, or for a company's test (which has none) the roles the library's tests of its category
   // are for, so it's filed beside them
@@ -110,7 +111,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
     .sort(
       (a, b) =>
         Number(usedByOf(b).length > 0) - Number(usedByOf(a).length > 0) ||
-        Number(b.type === 'custom') - Number(a.type === 'custom') ||
+        Number(companyTests.includes(b)) - Number(companyTests.includes(a)) ||
         a.category.localeCompare(b.category) ||
         a.title.localeCompare(b.title)
     );
@@ -437,7 +438,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                       ]
                     : []),
                   ...inSection.map((t) => {
-                    const own = t.type === 'custom';
+                    const own = t.type === 'custom' && !isVetter && t.businessId === business.id;
                     return (
                       <TestRow
                         key={`${heading ?? ''}-${t.id}`}
@@ -513,14 +514,22 @@ const TestRow: React.FC<{
       <div className="min-w-0">
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-sm font-semibold text-slate-900 truncate">{test.title}</span>
-          <span
-            className={`shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded ${own ? 'bg-emerald-50 text-emerald-700' : 'bg-indigo-50 text-indigo-700'}`}
-          >
-            {own ? 'Yours' : 'Vetter'}
-          </span>
+          {own && <span className="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700">Yours</span>}
+          {own && test.publicStatus && (
+            <span
+              title={test.publicStatus === 'rejected' && test.publicNote ? `Not approved: ${test.publicNote}` : undefined}
+              className={`shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded ${
+                test.publicStatus === 'approved' ? 'bg-indigo-50 text-indigo-700' : test.publicStatus === 'pending' ? 'bg-amber-50 text-amber-800' : 'bg-rose-50 text-rose-700'
+              }`}
+            >
+              {test.publicStatus === 'approved' ? 'Public' : test.publicStatus === 'pending' ? 'Waiting for approval' : 'Not approved'}
+            </span>
+          )}
         </div>
         <div className="text-xs text-slate-500 truncate">
           {test.category} &middot; {test.difficulty}
+          {/* Another company's test from the public library says whose it is */}
+          {!own && test.type === 'custom' && test.companyName && <> &middot; by {test.companyName}</>}
           <span className="md:hidden">
             {' '}
             &middot; ~{test.estimatedMinutes} min &middot; pass {test.passingScore} &middot; {usedBy.length ? `on ${usedBy.length} ${usedBy.length === 1 ? 'job' : 'jobs'}` : 'not on a job'}

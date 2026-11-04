@@ -371,7 +371,7 @@ const AdvisorReply: React.FC<{
                 <div>
                   <div className="text-sm font-semibold text-slate-900">{test.title}</div>
                   <div className="text-[11px] text-slate-500">
-                    {test.type === 'custom' ? 'Your test' : 'Vetter'} &middot; {test.difficulty} &middot; ~{test.estimatedMinutes} min &middot; {test.totalQuestions}{' '}
+                    {test.type === 'custom' ? `${test.companyName ?? 'Your'} test` : test.category} &middot; {test.difficulty} &middot; ~{test.estimatedMinutes} min &middot; {test.totalQuestions}{' '}
                     {test.totalQuestions === 1 ? 'task' : 'tasks'}
                   </div>
                 </div>

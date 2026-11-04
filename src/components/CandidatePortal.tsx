@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Pic } from './Pic';
-import { User, AssessmentTest, JobPosting, CandidateJobMatch, Business, TestRole, TEST_DIFFICULTIES, JobProfile } from '../types';
+import { User, AssessmentTest, JobPosting, CandidateJobMatch, Business, TestRole, TEST_DIFFICULTIES, JobProfile, isPublic } from '../types';
 import { activeProfileOf, asProfile, profilesOf } from '../lib/jobProfiles';
 import { ROLE_GROUPS, ROLE_SECTIONS, TestField, sectionsFor } from '../lib/testRoles';
 import { isMainVersion, levelsOf } from '../lib/testLevels';
@@ -176,7 +176,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
 
   // Vetter-made tests are open to everyone; company tests are taken through the jobs they're attached to
   // Each test is listed once; its levels are picked on the card
-  const allVetterVersions = tests.filter((t) => t.type === 'standard');
+  const allVetterVersions = tests.filter((t) => isPublic(t));
   const vetterTests = allVetterVersions.filter(isMainVersion);
   const testDifficulties = TEST_DIFFICULTIES.filter((d) => allVetterVersions.some((t) => t.difficulty === d));
   const filteredTests = vetterTests.filter((t) => {

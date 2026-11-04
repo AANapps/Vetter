@@ -211,12 +211,21 @@ service cloud.firestore {
     }
 
     // Tests made in the app: a company's own, or the Vetter team's. Anyone can open a test page
+    // A company's test in the public library (publicStatus): the company may ask (pending) or take it back, and only
+    // the Vetter team approves or turns it down. Any change a company makes to an approved test takes it out of
+    // 'approved', so nothing reaches other companies and candidates without being checked
+    function publicAskOnly() {
+      let now = request.resource.data.get('publicStatus', null);
+      return now == null || now == 'pending'
+        || (now == 'rejected' && resource != null && resource.data.get('publicStatus', null) == 'rejected');
+    }
     match /tests/{testId} {
       allow read: if true;
-      allow create: if isAdmin() || (request.resource.data.type == 'custom' && worksAt(request.resource.data.businessId));
+      allow create: if isAdmin() || (request.resource.data.type == 'custom' && worksAt(request.resource.data.businessId)
+        && request.resource.data.get('publicStatus', null) in [null, 'pending']);
       allow update: if isAdmin()
         || (worksAt(resource.data.businessId) && request.resource.data.businessId == resource.data.businessId
-          && request.resource.data.type == 'custom');
+          && request.resource.data.type == 'custom' && publicAskOnly());
       allow delete: if isAdmin() || worksAt(resource.data.businessId);
     }
 

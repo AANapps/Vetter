@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { AnswerRecord, answerRecords } from '../lib/submissions';
 import { BackButton } from './BackButton';
-import { AssessmentTest, Question, ResultBreakdown, timerOf } from '../types';
+import { AssessmentTest, Question, ResultBreakdown, timerOf, isPublic } from '../types';
 import { breakdownFor } from '../lib/modules';
 import { ResultBreakdownPanel } from './ResultBreakdownPanel';
 import { MOCK_DATABASE } from '../lib/sqlEngine';
@@ -969,7 +969,7 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
                       ? 'This is how candidates are scored. Nothing is saved.'
                       : savedNote
                       ? savedNote
-                      : test.type === 'standard'
+                      : isPublic(test)
                       ? 'Your score is saved to your profile and this test’s leaderboard'
                       : `Your score is saved and shared with ${test.companyName}`}
                   </p>

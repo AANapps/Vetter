@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Pic } from './Pic';
-import { AssessmentTest, Business, FeedComment, JobPosting, SocialState, User } from '../types';
+import { AssessmentTest, Business, FeedComment, JobPosting, SocialState, User, isPublic } from '../types';
 import {
   FeedFilter,
   FeedItem,
@@ -74,7 +74,7 @@ export const DiscoverFeed: React.FC<DiscoverFeedProps> = ({
   const visible = filtered.slice(0, visibleCount);
 
   // Results the candidate can attach to a post: Vetter tests they've taken
-  const shareableTests = tests.filter((t) => t.type === 'standard' && getBestTestScore(candidate, t.id) !== undefined);
+  const shareableTests = tests.filter((t) => isPublic(t) && getBestTestScore(candidate, t.id) !== undefined);
 
   const toggleFollow = (id: string) =>
     onJoin ? onJoin() : onSocialChange((prev) => ({

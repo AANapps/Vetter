@@ -1,7 +1,7 @@
 import React from 'react';
 import { BackButton } from './BackButton';
-import { Link2, Pencil, Play, PlusCircle } from 'lucide-react';
-import { AssessmentTest, Business, JobPosting, TEST_DIFFICULTIES, User, UserRole, timerOf } from '../types';
+import { Globe, Link2, Pencil, Play, PlusCircle } from 'lucide-react';
+import { AssessmentTest, Business, JobPosting, TEST_DIFFICULTIES, User, UserRole, timerOf, isPublic } from '../types';
 import { getLeaderboard, getTestStats } from '../lib/leaderboard';
 import { TestLeaderboard, formatDuration } from './TestLeaderboard';
 import { QUESTION_TYPE_LABELS, describeChecks } from '../lib/testRoles';
@@ -27,6 +27,9 @@ interface TestPageProps {
   onCustomize?: () => void;
   // The company's own test: opens where it's edited
   onEdit?: () => void;
+  // The company's own test: offered to the public library (the Vetter team approves it first), or taken back out
+  onAskToPublish?: () => void;
+  onWithdrawPublic?: () => void;
   onStartTest: (test: AssessmentTest) => void;
   onOpenJob?: (jobId: string) => void;
   onOpenTest: (testId: string) => void;
@@ -46,6 +49,8 @@ export const TestPage: React.FC<TestPageProps> = ({
   onSend,
   onCustomize,
   onEdit,
+  onAskToPublish,
+  onWithdrawPublic,
   onStartTest,
   onOpenJob,
   onOpenTest,
@@ -60,8 +65,8 @@ export const TestPage: React.FC<TestPageProps> = ({
   // Companies try Vetter's tests and their own (the Vetter team any test) as practice runs that aren't saved
   const canStart =
     viewerRole === 'candidate'
-      ? test.type === 'standard' || referredByCompany?.id === test.businessId
-      : viewerRole === 'admin' || test.type === 'standard' || (!!viewerBusinessId && test.businessId === viewerBusinessId);
+      ? isPublic(test) || referredByCompany?.id === test.businessId
+      : viewerRole === 'admin' || isPublic(test) || (!!viewerBusinessId && test.businessId === viewerBusinessId);
 
   const aspectName = (id: string) => test.aspects?.find((a) => a.id === id)?.name ?? id;
   const levelsAsked = TEST_DIFFICULTIES.filter((t) => test.questions.some((q) => q.tier === t));
@@ -258,6 +263,8 @@ export const TestPage: React.FC<TestPageProps> = ({
           </ol>
         </div>
 
+        {onAskToPublish && onWithdrawPublic && <PublicLibraryCard test={test} onAsk={onAskToPublish} onWithdraw={onWithdrawPublic} />}
+
         <div className="bg-white border border-slate-200 rounded-xl p-6 space-y-3 shadow-xs text-xs">
           <h2 className="text-base font-bold text-slate-900">Details</h2>
           <dl className="space-y-2">
@@ -304,6 +311,39 @@ export const TestPage: React.FC<TestPageProps> = ({
           )}
         </div>
       </div>
+    </div>
+  );
+};
+
+// The owner's view of the test's place in the public library, and the one thing to do about it
+const PublicLibraryCard: React.FC<{ test: AssessmentTest; onAsk: () => void; onWithdraw: () => void }> = ({ test, onAsk, onWithdraw }) => {
+  const status = test.publicStatus;
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl p-6 space-y-3 shadow-xs text-xs">
+      <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+        <Globe className="w-4 h-4 text-indigo-600" />
+        Public library
+      </h2>
+      <p className="text-slate-600 leading-relaxed">
+        {status === 'approved'
+          ? 'Public: other companies can add it to their jobs and any candidate can take it, credited to you. Changing it sends it back to Vetter to approve again.'
+          : status === 'pending'
+          ? 'Waiting for Vetter to check it. Once approved, other companies can use it and candidates can take it.'
+          : status === 'rejected'
+          ? 'Vetter didn\'t approve it for the public library.'
+          : 'Only your company can use it. Share it and, once Vetter has checked it, other companies can add it to their jobs and any candidate can take it.'}
+      </p>
+      {status === 'rejected' && test.publicNote && <p className="p-2.5 rounded-lg bg-rose-50 text-rose-800">{test.publicNote}</p>}
+      {status === 'approved' || status === 'pending' ? (
+        <button onClick={onWithdraw} className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:border-indigo-400 rounded-lg">
+          {status === 'pending' ? 'Cancel the request' : 'Take it out of the library'}
+        </button>
+      ) : (
+        <button onClick={onAsk} className="px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg flex items-center gap-1.5">
+          <Globe className="w-3.5 h-3.5" />
+          {status === 'rejected' ? 'Ask again' : 'Share in the public library'}
+        </button>
+      )}
     </div>
   );
 };
