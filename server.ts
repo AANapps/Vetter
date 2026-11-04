@@ -2,7 +2,7 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
-import { API_ROUTES } from './server/routes';
+import { API_ROUTES, purposeOf } from './server/routes';
 
 /**
  * Production server: serves the built site from dist (each job's pre-rendered page included), answers the AI
@@ -19,7 +19,11 @@ app.use(express.json({ limit: '300kb' }));
 
 for (const [route, handle] of Object.entries(API_ROUTES)) {
   app.post(route, async (req, res) => {
-    const { status, json } = await handle(req.body, process.env, { authorization: req.headers.authorization, origin: req.headers.origin });
+    const { status, json } = await handle(req.body, process.env, {
+      authorization: req.headers.authorization,
+      origin: req.headers.origin,
+      purpose: purposeOf(req.headers['x-vetter-for']),
+    });
     res.status(status).json(json);
   });
 }

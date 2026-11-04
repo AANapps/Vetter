@@ -133,10 +133,46 @@ export const hasEnough = (pence: number) => pence >= MIN_PENCE;
 // What a request cost Vetter, as the company is charged for it
 export const penceFor = (usd: number, env: Env) => Math.ceil(usd * USD_TO_GBP * Math.max(1, Number(env.CREDIT_MARKUP) || 2) * 100);
 
-export async function charge(env: Env, companyId: string, pence: number, what: string): Promise<void> {
+// What each billed request is, as the company reads it in its usage
+export const STEP_NAMES: Record<string, string> = {
+  'plan-test': 'Planning the test',
+  'write-questions': 'Writing questions',
+  'build-app': 'Building an interactive task',
+  'test-chat': 'Changing the test',
+  'generate-test': 'Writing a test',
+};
+
+// step: the route; purpose: the test it was for, as the browser named it
+export async function charge(env: Env, companyId: string, pence: number, step: string, purpose: string): Promise<void> {
   if (pence <= 0) return;
   const customer = await customerFor(env, companyId);
-  await stripe(env, 'POST', `/customers/${customer.id}/balance_transactions`, { amount: pence, currency: 'gbp', description: `Vetter AI: ${what}` });
+  await stripe(env, 'POST', `/customers/${customer.id}/balance_transactions`, {
+    amount: pence,
+    currency: 'gbp',
+    description: `Vetter AI: ${STEP_NAMES[step] ?? step}${purpose ? ` (${purpose})` : ''}`.slice(0, 350),
+    'metadata[step]': step,
+    'metadata[for]': purpose.slice(0, 200),
+  });
+}
+
+export interface UsageEntry {
+  // Pence: positive for credit used, negative for credit bought
+  amount: number;
+  at: string;
+  step: string;
+  for: string;
+}
+
+// The company's last charges and top-ups, newest first
+export async function usageFor(env: Env, companyId: string): Promise<UsageEntry[]> {
+  const customer = await customerFor(env, companyId);
+  const list = await stripe<{ data: { amount: number; created: number; metadata?: Record<string, string> }[] }>(env, 'GET', `/customers/${customer.id}/balance_transactions`, { limit: 100 });
+  return list.data.map((t) => ({
+    amount: t.amount,
+    at: new Date(t.created * 1000).toISOString(),
+    step: t.amount < 0 ? 'Credit bought' : STEP_NAMES[t.metadata?.step ?? ''] ?? 'Vetter AI',
+    for: t.metadata?.for ?? '',
+  }));
 }
 
 // A Stripe Checkout page to buy one of the packs; it comes back to the site, which confirms it

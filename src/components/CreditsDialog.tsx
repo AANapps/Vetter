@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Check, CreditCard, ExternalLink, X } from 'lucide-react';
-import { Credit, loadCredit, pounds, topUpUrl } from '../lib/aiRequest';
+import { Credit, UsageEntry, loadCredit, loadUsage, pounds, topUpUrl, usageLines } from '../lib/aiRequest';
 
 interface CreditsDialogProps {
   credit: Credit;
@@ -62,7 +62,7 @@ export const CreditsDialog: React.FC<CreditsDialogProps> = ({ credit, onUpdated,
   const packs = credit.packs?.length ? credit.packs : DEFAULT_PACKS;
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-      <div role="dialog" aria-modal="true" aria-label="AI credit" className="bg-white rounded-2xl max-w-md w-full shadow-2xl">
+      <div role="dialog" aria-modal="true" aria-label="AI credit" className="bg-white rounded-2xl max-w-md w-full max-h-[calc(100dvh-2rem)] overflow-y-auto shadow-2xl">
         <div className="px-5 pt-4 pb-3 border-b border-slate-200 flex items-start justify-between gap-4">
           <div>
             <h2 className="text-lg font-bold text-slate-900">AI credit</h2>
@@ -122,7 +122,52 @@ export const CreditsDialog: React.FC<CreditsDialogProps> = ({ credit, onUpdated,
           )}
           {error && <p className="text-sm text-red-700">{error}</p>}
         </div>
+
+        <Usage refresh={credit.balance} />
       </div>
+    </div>
+  );
+};
+
+// What the credit has gone on: this month's total, and each test written or change made, newest first
+const Usage: React.FC<{ refresh?: number }> = ({ refresh }) => {
+  const [entries, setEntries] = useState<UsageEntry[] | null | undefined>(undefined);
+  useEffect(() => {
+    loadUsage().then(setEntries);
+  }, [refresh]);
+  if (entries === undefined) return <p className="px-5 pb-5 text-sm text-slate-400">Loading your usage…</p>;
+  if (entries === null) return <p className="px-5 pb-5 text-sm text-slate-500">Your usage couldn't be loaded just now.</p>;
+  const lines = usageLines(entries);
+  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
+  const thisMonth = entries.filter((e) => e.amount > 0 && Date.parse(e.at) >= monthStart).reduce((sum, e) => sum + e.amount, 0);
+  return (
+    <div className="border-t border-slate-200">
+      <div className="px-5 pt-3 pb-2 flex items-baseline justify-between">
+        <h3 className="text-sm font-bold text-slate-900">Usage</h3>
+        <span className="text-sm text-slate-500">
+          This month <span className="font-semibold text-slate-900 tabular-nums">{pounds(thisMonth)}</span>
+        </span>
+      </div>
+      {lines.length === 0 ? (
+        <p className="px-5 pb-5 text-sm text-slate-500">Nothing used yet. Each test you write or change shows here with what it cost.</p>
+      ) : (
+        <ul className="max-h-64 overflow-y-auto divide-y divide-slate-100 pb-2">
+          {lines.map((l, i) => (
+            <li key={i} className="px-5 py-2 flex items-start justify-between gap-3 text-sm">
+              <div className="min-w-0">
+                <div className="font-medium text-slate-900 truncate">{l.what === 'Credit bought' ? 'Credit bought' : l.for || 'A test'}</div>
+                <div className="text-xs text-slate-500">
+                  {l.what !== 'Credit bought' && `${l.what} · `}
+                  {new Date(l.at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}, {new Date(l.at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                </div>
+              </div>
+              <span className={`shrink-0 tabular-nums font-semibold ${l.amount < 0 ? 'text-emerald-700' : 'text-slate-900'}`}>
+                {l.amount < 0 ? `+${pounds(-l.amount)}` : pounds(l.amount)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 };

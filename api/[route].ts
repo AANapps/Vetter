@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'http';
-import { API_ROUTES } from '../server/routes.js';
+import { API_ROUTES, purposeOf } from '../server/routes.js';
 
 /**
  * The AI endpoints on Vercel (/api/generate-test, /api/test-chat, /api/grade-answers), the same handlers server.ts
@@ -11,7 +11,11 @@ export default async function handler(req: Request, res: ServerResponse) {
   const route = API_ROUTES[`/api/${req.query?.route}`];
   if (!route) return send(res, 404, { error: 'Not found' });
   if (req.method !== 'POST') return send(res, 405, { error: 'Use POST' });
-  const { status, json } = await route(req.body, process.env, { authorization: req.headers.authorization, origin: req.headers.origin });
+  const { status, json } = await route(req.body, process.env, {
+    authorization: req.headers.authorization,
+    origin: req.headers.origin,
+    purpose: purposeOf(req.headers['x-vetter-for']),
+  });
   send(res, status, json);
 }
 

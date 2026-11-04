@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import {defineConfig, loadEnv} from 'vite';
 import {seoPages} from './seoPages';
-import {API_ROUTES} from './server/routes';
+import {API_ROUTES, purposeOf} from './server/routes';
 
 export default defineConfig(({mode}) => {
   // The address the site is served from, for canonical links, the sitemap and job listings
@@ -34,7 +34,11 @@ export default defineConfig(({mode}) => {
                 } catch {
                   // Answered as a bad request
                 }
-                const {status, json} = await handle(body, env, {authorization: req.headers.authorization, origin: req.headers.origin});
+                const {status, json} = await handle(body, env, {
+                  authorization: req.headers.authorization,
+                  origin: req.headers.origin,
+                  purpose: purposeOf(req.headers['x-vetter-for']),
+                });
                 res.statusCode = status;
                 res.setHeader('Content-Type', 'application/json');
                 res.end(JSON.stringify(json));

@@ -6,7 +6,7 @@ import { DraftPreview, Dropdown, draftProblems, finaliseDraft } from './DraftPre
 import { jobBrief } from '../lib/testGeneration';
 import { ChatState, sendChat } from '../lib/testChat';
 import { versionTitle } from '../lib/testLevels';
-import { Credit, loadCredit, pounds } from '../lib/aiRequest';
+import { Credit, estimateTest, loadCredit, pounds, setAiPurpose } from '../lib/aiRequest';
 import { CreditsDialog } from './CreditsDialog';
 
 interface TestGeneratorProps {
@@ -183,6 +183,9 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
     // The message shows at once; the reply follows
     setChat({ ...base, messages: [...base.messages, { role: 'user', text: message }] });
     const before = chat.draft;
+    const balanceBefore = credit?.billing ? credit.balance : undefined;
+    // Each charge names the test it was for
+    setAiPurpose(chat.draft?.title || original?.title || (job ? `${job.title} test` : 'New test'));
     setStage('');
     const next = await sendChat(base, message, ctx, setStage);
     setChat(next);
@@ -194,8 +197,17 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
     }
     setWorking(false);
     box.current?.focus();
-    // The balance after what that turn used
-    loadCredit().then((c) => !c.error && setCredit(c));
+    // The balance after what that turn used, and what it used shown under the reply
+    loadCredit().then((c) => {
+      if (c.error) return;
+      setCredit(c);
+      const used = balanceBefore !== undefined && c.balance !== undefined ? balanceBefore - c.balance : 0;
+      if (used > 0)
+        setChat((cur) => {
+          const last = cur.messages[cur.messages.length - 1];
+          return last?.role === 'assistant' ? { ...cur, messages: [...cur.messages.slice(0, -1), { ...last, cost: used }] } : cur;
+        });
+    });
   };
 
   // Once only, even if React mounts the chat twice
@@ -257,8 +269,10 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
             {credit?.billing && credit.balance !== undefined && (
               <button
                 onClick={() => setTopUpOpen(true)}
-                title="Your AI credit: top up any time"
-                className="px-3 py-1 rounded-full border border-slate-200 hover:border-indigo-400 text-sm text-slate-700 flex items-center gap-1.5"
+                title="Your AI credit and what you've used: top up any time"
+                className={`px-3 py-1 rounded-full border text-sm flex items-center gap-1.5 ${
+                  credit.balance < 100 ? 'border-amber-300 bg-amber-50 text-amber-800 hover:border-amber-500' : 'border-slate-200 text-slate-700 hover:border-indigo-400'
+                }`}
               >
                 <span className="text-slate-500">Credit</span>
                 <span className="font-semibold tabular-nums">{pounds(credit.balance)}</span>
@@ -362,6 +376,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                           {m.note}
                         </p>
                       )}
+                      {m.cost !== undefined && m.cost > 0 && <p className="mt-1 text-xs text-slate-400 tabular-nums">Used {pounds(m.cost)} of credit</p>}
                     </div>
                   </div>
                 )
@@ -382,6 +397,23 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                   <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
                   Pick {missing.length > 1 ? `${missing.slice(0, -1).join(', ')} and ${missing[missing.length - 1]}` : missing[0]} at the top, then Vetter can {draft ? 'carry on' : 'start writing'}.
                 </p>
+              )}
+              {credit?.billing && ready && !working && !draft && questionCount && (
+                <p className="pb-2 text-sm text-slate-500">
+                  {(() => {
+                    const { low, high } = estimateTest(questionCount, styles.some((t) => t === 'sheet' || t === 'database' || t === 'app' || t === 'code'), styles.includes('app'));
+                    const short = (credit.balance ?? 0) < high;
+                    return (
+                      <>
+                        Estimated cost to write it: about <span className="font-semibold text-slate-700">{pounds(low)} to {pounds(high)}</span>
+                        {short && <span className="text-amber-700"> · you have {pounds(credit.balance ?? 0)}, so it may stop part way: top up first</span>}
+                      </>
+                    );
+                  })()}
+                </p>
+              )}
+              {credit?.billing && ready && !working && draft && !started && (
+                <p className="pb-2 text-sm text-slate-500">Each change costs a few pence; changing or adding an interactive task about 30p to 80p.</p>
               )}
               {suggestions.length > 0 && !working && ready && (
                 <div className="flex gap-1.5 overflow-x-auto pb-2 -mx-1 px-1">

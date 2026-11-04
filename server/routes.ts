@@ -6,7 +6,7 @@ import { planTest } from './planTest.js';
 import { writeQuestions } from './writeQuestions.js';
 import { testAdvisor } from './testAdvisor.js';
 import { metered } from './meter.js';
-import { PACKS, balanceFor, billingOn, charge, confirmTopUp, hasEnough, penceFor, startTopUp, whoIsAsking } from './credits.js';
+import { PACKS, balanceFor, billingOn, charge, confirmTopUp, hasEnough, penceFor, startTopUp, usageFor, whoIsAsking } from './credits.js';
 
 // The AI endpoints, answered by server.ts in production and the Vite dev server in development
 type Env = Record<string, string | undefined>;
@@ -17,7 +17,18 @@ const testModel = (env: Env) => env.CLAUDE_MODEL || 'claude-sonnet-5-5';
 export interface RequestMeta {
   authorization?: string;
   origin?: string;
+  // The test a request is for (the X-Vetter-For header), named in the company's usage
+  purpose?: string;
 }
+
+// The X-Vetter-For header as sent (URI-encoded, so any title fits in a header)
+export const purposeOf = (header: string | string[] | undefined) => {
+  try {
+    return decodeURIComponent(String(Array.isArray(header) ? header[0] : header ?? '')).replace(/\s+/g, ' ').trim().slice(0, 120);
+  } catch {
+    return '';
+  }
+};
 type Handler = (body: unknown, env: Env, meta?: RequestMeta) => Promise<{ status: number; json: unknown }>;
 
 const BUSY = "Vetter's AI is busy right now. Nothing is lost: try again in a little while.";
@@ -50,7 +61,7 @@ const billed =
     const { result, usd } = await metered(() => handler(body, env, meta));
     const pence = penceFor(usd, env);
     try {
-      await charge(env, caller.companyId, pence, name);
+      await charge(env, caller.companyId, pence, name, meta?.purpose ?? '');
       console.log(`[${name}] ${caller.companyId} charged ${pence}p ($${usd.toFixed(3)} at cost)`);
     } catch (err) {
       console.error(`[${name}] couldn't charge ${caller.companyId} ${pence}p`, err);
@@ -71,6 +82,7 @@ async function credits(body: unknown, env: Env, meta?: RequestMeta): Promise<{ s
       if (!PACKS.includes(pence)) return { status: 400, json: { error: 'Pick one of the credit packs.' } };
       return { status: 200, json: { url: await startTopUp(env, caller.companyId, pence, meta?.origin ?? '') } };
     }
+    if (req.action === 'usage') return { status: 200, json: { billing: true, usage: await usageFor(env, caller.companyId) } };
     if (req.action === 'confirm' && req.sessionId)
       return { status: 200, json: { billing: true, packs: PACKS, ...(await confirmTopUp(env, caller.companyId, req.sessionId)) } };
     return { status: 200, json: { billing: true, packs: PACKS, balance: await balanceFor(env, caller.companyId) } };

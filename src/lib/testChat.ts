@@ -17,6 +17,8 @@ export interface ChatMessage {
   failed?: boolean;
   // It failed because the company's AI credit ran out: topping up lets it carry on
   needsCredit?: boolean;
+  // What the turn used of the company's credit, in pence, when it pays for AI
+  cost?: number;
 }
 
 export interface ChatState {
