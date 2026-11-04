@@ -93,6 +93,41 @@ on, every company pays from credit, Growth and Scale included. The free plan als
 
 Not built yet.
 
+## When Vetter asks a company to buy credit (November 2026)
+
+Every check runs off one number: the credit on the company's Stripe customer.
+
+**What happens now:**
+
+1. **Before writing a new test.** Once question types, number of questions and difficulty are picked, the chat shows an
+   estimate ("about £1.95 to £4.15"). If the balance is below the top of that range it adds "you have £1.20, so it may
+   stop part way: top up first".
+2. **In the header, all the time.** The test creator shows "Credit £8.40 · Top up", refreshed after every reply, amber
+   under £1.
+3. **On the server, before every AI request.** Under 10p left, the request is refused before anything is spent on
+   Claude. The chat says "You've used up your AI credit. Top up to carry on…" with a Top up and carry on button; after
+   paying, the same message is sent again automatically.
+
+**The gaps:**
+
+- **A build can run out part way.** A new test is many requests in a row (planning, each section, each app), each
+  checked on its own. If credit runs out in the middle, later sections are refused and the test comes back short with a
+  note that some questions were left out. The warning in step 1 tries to prevent this, but nothing enforces it.
+- **App changes get no warning.** Changing an app costs about 30p to 80p, with no estimate before sending.
+- **Nothing reaches them outside the test creator.** No email or alert on the company home page when credit runs low.
+
+**How to close them:**
+
+1. **Hold the estimate before a build starts.** The server checks the balance covers the top of the estimate before
+   writing a test; if not, the chat asks them to top up before anything is spent, so there are no half-built tests. They're
+   still charged the real cost afterwards, not the estimate.
+2. **Low-balance warnings.** A banner on the company home page when credit falls below a set amount (e.g. £3, about one
+   full test). An email at the same point needs an email service, which the server doesn't have yet.
+3. **Monthly allowance.** With the allowance above, the same checks apply, saying "Your included £25 for November is
+   used up" before offering a top-up.
+
+Recommended first: 1 and the banner from 2. Not built yet.
+
 ## Principles
 
 - Price on hiring value, not AI cost: at £49 a job the AI is about 0.01% of the price. Real costs are
