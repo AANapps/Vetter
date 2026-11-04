@@ -1,6 +1,6 @@
 import type { IntegrityReport } from './lib/integrity';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { User, UserRole, AssessmentTest, JobPosting, Business, SocialState, AppNotification, JobInvitation, Lead, TestDraft, TrialResult, ResultBreakdown, hasAiTests } from './types';
+import { User, UserRole, AssessmentTest, JobPosting, Business, SocialState, AppNotification, JobInvitation, Lead, TestDraft, TrialResult, ResultBreakdown, hasAiTests, madeWithAI } from './types';
 import { INITIAL_RECRUITER, INITIAL_BUSINESSES, STANDARD_ASSESSMENTS } from './data/mockData';
 import { loadData, saveData, clearData, createSeedData } from './lib/store';
 import { getPercentile } from './lib/leaderboard';
@@ -430,15 +430,22 @@ export default function App() {
   // For now every company gets AI test creation, whatever its plan; set to false to put it back behind paid plans
   const AI_TESTS_FOR_ALL = true;
   const aiAllowed = AI_TESTS_FOR_ALL || activeRole === 'admin' || hasAiTests(recruiterBusiness);
-  // A company's own test is edited in one place: the test chat, where it can ask Vetter for changes, edit questions by
-  // hand and open the full builder. Without AI tests on its plan, straight to the builder. Changes saved as a draft
-  // earlier are picked up where they were left
+  // A company's own test made with Vetter's AI is edited in the test chat (asking, editing by hand, the full builder);
+  // one made by hand is edited in the builder, and enhanced with AI to move it to the chat. Without AI tests on the
+  // plan, everything is by hand
   const editOwnTest = (testId: string, jobId?: string) => {
-    const pending = testDrafts.find((d) => d.editsTestId === testId);
     const test = tests.find((t) => t.id === testId);
-    if (!aiAllowed) return pending ? setDraftBuilder({ draft: pending.test, jobId: pending.jobId, alsoAdd: [], record: pending }) : test && setDraftBuilder({ draft: test, jobId, alsoAdd: [] });
-    setGenerator(pending ? { jobId: pending.jobId ?? jobId, resume: pending } : { jobId, editTestId: testId });
+    if (!test) return;
+    if (aiAllowed && madeWithAI(test)) return enhanceTest(testId, jobId);
+    setDraftBuilder({ draft: test, jobId, alsoAdd: [] });
   };
+  // The test chat on a saved test, picking up changes saved as a draft earlier where they were left
+  const enhanceTest = (testId: string, jobId?: string) => {
+    const pending = testDrafts.find((d) => d.editsTestId === testId);
+    openGenerator(pending ? { jobId: pending.jobId ?? jobId, resume: pending } : { jobId, editTestId: testId });
+  };
+  // Shown only on tests made by hand: AI tests are changed by asking already
+  const enhanceFor = (test: AssessmentTest) => (madeWithAI(test) ? undefined : (jobId?: string) => enhanceTest(test.id, jobId));
   const openGenerator = (g: { jobId?: string; resume?: TestDraft; seed?: string; autoSend?: boolean; editTestId?: string }) => (aiAllowed ? setGenerator(g) : setPlansOpen(true));
   // Builds one of the home chat's AI ideas straight away; the test plan opens with it once it's saved (or closed)
   const startPlanBuild = (idea: CustomIdea) => {
@@ -1082,6 +1089,11 @@ export default function App() {
                   ? () => editOwnTest(testPageTest.id)
                   : undefined
               }
+              onEnhance={
+                activeRole === 'recruiter' && recruiterBusiness && testPageTest.type === 'custom' && testPageTest.businessId === recruiterBusiness.id && enhanceFor(testPageTest)
+                  ? () => enhanceTest(testPageTest.id)
+                  : undefined
+              }
               onStartTest={startTest}
               onOpenJob={activeRole === 'candidate' ? openJobPage : undefined}
               onOpenTest={openTestPage}
@@ -1245,7 +1257,9 @@ export default function App() {
               onCreateJob={handleCreateJob}
               onEditTests={(jobId) => setEditingTests({ jobId, addTestIds: [] })}
               onSuggestTests={(jobId) => openGenerator({ jobId })}
-              onEditTestWithAI={(jobId, testId) => editOwnTest(testId, jobId)}
+              onEditTest={(jobId, testId) => editOwnTest(testId, jobId)}
+              canEnhance={(t) => !!enhanceFor(t)}
+              onEnhanceTest={(jobId, testId) => enhanceTest(testId, jobId)}
               onUpdateJobRequirements={handleUpdateJobRequirements}
               onEmail={handleEmailJob}
               onInvite={handleInviteToJob}
@@ -1292,6 +1306,8 @@ export default function App() {
               onContinueDraft={(d) => openGenerator({ jobId: d.jobId, resume: d })}
               onEditDraftByHand={(d) => setDraftBuilder({ draft: d.test, jobId: d.jobId, alsoAdd: [], record: d })}
               onEditOwnTest={editOwnTest}
+              canEnhance={(t) => !!enhanceFor(t)}
+              onEnhanceTest={enhanceTest}
               leads={
                 <LeadsPage
                   business={leadsBusiness}

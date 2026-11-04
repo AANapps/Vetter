@@ -154,8 +154,10 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
           ...(original.businessId && { businessId: original.businessId, companyName: original.companyName }),
           // A timer taken off goes back to the questions' total
           timeLimit: test.timeLimit,
+          // A test made by hand and enhanced here is changed by asking from now on
+          madeWith: 'ai',
         }
-      : test;
+      : { ...test, madeWith: 'ai' };
 
   // The test and conversation as a draft to come back to
   const record = (test: AssessmentTest): TestDraft => ({
@@ -275,7 +277,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
       return;
     }
     const ids = [...chosen];
-    if (draft && keepNew) ids.push(onSaveTest(finaliseDraft(draft)));
+    if (draft && keepNew) ids.push(onSaveTest({ ...finaliseDraft(draft), madeWith: 'ai' }));
     if (job && ids.length) onAddToJob(job.id, ids);
     onClose();
   };

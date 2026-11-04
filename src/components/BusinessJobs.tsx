@@ -52,7 +52,10 @@ interface BusinessJobsProps {
   // Vetter's AI suggests library tests for the job and writes a new one
   onSuggestTests: (jobId: string) => void;
   // Reopens one of the company's own tests in the chat with Vetter, to change it by asking
-  onEditTestWithAI: (jobId: string, testId: string) => void;
+  // The company's own test: edited where it was made (the test chat for AI tests, the builder for ones made by hand)
+  onEditTest: (jobId: string, testId: string) => void;
+  canEnhance: (test: AssessmentTest) => boolean;
+  onEnhanceTest: (jobId: string, testId: string) => void;
   onUpdateJobRequirements: (jobId: string, requirements: JobPosting['requirements']) => void;
   onEmail: (jobId: string, emails: string[]) => void;
   onInvite: (jobId: string, candidateIds: string[]) => void;
@@ -365,7 +368,9 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
   onSelect,
   onEditTests,
   onSuggestTests,
-  onEditTestWithAI,
+  onEditTest,
+  canEnhance,
+  onEnhanceTest,
   onUpdateJobRequirements,
   onEmail,
   onInvite,
@@ -478,13 +483,23 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
                     {i + 1}. {versionTitle(t)}
                   </button>
                   <button
-                    onClick={() => onEditTestWithAI(job.id, t.id)}
+                    onClick={() => onEditTest(job.id, t.id)}
                     title="Edit this test"
                     className="pl-2 pr-2.5 py-1 border-l border-slate-200 font-semibold text-indigo-700 hover:bg-indigo-50 hover:text-indigo-900 flex items-center gap-1"
                   >
                     <Pencil className="w-3 h-3" />
                     Edit
                   </button>
+                  {canEnhance(t) && (
+                    <button
+                      onClick={() => onEnhanceTest(job.id, t.id)}
+                      title="Enhance with AI: improve it by asking Vetter, then keep changing it that way"
+                      className="pl-2 pr-2.5 py-1 border-l border-slate-200 font-semibold text-indigo-700 hover:bg-indigo-50 hover:text-indigo-900 flex items-center gap-1"
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      Enhance with AI
+                    </button>
+                  )}
                 </span>
               ) : (
                 <button

@@ -1,6 +1,6 @@
 import React from 'react';
 import { BackButton } from './BackButton';
-import { Link2, Pencil, Play, PlusCircle } from 'lucide-react';
+import { Link2, Pencil, Play, PlusCircle, Sparkles } from 'lucide-react';
 import { AssessmentTest, Business, JobPosting, TEST_DIFFICULTIES, User, UserRole, timerOf } from '../types';
 import { getLeaderboard, getTestStats } from '../lib/leaderboard';
 import { TestLeaderboard, formatDuration } from './TestLeaderboard';
@@ -27,6 +27,8 @@ interface TestPageProps {
   onCustomize?: () => void;
   // The company's own test: opens where it's edited
   onEdit?: () => void;
+  // Made by hand: to the test chat, to improve it with Vetter's AI
+  onEnhance?: () => void;
   onStartTest: (test: AssessmentTest) => void;
   onOpenJob?: (jobId: string) => void;
   onOpenTest: (testId: string) => void;
@@ -46,6 +48,7 @@ export const TestPage: React.FC<TestPageProps> = ({
   onSend,
   onCustomize,
   onEdit,
+  onEnhance,
   onStartTest,
   onOpenJob,
   onOpenTest,
@@ -127,11 +130,22 @@ export const TestPage: React.FC<TestPageProps> = ({
           {onEdit && (
             <button
               onClick={onEdit}
-              title="Ask Vetter for changes, or edit the questions yourself"
+              title={onEnhance ? 'Edit the questions yourself' : 'Ask Vetter for changes, or edit the questions yourself'}
               className="px-4 py-2.5 text-xs font-semibold text-indigo-700 bg-white border border-indigo-200 hover:border-indigo-400 rounded-lg transition-colors flex items-center gap-2 shrink-0 self-start"
             >
               <Pencil className="w-3.5 h-3.5" />
               <span>Edit</span>
+            </button>
+          )}
+
+          {onEnhance && (
+            <button
+              onClick={onEnhance}
+              title="Improve it by asking Vetter, then keep changing it that way"
+              className="px-4 py-2.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors flex items-center gap-2 shadow-xs shrink-0 self-start"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Enhance with AI</span>
             </button>
           )}
 

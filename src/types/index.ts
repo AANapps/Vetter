@@ -222,6 +222,10 @@ export interface TestAspect {
 
 export type TestDifficulty = 'Beginner' | 'Junior' | 'Professional' | 'Senior';
 
+// Whether a test is changed by asking Vetter (made in the test chat) or by hand. Tests saved before this was recorded:
+// the AI writes a blueprint, the builder doesn't
+export const madeWithAI = (test: AssessmentTest) => (test.madeWith ?? (test.blueprint?.length ? 'ai' : 'hand')) === 'ai';
+
 // The minutes a candidate has for a test, or null when it has no time limit
 export const timerOf = (test: { timeLimit?: number | 'none'; estimatedMinutes: number }): number | null =>
   test.timeLimit === 'none' ? null : test.timeLimit ?? test.estimatedMinutes;
@@ -244,6 +248,8 @@ export interface AssessmentTest {
   // The timer the company set: minutes for the whole test, or 'none' for no time limit. Without it the timer is
   // estimatedMinutes, what the questions add up to
   timeLimit?: number | 'none';
+  // Written (or since enhanced) in the test chat with Vetter's AI, or in the builder by hand
+  madeWith?: 'ai' | 'hand';
   passingScore: number;
   totalQuestions: number;
   questions: Question[];

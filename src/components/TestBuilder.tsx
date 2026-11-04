@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AlertCircle, ArrowDown, ArrowUp, Check, Eye, FileText, Plus, Trash2, X } from 'lucide-react';
-import { AssessmentTest, Business, Question, QuestionType, SkillCategory, TEST_DIFFICULTIES, TestRole } from '../types';
+import { AssessmentTest, Business, Question, QuestionType, SkillCategory, TEST_DIFFICULTIES, TestRole, madeWithAI } from '../types';
 import { SKILL_IDS } from '../data/seedCandidates';
 import { ROLE_GROUPS } from '../lib/testRoles';
 import { AI_ONLY_TYPES, QUESTION_STYLES, blankQuestion, isAnswerType, isGroupType, questionProblems, tidyQuestion } from '../lib/questionTypes';
@@ -97,6 +97,8 @@ export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, dra
       estimatedMinutes: Math.max(1, minutes),
       // A timer set in the chat stays
       ...(source?.timeLimit !== undefined && { timeLimit: source.timeLimit }),
+      // Opened from the test chat, it stays a test changed by asking; a copy or a new test is by hand
+      madeWith: source && !isCopy && madeWithAI(source) ? 'ai' : 'hand',
       passingScore,
       totalQuestions: tidy.length,
       questions: tidy.map((q) => ({ ...q, weight: Math.round((q.weight / total) * 100) })),
