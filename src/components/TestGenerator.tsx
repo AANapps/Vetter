@@ -40,6 +40,9 @@ interface TestGeneratorProps {
 
 // How many questions a company can ask for, counting the questions about a case or task
 const COUNTS = [5, 10, 15, 20, 25, 30];
+// Timers a company can pick, in minutes
+const TIMERS = [10, 15, 20, 30, 45, 60, 90, 120];
+const minutesOf = (test: AssessmentTest) => test.questions.reduce((sum, q) => sum + q.timeLimitMinutes, 0);
 const countOf = (test: AssessmentTest) => test.questions.filter((q) => q.type !== 'case').length;
 
 // The question types a company can pick from, in the order shown: answer styles, then hands-on tasks
@@ -99,6 +102,14 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
   const pickedLevels = TEST_DIFFICULTIES.filter((d) => levels.includes(d));
   const difficulty = pickedLevels[pickedLevels.length - 1];
   const countOptions = [...new Set([...COUNTS, ...counts])].sort((a, b) => a - b);
+  // The timer: minutes, no limit, or undefined for Vetter to size it from the questions
+  const [timeLimit, setTimeLimitState] = useState<number | 'none' | undefined>(() => resume?.timeLimit ?? resume?.test.timeLimit ?? original?.timeLimit);
+  // A timer is the test's own setting, not something to write: it's put on the draft straight away
+  const setTimeLimit = (limit: number | 'none' | undefined) => {
+    setTimeLimitState(limit);
+    setChat((c) => (c.draft ? { ...c, draft: { ...c.draft, timeLimit: limit } } : c));
+  };
+  const timerOptions = [...new Set([...TIMERS, ...(typeof timeLimit === 'number' ? [timeLimit] : [])])].sort((a, b) => a - b);
   // The company's AI credit, shown in the header; nothing shows when the site doesn't charge
   const [credit, setCredit] = useState<Credit | null>(null);
   const [topUpOpen, setTopUpOpen] = useState(false);
@@ -123,7 +134,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
   const draft = chat.draft;
   const started = chat.messages.some((m) => m.role === 'user');
   // Changing a saved test doesn't pick library tests to go with it
-  const ctx = { job: job ? jobBrief(job) : undefined, jobTitle: job?.title, level: difficulty, levels: pickedLevels, questionCount, questionRange, wantExisting: !!job && !original, tests, business, styles, viewing: focus };
+  const ctx = { job: job ? jobBrief(job) : undefined, jobTitle: job?.title, level: difficulty, levels: pickedLevels, questionCount, questionRange, timeLimit, wantExisting: !!job && !original, tests, business, styles, viewing: focus };
   const toggleStyle = (type: QuestionType) => setStyles((prev) => (prev.includes(type) ? prev.filter((t) => t !== type) : PICKABLE.filter((t) => t === type || prev.includes(t))));
   const toggle = <T,>(set: React.Dispatch<React.SetStateAction<T[]>>, value: T) => set((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]));
   // The types Vetter may use: any, when none are ticked
@@ -141,6 +152,8 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
           type: original.type,
           ...(original.familyId && { familyId: original.familyId }),
           ...(original.businessId && { businessId: original.businessId, companyName: original.companyName }),
+          // A timer taken off goes back to the questions' total
+          timeLimit: test.timeLimit,
         }
       : test;
 
@@ -155,6 +168,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
     existing: chat.existing.map((s) => ({ testId: s.test.id, reason: s.reason })),
     ...(chat.research !== undefined && { research: chat.research, researchedFor: chat.researchedFor }),
     styles,
+    ...(timeLimit !== undefined && { timeLimit }),
     questionCounts: counts,
     difficulties: pickedLevels,
     updatedAt: new Date().toISOString(),
@@ -241,6 +255,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
         ...(pickedLevels.length === 1 && draft.difficulty !== difficulty ? [`Make it ${difficulty} level`] : []),
         ...(questionCount && countOf(draft) !== questionCount ? [`Make it ${questionCount} questions`] : []),
         ...(questionRange && (countOf(draft) < questionRange[0] || countOf(draft) > questionRange[1]) ? [`Make it ${questionRange[0]} to ${questionRange[1]} questions`] : []),
+        ...(typeof timeLimit === 'number' && Math.abs(minutesOf(draft) - timeLimit) > Math.max(5, timeLimit * 0.2) ? [`Fit the questions into ${timeLimit} minutes`] : []),
         'Make it harder',
         ...(allowed.includes('case') ? ['Add another case study'] : []),
         ...(allowed.some((t) => t === 'app' || t === 'sheet' || t === 'database') ? ['Add a hands-on task in the software'] : []),
@@ -316,6 +331,20 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                     {n} questions
                   </PickRow>
                 ))}
+              </PickList>
+            )}
+          </Dropdown>
+          <Dropdown label={<>Time limit: <Summary text={timeLimit === 'none' ? 'None' : timeLimit ? `${timeLimit} min` : undefined} /></>} width="w-56" disabled={working}>
+            {(close) => (
+              <PickList legend="Time limit" picked={timeLimit === undefined ? 0 : 1} onClear={() => (setTimeLimit(undefined), close())} note="Vetter decides: the time the questions add up to.">
+                {timerOptions.map((n) => (
+                  <PickRow key={n} type="radio" on={timeLimit === n} onChange={() => (setTimeLimit(n), close())}>
+                    {n < 60 || n % 60 ? `${n} minutes` : `${n / 60} ${n === 60 ? 'hour' : 'hours'}`}
+                  </PickRow>
+                ))}
+                <PickRow type="radio" on={timeLimit === 'none'} onChange={() => (setTimeLimit('none'), close())}>
+                  No time limit
+                </PickRow>
               </PickList>
             )}
           </Dropdown>
@@ -565,9 +594,9 @@ const PickList: React.FC<{ legend: string; picked: number; onClear: () => void; 
   </fieldset>
 );
 
-const PickRow: React.FC<{ on: boolean; title?: string; onChange: () => void; children: React.ReactNode }> = ({ on, title, onChange, children }) => (
+const PickRow: React.FC<{ on: boolean; title?: string; type?: 'checkbox' | 'radio'; onChange: () => void; children: React.ReactNode }> = ({ on, title, type = 'checkbox', onChange, children }) => (
   <label title={title} className="px-2.5 py-1.5 rounded-lg text-sm text-slate-800 flex items-center gap-2 cursor-pointer select-none hover:bg-slate-50 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-indigo-300">
-    <input type="checkbox" checked={on} onChange={onChange} className="w-4 h-4 accent-indigo-600" />
+    <input type={type} checked={on} onChange={onChange} className="w-4 h-4 accent-indigo-600" />
     {children}
   </label>
 );

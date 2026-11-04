@@ -95,6 +95,8 @@ export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, dra
       ...(business && { businessId: business.id, companyName: business.name }),
       description: description.trim() || (business ? `Test written by ${business.name} for its own hiring.` : `A Vetter test of ${category.toLowerCase()} skills.`),
       estimatedMinutes: Math.max(1, minutes),
+      // A timer set in the chat stays
+      ...(source?.timeLimit !== undefined && { timeLimit: source.timeLimit }),
       passingScore,
       totalQuestions: tidy.length,
       questions: tidy.map((q) => ({ ...q, weight: Math.round((q.weight / total) * 100) })),

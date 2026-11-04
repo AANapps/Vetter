@@ -1,4 +1,4 @@
-import { AssessmentTest, JobInvitation, JobPosting, JobTestAttempt, TestResult, User } from '../types';
+import { AssessmentTest, JobInvitation, JobPosting, JobTestAttempt, TestResult, User, timerOf } from '../types';
 import { jobPath } from './jobSeo';
 
 export interface JobTestProgress {
@@ -85,7 +85,7 @@ export const jobTestsOf = (job: JobPosting, tests: AssessmentTest[]) =>
   job.testIds.map((id) => tests.find((t) => t.id === id)).filter((t): t is AssessmentTest => !!t);
 
 export const totalMinutes = (job: JobPosting, tests: AssessmentTest[]) =>
-  jobTestsOf(job, tests).reduce((sum, t) => sum + t.estimatedMinutes, 0);
+  jobTestsOf(job, tests).reduce((sum, t) => sum + (timerOf(t) ?? t.estimatedMinutes), 0);
 
 // Jobs whose tests a candidate has been sent, unfinished first, then by closing date
 export function invitesFor(candidate: User, jobs: JobPosting[]) {

@@ -46,6 +46,8 @@ export interface ChatContext {
   // How many questions the company wants, counting sub-questions: exactly one number, or a range when it ticked several
   questionCount?: number;
   questionRange?: [number, number];
+  // The timer the company picked, or none for Vetter to size it
+  timeLimit?: number | 'none';
   // The app task open beside the chat, which "this" and "the app" mean
   viewing?: { id: string; label: string; app: string };
 }
@@ -197,6 +199,7 @@ async function buildDraft(raw: RawTest, previous: AssessmentTest | undefined, ct
       ...(ctx.business && { businessId: ctx.business.id, companyName: ctx.business.name }),
       description: String(raw.description ?? '').trim(),
       estimatedMinutes: questions.reduce((sum, q) => sum + q.timeLimitMinutes, 0),
+      ...(ctx.timeLimit !== undefined && { timeLimit: ctx.timeLimit }),
       passingScore: Math.min(90, Math.max(50, Math.round(raw.passingScore ?? 70))),
       totalQuestions: questions.length,
       // A case study carries no marks; its questions do
@@ -323,6 +326,7 @@ export async function sendChat(state: ChatState, text: string, ctx: ChatContext,
     styles: ctx.styles,
     questionCount: ctx.questionCount,
     questionRange: ctx.questionRange,
+    timeLimit: ctx.timeLimit,
     viewing: ctx.viewing,
     // One level ticked is the test's level; several are a spread to pitch across
     difficulty: ctx.levels.length === 1 ? ctx.level : undefined,

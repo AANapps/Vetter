@@ -28,6 +28,8 @@ export interface ChatRequest {
   difficulty?: string;
   // Several levels ticked, lowest first
   difficulties?: string[];
+  // The timer: minutes for the whole test, or 'none'
+  timeLimit?: number | 'none';
   // The task the company has open beside the chat, when it's an app simulation
   viewing?: { id: string; label: string; app: string };
   library: { id: string; title: string; category: string; difficulty: string; skills: string[]; roles: string[]; description: string }[];
@@ -96,7 +98,7 @@ export interface GuideRequest {
   categories: string[];
   roles: string[];
 }
-type Picks = { styles?: string[]; questionCount?: number; questionRange?: [number, number]; difficulty?: string; difficulties?: string[] };
+type Picks = { styles?: string[]; questionCount?: number; questionRange?: [number, number]; difficulty?: string; difficulties?: string[]; timeLimit?: number | 'none' };
 
 // What the "difficulty is one of" line says the level is
 export const levelPick = (req: Picks) =>
@@ -115,6 +117,11 @@ export const stylesNote = (req: Picks) =>
       ? `NUMBER OF QUESTIONS: the company wants exactly ${req.questionCount} questions, counting sub-questions but not case study material. This replaces the size given below; the time adds up to whatever those questions take. Whenever you change the draft, bring it to exactly ${req.questionCount}.`
       : req.questionRange
       ? `NUMBER OF QUESTIONS: the company wants between ${req.questionRange[0]} and ${req.questionRange[1]} questions, counting sub-questions but not case study material: pick the number in that range the job really needs. This replaces the size given below. Whenever you change the draft, keep it in that range.`
+      : '',
+    typeof req.timeLimit === 'number'
+      ? `TIME LIMIT: the candidate gets ${req.timeLimit} minutes for the whole test. Size the test to fit: the questions' timeLimitMinutes add up to about ${req.timeLimit}, not the 45 to 75 given below${req.questionCount || req.questionRange ? '; if the number of questions asked for cannot be answered well in that time, say so in your reply' : ''}.`
+      : req.timeLimit === 'none'
+      ? `TIME LIMIT: the test has no time limit. Still give every question a realistic timeLimitMinutes, as a guide for the candidate.`
       : '',
     req.difficulties?.length
       ? `DIFFICULTY: the company picked these levels: ${req.difficulties.join(', ')}. Pitch the questions across them, from the easier ones up to the hardest, whatever the job ad suggests. The test's difficulty is "${req.difficulties[req.difficulties.length - 1]}".`

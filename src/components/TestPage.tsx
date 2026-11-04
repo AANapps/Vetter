@@ -1,7 +1,7 @@
 import React from 'react';
 import { BackButton } from './BackButton';
 import { Link2, Play, PlusCircle } from 'lucide-react';
-import { AssessmentTest, Business, JobPosting, TEST_DIFFICULTIES, User, UserRole } from '../types';
+import { AssessmentTest, Business, JobPosting, TEST_DIFFICULTIES, User, UserRole, timerOf } from '../types';
 import { getLeaderboard, getTestStats } from '../lib/leaderboard';
 import { TestLeaderboard, formatDuration } from './TestLeaderboard';
 import { QUESTION_TYPE_LABELS, describeChecks } from '../lib/testRoles';
@@ -249,7 +249,7 @@ export const TestPage: React.FC<TestPageProps> = ({
           <dl className="space-y-2">
             <div className="flex justify-between gap-2">
               <dt className="text-slate-500">Time limit</dt>
-              <dd className="font-mono text-slate-800">{test.estimatedMinutes} min</dd>
+              <dd className="font-mono text-slate-800">{timerOf(test) === null ? 'None' : `${timerOf(test)} min`}</dd>
             </div>
             <div className="flex justify-between gap-2">
               <dt className="text-slate-500">Pass mark</dt>

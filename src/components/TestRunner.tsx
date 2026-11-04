@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { BackButton } from './BackButton';
-import { AssessmentTest, Question, ResultBreakdown } from '../types';
+import { AssessmentTest, Question, ResultBreakdown, timerOf } from '../types';
 import { breakdownFor } from '../lib/modules';
 import { ResultBreakdownPanel } from './ResultBreakdownPanel';
 import { MOCK_DATABASE } from '../lib/sqlEngine';
@@ -146,7 +146,9 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
   const submittedRef = useRef(false);
 
   // Timing and Integrity Proctor
-  const [secondsRemaining, setSecondsRemaining] = useState(test.estimatedMinutes * 60);
+  // No time limit: the clock counts up and never ends the test
+  const limitMinutes = timerOf(test);
+  const [secondsRemaining, setSecondsRemaining] = useState((limitMinutes ?? 0) * 60);
   // Everything the integrity monitor has seen so far, and the finished report once submitted
   const [flags, setFlags] = useState({ away: 0, pastes: 0, total: 0 });
   const [focusWarning, setFocusWarning] = useState<string | null>(null);
@@ -200,6 +202,7 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
     if (!hasStarted) return;
     const interval = setInterval(() => {
       setSecondsRemaining((prev) => {
+        if (limitMinutes === null) return prev + 1;
         if (prev <= 1) {
           clearInterval(interval);
           handleSubmitTest();
@@ -413,7 +416,10 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
         <div className="flex items-center gap-4 shrink-0">
           <div className="flex items-center gap-2 text-xs font-mono text-slate-700 bg-slate-50 px-3 py-1.5 rounded-md border border-slate-200 shadow-2xs">
             <Clock className="w-3.5 h-3.5 text-amber-600" />
-            <span className="tabular-nums font-semibold">{formatTime(secondsRemaining)}</span>
+            <span className="tabular-nums font-semibold" title={limitMinutes === null ? 'Time taken so far: this test has no time limit' : 'Time left'}>
+              {formatTime(secondsRemaining)}
+            </span>
+            {limitMinutes === null && <span className="font-sans text-slate-500">no limit</span>}
           </div>
 
           <div

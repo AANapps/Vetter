@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { BackButton } from './BackButton';
 import { AlertTriangle, ArrowLeft, ArrowRight, Check, Clock, FileText, Lock, ShieldCheck, X } from 'lucide-react';
-import { AssessmentTest } from '../types';
+import { AssessmentTest, timerOf } from '../types';
 import { QUESTION_TYPE_LABELS, describeChecks } from '../lib/testRoles';
 import { groupQuestions, isAnswerType, isWorkspaceType } from '../lib/questionTypes';
 import { CaseBrief } from './CaseBrief';
@@ -88,6 +88,7 @@ export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose, on
   const reference = useMemo(() => referenceFor(test.id), [test.id]);
 
   const groups = useMemo(() => groupQuestions(test.questions), [test.questions]);
+  const limit = timerOf(test);
   const answerable = test.questions.filter((q) => q.type !== 'case');
   const signed = signature.trim().length >= 2;
   const ready = accepted && signed;
@@ -194,7 +195,7 @@ export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose, on
                   </div>
                   <dl className="grid grid-cols-2 sm:grid-cols-4 border border-slate-200 rounded-xl overflow-hidden divide-x divide-y sm:divide-y-0 divide-slate-200">
                     {[
-                      ['Duration', `${test.estimatedMinutes} minutes`],
+                      ['Duration', limit === null ? `No limit (about ${test.estimatedMinutes} min)` : `${limit} minutes`],
                       ['Questions', `${answerable.length}`],
                       ['Pass mark', `${test.passingScore} / 100`],
                       ['Attempt', attemptLabel],
@@ -266,13 +267,19 @@ export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose, on
                     <div className="shrink-0 border-2 border-indigo-600 rounded-xl px-8 py-5 text-center">
                       <Label>Time allowed</Label>
                       <div className="mt-1 font-mono text-5xl font-bold tabular-nums text-indigo-700">
-                        {String(test.estimatedMinutes).padStart(2, '0')}:00
+                        {limit === null ? 'No limit' : `${String(limit).padStart(2, '0')}:00`}
                       </div>
                     </div>
-                    <p>
-                      You have <strong>{test.estimatedMinutes} minutes</strong> for the whole test. The time left is shown at the top of the screen
-                      throughout.
-                    </p>
+                    {limit === null ? (
+                      <p>
+                        There's <strong>no time limit</strong>: take the time you need. Most people take about {test.estimatedMinutes} minutes, and the time
+                        you've taken is shown at the top of the screen.
+                      </p>
+                    ) : (
+                      <p>
+                        You have <strong>{limit} minutes</strong> for the whole test. The time left is shown at the top of the screen throughout.
+                      </p>
+                    )}
                   </div>
                   <ol className="space-y-2 list-decimal pl-5 marker:font-mono marker:text-slate-400">
                     <li>The times beside each item are a guide, not a limit. Spend your time as you choose.</li>

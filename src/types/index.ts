@@ -222,6 +222,10 @@ export interface TestAspect {
 
 export type TestDifficulty = 'Beginner' | 'Junior' | 'Professional' | 'Senior';
 
+// The minutes a candidate has for a test, or null when it has no time limit
+export const timerOf = (test: { timeLimit?: number | 'none'; estimatedMinutes: number }): number | null =>
+  test.timeLimit === 'none' ? null : test.timeLimit ?? test.estimatedMinutes;
+
 export const TEST_DIFFICULTIES: TestDifficulty[] = ['Beginner', 'Junior', 'Professional', 'Senior'];
 
 export interface AssessmentTest {
@@ -237,6 +241,9 @@ export interface AssessmentTest {
   companyName?: string;
   description: string;
   estimatedMinutes: number;
+  // The timer the company set: minutes for the whole test, or 'none' for no time limit. Without it the timer is
+  // estimatedMinutes, what the questions add up to
+  timeLimit?: number | 'none';
   passingScore: number;
   totalQuestions: number;
   questions: Question[];
@@ -467,6 +474,8 @@ export interface TestDraft {
   // The question types the company allowed, how many questions it asked for and the levels it picked; none of one means
   // Vetter decides. questionCount and difficulty are the single picks drafts saved before several could be ticked
   styles?: QuestionType[];
+  // The timer picked; none means Vetter decides
+  timeLimit?: number | 'none';
   questionCounts?: number[];
   difficulties?: TestDifficulty[];
   questionCount?: number;
