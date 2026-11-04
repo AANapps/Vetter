@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AlertCircle, ArrowDown, ArrowUp, Check, Eye, FileText, Plus, Trash2, X } from 'lucide-react';
+import { AlertCircle, ArrowDown, ArrowUp, Check, Eye, FileText, Plus, Sparkles, Trash2, X } from 'lucide-react';
 import { AssessmentTest, Business, Question, QuestionType, SkillCategory, TEST_DIFFICULTIES, TestRole, madeWithAI } from '../types';
 import { SKILL_IDS } from '../data/seedCandidates';
 import { ROLE_GROUPS } from '../lib/testRoles';
@@ -20,6 +20,8 @@ interface TestBuilderProps {
   // Keeps the test as a draft, unfinished questions and all, to come back to
   onSaveDraft?: (test: AssessmentTest) => void | Promise<unknown>;
   onCancel: () => void;
+  // A saved test made by hand: takes it, as it now stands, to the test chat to improve with Vetter's AI
+  onEnhance?: (test: AssessmentTest) => void;
 }
 
 const CATEGORIES = Object.keys(SKILL_IDS) as SkillCategory[];
@@ -28,7 +30,7 @@ const CATEGORIES = Object.keys(SKILL_IDS) as SkillCategory[];
 type Selection = 'details' | number;
 
 // Writing a test: its details, then questions in any mix of styles, tried out as a candidate before saving
-export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, draft, isCopy, onSave, onSaveDraft, onCancel }) => {
+export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, draft, isCopy, onSave, onSaveDraft, onCancel, onEnhance }) => {
   const isVetter = !business;
   const source = initial ?? draft;
   const [title, setTitle] = useState(source?.title ?? '');
@@ -87,7 +89,9 @@ export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, dra
     const total = tidy.reduce((sum, q) => sum + q.weight, 0) || 1;
     const skillsTested = skills.split(',').map((s) => s.trim()).filter(Boolean);
     return {
-      id: initial?.id ?? `test-${isVetter ? 'vetter' : 'custom'}-${Date.now()}`,
+      // A saved test opened here (from Edit or the test chat) keeps its id, so saving changes it rather than adding a
+      // second one; a copy or a new draft is a new test
+      id: initial?.id ?? (draft?.id && !isCopy ? draft.id : `test-${isVetter ? 'vetter' : 'custom'}-${Date.now()}`),
       title: title.trim(),
       category,
       difficulty,
@@ -154,6 +158,17 @@ export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, dra
             <span className="hidden sm:inline">Try it as a candidate</span>
             <span className="sm:hidden">Try it</span>
           </button>
+          {onEnhance && (
+            <button
+              onClick={() => onEnhance({ ...build(), title: title.trim() || 'Untitled test', questions, totalQuestions: questions.length })}
+              title="Improve this test by asking Vetter; your changes here go with it"
+              className="px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-white border border-indigo-200 hover:border-indigo-400 rounded-lg flex items-center gap-1.5"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Enhance with AI</span>
+              <span className="sm:hidden">Enhance</span>
+            </button>
+          )}
           {onSaveDraft && (
             <button onClick={saveDraft} disabled={savingDraft} className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:border-indigo-400 disabled:opacity-40 rounded-lg">
               {savingDraft ? 'Saving…' : 'Save draft'}

@@ -35,9 +35,6 @@ interface RecruiterPortalProps {
   onEditDraftByHand: (draft: TestDraft) => void;
   // Opens one of the company's saved tests where it's edited: the test chat if made with AI, the builder if by hand
   onEditOwnTest: (testId: string) => void;
-  // A test made by hand, taken to the test chat to improve it with Vetter's AI
-  canEnhance: (test: AssessmentTest) => boolean;
-  onEnhanceTest: (testId: string) => void;
   // The company's leads pipeline, shown first in the Candidates tab
   leads?: React.ReactNode;
 }
@@ -64,8 +61,6 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   onContinueDraft,
   onEditDraftByHand,
   onEditOwnTest,
-  canEnhance,
-  onEnhanceTest,
   leads,
 }) => {
   // A business only manages its own jobs and its own tests; the Vetter team sees every company's jobs
@@ -384,7 +379,6 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                       ranked={getTestStats(t, allCandidates).candidatesRanked}
                       onOpen={() => onOpenTest(t.id)}
                       onEdit={own ? () => onEditOwnTest(t.id) : isVetter ? editFor(t) : undefined}
-                      onEnhance={own && canEnhance(t) ? () => onEnhanceTest(t.id) : undefined}
                       // The Vetter team can delete library tests written in the builder; the built-in ones stay
                       onDelete={own ? () => deleteTest(t) : isVetter && isEditable(t) ? () => deleteTest(t) : undefined}
                       onDeepen={isVetter ? () => onGenerateTest(deepenSeed(t)) : undefined}
@@ -432,12 +426,10 @@ const TestRow: React.FC<{
   ranked: number;
   onOpen: () => void;
   onEdit?: () => void;
-  // Made by hand: improves it with Vetter's AI
-  onEnhance?: () => void;
   onDelete?: () => void;
   // Rebuilds it with the AI as a full, in-depth test
   onDeepen?: () => void;
-}> = ({ test, own, usedBy, ranked, onOpen, onEdit, onEnhance, onDelete, onDeepen }) => {
+}> = ({ test, own, usedBy, ranked, onOpen, onEdit, onDelete, onDeepen }) => {
   const stop = (fn: () => void) => (e: React.MouseEvent) => {
     e.stopPropagation();
     fn();
@@ -485,16 +477,6 @@ const TestRow: React.FC<{
         {onDeepen && test.questions.length < 12 && (
           <button onClick={stop(onDeepen)} title="Write a full, in-depth version of this test with Vetter's AI" aria-label={`Rebuild ${test.title} in depth`} className="text-indigo-600 hover:text-indigo-900">
             <Sparkles className="w-3.5 h-3.5" />
-          </button>
-        )}
-        {onEnhance && (
-          <button
-            onClick={stop(onEnhance)}
-            title="Enhance with AI: improve it by asking Vetter, then keep changing it that way"
-            className="text-xs font-semibold text-indigo-700 hover:text-indigo-900 flex items-center gap-1 whitespace-nowrap"
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Enhance with AI</span>
           </button>
         )}
         {onEdit && (
