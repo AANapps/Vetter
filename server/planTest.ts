@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { meter } from './meter.js';
 import { MAX_PROMPT, PRICES, apiFailure, researchSoftware } from './generateTest.js';
-import { ChatRequest, styleGuide, stylesNote } from './testChat.js';
+import { ChatRequest, levelPick, styleGuide, stylesNote } from './testChat.js';
 
 /**
  * The first step of writing a test from the conversation: what the hire needs (the blueprint) and an outline of every
@@ -94,7 +94,7 @@ to that case or task's ref, and every other item has taskRef "". brief: 2 to 4 s
 detail or trap it turns on, what a strong answer shows, and which competency it serves. Vary the situations, so no two
 items test the same thing. points and minutes as the rules below say (minutes is timeLimitMinutes; a case is 0 points).
 blueprint: one line per competency, written "skill | weight | why it matters | how the test proves it".
-difficulty is one of: ${req.levels.join(', ')}; ${req.difficulty ? `it is ${req.difficulty}, as the company picked` : 'pick it from the job unless told'}.
+difficulty is one of: ${req.levels.join(', ')}; ${levelPick(req)}.
 
 ${stylesNote(req)}${styleGuide(req)}
 software: the one product, device or equipment the app items copy (e.g. "Xero" or "iPhone 13"), or "".

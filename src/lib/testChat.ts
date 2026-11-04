@@ -34,17 +34,25 @@ export interface ChatContext {
   job?: string;
   // The job's title, to name a test put together without the AI
   jobTitle?: string;
-  level: TestDifficulty;
+  // The level the test is named at: the highest the company ticked, or none for Vetter to pick
+  level?: TestDifficulty;
+  // Every level ticked; several means questions pitched across them
+  levels: TestDifficulty[];
   wantExisting: boolean;
   tests: AssessmentTest[];
   business?: Business;
-  // The question types the company picked; Vetter uses only these
+  // The question types the company picked; Vetter uses only these, or any when none are
   styles: QuestionType[];
-  // How many questions the company wants, counting sub-questions
+  // How many questions the company wants, counting sub-questions: exactly one number, or a range when it ticked several
   questionCount?: number;
+  questionRange?: [number, number];
   // The app task open beside the chat, which "this" and "the app" mean
   viewing?: { id: string; label: string; app: string };
 }
+
+// A question type the company allows: any, when it hasn't ticked one
+const allowedStyle = (ctx: ChatContext, type: unknown) => !ctx.styles.length || ctx.styles.includes(type as QuestionType);
+const QUESTION_TYPES: QuestionType[] = ['choice', 'multi', 'text', 'written', 'order', 'match', 'case', 'sheet', 'database', 'app', 'code', 'sql'];
 
 // The draft as the AI sees it: everything it needs to change a question, except app pages, which it can only keep whole
 export const draftForModel = (test: AssessmentTest) => ({
@@ -162,7 +170,7 @@ function blueprintOf(raw: unknown): BlueprintItem[] | undefined {
 // pages are built first, side by side, each in its own request
 async function buildDraft(raw: RawTest, previous: AssessmentTest | undefined, ctx: ChatContext, research?: string): Promise<{ test?: AssessmentTest; dropped: number }> {
   // A new question in a type the company hasn't picked is left out, whatever the AI sent; kept ones stay until rewritten
-  const items = (raw.questions ?? []).filter((item) => item.keep || ctx.styles.includes(item.type as QuestionType));
+  const items = (raw.questions ?? []).filter((item) => item.keep || allowedStyle(ctx, item.type));
   const built = await Promise.all(
     items.map(async (item) => {
       if (item.keep) return previous?.questions.find((q) => q.id === item.keep) ?? null;
@@ -177,7 +185,7 @@ async function buildDraft(raw: RawTest, previous: AssessmentTest | undefined, ct
   if (!questions.length) return { dropped };
   const total = questions.reduce((sum, q) => sum + q.weight, 0) || 1;
   // The level the company picked wins over the AI's
-  const difficulty = ctx.level;
+  const difficulty = ctx.level ?? (TEST_DIFFICULTIES.includes(raw.difficulty) ? (raw.difficulty as TestDifficulty) : previous?.difficulty ?? 'Junior');
   return {
     dropped,
     test: {
@@ -268,7 +276,7 @@ async function planAndWrite(state: ChatState, messages: ChatMessage[], ctx: Chat
   const plan = body.plan as (Record<string, any> & { items: PlanItem[]; blueprint: string[] }) | undefined;
   // Only items in the picked styles, and no questions about a case or task that's gone
   if (plan?.items?.length) {
-    const allowed = plan.items.filter((item) => ctx.styles.includes(item.type as QuestionType));
+    const allowed = plan.items.filter((item) => allowedStyle(ctx, item.type));
     plan.items = allowed.filter((item) => !item.taskRef || allowed.some((other) => other.ref === item.taskRef) || !plan.items.some((other) => other.ref === item.taskRef));
   }
   if (!plan?.items?.length) return { body };
@@ -314,8 +322,11 @@ export async function sendChat(state: ChatState, text: string, ctx: ChatContext,
     wantExisting: ctx.wantExisting,
     styles: ctx.styles,
     questionCount: ctx.questionCount,
+    questionRange: ctx.questionRange,
     viewing: ctx.viewing,
-    difficulty: ctx.level,
+    // One level ticked is the test's level; several are a spread to pitch across
+    difficulty: ctx.levels.length === 1 ? ctx.level : undefined,
+    difficulties: ctx.levels.length > 1 ? ctx.levels : undefined,
     library: library.map((t) => ({ id: t.id, title: t.title, category: t.category, difficulty: t.difficulty, skills: t.skillsTested, roles: t.roles ?? [], description: t.description })),
     roles: ALL_ROLES,
     categories: CATEGORIES,
@@ -349,7 +360,7 @@ export async function sendChat(state: ChatState, text: string, ctx: ChatContext,
     // Without the AI, the first turn still gets a start from Vetter's own tests and questions
     if (failure === 'not-configured' && !state.draft) {
       const brief = [ctx.job, ...messages.filter((m) => m.role === 'user').map((m) => m.text)].filter(Boolean).join('\n\n');
-      const draft = assembleFromBank({ prompt: brief, wantNewTest: true, wantExisting: ctx.wantExisting, questionCount: ctx.questionCount ?? 10, styles: ctx.styles, level: ctx.level, title: ctx.jobTitle }, library, ctx.tests, ctx.business);
+      const draft = assembleFromBank({ prompt: brief, wantNewTest: true, wantExisting: ctx.wantExisting, questionCount: ctx.questionCount ?? ctx.questionRange?.[1] ?? 10, styles: ctx.styles.length ? ctx.styles : QUESTION_TYPES, level: ctx.level ?? 'Junior', title: ctx.jobTitle }, library, ctx.tests, ctx.business);
       const existing = ctx.wantExisting ? matchExisting(brief, library) : [];
       const reply = draft
         ? `I can't write new questions here, so I've put a draft together from the best-fitting questions in Vetter's tests. ${NOT_CONFIGURED} You can still edit every question in the builder.`

@@ -23,7 +23,11 @@ export interface ChatRequest {
   styles?: string[];
   // How many questions the company asked for, counting sub-questions, and the level it picked
   questionCount?: number;
+  // Several counts ticked: anywhere from the first to the second
+  questionRange?: [number, number];
   difficulty?: string;
+  // Several levels ticked, lowest first
+  difficulties?: string[];
   // The task the company has open beside the chat, when it's an app simulation
   viewing?: { id: string; label: string; app: string };
   library: { id: string; title: string; category: string; difficulty: string; skills: string[]; roles: string[]; description: string }[];
@@ -92,15 +96,29 @@ export interface GuideRequest {
   categories: string[];
   roles: string[];
 }
-export const stylesNote = (req: { styles?: string[]; questionCount?: number; difficulty?: string }) =>
+type Picks = { styles?: string[]; questionCount?: number; questionRange?: [number, number]; difficulty?: string; difficulties?: string[] };
+
+// What the "difficulty is one of" line says the level is
+export const levelPick = (req: Picks) =>
+  req.difficulty
+    ? `it is ${req.difficulty}, as the company picked`
+    : req.difficulties?.length
+    ? `it is ${req.difficulties[req.difficulties.length - 1]}, the highest of the levels the company picked`
+    : 'pick it from the job unless told';
+
+export const stylesNote = (req: Picks) =>
   [
     req.styles?.length
       ? `QUESTION TYPES: the company has picked these styles, and ONLY these: ${req.styles.join(', ')}. Every question in the test must be one of them, even if the company asks in the chat for another style (tell them to tick it at the top first). Where the rules below call for a style that isn't picked (a case study, a hands-on task), leave that part out and use the picked styles instead; the hands-on rule applies only if a hands-on style is picked, and a case or task section only if its style is. Whenever you change the draft, rewrite any question in a style that isn't picked into one that is.`
       : '',
     req.questionCount
       ? `NUMBER OF QUESTIONS: the company wants exactly ${req.questionCount} questions, counting sub-questions but not case study material. This replaces the size given below; the time adds up to whatever those questions take. Whenever you change the draft, bring it to exactly ${req.questionCount}.`
+      : req.questionRange
+      ? `NUMBER OF QUESTIONS: the company wants between ${req.questionRange[0]} and ${req.questionRange[1]} questions, counting sub-questions but not case study material: pick the number in that range the job really needs. This replaces the size given below. Whenever you change the draft, keep it in that range.`
       : '',
-    req.difficulty
+    req.difficulties?.length
+      ? `DIFFICULTY: the company picked these levels: ${req.difficulties.join(', ')}. Pitch the questions across them, from the easier ones up to the hardest, whatever the job ad suggests. The test's difficulty is "${req.difficulties[req.difficulties.length - 1]}".`
+      : req.difficulty
       ? `DIFFICULTY: the company picked ${req.difficulty} level. The test's difficulty is "${req.difficulty}" and every question is pitched at that level, whatever the job ad suggests.`
       : '',
   ]
@@ -164,7 +182,7 @@ ${stylesNote(req)}THE DRAFT
 - If the change means rewriting more than about half of the test (a different level, a different job, "start again"),
   don't write it here: send lookUp "REPLAN", reply "" and no test. Vetter plans and writes the test afresh from the
   conversation, section by section.
-- The size and sections are set out under BLUEPRINT and SECTIONS below. difficulty is one of: ${req.levels.join(', ')}; ${req.difficulty ? `it is ${req.difficulty}, as the company picked` : 'pick it from the job unless told'}.
+- The size and sections are set out under BLUEPRINT and SECTIONS below. difficulty is one of: ${req.levels.join(', ')}; ${levelPick(req)}.
 ${styleGuide(req)}
 software: the one product, device or equipment the app simulations copy (e.g. "Xero" or "iPhone 13"), or "" when the draft has none.
 lookUp: when this turn should add (or rewrite) an app simulation of a product, device or equipment that the RESEARCH below doesn't cover${research ? '' : ' (there is no research yet)'}, put its name here (with the procedure for a device, e.g. "iPhone 13 screen replacement") and send only reply "" and existing, with no test; Vetter researches it and asks you again. Otherwise "".

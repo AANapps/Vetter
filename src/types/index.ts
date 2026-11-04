@@ -464,8 +464,11 @@ export interface TestDraft {
   existing?: { testId: string; reason: string }[];
   research?: string;
   researchedFor?: string;
-  // The question types the company allowed, how many questions it asked for and the level it picked
+  // The question types the company allowed, how many questions it asked for and the levels it picked; none of one means
+  // Vetter decides. questionCount and difficulty are the single picks drafts saved before several could be ticked
   styles?: QuestionType[];
+  questionCounts?: number[];
+  difficulties?: TestDifficulty[];
   questionCount?: number;
   difficulty?: TestDifficulty;
   updatedAt: string; // ISO timestamp

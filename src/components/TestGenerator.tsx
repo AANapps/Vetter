@@ -82,13 +82,23 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
   // On phones the chat and the draft share the screen as tabs
   const [pane, setPane] = useState<'chat' | 'draft'>('chat');
   const [flash, setFlash] = useState(false);
-  // The question types Vetter may use, how many questions and the level: the company picks all three before Vetter
-  // writes anything (a saved test being changed starts from what it has)
+  // The question types Vetter may use, how many questions and the levels, each ticked in its own list; whatever's left
+  // unticked Vetter decides (a saved test being changed starts from what it has)
   const [styles, setStyles] = useState<QuestionType[]>(() =>
     resume?.styles?.length ? resume.styles : original ? PICKABLE.filter((t) => original.questions.some((q) => q.type === t)) : []
   );
-  const [questionCount, setQuestionCount] = useState<number | undefined>(() => resume?.questionCount ?? (original ? countOf(original) : undefined));
-  const [difficulty, setDifficulty] = useState<TestDifficulty | undefined>(() => resume?.difficulty ?? resume?.test.difficulty ?? original?.difficulty);
+  const [counts, setCounts] = useState<number[]>(() => resume?.questionCounts ?? (resume?.questionCount ? [resume.questionCount] : original ? [countOf(original)] : []));
+  const [levels, setLevels] = useState<TestDifficulty[]>(() =>
+    resume?.difficulties ?? (resume?.difficulty ? [resume.difficulty] : original ? [original.difficulty] : resume?.test.difficulty ? [resume.test.difficulty] : [])
+  );
+  // One count is exact; several are a range to stay within
+  const sortedCounts = [...counts].sort((a, b) => a - b);
+  const questionCount = counts.length === 1 ? counts[0] : undefined;
+  const questionRange: [number, number] | undefined = counts.length > 1 ? [sortedCounts[0], sortedCounts[sortedCounts.length - 1]] : undefined;
+  // The levels in order; the highest names the test
+  const pickedLevels = TEST_DIFFICULTIES.filter((d) => levels.includes(d));
+  const difficulty = pickedLevels[pickedLevels.length - 1];
+  const countOptions = [...new Set([...COUNTS, ...counts])].sort((a, b) => a - b);
   // The company's AI credit, shown in the header; nothing shows when the site doesn't charge
   const [credit, setCredit] = useState<Credit | null>(null);
   const [topUpOpen, setTopUpOpen] = useState(false);
@@ -107,19 +117,19 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
   const [viewing, setViewing] = useState<{ id: string; label: string; app: string } | undefined>();
   const [aboutWhole, setAboutWhole] = useState(false);
   const focus = !aboutWhole && viewing && chat.draft?.questions.some((q) => q.id === viewing.id) ? viewing : undefined;
-  const ready = styles.length > 0 && !!questionCount && !!difficulty;
-  // What's still to pick, said above the message box
-  const missing = [!styles.length && 'the question types', !questionCount && 'how many questions', !difficulty && 'the difficulty'].filter(Boolean) as string[];
   const scroller = useRef<HTMLDivElement>(null);
   const box = useRef<HTMLTextAreaElement>(null);
 
   const draft = chat.draft;
   const started = chat.messages.some((m) => m.role === 'user');
   // Changing a saved test doesn't pick library tests to go with it
-  const ctx = { job: job ? jobBrief(job) : undefined, jobTitle: job?.title, level: difficulty ?? 'Junior', questionCount, wantExisting: !!job && !original, tests, business, styles, viewing: focus };
+  const ctx = { job: job ? jobBrief(job) : undefined, jobTitle: job?.title, level: difficulty, levels: pickedLevels, questionCount, questionRange, wantExisting: !!job && !original, tests, business, styles, viewing: focus };
   const toggleStyle = (type: QuestionType) => setStyles((prev) => (prev.includes(type) ? prev.filter((t) => t !== type) : PICKABLE.filter((t) => t === type || prev.includes(t))));
+  const toggle = <T,>(set: React.Dispatch<React.SetStateAction<T[]>>, value: T) => set((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]));
+  // The types Vetter may use: any, when none are ticked
+  const allowed = styles.length ? styles : PICKABLE;
   // Questions in the draft of a type since turned off
-  const offTypes = [...new Set((draft?.questions ?? []).filter((q) => !styles.includes(q.type)).map((q) => q.type))];
+  const offTypes = styles.length ? [...new Set((draft?.questions ?? []).filter((q) => !styles.includes(q.type)).map((q) => q.type))] : [];
 
   // The changed test in the place of the one being edited: same id, owner and level family, so its jobs keep it
   const asSaved = (test: AssessmentTest): AssessmentTest =>
@@ -145,8 +155,8 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
     existing: chat.existing.map((s) => ({ testId: s.test.id, reason: s.reason })),
     ...(chat.research !== undefined && { research: chat.research, researchedFor: chat.researchedFor }),
     styles,
-    ...(questionCount && { questionCount }),
-    ...(difficulty && { difficulty }),
+    questionCounts: counts,
+    difficulties: pickedLevels,
     updatedAt: new Date().toISOString(),
   });
   const saveDraft = async () => {
@@ -176,7 +186,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
   // again: the last message sent once more, in place of it and the failed reply
   const send = async (text: string, again = false) => {
     const message = text.trim();
-    if (!message || working || !ready) return;
+    if (!message || working) return;
     if (!again) setInput('');
     setWorking(true);
     const base = again ? { ...chat, messages: chat.messages.slice(0, -2) } : chat;
@@ -213,8 +223,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
   // Once only, even if React mounts the chat twice
   const autoSent = useRef(false);
   useEffect(() => {
-    // Only once the types, number and level are picked; until then the message waits in the box
-    if (!autoSend || !seed || resume || autoSent.current || !ready) return;
+    if (!autoSend || !seed || resume || autoSent.current) return;
     autoSent.current = true;
     send(seed);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -229,11 +238,12 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
     : draft
     ? [
         ...(offTypes.length ? ['Use only the question types I picked'] : []),
-        ...(draft.difficulty !== difficulty ? [`Make it ${difficulty} level`] : []),
+        ...(pickedLevels.length === 1 && draft.difficulty !== difficulty ? [`Make it ${difficulty} level`] : []),
         ...(questionCount && countOf(draft) !== questionCount ? [`Make it ${questionCount} questions`] : []),
+        ...(questionRange && (countOf(draft) < questionRange[0] || countOf(draft) > questionRange[1]) ? [`Make it ${questionRange[0]} to ${questionRange[1]} questions`] : []),
         'Make it harder',
-        ...(styles.includes('case') ? ['Add another case study'] : []),
-        ...(styles.some((t) => t === 'app' || t === 'sheet' || t === 'database') ? ['Add a hands-on task in the software'] : []),
+        ...(allowed.includes('case') ? ['Add another case study'] : []),
+        ...(allowed.some((t) => t === 'app' || t === 'sheet' || t === 'database') ? ['Add a hands-on task in the software'] : []),
         'Make it shorter',
       ]
     : [];
@@ -285,56 +295,41 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
           </div>
         </div>
 
-        {/* What Vetter may write: picked before it starts, locked while it works, changeable once it's done */}
-        <div className={`px-5 py-2 border-b border-slate-200 space-y-1.5 ${working ? 'opacity-50' : ''}`} aria-busy={working}>
-          <fieldset className="flex items-center sm:items-start gap-2 min-w-0">
-            <legend className="sr-only">Question types Vetter may use</legend>
-            <span className={`w-28 text-xs font-semibold shrink-0 sm:pt-1.5 ${styles.length ? 'text-slate-500' : 'text-amber-700'}`} aria-hidden="true">
-              Question types
-            </span>
-            <div className="flex gap-1.5 overflow-x-auto sm:flex-wrap sm:overflow-visible -my-1 py-1 min-w-0">
-              {PICKABLE_STYLES.map((s) => (
-                <Chip key={s.type} type="checkbox" on={styles.includes(s.type)} disabled={working} title={s.hint} onChange={() => toggleStyle(s.type)}>
-                  {s.label}
-                </Chip>
-              ))}
-            </div>
-            <button
-              onClick={() => setStyles(styles.length === PICKABLE.length ? [] : PICKABLE)}
-              disabled={working}
-              className="shrink-0 sm:pt-1.5 text-xs font-semibold text-indigo-700 hover:text-indigo-900 disabled:cursor-not-allowed"
-            >
-              {styles.length === PICKABLE.length ? 'None' : 'All'}
-            </button>
-          </fieldset>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-6">
-            <fieldset className="flex items-center gap-2 min-w-0">
-              <legend className="sr-only">How many questions</legend>
-              <span className={`w-28 text-xs font-semibold shrink-0 ${questionCount ? 'text-slate-500' : 'text-amber-700'}`} aria-hidden="true">
-                Questions
-              </span>
-              <div className="flex gap-1.5 overflow-x-auto -my-1 py-1 min-w-0">
-                {COUNTS.map((n) => (
-                  <Chip key={n} type="radio" name="question-count" on={questionCount === n} disabled={working} onChange={() => setQuestionCount(n)}>
-                    {n}
-                  </Chip>
+        {/* What Vetter may write, each a list to tick; whatever's left unticked Vetter decides. Locked while it works */}
+        <div className="px-5 py-2 border-b border-slate-200 flex flex-wrap items-center gap-2" aria-busy={working}>
+          <Dropdown label={<>Question types: <Summary text={styles.length ? summarise(styles.map((t) => PICKABLE_STYLES.find((s) => s.type === t)?.label ?? t)) : undefined} /></>} width="w-72" disabled={working}>
+            {() => (
+              <PickList legend="Question types Vetter may use" picked={styles.length} onClear={() => setStyles([])}>
+                {PICKABLE_STYLES.map((s) => (
+                  <PickRow key={s.type} on={styles.includes(s.type)} title={s.hint} onChange={() => toggleStyle(s.type)}>
+                    {s.label}
+                  </PickRow>
                 ))}
-              </div>
-            </fieldset>
-            <fieldset className="flex items-center gap-2 min-w-0">
-              <legend className="sr-only">Difficulty</legend>
-              <span className={`w-28 sm:w-auto text-xs font-semibold shrink-0 ${difficulty ? 'text-slate-500' : 'text-amber-700'}`} aria-hidden="true">
-                Difficulty
-              </span>
-              <div className="flex gap-1.5 overflow-x-auto -my-1 py-1 min-w-0">
+              </PickList>
+            )}
+          </Dropdown>
+          <Dropdown label={<>Questions: <Summary text={counts.length ? (questionRange ? `${questionRange[0]} to ${questionRange[1]}` : String(questionCount)) : undefined} /></>} width="w-56" disabled={working}>
+            {() => (
+              <PickList legend="How many questions" picked={counts.length} onClear={() => setCounts([])} note="Tick two or more for a range.">
+                {countOptions.map((n) => (
+                  <PickRow key={n} on={counts.includes(n)} onChange={() => toggle(setCounts, n)}>
+                    {n} questions
+                  </PickRow>
+                ))}
+              </PickList>
+            )}
+          </Dropdown>
+          <Dropdown label={<>Level: <Summary text={pickedLevels.length ? summarise(pickedLevels) : undefined} /></>} width="w-56" disabled={working}>
+            {() => (
+              <PickList legend="Difficulty" picked={pickedLevels.length} onClear={() => setLevels([])} note="Tick more than one to mix levels.">
                 {TEST_DIFFICULTIES.map((d) => (
-                  <Chip key={d} type="radio" name="difficulty" on={difficulty === d} disabled={working} onChange={() => setDifficulty(d)}>
+                  <PickRow key={d} on={levels.includes(d)} onChange={() => toggle(setLevels, d)}>
                     {d}
-                  </Chip>
+                  </PickRow>
                 ))}
-              </div>
-            </fieldset>
-          </div>
+              </PickList>
+            )}
+          </Dropdown>
         </div>
 
         <div className="lg:hidden flex border-b border-slate-200 text-base font-semibold" role="tablist">
@@ -362,7 +357,6 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                       {m.failed && i === chat.messages.length - 1 && !working && chat.messages[i - 1]?.role === 'user' && (
                         <button
                           onClick={() => (m.needsCredit ? setTopUpOpen(true) : send(chat.messages[i - 1].text, true))}
-                          disabled={!ready}
                           className={`mt-1.5 px-3 py-1 rounded-full text-sm font-semibold disabled:opacity-40 ${
                             m.needsCredit ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'border border-indigo-300 text-indigo-700 hover:bg-indigo-50'
                           }`}
@@ -392,16 +386,14 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
             </div>
 
             <div className="px-4 pb-4 pt-2 border-t border-slate-100">
-              {!ready && !working && (
-                <p className="pb-2 text-sm text-amber-700 flex items-start gap-1.5">
-                  <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-                  Pick {missing.length > 1 ? `${missing.slice(0, -1).join(', ')} and ${missing[missing.length - 1]}` : missing[0]} at the top, then Vetter can {draft ? 'carry on' : 'start writing'}.
-                </p>
-              )}
-              {credit?.billing && ready && !working && !draft && questionCount && (
+              {credit?.billing && !working && !draft && (
                 <p className="pb-2 text-sm text-slate-500">
                   {(() => {
-                    const { low, high } = estimateTest(questionCount, styles.some((t) => t === 'sheet' || t === 'database' || t === 'app' || t === 'code'), styles.includes('app'));
+                    // Unpicked, a typical test of about 15 questions with any kind of task
+                    const [fewest, most] = questionRange ?? [questionCount ?? 15, questionCount ?? 15];
+                    const handsOn = allowed.some((t) => t === 'sheet' || t === 'database' || t === 'app' || t === 'code');
+                    const low = estimateTest(fewest, handsOn, allowed.includes('app')).low;
+                    const high = estimateTest(most, handsOn, allowed.includes('app')).high;
                     const short = (credit.balance ?? 0) < high;
                     return (
                       <>
@@ -412,10 +404,10 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                   })()}
                 </p>
               )}
-              {credit?.billing && ready && !working && draft && !started && (
+              {credit?.billing && !working && draft && !started && (
                 <p className="pb-2 text-sm text-slate-500">Each change costs a few pence; changing or adding an interactive task about 30p to 80p.</p>
               )}
-              {suggestions.length > 0 && !working && ready && (
+              {suggestions.length > 0 && !working && (
                 <div className="flex gap-1.5 overflow-x-auto pb-2 -mx-1 px-1">
                   {suggestions.map((s) => (
                     <button key={s} onClick={() => send(s)} className="shrink-0 px-3 py-1.5 rounded-full border border-slate-200 text-sm text-slate-700 hover:border-indigo-400 hover:text-indigo-700">
@@ -458,7 +450,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                   placeholder={focus ? `Ask for a change to ${focus.app}, e.g. "add a refunds screen"` : draft ? 'Ask for a change, e.g. "make question 2 harder"' : job ? 'What matters most in this hire?' : 'Describe the role or the test you want'}
                   className="flex-1 resize-none px-2.5 py-2 text-base leading-[1.6] text-slate-900 bg-transparent focus:outline-none"
                 />
-                <button type="submit" disabled={!input.trim() || working || !ready} aria-label="Send" className="p-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-30">
+                <button type="submit" disabled={!input.trim() || working} aria-label="Send" className="p-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-30">
                   <ArrowUp className="w-5 h-5" />
                 </button>
               </form>
@@ -555,14 +547,27 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
 };
 
 // A pill to pick a question type, a number or a level; greyed out and unclickable while Vetter is working
-const Chip: React.FC<{ type: 'checkbox' | 'radio'; name?: string; on: boolean; disabled: boolean; title?: string; onChange: () => void; children: React.ReactNode }> = ({ type, name, on, disabled, title, onChange, children }) => (
-  <label
-    title={title}
-    className={`shrink-0 px-3 py-1 rounded-full border text-sm select-none has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-indigo-300 ${
-      disabled ? 'cursor-not-allowed' : 'cursor-pointer'
-    } ${on ? 'bg-slate-900 border-slate-900 text-white' : `bg-white border-slate-300 text-slate-500 ${disabled ? '' : 'hover:border-slate-500'}`}`}
-  >
-    <input type={type} name={name} checked={on} disabled={disabled} onChange={onChange} className="sr-only" />
+// What's ticked in a list, or that Vetter decides
+const Summary: React.FC<{ text?: string }> = ({ text }) => <span className={text ? 'text-slate-900' : 'font-normal text-slate-500'}>{text ?? 'Vetter decides'}</span>;
+const summarise = (labels: string[]) => (labels.length <= 2 ? labels.join(', ') : `${labels[0]} + ${labels.length - 1} more`);
+
+// A list of options to tick, with a way back to letting Vetter decide
+const PickList: React.FC<{ legend: string; picked: number; onClear: () => void; note?: string; children: React.ReactNode }> = ({ legend, picked, onClear, note, children }) => (
+  <fieldset className="p-1.5 max-h-80 overflow-y-auto">
+    <legend className="sr-only">{legend}</legend>
+    <button type="button" onClick={onClear} className={`w-full text-left px-2.5 py-1.5 rounded-lg text-sm flex items-center gap-2 hover:bg-slate-50 ${picked ? 'text-slate-600' : 'font-semibold text-indigo-700'}`}>
+      <span className={`w-4 h-4 rounded-full border flex items-center justify-center ${picked ? 'border-slate-300' : 'border-indigo-600 bg-indigo-600 text-white'}`}>{!picked && <Check className="w-3 h-3" />}</span>
+      Let Vetter decide
+    </button>
+    <div className="my-1 border-t border-slate-100" />
+    {children}
+    {note && <p className="px-2.5 pt-1 pb-0.5 text-xs text-slate-500">{note}</p>}
+  </fieldset>
+);
+
+const PickRow: React.FC<{ on: boolean; title?: string; onChange: () => void; children: React.ReactNode }> = ({ on, title, onChange, children }) => (
+  <label title={title} className="px-2.5 py-1.5 rounded-lg text-sm text-slate-800 flex items-center gap-2 cursor-pointer select-none hover:bg-slate-50 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-indigo-300">
+    <input type="checkbox" checked={on} onChange={onChange} className="w-4 h-4 accent-indigo-600" />
     {children}
   </label>
 );
