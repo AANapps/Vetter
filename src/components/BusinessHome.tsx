@@ -95,7 +95,9 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
   ];
 
   return (
-    <div className="relative isolate">
+    // A chat like ChatGPT's or Claude's: exactly the window under the top bar, so the page itself never scrolls; only
+    // the conversation does, and the message box stays at the bottom
+    <div className="relative isolate h-[calc(100dvh-3.5rem-1px-3.5rem)] md:h-[calc(100dvh-3.5rem-1px)] overflow-hidden">
       {/* Faint colour drifting behind the glass */}
       <div className="ai-aurora" aria-hidden="true">
         <span />
@@ -103,10 +105,10 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
         <span />
         <span />
       </div>
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 grid grid-cols-1 lg:grid-cols-[17rem_minmax(0,1fr)] gap-8">
+    <div className="h-full max-w-6xl mx-auto px-4 sm:px-6 grid grid-cols-1 grid-rows-[minmax(0,1fr)] lg:grid-cols-[17rem_minmax(0,1fr)] gap-8">
       {/* The chat */}
-      <section className="min-w-0 flex flex-col min-h-[calc(100dvh-3.5rem-4rem)] md:min-h-[calc(100dvh-3.5rem)]">
-        <div className="flex-1 py-8 space-y-6">
+      <section className="min-w-0 min-h-0 flex flex-col">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain py-8 space-y-6 -mx-2 px-2">
           {turns.length === 0 ? (
             <div className="pt-10 sm:pt-20 space-y-6 text-center">
               <div className="space-y-2">
@@ -182,7 +184,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
             e.preventDefault();
             send(input);
           }}
-          className="sticky bottom-16 md:bottom-0 pb-3 pt-2"
+          className="shrink-0 pb-3 pt-2"
         >
           {pickedTests.length > 0 && (
             <div className="mb-3 p-3 bg-white border border-indigo-200 rounded-2xl shadow-md shadow-indigo-100/60 flex flex-col sm:flex-row sm:items-center gap-3">
@@ -251,8 +253,8 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
       </section>
 
       {/* The menu, on the left */}
-      <aside className="hidden lg:block lg:order-first py-8">
-        <div className="ai-glass sticky top-20 space-y-5 p-3 rounded-2xl border border-white/80 shadow-sm">
+      <aside className="hidden lg:block lg:order-first min-h-0 overflow-y-auto py-8">
+        <div className="ai-glass space-y-5 p-3 rounded-2xl border border-white/80 shadow-sm">
           <nav aria-label="Company pages" className="space-y-1">
             {menu.map((m) => (
               <button

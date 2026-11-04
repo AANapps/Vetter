@@ -961,6 +961,8 @@ export default function App() {
   const coursePage = COURSES.find((c) => c.id === coursePageId);
   // A test page replaces the tab's own content
   const detailPage = testPageTest;
+  // The company home: a chat that fills the window (src/components/BusinessHome.tsx)
+  const chatHome = !detailPage && activeRole !== 'candidate' && currentTab === 'business-home';
   const candidateNotifications = notifications
     .filter((n) => n.userId === candidate.id)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
@@ -1054,7 +1056,8 @@ export default function App() {
 
       {/* Room for the phone tab bar, which visitors don't have */}
       <div className={`flex-1 min-w-0 flex flex-col ${isVisitor ? '' : 'pb-14 md:pb-0'}`}>
-        <main className="flex-1 pb-16 bg-white">
+        {/* The company home is a full-window chat: no room below it, and no footer */}
+        <main className={`flex-1 bg-white ${chatHome ? '' : 'pb-16'}`}>
           {accountGate ?? (
           <>
           {activeRole === 'recruiter' && company && account && company.ownerUid === account.uid && companyBusiness && <TeamRequests company={company} />}
@@ -1332,7 +1335,7 @@ export default function App() {
           )}
         </main>
 
-        <footer className="border-t border-slate-200 bg-white py-6 px-6 text-xs text-slate-500">
+        {!chatHome && <footer className="border-t border-slate-200 bg-white py-6 px-6 text-xs text-slate-500">
           <div className="max-w-7xl mx-auto flex items-center gap-2">
             <span className="font-bold text-slate-900 tracking-tight">VETTER</span>
             <span>&middot; Skills-based hiring</span>
@@ -1342,7 +1345,7 @@ export default function App() {
               </button>
             )}
           </div>
-        </footer>
+        </footer>}
       </div>
 
       {authDialog && <AuthDialog initialMode={authDialog.mode} reason={authDialog.reason} initialRole={authDialog.role} onClose={() => setAuthDialog(null)} />}
