@@ -951,8 +951,9 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
         const earnedTier = getBadgeTier(finalScore);
 
         return (
+          // The result can be taller than the screen (the breakdown, every task's feedback): it scrolls within the screen
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-            <div className="bg-white border border-slate-200 rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl">
+            <div className="bg-white border border-slate-200 rounded-2xl max-w-lg w-full max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain p-6 space-y-5 shadow-2xl">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 shadow-xs">
                   <CheckCircle2 className="w-6 h-6" />
