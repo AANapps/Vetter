@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { User, JobPosting, AssessmentTest, Business, TestDraft } from '../types';
 import { getTestStats } from '../lib/leaderboard';
 import { JobCandidates } from './JobCandidates';
-import { CheckCircle2, FileText, Pencil, Plus, Search, Sparkles, Trash2 } from 'lucide-react';
+import { CheckCircle2, FileText, MessageSquare, Pencil, Plus, Search, Sparkles, Trash2 } from 'lucide-react';
 import { TestBuilder } from './TestBuilder';
 
 // Jobs have their own page (BusinessJobs); this is the company's tests and the candidates ranked for each job
@@ -33,6 +33,8 @@ interface RecruiterPortalProps {
   // Carries on with a draft in the AI chat, or in the builder
   onContinueDraft: (draft: TestDraft) => void;
   onEditDraftByHand: (draft: TestDraft) => void;
+  // Reopens one of the company's saved tests in the AI chat, to change it (and its app simulations) by asking
+  onEditTestWithAI?: (testId: string) => void;
   // The company's leads pipeline, shown first in the Candidates tab
   leads?: React.ReactNode;
 }
@@ -58,6 +60,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   onDeleteDraft,
   onContinueDraft,
   onEditDraftByHand,
+  onEditTestWithAI,
   leads,
 }) => {
   // A business only manages its own jobs and its own tests; the Vetter team sees every company's jobs
@@ -376,6 +379,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                       ranked={getTestStats(t, allCandidates).candidatesRanked}
                       onOpen={() => onOpenTest(t.id)}
                       onEdit={own || isVetter ? editFor(t) : undefined}
+                      onAsk={own && onEditTestWithAI ? () => onEditTestWithAI(t.id) : undefined}
                       // The Vetter team can delete library tests written in the builder; the built-in ones stay
                       onDelete={own ? () => deleteTest(t) : isVetter && isEditable(t) ? () => deleteTest(t) : undefined}
                       onDeepen={isVetter ? () => onGenerateTest(deepenSeed(t)) : undefined}
@@ -423,10 +427,12 @@ const TestRow: React.FC<{
   ranked: number;
   onOpen: () => void;
   onEdit?: () => void;
+  // Changes it by asking Vetter's AI
+  onAsk?: () => void;
   onDelete?: () => void;
   // Rebuilds it with the AI as a full, in-depth test
   onDeepen?: () => void;
-}> = ({ test, own, usedBy, ranked, onOpen, onEdit, onDelete, onDeepen }) => {
+}> = ({ test, own, usedBy, ranked, onOpen, onEdit, onAsk, onDelete, onDeepen }) => {
   const stop = (fn: () => void) => (e: React.MouseEvent) => {
     e.stopPropagation();
     fn();
@@ -476,8 +482,13 @@ const TestRow: React.FC<{
             <Sparkles className="w-3.5 h-3.5" />
           </button>
         )}
+        {onAsk && (
+          <button onClick={stop(onAsk)} title="Change by asking Vetter: questions, apps, anything" aria-label={`Change ${test.title} by asking Vetter`} className="text-indigo-600 hover:text-indigo-900">
+            <MessageSquare className="w-3.5 h-3.5" />
+          </button>
+        )}
         {onEdit && (
-          <button onClick={stop(onEdit)} title="Edit" aria-label={`Edit ${test.title}`} className="text-slate-400 hover:text-indigo-700">
+          <button onClick={stop(onEdit)} title="Edit by hand" aria-label={`Edit ${test.title}`} className="text-slate-400 hover:text-indigo-700">
             <Pencil className="w-3.5 h-3.5" />
           </button>
         )}

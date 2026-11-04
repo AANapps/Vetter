@@ -1277,6 +1277,11 @@ export default function App() {
               onDeleteDraft={deleteTestDraft}
               onContinueDraft={(d) => openGenerator({ jobId: d.jobId, resume: d })}
               onEditDraftByHand={(d) => setDraftBuilder({ draft: d.test, jobId: d.jobId, alsoAdd: [], record: d })}
+              onEditTestWithAI={(testId) => {
+                // Changes saved as a draft earlier are picked up where they were left
+                const pending = testDrafts.find((d) => d.editsTestId === testId);
+                openGenerator(pending ? { jobId: pending.jobId, resume: pending } : { editTestId: testId });
+              }}
               leads={
                 <LeadsPage
                   business={leadsBusiness}
