@@ -222,9 +222,12 @@ export interface TestAspect {
 
 export type TestDifficulty = 'Beginner' | 'Junior' | 'Professional' | 'Senior';
 
-// Whether a test is changed by asking Vetter (made in the test chat) or by hand. Tests saved before this was recorded:
-// the AI writes a blueprint, the builder doesn't
-export const madeWithAI = (test: AssessmentTest) => (test.madeWith ?? (test.blueprint?.length ? 'ai' : 'hand')) === 'ai';
+// Whether a test is changed by asking Vetter (made in the test chat) or by hand. Tests saved before this was recorded
+// are told apart by what only the chat leaves: a blueprint (which the builder used to drop on saving), or question ids
+// from the chat's id maker, q-<time>-<5 characters>; the builder's have 4
+const CHAT_QUESTION_ID = /^q-[a-z0-9]+-[a-z0-9]{5}$/;
+export const madeWithAI = (test: AssessmentTest) =>
+  (test.madeWith ?? (test.blueprint?.length || test.questions.some((q) => CHAT_QUESTION_ID.test(q.id)) ? 'ai' : 'hand')) === 'ai';
 
 // The minutes a candidate has for a test, or null when it has no time limit
 export const timerOf = (test: { timeLimit?: number | 'none'; estimatedMinutes: number }): number | null =>
