@@ -464,8 +464,10 @@ export interface TestDraft {
   existing?: { testId: string; reason: string }[];
   research?: string;
   researchedFor?: string;
-  // The question types the company allowed
+  // The question types the company allowed, how many questions it asked for and the level it picked
   styles?: QuestionType[];
+  questionCount?: number;
+  difficulty?: TestDifficulty;
   updatedAt: string; // ISO timestamp
 }
 

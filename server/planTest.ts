@@ -14,6 +14,19 @@ const MAX_TEXT = 4000;
 
 const ITEM_TYPES = ['choice', 'multi', 'text', 'written', 'order', 'match', 'case', 'code', 'sql', 'sheet', 'database', 'app'];
 
+// The plan's item types are held to the styles the company picked (a case or task needs its own style picked too)
+const schemaFor = (styles?: string[]) => {
+  const allowed = styles?.length ? ITEM_TYPES.filter((t) => styles.includes(t)) : ITEM_TYPES;
+  const plan = schema.properties.plan;
+  return {
+    ...schema,
+    properties: {
+      ...schema.properties,
+      plan: { ...plan, properties: { ...plan.properties, items: { ...plan.properties.items, items: { ...plan.properties.items.items, properties: { ...plan.properties.items.items.properties, type: { type: 'string', enum: allowed.length ? allowed : ITEM_TYPES } } } } } },
+    },
+  };
+};
+
 const schema = {
   type: 'object',
   properties: {
@@ -80,7 +93,7 @@ to that case or task's ref, and every other item has taskRef "". brief: 2 to 4 s
 detail or trap it turns on, what a strong answer shows, and which competency it serves. Vary the situations, so no two
 items test the same thing. points and minutes as the rules below say (minutes is timeLimitMinutes; a case is 0 points).
 blueprint: one line per competency, written "skill | weight | why it matters | how the test proves it".
-difficulty is one of: ${req.levels.join(', ')}; pick it from the job unless told.
+difficulty is one of: ${req.levels.join(', ')}; ${req.difficulty ? `it is ${req.difficulty}, as the company picked` : 'pick it from the job unless told'}.
 
 ${stylesNote(req)}${styleGuide(req)}
 software: the one product, device or equipment the app items copy (e.g. "Xero" or "iPhone 13"), or "".
@@ -113,7 +126,7 @@ async function turn(client: Anthropic, model: string, req: ChatRequest, research
     .stream({
       model,
       max_tokens: 32000,
-      output_config: { effort: 'medium', format: { type: 'json_schema', schema } },
+      output_config: { effort: 'medium', format: { type: 'json_schema', schema: schemaFor(req.styles) } },
       ...(!model.includes('haiku') && { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' as const }),
       system: [{ type: 'text', text: instructions(req, research), cache_control: { type: 'ephemeral' } }],
       messages: conversation(req),

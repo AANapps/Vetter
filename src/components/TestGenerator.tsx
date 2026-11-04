@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AlertCircle, ArrowUp, Check, Library, X } from 'lucide-react';
-import { AssessmentTest, Business, JobPosting, QuestionType, TestDifficulty, TestDraft } from '../types';
+import { AssessmentTest, Business, JobPosting, QuestionType, TEST_DIFFICULTIES, TestDifficulty, TestDraft } from '../types';
 import { QUESTION_STYLES } from '../lib/questionTypes';
 import { DraftPreview, Dropdown, draftProblems, finaliseDraft } from './DraftPreview';
 import { jobBrief } from '../lib/testGeneration';
@@ -36,13 +36,9 @@ interface TestGeneratorProps {
   onClose: () => void;
 }
 
-const levelFor = (job?: JobPosting): TestDifficulty => {
-  const level = job?.experienceLevel?.toLowerCase() ?? '';
-  if (/entry|graduate|intern/.test(level)) return 'Beginner';
-  if (/senior|staff|lead|principal/.test(level)) return 'Senior';
-  if (/mid/.test(level)) return 'Professional';
-  return 'Junior';
-};
+// How many questions a company can ask for, counting the questions about a case or task
+const COUNTS = [5, 10, 15, 20, 25, 30];
+const countOf = (test: AssessmentTest) => test.questions.filter((q) => q.type !== 'case').length;
 
 // The question types a company can pick from, in the order shown: answer styles, then hands-on tasks
 const PICKABLE: QuestionType[] = ['choice', 'multi', 'text', 'written', 'order', 'match', 'case', 'sheet', 'database', 'app', 'code', 'sql'];
@@ -84,17 +80,24 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
   // On phones the chat and the draft share the screen as tabs
   const [pane, setPane] = useState<'chat' | 'draft'>('chat');
   const [flash, setFlash] = useState(false);
-  // The question types Vetter may use; all of them to start, so it picks what suits the job
-  const [styles, setStyles] = useState<QuestionType[]>(resume?.styles?.length ? resume.styles : PICKABLE);
+  // The question types Vetter may use, how many questions and the level: the company picks all three before Vetter
+  // writes anything (a saved test being changed starts from what it has)
+  const [styles, setStyles] = useState<QuestionType[]>(() =>
+    resume?.styles?.length ? resume.styles : original ? PICKABLE.filter((t) => original.questions.some((q) => q.type === t)) : []
+  );
+  const [questionCount, setQuestionCount] = useState<number | undefined>(() => resume?.questionCount ?? (original ? countOf(original) : undefined));
+  const [difficulty, setDifficulty] = useState<TestDifficulty | undefined>(() => resume?.difficulty ?? resume?.test.difficulty ?? original?.difficulty);
+  const ready = styles.length > 0 && !!questionCount && !!difficulty;
+  // What's still to pick, said above the message box
+  const missing = [!styles.length && 'the question types', !questionCount && 'how many questions', !difficulty && 'the difficulty'].filter(Boolean) as string[];
   const scroller = useRef<HTMLDivElement>(null);
   const box = useRef<HTMLTextAreaElement>(null);
 
   const draft = chat.draft;
   const started = chat.messages.some((m) => m.role === 'user');
   // Changing a saved test doesn't pick library tests to go with it
-  const ctx = { job: job ? jobBrief(job) : undefined, jobTitle: job?.title, level: original?.difficulty ?? levelFor(job), wantExisting: !!job && !original, tests, business, styles };
-  // At least one type stays on
-  const toggleStyle = (type: QuestionType) => setStyles((prev) => (prev.includes(type) ? (prev.length > 1 ? prev.filter((t) => t !== type) : prev) : PICKABLE.filter((t) => t === type || prev.includes(t))));
+  const ctx = { job: job ? jobBrief(job) : undefined, jobTitle: job?.title, level: difficulty ?? 'Junior', questionCount, wantExisting: !!job && !original, tests, business, styles };
+  const toggleStyle = (type: QuestionType) => setStyles((prev) => (prev.includes(type) ? prev.filter((t) => t !== type) : PICKABLE.filter((t) => t === type || prev.includes(t))));
   // Questions in the draft of a type since turned off
   const offTypes = [...new Set((draft?.questions ?? []).filter((q) => !styles.includes(q.type)).map((q) => q.type))];
 
@@ -122,6 +125,8 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
     existing: chat.existing.map((s) => ({ testId: s.test.id, reason: s.reason })),
     ...(chat.research !== undefined && { research: chat.research, researchedFor: chat.researchedFor }),
     styles,
+    ...(questionCount && { questionCount }),
+    ...(difficulty && { difficulty }),
     updatedAt: new Date().toISOString(),
   });
   const saveDraft = async () => {
@@ -150,7 +155,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
 
   const send = async (text: string) => {
     const message = text.trim();
-    if (!message || working) return;
+    if (!message || working || !ready) return;
     setInput('');
     setWorking(true);
     // The message shows at once; the reply follows
@@ -172,20 +177,29 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
   // Once only, even if React mounts the chat twice
   const autoSent = useRef(false);
   useEffect(() => {
-    if (!autoSend || !seed || resume || autoSent.current) return;
+    // Only once the types, number and level are picked; until then the message waits in the box
+    if (!autoSend || !seed || resume || autoSent.current || !ready) return;
     autoSent.current = true;
     send(seed);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const suggestions = original && !started
-    ? ['Make it harder', 'Make it shorter', 'Add a hands-on task in the software', 'Rewrite the weakest question']
+    ? ['Make it harder', 'Make it shorter', 'Rewrite the weakest question']
     : !started
     ? job
       ? ['Write a first draft', 'Focus on the hands-on tools they use', 'Keep it under 20 minutes']
       : ['A junior accounts assistant using Excel and Xero', 'A customer support agent in Zendesk', 'A junior data analyst who writes SQL']
     : draft
-    ? [...(offTypes.length ? ['Use only the question types I picked'] : []), 'Make it harder', 'Add another case study', 'Add a hands-on task in the software', 'Make it shorter']
+    ? [
+        ...(offTypes.length ? ['Use only the question types I picked'] : []),
+        ...(draft.difficulty !== difficulty ? [`Make it ${difficulty} level`] : []),
+        ...(questionCount && countOf(draft) !== questionCount ? [`Make it ${questionCount} questions`] : []),
+        'Make it harder',
+        ...(styles.includes('case') ? ['Add another case study'] : []),
+        ...(styles.some((t) => t === 'app' || t === 'sheet' || t === 'database') ? ['Add a hands-on task in the software'] : []),
+        'Make it shorter',
+      ]
     : [];
 
   // The company's own edits to the draft, made beside the chat; Vetter sees them on the next message
@@ -220,34 +234,57 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
           </button>
         </div>
 
-        <fieldset className="px-5 py-2 border-b border-slate-200 flex items-center sm:items-start gap-2 min-w-0">
-          <legend className="sr-only">Question types Vetter may use</legend>
-          <span className="text-xs font-semibold text-slate-500 shrink-0 sm:pt-1.5" aria-hidden="true">
-            Question types
-          </span>
-          <div className="flex gap-1.5 overflow-x-auto sm:flex-wrap sm:overflow-visible -my-1 py-1 min-w-0">
-            {PICKABLE_STYLES.map((s) => {
-              const on = styles.includes(s.type);
-              return (
-                <label
-                  key={s.type}
-                  title={s.hint}
-                  className={`shrink-0 px-3 py-1 rounded-full border text-sm cursor-pointer select-none has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-indigo-300 ${
-                    on ? 'bg-slate-900 border-slate-900 text-white' : 'bg-white border-slate-300 text-slate-500 hover:border-slate-500'
-                  }`}
-                >
-                  <input type="checkbox" checked={on} disabled={working} onChange={() => toggleStyle(s.type)} className="sr-only" />
+        {/* What Vetter may write: picked before it starts, locked while it works, changeable once it's done */}
+        <div className={`px-5 py-2 border-b border-slate-200 space-y-1.5 ${working ? 'opacity-50' : ''}`} aria-busy={working}>
+          <fieldset className="flex items-center sm:items-start gap-2 min-w-0">
+            <legend className="sr-only">Question types Vetter may use</legend>
+            <span className={`w-28 text-xs font-semibold shrink-0 sm:pt-1.5 ${styles.length ? 'text-slate-500' : 'text-amber-700'}`} aria-hidden="true">
+              Question types
+            </span>
+            <div className="flex gap-1.5 overflow-x-auto sm:flex-wrap sm:overflow-visible -my-1 py-1 min-w-0">
+              {PICKABLE_STYLES.map((s) => (
+                <Chip key={s.type} type="checkbox" on={styles.includes(s.type)} disabled={working} title={s.hint} onChange={() => toggleStyle(s.type)}>
                   {s.label}
-                </label>
-              );
-            })}
-          </div>
-          {styles.length < PICKABLE.length && (
-            <button onClick={() => setStyles(PICKABLE)} disabled={working} className="shrink-0 sm:pt-1.5 text-xs font-semibold text-indigo-700 hover:text-indigo-900">
-              All
+                </Chip>
+              ))}
+            </div>
+            <button
+              onClick={() => setStyles(styles.length === PICKABLE.length ? [] : PICKABLE)}
+              disabled={working}
+              className="shrink-0 sm:pt-1.5 text-xs font-semibold text-indigo-700 hover:text-indigo-900 disabled:cursor-not-allowed"
+            >
+              {styles.length === PICKABLE.length ? 'None' : 'All'}
             </button>
-          )}
-        </fieldset>
+          </fieldset>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-6">
+            <fieldset className="flex items-center gap-2 min-w-0">
+              <legend className="sr-only">How many questions</legend>
+              <span className={`w-28 text-xs font-semibold shrink-0 ${questionCount ? 'text-slate-500' : 'text-amber-700'}`} aria-hidden="true">
+                Questions
+              </span>
+              <div className="flex gap-1.5 overflow-x-auto -my-1 py-1 min-w-0">
+                {COUNTS.map((n) => (
+                  <Chip key={n} type="radio" name="question-count" on={questionCount === n} disabled={working} onChange={() => setQuestionCount(n)}>
+                    {n}
+                  </Chip>
+                ))}
+              </div>
+            </fieldset>
+            <fieldset className="flex items-center gap-2 min-w-0">
+              <legend className="sr-only">Difficulty</legend>
+              <span className={`w-28 sm:w-auto text-xs font-semibold shrink-0 ${difficulty ? 'text-slate-500' : 'text-amber-700'}`} aria-hidden="true">
+                Difficulty
+              </span>
+              <div className="flex gap-1.5 overflow-x-auto -my-1 py-1 min-w-0">
+                {TEST_DIFFICULTIES.map((d) => (
+                  <Chip key={d} type="radio" name="difficulty" on={difficulty === d} disabled={working} onChange={() => setDifficulty(d)}>
+                    {d}
+                  </Chip>
+                ))}
+              </div>
+            </fieldset>
+          </div>
+        </div>
 
         <div className="lg:hidden flex border-b border-slate-200 text-base font-semibold" role="tablist">
           {(['chat', 'draft'] as const).map((p) => (
@@ -292,7 +329,13 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
             </div>
 
             <div className="px-4 pb-4 pt-2 border-t border-slate-100">
-              {suggestions.length > 0 && !working && (
+              {!ready && !working && (
+                <p className="pb-2 text-sm text-amber-700 flex items-start gap-1.5">
+                  <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                  Pick {missing.length > 1 ? `${missing.slice(0, -1).join(', ')} and ${missing[missing.length - 1]}` : missing[0]} at the top, then Vetter can {draft ? 'carry on' : 'start writing'}.
+                </p>
+              )}
+              {suggestions.length > 0 && !working && ready && (
                 <div className="flex gap-1.5 overflow-x-auto pb-2 -mx-1 px-1">
                   {suggestions.map((s) => (
                     <button key={s} onClick={() => send(s)} className="shrink-0 px-3 py-1.5 rounded-full border border-slate-200 text-sm text-slate-700 hover:border-indigo-400 hover:text-indigo-700">
@@ -324,7 +367,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                   placeholder={draft ? 'Ask for a change, e.g. "make question 2 harder"' : job ? 'What matters most in this hire?' : 'Describe the role or the test you want'}
                   className="flex-1 resize-none px-2.5 py-2 text-base leading-[1.6] text-slate-900 bg-transparent focus:outline-none"
                 />
-                <button type="submit" disabled={!input.trim() || working} aria-label="Send" className="p-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-30">
+                <button type="submit" disabled={!input.trim() || working || !ready} aria-label="Send" className="p-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-30">
                   <ArrowUp className="w-5 h-5" />
                 </button>
               </form>
@@ -414,6 +457,19 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
     </div>
   );
 };
+
+// A pill to pick a question type, a number or a level; greyed out and unclickable while Vetter is working
+const Chip: React.FC<{ type: 'checkbox' | 'radio'; name?: string; on: boolean; disabled: boolean; title?: string; onChange: () => void; children: React.ReactNode }> = ({ type, name, on, disabled, title, onChange, children }) => (
+  <label
+    title={title}
+    className={`shrink-0 px-3 py-1 rounded-full border text-sm select-none has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-indigo-300 ${
+      disabled ? 'cursor-not-allowed' : 'cursor-pointer'
+    } ${on ? 'bg-slate-900 border-slate-900 text-white' : `bg-white border-slate-300 text-slate-500 ${disabled ? '' : 'hover:border-slate-500'}`}`}
+  >
+    <input type={type} name={name} checked={on} disabled={disabled} onChange={onChange} className="sr-only" />
+    {children}
+  </label>
+);
 
 // Tests from Vetter's library that suit the job, ticked to add alongside the new one
 const LibraryPicks: React.FC<{

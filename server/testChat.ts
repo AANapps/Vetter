@@ -18,8 +18,11 @@ export interface ChatRequest {
   // Library tests already picked, when picking from the library
   existing: string[];
   wantExisting: boolean;
-  // The question types the company picked, when it narrowed them
+  // The question types the company picked: only these may be used
   styles?: string[];
+  // How many questions the company asked for, counting sub-questions, and the level it picked
+  questionCount?: number;
+  difficulty?: string;
   library: { id: string; title: string; category: string; difficulty: string; skills: string[]; roles: string[]; description: string }[];
   roles: string[];
   categories: string[];
@@ -76,12 +79,21 @@ export interface GuideRequest {
   categories: string[];
   roles: string[];
 }
-export const stylesNote = (req: { styles?: string[] }) =>
-  req.styles?.length
-    ? `QUESTION TYPES: the company has chosen to allow only these styles: ${req.styles.join(', ')}. Every new question must be one of them, and the hands-on rule below applies only if a hands-on style is among them. If the company asks in the chat for a style not on the list, use it anyway (they asked). If the draft has questions of a style no longer allowed and the company asks to use only the chosen types, rewrite those questions in allowed styles.
-
-`
-    : '';
+export const stylesNote = (req: { styles?: string[]; questionCount?: number; difficulty?: string }) =>
+  [
+    req.styles?.length
+      ? `QUESTION TYPES: the company has picked these styles, and ONLY these: ${req.styles.join(', ')}. Every question in the test must be one of them, even if the company asks in the chat for another style (tell them to tick it at the top first). Where the rules below call for a style that isn't picked (a case study, a hands-on task), leave that part out and use the picked styles instead; the hands-on rule applies only if a hands-on style is picked, and a case or task section only if its style is. Whenever you change the draft, rewrite any question in a style that isn't picked into one that is.`
+      : '',
+    req.questionCount
+      ? `NUMBER OF QUESTIONS: the company wants exactly ${req.questionCount} questions, counting sub-questions but not case study material. This replaces the size given below; the time adds up to whatever those questions take. Whenever you change the draft, bring it to exactly ${req.questionCount}.`
+      : '',
+    req.difficulty
+      ? `DIFFICULTY: the company picked ${req.difficulty} level. The test's difficulty is "${req.difficulty}" and every question is pitched at that level, whatever the job ad suggests.`
+      : '',
+  ]
+    .filter(Boolean)
+    .map((line) => `${line}\n\n`)
+    .join('');
 
 export function styleGuide(req: GuideRequest): string {
   return `- Every question must be answerable from its prompt alone, and check what the job really needs, not trivia.${QUALITY_RULES}
@@ -132,7 +144,7 @@ ${stylesNote(req)}THE DRAFT
 - If the change means rewriting more than about half of the test (a different level, a different job, "start again"),
   don't write it here: send lookUp "REPLAN", reply "" and no test. Vetter plans and writes the test afresh from the
   conversation, section by section.
-- The size and sections are set out under BLUEPRINT and SECTIONS below. difficulty is one of: ${req.levels.join(', ')}; pick it from the job unless told.
+- The size and sections are set out under BLUEPRINT and SECTIONS below. difficulty is one of: ${req.levels.join(', ')}; ${req.difficulty ? `it is ${req.difficulty}, as the company picked` : 'pick it from the job unless told'}.
 ${styleGuide(req)}
 software: the one product, device or equipment the app simulations copy (e.g. "Xero" or "iPhone 13"), or "" when the draft has none.
 lookUp: when this turn should add (or rewrite) an app simulation of a product, device or equipment that the RESEARCH below doesn't cover${research ? '' : ' (there is no research yet)'}, put its name here (with the procedure for a device, e.g. "iPhone 13 screen replacement") and send only reply "" and existing, with no test; Vetter researches it and asks you again. Otherwise "".

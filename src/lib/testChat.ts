@@ -31,8 +31,10 @@ export interface ChatContext {
   wantExisting: boolean;
   tests: AssessmentTest[];
   business?: Business;
-  // The question types the company picked; Vetter uses only these unless asked in the chat
+  // The question types the company picked; Vetter uses only these
   styles: QuestionType[];
+  // How many questions the company wants, counting sub-questions
+  questionCount?: number;
 }
 
 // The draft as the AI sees it: everything it needs to change a question, except app pages, which it can only keep whole
@@ -133,7 +135,8 @@ function blueprintOf(raw: unknown): BlueprintItem[] | undefined {
 // The AI's new version of the draft made into a real test: kept questions carried over, new ones checked. New app
 // pages are built first, side by side, each in its own request
 async function buildDraft(raw: RawTest, previous: AssessmentTest | undefined, ctx: ChatContext, research?: string): Promise<{ test?: AssessmentTest; dropped: number }> {
-  const items = raw.questions ?? [];
+  // A new question in a type the company hasn't picked is left out, whatever the AI sent; kept ones stay until rewritten
+  const items = (raw.questions ?? []).filter((item) => item.keep || ctx.styles.includes(item.type as QuestionType));
   const built = await Promise.all(
     items.map(async (item) => {
       if (item.keep) return previous?.questions.find((q) => q.id === item.keep) ?? null;
@@ -147,7 +150,8 @@ async function buildDraft(raw: RawTest, previous: AssessmentTest | undefined, ct
   const dropped = items.length - questions.length;
   if (!questions.length) return { dropped };
   const total = questions.reduce((sum, q) => sum + q.weight, 0) || 1;
-  const difficulty = (TEST_DIFFICULTIES as string[]).includes(raw.difficulty) ? (raw.difficulty as TestDifficulty) : previous?.difficulty ?? ctx.level;
+  // The level the company picked wins over the AI's
+  const difficulty = ctx.level;
   return {
     dropped,
     test: {
@@ -234,6 +238,11 @@ async function planAndWrite(state: ChatState, messages: ChatMessage[], ctx: Chat
   const body = planned.body;
   const research: string | undefined = body.research ?? state.research;
   const plan = body.plan as (Record<string, any> & { items: PlanItem[]; blueprint: string[] }) | undefined;
+  // Only items in the picked styles, and no questions about a case or task that's gone
+  if (plan?.items?.length) {
+    const allowed = plan.items.filter((item) => ctx.styles.includes(item.type as QuestionType));
+    plan.items = allowed.filter((item) => !item.taskRef || allowed.some((other) => other.ref === item.taskRef) || !plan.items.some((other) => other.ref === item.taskRef));
+  }
   if (!plan?.items?.length) return { body };
   // Every item needs its own ref to be written and matched up; blank or repeated ones get one
   const seen = new Set<string>();
@@ -276,6 +285,8 @@ export async function sendChat(state: ChatState, text: string, ctx: ChatContext,
     existing: state.existing.map((s) => s.test.id),
     wantExisting: ctx.wantExisting,
     styles: ctx.styles,
+    questionCount: ctx.questionCount,
+    difficulty: ctx.level,
     library: library.map((t) => ({ id: t.id, title: t.title, category: t.category, difficulty: t.difficulty, skills: t.skillsTested, roles: t.roles ?? [], description: t.description })),
     roles: ALL_ROLES,
     categories: CATEGORIES,
@@ -309,7 +320,7 @@ export async function sendChat(state: ChatState, text: string, ctx: ChatContext,
     // Without the AI, the first turn still gets a start from Vetter's own tests and questions
     if (failure === 'not-configured' && !state.draft) {
       const brief = [ctx.job, ...messages.filter((m) => m.role === 'user').map((m) => m.text)].filter(Boolean).join('\n\n');
-      const draft = assembleFromBank({ prompt: brief, wantNewTest: true, wantExisting: ctx.wantExisting, questionCount: 10, styles: ctx.styles, level: ctx.level, title: ctx.jobTitle }, library, ctx.tests, ctx.business);
+      const draft = assembleFromBank({ prompt: brief, wantNewTest: true, wantExisting: ctx.wantExisting, questionCount: ctx.questionCount ?? 10, styles: ctx.styles, level: ctx.level, title: ctx.jobTitle }, library, ctx.tests, ctx.business);
       const existing = ctx.wantExisting ? matchExisting(brief, library) : [];
       const reply = draft
         ? `I can't write new questions here, so I've put a draft together from the best-fitting questions in Vetter's tests. ${NOT_CONFIGURED} You can still edit every question in the builder.`
