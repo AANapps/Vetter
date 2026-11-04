@@ -379,6 +379,9 @@ export function apiFailure(name: string, err: unknown): { status: number; json: 
   if (err instanceof Anthropic.AuthenticationError) return { status: 503, json: { error: 'The Anthropic API key was rejected. Check ANTHROPIC_API_KEY.' } };
   if (err instanceof Anthropic.RateLimitError) return { status: 429, json: { error: 'Too many requests to Claude right now. Try again in a minute.' } };
   if (err instanceof Anthropic.APIError) console.error(`[${name}] ${err.message}`);
+  // The account behind the key has run out of credit: say so, rather than a bare status code
+  if (err instanceof Anthropic.APIError && /credit balance/i.test(err.message))
+    return { status: 503, json: { error: "Vetter's AI is unavailable: the Anthropic account behind ANTHROPIC_API_KEY is out of credit. Top it up under Plans & Billing in the Anthropic Console, then try again." } };
   if (err instanceof Anthropic.APIError) return { status: 502, json: { error: `Claude returned an error (${err.status}).` } };
   return { status: 502, json: { error: err instanceof Error ? err.message : 'The AI request failed.' } };
 }
