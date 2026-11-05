@@ -74,6 +74,10 @@ function bootstrap(saved: unknown) {
    reaches the browser's back gesture */
 html, body { overflow: auto !important; overscroll-behavior: none !important; }
 * { overscroll-behavior-x: none; }
+/* No scroll bars: panels still scroll by wheel, trackpad and touch, but charts and dashboards look clean, without a bar
+   down the side of every card */
+* { scrollbar-width: none !important; -ms-overflow-style: none !important; }
+*::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }
 </style>
 <script>
 window.vetterSaved = ${json};

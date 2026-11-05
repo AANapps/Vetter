@@ -174,6 +174,8 @@ export const APP_PAGE_RULES = `  For every kind, appHtml is ONE self-contained H
   • It fits any window from 900x560 up and scrolls where it doesn't: every panel, list, table and canvas whose content can
     be taller or wider than its space has overflow:auto. Never overflow:hidden on html or body, never a fixed pixel size
     for the whole page, and no horizontal swipe or wheel handlers on the page itself.
+  • Charts never scroll. On a dashboard or report, each chart (SVG or canvas) is drawn to fit its card: width 100%, with
+    the card's height set by the layout, and an SVG viewBox so it scales. Only long lists and tables scroll, never a chart.
   • Fill it with realistic made-up data or detail, enough that the task takes real work (6 to 12 minutes).
   • EVERY CONTROL WORKS. Every visible button, link, tab, menu item, icon button and row action does what its label says
     in this kind of product: navigation opens its screen, New opens a working form, Save saves and the record appears
