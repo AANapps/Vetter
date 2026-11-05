@@ -15,7 +15,12 @@ export type SkillCategory =
   | 'Marketing'
   | 'Sales'
   | 'Healthcare'
-  | 'Project Management';
+  | 'Project Management'
+  | 'Software Development'
+  | 'Data Science'
+  | 'Cyber Security'
+  | 'AI Engineering'
+  | 'AI Strategy';
 
 // The jobs a test is relevant to; grouped by industry on the Tests page
 export type TestRole =
@@ -33,7 +38,12 @@ export type TestRole =
   | 'Digital Marketer'
   | 'Sales Representative'
   | 'Healthcare Professional'
-  | 'Project Manager';
+  | 'Project Manager'
+  | 'Software Developer'
+  | 'Data Scientist'
+  | 'SOC Analyst'
+  | 'AI Engineer'
+  | 'AI Consultant';
 
 export interface VerifiedSkill {
   skillId: string;

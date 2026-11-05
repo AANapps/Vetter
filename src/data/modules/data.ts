@@ -1,4 +1,4 @@
-import { choice, multi, order, short, written } from '../questionKit';
+import { caseStudy, choice, multi, order, short, written } from '../questionKit';
 import { B, J, P, S, ModuleSkeleton, tagged } from './kit';
 
 /**
@@ -1121,6 +1121,8 @@ export const DA_SIM_MODULE: ModuleSkeleton = {
     { id: 'sql', name: 'SQL & Views', summary: 'Querying the data and building views others rely on.' },
     { id: 'spreadsheet', name: 'Spreadsheet Analysis', summary: 'Lookups, targets and summaries in a working spreadsheet.' },
     { id: 'insight', name: 'Investigating & Explaining', summary: 'Finding why a number moved, and telling cause from coincidence.' },
+    { id: 'dashboard', name: 'Dashboard & Manager Summary', summary: 'A dashboard the Operations Director can read, and a summary she can act on.' },
+    { id: 'aicheck', name: 'Checking AI Output', summary: 'Finding and fixing what an AI assistant got wrong about the data.' },
   ],
   tags: {
     'q-sim-1': ['stats', B],
@@ -1282,6 +1284,153 @@ export const DA_SIM_MODULE: ModuleSkeleton = {
         'Correlation',
         'Stores that sell more pastries also sell more coffee. What can you conclude?',
         ['The two move together; it doesn’t show one causes the other (busier stores sell more of both)', 'Pastries cause coffee sales', 'Coffee causes pastry sales', 'Nothing at all'],
+        0
+      )
+    ),
+    ...tagged(
+      'dashboard',
+      B,
+      choice(
+        'm-sim-dash-b1',
+        'The Headline Number',
+        'Hannah wants one number at the top of the board dashboard. Which is most useful?',
+        ['Q1 sales against plan, as £ and % (e.g. £X below plan, −Y%)', 'The number of rows in the till export', 'Average transaction ID', 'The number of stores'],
+        0
+      )
+    ),
+    ...tagged(
+      'dashboard',
+      J,
+      choice(
+        'm-sim-dash-j1',
+        'Stores vs Target',
+        'Which chart best shows each of the eight stores’ Q1 sales against its target?',
+        ['A bar per store with its target marked (or a bar of variance to target), sorted by variance', 'A pie chart of sales by store', 'A 3D line chart', 'A table of every transaction'],
+        0
+      )
+    ),
+    ...tagged(
+      'dashboard',
+      P,
+      multi(
+        'm-sim-dash-p1',
+        'On the Dashboard',
+        'What belongs on Hannah’s board dashboard? Tick all that apply.',
+        [
+          'Total vs plan, and each store vs its target',
+          'A clear note of data issues found and fixed (and their effect on the numbers)',
+          'Weekly trend, so a one-off week stands out',
+          'The date range and data sources',
+          'Every column from the till export',
+        ],
+        [0, 1, 2, 3]
+      )
+    ),
+    ...tagged(
+      'dashboard',
+      S,
+      written(
+        'm-sim-dash-s1',
+        'The Manager Summary',
+        'Write the short summary that goes above the dashboard for Hannah to take to the board. Use what you found in the simulation (or, if you’re reading this without it: a chain that missed plan, with data problems in the till export and two stores driving most of the miss).',
+        [
+          'Leads with the answer: how far below plan, and which stores drove it',
+          'Gives the why, separating real causes from data problems that made it look worse or better',
+          'Says what the data can’t tell yet, and how confident the numbers are',
+          'Ends with a recommendation or next step the board can act on',
+        ],
+        `Q1 came in below plan. Most of the gap is two stores; the rest of the chain is close to target. Part of what first looked like a shortfall was the till export double-counting and mis-dating some sales; after fixing those, the real miss is smaller and confined to those two stores. In each, the drop starts in a specific week and lines up with a local cause rather than a chain-wide fall in demand. The data can't tell us yet whether those stores recover in Q2. Recommendation: focus the board on those two stores' recovery plans, and fix the till export before the Q2 report so the numbers are right first time.`,
+        { minutes: 10 }
+      )
+    ),
+    ...tagged(
+      'aicheck',
+      B,
+      choice(
+        'm-sim-ai-b1',
+        'Checking an AI Answer',
+        'An AI assistant says “Store 3 missed target by 18%”. What do you do before putting it in Hannah’s report?',
+        ['Check it against the data yourself: the store’s sales, its target and the calculation', 'Use it; AI is good at maths', 'Round it to 20%', 'Ask the AI if it’s sure'],
+        0
+      )
+    ),
+    ...tagged(
+      'aicheck',
+      J,
+      choice(
+        'm-sim-ai-j1',
+        'An AI-Written Query',
+        'An AI wrote SELECT store, SUM(amount) FROM sales JOIN refunds USING (order_id) GROUP BY store. Totals look too low. Why?',
+        ['The inner join keeps only orders that had a refund; sales without refunds drop out (use a LEFT JOIN and subtract refunds)', 'SUM is wrong', 'GROUP BY should be ORDER BY', 'Nothing is wrong'],
+        0
+      )
+    ),
+    ...tagged(
+      'aicheck',
+      P,
+      caseStudy(
+        'm-sim-ai-p',
+        'An AI’s Summary',
+        `A colleague pasted the store results into an AI assistant and asked for a board summary. The table:
+
+Store        Q1 sales    Q1 target   Variance
+Leeds        £182,000    £190,000    −£8,000
+York         £141,000    £150,000    −£9,000
+Harrogate    £96,000     £125,000    −£29,000
+Ripon        £88,000     £86,000     +£2,000
+Total        £507,000    £551,000    −£44,000
+
+The AI wrote:
+"Ridgeway missed plan by 8% (£44,000). Every store missed its target. Harrogate was the worst, down 29%. Leeds and York together explain most of the shortfall."`,
+        'Store table and AI summary'
+      ),
+      multi(
+        'm-sim-ai-p1',
+        'What’s Wrong',
+        'Which claims in the AI summary are wrong? Tick all that apply.',
+        [
+          'Missed plan by 8% (£44,000)',
+          'Every store missed its target',
+          'Harrogate down 29%',
+          'Leeds and York together explain most of the shortfall',
+        ],
+        [1, 2, 3],
+        { taskId: 'm-sim-ai-p' }
+      ),
+      short(
+        'm-sim-ai-p2',
+        'Harrogate’s Miss',
+        'By what % did Harrogate miss its target? (One decimal place.)',
+        ['23.2%', '23.2', '−23.2%', '-23.2%', '23.20%'],
+        { taskId: 'm-sim-ai-p' }
+      ),
+      written(
+        'm-sim-ai-p3',
+        'The Corrected Summary',
+        'Rewrite the summary correctly.',
+        [
+          'Total: £44,000 (8.0%) below plan',
+          'Harrogate is most of it: £29,000, 23.2% below its target, about two-thirds of the gap',
+          'Leeds (−£8,000) and York (−£9,000) missed by smaller amounts, about 4–6%',
+          'Ripon beat its target by £2,000',
+        ],
+        `Ridgeway finished Q1 £44,000 (8.0%) below plan. Harrogate accounts for two-thirds of that: £29,000 short, 23.2% below its target. Leeds and York were each a little under (£8,000 and £9,000, about 4% and 6%), and Ripon beat its target by £2,000. The question for the board is what happened in Harrogate.`,
+        { taskId: 'm-sim-ai-p' }
+      )
+    ),
+    ...tagged(
+      'aicheck',
+      S,
+      choice(
+        'm-sim-ai-s1',
+        'A Team Rule',
+        'The analytics team now uses AI assistants for queries and summaries. Which rule keeps board reports trustworthy?',
+        [
+          'Every number in a report is traced to a query or cell someone has checked, and AI-written queries are reviewed and run against known totals before use',
+          'Only use AI for summaries, never for numbers, and don’t check summaries',
+          'Trust AI output if it sounds confident',
+          'Ban AI tools',
+        ],
         0
       )
     ),

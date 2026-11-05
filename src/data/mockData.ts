@@ -11,6 +11,7 @@ import { withModules } from './modules';
 import { ANALYST_TOOL_TESTS } from './modules/analyst';
 import { ANALYST_TOOL_TESTS_2 } from './modules/analystTools2';
 import { ANALYST_SKILL_TESTS } from './modules/analystTools3';
+import { ROLE_TRACK_TESTS, withRoleTracks } from './modules/roleTracks';
 import { withExtras } from './questionKit';
 import { SEED_INVITATIONS } from './seedInvitations';
 
@@ -246,7 +247,7 @@ function withAllExtras(tests: AssessmentTest[]): AssessmentTest[] {
 
 // Every level of every Vetter test has ten questions: hands-on tasks topped up with fundamentals and real problems.
 // Tests with a module skeleton (src/data/modules) are then rebuilt as four levels that each cover every core area
-export const STANDARD_ASSESSMENTS: AssessmentTest[] = withModules(withAllExtras(withLevelVersions([
+export const STANDARD_ASSESSMENTS: AssessmentTest[] = withRoleTracks(withModules(withAllExtras(withLevelVersions([
   {
     id: 'test-sql-01',
     title: 'SQL Queries: Joins, Aggregations & Window Functions',
@@ -631,7 +632,8 @@ Example: solution(["/users/:id"], "/users/7") returns { route: "/users/:id", par
   ...ANALYST_TOOL_TESTS_2,
   ...ANALYST_SKILL_TESTS,
   ...SIMULATION_TESTS,
-])));
+  ...ROLE_TRACK_TESTS,
+]))));
 
 // Company-made tests, written by a business for its own jobs
 export const COMPANY_ASSESSMENTS: AssessmentTest[] = [

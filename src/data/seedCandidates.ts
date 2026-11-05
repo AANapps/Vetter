@@ -65,6 +65,11 @@ export const SKILL_IDS: Record<AssessmentTest['category'], string> = {
   Sales: 'skill-sales',
   Healthcare: 'skill-healthcare',
   'Project Management': 'skill-pm',
+  'Software Development': 'skill-software',
+  'Data Science': 'skill-data-science',
+  'Cyber Security': 'skill-security',
+  'AI Engineering': 'skill-ai-engineering',
+  'AI Strategy': 'skill-ai-strategy',
 };
 
 // Tests the seed was first generated with. They share one random stream, in this order, so existing

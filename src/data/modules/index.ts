@@ -11,6 +11,7 @@ import { INDUSTRY_MODULES } from './industry';
 import { ANALYST_TOOL_MODULES } from './analyst';
 import { ANALYST_TOOL_MODULES_2 } from './analystTools2';
 import { ANALYST_SKILL_MODULES } from './analystTools3';
+import { ROLE_TRACK_MODULES } from './roleTracks';
 
 /**
  * Vetter's module tests. From each module's bank (see kit.ts) come four tests, Beginner to Senior, each asking every
@@ -36,6 +37,7 @@ export const MODULES: ModuleSkeleton[] = [
   ...ANALYST_TOOL_MODULES,
   ...ANALYST_TOOL_MODULES_2,
   ...ANALYST_SKILL_MODULES,
+  ...ROLE_TRACK_MODULES,
 ];
 
 const DEFAULT_PASS: Record<TestDifficulty, number> = { Beginner: 70, Junior: 70, Professional: 75, Senior: 75 };

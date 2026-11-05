@@ -11,7 +11,7 @@ import { AssessmentTest } from '../types';
 
 // Grades test cases a candidate writes as data: solution() returns [...args, expected] rows.
 // Every row must pass on the correct implementation; a bug is caught when any row fails on it.
-const testCaseHarness = (implementations: string) => `
+export const testCaseHarness = (implementations: string) => `
 const __impls = {
 ${implementations}
 };
@@ -53,14 +53,14 @@ function check(name) {
   }
 }`;
 
-const caughtCase = (id: string, bug: string, description: string) => ({
+export const caughtCase = (id: string, bug: string, description: string) => ({
   id,
   description,
   input: JSON.stringify(bug),
   expectedOutput: 'caught',
 });
 
-const correctCase = (id: string, description: string) => ({
+export const correctCase = (id: string, description: string) => ({
   id,
   description,
   input: '"correct"',

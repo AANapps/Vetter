@@ -2,8 +2,10 @@ import { Question, TestRole } from '../types';
 
 // Industries and the roles within them, as listed on the Tests page
 export const ROLE_GROUPS: { industry: string; roles: TestRole[] }[] = [
-  { industry: 'Software Engineering', roles: ['Frontend Engineer', 'Backend Engineer', 'Full Stack Engineer', 'Platform & DevOps', 'QA Engineer'] },
-  { industry: 'Data & Analytics', roles: ['Data Analyst', 'Data Engineer'] },
+  { industry: 'Software Engineering', roles: ['Software Developer', 'Frontend Engineer', 'Backend Engineer', 'Full Stack Engineer', 'Platform & DevOps', 'QA Engineer'] },
+  { industry: 'AI', roles: ['AI Engineer', 'AI Consultant'] },
+  { industry: 'Data & Analytics', roles: ['Data Analyst', 'Data Scientist', 'Data Engineer'] },
+  { industry: 'Cyber Security', roles: ['SOC Analyst'] },
   { industry: 'Consulting & Business', roles: ['Consultant', 'Business Analyst'] },
   { industry: 'Finance & Accounting', roles: ['Financial Analyst', 'Accountant'] },
   { industry: 'Marketing & Sales', roles: ['Digital Marketer', 'Sales Representative'] },
@@ -27,10 +29,56 @@ export const ROLE_SECTIONS: Partial<Record<TestRole, TestSection[]>> = {
     { id: 'power-bi', label: 'Power BI', blurb: 'Power Query, data models, DAX and reports.', testIds: ['test-pbi-01', 'test-pbi-02'] },
     { id: 'tableau', label: 'Tableau', blurb: 'Calculations, LODs, charts and dashboards.', testIds: ['test-tab-01', 'test-tab-02'] },
     { id: 'python', label: 'Python', blurb: 'pandas for loading, cleaning and aggregating data.', testIds: ['test-py-01', 'test-py-02'] },
+    { id: 'importing', label: 'Data Importing', blurb: 'Getting messy files and sources in without losing a row.', testIds: ['test-import-01'] },
     { id: 'cleaning', label: 'Data Cleaning', blurb: 'Finding and fixing bad data before it reaches a decision.', testIds: ['test-clean-01', 'test-clean-02'] },
     { id: 'reporting', label: 'Dashboards & Reporting', blurb: 'KPIs and reports people can act on.', testIds: ['test-dash-01', 'test-dash-02'] },
     { id: 'metrics', label: 'Metrics & Statistics', blurb: 'Business metrics, A/B tests and the statistics behind them.', testIds: ['test-da-01', 'test-stats-01'] },
     { id: 'simulations', label: 'Job Simulations', blurb: 'A day of real analyst work, across every tool.', testIds: ['test-sim-da-01', 'test-sim-da-02'] },
+  ],
+  'Software Developer': [
+    {
+      id: 'fundamentals',
+      label: 'Fundamentals',
+      blurb: 'One test per core skill: the language, debugging, data structures, APIs, testing, Git and code review.',
+      testIds: ['test-prog-01', 'test-debug-01', 'test-dsa-01', 'test-api-01', 'test-be-01', 'test-qatc-01', 'test-git-01', 'test-review-01'],
+    },
+    { id: 'project', label: 'Final Project', blurb: 'Fix a broken feature, test it and review an AI’s patch.', testIds: ['test-sim-dev-01'] },
+  ],
+  'Data Scientist': [
+    {
+      id: 'fundamentals',
+      label: 'Fundamentals',
+      blurb: 'Python and pandas, statistics, features, modelling, evaluation and experiments.',
+      testIds: ['test-py-01', 'test-py-02', 'test-stats-01', 'test-feat-01', 'test-ml-01', 'test-eval-01', 'test-da-01'],
+    },
+    { id: 'project', label: 'Final Project', blurb: 'A churn model, its accuracy explained, and a flawed A/B test.', testIds: ['test-sim-ds-01'] },
+  ],
+  'SOC Analyst': [
+    {
+      id: 'fundamentals',
+      label: 'Fundamentals',
+      blurb: 'Networks, Linux and Windows, logs, triage, phishing, reporting, and identity and cloud.',
+      testIds: ['test-net-01', 'test-os-01', 'test-logs-01', 'test-triage-01', 'test-phish-01', 'test-ir-01', 'test-idcloud-01'],
+    },
+    { id: 'project', label: 'Final Project', blurb: 'Work a queue of alerts, find the real attack and write the report.', testIds: ['test-sim-soc-01'] },
+  ],
+  'AI Engineer': [
+    {
+      id: 'fundamentals',
+      label: 'Fundamentals',
+      blurb: 'Python, LLM APIs, prompts, RAG, agents, evaluation, guardrails and production.',
+      testIds: ['test-pyeng-01', 'test-llmapi-01', 'test-prompt-01', 'test-rag-01', 'test-agents-01', 'test-llmeval-01', 'test-guard-01', 'test-llmops-01'],
+    },
+    { id: 'project', label: 'Final Project', blurb: 'Fix a RAG chatbot that answers wrongly, then add evals and guardrails.', testIds: ['test-sim-aie-01'] },
+  ],
+  'AI Consultant': [
+    {
+      id: 'fundamentals',
+      label: 'Fundamentals',
+      blurb: 'AI tools, use cases, ROI, risk and law, change management and client communication.',
+      testIds: ['test-aitools-01', 'test-usecase-01', 'test-roi-01', 'test-airisk-01', 'test-aichange-01', 'test-cs-01', 'test-prompt-01'],
+    },
+    { id: 'project', label: 'Final Project', blurb: 'Advise a small business: where to use AI, the ROI, the risks and a rollout.', testIds: ['test-sim-aic-01'] },
   ],
 };
 
@@ -60,6 +108,11 @@ export const HOME_FIELDS: (TestField & { blurb: string; icon: FieldIcon })[] = [
   { label: 'Project Management', roles: ['Project Manager'], blurb: 'Plans delivered on time', icon: 'kanban' },
   { label: 'Software Testing', roles: ['QA Engineer'], blurb: 'Finding bugs first', icon: 'bug' },
   { label: 'Consulting', roles: ['Consultant', 'Business Analyst'], blurb: 'Cases, markets and advice', icon: 'briefcase' },
+  { label: 'AI Engineering', roles: ['AI Engineer'], blurb: 'LLM apps that work and stay safe', icon: 'server' },
+  { label: 'AI Consulting', roles: ['AI Consultant'], blurb: 'Where AI pays, and how to roll it out', icon: 'briefcase' },
+  { label: 'Cyber Security', roles: ['SOC Analyst'], blurb: 'Alerts, attacks and incidents', icon: 'bug' },
+  { label: 'Data Science', roles: ['Data Scientist'], blurb: 'Models you can trust', icon: 'chart' },
+  { label: 'Software Development', roles: ['Software Developer'], blurb: 'Code that works and lasts', icon: 'layout' },
 ];
 
 export type FieldIcon =
