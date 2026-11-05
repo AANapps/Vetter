@@ -33,7 +33,7 @@ candidate on Haiku, so 1,000 candidates is roughly 20–50p.
 
 ## Plans
 
-These are the plans on the pricing page (`src/components/PricingSection.tsx`), on the business landing page (`src/components/BusinessLanding.tsx`, `/#/business`), which signed-out visitors reach with the Candidates | Business switch.
+These are the plans on the pricing page (`src/components/PricingSection.tsx`), on the Hiring side of the home page (`src/components/BusinessLanding.tsx`, `/#/business`), which visitors reach with the Looking for work | Hiring switch.
 
 | Plan | Price | What's included |
 |---|---|---|

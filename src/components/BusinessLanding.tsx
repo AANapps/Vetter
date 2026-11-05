@@ -1,28 +1,22 @@
 import React, { useEffect } from 'react';
 import {
-  AppWindow,
   ArrowRight,
   BookOpen,
   Briefcase,
   CheckCircle2,
   ChevronDown,
   ClipboardCheck,
-  Code2,
   Database,
   Eye,
-  FileText,
   Globe,
   Layers,
-  ListChecks,
-  MessageSquareText,
-  MousePointerClick,
   ShieldCheck,
-  Sheet,
   Sparkles,
   Trophy,
   Users,
 } from 'lucide-react';
 import { GUIDES } from '../data/guides';
+import { TestTypeCards } from './TestTypeCards';
 import { RankDisc } from './RankDisc';
 import { PricingSection } from './PricingSection';
 
@@ -73,18 +67,6 @@ const FEATURES = [
     title: 'Free for candidates',
     text: 'No paywall in front of your applicants, so good people don’t drop out before they’ve shown what they can do.',
   },
-];
-
-// The kinds of question Vetter can set: the same ones the test chat offers
-const FORMATS = [
-  { icon: ListChecks, title: 'Multiple choice', text: 'One answer, or tick every one that applies.' },
-  { icon: FileText, title: 'Written answers', text: 'A paragraph or two, marked against the points a strong answer makes.' },
-  { icon: MessageSquareText, title: 'Case studies', text: 'Emails, a ticket or figures to read, with questions on them.' },
-  { icon: MousePointerClick, title: 'Drag to order or match', text: 'Put the steps of a process in order, or pair items up.' },
-  { icon: Code2, title: 'Coding', text: 'Write a function that’s run against test cases.' },
-  { icon: Database, title: 'SQL and databases', text: 'Query real tables in a SQL workbench, checked against the solution.' },
-  { icon: Sheet, title: 'Spreadsheet tasks', text: 'Work in an Excel-style sheet, checked by formulas on the finished workbook.' },
-  { icon: AppWindow, title: 'App simulations', text: 'A working copy of the software the job uses, built by AI for the role.' },
 ];
 
 // What the integrity monitor records during a test (src/lib/integrity.ts)
@@ -290,17 +272,8 @@ export const BusinessLanding: React.FC<{ onJoin: (reason?: string) => void; onOp
               Mix question types in one test. Hands-on tasks give candidates the tools of the job, so you see how they’d actually work.
             </p>
           </div>
-          <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {FORMATS.map((f) => {
-              const Icon = f.icon;
-              return (
-                <div key={f.title} className="rounded-2xl bg-white border border-slate-200 p-5">
-                  <Icon className="w-5 h-5 text-indigo-600" />
-                  <h3 className="mt-3 font-bold text-slate-900">{f.title}</h3>
-                  <p className="mt-1 text-sm text-slate-600">{f.text}</p>
-                </div>
-              );
-            })}
+          <div className="mt-10">
+            <TestTypeCards />
           </div>
         </div>
       </section>

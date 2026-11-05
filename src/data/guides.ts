@@ -31,7 +31,7 @@ export const GUIDES: Guide[] = [
     audience: 'companies',
     minutes: 3,
     steps: [
-      { title: 'Create a company account', text: 'Choose For business, then Join free. Sign up with your work email. No card is needed, and your first job is free.' },
+      { title: 'Create a company account', text: 'On Vetter’s home page, choose Hiring, then Join free. Sign up with your work email. No card is needed, and your first job is free.' },
       { title: 'Tell Vetter what you’re hiring for', text: 'Your home page is a chat. Type the job title or paste the job description, and Vetter suggests how to test the role: which skills matter, at what level, and which tests cover them.' },
       { title: 'Pick tests', text: 'Tick the ready-made tests from Vetter’s library that fit, add an AI-written test for anything they don’t cover, or both. Vetter then shows you a test plan to check.' },
       { title: 'Post the job', text: 'Once the tests are ready, Vetter offers to post a job with them attached. Every applicant takes the tests, and you see them ranked by score.' },

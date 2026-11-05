@@ -45,7 +45,6 @@ import { LeadRow, buildLeadRows, updatedLead } from './lib/leads';
 import { AuthDialog, AuthMode } from './components/AuthDialog';
 import { AccountGate, CompanyReview, TeamRequests } from './components/AccountScreens';
 import { Pulse } from './components/Pulse';
-import { BusinessLanding } from './components/BusinessLanding';
 import { VisitorHome } from './components/VisitorHome';
 import { isJobsIndexPath, jobIdFromPath, jobPageTitle, jobPath } from './lib/jobSeo';
 import { LearnPage } from './components/LearnPage';
@@ -137,7 +136,6 @@ const TAB_PATHS: Record<AppTab, string> = {
   'business-jobs': '/business/jobs/',
   'business-tests': '/business/tests/',
   'business-candidates': '/business/candidates/',
-  'for-business': '/#/business',
   guides: '/guides/',
 };
 
@@ -149,7 +147,7 @@ const businessJobIdFromPath = () => {
 
 // The pages each side has; companies is on both
 const SIDE_TABS: Record<'candidate' | 'staff', AppTab[]> = {
-  candidate: ['home', 'tests', 'jobs', 'learn', 'upskill', 'profile', 'companies', 'for-business', 'guides'],
+  candidate: ['home', 'tests', 'jobs', 'learn', 'upskill', 'profile', 'companies', 'guides'],
   staff: ['business-home', 'business-jobs', 'business-tests', 'business-candidates', 'companies', 'guides'],
 };
 const sideOf = (role: UserRole) => (role === 'candidate' ? 'candidate' : 'staff');
@@ -157,7 +155,8 @@ const sideOf = (role: UserRole) => (role === 'candidate' ? 'candidate' : 'staff'
 // The page the address is for. A test page sits under each side's Tests; a course opened from Upskill keeps Upskill
 const tabFromUrl = (role: UserRole, current?: AppTab): AppTab => {
   const { pathname, hash } = window.location;
-  if (hash === '#/business' || hash === '#/pricing') return 'for-business';
+  // The home page's hiring side, and older links to the business page and its pricing
+  if (hash === '#/business' || hash === '#/pricing') return 'home';
   if (idFromHash('tests')) return role === 'candidate' ? 'tests' : 'business-tests';
   if (jobIdFromUrl() || isJobsIndexPath(pathname)) return role === 'candidate' ? 'jobs' : 'business-jobs';
   if (courseIdFromPath(pathname)) return current === 'upskill' ? 'upskill' : 'learn';
@@ -169,6 +168,7 @@ const tabFromUrl = (role: UserRole, current?: AppTab): AppTab => {
   return (Object.entries(TAB_PATHS).find(([, p]) => p === path)?.[0] as AppTab | undefined) ?? 'home';
 };
 const initialTab = (): AppTab => tabFromUrl('candidate');
+const isHiringHash = () => window.location.hash === '#/business' || window.location.hash === '#/pricing';
 
 export default function App() {
   const [activeRole, setActiveRole] = useState<UserRole>('candidate');
@@ -319,9 +319,12 @@ export default function App() {
   const [selectedJobId, setSelectedJobId] = useState<string | null>(businessJobIdFromPath);
   // Each course has its own page at /learn/<id>/
   const [coursePageId, setCoursePageId] = useState<string | null>(() => courseIdFromPath(window.location.pathname));
+  // The home page's hiring side, at /#/business (and older #/pricing links): for companies, where candidates see theirs
+  const [hiringHome, setHiringHome] = useState(isHiringHash);
   // Each guide has its own page at /guides/<slug>/
   const [guideSlug, setGuideSlug] = useState<string | null>(() => guideSlugFromPath(window.location.pathname));
   const syncPagesFromUrl = () => {
+    setHiringHome(isHiringHash());
     setGuideSlug(guideSlugFromPath(window.location.pathname));
     setTestPageId(idFromHash('tests'));
     setJobPageId(jobIdFromUrl());
@@ -487,8 +490,6 @@ export default function App() {
       ? 'admin'
       : 'candidate';
     if (role !== activeRole) handleRoleChange(role);
-    // The business page is for visitors: someone who signs in there goes to their own side
-    else if (user && currentTab === 'for-business') goToTab(NAV_TABS[role === 'candidate' ? 'candidate' : 'recruiter'][0].id, true);
     else syncPagesFromUrl();
   }, [accountLoading, account?.role, user?.uid]);
 
@@ -647,7 +648,7 @@ export default function App() {
     window.scrollTo(0, 0);
   };
   const trainTeam = () => {
-    goToTab('for-business');
+    navigateTo('/#/business');
     window.scrollTo(0, 0);
   };
 
@@ -737,7 +738,7 @@ export default function App() {
     roleRef.current = nextRole;
     const here = tabFromUrl(nextRole, currentTabRef.current);
     const onPage = window.location.pathname !== '/' || window.location.hash;
-    if (onPage && SIDE_TABS[sideOf(nextRole)].includes(here) && here !== 'for-business') syncPagesFromUrl();
+    if (onPage && SIDE_TABS[sideOf(nextRole)].includes(here)) syncPagesFromUrl();
     else goToTab(NAV_TABS[nextRole === 'candidate' ? 'candidate' : 'recruiter'][0].id, true);
   };
   // The business and Vetter team views share the same pages
@@ -1079,8 +1080,8 @@ export default function App() {
           isVisitor
             ? {
                 onSignIn: () => setAuthDialog({ mode: 'sign-in' }),
-                // From the business page, sign-up starts as a company
-                onJoin: () => setAuthDialog({ mode: 'sign-up', role: currentTab === 'for-business' ? 'recruiter' : undefined }),
+                // From the home page's hiring side, sign-up starts as a company
+                onJoin: () => setAuthDialog({ mode: 'sign-up', role: hiringHome ? 'recruiter' : undefined }),
               }
             : undefined
         }
@@ -1129,12 +1130,6 @@ export default function App() {
               key={currentTab}
               track={currentTab === 'upskill' ? 'upskill' : 'switch'}
               progress={courseProgress.progress} onOpenCourse={openCoursePage} onTrainTeam={trainTeam} />
-          )}
-          {currentTab === 'for-business' && (
-            <BusinessLanding
-              onJoin={(reason) => setAuthDialog({ mode: 'sign-up', role: 'recruiter', reason })}
-              onOpenGuide={(slug) => navigateTo(slug ? `/guides/${slug}/` : '/guides/')}
-            />
           )}
           {currentTab === 'guides' && <GuidesPage slug={guideSlug} onOpen={(slug) => navigateTo(slug ? `/guides/${slug}/` : '/guides/')} />}
           {testPageTest && (
@@ -1210,8 +1205,10 @@ export default function App() {
 
           {/* Home in three columns: what companies sent you, Discover in the widest middle, and live leaderboards with
               people and companies to follow on the right. Stacked on smaller screens, with the right column above the feed */}
-          {!detailPage && isVisitor && currentTab === 'home' && (
+          {!detailPage && (isVisitor || hiringHome) && activeRole === 'candidate' && currentTab === 'home' && (
             <VisitorHome
+              audience={hiringHome ? 'business' : 'candidates'}
+              onAudienceChange={(a) => navigateTo(a === 'business' ? '/#/business' : '/')}
               tests={tests}
               jobs={jobs}
               onOpenTest={openTestPage}
@@ -1220,10 +1217,11 @@ export default function App() {
                 goToTab(tab);
                 window.scrollTo(0, 0);
               }}
-              onJoin={() => setAuthDialog({ mode: 'sign-up' })}
+              onJoin={(reason) => setAuthDialog({ mode: 'sign-up', role: hiringHome ? 'recruiter' : undefined, reason })}
+              onOpenGuide={(slug) => navigateTo(slug ? `/guides/${slug}/` : '/guides/')}
             />
           )}
-          {!detailPage && !isVisitor && activeRole === 'candidate' && currentTab === 'home' && (
+          {!detailPage && !isVisitor && !hiringHome && activeRole === 'candidate' && currentTab === 'home' && (
             <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 grid grid-cols-1 lg:grid-cols-[minmax(0,300px)_minmax(0,1fr)_minmax(0,280px)] gap-6 items-start">
               <CandidateHome
                 candidate={candidate}

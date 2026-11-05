@@ -17,7 +17,6 @@ export type AppTab =
   | 'business-jobs'
   | 'business-tests'
   | 'business-candidates'
-  | 'for-business'
   | 'guides';
 
 type TabIcon = React.ComponentType<{ className?: string }>;
@@ -332,7 +331,6 @@ const VisitorHeader: React.FC<{ currentTab: AppTab; onTabChange: (tab: AppTab) =
     { id: 'tests', label: 'Tests' },
     { id: 'jobs', label: 'Jobs' },
     { id: 'learn', label: 'Career switch' },
-    { id: 'for-business', label: 'For business' },
     { id: 'guides', label: 'Guides' },
   ];
   return (

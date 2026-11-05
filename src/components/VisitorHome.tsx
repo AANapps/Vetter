@@ -1,17 +1,49 @@
 import React from 'react';
 import { Pic } from './Pic';
-import { ArrowRight, BadgeCheck, Briefcase, ClipboardCheck, Clock, Trophy } from 'lucide-react';
+import { ArrowRight, BadgeCheck, Briefcase, CheckCircle2, ClipboardCheck, Clock, Trophy } from 'lucide-react';
 import { AssessmentTest, JobPosting, isPublic } from '../types';
 import { AppTab } from './Navigation';
+import { TestTypeCards } from './TestTypeCards';
+import { BusinessLanding } from './BusinessLanding';
+
+export type HomeAudience = 'candidates' | 'business';
 
 interface VisitorHomeProps {
+  // Who the page is for: people looking for work, or companies hiring (at /#/business)
+  audience: HomeAudience;
+  onAudienceChange: (audience: HomeAudience) => void;
   tests: AssessmentTest[];
   jobs: JobPosting[];
   onOpenTest: (testId: string) => void;
   onOpenJob: (jobId: string) => void;
   onGoTo: (tab: AppTab) => void;
-  onJoin: () => void;
+  onJoin: (reason?: string) => void;
+  onOpenGuide: (slug: string | null) => void;
 }
+
+// The switch at the top of the home page between its two sides
+const AudienceSwitch: React.FC<{ audience: HomeAudience; onChange: (a: HomeAudience) => void }> = ({ audience, onChange }) => (
+  <div className="pt-8 sm:pt-10 flex justify-center px-4">
+    <div role="tablist" aria-label="Who Vetter is for" className="inline-flex rounded-full border border-slate-300 bg-white p-1 text-sm font-semibold">
+      {(
+        [
+          ['candidates', 'Looking for work'],
+          ['business', 'Hiring'],
+        ] as const
+      ).map(([id, label]) => (
+        <button
+          key={id}
+          role="tab"
+          aria-selected={audience === id}
+          onClick={() => onChange(id)}
+          className={`px-4 sm:px-5 py-1.5 rounded-full transition-colors ${audience === id ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900'}`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  </div>
+);
 
 const STEPS = [
   { icon: ClipboardCheck, title: 'Take a free test', text: 'Short tests and job simulations, 10 to 25 minutes, in the skills jobs actually ask for.' },
@@ -19,50 +51,51 @@ const STEPS = [
   { icon: Briefcase, title: 'Apply with it', text: 'Companies on Vetter hire on test results. Your score goes with every application.' },
 ];
 
-// What a signed-out visitor sees first: what Vetter is in one line, a path for each audience, and real tests and jobs
-export const VisitorHome: React.FC<VisitorHomeProps> = ({ tests, jobs, onOpenTest, onOpenJob, onGoTo, onJoin }) => {
+// What a signed-out visitor sees first, tailored to who they are: for people looking for work, how it works, what a
+// test asks and real tests and jobs; for companies hiring, everything about hiring on Vetter, with the plans
+export const VisitorHome: React.FC<VisitorHomeProps> = ({ audience, onAudienceChange, tests, jobs, onOpenTest, onOpenJob, onGoTo, onJoin, onOpenGuide }) => {
+  if (audience === 'business') {
+    return (
+      <div>
+        <AudienceSwitch audience={audience} onChange={onAudienceChange} />
+        <BusinessLanding onJoin={onJoin} onOpenGuide={onOpenGuide} />
+      </div>
+    );
+  }
   // Vetter's own tests, one per family (not every level of each)
   const popularTests = tests.filter((t) => isPublic(t) && (!t.familyId || t.familyId === t.id)).slice(0, 6);
   const latestJobs = [...jobs].sort((a, b) => b.postedDate.localeCompare(a.postedDate)).slice(0, 4);
 
   return (
     <div>
-      {/* What Vetter is, and the two ways in */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-12 sm:pt-20 pb-16 text-center">
+      <AudienceSwitch audience={audience} onChange={onAudienceChange} />
+
+      {/* What Vetter is for people looking for work */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-10 sm:pt-14 pb-16 text-center">
         <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-slate-900 leading-[1.05]">
           Get hired for
           <br />
           what you can do
         </h1>
         <p className="mt-5 text-lg text-slate-600 max-w-2xl mx-auto">
-          Vetter is a hiring site where skills come first. Candidates take short tests instead of sending CVs, and companies hire the people who score best.
+          Take short skills tests instead of sending CVs. Your verified score goes on your profile and with every application, and companies hire
+          the people who score best.
         </p>
-
-        <div className="mt-12 grid gap-4 sm:grid-cols-2 max-w-4xl mx-auto text-left">
-          <div className="rounded-2xl bg-white border border-slate-200 p-6 sm:p-8 flex flex-col">
-            <span className="text-xs font-semibold uppercase tracking-wider text-indigo-600">Looking for work</span>
-            <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-slate-900">Prove your skills</h2>
-            <p className="mt-2 text-sm text-slate-600 flex-1">Take a free test, get a verified score, and apply to jobs that hire on it. Free, always.</p>
-            <div className="mt-6 flex flex-wrap items-center gap-3">
-              <button onClick={() => onGoTo('tests')} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700">
-                Browse tests <ArrowRight className="w-4 h-4" />
-              </button>
-              <button onClick={() => onGoTo('jobs')} className="px-4 py-2.5 text-sm font-semibold text-slate-700 hover:text-slate-900">
-                See jobs
-              </button>
-            </div>
-          </div>
-          <div className="rounded-2xl bg-slate-900 p-6 sm:p-8 flex flex-col">
-            <span className="text-xs font-semibold uppercase tracking-wider text-indigo-300">Hiring</span>
-            <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-white">Find people who can do the job</h2>
-            <p className="mt-2 text-sm text-slate-300 flex-1">Send candidates a test or a job simulation. Vetter marks it and ranks them for you. Your first job is free.</p>
-            <div className="mt-6">
-              <button onClick={() => onGoTo('for-business')} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white text-slate-900 text-sm font-semibold hover:bg-slate-100">
-                Vetter for business <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
+        <div className="mt-8 flex flex-col sm:flex-row justify-center gap-3">
+          <button onClick={() => onGoTo('tests')} className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700">
+            Browse tests <ArrowRight className="w-4 h-4" />
+          </button>
+          <button onClick={() => onGoTo('jobs')} className="px-6 py-3 rounded-full text-sm font-semibold text-slate-700 hover:text-slate-900">
+            See jobs
+          </button>
         </div>
+        <ul className="mt-8 flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-slate-600">
+          {['Free, always', 'No CV needed', 'Keep your scores'].map((t) => (
+            <li key={t} className="flex items-center gap-1.5">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" /> {t}
+            </li>
+          ))}
+        </ul>
       </section>
 
       {/* How it works for candidates */}
@@ -85,6 +118,19 @@ export const VisitorHome: React.FC<VisitorHomeProps> = ({ tests, jobs, onOpenTes
               );
             })}
           </ol>
+        </div>
+      </section>
+
+      {/* What a test can ask: the kinds of question, each drawn */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-16">
+        <div className="max-w-2xl">
+          <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">What’s in a test</h2>
+          <p className="mt-1 text-sm text-slate-600">
+            Tests mix these question types, from quick multiple choice to hands-on tasks in the tools of the job.
+          </p>
+        </div>
+        <div className="mt-6">
+          <TestTypeCards />
         </div>
       </section>
 
@@ -154,7 +200,7 @@ export const VisitorHome: React.FC<VisitorHomeProps> = ({ tests, jobs, onOpenTes
       <section className="max-w-6xl mx-auto px-4 sm:px-6 py-20 text-center">
         <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">Let your skills speak for you</h2>
         <p className="mt-2 text-slate-600">Join free, take your first test in minutes, and get seen by companies hiring on skill.</p>
-        <button onClick={onJoin} className="mt-6 px-6 py-3 rounded-full bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700">
+        <button onClick={() => onJoin()} className="mt-6 px-6 py-3 rounded-full bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700">
           Join Vetter free
         </button>
       </section>
