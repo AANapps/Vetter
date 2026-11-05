@@ -339,7 +339,7 @@ const VisitorHeader: React.FC<{ currentTab: AppTab; onTabChange: (tab: AppTab) =
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-2">
         <button onClick={() => onTabChange('home')} aria-label="Vetter home" className="flex items-center gap-2 mr-4">
-          <span className="w-8 h-8 rounded-md bg-indigo-900 text-white font-pixel flex items-center justify-center text-sm"><span>V<PixelDot /></span></span>
+          <span className="w-8 h-8 rounded-md bg-indigo-900 text-white font-pixel flex items-center justify-center text-sm">V</span>
           <span className="font-pixel text-lg text-indigo-950">Vetter<PixelDot /></span>
         </button>
         <nav className="hidden md:flex items-center gap-1">
