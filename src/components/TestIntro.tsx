@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { PixelDot } from './PixelDot';
 import { BackButton } from './BackButton';
 import { AlertTriangle, ArrowLeft, ArrowRight, Check, Clock, FileText, Lock, ShieldCheck, X } from 'lucide-react';
 import { AssessmentTest, timerOf } from '../types';
@@ -129,7 +130,7 @@ export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose, on
       {/* Exam header */}
       <header className="shrink-0 bg-white border-b border-slate-200">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-3">
-          <span className="w-8 h-8 rounded-md tier-solid tier-solid-silver flex items-center justify-center text-sm font-extrabold shrink-0">V</span>
+          <span className="w-8 h-8 rounded-md tier-solid tier-solid-silver flex items-center justify-center text-sm font-extrabold shrink-0"><PixelDot className="pixel-dot-mark" /></span>
           <div className="min-w-0">
             <div className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Vetter assessment</div>
             <div className="text-sm font-bold text-slate-900 truncate">{test.title}</div>

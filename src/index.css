@@ -361,3 +361,23 @@ button:is(
 /* A sideways swipe or trackpad scroll that runs past the edge of a spreadsheet, table or app mock-up would otherwise
    carry on to the page and send the browser back a page, losing the candidate's place */
 html, body { overscroll-behavior-x: none; }
+
+/* Vetter's flashing pixel: the full stop after the wordmark, and the whole mark on the square badges */
+@keyframes pixel-blink {
+  0%, 55% { opacity: 1; }
+  56%, 100% { opacity: 0; }
+}
+.pixel-dot {
+  display: inline-block;
+  width: 0.22em;
+  height: 0.22em;
+  margin-left: 0.1em;
+  background: currentColor;
+  vertical-align: baseline;
+  animation: pixel-blink 1.1s steps(1, end) infinite;
+}
+/* On a badge it's the only thing there: bigger, and centred */
+.pixel-dot.pixel-dot-mark { width: 0.4em; height: 0.4em; margin-left: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .pixel-dot { animation: none; }
+}

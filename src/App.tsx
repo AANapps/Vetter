@@ -2,6 +2,7 @@ import type { IntegrityReport } from './lib/integrity';
 import { PublicTestReview } from './components/PublicTestReview';
 import { AnswerRecord, saveSubmission } from './lib/submissions';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { PixelDot } from './components/PixelDot';
 import { User, UserRole, AssessmentTest, JobPosting, Business, SocialState, AppNotification, JobInvitation, Lead, TestDraft, TrialResult, ResultBreakdown, hasAiTests, madeWithAI, isPublic } from './types';
 import { INITIAL_RECRUITER, INITIAL_BUSINESSES, STANDARD_ASSESSMENTS } from './data/mockData';
 import { loadData, saveData, clearData, createSeedData } from './lib/store';
@@ -1393,7 +1394,7 @@ export default function App() {
 
         {!chatHome && <footer className="border-t border-slate-200 bg-white py-6 px-6 text-xs text-slate-500">
           <div className="max-w-7xl mx-auto flex items-center gap-2">
-            <span className="font-bold text-slate-900 tracking-tight">VETTER</span>
+            <span className="font-bold text-slate-900 tracking-tight">VETTER<PixelDot /></span>
             <span>&middot; Skills-based hiring</span>
             {!firebaseEnabled && (
               <button onClick={handleResetData} className="ml-auto text-slate-400 hover:text-slate-700 transition-colors">

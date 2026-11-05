@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { PixelDot } from './PixelDot';
 import { ArrowRight, ArrowUp, Briefcase, Check, ClipboardCheck, Eye, Lock, MessageSquarePlus, Pencil, Plus, Sparkles, Users, Wand2, X } from 'lucide-react';
 import { AssessmentTest, Business, JobPosting } from '../types';
 import { AdvisorTurn, CUSTOM_KIND_LABELS, CustomIdea, askAdvisor } from '../lib/testAdvisor';
@@ -112,7 +113,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
           {turns.length === 0 ? (
             <div className="pt-10 sm:pt-20 space-y-6 text-center">
               <div className="space-y-2">
-                <span className="ai-mark mx-auto w-11 h-11 rounded-2xl text-white text-lg font-extrabold flex items-center justify-center shadow-lg shadow-indigo-200">V</span>
+                <span className="ai-mark mx-auto w-11 h-11 rounded-2xl text-white text-lg font-extrabold flex items-center justify-center shadow-lg shadow-indigo-200"><PixelDot className="pixel-dot-mark" /></span>
                 <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">Who are you hiring?</h1>
                 <p className="text-sm text-slate-500 max-w-md mx-auto">
                   Tell Vetter the role and level. You&rsquo;ll get a short plan for testing it, the ready-made tests that fit, and any simulations worth
@@ -172,7 +173,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
           )}
           {thinking && (
             <div className="flex items-center gap-2 text-sm text-slate-500">
-              <span className="ai-mark w-7 h-7 rounded-lg text-white text-xs font-extrabold flex items-center justify-center">V</span>
+              <span className="ai-mark w-7 h-7 rounded-lg text-white text-xs font-extrabold flex items-center justify-center"><PixelDot className="pixel-dot-mark" /></span>
               <span className="ai-shimmer font-medium">Looking through the library…</span>
             </div>
           )}
@@ -330,7 +331,7 @@ const AdvisorReply: React.FC<{
   onOpenTest: (testId: string) => void;
 }> = ({ turn, aiAllowed, picked, onBuildIdea, onTogglePick, onPickAll, onEditCopy, onSeePlans, onOpenTest }) => (
   <div className="flex gap-3">
-    <span className="ai-mark w-7 h-7 shrink-0 rounded-lg text-white text-xs font-extrabold flex items-center justify-center">V</span>
+    <span className="ai-mark w-7 h-7 shrink-0 rounded-lg text-white text-xs font-extrabold flex items-center justify-center"><PixelDot className="pixel-dot-mark" /></span>
     <div className="ai-glass min-w-0 flex-1 space-y-4 p-4 sm:p-5 rounded-2xl rounded-tl-md border border-white/80 shadow-sm">
       <p className={`text-sm leading-relaxed whitespace-pre-wrap ${turn.error ? 'text-rose-700' : 'text-slate-800'}`}>{turn.text}</p>
 
