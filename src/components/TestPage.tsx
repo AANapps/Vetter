@@ -8,6 +8,8 @@ import { QUESTION_TYPE_LABELS, describeChecks } from '../lib/testRoles';
 import { levelsOf } from '../lib/testLevels';
 import { LevelPicker } from './LevelPicker';
 import { TIER_BLURB } from '../lib/modules';
+import { DemandBadge } from './DemandBadge';
+import { demandFor, jobsUsing } from '../lib/demand';
 
 interface TestPageProps {
   test: AssessmentTest;
@@ -91,6 +93,12 @@ export const TestPage: React.FC<TestPageProps> = ({
               <span className="text-slate-500">{levelName(test.difficulty)}</span>
               <span className="text-slate-300">&middot;</span>
               <span className="text-slate-500">{test.type === 'standard' ? 'Made by Vetter' : `Made by ${test.companyName}`}</span>
+              {test.type === 'standard' && <DemandBadge demand={demandFor(test)} />}
+              {jobsUsing(test, tests, jobs) > 0 && (
+                <span className="text-slate-500 normal-case tracking-normal font-sans">
+                  &middot; used by {jobsUsing(test, tests, jobs)} open {jobsUsing(test, tests, jobs) === 1 ? 'job' : 'jobs'} on Vetter
+                </span>
+              )}
             </div>
             <h1 className="text-xl font-bold text-slate-900 tracking-tight">{test.title}</h1>
             {versions.length > 1 && (

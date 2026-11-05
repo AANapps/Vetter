@@ -5,6 +5,8 @@ import { activeProfileOf, asProfile, profilesOf } from '../lib/jobProfiles';
 import { ROLE_GROUPS, ROLE_SECTIONS, TestField, sectionsFor } from '../lib/testRoles';
 import { isMainVersion, levelsOf } from '../lib/testLevels';
 import { LevelPicker } from './LevelPicker';
+import { DemandBadge } from './DemandBadge';
+import { DEMAND_SOURCES, demandFor, jobsUsing } from '../lib/demand';
 import { rankJobsForCandidate, getBestTestScore, calculateCandidateJobMatch } from '../lib/matchingAlgorithm';
 import { getLeaderboard, getTestStats } from '../lib/leaderboard';
 import {
@@ -939,6 +941,11 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
               Take any test, any time, as often as you like. Your best score on each becomes a verified skill on your
               profile, where companies can see it. Tests that companies write for their own jobs are taken from the Job Board.
             </p>
+            <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-slate-500">
+              <DemandBadge demand={{ level: 'high', reason: 'Fastest-growing roles', source: 'LinkedIn Jobs on the Rise 2026' }} />
+              <DemandBadge demand={{ level: 'rising', reason: 'Growing fast', source: 'WEF and US BLS' }} />
+              <span>Hiring demand for the roles each test is for, from {DEMAND_SOURCES}. The briefcase counts open jobs on Vetter using the test.</span>
+            </p>
           </div>
 
           {filteredTests.length === 0 && (
@@ -981,7 +988,10 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                   className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col gap-3 hover:border-indigo-300 transition-colors"
                 >
                   <div className="min-w-0">
-                    <span className="block text-[11px] font-mono uppercase tracking-wider text-indigo-700 font-bold truncate">{t.category}</span>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-mono uppercase tracking-wider text-indigo-700 font-bold truncate">{t.category}</span>
+                      <DemandBadge demand={demandFor(main)} />
+                    </div>
                     <h3 className="text-[15px] font-semibold tracking-tight text-slate-900 leading-snug">
                       <button onClick={() => onOpenTest(t.id)} className="text-left hover:text-indigo-700 transition-colors line-clamp-2">
                         {t.title}
@@ -996,6 +1006,9 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                         { Icon: Clock, value: `${t.estimatedMinutes}m`, label: `About ${t.estimatedMinutes} minutes` },
                         { Icon: ListChecks, value: t.totalQuestions, label: `${t.totalQuestions} tasks` },
                         { Icon: Users, value: stats.candidatesRanked, label: `${stats.candidatesRanked} ranked, average ${stats.averageScore}` },
+                        ...(jobsUsing(main, tests, jobs) > 0
+                          ? [{ Icon: Briefcase, value: jobsUsing(main, tests, jobs), label: `Used by ${jobsUsing(main, tests, jobs)} open ${jobsUsing(main, tests, jobs) === 1 ? 'job' : 'jobs'} on Vetter` }]
+                          : []),
                         bestScore !== undefined
                           ? { Icon: Trophy, value: bestScore, label: `Your best: ${bestScore}/100` }
                           : { Icon: Target, value: t.passingScore, label: `Passing mark: ${t.passingScore}/100` },
