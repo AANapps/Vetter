@@ -4,6 +4,10 @@ import { SOFTWARE_DEV_TESTS, SOFTWARE_DEV_MODULES } from './softwareDev';
 import { SECURITY_TESTS, SECURITY_MODULES } from './security';
 import { AI_ENGINEERING_TESTS, AI_ENGINEERING_MODULES } from './aiEngineering';
 import { AI_STRATEGY_TESTS, AI_STRATEGY_MODULES } from './aiStrategy';
+import { ModuleSkeleton, J, tagged } from './kit';
+import { TECH_SIMS } from './simsTech';
+import { AI_SIMS } from './simsAI';
+import { OPS_SIMS } from './simsOps';
 
 // Tests for the 2026 role tracks (data analyst, SOC analyst, AI engineer, AI consultant, software developer, data
 // scientist): for each, a fundamentals test per core skill and a final project. Where Vetter already had a test for a
@@ -17,7 +21,15 @@ export const ROLE_TRACK_TESTS: AssessmentTest[] = [
   ...AI_STRATEGY_TESTS,
 ];
 
-export const ROLE_TRACK_MODULES = [...DATA_SCIENCE_MODULES, ...SOFTWARE_DEV_MODULES, ...SECURITY_MODULES, ...AI_ENGINEERING_MODULES, ...AI_STRATEGY_MODULES];
+// Every test's hands-on simulation, as its own area from Junior up (kept at Professional and Senior, since nothing harder
+// replaces it there)
+const SIMS = { ...TECH_SIMS, ...AI_SIMS, ...OPS_SIMS };
+const withSim = (m: ModuleSkeleton): ModuleSkeleton => {
+  const sim = SIMS[m.familyId];
+  return sim ? { ...m, aspects: [...m.aspects, sim.aspect], bank: [...m.bank, ...tagged(sim.aspect.id, J, ...sim.questions)] } : m;
+};
+
+export const ROLE_TRACK_MODULES = [...DATA_SCIENCE_MODULES, ...SOFTWARE_DEV_MODULES, ...SECURITY_MODULES, ...AI_ENGINEERING_MODULES, ...AI_STRATEGY_MODULES].map(withSim);
 
 // Existing tests that already cover one of a role's core skills
 const ROLE_ADDITIONS: Record<string, TestRole[]> = {

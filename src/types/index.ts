@@ -221,6 +221,8 @@ export interface Question {
   // level it belongs to. A test at one level asks every level up to its own, so a Senior pass covers Beginner too
   aspect?: string;
   tier?: TestDifficulty;
+  // A short typed answer that counts as a quick check, not a long task, when levels are built
+  quick?: boolean;
 }
 
 // One core area of a module, such as CSS & Layout in Frontend. Every level of the module tests every area

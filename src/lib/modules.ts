@@ -11,7 +11,7 @@ export const tierIndex = (tier: TestDifficulty | undefined) => (tier ? TEST_DIFF
 // Hands-on tasks and long answers. A harder one in the same area at a level in between takes its place, so tests
 // grow by quick questions as the level rises, not by repeating every task
 const LONG_TYPES: Question['type'][] = ['sql', 'code', 'scenario', 'schema', 'written', 'case', 'sheet', 'database', 'app'];
-export const isLongQuestion = (q: Question) => LONG_TYPES.includes(q.type);
+export const isLongQuestion = (q: Question) => !q.quick && LONG_TYPES.includes(q.type);
 
 // How much more a question counts for each level above Beginner
 const TIER_WEIGHT = [1, 1.5, 2, 2.5];
@@ -54,7 +54,7 @@ export function questionsForTier(bank: Question[], aspects: TestAspect[], tier: 
   // A question about a task or case is asked only when the task is
   const picked = bank
     .filter((q) => kept.has(q.id) && (!q.taskId || kept.has(q.taskId)))
-    .map((q) => (tierIndex(q.tier) < top && !isLongQuestion(q) ? { ...q, timeLimitMinutes: Math.min(q.timeLimitMinutes, REPEAT_MINUTES) } : q));
+    .map((q) => (tierIndex(q.tier) < top && !isLongQuestion(q) ? { ...q, timeLimitMinutes: Math.min(q.timeLimitMinutes, q.type === 'written' ? 3 : REPEAT_MINUTES) } : q));
   // Stable by level, so each level's questions keep the order they were written in (follow-ups after their task)
   return picked.map((q, i) => ({ q, i })).sort((a, b) => tierIndex(a.q.tier) - tierIndex(b.q.tier) || a.i - b.i).map(({ q }) => q);
 }

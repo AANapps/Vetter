@@ -42,6 +42,29 @@ export const MODULES: ModuleSkeleton[] = [
 
 const DEFAULT_PASS: Record<TestDifficulty, number> = { Beginner: 70, Junior: 70, Professional: 75, Senior: 75 };
 
+// From Professional up, a pick-one question becomes a typed answer: the candidate says what they'd do and why, and it's
+// marked against the right answer and the most tempting wrong one. Recognising the answer isn't enough at those levels
+export function typedAtUpperLevels(q: Question): Question {
+  if (q.type !== 'choice' || (q.tier !== 'Professional' && q.tier !== 'Senior') || !q.options || q.correctOption === undefined) return q;
+  const right = q.options[q.correctOption];
+  const wrong = q.options.filter((_, i) => i !== q.correctOption).sort((a, b) => b.length - a.length)[0];
+  const { options: _o, correctOption: _c, ...rest } = q;
+  return {
+    ...rest,
+    type: 'written',
+    prompt: `${q.prompt}\n\nAnswer in a sentence or two: what you'd do (or what the answer is) and why.`,
+    rubric: [
+      `Reaches the right call: ${right}`,
+      'Says why it fits this situation, rather than only naming an action',
+      ...(wrong ? [`Doesn't fall for a tempting wrong answer, such as: ${wrong}`] : []),
+    ],
+    solutionCode: right,
+    timeLimitMinutes: Math.max(q.timeLimitMinutes, 4),
+    weight: Math.round(q.weight * 1.5),
+    quick: true,
+  };
+}
+
 // A module's whole bank: its old questions with their tags, then the new ones
 export function moduleBank(skeleton: ModuleSkeleton, family: AssessmentTest[]): Question[] {
   const seen = new Map<string, Question>();
@@ -50,7 +73,7 @@ export function moduleBank(skeleton: ModuleSkeleton, family: AssessmentTest[]): 
     const tag = skeleton.tags[q.id];
     return tag ? [{ ...q, aspect: tag[0], tier: tag[1] }] : [];
   });
-  return [...old, ...skeleton.bank];
+  return [...old, ...skeleton.bank].map(typedAtUpperLevels);
 }
 
 const SCENARIO_TYPES: Question['type'][] = ['sheet', 'database', 'app', 'case'];
