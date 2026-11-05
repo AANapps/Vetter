@@ -205,14 +205,17 @@ export const kindOf = (q: Question): Kind =>
 // Minutes for each kind at each level (Junior, Professional, Senior)
 const KIND_MINUTES: Record<Kind, [number, number, number]> = {
   choice: [1, 1, 2],
-  drag: [2, 2, 3],
-  multi: [2, 2, 3],
-  written: [3, 4, 5],
-  code: [5, 6, 8],
-  hands: [9, 10, 14],
-  short: [2, 2, 2],
-  case: [1, 2, 2],
+  drag: [1, 2, 3],
+  multi: [1, 2, 3],
+  written: [2, 3, 5],
+  code: [4, 6, 8],
+  hands: [10, 8, 14],
+  short: [1, 1, 2],
+  case: [1, 1, 2],
 };
+
+// Every level asks about the same number of questions; higher levels ask harder ones, so they take longer
+export const LEVEL_QUESTIONS = 10;
 
 const right = (q: Question) => q.options![q.correctOption!];
 const tempting = (q: Question) => q.options!.filter((_, i) => i !== q.correctOption).sort((a, b) => b.length - a.length)[0];
@@ -331,12 +334,13 @@ export function buildLevel(bank: Question[], tier: TestDifficulty): Question[] {
     return false;
   };
 
-  // 1. Hands-on work: the hardest task the level reaches, with its first follow-up above Junior (where time is short)
-  const hands = ranked(pool.filter((q) => kindOf(q) === 'hands' && !above(q)))[0];
+  // 1. Hands-on work from Mid-level up (ten questions in Junior's 15 minutes leave no room): the hardest task the
+  // level reaches, with its first follow-up
+  const hands = L === 0 ? undefined : ranked(pool.filter((q) => kindOf(q) === 'hands' && !above(q)))[0];
   if (hands) {
     take(hands);
     const follow = pool.find((q) => q.taskId === hands.id);
-    if (follow && L > 0) take(follow);
+    if (follow) take(follow);
   }
   // 2. The core: coding where the skill has it, then written answers
   const codeWanted = [1, 1, 2][L];
@@ -346,13 +350,11 @@ export function buildLevel(bank: Question[], tier: TestDifficulty): Question[] {
   // 3. The rest of the time, round the kinds in turn: drag and drop, select-all, multiple choice (each capped at
   // three), worked short answers, and more written work
   const rota: Kind[] = ['drag', 'multi', 'choice', 'short', 'written'];
+  const asked = () => [...chosen.values()].filter((q) => q.type !== 'case').length;
   let stuck = 0;
-  for (let i = 0; stuck < rota.length && i < 60; i++) {
-    const k = rota[i % rota.length];
-    const enough = total() >= min && (k === 'short' || k === 'written') && (kindCount.get(k) ?? 0) >= 2;
-    if (!enough && addOne(k)) stuck = 0;
+  for (let i = 0; stuck < rota.length && i < 60 && asked() < LEVEL_QUESTIONS; i++) {
+    if (addOne(rota[i % rota.length])) stuck = 0;
     else stuck++;
-    if (total() >= max - 1) break;
   }
 
   const at = (q: Question) => order.get(q.id) ?? order.get(q.id.replace(/^mix-(match|multi)-/, '')) ?? 0;
