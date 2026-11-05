@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useCurrency } from '../lib/currency';
 import { ArrowRight, BadgeCheck, Briefcase, Building2, Clock, Repeat, TrendingUp } from 'lucide-react';
 import { COURSES, COURSE_CATEGORIES, Course, courseHours, courseLessons, coursePriceLabel } from '../data/courses';
 import { CourseProgress } from '../lib/courseProgress';
@@ -66,6 +67,7 @@ export const percentDone = (course: Course, progress: CourseProgress) => {
 };
 
 export const CourseCard: React.FC<{ course: Course; progress: CourseProgress; onOpen: () => void }> = ({ course, progress, onOpen }) => {
+  const { money } = useCurrency();
   return (
     <button
       onClick={onOpen}
@@ -78,7 +80,7 @@ export const CourseCard: React.FC<{ course: Course; progress: CourseProgress; on
       </div>
       <h3 className="mt-2 text-lg font-bold text-slate-900 group-hover:text-indigo-700">{course.title}</h3>
       <p className="mt-1 text-sm text-slate-600 flex-1">{course.tagline}</p>
-      <p className="mt-3 text-base font-bold text-slate-900">{coursePriceLabel(course)}</p>
+      <p className="mt-3 text-base font-bold text-slate-900">{coursePriceLabel(course, money)}</p>
       <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
         <span className="inline-flex items-center gap-1">
           <Clock className="w-3.5 h-3.5" />

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useCurrency } from '../lib/currency';
 import { CheckCircle2, X } from 'lucide-react';
 import { Course, coursePriceLabel } from '../data/courses';
 import { submitCourseSignup, validEmail, validPhone } from '../lib/courseSignups';
@@ -6,6 +7,7 @@ import { User } from '../types';
 
 // Signing up for a career switch course: email and phone are required, and the Vetter team gets in touch
 export const CourseSignupDialog: React.FC<{ course: Course; candidate?: User; uid?: string; onClose: () => void }> = ({ course, candidate, uid, onClose }) => {
+  const { money } = useCurrency();
   const [name, setName] = useState(candidate?.name ?? '');
   const [email, setEmail] = useState(candidate?.email ?? '');
   const [phone, setPhone] = useState('');
@@ -46,7 +48,7 @@ export const CourseSignupDialog: React.FC<{ course: Course; candidate?: User; ui
       <div role="dialog" aria-modal="true" aria-labelledby="signup-title" className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-indigo-700">{course.format} · {coursePriceLabel(course)}</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-indigo-700">{course.format} · {coursePriceLabel(course, money)}</p>
             <h2 id="signup-title" className="mt-1 text-lg font-bold text-slate-900">{done ? "You're signed up" : `Sign up for ${course.title}`}</h2>
           </div>
           <button onClick={onClose} aria-label="Close" className="p-1 text-slate-400 hover:text-slate-700">

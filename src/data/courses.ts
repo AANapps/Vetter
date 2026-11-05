@@ -50,7 +50,8 @@ const r = (title: string, minutes = 10): CourseLesson => ({ title, kind: 'readin
 const x = (title: string, minutes = 25): CourseLesson => ({ title, kind: 'exercise', minutes });
 const p = (title: string, minutes = 120): CourseLesson => ({ title, kind: 'project', minutes });
 
-export const coursePriceLabel = (c: Pick<Course, 'price'>) => `$${c.price.toLocaleString('en-US')}`;
+// Course prices are set in US dollars; pages show them in the visitor's currency with useCurrency().money(price, 'USD')
+export const coursePriceLabel = (c: Pick<Course, 'price'>, money: (amount: number, from: 'USD') => string) => money(c.price, 'USD');
 
 export const COURSES: Course[] = [
   {

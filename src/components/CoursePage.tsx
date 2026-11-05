@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useCurrency } from '../lib/currency';
 import { BackButton } from './BackButton';
 import { BadgeCheck, BookOpen, Briefcase, Building2, Check, ChevronDown, Clock, FlaskConical, Hammer, PlayCircle, Target, Users } from 'lucide-react';
 import { AssessmentTest, JobPosting, User } from '../types';
@@ -47,6 +48,7 @@ export const CoursePage: React.FC<CoursePageProps> = ({
   onTrainTeam,
   onBack,
 }) => {
+  const { money } = useCurrency();
   const [signingUp, setSigningUp] = useState(false);
   const lessons = courseLessons(course);
   const [openModules, setOpenModules] = useState<Set<number>>(() => new Set([0]));
@@ -94,7 +96,7 @@ export const CoursePage: React.FC<CoursePageProps> = ({
 
             {/* Price and sign-up: no checkout, the Vetter team contacts each person */}
             <div className="rounded-2xl bg-white text-slate-900 p-6 shadow-xl">
-              <p className="text-3xl font-extrabold tracking-tight">{coursePriceLabel(course)}</p>
+              <p className="text-3xl font-extrabold tracking-tight">{coursePriceLabel(course, money)}</p>
               <p className="mt-1 text-xs text-slate-500">Sign up and we'll contact you about start dates and payment.</p>
               <dl className="mt-5 pt-5 border-t border-slate-200 grid grid-cols-2 gap-4 text-sm">
                 <div>

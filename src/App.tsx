@@ -3,6 +3,7 @@ import { PublicTestReview } from './components/PublicTestReview';
 import { AnswerRecord, saveSubmission } from './lib/submissions';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { PixelDot } from './components/PixelDot';
+import { CurrencyPicker } from './components/CurrencyPicker';
 import { User, UserRole, AssessmentTest, JobPosting, Business, SocialState, AppNotification, JobInvitation, Lead, TestDraft, TrialResult, ResultBreakdown, hasAiTests, madeWithAI, isPublic } from './types';
 import { INITIAL_RECRUITER, INITIAL_BUSINESSES, STANDARD_ASSESSMENTS } from './data/mockData';
 import { loadData, saveData, clearData, createSeedData } from './lib/store';
@@ -1394,8 +1395,9 @@ export default function App() {
           <div className="max-w-7xl mx-auto flex items-center gap-2">
             <span className="font-bold text-slate-900 tracking-tight">VETTER<PixelDot /></span>
             <span>&middot; Skills-based hiring</span>
+            <CurrencyPicker className="ml-auto" />
             {!firebaseEnabled && (
-              <button onClick={handleResetData} className="ml-auto text-slate-400 hover:text-slate-700 transition-colors">
+              <button onClick={handleResetData} className="ml-4 text-slate-400 hover:text-slate-700 transition-colors">
                 Reset demo data
               </button>
             )}

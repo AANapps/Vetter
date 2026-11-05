@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Check, Minus, Sparkles } from 'lucide-react';
+import { useCurrency } from '../lib/currency';
+import { CurrencyPicker } from './CurrencyPicker';
 
 type Billing = 'monthly' | 'annual';
 
@@ -119,7 +121,6 @@ const FAQS = [
   },
 ];
 
-const formatPrice = (n: number) => `£${n.toLocaleString('en-GB')}`;
 
 const CellMark: React.FC<{ value: Cell }> = ({ value }) =>
   value === true ? (
@@ -133,6 +134,9 @@ const CellMark: React.FC<{ value: Cell }> = ({ value }) =>
 // Pricing for companies, on the business landing page: plan cards, a monthly/annual switch, a full comparison and common questions
 export const PricingSection: React.FC<{ onChoosePlan: (planId: string) => void }> = ({ onChoosePlan }) => {
   const [billing, setBilling] = useState<Billing>('annual');
+  // Plans are priced in pounds and shown in the visitor's currency
+  const { code, money } = useCurrency();
+  const formatPrice = (n: number) => money(n);
 
   return (
     <section id="pricing" className="scroll-mt-20 max-w-6xl mx-auto px-4 sm:px-6 py-16">
@@ -156,6 +160,10 @@ export const PricingSection: React.FC<{ onChoosePlan: (planId: string) => void }
               {b === 'annual' && <span className="ml-1.5 text-[11px] text-emerald-700">2 months free</span>}
             </button>
           ))}
+        </div>
+        <div className="mt-4 flex flex-col items-center gap-1">
+          <CurrencyPicker />
+          {code !== 'GBP' && <p className="text-[11px] text-slate-500">Approximate prices in {code}, converted from pounds sterling.</p>}
         </div>
       </header>
 

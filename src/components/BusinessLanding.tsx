@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { GUIDES } from '../data/guides';
 import { TestTypeCards } from './TestTypeCards';
+import { useCurrency } from '../lib/currency';
 import { RankDisc } from './RankDisc';
 import { PricingSection } from './PricingSection';
 
@@ -128,6 +129,7 @@ const FEATURED_GUIDES = ['get-started', 'create-a-test-from-a-job-description', 
 
 // What companies see before signing up: what Vetter does for hiring, how it works, and the plans
 export const BusinessLanding: React.FC<{ onJoin: (reason?: string) => void; onOpenGuide: (slug: string | null) => void }> = ({ onJoin, onOpenGuide }) => {
+  const { money } = useCurrency();
   const startFree = () => onJoin('Create a company account to post your first job. It’s free.');
   const seePricing = () => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' });
   // Old #/pricing links open here at the plans
@@ -207,9 +209,9 @@ export const BusinessLanding: React.FC<{ onJoin: (reason?: string) => void; onOp
       <section className="bg-slate-50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 grid gap-6 sm:grid-cols-3 text-center">
           {[
-            { figure: '£5k–15k', label: 'a typical agency fee per hire' },
-            { figure: '£100–400', label: 'a typical job ad, with no screening' },
-            { figure: 'From £0', label: 'a job on Vetter, with every candidate tested' },
+            { figure: `${money(5000, 'GBP', { compact: true })}–${money(15000, 'GBP', { compact: true })}`, label: 'a typical agency fee per hire' },
+            { figure: `${money(100)}–${money(400)}`, label: 'a typical job ad, with no screening' },
+            { figure: `From ${money(0)}`, label: 'a job on Vetter, with every candidate tested' },
           ].map((s, i) => (
             <div key={s.label}>
               <div className={`text-3xl font-extrabold tracking-tight tabular-nums ${i === 2 ? 'text-indigo-600' : 'text-slate-900'}`}>{s.figure}</div>
