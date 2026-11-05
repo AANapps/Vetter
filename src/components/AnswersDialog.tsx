@@ -1,3 +1,4 @@
+import { RichText } from './RichText';
 import React, { useEffect, useState } from 'react';
 import { AlertCircle, CheckCircle2, ChevronDown, Loader2, X, XCircle } from 'lucide-react';
 import { AnswerRecord, Submission, loadSubmissions } from '../lib/submissions';
@@ -128,7 +129,7 @@ const Answer: React.FC<{ a: AnswerRecord }> = ({ a }) => {
 
       <details className="text-xs text-slate-600">
         <summary className="cursor-pointer font-semibold text-slate-500 hover:text-slate-800">The question</summary>
-        <p className="mt-1.5 whitespace-pre-wrap">{a.prompt}</p>
+        <RichText text={a.prompt} className="mt-1.5" />
       </details>
 
       {!isHandsOn(a.type) && (

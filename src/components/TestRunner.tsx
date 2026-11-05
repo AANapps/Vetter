@@ -1,3 +1,4 @@
+import { RichText } from './RichText';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { AnswerRecord, answerRecords } from '../lib/submissions';
 import { BackButton } from './BackButton';
@@ -514,7 +515,7 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
               {currentQ.type === 'case' ? (
                 <p className="text-sm text-slate-500">Read the material on the left, then answer each question. You can go back to it as often as you like.</p>
               ) : (
-                <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg text-sm leading-relaxed text-slate-800 whitespace-pre-wrap">{currentQ.prompt}</div>
+                <RichText text={currentQ.prompt} className="p-4 bg-slate-50 border border-slate-200 rounded-lg text-sm leading-relaxed text-slate-800" />
               )}
               {currentQ.testCases.length > 0 && (
                 <div className="space-y-2">
@@ -543,7 +544,7 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
                         </h3>
                         {isDone(q) && <CheckCircle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600" />}
                       </div>
-                      <p className="text-sm leading-relaxed text-slate-800 whitespace-pre-wrap">{q.prompt}</p>
+                      <RichText text={q.prompt} className="text-sm leading-relaxed text-slate-800" />
                       <AnswerInput question={q} answer={userCodes[q.id] ?? ''} onChange={(val) => setAnswer(q.id, val)} />
                     </section>
                   ))}
@@ -562,7 +563,7 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
                   <span className="text-slate-400 font-medium normal-case tracking-normal"> &middot; {currentQ.weight}% of the score</span>
                 </div>
                 <h2 className="text-2xl font-bold text-slate-900 tracking-tight">{currentQ.title}</h2>
-                <p className="text-lg leading-relaxed text-slate-800 whitespace-pre-wrap">{currentQ.prompt}</p>
+                <RichText text={currentQ.prompt} className="text-lg leading-relaxed text-slate-800" />
                 {currentQ.contextData && (
                   <div className="p-3 bg-indigo-50/50 border border-indigo-200 rounded-lg text-sm font-mono text-indigo-950 overflow-x-auto whitespace-pre-wrap">
                     {currentQ.contextData}
@@ -588,9 +589,7 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
               <h2 className="text-xl font-bold text-slate-900 tracking-tight">{currentQ.title}</h2>
             </div>
 
-            <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg text-[15px] leading-relaxed text-slate-800 whitespace-pre-wrap font-sans shadow-2xs">
-              {currentQ.prompt}
-            </div>
+            <RichText text={currentQ.prompt} className="p-4 bg-slate-50 border border-slate-200 rounded-lg text-[15px] leading-relaxed text-slate-800 font-sans shadow-2xs" />
 
             {currentQ.contextData && (
               <div className="space-y-2">
@@ -1077,7 +1076,7 @@ export const CaseMaterial: React.FC<{ question: Question }> = ({ question: q }) 
     </div>
     <article className="px-6 py-5 max-w-3xl">
       <h2 className="text-lg font-bold text-slate-900 mb-3">{q.title}</h2>
-      <div className="text-sm leading-[1.7] text-slate-800 whitespace-pre-wrap font-sans">{q.prompt}</div>
+      <RichText text={q.prompt} className="text-sm leading-[1.7] text-slate-800 font-sans" />
     </article>
   </div>
 );

@@ -1,3 +1,4 @@
+import { RichText } from './RichText';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle, ChevronDown, ChevronLeft, ChevronRight, Eye, ListTree, Pencil, Plus, Trash2 } from 'lucide-react';
 import { AssessmentTest, Question, QuestionType, levelName } from '../types';
@@ -370,7 +371,7 @@ const PreviewGroup: React.FC<{
               <h3 className="text-base font-bold text-slate-900">
                 {numberOf(q)}. {q.title || 'Untitled question'}
               </h3>
-              <p className="text-base leading-[1.65] text-slate-700 whitespace-pre-wrap">{q.prompt}</p>
+              <RichText text={q.prompt} className="text-base leading-[1.65] text-slate-700" />
               <AnswerInput question={q} answer={answers[q.id] ?? ''} onChange={(v) => setAnswer(q.id, v)} />
             </section>
           ))}
