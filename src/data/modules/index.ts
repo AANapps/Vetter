@@ -1,6 +1,6 @@
 import { AssessmentTest, Question, TEST_DIFFICULTIES, TestDifficulty } from '../../types';
 import { ModuleSkeleton } from './kit';
-import { TIER_BLURB, questionsForTier, weighByTier } from '../../lib/modules';
+import { TIER_BLURB, TIER_MINUTES, fitToTime, questionsForTier, weighByTier } from '../../lib/modules';
 import { SQL_MODULE, QA_SQL_MODULE } from './sql';
 import { FRONTEND_MODULE } from './frontend';
 import { BACKEND_MODULE, API_MODULE, SYSTEMS_MODULE } from './backend';
@@ -95,7 +95,7 @@ export function withModules(tests: AssessmentTest[]): AssessmentTest[] {
     const list = `${areas.slice(0, -1).join(', ')} and ${areas[areas.length - 1]}`;
     return TEST_DIFFICULTIES.map((tier): AssessmentTest => {
       const isMain = tier === main.difficulty;
-      const questions = weighByTier(questionsForTier(bank, skeleton.aspects, tier));
+      const questions = weighByTier(fitToTime(questionsForTier(bank, skeleton.aspects, tier), tier));
       // A level without the scenario's tasks doesn't need its brief
       const usesScenario = questions.some((q) => SCENARIO_TYPES.includes(q.type) || q.taskId);
       const { scenario, familyId: _f, ...rest } = main;
@@ -110,7 +110,7 @@ export function withModules(tests: AssessmentTest[]): AssessmentTest[] {
         aspects: skeleton.aspects,
         questions,
         totalQuestions: questions.filter((q) => q.type !== 'case').length,
-        estimatedMinutes: Math.max(5, Math.ceil(questions.reduce((n, q) => n + q.timeLimitMinutes, 0) / 5) * 5),
+        estimatedMinutes: Math.min(TIER_MINUTES[tier][1], Math.max(5, Math.ceil(questions.reduce((n, q) => n + q.timeLimitMinutes, 0) / 5) * 5)),
       };
     });
   });
