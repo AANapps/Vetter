@@ -981,9 +981,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                   className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col gap-3 hover:border-indigo-300 transition-colors"
                 >
                   <div className="min-w-0">
-                    {!group.label && (
-                      <span className="block text-[10px] font-medium uppercase tracking-wider text-slate-400 truncate">{t.category}</span>
-                    )}
+                    <span className="block text-[11px] font-mono uppercase tracking-wider text-indigo-700 font-bold truncate">{t.category}</span>
                     <h3 className="text-[15px] font-semibold tracking-tight text-slate-900 leading-snug">
                       <button onClick={() => onOpenTest(t.id)} className="text-left hover:text-indigo-700 transition-colors line-clamp-2">
                         {t.title}
