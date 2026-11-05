@@ -356,7 +356,20 @@ export function buildLevel(bank: Question[], tier: TestDifficulty): Question[] {
   }
 
   const at = (q: Question) => order.get(q.id) ?? order.get(q.id.replace(/^mix-(match|multi)-/, '')) ?? 0;
-  return [...chosen.values()]
-    .map((q) => ({ ...q, timeLimitMinutes: minutesOf(q) }))
-    .sort((a, b) => tierIndex(a.tier) - tierIndex(b.tier) || at(a) - at(b));
+  const timedQs = [...chosen.values()].map((q) => ({ ...q, timeLimitMinutes: minutesOf(q) }));
+  // Quick questions first, then hands-on work, with written answers and coding at the end. A case study or task
+  // moves with its questions, placed by the hardest kind among them
+  const RANK: Record<Kind, number> = { choice: 0, drag: 1, multi: 2, short: 3, case: 3, hands: 4, written: 5, code: 6 };
+  const unitOf = (q: Question) => (q.taskId && chosen.has(q.taskId) ? q.taskId : q.id);
+  const unitRank = new Map<string, number>();
+  for (const q of timedQs) unitRank.set(unitOf(q), Math.max(unitRank.get(unitOf(q)) ?? 0, RANK[kindOf(q)]));
+  const unitStart = new Map<string, number>();
+  for (const q of timedQs) unitStart.set(unitOf(q), Math.min(unitStart.get(unitOf(q)) ?? Infinity, tierIndex(q.tier) * 1e4 + at(q)));
+  return timedQs.sort(
+    (a, b) =>
+      unitRank.get(unitOf(a))! - unitRank.get(unitOf(b))! ||
+      unitStart.get(unitOf(a))! - unitStart.get(unitOf(b))! ||
+      Number(b.id === unitOf(b)) - Number(a.id === unitOf(a)) ||
+      at(a) - at(b)
+  );
 }
