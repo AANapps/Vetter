@@ -32,6 +32,14 @@
   --color-blurple-hover: #1f2b57;
   --color-blurple-light: #f3f5fa;
 
+  /* Greys a notch firmer than Tailwind's, and a little less blue, so borders, dividers and secondary text read
+     clearly on white instead of fading into it */
+  --color-slate-100: #eef0f4;
+  --color-slate-200: #dadfe7;
+  --color-slate-300: #c2c9d3;
+  --color-slate-400: #8a94a3;
+  --color-slate-500: #5c6777;
+
   /* The Vetter logo's pixel lettering */
   --font-pixel: 'Silkscreen', ui-monospace, monospace;
 
@@ -140,7 +148,7 @@
 }
 
 /* ------------------------------------------------------------------
-   Glass finish for coloured elements (badges, tinted pills, buttons).
+   Colours for coloured elements (badges, tinted pills, buttons).
    Unlayered so it layers over Tailwind's utilities; the page itself
    stays white and text keeps its original colours.
    ------------------------------------------------------------------ */
@@ -168,59 +176,40 @@
 .text-amber-600, .text-amber-700 { color: rgb(232, 128, 0); }
 .text-rose-700, .text-rose-800 { color: rgb(228, 30, 84); }
 
-/* ---- Outlines: cards lose their thin borders and float on soft shadows ---- */
-[class*="rounded-"]:is(
-  .border-slate-100, .border-slate-200, .border-slate-200\/80,
-  [class*="border-indigo-"], [class*="border-emerald-"], [class*="border-amber-"], [class*="border-rose-"]
-):not(input, textarea, select, .border-dashed),
-.bg-gradient-to-r[class*="via-white"],
-.bg-gradient-to-br[class*="via-white"] {
-  border-color: transparent !important;
+/* ---- Cards: flat white with a clear 1px edge, no floating shadow ----
+   The edge is an outline drawn just inside the card, so it shows whether or not the card has a border class and stays
+   on top of anything inside it (a cover image, a coloured header). Dialogs keep their drop shadow to lift off the page */
+:root {
+  --card-edge: #dadfe7;
+  --card-edge-hover: #a9b2bf;
 }
-[class*="rounded-xl"].bg-white,
-[class*="rounded-2xl"].bg-white {
-  box-shadow: var(--card-shadow);
+[class*="rounded-xl"].bg-white:not(input, textarea, select, .rounded-full),
+[class*="rounded-2xl"].bg-white:not(input, textarea, select),
+[class*="rounded-3xl"].bg-white:not(input, textarea, select) {
+  outline: 1px solid var(--card-edge);
+  outline-offset: -1px;
 }
-[class*="rounded-"][class*="hover:border-"]:not(input, textarea, select):hover {
-  border-color: transparent !important;
-  box-shadow: var(--card-shadow-lift);
+[class*="rounded-xl"].bg-white:not(.shadow-lg, .shadow-xl, .shadow-2xl),
+[class*="rounded-2xl"].bg-white:not(.shadow-lg, .shadow-xl, .shadow-2xl) {
+  box-shadow: none !important;
+}
+[class*="rounded-"].bg-white[class*="hover:border-"]:not(input, textarea, select):hover,
+button[class*="rounded-xl"].bg-white:hover,
+button[class*="rounded-2xl"].bg-white:hover {
+  outline-color: var(--card-edge-hover);
+}
+[class*="rounded-"].bg-white:focus-visible {
+  outline: 2px solid #5b50e5;
+  outline-offset: 2px;
 }
 
-/* ---- Tinted pills, badges and panels ---- */
-.bg-indigo-50, .bg-indigo-50\/20, .bg-indigo-50\/40, .bg-indigo-50\/50,
-.bg-indigo-50\/60, .bg-indigo-50\/70, .bg-indigo-100, .bg-indigo-100\/70,
-.bg-emerald-50, .bg-emerald-50\/80, .bg-emerald-100\/70,
-.bg-amber-50, .bg-amber-50\/60, .bg-amber-100,
-.bg-rose-50, .bg-rose-50\/80 {
-  background-image: var(--glass-sheen);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
-}
-.bg-indigo-50, .bg-indigo-50\/20, .bg-indigo-50\/40, .bg-indigo-50\/50,
-.bg-indigo-50\/60, .bg-indigo-50\/70, .bg-indigo-100, .bg-indigo-100\/70 {
-  background-color: rgba(var(--vivid-violet), 0.14);
-  box-shadow: var(--glass-highlight), 0 4px 14px rgba(var(--vivid-violet), 0.12);
-}
-.bg-emerald-50, .bg-emerald-50\/80, .bg-emerald-100\/70 {
-  background-color: rgba(var(--vivid-emerald), 0.16);
-  box-shadow: var(--glass-highlight), 0 4px 14px rgba(var(--vivid-emerald), 0.12);
-}
-.bg-amber-50, .bg-amber-50\/60, .bg-amber-100 {
-  background-color: rgba(var(--vivid-amber), 0.2);
-  box-shadow: var(--glass-highlight), 0 4px 14px rgba(var(--vivid-amber), 0.16);
-}
-.bg-rose-50, .bg-rose-50\/80 {
-  background-color: rgba(var(--vivid-rose), 0.13);
-  box-shadow: var(--glass-highlight), 0 4px 14px rgba(var(--vivid-rose), 0.12);
-}
+/* ---- Tinted pills, badges and panels: flat tints, no sheen or glow ---- */
 
 /* ---- Skill tier badges ---- */
 .bg-gradient-to-r[class*="via-white"],
 .bg-gradient-to-br[class*="via-white"] {
-  background-image: var(--glass-sheen), linear-gradient(135deg, var(--tier-from), var(--tier-to)) !important;
-  box-shadow: var(--glass-highlight), 0 6px 22px var(--tier-glow);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
+  background-image: linear-gradient(135deg, var(--tier-from), var(--tier-to)) !important;
+  box-shadow: none;
 }
 /* Gold */
 .from-amber-50[class*="via-white"] {
@@ -306,7 +295,7 @@ button.bg-slate-100 {
   background-color: #ffffff;
   background-image: none;
   border-color: transparent !important;
-  box-shadow: inset 0 0 0 1px #cbd5e1;
+  box-shadow: inset 0 0 0 1px #c2c9d3;
 }
 button.bg-white:not(:disabled):hover,
 button.bg-slate-50:not(:disabled):hover,
@@ -330,32 +319,6 @@ button:is(
   .bg-indigo-50\/60, .bg-indigo-50\/70, .bg-indigo-100, .bg-indigo-100\/70
 ):not(:disabled):hover {
   background-color: #e4e0fb;
-}
-
-/* ---- Cards: solid white, no outline, soft shadow ----
-   Tinted panels and tier cards become plain white cards; only small
-   pills, badges and buttons keep their colour. */
-[class*="rounded-"]:is(
-  .bg-indigo-50, .bg-indigo-50\/20, .bg-indigo-50\/40, .bg-indigo-50\/50,
-  .bg-indigo-50\/60, .bg-indigo-50\/70,
-  .bg-emerald-50, .bg-emerald-50\/80, .bg-amber-50, .bg-amber-50\/60,
-  .bg-rose-50, .bg-rose-50\/80
-):is(.p-3, .p-3\.5, .p-4, .p-5):not(button),
-.bg-gradient-to-br[class*="via-white"],
-.p-4.bg-gradient-to-r[class*="via-white"] {
-  background-color: #ffffff !important;
-  background-image: none !important;
-  border-color: transparent !important;
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-  box-shadow: var(--card-shadow);
-}
-.bg-gradient-to-br[class*="via-white"]:hover {
-  box-shadow: var(--card-shadow-lift);
-}
-/* Selected job in the business view: no tint left, so lift it instead */
-.cursor-pointer.p-4.bg-indigo-50\/70 {
-  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.05), 0 12px 32px rgba(var(--vivid-violet), 0.22) !important;
 }
 
 /* A sideways swipe or trackpad scroll that runs past the edge of a spreadsheet, table or app mock-up would otherwise

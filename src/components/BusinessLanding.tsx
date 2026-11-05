@@ -193,7 +193,7 @@ export const BusinessLanding: React.FC<{ onJoin: (reason?: string) => void; onOp
           </ul>
         </div>
 
-        <div className="rounded-2xl bg-white p-5 sm:p-6">
+        <div className="rounded-2xl bg-white border border-slate-200 p-5 sm:p-6">
           <div className="flex items-center justify-between">
             <div>
               <div className="text-sm font-bold text-slate-900">Data Analyst · Leaderboard</div>
@@ -268,7 +268,7 @@ export const BusinessLanding: React.FC<{ onJoin: (reason?: string) => void; onOp
           {FEATURES.map((f) => {
             const Icon = f.icon;
             return (
-              <div key={f.title} className="rounded-2xl bg-white p-6 flex gap-4">
+              <div key={f.title} className="rounded-2xl bg-white border border-slate-200 p-6 flex gap-4">
                 <Icon className="w-6 h-6 text-indigo-600 shrink-0" />
                 <div>
                   <h3 className="font-bold text-slate-900">{f.title}</h3>
@@ -294,7 +294,7 @@ export const BusinessLanding: React.FC<{ onJoin: (reason?: string) => void; onOp
             {FORMATS.map((f) => {
               const Icon = f.icon;
               return (
-                <div key={f.title} className="rounded-2xl bg-white p-5">
+                <div key={f.title} className="rounded-2xl bg-white border border-slate-200 p-5">
                   <Icon className="w-5 h-5 text-indigo-600" />
                   <h3 className="mt-3 font-bold text-slate-900">{f.title}</h3>
                   <p className="mt-1 text-sm text-slate-600">{f.text}</p>
@@ -428,7 +428,7 @@ export const BusinessLanding: React.FC<{ onJoin: (reason?: string) => void; onOp
           ].map((f) => {
             const Icon = f.icon;
             return (
-              <div key={f.title} className="rounded-2xl bg-white p-5">
+              <div key={f.title} className="rounded-2xl bg-white border border-slate-200 p-5">
                 <Icon className="w-5 h-5 text-indigo-600" />
                 <h3 className="mt-3 font-bold text-slate-900">{f.title}</h3>
                 <p className="mt-1 text-sm text-slate-600">{f.text}</p>
@@ -452,7 +452,7 @@ export const BusinessLanding: React.FC<{ onJoin: (reason?: string) => void; onOp
           </div>
           <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {FEATURED_GUIDES.map((slug) => GUIDES.find((g) => g.slug === slug)!).map((g) => (
-              <button key={g.slug} onClick={() => onOpenGuide(g.slug)} className="group text-left rounded-2xl bg-white p-5 hover:ring-1 hover:ring-indigo-300">
+              <button key={g.slug} onClick={() => onOpenGuide(g.slug)} className="group text-left rounded-2xl bg-white border border-slate-200 p-5 hover:ring-1 hover:ring-indigo-300">
                 <h3 className="font-bold text-slate-900 group-hover:text-indigo-700">{g.title}</h3>
                 <p className="mt-1.5 text-sm text-slate-600">{g.summary}</p>
               </button>

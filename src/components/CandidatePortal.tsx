@@ -757,7 +757,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
 
                         <button
                           onClick={() => setOpenJobId(match.jobId)}
-                          className="px-4 py-2 text-xs font-semibold text-slate-700 bg-white rounded-lg transition-colors"
+                          className="px-4 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg transition-colors"
                         >
                           View job
                         </button>

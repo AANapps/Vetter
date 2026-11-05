@@ -39,7 +39,7 @@ export const VisitorHome: React.FC<VisitorHomeProps> = ({ tests, jobs, onOpenTes
         </p>
 
         <div className="mt-12 grid gap-4 sm:grid-cols-2 max-w-4xl mx-auto text-left">
-          <div className="rounded-2xl bg-white p-6 sm:p-8 flex flex-col">
+          <div className="rounded-2xl bg-white border border-slate-200 p-6 sm:p-8 flex flex-col">
             <span className="text-xs font-semibold uppercase tracking-wider text-indigo-600">Looking for work</span>
             <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-slate-900">Prove your skills</h2>
             <p className="mt-2 text-sm text-slate-600 flex-1">Take a free test, get a verified score, and apply to jobs that hire on it. Free, always.</p>
@@ -102,7 +102,7 @@ export const VisitorHome: React.FC<VisitorHomeProps> = ({ tests, jobs, onOpenTes
           </div>
           <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {popularTests.map((t) => (
-              <button key={t.id} onClick={() => onOpenTest(t.id)} className="group rounded-2xl bg-white p-5 text-left flex flex-col">
+              <button key={t.id} onClick={() => onOpenTest(t.id)} className="group rounded-2xl bg-white border border-slate-200 p-5 text-left flex flex-col">
                 <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t.category}</span>
                 <span className="mt-1 font-bold text-slate-900 group-hover:text-indigo-700 line-clamp-2">{t.title}</span>
                 <span className="mt-3 flex items-center gap-3 text-xs text-slate-500">
@@ -132,7 +132,7 @@ export const VisitorHome: React.FC<VisitorHomeProps> = ({ tests, jobs, onOpenTes
           <ul className="mt-6 grid gap-3 sm:grid-cols-2">
             {latestJobs.map((j) => (
               <li key={j.id}>
-                <button onClick={() => onOpenJob(j.id)} className="group w-full rounded-2xl bg-white p-5 text-left flex items-center gap-4">
+                <button onClick={() => onOpenJob(j.id)} className="group w-full rounded-2xl bg-white border border-slate-200 p-5 text-left flex items-center gap-4">
                   <Pic src={j.companyLogo} alt="" referrerPolicy="no-referrer" className="w-11 h-11 rounded-lg object-cover bg-slate-100 shrink-0" />
                   <span className="min-w-0 flex-1">
                     <span className="block font-bold text-slate-900 group-hover:text-indigo-700 truncate">{j.title}</span>

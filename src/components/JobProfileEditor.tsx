@@ -125,7 +125,7 @@ export const JobProfileEditor: React.FC<JobProfileEditorProps> = ({ profile, isN
             <span />
           )}
           <div className="flex items-center gap-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-xs font-semibold text-slate-700 bg-white rounded-lg">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg">
               Cancel
             </button>
             <button

@@ -114,7 +114,7 @@ export const StudiesEditor: React.FC<StudiesEditorProps> = ({ candidate, onSave,
         </div>
 
         <div className="flex items-center justify-end gap-2 pt-2">
-          <button type="button" onClick={onClose} className="px-4 py-2 text-xs font-semibold text-slate-700 bg-white rounded-lg">
+          <button type="button" onClick={onClose} className="px-4 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg">
             Cancel
           </button>
           <button type="submit" className="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors">

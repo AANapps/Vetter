@@ -514,12 +514,12 @@ const TestRow: React.FC<{
       <div className="min-w-0">
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-sm font-semibold text-slate-900 truncate">{test.title}</span>
-          {own && <span className="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700">Yours</span>}
+          {own && <span className="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-900 text-white">Yours</span>}
           {own && test.publicStatus && (
             <span
               title={test.publicStatus === 'rejected' && test.publicNote ? `Not approved: ${test.publicNote}` : undefined}
               className={`shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded ${
-                test.publicStatus === 'approved' ? 'bg-indigo-50 text-indigo-700' : test.publicStatus === 'pending' ? 'bg-amber-50 text-amber-800' : 'bg-rose-50 text-rose-700'
+                test.publicStatus === 'rejected' ? 'bg-rose-700 text-white' : 'bg-slate-900 text-white'
               }`}
             >
               {test.publicStatus === 'approved' ? 'Public' : test.publicStatus === 'pending' ? 'Waiting for approval' : 'Not approved'}
