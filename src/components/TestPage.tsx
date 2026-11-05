@@ -1,7 +1,7 @@
 import React from 'react';
 import { BackButton } from './BackButton';
 import { Globe, Link2, Pencil, Play, PlusCircle } from 'lucide-react';
-import { AssessmentTest, Business, JobPosting, TEST_DIFFICULTIES, User, UserRole, timerOf, isPublic } from '../types';
+import { AssessmentTest, Business, JobPosting, TEST_DIFFICULTIES, User, UserRole, timerOf, isPublic, levelName } from '../types';
 import { getLeaderboard, getTestStats } from '../lib/leaderboard';
 import { TestLeaderboard, formatDuration } from './TestLeaderboard';
 import { QUESTION_TYPE_LABELS, describeChecks } from '../lib/testRoles';
@@ -88,7 +88,7 @@ export const TestPage: React.FC<TestPageProps> = ({
             <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono uppercase tracking-wider">
               <span className="text-indigo-700 font-bold">{test.category}</span>
               <span className="text-slate-300">&middot;</span>
-              <span className="text-slate-500">{test.difficulty}</span>
+              <span className="text-slate-500">{levelName(test.difficulty)}</span>
               <span className="text-slate-300">&middot;</span>
               <span className="text-slate-500">{test.type === 'standard' ? 'Made by Vetter' : `Made by ${test.companyName}`}</span>
             </div>
@@ -158,7 +158,7 @@ export const TestPage: React.FC<TestPageProps> = ({
             >
               <Play className="w-3.5 h-3.5 fill-current" />
               <span>
-                {viewerRole !== 'candidate' ? 'Try' : yourEntry ? 'Retake' : 'Start'} {test.difficulty} test
+                {viewerRole !== 'candidate' ? 'Try' : yourEntry ? 'Retake' : 'Start'} {levelName(test.difficulty)} test
               </span>
             </button>
           )}

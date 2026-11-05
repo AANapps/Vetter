@@ -1,5 +1,5 @@
 import React from 'react';
-import { ResultBreakdown, TestDifficulty } from '../types';
+import { ResultBreakdown, TestDifficulty, levelName } from '../types';
 import { MASTERY } from '../lib/modules';
 
 interface ResultBreakdownPanelProps {
@@ -20,11 +20,11 @@ export const ResultBreakdownPanel: React.FC<ResultBreakdownPanelProps> = ({ brea
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div className="font-bold text-slate-900">
           Level reached:{' '}
-          <span className={reached ? 'text-emerald-700' : 'text-rose-700'}>{reached ?? 'Not yet Beginner'}</span>
+          <span className={reached ? 'text-emerald-700' : 'text-rose-700'}>{reached ? levelName(reached) : 'Not yet Junior'}</span>
         </div>
         <div className="text-[11px] text-slate-500">
           {reached === testLevel
-            ? `Every level up to ${testLevel} at ${MASTERY}+`
+            ? `Every level up to ${levelName(testLevel)} at ${MASTERY}+`
             : `Each level counts once it and every level below score ${MASTERY}+`}
         </div>
       </div>
@@ -35,7 +35,7 @@ export const ResultBreakdownPanel: React.FC<ResultBreakdownPanelProps> = ({ brea
               <div className={`h-full ${barClass(t.score)}`} style={{ width: `${t.score}%` }} />
             </div>
             <div className="mt-1 flex justify-between gap-1 text-[10px] text-slate-500">
-              <span className="truncate">{t.tier}</span>
+              <span className="truncate">{levelName(t.tier)}</span>
               <span className="font-mono tabular-nums text-slate-700">{t.score}</span>
             </div>
           </div>

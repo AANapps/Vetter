@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { BackButton } from './BackButton';
-import { AssessmentTest, JobPosting, isPublic } from '../types';
+import { AssessmentTest, JobPosting, isPublic, levelName } from '../types';
 import { isMainVersion, levelsOf } from '../lib/testLevels';
 import { ArrowLeft, ArrowRight, Check, Search, X } from 'lucide-react';
 
@@ -145,7 +145,7 @@ export const JobTestsEditor: React.FC<JobTestsEditorProps> = ({ jobs, tests, add
                           >
                             {levels.map((v) => (
                               <option key={v.id} value={v.id}>
-                                {v.difficulty}
+                                {levelName(v.difficulty)}
                               </option>
                             ))}
                           </select>

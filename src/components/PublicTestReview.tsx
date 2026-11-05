@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { CheckCircle2, Globe } from 'lucide-react';
-import { AssessmentTest } from '../types';
+import { AssessmentTest, levelName } from '../types';
 
 // Shown to the Vetter team: companies' tests asking to join the public library. Each can be opened to read and try,
 // then approved (every company can use it, every candidate can take it) or turned down with a reason the company sees
@@ -29,7 +29,7 @@ export const PublicTestReview: React.FC<{
                 <button onClick={() => onOpen(t.id)} className="min-w-0 text-left group">
                   <span className="font-semibold text-slate-900 group-hover:text-indigo-700 group-hover:underline">{t.title}</span>
                   <span className="block text-xs text-slate-600">
-                    {t.companyName} &middot; {t.category} &middot; {t.difficulty} &middot; {t.totalQuestions} {t.totalQuestions === 1 ? 'question' : 'questions'} &middot; ~{t.estimatedMinutes} min
+                    {t.companyName} &middot; {t.category} &middot; {levelName(t.difficulty)} &middot; {t.totalQuestions} {t.totalQuestions === 1 ? 'question' : 'questions'} &middot; ~{t.estimatedMinutes} min
                     {t.publicAskedAt && <> &middot; asked {new Date(t.publicAskedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</>}
                   </span>
                 </button>

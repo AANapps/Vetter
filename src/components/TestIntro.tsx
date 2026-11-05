@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { PixelDot } from './PixelDot';
 import { BackButton } from './BackButton';
 import { AlertTriangle, ArrowLeft, ArrowRight, Check, Clock, FileText, Lock, ShieldCheck, X } from 'lucide-react';
-import { AssessmentTest, timerOf } from '../types';
+import { AssessmentTest, timerOf, levelName } from '../types';
 import { QUESTION_TYPE_LABELS, describeChecks } from '../lib/testRoles';
 import { groupQuestions, isAnswerType, isWorkspaceType } from '../lib/questionTypes';
 import { CaseBrief } from './CaseBrief';
@@ -182,7 +182,7 @@ export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose, on
                 <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900">{SLIDES[slide].title}</h1>
               </div>
               <div className="text-right text-[11px] text-slate-500 font-mono hidden sm:block">
-                {test.category} &middot; {test.difficulty}
+                {test.category} &middot; {levelName(test.difficulty)}
               </div>
             </div>
 

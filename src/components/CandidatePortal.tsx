@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Pic } from './Pic';
-import { User, AssessmentTest, JobPosting, CandidateJobMatch, Business, TestRole, TEST_DIFFICULTIES, JobProfile, isPublic } from '../types';
+import { User, AssessmentTest, JobPosting, CandidateJobMatch, Business, TestRole, TEST_DIFFICULTIES, JobProfile, isPublic, levelName } from '../types';
 import { activeProfileOf, asProfile, profilesOf } from '../lib/jobProfiles';
 import { ROLE_GROUPS, ROLE_SECTIONS, TestField, sectionsFor } from '../lib/testRoles';
 import { isMainVersion, levelsOf } from '../lib/testLevels';
@@ -869,7 +869,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                     }
                     className="accent-indigo-600"
                   />
-                  <span>{d}</span>
+                  <span>{levelName(d)}</span>
                 </label>
               ))}
             </div>

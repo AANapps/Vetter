@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AssessmentTest, Business, JobPosting, isPublic } from '../types';
+import { AssessmentTest, Business, JobPosting, isPublic, levelName } from '../types';
 import { CITIES } from '../lib/geo';
 import { EMPLOYMENT_TYPES, EXPERIENCE_LEVELS, formatSalaryRange } from '../lib/jobFilters';
 import { Plus } from 'lucide-react';
@@ -289,7 +289,7 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
                                 >
                                   {levelsOf(t, tests).map((v) => (
                                     <option key={v.id} value={v.id}>
-                                      {v.difficulty}
+                                      {levelName(v.difficulty)}
                                     </option>
                                   ))}
                                 </select>

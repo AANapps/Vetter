@@ -4,7 +4,7 @@ import { Pic } from './Pic';
 import { ArrowRight, BadgeCheck, Briefcase, Check, ClipboardCheck, Clock, Sparkles, Trophy } from 'lucide-react';
 import { Reveal, ScrollLine, ScrollProgress, WordsIn, useParallax } from './Motion';
 import { AiMarkingDemo, SkillsMarquee } from './AiDemos';
-import { AssessmentTest, JobPosting, isPublic } from '../types';
+import { AssessmentTest, JobPosting, isPublic, levelName } from '../types';
 import { AppTab } from './Navigation';
 import { TestTypeCards } from './TestTypeCards';
 import { BusinessLanding } from './BusinessLanding';
@@ -209,7 +209,7 @@ export const VisitorHome: React.FC<VisitorHomeProps> = ({ audience, onAudienceCh
                   <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-slate-500">{t.category}</span>
                   <span className="mt-2 text-lg font-semibold tracking-tight text-slate-900 line-clamp-2">{t.title}</span>
                   <span className="mt-auto pt-5 flex items-center gap-3 text-xs text-slate-500">
-                    <span>{t.difficulty}</span>
+                    <span>{levelName(t.difficulty)}</span>
                     <span className="inline-flex items-center gap-1">
                       <Clock className="w-3.5 h-3.5" /> ~{t.estimatedMinutes} min
                     </span>

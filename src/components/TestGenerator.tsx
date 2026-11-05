@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AlertCircle, ArrowUp, Check, ChevronDown, ChevronUp, Library, X } from 'lucide-react';
-import { AssessmentTest, Business, JobPosting, QuestionType, TEST_DIFFICULTIES, TestDifficulty, TestDraft } from '../types';
+import { AssessmentTest, Business, JobPosting, QuestionType, TEST_DIFFICULTIES, TestDifficulty, TestDraft, levelName } from '../types';
 import { QUESTION_STYLES } from '../lib/questionTypes';
 import { DraftPreview, Dropdown, draftProblems, finaliseDraft } from './DraftPreview';
 import { jobBrief } from '../lib/testGeneration';
@@ -411,7 +411,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
               <PickList legend="Difficulty" picked={pickedLevels.length} onClear={() => setLevels([])} note="Tick more than one to mix levels.">
                 {TEST_DIFFICULTIES.map((d) => (
                   <PickRow key={d} on={levels.includes(d)} onChange={() => toggle(setLevels, d)}>
-                    {d}
+                    {levelName(d)}
                   </PickRow>
                 ))}
               </PickList>

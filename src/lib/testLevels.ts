@@ -1,4 +1,4 @@
-import { AssessmentTest, TEST_DIFFICULTIES } from '../types';
+import { AssessmentTest, TEST_DIFFICULTIES, levelName } from '../types';
 
 // The test a family of level versions is known by; tests without versions are their own family
 export const familyIdOf = (test: AssessmentTest) => test.familyId ?? test.id;
@@ -13,4 +13,4 @@ export const levelsOf = (test: AssessmentTest, tests: AssessmentTest[]) =>
     .sort((a, b) => TEST_DIFFICULTIES.indexOf(a.difficulty) - TEST_DIFFICULTIES.indexOf(b.difficulty));
 
 // A version's name wherever the level matters, e.g. on a job's requirements
-export const versionTitle = (test: AssessmentTest) => (test.type === 'standard' ? `${test.title} (${test.difficulty})` : test.title);
+export const versionTitle = (test: AssessmentTest) => (test.type === 'standard' ? `${test.title} (${levelName(test.difficulty)})` : test.title);

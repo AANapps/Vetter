@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Pic } from './Pic';
-import { AssessmentTest, Business, JobPosting, User, isPublic } from '../types';
+import { AssessmentTest, Business, JobPosting, User, isPublic, levelName } from '../types';
 import { STATUS_LABELS, invitesFor, totalMinutes } from '../lib/jobTests';
 import { jobIdFromPath } from '../lib/jobSeo';
 import { activeProfileOf } from '../lib/jobProfiles';
@@ -208,7 +208,7 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, jobs, t
               <button onClick={() => onOpenTest(t.id)} className="min-w-0 flex-1 text-left group">
                 <span className="block text-sm font-semibold text-slate-900 group-hover:text-indigo-700 truncate">{t.title}</span>
                 <span className="block text-xs text-slate-500">
-                  {t.category} &middot; {t.difficulty} &middot; ~{t.estimatedMinutes} min
+                  {t.category} &middot; {levelName(t.difficulty)} &middot; ~{t.estimatedMinutes} min
                 </span>
               </button>
               <button

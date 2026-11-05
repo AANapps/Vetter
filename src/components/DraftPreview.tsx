@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle, ChevronDown, ChevronLeft, ChevronRight, Eye, ListTree, Pencil, Plus, Trash2 } from 'lucide-react';
-import { AssessmentTest, Question, QuestionType } from '../types';
+import { AssessmentTest, Question, QuestionType, levelName } from '../types';
 import { QUESTION_STYLES, blankQuestion, groupQuestions, isAnswerType, isGroupType, isWorkspaceType, questionProblems, tidyQuestion } from '../lib/questionTypes';
 import { CaseMaterial } from './TestRunner';
 import { AnswerInput } from './AnswerInputs';
@@ -141,7 +141,7 @@ export const DraftPreview: React.FC<DraftPreviewProps> = ({ test, onChange, lock
               <div className="px-3 py-2 border-b border-slate-100">
                 <div className="text-sm font-bold text-slate-900">{test.title}</div>
                 <div className="text-[11px] text-slate-500">
-                  {test.difficulty} &middot; {test.questions.filter((q) => q.type !== 'case').length} questions &middot; ~{test.estimatedMinutes} min &middot; pass {test.passingScore}%
+                  {levelName(test.difficulty)} &middot; {test.questions.filter((q) => q.type !== 'case').length} questions &middot; ~{test.estimatedMinutes} min &middot; pass {test.passingScore}%
                 </div>
               </div>
               {test.blueprint && test.blueprint.length > 0 && (

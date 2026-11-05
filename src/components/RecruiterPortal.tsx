@@ -1,7 +1,7 @@
 import { isMainVersion } from '../lib/testLevels';
 import { Pic } from './Pic';
 import React, { useState } from 'react';
-import { User, JobPosting, AssessmentTest, Business, TestDraft, TestRole, isPublic } from '../types';
+import { User, JobPosting, AssessmentTest, Business, TestDraft, TestRole, isPublic, levelName } from '../types';
 import { ROLE_GROUPS } from '../lib/testRoles';
 import { getTestStats } from '../lib/leaderboard';
 import { JobCandidates } from './JobCandidates';
@@ -486,7 +486,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
 // What the test chat is asked when the Vetter team rebuilds a library test in depth
 const deepenSeed = (t: AssessmentTest) =>
   `Rebuild this Vetter library test in depth, as a full test with a case study, written answers and hands-on tasks:\n\n` +
-  `${t.title} (${t.difficulty}, ${t.category})\n${t.description}\nSkills: ${t.skillsTested.join(', ')}` +
+  `${t.title} (${levelName(t.difficulty)}, ${t.category})\n${t.description}\nSkills: ${t.skillsTested.join(', ')}` +
   (t.roles?.length ? `\nFor: ${t.roles.join(', ')}` : '') +
   `\n\nIt currently has ${t.questions.length} questions: ${t.questions.map((q) => q.title).join('; ')}.`;
 
@@ -527,7 +527,7 @@ const TestRow: React.FC<{
           )}
         </div>
         <div className="text-xs text-slate-500 truncate">
-          {test.category} &middot; {test.difficulty}
+          {test.category} &middot; {levelName(test.difficulty)}
           {/* Another company's test from the public library says whose it is */}
           {!own && test.type === 'custom' && test.companyName && <> &middot; by {test.companyName}</>}
           <span className="md:hidden">
@@ -598,7 +598,7 @@ const DraftCard: React.FC<{
             <span className="shrink-0 px-1.5 py-0.5 rounded bg-indigo-50 text-slate-800 text-[10px] font-semibold">{draft.editsTestId ? 'Unsaved changes' : 'Draft'}</span>
           </div>
           <p className="text-[11px] text-slate-500">
-            {t.questions.length} {t.questions.length === 1 ? 'question' : 'questions'} &middot; ~{minutes} min &middot; {t.difficulty}
+            {t.questions.length} {t.questions.length === 1 ? 'question' : 'questions'} &middot; ~{minutes} min &middot; {levelName(t.difficulty)}
             {job && ` · for ${showCompany ? `${job.companyName}: ` : ''}${job.title}`}
             {!job && showCompany && t.companyName && ` · ${t.companyName}`}
           </p>

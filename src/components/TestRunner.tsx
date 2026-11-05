@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { AnswerRecord, answerRecords } from '../lib/submissions';
 import { BackButton } from './BackButton';
-import { AssessmentTest, Question, ResultBreakdown, timerOf, isPublic } from '../types';
+import { AssessmentTest, Question, ResultBreakdown, timerOf, isPublic, levelName } from '../types';
 import { breakdownFor } from '../lib/modules';
 import { ResultBreakdownPanel } from './ResultBreakdownPanel';
 import { MOCK_DATABASE } from '../lib/sqlEngine';
@@ -381,7 +381,7 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
             <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
               <span>{test.category}</span>
               <span aria-hidden="true">&middot;</span>
-              <span>{test.difficulty}</span>
+              <span>{levelName(test.difficulty)}</span>
               <span aria-hidden="true">&middot;</span>
               <span>{test.questions.length} Questions</span>
             </div>

@@ -252,6 +252,9 @@ export const timerOf = (test: { timeLimit?: number | 'none'; estimatedMinutes: n
 // The levels tests come in. Beginner is no longer offered; tests saved at it are treated as Junior
 export const TEST_DIFFICULTIES: TestDifficulty[] = ['Junior', 'Professional', 'Senior'];
 
+// The name a level is shown by: Professional is called Mid-level
+export const levelName = (level: TestDifficulty | string) => (level === 'Professional' ? 'Mid-level' : level);
+
 export interface AssessmentTest {
   id: string;
   title: string;

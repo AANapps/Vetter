@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { ArrowLeft, Briefcase, CheckCircle2, Eye, Library, Plus, Wand2, X } from 'lucide-react';
-import { AssessmentTest } from '../types';
+import { AssessmentTest, levelName } from '../types';
 import { CUSTOM_KIND_LABELS, CustomIdea } from '../lib/testAdvisor';
 
 // What a company took from the home chat: ready-made tests it picked, the AI tests it built (or started), and the
@@ -59,7 +59,7 @@ export const TestPlanDialog: React.FC<TestPlanDialogProps> = ({ plan, tests, has
               <Library className="w-3 h-3 text-indigo-600" /> {test.type === 'custom' ? 'Your test' : 'Ready-made'}
             </>
           )}
-          &nbsp;&middot; {test.difficulty} &middot; ~{test.estimatedMinutes} min
+          &nbsp;&middot; {levelName(test.difficulty)} &middot; ~{test.estimatedMinutes} min
         </div>
       </div>
       <button onClick={() => onOpenTest(test.id)} className="px-2 py-1 text-xs font-semibold text-slate-500 hover:text-indigo-700 flex items-center gap-1">

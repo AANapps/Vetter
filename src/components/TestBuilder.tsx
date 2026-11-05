@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AlertCircle, ArrowDown, ArrowUp, Check, Eye, FileText, Plus, Sparkles, Trash2, X } from 'lucide-react';
-import { AssessmentTest, Business, Question, QuestionType, SkillCategory, TEST_DIFFICULTIES, TestRole, madeWithAI } from '../types';
+import { AssessmentTest, Business, Question, QuestionType, SkillCategory, TEST_DIFFICULTIES, TestRole, madeWithAI, levelName } from '../types';
 import { SKILL_IDS } from '../data/seedCandidates';
 import { ROLE_GROUPS } from '../lib/testRoles';
 import { AI_ONLY_TYPES, QUESTION_STYLES, blankQuestion, isAnswerType, isGroupType, questionProblems, tidyQuestion } from '../lib/questionTypes';
@@ -291,7 +291,7 @@ export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, dra
                     <select id="tb-level" value={difficulty} onChange={(e) => setDifficulty(e.target.value as AssessmentTest['difficulty'])} className={inputClass}>
                       {TEST_DIFFICULTIES.map((d) => (
                         <option key={d} value={d}>
-                          {d}
+                          {levelName(d)}
                         </option>
                       ))}
                     </select>
@@ -422,7 +422,7 @@ export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, dra
                         <option value="">Not set</option>
                         {TEST_DIFFICULTIES.map((d) => (
                           <option key={d} value={d}>
-                            {d}
+                            {levelName(d)}
                           </option>
                         ))}
                       </select>
