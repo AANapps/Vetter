@@ -333,8 +333,20 @@ const VisitorHeader: React.FC<{ currentTab: AppTab; onTabChange: (tab: AppTab) =
     { id: 'learn', label: 'Career switch' },
     { id: 'guides', label: 'Guides' },
   ];
+  // Clear glass over the hero, firming up with an edge once the page scrolls under it
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200">
+    <header
+      className={`sticky top-0 z-40 backdrop-blur-xl backdrop-saturate-150 border-b transition-colors duration-300 ${
+        scrolled ? 'bg-white/80 border-slate-200/80' : 'bg-white/40 border-transparent'
+      }`}
+    >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-2">
         <button onClick={() => onTabChange('home')} aria-label="Vetter home" className="flex items-center gap-2 mr-4">
           <span className="w-8 h-8 rounded-md bg-indigo-900 text-white font-pixel flex items-center justify-center text-sm">V</span>
@@ -346,8 +358,8 @@ const VisitorHeader: React.FC<{ currentTab: AppTab; onTabChange: (tab: AppTab) =
               key={l.id}
               onClick={() => onTabChange(l.id)}
               aria-current={currentTab === l.id ? 'page' : undefined}
-              className={`px-3 py-1.5 rounded-full text-sm font-semibold transition-colors ${
-                currentTab === l.id ? 'text-slate-900 bg-slate-100' : 'text-slate-600 hover:text-slate-900'
+              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                currentTab === l.id ? 'text-slate-900 bg-slate-900/[0.06]' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               {l.label}
@@ -355,10 +367,10 @@ const VisitorHeader: React.FC<{ currentTab: AppTab; onTabChange: (tab: AppTab) =
           ))}
         </nav>
         <div className="ml-auto flex items-center gap-1 sm:gap-2">
-          <button onClick={onSignIn} className="px-3 py-1.5 text-sm font-semibold text-slate-700 hover:text-slate-900">
+          <button onClick={onSignIn} className="px-3 py-1.5 text-sm font-medium text-slate-700 hover:text-slate-900">
             Sign in
           </button>
-          <button onClick={onJoin} className="px-4 py-1.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-full">
+          <button onClick={onJoin} className="px-4 py-1.5 text-sm font-medium text-white bg-slate-900 rounded-full">
             Join free
           </button>
         </div>

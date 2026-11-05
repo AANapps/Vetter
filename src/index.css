@@ -43,8 +43,8 @@
   /* The Vetter logo's pixel lettering */
   --font-pixel: 'Silkscreen', ui-monospace, monospace;
 
-  /* LinkedIn Font Stack */
-  --font-sans: 'Source Sans 3', -apple-system, system-ui, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', 'Fira Sans', Ubuntu, Oxygen, 'Oxygen Sans', Cantarell, 'Droid Sans', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Lucida Grande', Helvetica, Arial, sans-serif;
+  /* Geist: a crisp, even sans for the whole site, with Geist Mono for figures and code */
+  --font-sans: 'Geist', 'Source Sans 3', -apple-system, system-ui, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', 'Fira Sans', Ubuntu, Oxygen, 'Oxygen Sans', Cantarell, 'Droid Sans', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Lucida Grande', Helvetica, Arial, sans-serif;
 }
 
 /* The test generator's wait: rings pulse out from the mark, which beats gently */
@@ -114,17 +114,61 @@
   .ai-aurora span, .ai-ring, .ai-mark, .ai-shimmer { animation: none; }
 }
 
+/* ---- AI-first public pages: the gradient accent, a faint grid, glass panels and a skills marquee ---- */
+.ai-gradient { background: linear-gradient(90deg, #4f8bf5, #9b6cf6 50%, #ec6fae); }
+.ai-gradient-v { background: linear-gradient(180deg, #4f8bf5, #9b6cf6 50%, #ec6fae); }
+.ai-text {
+  background: linear-gradient(90deg, #3b6fe0, #8b5cf6 55%, #db5a9e); -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.ai-grid {
+  position: absolute; inset: 0; pointer-events: none; z-index: -1;
+  background-image: linear-gradient(to right, rgba(15, 23, 42, 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(15, 23, 42, 0.045) 1px, transparent 1px);
+  background-size: 56px 56px;
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 30%, transparent 75%);
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 30%, transparent 75%);
+}
+.ai-grid-dark {
+  background-image: linear-gradient(to right, rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+}
+.ai-panel {
+  background: rgba(255, 255, 255, 0.78); backdrop-filter: blur(20px) saturate(1.5); -webkit-backdrop-filter: blur(20px) saturate(1.5);
+  border: 1px solid rgba(15, 23, 42, 0.08); border-radius: 1.25rem;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 1px 2px rgba(15, 23, 42, 0.04), 0 24px 60px -24px rgba(43, 58, 110, 0.28);
+}
+.ai-chip {
+  display: inline-flex; align-items: center; gap: 0.4rem; border-radius: 9999px; padding: 0.3rem 0.75rem 0.3rem 0.4rem;
+  font-size: 0.75rem; font-weight: 500; color: #334155; background: rgba(255, 255, 255, 0.8);
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.1); backdrop-filter: blur(8px);
+}
+.ai-chip > .ai-chip-dot {
+  display: inline-flex; align-items: center; justify-content: center; width: 1.25rem; height: 1.25rem; border-radius: 9999px; color: #fff;
+  background: linear-gradient(135deg, #4f8bf5, #9b6cf6 55%, #ec6fae);
+}
+@keyframes ai-marquee { to { transform: translateX(-50%); } }
+.ai-marquee { display: flex; width: max-content; animation: ai-marquee 40s linear infinite; }
+.ai-marquee-mask {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+}
+@keyframes ai-caret { 50% { opacity: 0; } }
+.ai-caret { display: inline-block; width: 2px; height: 1em; margin-left: 1px; vertical-align: -0.15em; background: #8b5cf6; animation: ai-caret 1s steps(1) infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .ai-marquee, .ai-caret { animation: none; }
+}
+
 @layer base {
   html, body {
     background-color: #ffffff;
     color: #0f172a;
-    font-family: 'Source Sans 3', -apple-system, system-ui, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', 'Fira Sans', Ubuntu, Oxygen, 'Oxygen Sans', Cantarell, 'Droid Sans', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Lucida Grande', Helvetica, Arial, sans-serif;
+    font-family: 'Geist', 'Source Sans 3', -apple-system, system-ui, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', 'Fira Sans', Ubuntu, Oxygen, 'Oxygen Sans', Cantarell, 'Droid Sans', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Lucida Grande', Helvetica, Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
   
   code, pre, .font-mono {
-    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-family: 'Geist Mono', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   }
 }
 
