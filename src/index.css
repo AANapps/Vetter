@@ -342,3 +342,41 @@ html, body { overscroll-behavior-x: none; }
 @media (prefers-reduced-motion: reduce) {
   .pixel-dot { animation: none; }
 }
+
+/* ---- Dropdowns: every select looks the same ----
+   White, the same 1px edge and corner as text fields, one chevron in place of the browser's own arrow, and the
+   same hover and focus as inputs. Size and text size still come from where it's used */
+select:not([multiple]) {
+  -webkit-appearance: none;
+  appearance: none;
+  background-color: #ffffff !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235c6777' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat;
+  background-position: right 0.625rem center;
+  background-size: 1rem;
+  padding-right: 2.25rem !important;
+  border: 1px solid #c2c9d3 !important;
+  border-radius: 0.5rem !important;
+  color: #0f172a;
+  cursor: pointer;
+  text-overflow: ellipsis;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+select:not([multiple]):not(:disabled):hover {
+  border-color: #8a94a3 !important;
+}
+select:not([multiple]):focus,
+select:not([multiple]):focus-visible {
+  outline: none;
+  border-color: #5b50e5 !important;
+  box-shadow: 0 0 0 3px rgba(91, 80, 229, 0.15) !important;
+}
+select:not([multiple]):disabled {
+  background-color: #f6f7f9 !important;
+  color: #8a94a3;
+  cursor: not-allowed;
+}
+select option {
+  color: #0f172a;
+  background: #ffffff;
+}

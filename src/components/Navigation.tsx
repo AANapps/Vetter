@@ -182,7 +182,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                 )}
               </button>
               {isBellOpen && (
-                <div className="absolute right-0 top-full mt-1 w-80 bg-white rounded-xl shadow-2xl border border-slate-200 z-50 overflow-hidden">
+                <div className="absolute right-0 top-full mt-1 w-80 bg-white rounded-xl shadow-lg border border-slate-200 z-50 overflow-hidden">
                   <div className="px-4 py-3 border-b border-slate-100 text-sm font-bold text-slate-900">Notifications</div>
                   {notifications.length === 0 ? (
                     <p className="px-4 py-6 text-xs text-slate-500 text-center">Nothing new.</p>
@@ -240,7 +240,7 @@ export const Navigation: React.FC<NavigationProps> = ({
             </button>
 
             {isMeOpen && (
-              <div role="menu" className="absolute right-0 top-full mt-1 w-64 bg-white rounded-xl shadow-2xl border border-slate-200 p-4 space-y-3 z-50">
+              <div role="menu" className="absolute right-0 top-full mt-1 w-64 bg-white rounded-xl shadow-lg border border-slate-200 p-4 space-y-3 z-50">
                 <div className="flex items-center gap-3">
                   <Pic src={userAvatar} alt="" referrerPolicy="no-referrer" className="w-12 h-12 rounded-full object-cover bg-slate-100 shrink-0" />
                   <div className="min-w-0">

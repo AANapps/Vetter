@@ -153,7 +153,7 @@ export const DiscoverFeed: React.FC<DiscoverFeedProps> = ({
             onChange={(e) => setDraft(e.target.value.slice(0, MAX_POST_LENGTH))}
             placeholder="Share a win, a tip, or ask the community something..."
             rows={2}
-            className="flex-1 min-w-0 resize-none text-sm text-slate-900 placeholder-slate-400 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500"
+            className="flex-1 min-w-0 resize-none text-sm text-slate-900 placeholder-slate-400 bg-white border border-slate-300 rounded-lg px-3 py-2 hover:border-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-[3px] focus:ring-indigo-600/15"
           />
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3 pl-0 sm:pl-13">
