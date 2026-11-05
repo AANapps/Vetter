@@ -1,6 +1,6 @@
 import { AssessmentTest, Question, TEST_DIFFICULTIES, TestDifficulty } from '../../types';
 import { ModuleSkeleton } from './kit';
-import { TIER_BLURB, TIER_MINUTES, fitToTime, questionsForTier, weighByTier } from '../../lib/modules';
+import { TIER_BLURB, TIER_MINUTES, buildLevel, weighByTier } from '../../lib/modules';
 import { SQL_MODULE, QA_SQL_MODULE } from './sql';
 import { FRONTEND_MODULE } from './frontend';
 import { BACKEND_MODULE, API_MODULE, SYSTEMS_MODULE } from './backend';
@@ -12,6 +12,7 @@ import { ANALYST_TOOL_MODULES } from './analyst';
 import { ANALYST_TOOL_MODULES_2 } from './analystTools2';
 import { ANALYST_SKILL_MODULES } from './analystTools3';
 import { ROLE_TRACK_MODULES } from './roleTracks';
+import { EXTRA_MIX } from './extraMix';
 
 /**
  * Vetter's module tests. From each module's bank (see kit.ts) come four tests, Beginner to Senior, each asking every
@@ -73,7 +74,8 @@ export function moduleBank(skeleton: ModuleSkeleton, family: AssessmentTest[]): 
     const tag = skeleton.tags[q.id];
     return tag ? [{ ...q, aspect: tag[0], tier: tag[1] }] : [];
   });
-  return [...old, ...skeleton.bank].map(typedAtUpperLevels);
+  // Beginner is no longer offered: its questions join Junior's
+  return [...old, ...skeleton.bank, ...(EXTRA_MIX[skeleton.familyId] ?? [])].map((q) => (q.tier === 'Beginner' ? { ...q, tier: 'Junior' as const } : q));
 }
 
 const SCENARIO_TYPES: Question['type'][] = ['sheet', 'database', 'app', 'case'];
@@ -94,8 +96,8 @@ export function withModules(tests: AssessmentTest[]): AssessmentTest[] {
     const areas = skeleton.aspects.map((a) => a.name);
     const list = `${areas.slice(0, -1).join(', ')} and ${areas[areas.length - 1]}`;
     return TEST_DIFFICULTIES.map((tier): AssessmentTest => {
-      const isMain = tier === main.difficulty;
-      const questions = weighByTier(fitToTime(questionsForTier(bank, skeleton.aspects, tier), tier));
+      const isMain = tier === (main.difficulty === 'Beginner' ? 'Junior' : main.difficulty);
+      const questions = weighByTier(buildLevel(bank, tier));
       // A level without the scenario's tasks doesn't need its brief
       const usesScenario = questions.some((q) => SCENARIO_TYPES.includes(q.type) || q.taskId);
       const { scenario, familyId: _f, ...rest } = main;

@@ -6,7 +6,8 @@ import { AssessmentTest, Question, ResultBreakdown, TEST_DIFFICULTIES, TestAspec
  * has shown the Beginner fundamentals too. Higher levels' questions carry more of the score.
  */
 
-export const tierIndex = (tier: TestDifficulty | undefined) => (tier ? TEST_DIFFICULTIES.indexOf(tier) : 0);
+// Beginner, no longer offered, counts as Junior
+export const tierIndex = (tier: TestDifficulty | undefined) => (tier ? Math.max(0, TEST_DIFFICULTIES.indexOf(tier)) : 0);
 
 // Hands-on tasks and long answers. A harder one in the same area at a level in between takes its place, so tests
 // grow by quick questions as the level rises, not by repeating every task
@@ -14,16 +15,16 @@ const LONG_TYPES: Question['type'][] = ['sql', 'code', 'scenario', 'schema', 'wr
 export const isLongQuestion = (q: Question) => !q.quick && LONG_TYPES.includes(q.type);
 
 // How much more a question counts for each level above Beginner
-const TIER_WEIGHT = [1, 1.5, 2, 2.5];
+const TIER_WEIGHT = [1, 1.5, 2];
 
 // A level counts as reached when its questions score this much, and so did every level below it
 export const MASTERY = 70;
 
 export const TIER_BLURB: Record<TestDifficulty, string> = {
   Beginner: 'The fundamentals of every area',
-  Junior: 'The fundamentals, plus the everyday work of a junior',
-  Professional: 'Everything a junior knows, plus the judgement of an experienced hand',
-  Senior: 'Every level, up to the hardest problems a senior owns',
+  Junior: 'The fundamentals and the everyday work of a junior',
+  Professional: 'The judgement of an experienced hand',
+  Senior: 'The hardest problems a senior owns',
 };
 
 // A quick question repeated from a level below is a check the candidate still has the basics, so it gets less time
@@ -62,8 +63,8 @@ export function questionsForTier(bank: Question[], aspects: TestAspect[], tier: 
 // How long each level's test runs: Beginner a quick 5–10 minute check, rising to a 45–60 minute Senior assessment
 export const TIER_MINUTES: Record<TestDifficulty, [min: number, max: number]> = {
   Beginner: [5, 10],
-  Junior: [15, 25],
-  Professional: [30, 40],
+  Junior: [30, 40],
+  Professional: [40, 50],
   Senior: [45, 60],
 };
 
@@ -177,3 +178,203 @@ export const tierSpan = (test: AssessmentTest) => {
   const tiers = [...new Set(test.questions.map((q) => q.tier).filter((t): t is TestDifficulty => !!t))].sort((a, b) => tierIndex(a) - tierIndex(b));
   return tiers.length > 1 ? `${tiers[0]} to ${tiers[tiers.length - 1]}` : tiers[0];
 };
+
+// ---------- The mix every level asks ----------
+// Two of each: multiple choice, drag and drop (ordering or matching), select all that apply, written answers, and
+// coding tasks where the skill has them; the rest is hands-on work (a simulation, spreadsheet or database) with its
+// follow-ups. Where a module's bank is short of a kind at a level, it's made from the level's scenario questions:
+// a matching question pairs situations with their right answers, a select-all mixes each situation's right answer
+// with its most tempting wrong one, and a written answer asks what you'd do and why
+export const LEVEL_MIX = { choice: 2, drag: 2, multi: 2, written: 2, code: 2 } as const;
+
+type Kind = 'choice' | 'drag' | 'multi' | 'written' | 'code' | 'hands' | 'short' | 'case';
+export const kindOf = (q: Question): Kind =>
+  q.type === 'order' || q.type === 'match'
+    ? 'drag'
+    : q.type === 'code' || q.type === 'sql' || q.type === 'schema'
+      ? 'code'
+      : q.type === 'app' || q.type === 'sheet' || q.type === 'database'
+        ? 'hands'
+        : q.type === 'text'
+          ? 'short'
+          : q.type === 'scenario'
+            ? 'written'
+            : (q.type as Kind);
+
+// Minutes for each kind at each level (Junior, Professional, Senior)
+const KIND_MINUTES: Record<Kind, [number, number, number]> = {
+  choice: [2, 2, 3],
+  drag: [3, 4, 4],
+  multi: [3, 3, 4],
+  written: [5, 6, 8],
+  code: [8, 10, 12],
+  hands: [12, 15, 18],
+  short: [2, 2, 3],
+  case: [2, 3, 3],
+};
+
+const right = (q: Question) => q.options![q.correctOption!];
+const tempting = (q: Question) => q.options!.filter((_, i) => i !== q.correctOption).sort((a, b) => b.length - a.length)[0];
+
+// A pick-one question as a typed answer: what you'd do and why, marked against the right answer and the tempting one
+export function asWritten(q: Question): Question {
+  const { options: _o, correctOption: _c, ...rest } = q;
+  const wrong = tempting(q);
+  return {
+    ...rest,
+    type: 'written',
+    prompt: `${q.prompt}\n\nAnswer in a sentence or two: what you'd do (or what the answer is) and why.`,
+    rubric: [`Reaches the right call: ${right(q)}`, 'Says why it fits this situation, rather than only naming an action', ...(wrong ? [`Doesn't fall for a tempting wrong answer, such as: ${wrong}`] : [])],
+    solutionCode: right(q),
+    quick: true,
+  };
+}
+
+const answerOf = (q: Question) => (q.type === 'text' ? q.acceptedAnswers![0] : right(q));
+function asMatch(src: Question[], tier: TestDifficulty): Question {
+  return {
+    id: `mix-match-${src[0].id}`,
+    title: 'Match Each Situation',
+    type: 'match',
+    prompt: 'Drag the right response onto each situation.',
+    pairs: src.map((q) => ({ left: q.prompt, right: answerOf(q) })),
+    starterCode: '',
+    testCases: [],
+    timeLimitMinutes: 4,
+    weight: 10,
+    aspect: src[0].aspect,
+    tier,
+  };
+}
+
+function asMulti(src: Question[], tier: TestDifficulty): Question {
+  // Each situation once with its right answer and once with its most tempting wrong one, interleaved by a fixed rule
+  const lines = src.flatMap((q, i) => {
+    const a = { text: `${q.prompt} → ${right(q)}`, ok: true };
+    const b = { text: `${q.prompt} → ${tempting(q)}`, ok: false };
+    return i % 2 ? [b, a] : [a, b];
+  });
+  return {
+    id: `mix-multi-${src[0].id}`,
+    title: 'Which Responses Are Right?',
+    type: 'multi',
+    prompt: 'Each line pairs a situation with a response. Tick every line where the response is the right one.',
+    options: lines.map((l) => l.text),
+    correctOptions: lines.flatMap((l, i) => (l.ok ? [i] : [])),
+    starterCode: '',
+    testCases: [],
+    timeLimitMinutes: 4,
+    weight: 10,
+    aspect: src[0].aspect,
+    tier,
+  };
+}
+
+export function buildLevel(bank: Question[], tier: TestDifficulty): Question[] {
+  const L = tierIndex(tier);
+  const order = new Map(bank.map((q, i) => [q.id, i]));
+  // The level's own questions and those below it; the level above only when a slot can't be filled otherwise
+  const pool = bank.filter((q) => tierIndex(q.tier) <= L + 1);
+  const above = (q: Question) => tierIndex(q.tier) > L;
+  const byId = new Map(bank.map((q) => [q.id, q]));
+  const chosen = new Map<string, Question>();
+  // Scenario questions folded into a made-up matching or select-all question, so they aren't asked twice
+  const used = new Set<string>();
+  const areaUse = new Map<string, number>();
+  const take = (q: Question) => {
+    chosen.set(q.id, q);
+    areaUse.set(q.aspect ?? '', (areaUse.get(q.aspect ?? '') ?? 0) + 1);
+    // Questions about a case study bring the case with them
+    const task = q.taskId ? byId.get(q.taskId) : undefined;
+    if (task?.type === 'case') chosen.set(task.id, task);
+  };
+  // A question can fill a slot when it stands alone or belongs to a case study (not to a hands-on task)
+  const free = (q: Question) => !chosen.has(q.id) && !used.has(q.id) && (!q.taskId || byId.get(q.taskId)?.type === 'case');
+  // This level's own questions first, then the level below; spread across areas
+  const ranked = (qs: Question[]) =>
+    [...qs].sort(
+      (a, b) =>
+        Number(above(a)) - Number(above(b)) ||
+        tierIndex(b.tier) - tierIndex(a.tier) ||
+        (areaUse.get(a.aspect ?? '') ?? 0) - (areaUse.get(b.aspect ?? '') ?? 0) ||
+        (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0)
+    );
+  const fill = (kind: Kind, n: number) => {
+    let got = 0;
+    while (got < n) {
+      const next = ranked(pool.filter((q) => free(q) && kindOf(q) === kind))[0];
+      if (!next) break;
+      take(next);
+      got++;
+    }
+    return got;
+  };
+  // Scenario questions not yet used, for making the kinds a bank is short of
+  const spare = () => ranked(pool.filter((q) => free(q) && q.type === 'choice' && !q.taskId && q.options && q.correctOption !== undefined));
+
+  // Hands-on work: the hardest task the level reaches, with its follow-ups
+  const hands = ranked(pool.filter((q) => kindOf(q) === 'hands' && !above(q)))[0];
+  if (hands) {
+    take(hands);
+    pool.filter((q) => q.taskId === hands.id).forEach(take);
+  }
+  fill('code', LEVEL_MIX.code);
+  fill('choice', LEVEL_MIX.choice);
+  const written = fill('written', LEVEL_MIX.written);
+  for (let i = written; i < LEVEL_MIX.written; i++) {
+    const src = spare()[0];
+    if (src) take(asWritten(src));
+  }
+  const multi = fill('multi', LEVEL_MIX.multi);
+  for (let i = multi; i < LEVEL_MIX.multi; i++) {
+    const src = spare().slice(0, 3);
+    if (src.length < 2) break;
+    src.forEach((q) => used.add(q.id));
+    take(asMulti(src, tier));
+  }
+  const drag = fill('drag', LEVEL_MIX.drag);
+  // Matching can also pair problems with their worked answers (short answers), when scenario questions run out
+  const shorts = () => ranked(pool.filter((q) => free(q) && q.type === 'text' && !q.taskId && q.acceptedAnswers?.length));
+  for (let i = drag; i < LEVEL_MIX.drag; i++) {
+    const src = [...spare(), ...shorts()].slice(0, 3);
+    if (src.length < 2) break;
+    src.forEach((q) => used.add(q.id));
+    take(asMatch(src, tier));
+  }
+
+  // Each kind gets the level's time; synthetic questions sit where their first source was
+  const at = (q: Question) => order.get(q.id) ?? order.get(q.id.replace(/^mix-(match|multi)-/, '')) ?? 0;
+  let qs = [...chosen.values()]
+    .map((q) => ({ ...q, timeLimitMinutes: q.type === 'case' ? KIND_MINUTES.case[L] : Math.min(Math.max(q.timeLimitMinutes, KIND_MINUTES[kindOf(q)][L] - 1), KIND_MINUTES[kindOf(q)][L]) }))
+    .sort((a, b) => tierIndex(a.tier) - tierIndex(b.tier) || at(a) - at(b));
+  const [min, max] = TIER_MINUTES[tier];
+  const total = () => qs.reduce((n, q) => n + q.timeLimitMinutes, 0);
+  const timed = (q: Question) => ({ ...q, timeLimitMinutes: KIND_MINUTES[kindOf(q)][L] });
+  // Under the level's time: the rest is made up of more hands-on and typed work, never more of the counted kinds.
+  // Follow-ups of the case studies already asked, then short worked answers, then another hands-on task
+  const inLevel = () => new Set(qs.map((q) => q.id));
+  const topUps = () => {
+    const have = inLevel();
+    const caseFollowUps = pool.filter((q) => !have.has(q.id) && !used.has(q.id) && q.taskId && have.has(q.taskId) && kindOf(q) === 'short');
+    const loneShorts = ranked(pool.filter((q) => !have.has(q.id) && !used.has(q.id) && !q.taskId && kindOf(q) === 'short' && !above(q)));
+    const moreHands = ranked(pool.filter((q) => !have.has(q.id) && kindOf(q) === 'hands' && !above(q)));
+    return [...caseFollowUps, ...loneShorts, ...moreHands];
+  };
+  while (total() < min) {
+    const next = topUps().find((q) => total() + timed(q).timeLimitMinutes <= max);
+    if (!next) break;
+    qs.push(timed(next));
+    if (kindOf(next) === 'hands') pool.filter((q) => q.taskId === next.id && kindOf(q) === 'short').forEach((q) => total() + 2 <= max && qs.push(timed(q)));
+  }
+  qs.sort((a, b) => tierIndex(a.tier) - tierIndex(b.tier) || at(a) - at(b));
+  // Over the level's time: hands-on follow-ups trimmed first, then shorter written, coding and hands-on time
+  const extras = qs.filter((q) => hands && q.taskId === hands.id && kindOf(q) === 'short').slice(1);
+  for (const q of extras) if (total() > max) qs = qs.filter((x) => x.id !== q.id);
+  const floors: Partial<Record<Kind, number>> = { written: 4, code: 6, hands: 10 };
+  while (total() > max) {
+    const shrink = qs.find((q) => floors[kindOf(q)] !== undefined && q.timeLimitMinutes > floors[kindOf(q)]!);
+    if (!shrink) break;
+    qs = qs.map((q) => (q.id === shrink.id ? { ...q, timeLimitMinutes: q.timeLimitMinutes - 1 } : q));
+  }
+  return qs;
+}

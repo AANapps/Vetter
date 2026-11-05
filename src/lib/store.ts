@@ -108,10 +108,10 @@ export function loadData(): AppData {
     };
 
     // Seeded tests always come from code (so content fixes apply); tests created in the app are kept
-    // Tests saved under older difficulty names were all made as the hardest level
+    // Tests saved at Beginner (no longer offered) become Junior; older difficulty names were all made as the hardest level
     const createdTests = saved.tests
       .filter((t) => !SEED_TESTS.some((s) => s.id === t.id))
-      .map((t) => (TEST_DIFFICULTIES.includes(t.difficulty) ? t : { ...t, difficulty: 'Senior' as const }));
+      .map((t) => (TEST_DIFFICULTIES.includes(t.difficulty) ? t : { ...t, difficulty: t.difficulty === 'Beginner' ? ('Junior' as const) : ('Senior' as const) }));
 
     // Saved jobs keep their changes; listing details added in code since are filled in from the seed,
     // and anything the job board filters need is filled in for jobs created before the form asked for it.

@@ -249,7 +249,8 @@ export const madeWithAI = (test: AssessmentTest) =>
 export const timerOf = (test: { timeLimit?: number | 'none'; estimatedMinutes: number }): number | null =>
   test.timeLimit === 'none' ? null : test.timeLimit ?? test.estimatedMinutes;
 
-export const TEST_DIFFICULTIES: TestDifficulty[] = ['Beginner', 'Junior', 'Professional', 'Senior'];
+// The levels tests come in. Beginner is no longer offered; tests saved at it are treated as Junior
+export const TEST_DIFFICULTIES: TestDifficulty[] = ['Junior', 'Professional', 'Senior'];
 
 export interface AssessmentTest {
   id: string;

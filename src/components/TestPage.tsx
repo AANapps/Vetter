@@ -196,7 +196,7 @@ export const TestPage: React.FC<TestPageProps> = ({
         <div className="bg-white border border-slate-200 rounded-xl p-6 space-y-4 shadow-xs">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="text-base font-bold text-slate-900">What it covers</h2>
-            <p className="text-xs text-slate-500">{TIER_BLURB[test.difficulty]}. Pass a level and you've shown every level below it.</p>
+            <p className="text-xs text-slate-500">{TIER_BLURB[test.difficulty]}. Every level mixes multiple choice, drag and drop, select-all, written answers and hands-on work.</p>
           </div>
           <div className="overflow-x-auto -mx-2">
             <table className="w-full text-xs min-w-[520px]">
