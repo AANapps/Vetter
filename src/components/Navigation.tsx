@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Pic } from './Pic';
 import { UserRole } from '../types';
 import { ArrowLeftRight,
-  LogOut, Bell, Briefcase, ChevronDown, ClipboardCheck, House, Repeat, Search, Users } from 'lucide-react';
+  BookOpen, LogOut, Bell, Briefcase, ChevronDown, ClipboardCheck, House, Repeat, Search, Users } from 'lucide-react';
 
 export type AppTab =
   | 'home'
@@ -16,7 +16,8 @@ export type AppTab =
   | 'business-jobs'
   | 'business-tests'
   | 'business-candidates'
-  | 'for-business';
+  | 'for-business'
+  | 'guides';
 
 type TabIcon = React.ComponentType<{ className?: string }>;
 
@@ -258,6 +259,17 @@ export const Navigation: React.FC<NavigationProps> = ({
                     View profile
                   </button>
                 )}
+                <button
+                  role="menuitem"
+                  onClick={() => {
+                    onTabChange('guides');
+                    setIsMeOpen(false);
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-1.5 text-xs font-semibold text-slate-700 bg-white rounded-full"
+                >
+                  <BookOpen className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>How-to guides</span>
+                </button>
                 {accounts?.email && <div className="text-[11px] text-slate-500 truncate -mt-1">{accounts.email}</div>}
                 {/* The demo's views, and with accounts the Vetter team's */}
                 {(!accounts || accounts.canSwitchViews) && VIEWS.filter((v) => v.role !== activeRole).map((v) => (
@@ -320,6 +332,7 @@ const VisitorHeader: React.FC<{ currentTab: AppTab; onTabChange: (tab: AppTab) =
     { id: 'jobs', label: 'Jobs' },
     { id: 'learn', label: 'Career switch' },
     { id: 'for-business', label: 'For business' },
+    { id: 'guides', label: 'Guides' },
   ];
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200">

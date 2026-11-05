@@ -3,6 +3,7 @@ import path from 'path';
 import { Plugin, runnerImport } from 'vite';
 import type { Business, JobPosting } from './src/types';
 import type * as JobSeo from './src/lib/jobSeo';
+import type * as Guides from './src/data/guides';
 
 /**
  * After a build, writes a real HTML page for every job (dist/jobs/<slug>/index.html) and a jobs index,
@@ -150,6 +151,53 @@ export function seoPages(siteUrl: string, firebase?: { projectId: string; apiKey
         })
       );
 
+      // How-to guides: a static page each, with HowTo data so search engines can show the steps
+      const { GUIDES, GUIDE_AUDIENCES, guidePath } = await load<typeof Guides>('src/data/guides.ts');
+      for (const g of GUIDES) {
+        await write(
+          `guides/${g.slug}/index.html`,
+          page({
+            path: guidePath(g),
+            title: `${g.title} | Vetter Guides`,
+            description: g.summary,
+            head:
+              `${seo.jsonLdScript({
+                '@context': 'https://schema.org',
+                '@type': 'HowTo',
+                name: g.title,
+                description: g.summary,
+                totalTime: `PT${g.minutes}M`,
+                step: g.steps.map((st, i) => ({ '@type': 'HowToStep', position: i + 1, name: st.title, text: st.text })),
+              })}\n` + `${crumbs([{ name: 'Guides', path: '/guides/' }, { name: g.title, path: guidePath(g) }])}\n`,
+            body:
+              `<nav><a href="/">Vetter</a> &rsaquo; <a href="/guides/">Guides</a></nav><main><article>` +
+              `<h1>${esc(g.title)}</h1><p>${esc(g.summary)}</p><ol>` +
+              g.steps.map((st) => `<li><strong>${esc(st.title)}.</strong> ${esc(st.text)}</li>`).join('') +
+              `</ol>${g.tips ? `<h2>Tips</h2><ul>${g.tips.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}</article></main>`,
+          })
+        );
+      }
+      await write(
+        'guides/index.html',
+        page({
+          path: '/guides/',
+          title: 'How-to guides | Vetter',
+          description: 'Step-by-step guides to hiring on skills with Vetter: build tests, invite candidates, read results and anti-cheat, and take tests as a candidate.',
+          head: crumbs([{ name: 'Guides', path: '/guides/' }]),
+          body:
+            `<nav><a href="/">Vetter</a> &rsaquo; Guides</nav><main><h1>How to use Vetter</h1>` +
+            GUIDE_AUDIENCES.map(
+              (a) =>
+                `<h2>${esc(a.label)}</h2><ul>` +
+                GUIDES.filter((g) => g.audience === a.id)
+                  .map((g) => `<li><a href="${guidePath(g)}">${esc(g.title)}</a>: ${esc(g.summary)}</li>`)
+                  .join('') +
+                `</ul>`
+            ).join('') +
+            `</main>`,
+        })
+      );
+
       // The home page names itself and the site for search engines
       await write(
         'index.html',
@@ -165,6 +213,8 @@ export function seoPages(siteUrl: string, firebase?: { projectId: string; apiKey
         { loc: '/', lastmod: undefined as string | undefined },
         { loc: '/jobs/', lastmod: listable.map((j) => j.postedDate).sort().at(-1) },
         ...listable.map((j) => ({ loc: seo.jobPath(j), lastmod: j.postedDate })),
+        { loc: '/guides/', lastmod: undefined },
+        ...GUIDES.map((g) => ({ loc: guidePath(g), lastmod: undefined })),
       ];
       await write(
         'sitemap.xml',
@@ -184,7 +234,9 @@ export function seoPages(siteUrl: string, firebase?: { projectId: string; apiKey
           listable
             .map((j) => `- [${j.title} at ${j.companyName}](${siteUrl}${seo.jobPath(j)}): ${j.location}, ${j.workType}, ${j.employmentType ?? ''}, ${j.salaryRange}. ${j.description}`)
             .join('\n') +
-          `\n\n## Pages\n\n- [All jobs](${siteUrl}/jobs/)\n- [Sitemap](${siteUrl}/sitemap.xml)\n`
+          `\n\n## Guides\n\n` +
+          GUIDES.map((g) => `- [${g.title}](${siteUrl}${guidePath(g)}): ${g.summary}`).join('\n') +
+          `\n\n## Pages\n\n- [All jobs](${siteUrl}/jobs/)\n- [All guides](${siteUrl}/guides/)\n- [Sitemap](${siteUrl}/sitemap.xml)\n`
       );
     },
   };

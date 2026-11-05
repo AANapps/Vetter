@@ -48,6 +48,8 @@ import { BusinessLanding } from './components/BusinessLanding';
 import { VisitorHome } from './components/VisitorHome';
 import { isJobsIndexPath, jobIdFromPath, jobPageTitle, jobPath } from './lib/jobSeo';
 import { LearnPage } from './components/LearnPage';
+import { GuidesPage } from './components/GuidesPage';
+import { guideBySlug, guideSlugFromPath, isGuidesPath } from './data/guides';
 import { CoursePage } from './components/CoursePage';
 import { COURSES, courseIdFromPath, coursePath, isLearnIndexPath, isUpskillIndexPath } from './data/courses';
 import { useCourseProgress } from './lib/courseProgress';
@@ -135,6 +137,7 @@ const TAB_PATHS: Record<AppTab, string> = {
   'business-tests': '/business/tests/',
   'business-candidates': '/business/candidates/',
   'for-business': '/#/business',
+  guides: '/guides/',
 };
 
 // A company's own job, at /business/jobs/<id>/
@@ -145,8 +148,8 @@ const businessJobIdFromPath = () => {
 
 // The pages each side has; companies is on both
 const SIDE_TABS: Record<'candidate' | 'staff', AppTab[]> = {
-  candidate: ['home', 'tests', 'jobs', 'learn', 'upskill', 'profile', 'companies', 'for-business'],
-  staff: ['business-home', 'business-jobs', 'business-tests', 'business-candidates', 'companies'],
+  candidate: ['home', 'tests', 'jobs', 'learn', 'upskill', 'profile', 'companies', 'for-business', 'guides'],
+  staff: ['business-home', 'business-jobs', 'business-tests', 'business-candidates', 'companies', 'guides'],
 };
 const sideOf = (role: UserRole) => (role === 'candidate' ? 'candidate' : 'staff');
 
@@ -159,6 +162,7 @@ const tabFromUrl = (role: UserRole, current?: AppTab): AppTab => {
   if (courseIdFromPath(pathname)) return current === 'upskill' ? 'upskill' : 'learn';
   if (isLearnIndexPath(pathname)) return 'learn';
   if (isUpskillIndexPath(pathname)) return 'upskill';
+  if (isGuidesPath(pathname)) return 'guides';
   if (businessJobIdFromPath()) return 'business-jobs';
   const path = pathname.endsWith('/') ? pathname : `${pathname}/`;
   return (Object.entries(TAB_PATHS).find(([, p]) => p === path)?.[0] as AppTab | undefined) ?? 'home';
@@ -314,7 +318,10 @@ export default function App() {
   const [selectedJobId, setSelectedJobId] = useState<string | null>(businessJobIdFromPath);
   // Each course has its own page at /learn/<id>/
   const [coursePageId, setCoursePageId] = useState<string | null>(() => courseIdFromPath(window.location.pathname));
+  // Each guide has its own page at /guides/<slug>/
+  const [guideSlug, setGuideSlug] = useState<string | null>(() => guideSlugFromPath(window.location.pathname));
   const syncPagesFromUrl = () => {
+    setGuideSlug(guideSlugFromPath(window.location.pathname));
     setTestPageId(idFromHash('tests'));
     setJobPageId(jobIdFromUrl());
     setCoursePageId(courseIdFromPath(window.location.pathname));
@@ -340,7 +347,7 @@ export default function App() {
   // A new page starts at the top, however it was reached: a link, a tab, back or forward
   useLayoutEffect(() => {
     window.scrollTo(0, 0);
-  }, [currentTab, testPageId, jobPageId, coursePageId, selectedJobId]);
+  }, [currentTab, testPageId, jobPageId, coursePageId, selectedJobId, guideSlug]);
   useEffect(() => {
     window.addEventListener('hashchange', syncPagesFromUrl);
     window.addEventListener('popstate', syncPagesFromUrl);
@@ -354,9 +361,18 @@ export default function App() {
   useEffect(() => {
     const job = jobPageId ? jobs.find((j) => j.id === jobPageId) : undefined;
     const course = COURSES.find((c) => c.id === coursePageId);
-    document.title = job ? jobPageTitle(job) : course ? `${course.title} | Vetter Learn` : SITE_TITLE;
+    const guide = guideBySlug(guideSlug);
+    document.title = job
+      ? jobPageTitle(job)
+      : course
+        ? `${course.title} | Vetter Learn`
+        : guide
+          ? `${guide.title} | Vetter Guides`
+          : currentTab === 'guides'
+            ? 'How-to guides | Vetter'
+            : SITE_TITLE;
     if (job && /^#\/(jobs|exams)\//.test(window.location.hash)) history.replaceState(null, '', jobPath(job));
-  }, [jobPageId, coursePageId, jobs]);
+  }, [jobPageId, coursePageId, guideSlug, currentTab, jobs]);
 
   // Following a company's link to a test ties the candidate's results on it back to that company
   useEffect(() => {
@@ -1113,7 +1129,13 @@ export default function App() {
               track={currentTab === 'upskill' ? 'upskill' : 'switch'}
               progress={courseProgress.progress} onOpenCourse={openCoursePage} onTrainTeam={trainTeam} />
           )}
-          {currentTab === 'for-business' && <BusinessLanding onJoin={(reason) => setAuthDialog({ mode: 'sign-up', role: 'recruiter', reason })} />}
+          {currentTab === 'for-business' && (
+            <BusinessLanding
+              onJoin={(reason) => setAuthDialog({ mode: 'sign-up', role: 'recruiter', reason })}
+              onOpenGuide={(slug) => navigateTo(slug ? `/guides/${slug}/` : '/guides/')}
+            />
+          )}
+          {currentTab === 'guides' && <GuidesPage slug={guideSlug} onOpen={(slug) => navigateTo(slug ? `/guides/${slug}/` : '/guides/')} />}
           {testPageTest && (
             <TestPage
               test={testPageTest}
