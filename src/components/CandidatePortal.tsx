@@ -962,7 +962,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
               <p className="text-xs text-slate-500">{group.blurb}</p>
             </div>
           )}
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {group.tests.map((main) => {
               const versions = levelsOf(main, tests);
               // The level shown: the one picked on this card, else the first matching the difficulty filter
@@ -974,8 +974,8 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
               const stats = getTestStats(t, allCandidates);
 
               return (
-                // Short card: the title, the level, then one row of symbols (each named on hover and to screen readers)
-                // and a play button; the description, skills and the rest are on the test's own page
+                // Short card: the title and a two-line description, then one row of symbols (each named on hover and to
+                // screen readers) with the level switch beside the play button; skills and the rest are on the test's page
                 <div
                   key={main.id}
                   className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col gap-3 hover:border-indigo-300 transition-colors"
@@ -989,19 +989,10 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                         {t.title}
                       </button>
                     </h3>
+                    <p className="mt-1 text-xs text-slate-600 leading-relaxed line-clamp-2">{t.description}</p>
                   </div>
 
-                  {versions.length > 1 && (
-                    <LevelPicker
-                      versions={versions}
-                      selectedId={t.id}
-                      onSelect={(id) => setCardLevels((prev) => ({ ...prev, [main.id]: id }))}
-                      bestScores={Object.fromEntries(versions.map((v) => [v.id, getBestTestScore(candidate, v.id)]))}
-                      compact
-                    />
-                  )}
-
-                  <div className="mt-auto flex items-center gap-3 text-xs text-slate-500 tabular-nums">
+                  <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-slate-500 tabular-nums">
                     {(
                       [
                         { Icon: Clock, value: `${t.estimatedMinutes}m`, label: `About ${t.estimatedMinutes} minutes` },
@@ -1017,14 +1008,26 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                         <span className={Icon === Trophy ? 'font-semibold text-slate-900' : ''}>{value}</span>
                       </span>
                     ))}
+                    {/* The level sits by the play button: pick it, then start */}
+                    <div className="ml-auto flex items-center gap-2">
+                    {versions.length > 1 && (
+                      <LevelPicker
+                        versions={versions}
+                        selectedId={t.id}
+                        onSelect={(id) => setCardLevels((prev) => ({ ...prev, [main.id]: id }))}
+                        bestScores={Object.fromEntries(versions.map((v) => [v.id, getBestTestScore(candidate, v.id)]))}
+                        compact
+                      />
+                    )}
                     <button
                       onClick={() => onStartTest(t)}
                       title={bestScore !== undefined ? 'Retake' : 'Start test'}
                       aria-label={`${bestScore !== undefined ? 'Retake' : 'Start'} ${t.title}`}
-                      className="ml-auto w-8 h-8 shrink-0 rounded-full bg-indigo-600 text-white flex items-center justify-center hover:bg-indigo-700"
+                      className="w-8 h-8 shrink-0 rounded-full bg-indigo-600 text-white flex items-center justify-center hover:bg-indigo-700"
                     >
                       <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
                     </button>
+                    </div>
                   </div>
                 </div>
               );
