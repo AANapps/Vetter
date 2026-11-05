@@ -113,7 +113,7 @@ export const VisitorHome: React.FC<VisitorHomeProps> = ({ audience, onAudienceCh
       <ScrollProgress />
       <div className="relative isolate">
         <div className="ai-grid" />
-        <div className="ai-aurora">
+        <div className="ai-aurora ai-aurora-still">
           <span />
           <span />
           <span />
@@ -262,7 +262,7 @@ export const VisitorHome: React.FC<VisitorHomeProps> = ({ audience, onAudienceCh
         <Reveal>
           <div className="relative isolate overflow-hidden rounded-[2rem] bg-slate-950 px-6 py-20 sm:px-12 text-center text-white">
             <div className="ai-grid ai-grid-dark" />
-            <div className="ai-aurora">
+            <div className="ai-aurora ai-aurora-still">
               <span />
               <span />
               <span />

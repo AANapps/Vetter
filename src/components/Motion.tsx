@@ -7,7 +7,7 @@ import { motion, useInView, useReducedMotion, useScroll, useSpring, useTransform
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
-// Rises, fades and un-blurs into place the first time it scrolls into view
+// Rises and fades into place the first time it scrolls into view
 export const Reveal: React.FC<{
   children: React.ReactNode;
   delay?: number;
@@ -20,8 +20,8 @@ export const Reveal: React.FC<{
   return (
     <Tag
       className={className}
-      initial={reduce ? false : { opacity: 0, y, filter: 'blur(6px)' }}
-      whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+      initial={reduce ? false : { opacity: 0, y }}
+      whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '0px 0px -12% 0px' }}
       transition={{ duration: 0.8, ease: EASE, delay }}
     >
@@ -81,7 +81,7 @@ export const useParallax = (distance = 80): { ref: React.RefObject<HTMLDivElemen
   return { ref, y };
 };
 
-// Types out a list of strings in turn once the element is on screen, then holds; restarts when `run` changes
+// Types out the text while `active`, then holds it; clears when it stops being active
 export const useTypewriter = (text: string, active: boolean, speed = 18): string => {
   const reduce = useReducedMotion();
   const [shown, setShown] = useState(reduce ? text : '');

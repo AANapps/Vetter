@@ -1,5 +1,5 @@
-import React from 'react';
-import { AnimatePresence, motion } from 'motion/react';
+import React, { useRef } from 'react';
+import { AnimatePresence, motion, useInView } from 'motion/react';
 import { Check, FileText, Sparkles } from 'lucide-react';
 import { useStages, useTypewriter } from './Motion';
 
@@ -13,7 +13,7 @@ const ExampleTag = () => <span className="text-[10px] font-medium uppercase trac
 const PanelTop: React.FC<{ title: string; busy?: boolean }> = ({ title, busy }) => (
   <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-900/[0.06]">
     <div className="flex items-center gap-2.5">
-      <span className={`w-6 h-6 rounded-lg ai-mark ${busy ? '' : 'opacity-90'}`} />
+      <span className={`w-6 h-6 rounded-lg ${busy ? 'ai-mark' : 'ai-mark-still'}`} />
       <span className="text-[13px] font-semibold text-slate-900">{title}</span>
     </div>
     <ExampleTag />
@@ -33,7 +33,7 @@ const PLAN = [
 // For companies: a job description goes in, a plan of skills and a finished test come out
 export const AiTestWriterDemo: React.FC = () => {
   const { ref, stage } = useStages([3400, 1500, 2600, 3600]);
-  const typed = useTypewriter(JD, stage === 0, 16);
+  const typed = useTypewriter(JD, stage === 0, 28);
   const jd = stage === 0 ? typed : JD;
   return (
     <div ref={ref} className="ai-panel overflow-hidden text-left">
@@ -116,7 +116,7 @@ const ANSWER =
 // For candidates: a written answer goes in, and the AI marks it with partial credit and a line of feedback
 export const AiMarkingDemo: React.FC = () => {
   const { ref, stage } = useStages([4200, 1300, 4200]);
-  const typed = useTypewriter(ANSWER, stage === 0, 20);
+  const typed = useTypewriter(ANSWER, stage === 0, 30);
   return (
     <div ref={ref} className="ai-panel overflow-hidden text-left">
       <PanelTop title="Vetter AI · Marking" busy={stage === 1} />
@@ -187,9 +187,13 @@ const SKILLS = [
   'Consulting cases',
   'Written communication',
 ];
-export const SkillsMarquee: React.FC = () => (
-  <div className="ai-marquee-mask overflow-hidden" aria-hidden="true">
-    <div className="ai-marquee">
+// It only moves while it's on screen
+export const SkillsMarquee: React.FC = () => {
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref);
+  return (
+  <div ref={ref} className="ai-marquee-mask overflow-hidden" aria-hidden="true">
+    <div className="ai-marquee" data-paused={!inView}>
       {[...SKILLS, ...SKILLS].map((s, i) => (
         <span key={i} className="mx-2 shrink-0 rounded-full border border-slate-200 bg-white px-4 py-1.5 text-[13px] font-medium text-slate-600">
           {s}
@@ -197,4 +201,5 @@ export const SkillsMarquee: React.FC = () => (
       ))}
     </div>
   </div>
-);
+  );
+};
