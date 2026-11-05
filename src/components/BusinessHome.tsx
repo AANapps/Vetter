@@ -3,6 +3,9 @@ import { PixelDot } from './PixelDot';
 import { ArrowRight, ArrowUp, Briefcase, Check, ClipboardCheck, Eye, Lock, MessageSquarePlus, Pencil, Plus, Sparkles, Users, Wand2, X } from 'lucide-react';
 import { AssessmentTest, Business, JobPosting } from '../types';
 import { AdvisorTurn, CUSTOM_KIND_LABELS, CustomIdea, askAdvisor } from '../lib/testAdvisor';
+import { Credit, loadCredit } from '../lib/aiRequest';
+import { CreditMeter } from './CreditMeter';
+import { CreditsDialog } from './CreditsDialog';
 
 interface BusinessHomeProps {
   business?: Business;
@@ -68,6 +71,12 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
     const t = tests.find((x) => x.id === id);
     return t ? [t] : [];
   });
+  // The company's AI credit, for the tests this chat goes on to write; nothing shows when the site doesn't charge
+  const [credit, setCredit] = useState<Credit | null>(null);
+  const [topUpOpen, setTopUpOpen] = useState(false);
+  useEffect(() => {
+    if (aiAllowed) loadCredit().then((c) => !c.error && setCredit(c));
+  }, [aiAllowed, turns.length]);
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -99,6 +108,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
     // A chat like ChatGPT's or Claude's: exactly the window under the top bar, so the page itself never scrolls; only
     // the conversation does, and the message box stays at the bottom
     <div className="relative isolate h-[calc(100dvh-3.5rem-1px-3.5rem)] md:h-[calc(100dvh-3.5rem-1px)] overflow-hidden">
+      {topUpOpen && credit && <CreditsDialog credit={credit} onUpdated={setCredit} onClose={() => setTopUpOpen(false)} />}
       {/* Faint colour drifting behind the glass */}
       <div className="ai-aurora" aria-hidden="true">
         <span />
@@ -187,6 +197,11 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
           }}
           className="shrink-0 pb-3 pt-2"
         >
+          {credit?.billing && credit.balance !== undefined && (
+            <div className="mb-2">
+              <CreditMeter credit={credit} onTopUp={() => setTopUpOpen(true)} refresh={turns.length} />
+            </div>
+          )}
           {pickedTests.length > 0 && (
             <div className="mb-3 p-3 bg-white border border-indigo-200 rounded-2xl shadow-md shadow-indigo-100/60 flex flex-col sm:flex-row sm:items-center gap-3">
               <div className="min-w-0 flex-1">

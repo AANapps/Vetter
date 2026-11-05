@@ -8,6 +8,7 @@ import { ChatState, sendChat } from '../lib/testChat';
 import { versionTitle } from '../lib/testLevels';
 import { Credit, estimateTest, loadCredit, pounds, setAiPurpose } from '../lib/aiRequest';
 import { CreditsDialog } from './CreditsDialog';
+import { CreditMeter } from './CreditMeter';
 
 interface TestGeneratorProps {
   // The job the tests are for; without one, Vetter only writes a test
@@ -330,19 +331,6 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                 Save test
               </button>
             )}
-            {credit?.billing && credit.balance !== undefined && (
-              <button
-                onClick={() => setTopUpOpen(true)}
-                title="Your AI credit and what you've used: top up any time"
-                className={`px-3 py-1 rounded-full border text-sm flex items-center gap-1.5 ${
-                  credit.balance < 100 ? 'border-slate-300 bg-indigo-50 text-slate-800 hover:border-indigo-400' : 'border-slate-200 text-slate-700 hover:border-indigo-400'
-                }`}
-              >
-                <span className="text-slate-500">Credit</span>
-                <span className="font-semibold tabular-nums">{pounds(credit.balance)}</span>
-                <span className="text-indigo-700 font-semibold">Top up</span>
-              </button>
-            )}
             <button onClick={close} disabled={working} aria-label="Close" className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-40">
               <X className="w-5 h-5" />
             </button>
@@ -486,26 +474,24 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
 
             {/* The message box, held at the bottom while the conversation scrolls above it */}
             <div className="shrink-0 px-4 pb-4 pt-2 border-t border-slate-100 bg-white">
-              {credit?.billing && !working && !draft && (
-                <p className="pb-2 text-sm text-slate-500">
-                  {(() => {
-                    // Unpicked, a typical test of about 15 questions with any kind of task
-                    const [fewest, most] = [questionCount ?? 15, questionCount ?? 15];
-                    const handsOn = allowed.some((t) => t === 'sheet' || t === 'database' || t === 'app' || t === 'code');
-                    const low = estimateTest(fewest, handsOn, allowed.includes('app')).low;
-                    const high = estimateTest(most, handsOn, allowed.includes('app')).high;
-                    const short = (credit.balance ?? 0) < high;
-                    return (
-                      <>
-                        Estimated cost to write it: about <span className="font-semibold text-slate-700">{pounds(low)} to {pounds(high)}</span>
-                        {short && <span className="text-slate-800"> · you have {pounds(credit.balance ?? 0)}, so it may stop part way: top up first</span>}
-                      </>
-                    );
-                  })()}
-                </p>
-              )}
-              {credit?.billing && !working && draft && !started && (
-                <p className="pb-2 text-sm text-slate-500">Each change costs a few pence; changing or adding an interactive task about 30p to 80p.</p>
+              {credit?.billing && credit.balance !== undefined && (
+                <div className="pb-2">
+                  <CreditMeter
+                    credit={credit}
+                    onTopUp={() => setTopUpOpen(true)}
+                    refresh={chat.messages.length}
+                    estimate={
+                      !draft
+                        ? (() => {
+                            // Unpicked, a typical test of about 15 questions with any kind of task
+                            const count = questionCount ?? 15;
+                            const handsOn = allowed.some((t) => t === 'sheet' || t === 'database' || t === 'app' || t === 'code');
+                            return estimateTest(count, handsOn, allowed.includes('app'));
+                          })()
+                        : undefined
+                    }
+                  />
+                </div>
               )}
               {suggestions.length > 0 && !working && (
                 <div className="flex gap-1.5 overflow-x-auto pb-2 -mx-1 px-1">
