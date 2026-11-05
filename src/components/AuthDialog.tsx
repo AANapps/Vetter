@@ -229,7 +229,7 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ initialMode, reason, ini
                 </label>
                 <input id="auth-website" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="yourcompany.com" autoComplete="url" className={inputClass} />
                 {siteMismatch && (
-                  <p className="text-[11px] text-amber-800 mt-1">Your email domain doesn't match this website. Check both; it helps candidates trust your jobs.</p>
+                  <p className="text-[11px] text-slate-800 mt-1">Your email domain doesn't match this website. Check both; it helps candidates trust your jobs.</p>
                 )}
               </div>
               {freeEmail && (
@@ -244,7 +244,7 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ initialMode, reason, ini
           )}
 
           {error && (
-            <p className="text-xs font-semibold text-rose-700 flex items-start gap-1.5">
+            <p className="text-xs font-semibold text-slate-800 flex items-start gap-1.5">
               <AlertCircle className="w-4 h-4 shrink-0" />
               {error}
             </p>

@@ -182,8 +182,8 @@ export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, dra
       </div>
 
       {showProblems && problemCount > 0 && (
-        <div className="px-4 sm:px-6 py-2.5 bg-amber-50 border-b border-amber-200 text-xs text-amber-900 flex items-start gap-2">
-          <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-px" />
+        <div className="px-4 sm:px-6 py-2.5 bg-indigo-50 border-b border-slate-200 text-xs text-slate-800 flex items-start gap-2">
+          <AlertCircle className="w-4 h-4 text-indigo-600 shrink-0 mt-px" />
           <div className="flex-1">
             <span className="font-semibold">Before saving: </span>
             {[
@@ -191,7 +191,7 @@ export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, dra
               ...problemsByQuestion.flatMap((p, i) => (p.length ? [`Question ${i + 1}: ${p.join(', ').toLowerCase()}`] : [])),
             ].join(' · ')}
           </div>
-          <button onClick={() => setShowProblems(false)} aria-label="Dismiss" className="text-amber-700">
+          <button onClick={() => setShowProblems(false)} aria-label="Dismiss" className="text-slate-800">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -373,7 +373,7 @@ export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, dra
                   </button>
                 </div>
                 {problemsByQuestion[selected].length > 0 && (
-                  <p className="text-[11px] text-amber-800 bg-amber-50 rounded-lg px-3 py-2">To finish: {problemsByQuestion[selected].join(' · ')}</p>
+                  <p className="text-[11px] text-slate-800 bg-indigo-50 rounded-lg px-3 py-2">To finish: {problemsByQuestion[selected].join(' · ')}</p>
                 )}
                 {/* A question can be about one of the test's hands-on tasks, and is then asked beside its window */}
                 {isAnswerType(questions[selected].type) && questions.some((q) => isGroupType(q.type)) && (

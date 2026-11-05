@@ -67,11 +67,11 @@ export const GuidesPage: React.FC<GuidesPageProps> = ({ slug, onOpen }) => {
       </ol>
 
       {guide.tips && (
-        <aside className="mt-10 rounded-2xl bg-amber-50 border border-amber-200 p-5">
-          <h2 className="flex items-center gap-2 font-bold text-amber-900">
+        <aside className="mt-10 rounded-2xl bg-indigo-50 border border-slate-200 p-5">
+          <h2 className="flex items-center gap-2 font-bold text-slate-800">
             <Lightbulb className="w-4 h-4" /> Tips
           </h2>
-          <ul className="mt-2 space-y-1.5 text-sm text-amber-900 list-disc pl-5">
+          <ul className="mt-2 space-y-1.5 text-sm text-slate-800 list-disc pl-5">
             {guide.tips.map((t) => (
               <li key={t}>{t}</li>
             ))}

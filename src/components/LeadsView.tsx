@@ -267,7 +267,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({ rows, jobs, fixedJob, onUp
       </div>
       {(r.lead?.tags?.length || r.archiveReason) && (
         <div className="flex flex-wrap gap-1">
-          {r.archiveReason && <span className="px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 text-[10px] font-medium">{r.autoRejected ? 'Suspected cheating · set aside automatically' : r.archiveReason}</span>}
+          {r.archiveReason && <span className="px-1.5 py-0.5 rounded bg-indigo-50 text-slate-800 text-[10px] font-medium">{r.autoRejected ? 'Suspected cheating · set aside automatically' : r.archiveReason}</span>}
           {r.lead?.tags?.map((t) => (
             <span key={t} className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-medium">
               {t}
@@ -707,7 +707,7 @@ const LeadPanel: React.FC<{
             </div>
             <div className="mt-1.5 flex flex-wrap items-center gap-2">
               <IntegrityBadge sittings={row.integrity} size="md" />
-              {row.autoRejected && <span className="text-[11px] text-rose-700">Rejected automatically for suspected cheating. The candidate isn’t told.</span>}
+              {row.autoRejected && <span className="text-[11px] text-slate-800">Rejected automatically for suspected cheating. The candidate isn’t told.</span>}
             </div>
           </div>
           <button onClick={onClose} aria-label="Close" className="p-1 text-slate-400 hover:text-slate-900">
@@ -840,7 +840,7 @@ const LeadPanel: React.FC<{
           </Field>
 
           {row.stage !== 'archived' && (
-            <button onClick={() => onChange({ stage: 'archived', archiveReason: 'Not a fit' })} className="w-full py-2 rounded-lg border border-rose-200 text-sm font-semibold text-rose-700 hover:bg-rose-50 inline-flex items-center justify-center gap-1.5">
+            <button onClick={() => onChange({ stage: 'archived', archiveReason: 'Not a fit' })} className="w-full py-2 rounded-lg border border-slate-200 text-sm font-semibold text-slate-800 hover:bg-slate-100 inline-flex items-center justify-center gap-1.5">
               <Archive className="w-4 h-4" /> Archive
             </button>
           )}

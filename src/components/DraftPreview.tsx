@@ -182,7 +182,7 @@ export const DraftPreview: React.FC<DraftPreviewProps> = ({ test, onChange, lock
                               {q.type === 'app' && q.contextData ? ` · ${q.contextData}` : ''} · {q.timeLimitMinutes} min{q.type === 'case' ? ' to read' : ` · ${Math.round((q.weight / totalPoints) * 100)}%`}
                             </span>
                           </span>
-                          {problems && <AlertCircle className="w-3.5 h-3.5 mt-0.5 text-amber-600 shrink-0" aria-label="Needs finishing" />}
+                          {problems && <AlertCircle className="w-3.5 h-3.5 mt-0.5 text-indigo-600 shrink-0" aria-label="Needs finishing" />}
                         </button>
                       );
                     })}
@@ -230,7 +230,7 @@ export const DraftPreview: React.FC<DraftPreviewProps> = ({ test, onChange, lock
       </div>
 
       {broken > 0 && (
-        <div className="px-4 py-1.5 bg-amber-50 border-b border-amber-200 text-[11px] text-amber-900 flex items-center gap-1.5">
+        <div className="px-4 py-1.5 bg-indigo-50 border-b border-slate-200 text-[11px] text-slate-800 flex items-center gap-1.5">
           <AlertCircle className="w-3.5 h-3.5 shrink-0" />
           {broken} {broken === 1 ? 'question needs' : 'questions need'} finishing before the test can be saved. Find {broken === 1 ? 'it' : 'them'} under Structure.
         </div>
@@ -262,7 +262,7 @@ export const DraftPreview: React.FC<DraftPreviewProps> = ({ test, onChange, lock
                   </button>
                 </div>
                 {questionProblems(q).length > 0 && (
-                  <p className="text-[11px] text-amber-700 flex items-start gap-1">
+                  <p className="text-[11px] text-slate-800 flex items-start gap-1">
                     <AlertCircle className="w-3 h-3 mt-0.5 shrink-0" />
                     {questionProblems(q).join(' · ')}
                   </p>

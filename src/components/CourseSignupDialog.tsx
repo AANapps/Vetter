@@ -72,23 +72,23 @@ export const CourseSignupDialog: React.FC<{ course: Course; candidate?: User; ui
             <label className="block text-sm font-medium text-slate-700">
               Name
               <input value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" maxLength={100} className={`${field} ${border(problems.name)}`} />
-              {tried && problems.name && <span className="mt-1 block text-xs text-rose-600">{problems.name}</span>}
+              {tried && problems.name && <span className="mt-1 block text-xs text-slate-800">{problems.name}</span>}
             </label>
             <label className="block text-sm font-medium text-slate-700">
               Email
               <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" maxLength={200} className={`${field} ${border(problems.email)}`} />
-              {tried && problems.email && <span className="mt-1 block text-xs text-rose-600">{problems.email}</span>}
+              {tried && problems.email && <span className="mt-1 block text-xs text-slate-800">{problems.email}</span>}
             </label>
             <label className="block text-sm font-medium text-slate-700">
               Phone
               <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="tel" maxLength={25} placeholder="+44 7700 900123" className={`${field} ${border(problems.phone)}`} />
-              {tried && problems.phone && <span className="mt-1 block text-xs text-rose-600">{problems.phone}</span>}
+              {tried && problems.phone && <span className="mt-1 block text-xs text-slate-800">{problems.phone}</span>}
             </label>
             <label className="block text-sm font-medium text-slate-700">
               Anything we should know? <span className="font-normal text-slate-400">(optional)</span>
               <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} maxLength={1000} className={`${field} border-slate-300 focus:border-indigo-500 resize-none`} />
             </label>
-            {error && <p className="text-xs text-rose-600">{error}</p>}
+            {error && <p className="text-xs text-slate-800">{error}</p>}
             <button type="submit" disabled={sending} className="w-full py-2.5 rounded-full bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:opacity-60">
               {sending ? 'Signing you up…' : 'Sign up'}
             </button>

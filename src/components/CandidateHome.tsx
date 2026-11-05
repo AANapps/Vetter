@@ -243,7 +243,7 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, jobs, t
             Open
           </button>
         </div>
-        {linkError && <p className="text-xs font-semibold text-rose-700">That link doesn't match a job on Vetter. Check it and try again.</p>}
+        {linkError && <p className="text-xs font-semibold text-slate-800">That link doesn't match a job on Vetter. Check it and try again.</p>}
       </form>
 
       {finished.length > 0 && (

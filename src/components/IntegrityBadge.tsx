@@ -55,8 +55,8 @@ export const IntegrityBadge: React.FC<{ sittings: IntegritySitting[]; size?: 'sm
 };
 
 const Metric: React.FC<{ label: string; value: React.ReactNode; warn?: boolean; note?: string }> = ({ label, value, warn, note }) => (
-  <div className={`rounded-lg border px-3 py-2 ${warn ? 'border-amber-300 bg-amber-50/60' : 'border-slate-200 bg-white'}`}>
-    <div className={`text-lg font-bold font-mono tabular-nums ${warn ? 'text-amber-900' : 'text-slate-900'}`}>{value}</div>
+  <div className={`rounded-lg border px-3 py-2 ${warn ? 'border-slate-300 bg-indigo-50' : 'border-slate-200 bg-white'}`}>
+    <div className={`text-lg font-bold font-mono tabular-nums ${warn ? 'text-slate-800' : 'text-slate-900'}`}>{value}</div>
     <div className="text-[11px] text-slate-600 leading-tight">{label}</div>
     {note && <div className="text-[10px] text-slate-400 mt-0.5">{note}</div>}
   </div>

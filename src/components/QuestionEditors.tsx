@@ -480,7 +480,7 @@ const SqlEditor: React.FC<EditorProps> = ({ question: q, onChange }) => {
               </div>
             </div>
           ) : (
-            <p className="mt-2 text-xs font-semibold text-rose-700">{result.errorMessage}</p>
+            <p className="mt-2 text-xs font-semibold text-slate-800">{result.errorMessage}</p>
           ))}
       </div>
     </div>

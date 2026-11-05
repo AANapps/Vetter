@@ -164,14 +164,14 @@ const TestBlock: React.FC<{ item: JobTest }> = ({ item: t }) => {
     ? { text: 'To do', tone: 'bg-indigo-50 text-indigo-700' }
     : passed
     ? { text: 'Passed', tone: 'bg-emerald-50 text-emerald-700' }
-    : { text: 'Below pass mark', tone: 'bg-amber-50 text-amber-700' };
+    : { text: 'Below pass mark', tone: 'bg-indigo-50 text-slate-800' };
 
   return (
     <li className="flex flex-col gap-3 p-4 bg-white border border-slate-200 rounded-xl">
       <div className="flex items-start justify-between gap-2">
         <span
           className={`text-[10px] font-mono uppercase tracking-wider font-semibold ${
-            t.required ? 'text-rose-700' : 'text-slate-500'
+            t.required ? 'text-slate-800' : 'text-slate-500'
           }`}
         >
           {t.label}

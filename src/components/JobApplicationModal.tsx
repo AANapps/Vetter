@@ -143,7 +143,7 @@ export const JobApplicationModal: React.FC<JobApplicationModalProps> = ({
               <div className="space-y-1">
                 <span
                   className={`text-[10px] font-mono uppercase font-semibold px-2 py-0.5 rounded border ${
-                    job.testsRequired ? 'text-rose-700 bg-rose-50 border-rose-200' : 'text-slate-600 bg-slate-50 border-slate-200'
+                    job.testsRequired ? 'text-slate-800 bg-indigo-50 border-slate-200' : 'text-slate-600 bg-slate-50 border-slate-200'
                   }`}
                 >
                   {job.testsRequired ? 'Required to apply' : 'Optional'}
@@ -184,8 +184,8 @@ export const JobApplicationModal: React.FC<JobApplicationModalProps> = ({
                 </div>
               </div>
             ) : progress.status === 'failed' ? (
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2 text-xs text-amber-900">
-                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+              <div className="p-3 bg-indigo-50 border border-slate-200 rounded-lg flex items-center gap-2 text-xs text-slate-800">
+                <AlertTriangle className="w-4 h-4 text-indigo-600 shrink-0" />
                 <div>
                   <span className="font-bold">Below pass mark:</span> you {jobTests.length > 1 ? 'averaged' : 'scored'} {progress.score}/100.{takeable.length > 0 ? ` Retake a test to reach ${passingScore}.` : ' You have no attempts left.'}
                 </div>

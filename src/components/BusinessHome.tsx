@@ -333,7 +333,7 @@ const AdvisorReply: React.FC<{
   <div className="flex gap-3">
     <span className="ai-mark w-7 h-7 shrink-0 rounded-lg text-white text-xs font-pixel flex items-center justify-center"><span>V<PixelDot /></span></span>
     <div className="ai-glass min-w-0 flex-1 space-y-4 p-4 sm:p-5 rounded-2xl rounded-tl-md border border-white/80 shadow-sm">
-      <p className={`text-sm leading-relaxed whitespace-pre-wrap ${turn.error ? 'text-rose-700' : 'text-slate-800'}`}>{turn.text}</p>
+      <p className={`text-sm leading-relaxed whitespace-pre-wrap ${turn.error ? 'text-slate-800' : 'text-slate-800'}`}>{turn.text}</p>
 
       {!!turn.roadmap?.length && (
         <div className="space-y-2">

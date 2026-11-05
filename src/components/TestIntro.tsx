@@ -48,7 +48,7 @@ const referenceFor = (testId: string) => {
 
 // The job's attempt limit, stated plainly: what's allowed, which try this is, and exactly when it starts to count
 const AttemptTerms: React.FC<{ attempt: { number: number; limit?: number }; isLast: boolean }> = ({ attempt, isLast }) => (
-  <div className={`rounded-xl border p-5 space-y-2 ${isLast ? 'border-rose-200 bg-rose-50/60' : 'border-amber-200 bg-amber-50/60'}`}>
+  <div className={`rounded-xl border p-5 space-y-2 ${isLast ? 'border-slate-200 bg-indigo-50' : 'border-slate-200 bg-indigo-50'}`}>
     <Label>Attempts</Label>
     <p className="font-semibold text-slate-900">
       {attempt.limit !== undefined ? (
@@ -396,8 +396,8 @@ export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose, on
 };
 
 export const CheatingWarning: React.FC<{ compact?: boolean }> = ({ compact }) => (
-  <div role="note" className={`flex items-start gap-2.5 border border-rose-300 bg-rose-50 text-rose-900 rounded-xl ${compact ? 'px-3 py-2 text-xs' : 'p-4 text-sm'}`}>
-    <AlertTriangle className={`${compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} text-rose-600 shrink-0 mt-0.5`} />
+  <div role="note" className={`flex items-start gap-2.5 border border-slate-300 bg-indigo-50 text-slate-800 rounded-xl ${compact ? 'px-3 py-2 text-xs' : 'p-4 text-sm'}`}>
+    <AlertTriangle className={`${compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} text-indigo-600 shrink-0 mt-0.5`} />
     <span>
       <strong className="font-semibold">Cheating is detected.</strong> {CHEATING_WARNING}
     </span>

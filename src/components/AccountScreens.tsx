@@ -204,14 +204,14 @@ const FinishGoogleSignUp: React.FC<{ user: FirebaseUser }> = ({ user }) => {
             <input id="g-website" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="yourcompany.com" className={inputClass} />
           </div>
           {free && (
-            <p className="text-[11px] text-amber-800">
+            <p className="text-[11px] text-slate-800">
               {user.email} is a personal address, so Vetter's team will check your company before you can post jobs. To skip that, sign in with your work
               Google account instead.
             </p>
           )}
         </div>
       )}
-      {error && <p className="text-xs font-semibold text-rose-700">{error}</p>}
+      {error && <p className="text-xs font-semibold text-slate-800">{error}</p>}
       <button type="submit" disabled={busy} className="w-full py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 rounded-lg">
         {busy ? 'One moment…' : 'Continue'}
       </button>
@@ -259,7 +259,7 @@ export const TeamRequests: React.FC<{ company: Company }> = ({ company }) => {
             </li>
           ))}
         </ul>
-        {error && <p className="text-xs text-rose-700">{error}</p>}
+        {error && <p className="text-xs text-slate-800">{error}</p>}
       </div>
     </section>
   );
@@ -280,12 +280,12 @@ export const CompanyReview: React.FC = () => {
       .catch((err) => setError(accountError(err)));
   return (
     <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-6">
-      <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl space-y-3">
+      <div className="p-4 bg-indigo-50 border border-slate-200 rounded-xl space-y-3">
         <h2 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
-          <ShieldCheck className="w-4 h-4 text-amber-600" />
+          <ShieldCheck className="w-4 h-4 text-indigo-600" />
           {queue.length === 1 ? '1 company' : `${queue.length} companies`} to check: signed up without a work email
         </h2>
-        <ul className="divide-y divide-amber-200">
+        <ul className="divide-y divide-slate-200">
           {queue.map((c) => (
             <li key={c.id} className="py-2 flex flex-wrap items-center justify-between gap-2 text-sm">
               <span className="min-w-0">
@@ -311,7 +311,7 @@ export const CompanyReview: React.FC = () => {
             </li>
           ))}
         </ul>
-        {error && <p className="text-xs text-rose-700">{error}</p>}
+        {error && <p className="text-xs text-slate-800">{error}</p>}
       </div>
     </section>
   );

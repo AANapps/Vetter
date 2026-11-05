@@ -247,12 +247,12 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
           </div>
 
           {/* The tests this job ranks candidates on */}
-          <fieldset className={`p-3 border rounded-xl space-y-3 ${pickError ? 'border-rose-300 bg-rose-50/40' : 'border-indigo-200 bg-indigo-50/50'}`}>
+          <fieldset className={`p-3 border rounded-xl space-y-3 ${pickError ? 'border-slate-300 bg-indigo-50' : 'border-indigo-200 bg-indigo-50/50'}`}>
             <legend className="px-1 text-xs font-bold text-indigo-900">Tests for this job</legend>
             <p className="text-[11px] text-slate-600 -mt-1">
               Tick the tests that matter for the role. Candidates are ranked on their scores in them.
             </p>
-            {pickError && <p className="text-[11px] font-semibold text-rose-700">Pick at least one test.</p>}
+            {pickError && <p className="text-[11px] font-semibold text-slate-800">Pick at least one test.</p>}
 
             {[
               { label: businesses.length === 1 ? 'Your tests' : `${business?.name}'s tests`, list: companyTests },

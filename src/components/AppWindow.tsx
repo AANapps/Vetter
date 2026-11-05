@@ -57,7 +57,7 @@ export const AppWindow: React.FC<AppWindowProps> = ({ value, onChange, html, app
         </button>
       </div>
       {error && (
-        <div className="px-3 py-1.5 bg-amber-50 border-b border-amber-200 text-[11px] text-amber-900 flex items-center gap-1.5">
+        <div className="px-3 py-1.5 bg-indigo-50 border-b border-slate-200 text-[11px] text-slate-800 flex items-center gap-1.5">
           <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
           <span className="truncate">Part of the app stopped working ({error}). Your saved work is kept; Reset starts it again.</span>
         </div>

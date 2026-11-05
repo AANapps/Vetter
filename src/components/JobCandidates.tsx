@@ -84,7 +84,7 @@ const PointIcon: React.FC<{ tone: Point['tone'] }> = ({ tone }) =>
   tone === 'good' ? (
     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-px" />
   ) : tone === 'gap' ? (
-    <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-px" />
+    <AlertTriangle className="w-3.5 h-3.5 text-indigo-600 shrink-0 mt-px" />
   ) : (
     <MinusCircle className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-px" />
   );
@@ -323,20 +323,20 @@ export const JobCandidates: React.FC<JobCandidatesProps> = ({ job, allCandidates
       )}
 
       {setAside.length > 0 && (
-        <div className="border border-rose-200 rounded-xl bg-rose-50/40">
+        <div className="border border-slate-200 rounded-xl bg-indigo-50">
           <button
             onClick={() => setShowSetAside((v) => !v)}
             aria-expanded={showSetAside}
-            className="w-full flex items-center gap-2 px-4 py-3 text-left text-xs font-semibold text-rose-900"
+            className="w-full flex items-center gap-2 px-4 py-3 text-left text-xs font-semibold text-slate-800"
           >
-            <ShieldAlert className="w-4 h-4 text-rose-600 shrink-0" />
+            <ShieldAlert className="w-4 h-4 text-indigo-600 shrink-0" />
             <span className="flex-1">
               Set aside for suspected cheating ({setAside.length}). Rejected automatically and not told; review before you decide.
             </span>
-            <ChevronDown className={`w-4 h-4 text-rose-400 shrink-0 transition-transform ${showSetAside ? 'rotate-180' : ''}`} />
+            <ChevronDown className={`w-4 h-4 text-indigo-600 shrink-0 transition-transform ${showSetAside ? 'rotate-180' : ''}`} />
           </button>
           {showSetAside && (
-            <ul className="border-t border-rose-200 divide-y divide-slate-200 bg-white rounded-b-xl overflow-hidden">{setAside.map((c, idx) => renderRow(c, idx))}</ul>
+            <ul className="border-t border-slate-200 divide-y divide-slate-200 bg-white rounded-b-xl overflow-hidden">{setAside.map((c, idx) => renderRow(c, idx))}</ul>
           )}
         </div>
       )}

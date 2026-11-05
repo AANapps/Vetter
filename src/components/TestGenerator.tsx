@@ -335,7 +335,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                 onClick={() => setTopUpOpen(true)}
                 title="Your AI credit and what you've used: top up any time"
                 className={`px-3 py-1 rounded-full border text-sm flex items-center gap-1.5 ${
-                  credit.balance < 100 ? 'border-amber-300 bg-amber-50 text-amber-800 hover:border-amber-500' : 'border-slate-200 text-slate-700 hover:border-indigo-400'
+                  credit.balance < 100 ? 'border-slate-300 bg-indigo-50 text-slate-800 hover:border-indigo-400' : 'border-slate-200 text-slate-700 hover:border-indigo-400'
                 }`}
               >
                 <span className="text-slate-500">Credit</span>
@@ -464,7 +464,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                         </button>
                       )}
                       {m.note && (
-                        <p className="mt-1.5 text-sm text-amber-700 flex items-start gap-1.5">
+                        <p className="mt-1.5 text-sm text-slate-800 flex items-start gap-1.5">
                           <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
                           {m.note}
                         </p>
@@ -498,7 +498,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                     return (
                       <>
                         Estimated cost to write it: about <span className="font-semibold text-slate-700">{pounds(low)} to {pounds(high)}</span>
-                        {short && <span className="text-amber-700"> · you have {pounds(credit.balance ?? 0)}, so it may stop part way: top up first</span>}
+                        {short && <span className="text-slate-800"> · you have {pounds(credit.balance ?? 0)}, so it may stop part way: top up first</span>}
                       </>
                     );
                   })()}

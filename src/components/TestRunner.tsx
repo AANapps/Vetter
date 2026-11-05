@@ -429,7 +429,7 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
           <div
             className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md border font-medium ${
               flags.total > 0
-                ? 'bg-amber-50 border-amber-200 text-amber-800'
+                ? 'bg-indigo-50 border-slate-200 text-slate-800'
                 : 'bg-slate-50 border-slate-200 text-slate-600'
             }`}
             title="Monitored: tab and window switches, resizing, copy and paste, and screens connected"
@@ -450,14 +450,14 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
 
       {/* Focus Warning Banner if flagged */}
       {focusWarning && (
-        <div className="px-6 py-2 bg-amber-50 border-b border-amber-200 text-amber-900 text-xs flex items-center justify-between">
+        <div className="px-6 py-2 bg-indigo-50 border-b border-slate-200 text-slate-800 text-xs flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <ShieldAlert className="w-4 h-4 shrink-0 text-amber-600" />
+            <ShieldAlert className="w-4 h-4 shrink-0 text-indigo-600" />
             <span className="font-medium">{focusWarning}</span>
           </div>
           <button
             onClick={() => setFocusWarning(null)}
-            className="text-amber-700 hover:text-amber-900 underline font-mono text-[11px]"
+            className="text-indigo-700 hover:text-indigo-900 underline font-mono text-[11px]"
           >
             Dismiss
           </button>
@@ -746,7 +746,7 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
                   </div>
 
                   {runResults.type === 'sql' && runResults.errorMessage && (
-                    <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-lg text-xs font-medium">
+                    <div className="p-3 bg-indigo-50 border border-slate-200 text-slate-800 rounded-lg text-xs font-medium">
                       {runResults.errorMessage}
                     </div>
                   )}
@@ -880,8 +880,8 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in" role="alertdialog" aria-modal="true" aria-labelledby="left-tab-title">
           <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center shrink-0">
-                <ShieldAlert className="w-5 h-5 text-amber-600" />
+              <div className="w-10 h-10 rounded-full bg-indigo-50 border border-slate-200 flex items-center justify-center shrink-0">
+                <ShieldAlert className="w-5 h-5 text-indigo-600" />
               </div>
               <div className="space-y-1">
                 <h3 id="left-tab-title" className="text-base font-bold text-slate-900">You left the test</h3>
@@ -912,8 +912,8 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in" role="alertdialog" aria-modal="true" aria-labelledby="exit-title">
           <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-rose-50 border border-rose-200 flex items-center justify-center shrink-0">
-                <AlertTriangle className="w-5 h-5 text-rose-600" />
+              <div className="w-10 h-10 rounded-full bg-indigo-50 border border-slate-200 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5 text-indigo-600" />
               </div>
               <div className="space-y-1">
                 <h3 id="exit-title" className="text-base font-bold text-slate-900">Leave the test?</h3>
@@ -923,7 +923,7 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
             <div className="flex flex-col-reverse sm:flex-row gap-2">
               <button
                 onClick={onClose}
-                className="flex-1 py-2.5 px-4 text-xs font-semibold text-rose-700 bg-white border border-rose-200 hover:bg-rose-50 rounded-lg"
+                className="flex-1 py-2.5 px-4 text-xs font-semibold text-slate-800 bg-white border border-slate-200 hover:bg-slate-100 rounded-lg"
               >
                 Leave and lose my answers
               </button>

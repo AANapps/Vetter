@@ -333,7 +333,7 @@ const PublicLibraryCard: React.FC<{ test: AssessmentTest; onAsk: () => void; onW
           ? 'Vetter didn\'t approve it for the public library.'
           : 'Only your company can use it. Share it and, once Vetter has checked it, other companies can add it to their jobs and any candidate can take it.'}
       </p>
-      {status === 'rejected' && test.publicNote && <p className="p-2.5 rounded-lg bg-rose-50 text-rose-800">{test.publicNote}</p>}
+      {status === 'rejected' && test.publicNote && <p className="p-2.5 rounded-lg bg-indigo-50 text-slate-800">{test.publicNote}</p>}
       {status === 'approved' || status === 'pending' ? (
         <button onClick={onWithdraw} className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:border-indigo-400 rounded-lg">
           {status === 'pending' ? 'Cancel the request' : 'Take it out of the library'}
