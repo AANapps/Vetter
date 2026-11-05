@@ -619,7 +619,7 @@ const summarise = (labels: string[]) => (labels.length <= 2 ? labels.join(', ') 
 const PickList: React.FC<{ legend: string; picked: number; onClear: () => void; note?: string; children: React.ReactNode }> = ({ legend, picked, onClear, note, children }) => (
   <fieldset className="p-1.5 max-h-80 overflow-y-auto">
     <legend className="sr-only">{legend}</legend>
-    <button type="button" onClick={onClear} className={`w-full text-left px-2.5 py-1.5 rounded-lg text-sm flex items-center gap-2 hover:bg-slate-50 ${picked ? 'text-slate-600' : 'font-semibold text-indigo-700'}`}>
+    <button type="button" onClick={onClear} className={`w-full text-left px-2.5 py-1.5 rounded-lg text-sm flex items-center gap-2 hover:bg-slate-100 ${picked ? 'text-slate-600' : 'font-semibold text-indigo-700'}`}>
       <span className={`w-4 h-4 rounded-full border flex items-center justify-center ${picked ? 'border-slate-300' : 'border-indigo-600 bg-indigo-600 text-white'}`}>{!picked && <Check className="w-3 h-3" />}</span>
       Let Vetter decide
     </button>
@@ -630,7 +630,7 @@ const PickList: React.FC<{ legend: string; picked: number; onClear: () => void; 
 );
 
 const PickRow: React.FC<{ on: boolean; title?: string; type?: 'checkbox' | 'radio'; onChange: () => void; children: React.ReactNode }> = ({ on, title, type = 'checkbox', onChange, children }) => (
-  <label title={title} className="px-2.5 py-1.5 rounded-lg text-sm text-slate-800 flex items-center gap-2 cursor-pointer select-none hover:bg-slate-50 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-indigo-300">
+  <label title={title} className="px-2.5 py-1.5 rounded-lg text-sm text-slate-800 flex items-center gap-2 cursor-pointer select-none hover:bg-slate-100 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-indigo-300">
     <input type={type} checked={on} onChange={onChange} className="w-4 h-4 accent-indigo-600" />
     {children}
   </label>

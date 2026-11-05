@@ -897,7 +897,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
               onMouseEnter={keepFlyout}
               onMouseLeave={closeFlyoutSoon}
               style={{ top: flyout.top, left: flyout.left }}
-              className="hidden lg:block fixed z-40 w-72 bg-white border border-slate-200 rounded-xl shadow-lg p-2"
+              className="hidden lg:block fixed z-40 w-72 menu-panel p-2"
             >
               <div className="px-2 pt-1 pb-2 text-[10px] font-mono uppercase tracking-wider font-semibold text-slate-400">
                 {flyout.role} tests by tool
@@ -907,7 +907,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                   key={sec.id}
                   role="menuitem"
                   onClick={() => jumpToSection(flyout.role, sec.id)}
-                  className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-indigo-50 group/sec transition-colors"
+                  className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-slate-100 group/sec transition-colors"
                 >
                   <span className="flex items-center justify-between gap-2">
                     <span className="text-xs font-semibold text-slate-800 group-hover/sec:text-indigo-700">{sec.label}</span>

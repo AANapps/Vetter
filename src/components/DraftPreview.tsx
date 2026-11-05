@@ -170,7 +170,7 @@ export const DraftPreview: React.FC<DraftPreviewProps> = ({ test, onChange, lock
                         <button
                           key={q.id}
                           onClick={() => (go(i), close())}
-                          className={`w-full px-3 py-1.5 flex items-start gap-2 text-left hover:bg-slate-50 ${i === at ? 'bg-indigo-50/60' : ''} ${j > 0 ? 'pl-8' : ''}`}
+                          className={`w-full px-3 py-1.5 flex items-start gap-2 text-left hover:bg-slate-100 ${i === at ? 'bg-indigo-50/60' : ''} ${j > 0 ? 'pl-8' : ''}`}
                         >
                           <span className={`text-[11px] font-mono mt-0.5 shrink-0 ${g.task && j === 0 ? 'text-indigo-700 font-bold' : 'text-slate-400'}`}>
                             {g.task && j === 0 ? `${isCase(i) ? 'C' : 'T'}${taskNumber(i)}` : `${numberOf(q)}.`}
@@ -390,7 +390,6 @@ const AddMenu: React.FC<{ onAdd: (type: QuestionType) => void; disabled?: boolea
       </>
     }
     width="w-56"
-    up
   >
     {(close) => (
       <ul className="py-1">
@@ -398,7 +397,7 @@ const AddMenu: React.FC<{ onAdd: (type: QuestionType) => void; disabled?: boolea
           const style = QUESTION_STYLES.find((s) => s.type === type)!;
           return (
             <li key={type}>
-              <button onClick={() => (onAdd(type), close())} className="w-full px-3 py-1.5 text-left hover:bg-slate-50">
+              <button onClick={() => (onAdd(type), close())} className="w-full px-3 py-1.5 text-left hover:bg-slate-100">
                 <span className="block text-xs font-semibold text-slate-800">{style.label}</span>
                 <span className="block text-[10px] text-slate-500">{style.hint}</span>
               </button>
@@ -416,11 +415,19 @@ export const Dropdown: React.FC<{
   children: (close: () => void) => React.ReactNode;
   width?: string;
   disabled?: boolean;
-  // Opens upwards, for buttons near the bottom of the pane
-  up?: boolean;
-}> = ({ label, children, width = 'w-72', disabled, up }) => {
+}> = ({ label, children, width = 'w-72', disabled }) => {
   const [open, setOpen] = useState(false);
+  // Like every dropdown: it opens below its button, and only above when there isn't room below on screen
+  const [up, setUp] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const toggle = () => {
+    if (!open && ref.current) {
+      const r = ref.current.getBoundingClientRect();
+      const below = window.innerHeight - r.bottom;
+      setUp(below < 320 && r.top > below);
+    }
+    setOpen((o) => !o);
+  };
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => ref.current && !ref.current.contains(e.target as Node) && setOpen(false);
@@ -441,7 +448,7 @@ export const Dropdown: React.FC<{
     >
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={toggle}
         disabled={disabled}
         aria-expanded={open}
         className="px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-700 hover:border-indigo-400 flex items-center gap-1.5 disabled:opacity-40"
@@ -450,7 +457,7 @@ export const Dropdown: React.FC<{
         <ChevronDown className={`w-3.5 h-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
-        <div className={`absolute left-0 z-20 ${up ? 'bottom-full mb-1' : 'top-full mt-1'} ${width} max-w-[calc(100vw-2rem)] bg-white border border-slate-200 rounded-xl shadow-lg`}>
+        <div className={`absolute left-0 z-20 ${up ? 'bottom-full mb-1' : 'top-full mt-1'} ${width} max-w-[calc(100vw-2rem)] menu-panel`}>
           {children(() => setOpen(false))}
         </div>
       )}

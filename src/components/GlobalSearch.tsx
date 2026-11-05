@@ -151,7 +151,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
         <div
           id="global-search-results"
           role="listbox"
-          className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white rounded-xl shadow-lg border border-slate-200 max-h-[70vh] overflow-y-auto py-2 md:min-w-[26rem]"
+          className="absolute left-0 right-0 top-full mt-1 z-50 menu-panel max-h-[70vh] overflow-y-auto py-2 md:min-w-[26rem]"
         >
           {results.length === 0 ? (
             <div className="px-4 py-6 text-center text-xs text-slate-500">No people or tests match “{query.trim()}”.</div>

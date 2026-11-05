@@ -389,6 +389,15 @@ select option {
   background: #ffffff;
 }
 
+/* ---- Menus: one panel for every dropdown, pop-up menu and search list ----
+   White, the cards' 1px edge, rounded corners and one soft shadow; rows hover to the same light grey */
+.menu-panel {
+  background-color: #ffffff;
+  border: 1px solid #dadfe7;
+  border-radius: 0.75rem;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+}
+
 /* The list that opens: where the browser allows it (Chrome and Edge), a white panel with the same edge as cards,
    roomy rows, a soft tint on hover and the chosen one in bold. Other browsers keep their own list */
 @supports (appearance: base-select) {
@@ -403,8 +412,12 @@ select option {
   select:not([multiple])::picker-icon {
     display: none;
   }
+  /* Opens below the box like every other menu, and only above it when there isn't room below on screen */
   ::picker(select) {
-    margin-top: 4px;
+    position-area: block-end span-inline-end;
+    position-try-order: normal;
+    position-try-fallbacks: flip-block;
+    margin: 4px 0;
     padding: 4px;
     min-width: anchor-size(width);
     max-height: min(22rem, 60vh);
@@ -424,7 +437,7 @@ select option {
   }
   select option:hover,
   select option:focus-visible {
-    background: #f1f3f7;
+    background: #eef0f4;
     outline: none;
   }
   select option:checked {
