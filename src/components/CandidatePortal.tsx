@@ -22,6 +22,11 @@ import {
   SlidersHorizontal,
   X,
   ChevronRight,
+  Clock,
+  ListChecks,
+  Users,
+  Trophy,
+  Target,
 } from 'lucide-react';
 import { VerifiedSkillBadge, TierLegend, getBadgeTier } from './VerifiedSkillBadge';
 import { JobApplicationModal } from './JobApplicationModal';
@@ -957,7 +962,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
               <p className="text-xs text-slate-500">{group.blurb}</p>
             </div>
           )}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
             {group.tests.map((main) => {
               const versions = levelsOf(main, tests);
               // The level shown: the one picked on this card, else the first matching the difficulty filter
@@ -969,85 +974,57 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
               const stats = getTestStats(t, allCandidates);
 
               return (
+                // Short card: the title, the level, then one row of symbols (each named on hover and to screen readers)
+                // and a play button; the description, skills and the rest are on the test's own page
                 <div
                   key={main.id}
-                  className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col justify-between hover:border-indigo-300 transition-colors space-y-5 shadow-xs"
+                  className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col gap-3 hover:border-indigo-300 transition-colors"
                 >
-                  <div className="space-y-3">
-                    <span className="text-[11px] font-mono uppercase tracking-wider text-indigo-700 font-bold">
-                      {t.category}
-                    </span>
-
-                    <h3 className="text-base font-bold text-slate-900">
-                      <button onClick={() => onOpenTest(t.id)} className="text-left hover:text-indigo-700 transition-colors">
+                  <div className="min-w-0">
+                    {!group.label && (
+                      <span className="block text-[10px] font-medium uppercase tracking-wider text-slate-400 truncate">{t.category}</span>
+                    )}
+                    <h3 className="text-[15px] font-semibold tracking-tight text-slate-900 leading-snug">
+                      <button onClick={() => onOpenTest(t.id)} className="text-left hover:text-indigo-700 transition-colors line-clamp-2">
                         {t.title}
                       </button>
                     </h3>
-                    <p className="text-xs text-slate-600 leading-relaxed">{t.description}</p>
-
-                    {versions.length > 1 && (
-                      <LevelPicker
-                        versions={versions}
-                        selectedId={t.id}
-                        onSelect={(id) => setCardLevels((prev) => ({ ...prev, [main.id]: id }))}
-                        bestScores={Object.fromEntries(versions.map((v) => [v.id, getBestTestScore(candidate, v.id)]))}
-                      />
-                    )}
-
-                    {t.roles && t.roles.length > 0 && (
-                      <div className="text-[11px] text-slate-500">
-                        For: <span className="font-semibold text-slate-700">{t.roles.join(', ')}</span>
-                      </div>
-                    )}
-
-                    <div className="flex flex-wrap items-center gap-2 pt-1">
-                      {t.skillsTested.map((st) => (
-                        <span
-                          key={st}
-                          className="text-[11px] px-2 py-0.5 bg-slate-50 border border-slate-200 rounded text-slate-600 font-mono"
-                        >
-                          {st}
-                        </span>
-                      ))}
-                    </div>
                   </div>
 
-                  <div className="pt-4 border-t border-slate-200 space-y-4">
-                    <div className="flex items-center justify-between text-xs text-slate-500 font-mono">
-                      <span>{t.difficulty} &middot; ~{t.estimatedMinutes} mins &middot; {t.totalQuestions} tasks</span>
-                      <span className="tabular-nums">
-                        {stats.candidatesRanked} ranked &middot; avg {stats.averageScore}
+                  {versions.length > 1 && (
+                    <LevelPicker
+                      versions={versions}
+                      selectedId={t.id}
+                      onSelect={(id) => setCardLevels((prev) => ({ ...prev, [main.id]: id }))}
+                      bestScores={Object.fromEntries(versions.map((v) => [v.id, getBestTestScore(candidate, v.id)]))}
+                      compact
+                    />
+                  )}
+
+                  <div className="mt-auto flex items-center gap-3 text-xs text-slate-500 tabular-nums">
+                    {(
+                      [
+                        { Icon: Clock, value: `${t.estimatedMinutes}m`, label: `About ${t.estimatedMinutes} minutes` },
+                        { Icon: ListChecks, value: t.totalQuestions, label: `${t.totalQuestions} tasks` },
+                        { Icon: Users, value: stats.candidatesRanked, label: `${stats.candidatesRanked} ranked, average ${stats.averageScore}` },
+                        bestScore !== undefined
+                          ? { Icon: Trophy, value: bestScore, label: `Your best: ${bestScore}/100` }
+                          : { Icon: Target, value: t.passingScore, label: `Passing mark: ${t.passingScore}/100` },
+                      ] as { Icon: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean | 'true' }>; value: string | number; label: string }[]
+                    ).map(({ Icon, value, label }) => (
+                      <span key={label} title={label} aria-label={label} className="inline-flex items-center gap-1">
+                        <Icon aria-hidden="true" className={`w-3.5 h-3.5 ${Icon === Trophy ? 'text-indigo-600' : 'text-slate-400'}`} />
+                        <span className={Icon === Trophy ? 'font-semibold text-slate-900' : ''}>{value}</span>
                       </span>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-1">
-                      {bestScore !== undefined ? (
-                        <div className="text-xs">
-                          <span className="text-slate-500">Your best: </span>
-                          <strong className="text-indigo-600 font-mono text-sm">{bestScore}/100</strong>
-                        </div>
-                      ) : (
-                        <div className="text-xs text-slate-500">
-                          Passing mark: <strong className="text-slate-800 font-mono">{t.passingScore}/100</strong>
-                        </div>
-                      )}
-
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => onOpenTest(t.id)}
-                          className="px-3.5 py-2 text-xs font-semibold text-slate-700 hover:text-indigo-700 bg-white hover:bg-indigo-50/70 border border-slate-200 hover:border-indigo-200 rounded-lg transition-colors"
-                        >
-                          More info
-                        </button>
-                        <button
-                          onClick={() => onStartTest(t)}
-                          className="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors flex items-center gap-2 shadow-xs"
-                        >
-                          <Play className="w-3.5 h-3.5 fill-current" />
-                          <span>{bestScore !== undefined ? 'Retake' : 'Start Test'}</span>
-                        </button>
-                      </div>
-                    </div>
+                    ))}
+                    <button
+                      onClick={() => onStartTest(t)}
+                      title={bestScore !== undefined ? 'Retake' : 'Start test'}
+                      aria-label={`${bestScore !== undefined ? 'Retake' : 'Start'} ${t.title}`}
+                      className="ml-auto w-8 h-8 shrink-0 rounded-full bg-indigo-600 text-white flex items-center justify-center hover:bg-indigo-700"
+                    >
+                      <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
+                    </button>
                   </div>
                 </div>
               );
