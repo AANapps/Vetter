@@ -4,7 +4,7 @@ import { ArrowRight, ArrowUp, Briefcase, Check, ClipboardCheck, Eye, Lock, Messa
 import { AssessmentTest, Business, JobPosting } from '../types';
 import { AdvisorTurn, CUSTOM_KIND_LABELS, CustomIdea, askAdvisor } from '../lib/testAdvisor';
 import { Credit, loadCredit } from '../lib/aiRequest';
-import { CreditMeter } from './CreditMeter';
+import { CreditMeter, EXAMPLE_CREDIT } from './CreditMeter';
 import { CreditsDialog } from './CreditsDialog';
 
 interface BusinessHomeProps {
@@ -197,9 +197,9 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
           }}
           className="shrink-0 pb-3 pt-2"
         >
-          {credit?.billing && credit.balance !== undefined && (
+          {credit && (credit.billing ? credit.balance !== undefined : true) && (
             <div className="mb-2">
-              <CreditMeter credit={credit} onTopUp={() => setTopUpOpen(true)} refresh={turns.length} />
+              <CreditMeter example={!credit.billing} credit={credit.billing ? credit : EXAMPLE_CREDIT} onTopUp={() => setTopUpOpen(true)} refresh={turns.length} />
             </div>
           )}
           {pickedTests.length > 0 && (

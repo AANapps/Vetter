@@ -9,7 +9,23 @@ interface CreditMeterProps {
   estimate?: { low: number; high: number };
   // Changes whenever credit may have been used, so the usage reloads
   refresh?: unknown;
+  // Until billing is switched on: made-up figures, labelled as an example, so companies see how credit works
+  example?: boolean;
 }
+
+// The example's history: one top-up, then a test written in steps and a change to it
+const exampleUsage = (): UsageEntry[] => {
+  const ago = (min: number) => new Date(Date.now() - min * 60000).toISOString();
+  return [
+    { amount: 4, at: ago(6), step: 'Changing the test', for: 'Data Analyst' },
+    { amount: 62, at: ago(38), step: 'Building an interactive task', for: 'Data Analyst' },
+    { amount: 38, at: ago(40), step: 'Writing questions', for: 'Data Analyst' },
+    { amount: 9, at: ago(42), step: 'Planning the test', for: 'Data Analyst' },
+    { amount: 120, at: ago(26 * 60), step: 'Writing a test', for: 'Backend Engineer' },
+    { amount: -2500, at: ago(3 * 24 * 60), step: 'Credit bought', for: '' },
+  ];
+};
+export const EXAMPLE_CREDIT: Credit = { billing: false, balance: 2267 };
 
 const when = (iso: string) =>
   new Date(iso).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -19,12 +35,12 @@ const when = (iso: string) =>
  * company had after its last top-up. It opens to every detail: what's been bought and used, what the next test is
  * likely to cost, and each piece of work with the steps it took and when.
  */
-export const CreditMeter: React.FC<CreditMeterProps> = ({ credit, onTopUp, estimate, refresh }) => {
+export const CreditMeter: React.FC<CreditMeterProps> = ({ credit, onTopUp, estimate, refresh, example }) => {
   const [open, setOpen] = useState(false);
-  const [entries, setEntries] = useState<UsageEntry[] | null | undefined>(undefined);
+  const [entries, setEntries] = useState<UsageEntry[] | null | undefined>(() => (example ? exampleUsage() : undefined));
   useEffect(() => {
-    loadUsage().then(setEntries);
-  }, [refresh, credit.balance]);
+    if (!example) loadUsage().then(setEntries);
+  }, [refresh, credit.balance, example]);
 
   const balance = credit.balance ?? 0;
   const stats = useMemo(() => {
@@ -57,6 +73,7 @@ export const CreditMeter: React.FC<CreditMeterProps> = ({ credit, onTopUp, estim
           className="flex-1 min-w-0 flex items-center gap-3 text-left"
         >
           <span className="text-xs font-semibold text-slate-600 shrink-0">AI credit</span>
+          {example && <span className="shrink-0 px-1.5 py-0.5 rounded bg-slate-900 text-white text-[10px] font-semibold">Example</span>}
           <span
             className="flex-1 min-w-[4rem] h-2 rounded-full bg-slate-100 overflow-hidden"
             role="meter"
@@ -69,13 +86,22 @@ export const CreditMeter: React.FC<CreditMeterProps> = ({ credit, onTopUp, estim
           <span className={`text-sm font-semibold tabular-nums shrink-0 ${low ? 'text-rose-700' : 'text-slate-900'}`}>{pounds(balance)} left</span>
           <ChevronDown className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
         </button>
-        <button onClick={onTopUp} className={`shrink-0 text-xs font-semibold ${low ? 'text-rose-700 hover:text-rose-900' : 'text-indigo-700 hover:text-indigo-900'}`}>
+        <button
+          onClick={example ? () => setOpen(true) : onTopUp}
+          title={example ? 'Buying credit opens once billing is switched on' : undefined}
+          className={`shrink-0 text-xs font-semibold ${low ? 'text-rose-700 hover:text-rose-900' : 'text-indigo-700 hover:text-indigo-900'}`}>
           Top up
         </button>
       </div>
 
       {open && (
         <div className="border-t border-slate-200 px-3 py-3 space-y-3 text-xs">
+          {example && (
+            <p className="text-slate-600">
+              These are example figures showing how AI credit works. Once billing is on, this shows your real balance and every charge, and Top up buys
+              credit.
+            </p>
+          )}
           {low && (
             <p className="text-rose-700 font-semibold">
               {estimate && balance < estimate.high

@@ -8,7 +8,7 @@ import { ChatState, sendChat } from '../lib/testChat';
 import { versionTitle } from '../lib/testLevels';
 import { Credit, estimateTest, loadCredit, pounds, setAiPurpose } from '../lib/aiRequest';
 import { CreditsDialog } from './CreditsDialog';
-import { CreditMeter } from './CreditMeter';
+import { CreditMeter, EXAMPLE_CREDIT } from './CreditMeter';
 
 interface TestGeneratorProps {
   // The job the tests are for; without one, Vetter only writes a test
@@ -474,10 +474,11 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
 
             {/* The message box, held at the bottom while the conversation scrolls above it */}
             <div className="shrink-0 px-4 pb-4 pt-2 border-t border-slate-100 bg-white">
-              {credit?.billing && credit.balance !== undefined && (
+              {credit && (credit.billing ? credit.balance !== undefined : true) && (
                 <div className="pb-2">
                   <CreditMeter
-                    credit={credit}
+                    example={!credit.billing}
+                    credit={credit.billing ? credit : EXAMPLE_CREDIT}
                     onTopUp={() => setTopUpOpen(true)}
                     refresh={chat.messages.length}
                     estimate={
