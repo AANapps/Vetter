@@ -56,6 +56,8 @@ interface NavigationProps {
   currentTab: AppTab;
   onTabChange: (tab: AppTab) => void;
   activeRole: UserRole;
+  // Who's looking isn't known yet: just the logo, so the wrong menu never flashes up
+  pending?: boolean;
   onRoleChange: (role: UserRole) => void;
   // With accounts: sign in and out, and the view switcher only for the Vetter team. Without, the demo's view switcher
   accounts?: {
@@ -92,6 +94,7 @@ export const Navigation: React.FC<NavigationProps> = ({
   currentTab,
   onTabChange,
   activeRole,
+  pending,
   onRoleChange,
   accounts,
   userAvatar,
@@ -119,6 +122,14 @@ export const Navigation: React.FC<NavigationProps> = ({
     return () => document.removeEventListener('mousedown', onClick);
   }, []);
 
+  if (pending)
+    return (
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200" aria-busy="true">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-3">
+          <Wordmark onClick={() => {}} />
+        </div>
+      </header>
+    );
   if (visitor) return <VisitorHeader currentTab={currentTab} onTabChange={onTabChange} {...visitor} />;
 
   const tabButton = (tab: (typeof tabs)[number], placement: 'top' | 'bottom') => {

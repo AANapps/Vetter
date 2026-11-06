@@ -477,6 +477,9 @@ export default function App() {
   };
   const ourJobs = activeRole === 'admin' ? jobs : jobs.filter((j) => j.businessId === recruiterBusiness?.id);
 
+  // Until it's known who's looking and the app is on their side, the menu shows only the logo, so a page load never
+  // flashes the signed-out, candidate or business menu before the right one
+  const [roleSettledFor, setRoleSettledFor] = useState<string | null>(null);
   // A signed-in account sees its own side of Vetter; the Vetter team keeps the view switcher
   // Once it's known who's looking, the address is checked against their side: another side's page sends them to their own
   useEffect(() => {
@@ -492,7 +495,14 @@ export default function App() {
       : 'candidate';
     if (role !== activeRole) handleRoleChange(role);
     else syncPagesFromUrl();
+    setRoleSettledFor(user?.uid ?? '');
   }, [accountLoading, account?.role, user?.uid]);
+  const expectedRole: UserRole = account?.role === 'recruiter' ? 'recruiter' : account?.role === 'admin' ? 'admin' : 'candidate';
+  const navPending =
+    firebaseEnabled &&
+    (accountLoading ||
+      roleSettledFor !== (user?.uid ?? '') ||
+      (!!user && (!account || (account.role !== 'admin' && expectedRole !== activeRole))));
 
   // A candidate account's profile and progress come from their account, so they follow them to any device. Until
   // it has loaded, nothing is saved back (a blank profile mustn't overwrite theirs); saving stays off if it can't load
@@ -586,6 +596,8 @@ export default function App() {
   const accountGate =
     firebaseEnabled &&
     (accountLoading ||
+      // Signed in, but the app hasn't switched to their side yet: wait, rather than show the other side's page
+      (navPending && !!account) ||
       !cloud ||
       (candidateAccountUid && profileSync?.uid !== candidateAccountUid) ||
       (user?.emailVerified && account?.role === 'recruiter' && account.status === 'active' && company?.status !== 'active')) ? (
@@ -1049,6 +1061,7 @@ export default function App() {
           goToTab(tab);
         }}
         activeRole={activeRole}
+        pending={navPending}
         onRoleChange={handleRoleChange}
         accounts={
           firebaseEnabled
