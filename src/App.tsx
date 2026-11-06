@@ -19,7 +19,8 @@ import { BusinessesView } from './components/BusinessesView';
 import { TestRunner } from './components/TestRunner';
 import { TestPage } from './components/TestPage';
 import { DiscoverFeed } from './components/DiscoverFeed';
-import { LiveLeaderboards } from './components/LiveLeaderboards';
+import { TopPerformers } from './components/TopPerformers';
+import { RankedPage } from './components/RankedPage';
 import { FollowSuggestions } from './components/DiscoverSidebar';
 import { TestField } from './lib/testRoles';
 import { GlobalSearch } from './components/GlobalSearch';
@@ -137,6 +138,7 @@ const TAB_PATHS: Record<AppTab, string> = {
   'business-jobs': '/business/jobs/',
   'business-tests': '/business/tests/',
   'business-candidates': '/business/candidates/',
+  ranked: '/ranked/',
   guides: '/guides/',
 };
 
@@ -148,7 +150,7 @@ const businessJobIdFromPath = () => {
 
 // The pages each side has; companies is on both
 const SIDE_TABS: Record<'candidate' | 'staff', AppTab[]> = {
-  candidate: ['home', 'tests', 'jobs', 'learn', 'upskill', 'profile', 'companies', 'guides'],
+  candidate: ['home', 'tests', 'jobs', 'ranked', 'learn', 'upskill', 'profile', 'companies', 'guides'],
   staff: ['business-home', 'business-jobs', 'business-tests', 'business-candidates', 'companies', 'guides'],
 };
 const sideOf = (role: UserRole) => (role === 'candidate' ? 'candidate' : 'staff');
@@ -375,6 +377,8 @@ export default function App() {
           ? `${guide.title} | Vetter Guides`
           : currentTab === 'guides'
             ? 'How-to guides | Vetter'
+            : currentTab === 'ranked'
+            ? 'Leaderboards | Vetter'
             : SITE_TITLE;
     if (job && /^#\/(jobs|exams)\//.test(window.location.hash)) history.replaceState(null, '', jobPath(job));
   }, [jobPageId, coursePageId, guideSlug, currentTab, jobs]);
@@ -1145,6 +1149,9 @@ export default function App() {
               track={currentTab === 'upskill' ? 'upskill' : 'switch'}
               progress={courseProgress.progress} onOpenCourse={openCoursePage} onTrainTeam={trainTeam} />
           )}
+          {currentTab === 'ranked' && !testPageTest && (
+            <RankedPage tests={tests} allCandidates={allCandidates} viewerId={isVisitor ? '' : candidate.id} onOpenTest={openTestPage} />
+          )}
           {currentTab === 'guides' && <GuidesPage slug={guideSlug} onOpen={(slug) => navigateTo(slug ? `/guides/${slug}/` : '/guides/')} />}
           {testPageTest && (
             <TestPage
@@ -1249,7 +1256,7 @@ export default function App() {
                 visitor={isVisitor ? { onJoin: () => setAuthDialog({ mode: 'sign-up' }), onSignIn: () => setAuthDialog({ mode: 'sign-in' }) } : undefined}
               />
               <div className="space-y-4 lg:col-start-3 lg:row-start-1">
-                <LiveLeaderboards tests={tests} allCandidates={allCandidates} viewerId={isVisitor ? '' : candidate.id} onOpenTest={openTestPage} />
+                <TopPerformers tests={tests} allCandidates={allCandidates} onOpenTest={openTestPage} onOpenRanked={() => goToTab('ranked')} />
                 <FollowSuggestions
                   viewer={candidate}
                   allCandidates={allCandidates}
@@ -1405,7 +1412,7 @@ export default function App() {
         </main>
 
         {!chatHome && <footer className="border-t border-slate-200 bg-white py-6 px-6 text-xs text-slate-500">
-          <div className="max-w-7xl mx-auto flex items-center gap-2">
+          <div className="max-w-7xl mx-auto flex flex-wrap items-center gap-2">
             <span className="font-bold text-slate-900 tracking-tight">VETTER<PixelDot /></span>
             <span>&middot; Skills-based hiring</span>
             <CurrencyPicker className="ml-auto" />

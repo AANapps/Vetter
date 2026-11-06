@@ -3,7 +3,7 @@ import { PixelDot } from './PixelDot';
 import { Pic } from './Pic';
 import { UserRole } from '../types';
 import { ArrowLeftRight,
-  BookOpen, LogOut, ShieldCheck, Bell, Briefcase, ChevronDown, ClipboardCheck, House, Repeat, Search, Users } from 'lucide-react';
+  BookOpen, LogOut, ShieldCheck, Trophy, Bell, Briefcase, ChevronDown, ClipboardCheck, House, Repeat, Search, Users } from 'lucide-react';
 
 export type AppTab =
   | 'home'
@@ -17,6 +17,7 @@ export type AppTab =
   | 'business-jobs'
   | 'business-tests'
   | 'business-candidates'
+  | 'ranked'
   | 'guides';
 
 type TabIcon = React.ComponentType<{ className?: string }>;
@@ -27,6 +28,7 @@ export const NAV_TABS: Record<'candidate' | 'recruiter', { id: AppTab; label: st
     { id: 'home', label: 'Home', icon: House },
     { id: 'tests', label: 'Tests', icon: ClipboardCheck },
     { id: 'jobs', label: 'Jobs', icon: Briefcase },
+    { id: 'ranked', label: 'Ranked', icon: Trophy },
     { id: 'learn', label: 'Career switch', icon: Repeat },
     // Upskill (/upskill/) is hidden for now; its page still works by address
   ],
@@ -141,11 +143,11 @@ export const Navigation: React.FC<NavigationProps> = ({
         onClick={() => onTabChange(tab.id)}
         aria-current={isActive ? 'page' : undefined}
         className={`relative flex flex-col items-center justify-center gap-0.5 transition-colors ${
-          placement === 'top' ? 'h-14 min-w-[4.5rem] px-2' : 'flex-1 h-14'
+          placement === 'top' ? 'h-14 min-w-[4.5rem] px-2' : 'flex-1 min-w-0 h-14 px-0.5'
         } ${isActive ? 'text-slate-900' : 'text-slate-500 hover:text-slate-900'}`}
       >
         <Icon className={`w-5 h-5 ${isActive ? 'text-indigo-600' : ''}`} />
-        <span className={`text-[11px] ${isActive ? 'font-semibold' : 'font-medium'}`}>{tab.label}</span>
+        <span className={`${placement === 'top' ? 'text-[11px]' : 'text-[10px] max-w-full truncate'} ${isActive ? 'font-semibold' : 'font-medium'}`}>{tab.label}</span>
         {isActive && (
           <span
             className={`absolute left-1/2 -translate-x-1/2 h-0.5 rounded-full bg-slate-900 ${
@@ -352,6 +354,7 @@ const VisitorHeader: React.FC<{ currentTab: AppTab; onTabChange: (tab: AppTab) =
   const links: { id: AppTab; label: string }[] = [
     { id: 'tests', label: 'Tests' },
     { id: 'jobs', label: 'Jobs' },
+    { id: 'ranked', label: 'Ranked' },
     { id: 'learn', label: 'Career switch' },
     { id: 'guides', label: 'Guides' },
   ];
