@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { PixelDot } from './PixelDot';
-import { ArrowRight, ArrowUp, Briefcase, Check, ClipboardCheck, Eye, Lock, MessageSquarePlus, Pencil, Plus, Sparkles, Users, Wand2, X } from 'lucide-react';
+import { ArrowRight, ArrowUp, Check, Eye, Lock, MessageSquarePlus, Pencil, Plus, Sparkles, Wand2, X } from 'lucide-react';
 import { AssessmentTest, Business, JobPosting, levelName } from '../types';
 import { AdvisorTurn, CUSTOM_KIND_LABELS, CustomIdea, askAdvisor } from '../lib/testAdvisor';
 import { Credit, loadCredit } from '../lib/aiRequest';
@@ -97,17 +97,11 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
     inputRef.current?.focus();
   };
 
-  const openJobs = jobs.filter((j) => j.status === 'active').length;
-  const menu = [
-    { tab: 'business-jobs' as const, label: business ? 'Your jobs' : 'All jobs', icon: Briefcase, note: `${openJobs} open` },
-    { tab: 'business-tests' as const, label: 'Tests', icon: ClipboardCheck, note: `${ownTestCount} yours${draftCount ? ` · ${draftCount} drafts` : ''}` },
-    { tab: 'business-candidates' as const, label: 'Candidates', icon: Users, note: 'Leads and rankings' },
-  ];
 
   return (
     // A chat like ChatGPT's or Claude's: exactly the window under the top bar, so the page itself never scrolls; only
     // the conversation does, and the message box stays at the bottom
-    <div className="relative isolate h-[calc(100dvh-3.5rem-1px-3.5rem)] md:h-[calc(100dvh-3.5rem-1px)] overflow-hidden">
+    <div className="relative isolate h-[calc(100dvh-3.5rem-1px)] lg:h-[100dvh] overflow-hidden">
       {topUpOpen && credit && <CreditsDialog credit={credit} onUpdated={setCredit} onClose={() => setTopUpOpen(false)} />}
       {/* Faint colour drifting behind the glass */}
       <div className="ai-aurora" aria-hidden="true">
@@ -268,26 +262,11 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
         </form>
       </section>
 
-      {/* The menu, on the left */}
+      {/* Ways to start a test, on the left */}
       <aside className="hidden lg:block lg:order-first min-h-0 overflow-y-auto py-8">
         <div className="ai-glass space-y-5 p-3 rounded-2xl border border-white/80 shadow-sm">
-          <nav aria-label="Company pages" className="space-y-1">
-            {menu.map((m) => (
-              <button
-                key={m.tab}
-                onClick={() => onGoTo(m.tab)}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left hover:bg-slate-50 transition-colors group"
-              >
-                <m.icon className="w-4 h-4 text-slate-400 group-hover:text-indigo-600" />
-                <span className="min-w-0">
-                  <span className="block text-sm font-semibold text-slate-900">{m.label}</span>
-                  <span className="block text-[11px] text-slate-500">{m.note}</span>
-                </span>
-              </button>
-            ))}
-          </nav>
-
-          <div className="pt-4 border-t border-slate-200 space-y-2">
+          {/* The pages are in the menu on the right; here, the ways to start a test */}
+          <div className="space-y-2">
             <button
               onClick={onCreateOwn}
               className="w-full px-3 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-200 hover:border-indigo-300 hover:text-indigo-700 rounded-lg flex items-center gap-2"

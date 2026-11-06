@@ -333,7 +333,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
 
           <div className="grid grid-cols-1 lg:grid-cols-[15rem_minmax(0,1fr)] gap-6 items-start">
           {/* Browse by industry and role, as candidates do */}
-          <aside className="hidden lg:block bg-white border border-slate-200 rounded-xl p-4 space-y-4 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:overscroll-contain [scrollbar-width:thin]">
+          <aside className="hidden lg:block bg-white border border-slate-200 rounded-xl p-4 space-y-4 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto lg:overscroll-contain [scrollbar-width:thin]">
             <div className="space-y-1">
               <h2 className="text-sm font-bold text-slate-900 mb-2">Browse by role</h2>
               <RoleButton label="All tests" count={sourced.length} active={!testField} onClick={() => setTestField(null)} />

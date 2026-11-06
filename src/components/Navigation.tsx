@@ -3,7 +3,7 @@ import { PixelDot } from './PixelDot';
 import { Pic } from './Pic';
 import { UserRole } from '../types';
 import { ArrowLeftRight,
-  BookOpen, LogOut, ShieldCheck, Trophy, Bell, Briefcase, ChevronDown, ClipboardCheck, House, Repeat, Search, Users } from 'lucide-react';
+  BookOpen, Building2, LogOut, Menu, ShieldCheck, SquarePen, Trophy, X, Bell, Briefcase, ChevronDown, ClipboardCheck, House, Repeat, Search, Users } from 'lucide-react';
 
 export type AppTab =
   | 'home'
@@ -80,6 +80,8 @@ interface NavigationProps {
   visitor?: { onSignIn: () => void; onJoin: () => void };
   // The search box, rendered in the bar (and full width on phones)
   renderSearch: (mobile: { onClose: () => void } | null) => React.ReactNode;
+  // Companies: start a fresh chat with Vetter on the home page
+  onNewChat?: () => void;
 }
 
 const Wordmark: React.FC<{ onClick: () => void }> = ({ onClick }) => (
@@ -106,6 +108,7 @@ export const Navigation: React.FC<NavigationProps> = ({
   onOpenNotification,
   visitor,
   renderSearch,
+  onNewChat,
 }) => {
   const [isBellOpen, setIsBellOpen] = useState(false);
   const bellRef = useRef<HTMLDivElement>(null);
@@ -123,6 +126,101 @@ export const Navigation: React.FC<NavigationProps> = ({
     document.addEventListener('mousedown', onClick);
     return () => document.removeEventListener('mousedown', onClick);
   }, []);
+
+  // The account menu: who's signed in, guides, the admin page and view switcher for the Vetter team, sign out
+  const meMenu = () => (
+    <>
+      <div className="flex items-center gap-3">
+                  <Pic src={userAvatar} alt="" referrerPolicy="no-referrer" className="w-12 h-12 rounded-full object-cover bg-slate-100 shrink-0" />
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-slate-900 truncate">{userName}</div>
+                    <div className="text-xs text-slate-500 line-clamp-2">{userTitle}</div>
+                  </div>
+                </div>
+                {activeRole === 'candidate' && (
+                  <button
+                    role="menuitem"
+                    onClick={() => {
+                      onTabChange('profile');
+                      setIsMeOpen(false);
+                    }}
+                    className="w-full py-1.5 text-xs font-semibold text-indigo-700 bg-white rounded-full"
+                  >
+                    View profile
+                  </button>
+                )}
+                <button
+                  role="menuitem"
+                  onClick={() => {
+                    onTabChange('guides');
+                    setIsMeOpen(false);
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-1.5 text-xs font-semibold text-slate-700 bg-white rounded-full"
+                >
+                  <BookOpen className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>How-to guides</span>
+                </button>
+                {accounts?.email && <div className="text-[11px] text-slate-500 truncate -mt-1">{accounts.email}</div>}
+                {/* The Vetter team's admin page */}
+                {accounts?.canSwitchViews && (
+                  <a
+                    role="menuitem"
+                    href="/admin"
+                    className="w-full flex items-center justify-center gap-2 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-full"
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span>Admin panel</span>
+                  </a>
+                )}
+                {/* The demo's views, and with accounts the Vetter team's */}
+                {(!accounts || accounts.canSwitchViews) && VIEWS.filter((v) => v.role !== activeRole).map((v) => (
+                  <button
+                    key={v.role}
+                    role="menuitem"
+                    onClick={() => {
+                      onRoleChange(v.role);
+                      setIsMeOpen(false);
+                    }}
+                    className="w-full flex items-center justify-center gap-2 py-1.5 text-xs font-semibold text-slate-700 bg-white rounded-full"
+                  >
+                    <ArrowLeftRight className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>Switch to {v.label}</span>
+                  </button>
+                ))}
+                {accounts && (
+                  <button
+                    role="menuitem"
+                    onClick={() => {
+                      setIsMeOpen(false);
+                      accounts.onSignOut();
+                    }}
+                    className="w-full flex items-center justify-center gap-2 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 border-t border-slate-100 pt-3"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Sign out</span>
+                  </button>
+                )}
+    </>
+  );
+
+  // Companies and the Vetter team: laid out like a chat app, with the menu down the right
+  if (!pending && !visitor && activeRole !== 'candidate')
+    return (
+      <StaffNav
+        tabs={tabs}
+        currentTab={currentTab}
+        onTabChange={onTabChange}
+        onNewChat={onNewChat}
+        renderSearch={renderSearch}
+        userAvatar={userAvatar}
+        userName={userName}
+        userTitle={userTitle}
+        meMenu={meMenu}
+        isMeOpen={isMeOpen}
+        setIsMeOpen={setIsMeOpen}
+        meRef={meRef}
+      />
+    );
 
   if (pending)
     return (
@@ -253,76 +351,7 @@ export const Navigation: React.FC<NavigationProps> = ({
 
             {isMeOpen && (
               <div role="menu" className="absolute right-0 top-full mt-1 w-64 menu-panel p-4 space-y-3 z-50">
-                <div className="flex items-center gap-3">
-                  <Pic src={userAvatar} alt="" referrerPolicy="no-referrer" className="w-12 h-12 rounded-full object-cover bg-slate-100 shrink-0" />
-                  <div className="min-w-0">
-                    <div className="text-sm font-semibold text-slate-900 truncate">{userName}</div>
-                    <div className="text-xs text-slate-500 line-clamp-2">{userTitle}</div>
-                  </div>
-                </div>
-                {activeRole === 'candidate' && (
-                  <button
-                    role="menuitem"
-                    onClick={() => {
-                      onTabChange('profile');
-                      setIsMeOpen(false);
-                    }}
-                    className="w-full py-1.5 text-xs font-semibold text-indigo-700 bg-white rounded-full"
-                  >
-                    View profile
-                  </button>
-                )}
-                <button
-                  role="menuitem"
-                  onClick={() => {
-                    onTabChange('guides');
-                    setIsMeOpen(false);
-                  }}
-                  className="w-full flex items-center justify-center gap-2 py-1.5 text-xs font-semibold text-slate-700 bg-white rounded-full"
-                >
-                  <BookOpen className="w-3.5 h-3.5 text-indigo-600" />
-                  <span>How-to guides</span>
-                </button>
-                {accounts?.email && <div className="text-[11px] text-slate-500 truncate -mt-1">{accounts.email}</div>}
-                {/* The Vetter team's admin page */}
-                {accounts?.canSwitchViews && (
-                  <a
-                    role="menuitem"
-                    href="/admin"
-                    className="w-full flex items-center justify-center gap-2 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-full"
-                  >
-                    <ShieldCheck className="w-3.5 h-3.5" />
-                    <span>Admin panel</span>
-                  </a>
-                )}
-                {/* The demo's views, and with accounts the Vetter team's */}
-                {(!accounts || accounts.canSwitchViews) && VIEWS.filter((v) => v.role !== activeRole).map((v) => (
-                  <button
-                    key={v.role}
-                    role="menuitem"
-                    onClick={() => {
-                      onRoleChange(v.role);
-                      setIsMeOpen(false);
-                    }}
-                    className="w-full flex items-center justify-center gap-2 py-1.5 text-xs font-semibold text-slate-700 bg-white rounded-full"
-                  >
-                    <ArrowLeftRight className="w-3.5 h-3.5 text-indigo-600" />
-                    <span>Switch to {v.label}</span>
-                  </button>
-                ))}
-                {accounts && (
-                  <button
-                    role="menuitem"
-                    onClick={() => {
-                      setIsMeOpen(false);
-                      accounts.onSignOut();
-                    }}
-                    className="w-full flex items-center justify-center gap-2 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 border-t border-slate-100 pt-3"
-                  >
-                    <LogOut className="w-3.5 h-3.5" />
-                    <span>Sign out</span>
-                  </button>
-                )}
+                {meMenu()}
               </div>
             )}
           </div>
@@ -413,5 +442,154 @@ const VisitorHeader: React.FC<{ currentTab: AppTab; onTabChange: (tab: AppTab) =
         ))}
       </nav>
     </header>
+  );
+};
+
+// Companies' and the Vetter team's menu, like a chat app's: a panel down the right of the window with a new chat,
+// search, the pages and the account. On phones and tablets it slides in from the right from a slim top bar
+const StaffNav: React.FC<{
+  tabs: { id: AppTab; label: string; icon: TabIcon }[];
+  currentTab: AppTab;
+  onTabChange: (tab: AppTab) => void;
+  onNewChat?: () => void;
+  renderSearch: (mobile: { onClose: () => void } | null) => React.ReactNode;
+  userAvatar: string;
+  userName: string;
+  userTitle: string;
+  meMenu: () => React.ReactNode;
+  isMeOpen: boolean;
+  setIsMeOpen: (open: boolean | ((o: boolean) => boolean)) => void;
+  meRef: React.RefObject<HTMLDivElement | null>;
+}> = ({ tabs, currentTab, onTabChange, onNewChat, renderSearch, userAvatar, userName, userTitle, meMenu, isMeOpen, setIsMeOpen, meRef }) => {
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const go = (tab: AppTab) => {
+    onTabChange(tab);
+    setDrawerOpen(false);
+  };
+  // Closes with Escape, and the page behind doesn't scroll while it's open
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setDrawerOpen(false);
+    window.addEventListener('keydown', onKey);
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = overflow;
+    };
+  }, [drawerOpen]);
+
+  // Home is the chat; the rest are the company's pages, then the shared ones
+  const pages = tabs.filter((t) => t.id !== tabs[0].id);
+  const extra: { id: AppTab; label: string; icon: TabIcon }[] = [
+    { id: 'companies', label: 'Companies', icon: Building2 },
+    { id: 'guides', label: 'How-to guides', icon: BookOpen },
+  ];
+  const item = (t: { id: AppTab; label: string; icon: TabIcon }) => {
+    const Icon = t.icon;
+    const active = currentTab === t.id;
+    return (
+      <button
+        key={t.id}
+        onClick={() => go(t.id)}
+        aria-current={active ? 'page' : undefined}
+        className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+          active ? 'bg-slate-200/70 text-slate-900 font-semibold' : 'text-slate-600 hover:bg-slate-200/50 hover:text-slate-900'
+        }`}
+      >
+        <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-indigo-600' : 'text-slate-400'}`} />
+        <span className="truncate">{t.label}</span>
+      </button>
+    );
+  };
+
+  const panel = (
+    <div className="h-full flex flex-col bg-slate-50 border-l border-slate-200">
+      <div className="h-14 px-4 flex items-center justify-between gap-2 shrink-0">
+        <Wordmark onClick={() => go(tabs[0].id)} />
+        <button onClick={() => setDrawerOpen(false)} className="lg:hidden p-2 -mr-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-200/60" aria-label="Close menu">
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+
+      <div className="px-3 space-y-2 shrink-0">
+        <button
+          onClick={() => {
+            onNewChat?.();
+            go(tabs[0].id);
+          }}
+          className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-semibold border transition-colors ${
+            currentTab === tabs[0].id ? 'bg-white border-slate-300 text-slate-900 shadow-xs' : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:text-slate-900'
+          }`}
+        >
+          <SquarePen className="w-4 h-4 text-indigo-600" />
+          New chat
+        </button>
+        <div className="[&_input]:bg-white">{renderSearch(null)}</div>
+      </div>
+
+      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5" aria-label="Pages">
+        {pages.map(item)}
+        <div className="pt-4 pb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">More</div>
+        {extra.map(item)}
+      </nav>
+
+      {/* The account, its menu opening upwards */}
+      <div ref={meRef} className="relative p-3 border-t border-slate-200 shrink-0">
+        <button
+          onClick={() => setIsMeOpen((o) => !o)}
+          aria-expanded={isMeOpen}
+          aria-haspopup="menu"
+          className="w-full flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-slate-200/50 text-left"
+        >
+          <Pic src={userAvatar} alt="" referrerPolicy="no-referrer" className="w-8 h-8 rounded-full object-cover bg-slate-100 shrink-0" />
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold text-slate-900 truncate">{userName}</span>
+            <span className="block text-[11px] text-slate-500 truncate">{userTitle}</span>
+          </span>
+          <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isMeOpen ? '' : 'rotate-180'}`} />
+        </button>
+        {isMeOpen && (
+          <div role="menu" className="absolute bottom-full right-3 left-3 mb-1 menu-panel p-4 space-y-3 z-50">
+            {meMenu()}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      {/* Wide screens: always there, down the right */}
+      <aside className="hidden lg:block fixed inset-y-0 right-0 w-64 z-40">{panel}</aside>
+
+      {/* Phones and tablets: a slim bar, and the panel slides in from the right */}
+      <header className="lg:hidden sticky top-0 z-40 h-14 px-4 flex items-center justify-between gap-3 bg-white/95 backdrop-blur-md border-b border-slate-200">
+        <Wordmark onClick={() => go(tabs[0].id)} />
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => {
+              onNewChat?.();
+              go(tabs[0].id);
+            }}
+            className="p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+            aria-label="New chat"
+          >
+            <SquarePen className="w-5 h-5" />
+          </button>
+          <button onClick={() => setDrawerOpen(true)} className="p-2 -mr-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100" aria-label="Open menu" aria-expanded={drawerOpen}>
+            <Menu className="w-5 h-5" />
+          </button>
+        </div>
+      </header>
+      {drawerOpen && (
+        <div className="lg:hidden fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-slate-900/40 animate-[fade-in_150ms_ease-out]" onClick={() => setDrawerOpen(false)} />
+          <div role="dialog" aria-modal="true" aria-label="Menu" className="absolute inset-y-0 right-0 w-72 max-w-[85vw] shadow-2xl animate-[slide-in-right_200ms_ease-out]">
+            {panel}
+          </div>
+        </div>
+      )}
+    </>
   );
 };
