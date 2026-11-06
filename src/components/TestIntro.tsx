@@ -11,6 +11,7 @@ export const INTEGRITY_RULES = [
   'Stay on this tab, in this window, for the whole test. Switching tabs, windows or apps is recorded, with how long you were away.',
   'Use one screen. Vetter records how many screens are connected, and when your window is resized or made small enough to leave room beside it.',
   'Copying, cutting and pasting are recorded. Pasting in text from outside the test counts heavily against you.',
+  'Activity is recorded: when you stop moving the mouse and typing, for how long, and how your answers are typed in.',
   'Work alone. No help from other people, and no AI assistants, code generators or web searches.',
   'Don’t screenshot, copy or share the questions, during or after the test. One attempt at a time, on your own account.',
 ];

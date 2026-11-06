@@ -17,6 +17,8 @@ const EVENT_LABELS: Record<IntegrityEventType, string> = {
   'right-click': 'Right-clicked',
   'screenshot-key': 'Pressed a screenshot key',
   'screens-changed': 'Screens changed',
+  idle: 'Still: no mouse or keys',
+  'idle-then-answer': 'Still, then a complete answer at once',
 };
 
 const clock = (secs: number) => `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
@@ -138,6 +140,14 @@ const IntegrityDetails: React.FC<{ sittings: IntegritySitting[]; onClose: () => 
               <Metric label="Cuts" value={r.cuts} warn={r.cuts > 0} />
               <Metric label="Screenshot keys" value={r.screenshotKeys} warn={r.screenshotKeys > 0} />
               <Metric label="Right-clicks" value={r.rightClicks} />
+              {r.secondsIdle !== undefined && (
+                <>
+                  <Metric label="Time without moving or typing" value={duration(r.secondsIdle)} note="Stretches of 30s+; often reading or thinking" />
+                  <Metric label="Longest still stretch" value={duration(r.longestIdle ?? 0)} warn={(r.longestIdle ?? 0) >= 180} />
+                  <Metric label="Still for a minute or more" value={r.idleStretches ?? 0} />
+                  <Metric label="Still, then a complete answer" value={r.idleThenAnswer ?? 0} warn={(r.idleThenAnswer ?? 0) > 0} note="Typed fast with hardly a correction, or pasted" />
+                </>
+              )}
             </div>
           </section>
 

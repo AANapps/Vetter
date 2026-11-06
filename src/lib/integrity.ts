@@ -16,7 +16,9 @@ export type IntegrityEventType =
   | 'paste-internal'
   | 'right-click'
   | 'screenshot-key'
-  | 'screens-changed';
+  | 'screens-changed'
+  | 'idle'
+  | 'idle-then-answer';
 
 export interface IntegrityEvent {
   // Seconds from the start of the test
@@ -50,6 +52,15 @@ export interface IntegrityReport {
   // Screens connected: a number when the browser could count them; extended says more than one, when it could tell
   screens: number | null;
   extendedDisplay: boolean | null;
+  // Inactivity while the test was on screen and focused: no mouse, keys, scrolling or touch. Only stretches of 30
+  // seconds or more count. Optional because results saved before this was measured don't have it
+  secondsIdle?: number;
+  longestIdle?: number;
+  // Stretches of a minute or more
+  idleStretches?: number;
+  // A minute or more of stillness followed straight away by a long, clean answer: lots typed with hardly a correction,
+  // or a paste from outside. The strongest sign of copying an answer from a phone or another screen
+  idleThenAnswer?: number;
   // The first events in order, for the timeline
   events: IntegrityEvent[];
 }
@@ -69,8 +80,20 @@ export const emptyIntegrity = (): IntegrityReport => ({
   screenshotKeys: 0,
   screens: null,
   extendedDisplay: null,
+  secondsIdle: 0,
+  longestIdle: 0,
+  idleStretches: 0,
+  idleThenAnswer: 0,
   events: [],
 });
+
+// Inactivity thresholds: a stretch counts from 30 seconds, is flagged from a minute, and after a flagged one the next
+// 90 seconds are watched for an answer arriving all at once (200+ characters typed with at most 3% corrections)
+export const IDLE_COUNTS_FROM = 30;
+export const IDLE_FLAG_FROM = 60;
+const ANSWER_WINDOW = 90;
+const ANSWER_CHARS = 200;
+const ANSWER_MAX_FIXES = 0.03;
 
 const MAX_EVENTS = 150;
 
@@ -99,6 +122,9 @@ export function suspicionPoints(r: IntegrityReport): { signal: string; points: n
     { signal: 'Copied from the test', points: Math.min(15, (r.copies + r.cuts) * 3) },
     { signal: 'Screenshot key', points: r.screenshotKeys * 8 },
     { signal: 'Right-clicks', points: Math.min(5, r.rightClicks) },
+    // Being still is mostly reading and thinking, so it counts lightly; stillness then a ready-made answer counts most
+    { signal: 'Still, then a complete answer at once', points: Math.min(45, (r.idleThenAnswer ?? 0) * 15) },
+    { signal: 'Long stretches without moving or typing', points: Math.min(8, Math.floor((r.secondsIdle ?? 0) / 180) * 2) + ((r.longestIdle ?? 0) >= 180 ? 4 : 0) },
   ];
   return parts.filter((p) => p.points > 0);
 }
@@ -123,8 +149,19 @@ export function combineReports(reports: IntegrityReport[]): IntegrityReport {
     out.internalPastes += r.internalPastes;
     out.rightClicks += r.rightClicks;
     out.screenshotKeys += r.screenshotKeys;
+    out.secondsIdle! += r.secondsIdle ?? 0;
+    out.longestIdle = Math.max(out.longestIdle!, r.longestIdle ?? 0);
+    out.idleStretches! += r.idleStretches ?? 0;
+    out.idleThenAnswer! += r.idleThenAnswer ?? 0;
     if (r.screens !== null) out.screens = Math.max(out.screens ?? 0, r.screens);
     if (r.extendedDisplay !== null) out.extendedDisplay = !!out.extendedDisplay || r.extendedDisplay;
+  }
+  // Results from before inactivity was measured: leave it unmeasured rather than show zero
+  if (reports.length > 0 && reports.every((r) => r.secondsIdle === undefined)) {
+    delete out.secondsIdle;
+    delete out.longestIdle;
+    delete out.idleStretches;
+    delete out.idleThenAnswer;
   }
   return out;
 }
@@ -266,6 +303,55 @@ export function startIntegrityMonitor(currentQuestion: () => string | undefined,
   countScreens(false).then((s) => recordScreens(s, false));
   (window.screen as Screen & EventTarget).addEventListener?.('change', onScreenChange);
 
+  // Inactivity: a once-a-second check. A second with any input ends a still stretch; a second away, hidden or inside
+  // an embedded app simulation (whose own input this page can't see) ends it without counting
+  let hadInput = false;
+  let idleRun = 0;
+  let answerWatch: { until: number; typed: number; fixes: number; pasted: boolean } | null = null;
+  const onInput = () => {
+    hadInput = true;
+  };
+  const checkAnswer = (force: boolean) => {
+    if (!answerWatch || (!force && Date.now() < answerWatch.until)) return;
+    const { typed, fixes, pasted } = answerWatch;
+    answerWatch = null;
+    if (pasted || (typed >= ANSWER_CHARS && fixes <= typed * ANSWER_MAX_FIXES)) {
+      report.idleThenAnswer = (report.idleThenAnswer ?? 0) + 1;
+      log('idle-then-answer', pasted ? 'pasted from outside' : `${typed} characters typed, ${fixes} corrections`);
+    }
+  };
+  const endIdle = (byInput: boolean) => {
+    if (idleRun >= IDLE_COUNTS_FROM) {
+      report.secondsIdle = (report.secondsIdle ?? 0) + idleRun;
+      report.longestIdle = Math.max(report.longestIdle ?? 0, idleRun);
+      if (idleRun >= IDLE_FLAG_FROM) {
+        report.idleStretches = (report.idleStretches ?? 0) + 1;
+        const m = Math.floor(idleRun / 60);
+        log('idle', `${m}m ${idleRun % 60}s without moving or typing`);
+        if (byInput) answerWatch = { until: Date.now() + ANSWER_WINDOW * 1000, typed: 0, fixes: 0, pasted: false };
+      }
+    }
+    idleRun = 0;
+  };
+  const idleTimer = setInterval(() => {
+    const onTest = !document.hidden && document.hasFocus() && document.activeElement?.tagName !== 'IFRAME';
+    if (hadInput) endIdle(true);
+    else if (onTest) idleRun++;
+    else endIdle(false);
+    hadInput = false;
+    checkAnswer(false);
+  }, 1000);
+  const onTyping = (e: KeyboardEvent) => {
+    onInput();
+    if (!answerWatch) return;
+    if (e.key === 'Backspace' || e.key === 'Delete') answerWatch.fixes++;
+    else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) answerWatch.typed++;
+  };
+  const onPasteWatch = () => {
+    if (answerWatch && !copiedInside) answerWatch.pasted = true;
+  };
+  const INPUTS = ['pointermove', 'pointerdown', 'wheel', 'touchstart', 'scroll'] as const;
+
   const copy = onCopy(false);
   const cut = onCopy(true);
   document.addEventListener('visibilitychange', onVisibility);
@@ -277,6 +363,9 @@ export function startIntegrityMonitor(currentQuestion: () => string | undefined,
   document.addEventListener('contextmenu', onContextMenu, true);
   window.addEventListener('keyup', onKey, true);
   window.addEventListener('resize', onResize);
+  INPUTS.forEach((t) => window.addEventListener(t, onInput, { capture: true, passive: true }));
+  window.addEventListener('keydown', onTyping, true);
+  document.addEventListener('paste', onPasteWatch, true);
 
   return {
     report,
@@ -287,6 +376,12 @@ export function startIntegrityMonitor(currentQuestion: () => string | undefined,
     },
     stop: (): IntegrityReport => {
       cameBack();
+      endIdle(false);
+      checkAnswer(true);
+      clearInterval(idleTimer);
+      INPUTS.forEach((t) => window.removeEventListener(t, onInput, { capture: true }));
+      window.removeEventListener('keydown', onTyping, true);
+      document.removeEventListener('paste', onPasteWatch, true);
       clearInterval(splitTimer);
       clearTimeout(resizeTimer);
       (window.screen as Screen & EventTarget).removeEventListener?.('change', onScreenChange);
@@ -358,5 +453,9 @@ export function seedIntegrity(rand: () => number): IntegrityReport {
   r.internalPastes = n(3);
   r.rightClicks = n(tier);
   r.secondsSplitScreen = tier >= 3 ? n(240) : 0;
+  r.idleStretches = [n(1), n(2), 1 + n(2), 2 + n(3), 3 + n(4)][tier];
+  r.longestIdle = r.idleStretches ? 60 + n([60, 90, 150, 240, 360][tier]) : n(1) ? 30 + n(25) : 0;
+  r.secondsIdle = r.longestIdle + (r.idleStretches > 1 ? (r.idleStretches - 1) * (60 + n(40)) : 0);
+  r.idleThenAnswer = [0, 0, n(1), 1 + n(1), 1 + n(2)][tier];
   return r;
 }
