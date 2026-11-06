@@ -170,7 +170,8 @@ function seedStatements(tables: SqlTable[] = Object.values(MOCK_DATABASE)): stri
     .join('\n');
 }
 
-export async function executeSqlQuery(rawQuery: string): Promise<SqlExecutionResult> {
+// tables: the sample database to run on, when it isn't the standard one (a candidate's own variant of it)
+export async function executeSqlQuery(rawQuery: string, tables?: SqlTable[]): Promise<SqlExecutionResult> {
   const start = performance.now();
   const clean = rawQuery.trim();
   const elapsed = () => Math.max(1, Math.round(performance.now() - start));
@@ -182,7 +183,7 @@ export async function executeSqlQuery(rawQuery: string): Promise<SqlExecutionRes
   const SQL = await loadSqlJs();
   const db = new SQL.Database();
   try {
-    db.run(seedStatements());
+    db.run(seedStatements(tables));
     const results = db.exec(clean);
     // Show the result of the last statement that returned rows
     const last = results[results.length - 1];

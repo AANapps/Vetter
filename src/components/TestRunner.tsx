@@ -7,6 +7,7 @@ import { breakdownFor } from '../lib/modules';
 import { ResultBreakdownPanel } from './ResultBreakdownPanel';
 import { MOCK_DATABASE } from '../lib/sqlEngine';
 import { runQuestion, gradeTest, QuestionRunResult, weightedScore } from '../lib/grading';
+import { makeVariant, newVariantSeed } from '../lib/variants';
 import { AiMark, aiMarks } from '../lib/aiMarking';
 import { Pulse } from './Pulse';
 import {
@@ -108,7 +109,29 @@ interface TestRunnerProps {
   attempt?: { number: number; limit?: number };
 }
 
-export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete, getPercentileFor, preview, savedNote, onBegin, attempt }) => {
+// Every candidate gets their own numbers: the test's data is varied from a fresh seed before it opens (lib/variants.ts).
+// It takes a moment (each variant is checked against the reference answers), so a short wait shows first
+export const TestRunner: React.FC<TestRunnerProps> = (props) => {
+  const [own, setOwn] = useState<AssessmentTest | null>(null);
+  useEffect(() => {
+    let live = true;
+    setOwn(null);
+    makeVariant(props.test, newVariantSeed()).then((v) => live && setOwn(v.test));
+    return () => {
+      live = false;
+    };
+  }, [props.test.id]);
+  if (!own)
+    return (
+      <div className="fixed inset-0 z-50 bg-white flex flex-col items-center justify-center">
+        <Pulse label="Preparing your test" />
+        <p className="text-sm font-semibold text-slate-700">Preparing your test…</p>
+      </div>
+    );
+  return <TestRunnerInner {...props} test={own} />;
+};
+
+const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete, getPercentileFor, preview, savedNote, onBegin, attempt }) => {
   // Each hands-on task is shown with the questions about it; every other question on its own
   const groups = useMemo(() => groupQuestions(test.questions), [test.questions]);
   const ordered = useMemo(() => groups.flatMap((g) => g.questions), [groups]);
@@ -194,9 +217,9 @@ export const TestRunner: React.FC<TestRunnerProps> = ({ test, onClose, onComplet
   const questionCount = ordered.filter((q) => q.type !== 'case').length;
   const isLastGroup = groupIndex === groups.length - 1;
   const currentCode = userCodes[currentQ.id] || '';
-  // Every sample table the task's schema reference names
+  // Every sample table the task's schema reference names, from the candidate's own variant of the data when it has one
   const sampleTables = Array.from(currentQ.contextData?.matchAll(/Table:\s*(\w+)/g) ?? [])
-    .map((m) => MOCK_DATABASE[m[1]])
+    .map((m) => (currentQ.type === 'sql' && currentQ.tables?.find((t) => t.name === m[1])) || MOCK_DATABASE[m[1]])
     .filter(Boolean);
   const chartSpec =
     currentQ.preview === 'chart' && runResults?.type === 'code' ? parseChartSpec(runResults.testCaseResults[0]?.actual) : null;

@@ -1,5 +1,5 @@
 import { AssessmentTest, Question } from '../types';
-import { executeSqlQuery, openTaskDatabase, queryRows, runSchemaChecks, SqlExecutionResult } from './sqlEngine';
+import { executeSqlQuery, openTaskDatabase, queryRows, runSchemaChecks, SqlExecutionResult, SqlTable } from './sqlEngine';
 import { parseDatabaseWork } from './databaseWork';
 import { checkSheet, parseWorkbook } from './spreadsheet';
 import { checkAppState } from './appSimulation';
@@ -27,10 +27,13 @@ const sameRows = (actual: unknown[][], expected: unknown[][], ordered: boolean) 
   return a.length === e.length && a.every((row, i) => row === e[i]);
 };
 
+// A SQL question runs on the standard sample database, or on the candidate's own variant of it (lib/variants.ts)
+const sqlTablesOf = (q: Question) => (q.tables?.length ? (q.tables as SqlTable[]) : undefined);
+
 // The reference result for a SQL question: its solution query if it has one, otherwise the authored expected output
 async function expectedSqlRows(q: Question): Promise<Record<string, any>[] | null> {
   if (q.solutionCode) {
-    const res = await executeSqlQuery(q.solutionCode);
+    const res = await executeSqlQuery(q.solutionCode, sqlTablesOf(q));
     if (res.success) return res.rows;
   }
   const authored = q.testCases[0]?.expectedOutput;
@@ -43,7 +46,7 @@ async function expectedSqlRows(q: Question): Promise<Record<string, any>[] | nul
 }
 
 async function runSqlQuestion(q: Question, code: string): Promise<QuestionRunResult> {
-  const result = await executeSqlQuery(code);
+  const result = await executeSqlQuery(code, sqlTablesOf(q));
   const expected = await expectedSqlRows(q);
   const ordered = /\border\s+by\b/i.test(q.solutionCode || q.prompt);
   const passed = result.success && expected !== null && sameRows(toValueRows(result.rows), toValueRows(expected), ordered);

@@ -13,6 +13,7 @@ export const INTEGRITY_RULES = [
   'Copying, cutting and pasting are recorded. Pasting in text from outside the test counts heavily against you.',
   'Activity is recorded: when you stop moving the mouse and typing, for how long, and how your answers are typed in.',
   'Work alone. No help from other people, and no AI assistants, code generators or web searches.',
+  'Your data is your own: the numbers in the tasks are different for every candidate, so someone else’s answers won’t fit yours.',
   'Don’t screenshot, copy or share the questions, during or after the test. One attempt at a time, on your own account.',
 ];
 
