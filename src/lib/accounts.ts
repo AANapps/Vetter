@@ -202,23 +202,55 @@ export async function decideMember(companyId: string, uid: string, approve: bool
   return batch.commit();
 }
 
-// The Vetter team's queue: companies that signed up without a work email
-export async function companiesInReview(): Promise<Company[]> {
-  const snap = await getDocs(query(collection(db(), 'companies'), where('status', '==', 'pending-review')));
+// The Vetter team's queue: companies that signed up without a work email. Taken from both sides, so nobody waiting is
+// missed: companies marked for review, and accounts marked for review whatever state their company record is in
+// (missing, or out of step). `needsFix` says which record the approval has to repair
+export type ReviewCompany = Company & { needsFix?: 'missing-company' | 'company-status' };
+
+export async function companiesInReview(): Promise<ReviewCompany[]> {
+  const [companies, accounts] = await Promise.all([
+    getDocs(query(collection(db(), 'companies'), where('status', '==', 'pending-review'))),
+    getDocs(query(collection(db(), 'users'), where('status', '==', 'pending-review'))),
+  ]);
+  const queue: ReviewCompany[] = companies.docs.map((d) => ({ id: d.id, ...d.data() }) as Company);
+  const owners = new Map(accounts.docs.map((d) => [d.id, { uid: d.id, ...d.data() } as Account]));
+  for (const owner of owners.values()) {
+    if (owner.role !== 'recruiter' || queue.some((c) => c.ownerUid === owner.uid)) continue;
+    const id = owner.companyId ?? `review-${owner.uid}`;
+    const snap = await getDoc(companyRef(id));
+    queue.push(
+      snap.exists()
+        ? ({ id, ...snap.data(), needsFix: 'company-status' } as ReviewCompany)
+        : {
+            id,
+            name: owner.companySetup?.name || owner.name,
+            website: owner.companySetup?.website ?? '',
+            ownerUid: owner.uid,
+            ownerName: owner.name,
+            status: 'pending-review',
+            needsFix: 'missing-company',
+          }
+    );
+  }
   return Promise.all(
-    snap.docs.map(async (d) => {
-      const company = { id: d.id, ...d.data() } as Company;
-      const owner = await getDoc(userRef(company.ownerUid));
-      return { ...company, ownerEmail: owner.data()?.email };
-    })
+    queue.map(async (c) => ({ ...c, ownerEmail: owners.get(c.ownerUid)?.email ?? (await getDoc(userRef(c.ownerUid))).data()?.email }))
   );
 }
 
-export async function decideCompany(company: Company, approve: boolean) {
+export async function decideCompany(company: ReviewCompany, approve: boolean) {
   const status = approve ? 'active' : 'rejected';
   const batch = writeBatch(db());
-  batch.update(companyRef(company.id), { status });
-  batch.update(userRef(company.ownerUid), { status });
+  if (company.needsFix === 'missing-company')
+    batch.set(companyRef(company.id), {
+      name: company.name,
+      website: company.website,
+      ownerUid: company.ownerUid,
+      ownerName: company.ownerName,
+      status,
+      createdAt: serverTimestamp(),
+    });
+  else batch.update(companyRef(company.id), { status });
+  batch.update(userRef(company.ownerUid), { status, companyId: company.id });
   return batch.commit();
 }
 

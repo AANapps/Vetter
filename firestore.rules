@@ -266,13 +266,14 @@ service cloud.firestore {
       allow read: if resource.data.status == 'active' || signedIn();
 
       // The plan is set by the Vetter team only, never by the company that pays for it
-      allow create: if signedIn() && verified() && request.resource.data.ownerUid == uid() && !('plan' in request.resource.data) && (
+      // The Vetter team can also create one, to repair a sign-up whose company record went missing
+      allow create: if isAdmin() || (signedIn() && verified() && request.resource.data.ownerUid == uid() && !('plan' in request.resource.data) && (
         // A company's id is its email domain, claimed only by a verified address at that domain
         (companyId == emailDomain() && !(emailDomain() in freeDomains())
           && request.resource.data.domain == companyId && request.resource.data.status == 'active')
         // Without a work email, a company waits for review
         || (companyId == 'review-' + uid() && request.resource.data.status == 'pending-review')
-      );
+      ));
 
       allow update: if isAdmin()
         || (signedIn() && resource.data.ownerUid == uid()

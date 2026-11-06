@@ -4,7 +4,7 @@ import { collection, deleteField, doc, getDocs, query, updateDoc, where } from '
 import { db, firebaseEnabled } from '../lib/firebase';
 import { AssessmentTest, levelName } from '../types';
 import { useAccount } from '../lib/useAccount';
-import { Company, accountError, companiesInReview, continueWithGoogle, decideCompany, signIn, signOut } from '../lib/accounts';
+import { ReviewCompany, accountError, companiesInReview, continueWithGoogle, decideCompany, signIn, signOut } from '../lib/accounts';
 import { CourseSignup, listCourseSignups } from '../lib/courseSignups';
 import { GoogleMark } from './AuthDialog';
 import { Pulse } from './Pulse';
@@ -120,7 +120,7 @@ const NotAdmin: React.FC = () => (
 );
 
 const CompaniesQueue: React.FC = () => {
-  const [queue, setQueue] = useState<Company[] | null>(null);
+  const [queue, setQueue] = useState<ReviewCompany[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const load = () => {
@@ -130,7 +130,7 @@ const CompaniesQueue: React.FC = () => {
       .catch((err) => setError(accountError(err)));
   };
   useEffect(load, []);
-  const decide = (c: Company, approve: boolean) => {
+  const decide = (c: ReviewCompany, approve: boolean) => {
     setBusyId(c.id);
     decideCompany(c, approve)
       .then(load)
@@ -174,6 +174,13 @@ const CompaniesQueue: React.FC = () => {
                 <span className="block text-xs text-slate-600">
                   {c.ownerName} · {c.ownerEmail ?? 'no email on record'}
                 </span>
+                {c.needsFix && (
+                  <span className="block text-xs text-amber-700">
+                    {c.needsFix === 'missing-company'
+                      ? 'Their company record is missing; deciding creates it.'
+                      : `Their company record says "${c.status}" while they wait; deciding brings both in line.`}
+                  </span>
+                )}
               </span>
               <span className="flex gap-2">
                 <button

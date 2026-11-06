@@ -88,7 +88,7 @@ Without Firebase settings Vetter runs as a demo with a view switcher. With them,
   activity are only in demo mode.
 - Profiles are public (like the leaderboards) but never include email addresses or where someone applied. Companies
   see applications and invitations for their own jobs only.
-- `firestore.rules` enforces all of this on the server. `npm run test:rules` checks it (56 cases) against the
+- `firestore.rules` enforces all of this on the server. `npm run test:rules` checks it (100 cases) against the
   Firebase emulators.
 
 Setup: create a Firebase project, turn on **Authentication > Email/Password** and **Google**, create a **Firestore** database,

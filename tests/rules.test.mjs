@@ -186,6 +186,16 @@ console.log('    status:', (await account(mo)).status);
 await check('cannot approve their own review', () => updateDoc(doc(db, 'companies', `review-${mo}`), { status: 'active' }), false);
 await A.signOut();
 
+console.log('No work email, company record lost (nia@outlook.com)');
+await A.signUp({ role: 'recruiter', name: 'Nia', email: 'nia@outlook.com', password: 'password123', company: { name: 'Nia Studio', website: 'nia.studio', noWorkEmail: true } });
+const nia = F.auth().currentUser.uid;
+await verify('nia@outlook.com');
+await A.finishCompanySetup(await account(nia));
+await check('cannot recreate a company record as someone else', () => setDoc(doc(db, 'companies', `review-${mo}`), { name: 'X', website: '', ownerUid: nia, ownerName: 'Nia', status: 'pending-review' }), false);
+await A.signOut();
+// Her company record goes missing (rule-free emulator access); her account still says she's waiting
+await fetch(`http://127.0.0.1:8080/v1/projects/${PROJECT}/databases/(default)/documents/companies/review-${nia}`, { method: 'DELETE', headers: { Authorization: 'Bearer owner' } });
+
 console.log('Course sign-ups (signed out)');
 const signup = { courseId: 'data-analysis-bootcamp', courseTitle: 'Data Analysis Bootcamp', price: 5000, name: 'Sam', email: 'sam@example.com', phone: '+44 7700 900123', note: '' };
 await check('signs up with email and phone', () => addDoc(collection(db, 'courseSignups'), { ...signup, createdAt: serverTimestamp() }), true);
@@ -203,6 +213,13 @@ await A.signIn('cara@gmail.com', 'password123');
 const queue = await A.companiesInReview();
 console.log('    review queue:', queue.map((c) => c.name).join(', '));
 await check('admin approves Mo', () => A.decideCompany(queue[0], true), true);
+const niaItem = queue.find((c) => c.ownerUid === nia);
+await check('queue still lists Nia, whose company record is missing', () => { if (niaItem?.needsFix !== 'missing-company' || niaItem.ownerEmail !== 'nia@outlook.com') throw new Error(JSON.stringify(niaItem)); }, true);
+await check('admin approves Nia, recreating her company', () => A.decideCompany(niaItem, true), true);
+await check('Nia and her company are both active', async () => {
+  const [a, c] = [await account(nia), (await getDoc(doc(db, 'companies', `review-${nia}`))).data()];
+  if (a.status !== 'active' || c?.status !== 'active' || a.companyId !== `review-${nia}`) throw new Error(`${a.status} ${c?.status}`);
+}, true);
 await check('admin approves Acme\'s test for the public library', () => updateDoc(doc(db, 'tests', 'test-custom-1'), { publicStatus: 'approved' }), true);
 await check('admin reads course sign-ups', async () => { if ((await getDocs(collection(db, 'courseSignups'))).size !== 1) throw new Error('missing'); }, true);
 console.log('    Mo now:', (await account(mo)).status);
