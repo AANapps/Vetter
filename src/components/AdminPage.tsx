@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowRight, CheckCircle2, GraduationCap, LogOut, RefreshCw, ShieldCheck, X } from 'lucide-react';
-import { firebaseEnabled } from '../lib/firebase';
+import { ArrowRight, CheckCircle2, Globe, GraduationCap, LogOut, RefreshCw, ShieldCheck, X } from 'lucide-react';
+import { collection, deleteField, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
+import { db, firebaseEnabled } from '../lib/firebase';
+import { AssessmentTest, levelName } from '../types';
 import { useAccount } from '../lib/useAccount';
 import { Company, accountError, companiesInReview, continueWithGoogle, decideCompany, signIn, signOut } from '../lib/accounts';
 import { CourseSignup, listCourseSignups } from '../lib/courseSignups';
@@ -138,10 +140,10 @@ const CompaniesQueue: React.FC = () => {
   return (
     <section className="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="font-bold flex items-center gap-2">
+        <h3 className="font-bold flex items-center gap-2">
           <ShieldCheck className="w-4 h-4 text-indigo-600" />
-          Companies to check
-        </h2>
+          Companies{queue && queue.length > 0 ? ` (${queue.length})` : ''}
+        </h3>
         <button onClick={load} className="text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1">
           <RefreshCw className="w-3.5 h-3.5" />
           Refresh
@@ -191,6 +193,119 @@ const CompaniesQueue: React.FC = () => {
                   Reject
                 </button>
               </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+};
+
+// Company tests asking to join the public library: approved, every company can use it and every candidate take it
+const TestsQueue: React.FC = () => {
+  const [queue, setQueue] = useState<AssessmentTest[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [declining, setDeclining] = useState<string | null>(null);
+  const [note, setNote] = useState('');
+  const load = () => {
+    setError(null);
+    getDocs(query(collection(db(), 'tests'), where('publicStatus', '==', 'pending')))
+      .then((snap) =>
+        setQueue(
+          snap.docs
+            .map((d) => ({ ...(d.data() as AssessmentTest), id: d.id }))
+            .filter((t) => t.type === 'custom')
+            .sort((a, b) => (a.publicAskedAt ?? '').localeCompare(b.publicAskedAt ?? ''))
+        )
+      )
+      .catch((err) => setError(accountError(err)));
+  };
+  useEffect(load, []);
+  const decide = (t: AssessmentTest, approve: boolean) => {
+    setBusyId(t.id);
+    const reason = note.trim();
+    updateDoc(doc(db(), 'tests', t.id), {
+      publicStatus: approve ? 'approved' : 'rejected',
+      publicNote: approve || !reason ? deleteField() : reason,
+    })
+      .then(() => {
+        setDeclining(null);
+        setNote('');
+        load();
+      })
+      .catch((err) => setError(accountError(err)))
+      .finally(() => setBusyId(null));
+  };
+  return (
+    <section className="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="font-bold flex items-center gap-2">
+          <Globe className="w-4 h-4 text-indigo-600" />
+          Tests for the public library{queue && queue.length > 0 ? ` (${queue.length})` : ''}
+        </h3>
+        <button onClick={load} className="text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1">
+          <RefreshCw className="w-3.5 h-3.5" />
+          Refresh
+        </button>
+      </div>
+      <p className="text-xs text-slate-500">Open each to read and try it. Approved, every company can add it to a job and every candidate can take it.</p>
+      {error && <p className="text-sm text-red-700">{error}</p>}
+      {!queue && !error && <p className="text-sm text-slate-500">Loading…</p>}
+      {queue && queue.length === 0 && <p className="text-sm text-slate-600">Nothing to check right now.</p>}
+      {queue && queue.length > 0 && (
+        <ul className="divide-y divide-slate-100">
+          {queue.map((t) => (
+            <li key={t.id} className="py-3 space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+                <a href={`/#/tests/${encodeURIComponent(t.id)}`} target="_blank" rel="noreferrer" className="min-w-0 group">
+                  <span className="font-semibold group-hover:text-indigo-700 group-hover:underline">{t.title}</span>
+                  <span className="block text-xs text-slate-600">
+                    {t.companyName} · {t.category} · {levelName(t.difficulty)} · {t.totalQuestions} {t.totalQuestions === 1 ? 'question' : 'questions'}
+                    {t.publicAskedAt && <> · asked {new Date(t.publicAskedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</>}
+                  </span>
+                </a>
+                <span className="flex gap-2">
+                  <button
+                    disabled={busyId === t.id}
+                    onClick={() => decide(t, true)}
+                    className="px-3 py-1.5 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-700 disabled:opacity-50 rounded-lg flex items-center gap-1"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    Approve
+                  </button>
+                  <button
+                    disabled={busyId === t.id}
+                    onClick={() => (setDeclining(declining === t.id ? null : t.id), setNote(''))}
+                    aria-expanded={declining === t.id}
+                    className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 disabled:opacity-50 rounded-lg flex items-center gap-1"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    Turn down
+                  </button>
+                </span>
+              </div>
+              {declining === t.id && (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    decide(t, false);
+                  }}
+                  className="flex flex-col sm:flex-row gap-2"
+                >
+                  <input
+                    autoFocus
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    placeholder="Why, for the company: e.g. two questions have the wrong answer marked"
+                    aria-label="Why it was turned down"
+                    className="flex-1 px-3 py-1.5 text-xs border border-slate-300 rounded-lg"
+                  />
+                  <button type="submit" disabled={busyId === t.id} className="px-3 py-1.5 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 disabled:opacity-50 rounded-lg">
+                    Turn it down
+                  </button>
+                </form>
+              )}
             </li>
           ))}
         </ul>
@@ -290,7 +405,11 @@ export const AdminPage: React.FC = () => {
               <ArrowRight className="w-4 h-4" />
             </a>
           </div>
-          <CompaniesQueue />
+          <div className="space-y-3">
+            <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">Approvals</h2>
+            <CompaniesQueue />
+            <TestsQueue />
+          </div>
           <CourseSignups />
         </div>
       )}
