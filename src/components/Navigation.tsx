@@ -3,7 +3,7 @@ import { PixelDot } from './PixelDot';
 import { Pic } from './Pic';
 import { UserRole } from '../types';
 import { ArrowLeftRight,
-  BookOpen, LogOut, Bell, Briefcase, ChevronDown, ClipboardCheck, House, Repeat, Search, Users } from 'lucide-react';
+  BookOpen, LogOut, ShieldCheck, Bell, Briefcase, ChevronDown, ClipboardCheck, House, Repeat, Search, Users } from 'lucide-react';
 
 export type AppTab =
   | 'home'
@@ -271,6 +271,17 @@ export const Navigation: React.FC<NavigationProps> = ({
                   <span>How-to guides</span>
                 </button>
                 {accounts?.email && <div className="text-[11px] text-slate-500 truncate -mt-1">{accounts.email}</div>}
+                {/* The Vetter team's admin page */}
+                {accounts?.canSwitchViews && (
+                  <a
+                    role="menuitem"
+                    href="/admin"
+                    className="w-full flex items-center justify-center gap-2 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-full"
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span>Admin panel</span>
+                  </a>
+                )}
                 {/* The demo's views, and with accounts the Vetter team's */}
                 {(!accounts || accounts.canSwitchViews) && VIEWS.filter((v) => v.role !== activeRole).map((v) => (
                   <button
