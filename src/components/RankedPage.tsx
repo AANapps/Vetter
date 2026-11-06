@@ -1,8 +1,11 @@
-import React, { useMemo, useState } from 'react';
-import { ArrowRight, Search, Trophy } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ArrowRight, Search, Trophy, Users } from 'lucide-react';
 import { AssessmentTest, User, levelName } from '../types';
 import { getTestStats } from '../lib/leaderboard';
-import { TestLeaderboard } from './TestLeaderboard';
+import { Pic } from './Pic';
+import { RankDisc } from './RankDisc';
+import { formatDuration } from './TestLeaderboard';
+import { getBadgeTier } from './VerifiedSkillBadge';
 import { rankedTests } from './TopPerformers';
 
 // Ranked: every public test's leaderboard. The tests people have taken are listed on the left, busiest first; the
@@ -38,7 +41,11 @@ export const RankedPage: React.FC<{
         <div className="grid grid-cols-1 lg:grid-cols-[18rem_minmax(0,1fr)] gap-6 items-start">
           {/* Tests */}
           <aside className="min-w-0 bg-white border border-slate-200 rounded-xl overflow-hidden lg:sticky lg:top-20">
-            <div className="p-3 border-b border-slate-100">
+            <div className="p-3 border-b border-slate-100 space-y-2">
+              <div className="px-1 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                <span>Tests</span>
+                <span>Most taken first</span>
+              </div>
               <label className="relative block">
                 <Search className="w-4 h-4 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
                 <input
@@ -66,7 +73,13 @@ export const RankedPage: React.FC<{
                           {b.test.category} · {levelName(b.test.difficulty)}
                         </span>
                       </span>
-                      <span className={`text-xs font-mono tabular-nums shrink-0 ${active ? 'text-slate-200' : 'text-slate-500'}`}>{b.entries.length}</span>
+                      <span
+                        className={`shrink-0 inline-flex items-center gap-1 text-xs tabular-nums ${active ? 'text-slate-200' : 'text-slate-500'}`}
+                        title={`${b.entries.length} ${b.entries.length === 1 ? 'candidate has' : 'candidates have'} taken it`}
+                      >
+                        <Users className="w-3.5 h-3.5" />
+                        {b.entries.length}
+                      </span>
                     </button>
                   </li>
                 );
@@ -106,9 +119,68 @@ export const RankedPage: React.FC<{
                   ))}
                 </dl>
               </div>
-              <TestLeaderboard key={board.test.id} entries={board.entries} passingScore={board.test.passingScore} currentCandidateId={viewerId} />
+              <RankCards key={board.test.id} board={board} viewerId={viewerId} />
             </div>
           )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const PAGE = 12;
+
+// The leaderboard as square cards, three to a row: rank, photo, name, score and time
+const RankCards: React.FC<{ board: ReturnType<typeof rankedTests>[number]; viewerId: string }> = ({ board, viewerId }) => {
+  const [shown, setShown] = useState(PAGE);
+  useEffect(() => setShown(PAGE), [board.test.id]);
+  const yours = board.entries.find((e) => e.candidate.id === viewerId);
+  const visible = board.entries.slice(0, shown);
+  const list = yours && !visible.includes(yours) ? [...visible, yours] : visible;
+  return (
+    <div className="space-y-4">
+      <ol className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        {list.map((e) => {
+          const isYou = e.candidate.id === viewerId;
+          const passed = e.score >= board.test.passingScore;
+          return (
+            <li
+              key={e.candidate.id}
+              className={`aspect-square min-w-0 rounded-xl border p-4 flex flex-col items-center justify-between text-center transition-shadow hover:shadow-sm ${
+                isYou ? 'border-indigo-300 bg-indigo-50/60' : e.rank === 1 ? 'border-amber-200 bg-amber-50/40' : 'border-slate-200 bg-white'
+              }`}
+            >
+              <div className="w-full flex items-center justify-between">
+                <RankDisc rank={e.rank} size="sm" />
+                {isYou ? (
+                  <span className="text-[10px] font-mono font-semibold uppercase text-indigo-700">You</span>
+                ) : (
+                  <span className="text-[10px] font-mono text-slate-400 tabular-nums">{formatDuration(e.durationSeconds)}</span>
+                )}
+              </div>
+              <div className="min-w-0 w-full flex flex-col items-center gap-2">
+                <Pic src={e.candidate.avatarUrl} alt="" referrerPolicy="no-referrer" className="w-12 h-12 sm:w-14 sm:h-14 rounded-full object-cover bg-slate-100" />
+                <div className="min-w-0 w-full">
+                  <div className="text-sm font-semibold text-slate-900 truncate">{e.candidate.name}</div>
+                  <div className="text-[11px] text-slate-500 truncate">{e.candidate.title}</div>
+                </div>
+              </div>
+              <div className={`font-mono text-2xl font-bold tabular-nums ${passed ? getBadgeTier(e.score).badgeTextColor : 'text-slate-400'}`}>
+                {e.score}
+                <span className="text-xs font-medium text-slate-400">/100</span>
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+      {board.entries.length > shown && (
+        <div className="text-center">
+          <button
+            onClick={() => setShown((n) => n + PAGE)}
+            className="px-4 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-200 hover:border-slate-300 rounded-lg"
+          >
+            Show more ({board.entries.length - shown} left)
+          </button>
         </div>
       )}
     </div>
