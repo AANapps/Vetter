@@ -1027,7 +1027,7 @@ export default function App() {
   const detailPage = testPageTest;
   // The company home: a chat that fills the window (src/components/BusinessHome.tsx)
   const chatHome = !detailPage && activeRole !== 'candidate' && currentTab === 'business-home';
-  // Companies and the Vetter team get the chat-app layout: the menu down the right (Navigation's StaffNav)
+  // Companies and the Vetter team get the chat-app layout: the menu down the left (Navigation's StaffNav)
   const staffLayout = !navPending && !isVisitor && activeRole !== 'candidate';
   const candidateNotifications = notifications
     .filter((n) => n.userId === candidate.id)
@@ -1059,7 +1059,7 @@ export default function App() {
   };
 
   return (
-    <div className={`min-h-screen bg-white text-slate-900 flex flex-col font-sans selection:bg-indigo-600 selection:text-white ${staffLayout ? 'lg:pr-64' : ''}`}>
+    <div className={`min-h-screen bg-white text-slate-900 flex flex-col font-sans selection:bg-indigo-600 selection:text-white ${staffLayout ? 'lg:pl-64' : ''}`}>
       <Navigation
         currentTab={currentTab}
         onTabChange={(tab) => {
@@ -1619,7 +1619,7 @@ export default function App() {
       )}
 
       {toast && (
-        <div className={`fixed bottom-6 right-6 left-6 sm:left-auto z-50 ${staffLayout ? 'lg:right-[17.5rem]' : ''} p-4 bg-slate-900 border border-slate-800 text-white rounded-xl shadow-2xl flex items-center gap-3 max-w-md`}>
+        <div className={`fixed bottom-6 right-6 left-6 sm:left-auto z-50 p-4 bg-slate-900 border border-slate-800 text-white rounded-xl shadow-2xl flex items-center gap-3 max-w-md`}>
           <CheckCircle2 className="w-5 h-5 text-indigo-400 shrink-0" />
           <div className="text-xs font-medium">{toast}</div>
         </div>

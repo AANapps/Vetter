@@ -514,9 +514,9 @@ select option {
   .animate-\[top-in_400ms_ease-out\] { animation: none; }
 }
 
-/* The company menu sliding in from the right on phones */
-@keyframes slide-in-right {
-  from { transform: translateX(100%); }
+/* The company menu sliding in from the left on phones */
+@keyframes slide-in-left {
+  from { transform: translateX(-100%); }
   to { transform: none; }
 }
 @keyframes fade-in {

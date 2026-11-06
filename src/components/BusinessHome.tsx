@@ -110,7 +110,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
         <span />
         <span />
       </div>
-    <div className="h-full max-w-6xl mx-auto px-4 sm:px-6 grid grid-cols-1 grid-rows-[minmax(0,1fr)] lg:grid-cols-[17rem_minmax(0,1fr)] gap-8">
+    <div className="h-full max-w-6xl mx-auto px-4 sm:px-6 grid grid-cols-1 grid-rows-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_17rem] gap-8">
       {/* The chat */}
       <section className="min-w-0 min-h-0 flex flex-col">
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain py-8 space-y-6 -mx-2 px-2">
@@ -262,10 +262,10 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
         </form>
       </section>
 
-      {/* Ways to start a test, on the left */}
-      <aside className="hidden lg:block lg:order-first min-h-0 overflow-y-auto py-8">
+      {/* Ways to start a test, beside the chat */}
+      <aside className="hidden lg:block min-h-0 overflow-y-auto py-8">
         <div className="ai-glass space-y-5 p-3 rounded-2xl border border-white/80 shadow-sm">
-          {/* The pages are in the menu on the right; here, the ways to start a test */}
+          {/* The pages are in the menu on the left; here, the ways to start a test */}
           <div className="space-y-2">
             <button
               onClick={onCreateOwn}

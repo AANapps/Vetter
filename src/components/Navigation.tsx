@@ -445,8 +445,8 @@ const VisitorHeader: React.FC<{ currentTab: AppTab; onTabChange: (tab: AppTab) =
   );
 };
 
-// Companies' and the Vetter team's menu, like a chat app's: a panel down the right of the window with a new chat,
-// search, the pages and the account. On phones and tablets it slides in from the right from a slim top bar
+// Companies' and the Vetter team's menu, like a chat app's: a panel down the left of the window with a new chat,
+// search, the pages and the account. On phones and tablets it slides in from the left from a slim top bar
 const StaffNav: React.FC<{
   tabs: { id: AppTab; label: string; icon: TabIcon }[];
   currentTab: AppTab;
@@ -504,7 +504,7 @@ const StaffNav: React.FC<{
   };
 
   const panel = (
-    <div className="h-full flex flex-col bg-slate-50 border-l border-slate-200">
+    <div className="h-full flex flex-col bg-slate-50 border-r border-slate-200">
       <div className="h-14 px-4 flex items-center justify-between gap-2 shrink-0">
         <Wordmark onClick={() => go(tabs[0].id)} />
         <button onClick={() => setDrawerOpen(false)} className="lg:hidden p-2 -mr-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-200/60" aria-label="Close menu">
@@ -560,32 +560,32 @@ const StaffNav: React.FC<{
 
   return (
     <>
-      {/* Wide screens: always there, down the right */}
-      <aside className="hidden lg:block fixed inset-y-0 right-0 w-64 z-40">{panel}</aside>
+      {/* Wide screens: always there, down the left */}
+      <aside className="hidden lg:block fixed inset-y-0 left-0 w-64 z-40">{panel}</aside>
 
-      {/* Phones and tablets: a slim bar, and the panel slides in from the right */}
+      {/* Phones and tablets: a slim bar, and the panel slides in from the left */}
       <header className="lg:hidden sticky top-0 z-40 h-14 px-4 flex items-center justify-between gap-3 bg-white/95 backdrop-blur-md border-b border-slate-200">
-        <Wordmark onClick={() => go(tabs[0].id)} />
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => {
-              onNewChat?.();
-              go(tabs[0].id);
-            }}
-            className="p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-            aria-label="New chat"
-          >
-            <SquarePen className="w-5 h-5" />
-          </button>
-          <button onClick={() => setDrawerOpen(true)} className="p-2 -mr-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100" aria-label="Open menu" aria-expanded={drawerOpen}>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setDrawerOpen(true)} className="p-2 -ml-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100" aria-label="Open menu" aria-expanded={drawerOpen}>
             <Menu className="w-5 h-5" />
           </button>
+          <Wordmark onClick={() => go(tabs[0].id)} />
         </div>
+        <button
+          onClick={() => {
+            onNewChat?.();
+            go(tabs[0].id);
+          }}
+          className="p-2 -mr-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+          aria-label="New chat"
+        >
+          <SquarePen className="w-5 h-5" />
+        </button>
       </header>
       {drawerOpen && (
         <div className="lg:hidden fixed inset-0 z-50">
           <div className="absolute inset-0 bg-slate-900/40 animate-[fade-in_150ms_ease-out]" onClick={() => setDrawerOpen(false)} />
-          <div role="dialog" aria-modal="true" aria-label="Menu" className="absolute inset-y-0 right-0 w-72 max-w-[85vw] shadow-2xl animate-[slide-in-right_200ms_ease-out]">
+          <div role="dialog" aria-modal="true" aria-label="Menu" className="absolute inset-y-0 left-0 w-72 max-w-[85vw] shadow-2xl animate-[slide-in-left_200ms_ease-out]">
             {panel}
           </div>
         </div>
