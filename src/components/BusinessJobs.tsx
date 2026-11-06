@@ -109,7 +109,48 @@ export const BusinessJobs: React.FC<BusinessJobsProps> = (props) => {
   const { business, jobs: allJobs, selectedJobId } = props;
   const jobs = business ? allJobs.filter((j) => j.businessId === business.id) : allJobs;
   const selected = selectedJobId ? jobs.find((j) => j.id === selectedJobId) : undefined;
-  return selected ? <JobDetail {...props} job={selected} /> : <JobList {...props} jobs={jobs} />;
+  // A company sees its own jobs, and in a second tab every job listed on Vetter
+  const [view, setView] = useState<'yours' | 'all'>('yours');
+  if (selected) return <JobDetail {...props} job={selected} />;
+  if (!business) return <JobList {...props} jobs={jobs} />;
+  const listings = allJobs.filter((j) => j.status === 'active');
+  return (
+    <>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-8 -mb-2">
+        <div className="inline-flex p-1 bg-slate-100 rounded-lg" role="tablist" aria-label="Jobs">
+          {[
+            { id: 'yours' as const, label: 'Your jobs', count: jobs.length },
+            { id: 'all' as const, label: 'All listings', count: listings.length },
+          ].map((t) => (
+            <button
+              key={t.id}
+              role="tab"
+              aria-selected={view === t.id}
+              onClick={() => setView(t.id)}
+              className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-colors ${view === t.id ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-900'}`}
+            >
+              {t.label}
+              <span className="ml-1.5 text-xs font-mono tabular-nums text-slate-400">{t.count}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+      {view === 'yours' ? (
+        <JobList {...props} jobs={jobs} />
+      ) : (
+        <AllListings
+          jobs={listings}
+          business={business}
+          businesses={props.businesses}
+          tests={props.tests}
+          candidates={props.candidates}
+          trialUser={props.trialUser}
+          onOpenOwn={props.onSelect}
+          onOpenTest={props.onOpenTest}
+        />
+      )}
+    </>
+  );
 };
 
 // Asks before a job is deleted, saying how many people it was sent to
@@ -1147,6 +1188,118 @@ const TeamTries: React.FC<{ job: JobPosting; jobTests: AssessmentTest[]; trials:
             })}
           </tbody>
         </table>
+      )}
+    </div>
+  );
+};
+
+// Every job open on Vetter, from every company: searchable, with the company's own marked. Its own open as usual;
+// another company's opens as candidates see it
+const AllListings: React.FC<{
+  jobs: JobPosting[];
+  business: Business;
+  businesses: Business[];
+  tests: AssessmentTest[];
+  candidates: User[];
+  trialUser: User;
+  onOpenOwn: (jobId: string) => void;
+  onOpenTest: (testId: string) => void;
+}> = ({ jobs, business, businesses, tests, candidates, trialUser, onOpenOwn, onOpenTest }) => {
+  const [search, setSearch] = useState('');
+  const [viewing, setViewing] = useState<JobPosting | null>(null);
+  const [workType, setWorkType] = useState<'' | JobPosting['workType']>('');
+  const q = search.trim().toLowerCase();
+  const shown = jobs
+    .filter((j) => !workType || j.workType === workType)
+    .filter((j) => !q || `${j.title} ${j.companyName} ${j.location} ${j.department}`.toLowerCase().includes(q))
+    .sort((a, b) => b.postedDate.localeCompare(a.postedDate));
+  return (
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+      <div className="space-y-1">
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">All listings</h1>
+        <p className="text-sm text-slate-500 max-w-xl">Every job open on Vetter, from every company, newest first. Yours are marked.</p>
+      </div>
+      <div className="flex flex-col sm:flex-row gap-2">
+        <label className="relative flex-1">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by role, company or place"
+            aria-label="Search listings"
+            className="w-full pl-9 pr-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500"
+          />
+        </label>
+        <select
+          value={workType}
+          onChange={(e) => setWorkType(e.target.value as typeof workType)}
+          aria-label="Work type"
+          className="px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg"
+        >
+          <option value="">Remote, hybrid or on-site</option>
+          <option value="Remote">Remote</option>
+          <option value="Hybrid">Hybrid</option>
+          <option value="On-site">On-site</option>
+        </select>
+      </div>
+      {shown.length === 0 ? (
+        <p className="text-sm text-slate-500 bg-white border border-dashed border-slate-300 rounded-xl p-8 text-center">No listing matches.</p>
+      ) : (
+        <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {shown.map((job) => {
+            const own = job.businessId === business.id;
+            return (
+              <li key={job.id}>
+                <button
+                  onClick={() => (own ? onOpenOwn(job.id) : setViewing(job))}
+                  className={`w-full h-full text-left bg-white border rounded-xl p-5 flex gap-4 transition-colors hover:border-indigo-300 ${own ? 'border-indigo-200' : 'border-slate-200'}`}
+                >
+                  <Pic src={job.companyLogo} alt="" className="w-11 h-11 rounded-lg object-cover bg-slate-100 shrink-0" />
+                  <span className="min-w-0 flex-1 space-y-1">
+                    <span className="flex items-center gap-2 text-[11px] font-semibold text-slate-500">
+                      <span className="truncate">{job.companyName}</span>
+                      {own && <span className="shrink-0 px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700">Yours</span>}
+                    </span>
+                    <span className="block text-base font-bold text-slate-900 truncate">{job.title}</span>
+                    <span className="flex items-center gap-1 text-xs text-slate-500">
+                      <MapPin className="w-3.5 h-3.5 shrink-0" />
+                      <span className="truncate">
+                        {job.location} · {job.workType}
+                        {job.salaryRange ? ` · ${job.salaryRange}` : ''}
+                      </span>
+                    </span>
+                    <span className="block text-[11px] text-slate-400">
+                      {job.testIds.length === 0
+                        ? 'No tests'
+                        : `${job.testIds.length} ${job.testIds.length === 1 ? 'test' : 'tests'} · ~${totalMinutes(job, tests)} min`}
+                      {job.closingDate ? ` · closes ${new Date(job.closingDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : ''}
+                    </span>
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {viewing && (
+        <JobDetailsModal
+          job={viewing}
+          match={calculateCandidateJobMatch(trialUser, viewing)}
+          candidate={trialUser}
+          allCandidates={candidates}
+          tests={tests}
+          business={businesses.find((b) => b.id === viewing.businessId)}
+          isApplied={false}
+          onStartJobTest={(test) => {
+            setViewing(null);
+            onOpenTest(test.id);
+          }}
+          onOpenTest={(testId) => {
+            setViewing(null);
+            onOpenTest(testId);
+          }}
+          onClose={() => setViewing(null)}
+        />
       )}
     </div>
   );
