@@ -224,22 +224,50 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
   const chartSpec =
     currentQ.preview === 'chart' && runResults?.type === 'code' ? parseChartSpec(runResults.testCaseResults[0]?.actual) : null;
 
-  // Timer countdown
+  // The clock, read from the time the test began rather than counted tick by tick: browsers slow or pause timers in a
+  // tab that's hidden, so leaving the test never stops the clock. It's read again the moment the candidate is back,
+  // and the test hands itself in when time runs out, even if that happened while they were away
   useEffect(() => {
     if (!hasStarted) return;
-    const interval = setInterval(() => {
-      setSecondsRemaining((prev) => {
-        if (limitMinutes === null) return prev + 1;
-        if (prev <= 1) {
-          clearInterval(interval);
-          handleSubmitTest();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+    const tick = () => {
+      const elapsed = Math.floor((Date.now() - startedAtRef.current) / 1000);
+      if (limitMinutes === null) {
+        setSecondsRemaining(elapsed);
+        return;
+      }
+      const left = Math.max(0, limitMinutes * 60 - elapsed);
+      setSecondsRemaining(left);
+      if (left === 0 && !submittedRef.current) {
+        clearInterval(interval);
+        handleSubmitTest();
+      }
+    };
+    const interval = setInterval(tick, 1000);
+    document.addEventListener('visibilitychange', tick);
+    window.addEventListener('focus', tick);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', tick);
+      window.removeEventListener('focus', tick);
+    };
+  }, [hasStarted]);
 
-    return () => clearInterval(interval);
+  // How long the candidate was away the last time they left, shown when they come back
+  const awaySinceRef = useRef<number | null>(null);
+  const [lastAway, setLastAway] = useState<number | null>(null);
+  useEffect(() => {
+    if (!hasStarted) return;
+    const back = () => {
+      if (document.hidden || !document.hasFocus() || awaySinceRef.current === null) return;
+      setLastAway(Math.max(1, Math.round((Date.now() - awaySinceRef.current) / 1000)));
+      awaySinceRef.current = null;
+    };
+    document.addEventListener('visibilitychange', back);
+    window.addEventListener('focus', back);
+    return () => {
+      document.removeEventListener('visibilitychange', back);
+      window.removeEventListener('focus', back);
+    };
   }, [hasStarted]);
 
   // The integrity monitor: tabs, windows, resizing, copy and paste, screens. Leaving the test brings up a warning
@@ -254,6 +282,8 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
           total: r.tabSwitches + r.windowSwitches + r.externalPastes + r.resizes + r.copies + r.cuts + r.screenshotKeys,
         });
         if (e.type === 'tab-hidden' || e.type === 'window-blur') {
+          awaySinceRef.current ??= Date.now();
+          setLastAway(null);
           const away = r.tabSwitches + r.windowSwitches;
           setFocusWarning(`You left the test: recorded (${away} ${away === 1 ? 'time' : 'times'})`);
           if (!preview) setLeftTab(true);
@@ -913,8 +943,23 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
                 </p>
               </div>
             </div>
+            {/* The clock, still running behind this message */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className={`rounded-xl border px-4 py-3 ${limitMinutes !== null && secondsRemaining <= 60 ? 'border-rose-300 bg-rose-50' : 'border-slate-200 bg-slate-50'}`}>
+                <div className="text-[11px] text-slate-500">{limitMinutes === null ? 'Time taken' : 'Time left'}</div>
+                <div className={`font-mono text-2xl font-bold tabular-nums ${limitMinutes !== null && secondsRemaining <= 60 ? 'text-rose-700' : 'text-slate-900'}`} aria-live="off">
+                  {formatTime(secondsRemaining)}
+                </div>
+                <div className="text-[10px] text-slate-400">Still running</div>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <div className="text-[11px] text-slate-500">You were away for</div>
+                <div className="font-mono text-2xl font-bold tabular-nums text-slate-900">{lastAway === null ? '…' : formatTime(lastAway)}</div>
+                <div className="text-[10px] text-slate-400">Recorded</div>
+              </div>
+            </div>
             <ul className="text-xs text-slate-700 space-y-1.5 list-disc pl-5">
-              <li>Stay on this tab until you submit. The clock kept running while you were away.</li>
+              <li>Stay on this tab until you submit. The clock kept running while you were away, and it doesn't stop for this message.</li>
               <li>If you close this tab, reload the page or exit the test, your answers are lost. {leavingCost}</li>
             </ul>
             <CheatingWarning compact />
