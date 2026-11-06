@@ -1,4 +1,4 @@
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { addDoc, collection, getDocs, limit, orderBy, query, serverTimestamp } from 'firebase/firestore';
 import { db, firebaseEnabled } from './firebase';
 
 /**
@@ -35,4 +35,13 @@ export async function submitCourseSignup(signup: CourseSignup): Promise<void> {
     return;
   }
   await addDoc(collection(db(), 'courseSignups'), { ...data, createdAt: serverTimestamp() });
+}
+
+// The Vetter team's list of course sign-ups, newest first (admins only; see firestore.rules)
+export async function listCourseSignups(): Promise<(CourseSignup & { id: string; createdAt?: Date })[]> {
+  const snap = await getDocs(query(collection(db(), 'courseSignups'), orderBy('createdAt', 'desc'), limit(200)));
+  return snap.docs.map((d) => {
+    const data = d.data();
+    return { ...(data as CourseSignup), id: d.id, createdAt: data.createdAt?.toDate?.() };
+  });
 }

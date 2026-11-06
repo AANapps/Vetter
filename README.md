@@ -97,5 +97,7 @@ add a web app and put its settings in `.env.local` (and on the host) as `VITE_FI
 indexes with `npx firebase deploy --only firestore --project <project-id>`. With Firebase set, `npm run build` writes
 the job pages from the jobs in Firestore.
 Add the site's domain under **Authentication > Settings > Authorised domains**. To make someone part of the Vetter
-team, set `role` to `admin` on their document in the `users` collection.
+team, set `role` to `admin` (and `status` to `active`) on their document in the `users` collection. The Vetter team signs in
+at `/admin` for the admin panel (companies to check, course sign-ups); a non-admin who signs in there sees what their record
+says instead.
 
