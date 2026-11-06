@@ -31,7 +31,8 @@ const when = (iso: string) =>
   new Date(iso).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
 /**
- * How much AI credit is left, as a bar that empties as it's used and turns red when it's nearly gone. Full is what the
+ * How much AI credit is left, as a bar that empties as it's used and turns red when it's nearly gone. The bar shows no
+ * amount; the figures are in the details it opens to. Full is what the
  * company had after its last top-up. It opens to every detail: what's been bought and used, what the next test is
  * likely to cost, and each piece of work with the steps it took and when.
  */
@@ -69,12 +70,13 @@ export const CreditMeter: React.FC<CreditMeterProps> = ({ credit, onTopUp, estim
         <button
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
-          aria-label={`AI credit: ${pounds(balance)} left. ${open ? 'Hide' : 'Show'} details`}
+          aria-label={`AI credit: ${Math.round(left * 100)}% left. ${open ? 'Hide' : 'Show'} details`}
           className="flex-1 min-w-0 flex items-center gap-3 text-left"
         >
           <span className="text-xs font-semibold text-slate-600 shrink-0">AI credit</span>
           {example && <span className="shrink-0 px-1.5 py-0.5 rounded bg-slate-900 text-white text-[10px] font-semibold">Example</span>}
           <span
+            title={`${Math.round(left * 100)}% left`}
             className="flex-1 min-w-[4rem] h-2 rounded-full bg-slate-100 overflow-hidden"
             role="meter"
             aria-valuemin={0}
@@ -83,7 +85,6 @@ export const CreditMeter: React.FC<CreditMeterProps> = ({ credit, onTopUp, estim
           >
             <span className={`block h-full rounded-full transition-all duration-500 ${low ? 'bg-rose-600' : 'bg-indigo-600'}`} style={{ width: `${left * 100}%` }} />
           </span>
-          <span className={`text-sm font-semibold tabular-nums shrink-0 ${low ? 'text-rose-700' : 'text-slate-900'}`}>{pounds(balance)} left</span>
           <ChevronDown className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
         </button>
         <button
