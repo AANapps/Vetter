@@ -8,8 +8,9 @@ import { GoogleMark } from './AuthDialog';
 import { Pulse } from './Pulse';
 
 /**
- * /admin: the Vetter team's own page. Anyone can open it and sign in, but the panel only shows for an account whose
- * users/{uid} record has role "admin" and status "active". firestore.rules enforces the same on every read and write.
+ * /admin: the Vetter team's own page. Signed out, it's a sign-in screen; the panel only shows for an account whose
+ * users/{uid} record has role "admin" and status "active" (firestore.rules enforces the same on every read and write).
+ * Anyone else is told they're not an admin, and nothing more.
  */
 
 const Shell: React.FC<{ children: React.ReactNode; onSignOut?: () => void; email?: string | null }> = ({ children, onSignOut, email }) => (
@@ -105,40 +106,16 @@ const SignInForm: React.FC = () => {
   );
 };
 
-// Shown to a signed-in account that isn't an admin: exactly what Vetter reads from its record, so a typo is easy to spot
-const NotAdmin: React.FC<{ uid: string; email: string | null; record: Record<string, unknown> | null }> = ({ uid, email, record }) => {
-  const show = (v: unknown) => (v === undefined ? 'missing' : JSON.stringify(v));
-  const roleOk = record?.role === 'admin';
-  const statusOk = record?.status === 'active';
-  return (
-    <div className="max-w-lg mx-auto bg-white border border-slate-200 rounded-2xl p-6 space-y-4">
-      <h1 className="text-lg font-bold">This account isn't a Vetter admin</h1>
-      <p className="text-sm text-slate-600">
-        The admin panel opens for an account whose record in Firestore <code>users</code> has <code>role</code> set to{' '}
-        <code>admin</code> and <code>status</code> set to <code>active</code>. This is what Vetter reads for you:
-      </p>
-      <dl className="text-sm divide-y divide-slate-100 border border-slate-200 rounded-lg">
-        {[
-          ['Email', email ?? 'none', true],
-          ['Record ID (your UID)', uid, true],
-          ['Record found', record ? 'yes' : 'no: there is no users document with this ID', !!record],
-          ['role', record ? show(record.role) : '-', roleOk],
-          ['status', record ? show(record.status) : '-', statusOk],
-        ].map(([label, value, ok]) => (
-          <div key={label as string} className="px-3 py-2 flex flex-wrap justify-between gap-2">
-            <dt className="text-slate-500">{label}</dt>
-            <dd className={`font-mono text-xs break-all ${ok ? 'text-slate-900' : 'text-red-700 font-semibold'}`}>{value as string}</dd>
-          </div>
-        ))}
-      </dl>
-      <p className="text-xs text-slate-500">
-        To fix it, open Firebase console → Firestore → <code>users</code> → the document with the ID above, and set{' '}
-        <code>role</code> to <code>admin</code> and <code>status</code> to <code>active</code> (type: string, no quotes or spaces). This page updates
-        by itself once it's saved.
-      </p>
-    </div>
-  );
-};
+// Shown to a signed-in account that isn't an admin. Says nothing about how admin access works
+const NotAdmin: React.FC = () => (
+  <div className="max-w-sm mx-auto bg-white border border-slate-200 rounded-2xl p-6 space-y-3 text-center">
+    <h1 className="text-lg font-bold">Not an admin</h1>
+    <p className="text-sm text-slate-600">This account doesn't have the admin role.</p>
+    <button onClick={() => signOut()} className="w-full py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg">
+      Sign in with another account
+    </button>
+  </div>
+);
 
 const CompaniesQueue: React.FC = () => {
   const [queue, setQueue] = useState<Company[] | null>(null);
@@ -300,7 +277,7 @@ export const AdminPage: React.FC = () => {
   return (
     <Shell onSignOut={() => signOut()} email={user.email}>
       {!isAdmin ? (
-        <NotAdmin uid={user.uid} email={user.email} record={account as unknown as Record<string, unknown> | null} />
+        <NotAdmin />
       ) : (
         <div className="space-y-6">
           <div className="flex flex-wrap items-end justify-between gap-3">
