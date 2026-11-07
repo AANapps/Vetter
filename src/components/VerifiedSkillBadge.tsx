@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { Pic } from './Pic';
 import { VerifiedSkill } from '../types';
 import { LeaderboardEntry } from '../lib/leaderboard';
-import { RankDisc } from './RankDisc';
+import { LeaderboardTable } from './LeaderboardTable';
 import { Copy, Check, X, BadgeCheck } from 'lucide-react';
 
 export type TierKey = 'gold' | 'silver' | 'bronze' | 'developing';
@@ -206,7 +205,7 @@ export const VerifiedSkillBadge: React.FC<VerifiedSkillBadgeProps> = ({
           </div>
         </div>
 
-        {topPerformers && topPerformers.length > 0 && (
+        {topPerformers && (
           <div className="space-y-2 pt-3 border-t border-slate-100">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-semibold text-slate-700">Top performers</span>
@@ -216,19 +215,9 @@ export const VerifiedSkillBadge: React.FC<VerifiedSkillBadgeProps> = ({
                 </button>
               )}
             </div>
-            <ol className="space-y-1.5">
-              {topPerformers.map((entry) => {
-                const isYou = entry.candidate.id === currentCandidateId;
-                return (
-                  <li key={entry.candidate.id} className="flex items-center gap-2 text-xs">
-                    <RankDisc rank={entry.rank} size="sm" />
-                    <Pic src={entry.candidate.avatarUrl} alt="" referrerPolicy="no-referrer" className="w-5 h-5 rounded-full object-cover bg-slate-100 shrink-0" />
-                    <span className={`truncate ${isYou ? 'font-bold text-indigo-700' : 'text-slate-700'}`}>{isYou ? 'You' : entry.candidate.name}</span>
-                    <span className="ml-auto font-mono font-semibold tabular-nums text-slate-900">{entry.score}</span>
-                  </li>
-                );
-              })}
-            </ol>
+            <div className="-mx-3">
+              <LeaderboardTable entries={topPerformers} viewerId={currentCandidateId} slots={3} variant="compact" bare />
+            </div>
           </div>
         )}
 

@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ChevronRight, Trophy } from 'lucide-react';
-import { Pic } from './Pic';
-import { RankDisc } from './RankDisc';
+import { LeaderboardTable } from './LeaderboardTable';
 import { AssessmentTest, User, isPublic, levelName } from '../types';
 import { getLeaderboard } from '../lib/leaderboard';
 import { isMainVersion } from '../lib/testLevels';
@@ -69,22 +68,9 @@ export const TopPerformers: React.FC<{
           </div>
         </button>
 
-        <ol className="px-3 pb-3 space-y-1.5">
-          {top.map((e) => (
-            <li key={e.candidate.id} className={`flex items-center gap-3 rounded-lg px-2 py-3 ${e.rank === 1 ? 'bg-amber-50/70' : ''}`}>
-              <RankDisc rank={e.rank} />
-              <Pic src={e.candidate.avatarUrl} alt="" referrerPolicy="no-referrer" className="w-10 h-10 rounded-full object-cover shrink-0 bg-slate-100" />
-              <div className="min-w-0 flex-1">
-                <div className="text-sm font-semibold text-slate-900 truncate">{e.candidate.name}</div>
-                <div className="text-[11px] text-slate-500 truncate">{e.candidate.title}</div>
-                <div className="mt-1.5 h-1 rounded-full bg-slate-100 overflow-hidden">
-                  <div className="h-full rounded-full bg-slate-900" style={{ width: `${e.score}%` }} />
-                </div>
-              </div>
-              <span className="font-mono text-lg font-bold tabular-nums text-slate-900 w-9 text-right">{e.score}</span>
-            </li>
-          ))}
-        </ol>
+        <div className="pb-3">
+          <LeaderboardTable entries={top} passingScore={board.test.passingScore} slots={3} variant="compact" />
+        </div>
       </div>
 
       {/* Which test is showing; each is a button to jump to it */}

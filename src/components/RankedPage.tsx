@@ -3,10 +3,7 @@ import { ArrowRight, ChevronLeft, ChevronRight, Search, Trophy, Users } from 'lu
 import { AssessmentTest, User, isPublic, levelName } from '../types';
 import { getLeaderboard, getTestStats } from '../lib/leaderboard';
 import { isMainVersion } from '../lib/testLevels';
-import { Pic } from './Pic';
-import { RankDisc } from './RankDisc';
-import { formatDuration } from './TestLeaderboard';
-import { getBadgeTier } from './VerifiedSkillBadge';
+import { LeaderboardTable } from './LeaderboardTable';
 
 type Board = { test: AssessmentTest; entries: ReturnType<typeof getLeaderboard> };
 
@@ -114,7 +111,7 @@ export const RankedPage: React.FC<{
                 <li key={b.test.id} className="min-w-0">
                   <button
                     onClick={() => pick(b.test.id)}
-                    className="w-full sm:aspect-square text-left bg-white border border-slate-200 rounded-xl p-5 flex flex-col gap-4 hover:border-slate-300 hover:shadow-sm transition-shadow group"
+                    className="w-full h-full text-left bg-white border border-slate-200 rounded-2xl p-5 flex flex-col gap-3 hover:border-slate-300 hover:shadow-sm transition-shadow group"
                   >
                     <div className="w-full flex items-start justify-between gap-3">
                       <div className="min-w-0">
@@ -125,18 +122,10 @@ export const RankedPage: React.FC<{
                       </div>
                       <span className="shrink-0 text-[11px] font-mono text-slate-400">#{i + 1}</span>
                     </div>
-                    <ol className="w-full flex-1 flex flex-col justify-center gap-2.5">
-                      {b.entries.slice(0, 3).map((e) => (
-                        <li key={e.candidate.id} className="flex items-center gap-2.5 min-w-0">
-                          <RankDisc rank={e.rank} size="sm" />
-                          <Pic src={e.candidate.avatarUrl} alt="" referrerPolicy="no-referrer" className="w-8 h-8 rounded-full object-cover shrink-0 bg-slate-100" />
-                          <span className={`min-w-0 flex-1 text-xs font-semibold truncate ${e.candidate.id === viewerId ? 'text-indigo-700' : 'text-slate-900'}`}>
-                            {e.candidate.name}
-                          </span>
-                          <span className="font-mono text-sm font-bold tabular-nums text-slate-900">{e.score}</span>
-                        </li>
-                      ))}
-                    </ol>
+                    {/* The top three, padded with the open place and not yet ranked when fewer have taken it */}
+                    <div className="w-[calc(100%+2.5rem)] -mx-5 flex-1">
+                      <LeaderboardTable entries={b.entries.slice(0, 3)} passingScore={b.test.passingScore} viewerId={viewerId} slots={3} variant="compact" bare />
+                    </div>
                     <div className="w-full flex items-center justify-between gap-2 text-[11px] text-slate-500 border-t border-slate-100 pt-3">
                       <span className="inline-flex items-center gap-1">
                         <Users className="w-3.5 h-3.5" />
@@ -204,69 +193,37 @@ const TestBoard: React.FC<{ board: Board; allCandidates: User[]; viewerId: strin
           </dl>
         )}
       </div>
-      {board.entries.length === 0 ? (
-        <p className="text-sm text-slate-600 bg-white border border-slate-200 rounded-xl p-6 text-center">No one has taken this test yet. Take it to be first on the board.</p>
-      ) : (
-        <RankCards key={board.test.id} board={board} viewerId={viewerId} />
-      )}
+      <RankTable key={board.test.id} board={board} viewerId={viewerId} onClaim={() => onOpenTest(board.test.id)} />
     </div>
   );
 };
 
-const PAGE = 12;
+const PAGE = 20;
+// A short board is padded to this many places: the next one open to claim, the rest not yet ranked
+const SLOTS = 5;
 
-// The leaderboard as square cards, three to a row: rank, photo, name, score and time
-const RankCards: React.FC<{ board: Board; viewerId: string }> = ({ board, viewerId }) => {
+// One test's whole leaderboard as a table, twenty at a time; the viewer's own place stays in view
+const RankTable: React.FC<{ board: Board; viewerId: string; onClaim: () => void }> = ({ board, viewerId, onClaim }) => {
   const [shown, setShown] = useState(PAGE);
   useEffect(() => setShown(PAGE), [board.test.id]);
   const yours = board.entries.find((e) => e.candidate.id === viewerId);
-  const visible = board.entries.slice(0, shown);
-  const list = yours && !visible.includes(yours) ? [...visible, yours] : visible;
   return (
-    <div className="space-y-4">
-      <ol className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        {list.map((e) => {
-          const isYou = e.candidate.id === viewerId;
-          const passed = e.score >= board.test.passingScore;
-          return (
-            <li
-              key={e.candidate.id}
-              className={`aspect-square min-w-0 rounded-xl border p-4 flex flex-col items-center justify-between text-center transition-shadow hover:shadow-sm ${
-                isYou ? 'border-indigo-300 bg-indigo-50/60' : e.rank === 1 ? 'border-amber-200 bg-amber-50/40' : 'border-slate-200 bg-white'
-              }`}
-            >
-              <div className="w-full flex items-center justify-between">
-                <RankDisc rank={e.rank} size="sm" />
-                {isYou ? (
-                  <span className="text-[10px] font-mono font-semibold uppercase text-indigo-700">You</span>
-                ) : (
-                  <span className="text-[10px] font-mono text-slate-400 tabular-nums">{formatDuration(e.durationSeconds)}</span>
-                )}
-              </div>
-              <div className="min-w-0 w-full flex flex-col items-center gap-2">
-                <Pic src={e.candidate.avatarUrl} alt="" referrerPolicy="no-referrer" className="w-12 h-12 sm:w-14 sm:h-14 rounded-full object-cover bg-slate-100" />
-                <div className="min-w-0 w-full">
-                  <div className="text-sm font-semibold text-slate-900 truncate">{e.candidate.name}</div>
-                  <div className="text-[11px] text-slate-500 truncate">{e.candidate.title}</div>
-                </div>
-              </div>
-              <div className={`font-mono text-2xl font-bold tabular-nums ${passed ? getBadgeTier(e.score).badgeTextColor : 'text-slate-400'}`}>
-                {e.score}
-                <span className="text-xs font-medium text-slate-400">/100</span>
-              </div>
-            </li>
-          );
-        })}
-      </ol>
+    <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
+      <LeaderboardTable
+        entries={board.entries.slice(0, shown)}
+        passingScore={board.test.passingScore}
+        viewerId={viewerId}
+        slots={SLOTS}
+        pinned={yours}
+        onClaim={onClaim}
+      />
       {board.entries.length > shown && (
-        <div className="text-center">
-          <button
-            onClick={() => setShown((n) => n + PAGE)}
-            className="px-4 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-200 hover:border-slate-300 rounded-lg"
-          >
-            Show more ({board.entries.length - shown} left)
-          </button>
-        </div>
+        <button
+          onClick={() => setShown((n) => n + PAGE)}
+          className="w-full px-4 py-3 border-t border-slate-100 text-xs font-semibold text-indigo-700 hover:bg-slate-50"
+        >
+          Show more ({board.entries.length - shown} left)
+        </button>
       )}
     </div>
   );

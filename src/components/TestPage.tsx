@@ -197,7 +197,7 @@ export const TestPage: React.FC<TestPageProps> = ({
         </div>
       </div>
 
-      <TestLeaderboard entries={leaderboard} passingScore={test.passingScore} currentCandidateId={currentCandidateId} />
+      <TestLeaderboard entries={leaderboard} passingScore={test.passingScore} currentCandidateId={currentCandidateId} onTakeTest={canStart && viewerRole === 'candidate' ? () => onStartTest(test) : undefined} />
 
       {/* Module tests: the core areas every level covers, and what this level adds */}
       {test.aspects && test.questions.some((q) => q.aspect) && (

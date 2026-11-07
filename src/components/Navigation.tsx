@@ -84,13 +84,11 @@ interface NavigationProps {
   onNewChat?: () => void;
 }
 
+// The V badge with the rest of the name after it: [V]etter.
 const Wordmark: React.FC<{ onClick: () => void }> = ({ onClick }) => (
-  <button
-    onClick={onClick}
-    aria-label="Vetter home"
-    className="w-9 h-9 rounded-md bg-indigo-900 hover:bg-indigo-950 text-white font-pixel flex items-center justify-center text-base shrink-0 transition-colors"
-  >
-    <span>V<PixelDot /></span>
+  <button onClick={onClick} aria-label="Vetter home" className="group flex items-center shrink-0 font-pixel">
+    <span className="w-9 h-9 rounded-md bg-indigo-900 group-hover:bg-indigo-950 text-white flex items-center justify-center text-base transition-colors">V</span>
+    <span className="text-lg text-indigo-950 ml-0.5">etter<PixelDot /></span>
   </button>
 );
 
