@@ -150,7 +150,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
                   className="create-border px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:text-indigo-900 rounded-lg flex items-center gap-1.5"
                 >
                   {!aiAllowed && <Lock className="w-3.5 h-3.5" />}
-                  Write a test with AI
+                  Create with AI
                 </button>
               </div>
             </div>
@@ -283,7 +283,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
               className="create-border w-full px-3 py-2 text-sm font-semibold text-indigo-700 hover:text-indigo-900 rounded-lg flex items-center gap-2"
             >
               {!aiAllowed && <Lock className="w-4 h-4" />}
-              Write a test with AI
+              Create with AI
             </button>
             {turns.length > 0 && (
               <button
@@ -438,7 +438,7 @@ const CustomCard: React.FC<{ idea: CustomIdea; aiAllowed: boolean; onBuild: () =
     {aiAllowed ? (
       <button onClick={onBuild} className="shrink-0 px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg flex items-center gap-1.5 self-start sm:self-auto">
         <Wand2 className="w-3.5 h-3.5" />
-        Build with AI
+        Create with AI
       </button>
     ) : (
       <button

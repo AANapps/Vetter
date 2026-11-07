@@ -109,7 +109,7 @@ export const TestPlanDialog: React.FC<TestPlanDialogProps> = ({ plan, tests, has
             <section className="space-y-2">
               <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
                 <Wand2 className="w-3.5 h-3.5 text-violet-600" />
-                {unbuilt.length ? 'Not built yet' : 'More you could build with AI'}
+                {unbuilt.length ? 'Not built yet' : 'More you could create with AI'}
               </h3>
               <ul className="space-y-2">
                 {[...unbuilt.map((i) => i.idea), ...more].map((idea) => {
@@ -126,7 +126,7 @@ export const TestPlanDialog: React.FC<TestPlanDialogProps> = ({ plan, tests, has
                       <div className="flex items-center gap-1 self-start sm:self-auto shrink-0">
                         <button onClick={() => onBuild(idea)} className="px-3 py-1.5 text-xs font-semibold text-white bg-violet-600 hover:bg-violet-700 rounded-lg flex items-center gap-1.5">
                           <Wand2 className="w-3.5 h-3.5" />
-                          Build with AI
+                          Create with AI
                         </button>
                         {started && (
                           <button onClick={() => removeIdea(idea.brief)} aria-label={`Remove ${idea.title}`} className="p-1 text-slate-400 hover:text-rose-600">

@@ -156,56 +156,42 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
     <div className={`${section === 'tests' ? 'max-w-6xl px-4 sm:px-6' : 'max-w-7xl px-6'} mx-auto py-8 space-y-8`}>
       {/* Company Header: the Tests page has its own, like Your jobs */}
       {section !== 'tests' && (
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-xs">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-start sm:items-center gap-5">
-            <div className="w-16 h-16 rounded-2xl overflow-hidden border border-slate-200 shrink-0 bg-slate-100 shadow-xs">
-              <Pic
-                src={business ? business.logo : recruiter.avatarUrl}
-                alt={business ? business.name : 'Vetter'}
-                referrerPolicy="no-referrer"
-                className="w-full h-full object-cover"
-              />
-            </div>
-            <div className="space-y-1">
-              <h1 className="text-xl font-bold text-slate-900 tracking-tight">{business ? business.name : 'Vetter Talent Team'}</h1>
-              <p className="text-xs text-slate-700 font-medium">
-                {recruiter.name} &middot; {recruiter.title}
-              </p>
-              <p className="text-xs text-slate-500">
-                {business
-                  ? `${business.industry} · ${business.headquarters}`
-                  : `Posting and filling jobs for ${businesses.length} companies`}
-              </p>
-            </div>
+      // The company's card, with its numbers as cards beside it: one row on wide screens, two by two under it on phones
+      <div className="grid grid-cols-2 lg:grid-cols-[minmax(0,2fr)_repeat(4,minmax(0,1fr))] gap-3">
+        <div className="col-span-2 lg:col-span-1 bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex items-center gap-4 min-w-0">
+          <div className="w-14 h-14 rounded-2xl overflow-hidden border border-slate-200 shrink-0 bg-slate-100 shadow-xs">
+            <Pic
+              src={business ? business.logo : recruiter.avatarUrl}
+              alt={business ? business.name : 'Vetter'}
+              referrerPolicy="no-referrer"
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <div className="space-y-1 min-w-0">
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight truncate">{business ? business.name : 'Vetter Talent Team'}</h1>
+            <p className="text-xs text-slate-700 font-medium truncate">
+              {recruiter.name} &middot; {recruiter.title}
+            </p>
+            <p className="text-xs text-slate-500 truncate">
+              {business
+                ? `${business.industry} · ${business.headquarters}`
+                : `Posting and filling jobs for ${businesses.length} companies`}
+            </p>
           </div>
         </div>
-
-        {/* Company Metric Strip */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-6 mt-6 border-t border-slate-200">
-          <div>
-            <div className="text-xs text-slate-500 font-medium">Open Jobs</div>
-            <div className="text-2xl font-bold text-slate-900 font-mono tabular-nums">
-              {jobs.filter((j) => j.status === 'active').length}
-            </div>
+        {(
+          [
+            ['Open jobs', jobs.filter((j) => j.status === 'active').length, 'text-slate-900'],
+            ['Total applicants', jobs.reduce((acc, j) => acc + j.applicantCount, 0), 'text-indigo-600'],
+            [business ? 'Your tests' : 'Companies', business ? companyTests.length : businesses.length, 'text-emerald-600'],
+            ['Candidates on Vetter', allCandidates.length, 'text-indigo-700'],
+          ] as const
+        ).map(([label, value, colour]) => (
+          <div key={label} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex flex-col justify-center min-w-0">
+            <div className="text-xs text-slate-500 font-medium truncate">{label}</div>
+            <div className={`text-2xl font-bold font-mono tabular-nums ${colour}`}>{value}</div>
           </div>
-          <div>
-            <div className="text-xs text-slate-500 font-medium">Total Applicants</div>
-            <div className="text-2xl font-bold text-indigo-600 font-mono tabular-nums">
-              {jobs.reduce((acc, j) => acc + j.applicantCount, 0)}
-            </div>
-          </div>
-          <div>
-            <div className="text-xs text-slate-500 font-medium">{business ? 'Your Tests' : 'Companies'}</div>
-            <div className="text-2xl font-bold text-emerald-600 font-mono tabular-nums">
-              {business ? companyTests.length : businesses.length}
-            </div>
-          </div>
-          <div>
-            <div className="text-xs text-slate-500 font-medium">Candidates on Vetter</div>
-            <div className="text-2xl font-bold text-indigo-700 font-mono tabular-nums">{allCandidates.length}</div>
-          </div>
-        </div>
+        ))}
       </div>
       )}
 
@@ -274,7 +260,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                 onClick={() => onGenerateTest()}
                 className="create-border px-4 py-2.5 text-sm font-semibold text-indigo-700 hover:text-indigo-900 rounded-lg flex items-center gap-2"
               >
-                Write with AI
+                Create with AI
               </button>
               <button
                 onClick={() => setBuilding({})}
