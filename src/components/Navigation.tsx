@@ -3,7 +3,7 @@ import { PixelDot } from './PixelDot';
 import { Pic } from './Pic';
 import { UserRole } from '../types';
 import { ArrowLeftRight,
-  BookOpen, Building2, LogOut, Menu, ShieldCheck, SquarePen, Trophy, X, Bell, Briefcase, ChevronDown, ClipboardCheck, House, Repeat, Search, Users } from 'lucide-react';
+  BookOpen, Building2, LogOut, Menu, ShieldCheck, Trophy, X, Bell, Briefcase, ChevronDown, ClipboardCheck, House, Repeat, Search, Users } from 'lucide-react';
 
 export type AppTab =
   | 'home'
@@ -518,12 +518,11 @@ const StaffNav: React.FC<{
             onNewChat?.();
             go(tabs[0].id);
           }}
-          className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-semibold border transition-colors ${
-            currentTab === tabs[0].id ? 'bg-white border-slate-300 text-slate-900 shadow-xs' : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:text-slate-900'
+          className={`create-border w-full flex items-center justify-center px-3 py-2.5 rounded-lg text-sm font-semibold transition-colors hover:text-slate-900 ${
+            currentTab === tabs[0].id ? 'text-slate-900 shadow-xs' : 'text-slate-700'
           }`}
         >
-          <SquarePen className="w-4 h-4 text-indigo-600" />
-          New chat
+          Create
         </button>
         <div className="[&_input]:bg-white">{renderSearch(null)}</div>
       </div>
@@ -576,10 +575,9 @@ const StaffNav: React.FC<{
             onNewChat?.();
             go(tabs[0].id);
           }}
-          className="p-2 -mr-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-          aria-label="New chat"
+          className="create-border px-3 py-1.5 rounded-lg text-sm font-semibold text-slate-700 hover:text-slate-900"
         >
-          <SquarePen className="w-5 h-5" />
+          Create
         </button>
       </header>
       {drawerOpen && (

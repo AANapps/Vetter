@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { PixelDot } from './PixelDot';
-import { ArrowRight, ArrowUp, Check, Eye, Lock, MessageSquarePlus, Pencil, Plus, Sparkles, Wand2, X } from 'lucide-react';
+import { ArrowRight, ArrowUp, Check, Eye, Lock, Pencil, Plus, Sparkles, Wand2, X } from 'lucide-react';
 import { AssessmentTest, Business, JobPosting, levelName } from '../types';
 import { AdvisorTurn, CUSTOM_KIND_LABELS, CustomIdea, askAdvisor } from '../lib/testAdvisor';
 import { Credit, loadCredit } from '../lib/aiRequest';
@@ -284,10 +284,9 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
             {turns.length > 0 && (
               <button
                 onClick={() => (onTurns([]), clearPicks())}
-                className="w-full px-3 py-2 text-sm font-semibold text-slate-500 hover:text-slate-900 rounded-lg flex items-center gap-2"
+                className="create-border w-full px-3 py-2 text-sm font-semibold text-slate-700 hover:text-slate-900 rounded-lg flex items-center justify-center"
               >
-                <MessageSquarePlus className="w-4 h-4" />
-                New chat
+                Create
               </button>
             )}
           </div>

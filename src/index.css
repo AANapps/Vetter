@@ -523,3 +523,11 @@ select option {
   from { opacity: 0; }
   to { opacity: 1; }
 }
+
+/* The Create button: a multicoloured border, drawn as a gradient behind a white fill */
+.create-border {
+  border: 1.5px solid transparent;
+  background:
+    linear-gradient(#fff, #fff) padding-box,
+    linear-gradient(90deg, #4285f4, #9b72cb, #d96570, #f4b400) border-box;
+}
