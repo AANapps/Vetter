@@ -131,7 +131,10 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
           {turns.length === 0 ? (
             <div className="pt-10 sm:pt-20 space-y-6 text-center">
               <div className="space-y-2">
-                <span className="ai-mark mx-auto w-11 h-11 rounded-2xl text-white text-lg font-pixel flex items-center justify-center shadow-lg shadow-indigo-200"><span>V<PixelDot /></span></span>
+                <span className="mx-auto w-fit flex items-center font-pixel">
+                  <span className="ai-mark w-11 h-11 rounded-2xl text-white text-lg flex items-center justify-center shadow-lg shadow-indigo-200">V</span>
+                  <span className="text-2xl text-indigo-950 ml-1">etter<PixelDot /></span>
+                </span>
                 <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">Who are you hiring?</h1>
                 <p className="text-sm text-slate-500 max-w-md mx-auto">
                   Tell Vetter the role and level. You&rsquo;ll get a short plan for testing it, the ready-made tests that fit, and any simulations worth
@@ -195,7 +198,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
           )}
           {thinking && (
             <div className="flex items-center gap-2 text-sm text-slate-500">
-              <span className="ai-mark w-7 h-7 rounded-lg text-white text-xs font-pixel flex items-center justify-center"><span>V<PixelDot /></span></span>
+              <span className="ai-mark w-7 h-7 rounded-lg text-white text-xs font-pixel flex items-center justify-center">V</span>
               <span className="ai-shimmer font-medium">Looking through Vetter…</span>
             </div>
           )}
@@ -346,7 +349,7 @@ const AdvisorReply: React.FC<{
   onInvite: (jobId: string, candidateId: string) => void;
 }> = ({ turn, aiAllowed, picked, onBuildIdea, onTogglePick, onPickAll, onEditCopy, onBuildWithAI, onSeePlans, onOpenTest, candidates, onViewPerson, jobs, onInvite }) => (
   <div className="flex gap-3">
-    <span className="ai-mark w-7 h-7 shrink-0 rounded-lg text-white text-xs font-pixel flex items-center justify-center"><span>V<PixelDot /></span></span>
+    <span className="ai-mark w-7 h-7 shrink-0 rounded-lg text-white text-xs font-pixel flex items-center justify-center">V</span>
     <div className="ai-glass min-w-0 flex-1 space-y-4 p-4 sm:p-5 rounded-2xl rounded-tl-md border border-white/80 shadow-sm">
       <p className={`text-sm leading-relaxed whitespace-pre-wrap ${turn.error ? 'text-slate-800' : 'text-slate-800'}`}>{turn.text}</p>
 
