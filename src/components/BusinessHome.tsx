@@ -143,7 +143,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
               <div className="lg:hidden flex flex-wrap justify-center gap-2 pt-2">
                 <button onClick={onCreateOwn} className="px-3 py-1.5 text-xs font-semibold text-slate-700 border border-slate-200 rounded-lg flex items-center gap-1.5">
                   <Plus className="w-3.5 h-3.5" />
-                  Create a test yourself
+                  Create test manually
                 </button>
                 <button
                   onClick={() => (aiAllowed ? onBuildWithAI('') : onSeePlans())}
@@ -276,7 +276,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
               className="w-full px-3 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-200 hover:border-indigo-300 hover:text-indigo-700 rounded-lg flex items-center gap-2"
             >
               <Plus className="w-4 h-4" />
-              Create a test yourself
+              Create test manually
             </button>
             <button
               onClick={() => (aiAllowed ? onBuildWithAI('') : onSeePlans())}
@@ -416,7 +416,7 @@ const AdvisorReply: React.FC<{
           </ul>
           {!aiAllowed && (
             <p className="text-xs text-slate-500">
-              Building custom tests with AI needs a subscription. You can still use the ready-made tests, edit a copy, or create a test yourself.
+              Building custom tests with AI needs a subscription. You can still use the ready-made tests, edit a copy, or create a test manually.
             </p>
           )}
         </div>
