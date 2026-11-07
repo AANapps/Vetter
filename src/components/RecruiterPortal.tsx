@@ -399,7 +399,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
           </div>
 
           <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-            <div className="hidden md:grid grid-cols-[minmax(0,1fr)_7rem_4rem_5rem_7rem_6rem] gap-4 px-5 py-2.5 bg-slate-50 border-b border-slate-200 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+            <div className="hidden md:grid grid-cols-[minmax(0,1fr)_4.5rem_2.5rem_3.5rem_5.5rem_3.5rem] gap-3 px-5 py-2.5 bg-slate-50 border-b border-slate-200 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
               <span>Test</span>
               <span>Length</span>
               <span className="text-right">Pass</span>
@@ -494,11 +494,12 @@ const TestRow: React.FC<{
   return (
     <li
       onClick={onOpen}
-      className="grid grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(0,1fr)_7rem_4rem_5rem_7rem_6rem] gap-x-4 gap-y-1 items-center px-5 py-3.5 cursor-pointer hover:bg-slate-50/80 transition-colors"
+      className="grid grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(0,1fr)_4.5rem_2.5rem_3.5rem_5.5rem_3.5rem] gap-x-3 gap-y-1 items-center px-5 py-3.5 cursor-pointer hover:bg-slate-50/80 transition-colors"
     >
       <div className="min-w-0">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-sm font-semibold text-slate-900 truncate">{test.title}</span>
+        {/* The name in full, wrapping if it's long; the badges follow it */}
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0">
+          <span className="text-sm font-semibold text-slate-900 break-words min-w-0">{test.title}</span>
           {own && <span className="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-900 text-white">Yours</span>}
           {own && test.publicStatus && (
             <span
@@ -538,7 +539,7 @@ const TestRow: React.FC<{
           <span className="text-slate-300">&ndash;</span>
         )}
       </div>
-      <div className="flex items-center justify-end gap-3">
+      <div className="flex items-center justify-end gap-2">
         {onDeepen && test.questions.length < 12 && (
           <button onClick={stop(onDeepen)} title="Write a full, in-depth version of this test with Vetter's AI" aria-label={`Rebuild ${test.title} in depth`} className="text-indigo-600 hover:text-indigo-900">
             <Sparkles className="w-3.5 h-3.5" />
