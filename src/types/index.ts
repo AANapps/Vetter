@@ -87,6 +87,24 @@ export interface User {
   activeProfileId?: string;
   // The profile each application was sent with, by job id
   applicationProfiles?: Record<string, string>;
+  // What they've done, in their own words: jobs, most recent first. Skills aren't typed in; Vetter's tests verify them
+  experience?: WorkExperience[];
+  // Where to see more of them: LinkedIn, GitHub, a portfolio
+  links?: ProfileLink[];
+}
+
+export interface WorkExperience {
+  id: string;
+  role: string;
+  company: string;
+  start: string; // YYYY-MM
+  end?: string; // YYYY-MM; unset while they still work there
+  summary?: string;
+}
+
+export interface ProfileLink {
+  label: string;
+  url: string;
 }
 
 export type CareerStage = 'Student' | 'Graduate' | 'Working';

@@ -84,6 +84,7 @@ export async function askAdvisor(turns: AdvisorTurn[], tests: AssessmentTest[], 
             work: c.workPreference,
             ...((c.studySubject || c.university) && { studied: [c.studySubject, c.university].filter(Boolean).join(', ') }),
             skills: c.verifiedSkills.map((s) => ({ name: s.skillName, score: s.score, level: s.level })),
+            ...(c.experience?.length && { jobs: c.experience.slice(0, 5).map((j) => `${j.role} at ${j.company}, ${j.start} to ${j.end ?? 'now'}`) }),
             tests: new Set(c.testResults.map((r) => r.testId)).size,
         })),
         library: library.map((t) => ({

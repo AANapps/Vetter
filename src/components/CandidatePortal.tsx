@@ -35,6 +35,8 @@ import { JobApplicationModal } from './JobApplicationModal';
 import { JobDetailsModal, JobPage, JobTests, getJobTests } from './JobDetails';
 import { JobProfileEditor } from './JobProfileEditor';
 import { Studies, StudiesEditor } from './StudiesEditor';
+import { ExperienceDetails, ExperienceEditor } from './ExperienceEditor';
+import { ExperienceList, ProfileLinks } from './ExperienceList';
 import { stageOf } from '../lib/audience';
 import { ProfileSidebar } from './ProfileSidebar';
 import { TestHistory } from './TestHistory';
@@ -59,6 +61,7 @@ interface CandidatePortalProps {
   onApplyJob: (jobId: string, profileId: string) => void;
   onUpdateProfiles: (profiles: JobProfile[], activeProfileId: string) => void;
   onUpdateStudies: (studies: Studies) => void;
+  onUpdateExperience: (details: ExperienceDetails) => void;
   // Takes a test the candidate took off their record
   onDeleteTest: (testId: string) => void;
   // The roles the Tests page is narrowed to (a role, an industry, or a field picked on Home), or null for every test
@@ -85,6 +88,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   onApplyJob,
   onUpdateProfiles,
   onUpdateStudies,
+  onUpdateExperience,
   onDeleteTest,
   jobPageId,
   onOpenJob,
@@ -108,6 +112,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   // The job profile being edited or created
   const [editingProfile, setEditingProfile] = useState<{ profile: JobProfile; isNew: boolean } | null>(null);
   const [editingStudies, setEditingStudies] = useState(false);
+  const [editingExperience, setEditingExperience] = useState(false);
 
   // The profile page shows one job profile at a time: its headline, about and the skills it features
   const profiles = profilesOf(candidate);
@@ -422,6 +427,31 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Experience: their own account of their work, as on a CV; skills come from the tests below */}
+      <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-base font-bold text-slate-900">Experience</h2>
+            <p className="text-xs text-slate-500">Your jobs, how you'd like to work and where to see more. Companies see this on your profile; your skills come from Vetter's tests.</p>
+          </div>
+          <button
+            onClick={() => setEditingExperience(true)}
+            className="shrink-0 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:border-indigo-300 hover:text-indigo-700 rounded-lg inline-flex items-center gap-1.5"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+            {candidate.experience?.length ? 'Edit' : 'Add experience'}
+          </button>
+        </div>
+        {candidate.experience?.length ? (
+          <ExperienceList items={candidate.experience} />
+        ) : (
+          <button onClick={() => setEditingExperience(true)} className="w-full p-5 rounded-xl border border-dashed border-slate-300 text-sm text-slate-500 hover:border-indigo-300 hover:text-indigo-700">
+            Add the jobs, internships or placements you've had
+          </button>
+        )}
+        {!!candidate.links?.length && <ProfileLinks links={candidate.links} />}
+      </section>
 
       {/* SECTION 1: VERIFIED SKILL PASSPORT */}
         <div className="space-y-6">
@@ -1061,6 +1091,17 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
             closeJob();
             onOpenJob(openJob.id);
           }}
+        />
+      )}
+
+      {editingExperience && (
+        <ExperienceEditor
+          candidate={candidate}
+          onSave={(details) => {
+            onUpdateExperience(details);
+            setEditingExperience(false);
+          }}
+          onClose={() => setEditingExperience(false)}
         />
       )}
 

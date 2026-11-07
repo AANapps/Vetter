@@ -6,6 +6,7 @@ import { Pic } from './Pic';
 import { TestHistory } from './TestHistory';
 import { IntegrityBadge } from './IntegrityBadge';
 import { getBadgeTier } from './VerifiedSkillBadge';
+import { ExperienceList, ProfileLinks } from './ExperienceList';
 
 interface CandidateProfilePageProps {
   person: User;
@@ -154,6 +155,11 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
               ))}
             </ul>
           )}
+          {!!person.links?.length && (
+            <div className="mt-4">
+              <ProfileLinks links={person.links} />
+            </div>
+          )}
         </div>
         <dl className="grid grid-cols-2 sm:grid-cols-4 border-t border-slate-100 divide-x divide-slate-100 [&>div:nth-child(n+3)]:border-t sm:[&>div:nth-child(n+3)]:border-t-0 [&>div]:border-slate-100">
           {[
@@ -176,6 +182,13 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
             <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs">
               <Heading>About</Heading>
               <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{bio}</p>
+            </section>
+          )}
+
+          {!!person.experience?.length && (
+            <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs">
+              <Heading aside={<span className="text-[11px] text-slate-400">In their own words</span>}>Experience</Heading>
+              <ExperienceList items={person.experience} />
             </section>
           )}
 

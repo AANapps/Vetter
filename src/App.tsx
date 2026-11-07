@@ -1244,6 +1244,10 @@ export default function App() {
                 setCandidate((prev) => ({ ...prev, jobProfiles, activeProfileId }))
               }
               onUpdateStudies={(studies) => setCandidate((prev) => ({ ...prev, ...studies }))}
+              onUpdateExperience={(details) => {
+                setCandidate((prev) => ({ ...prev, ...details }));
+                showToast('Experience saved.');
+              }}
               onDeleteTest={(testId) => {
                 // Everyone's standing on the test moves up a place
                 const everyone = withComputedPercentiles([removeTestResults(candidate, testId), ...otherCandidates]);

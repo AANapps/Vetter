@@ -8,6 +8,10 @@ import { deriveVerifiedSkills, hashString, initialsAvatar, mulberry32 } from './
 const PEOPLE: Omit<User, 'role' | 'avatarUrl' | 'verifiedSkills' | 'testResults' | 'appliedJobIds'>[] = [
   {
     id: 'cand-sample-01',
+    experience: [
+      { id: 'exp-1', role: 'Senior Data Analyst', company: 'Northwind Pay', start: '2023-02', summary: 'Rebuilt pricing analytics in SQL and dbt; the weekly margin report now runs itself.' },
+      { id: 'exp-2', role: 'Data Analyst', company: 'Hartley & Co', start: '2020-06', end: '2023-01', summary: 'Dashboards and A/B test reads for the e-commerce team.' },
+    ],
     name: 'Amara Okafor',
     email: 'amara.okafor@example.dev',
     title: 'Senior Data Analyst',
@@ -21,6 +25,10 @@ const PEOPLE: Omit<User, 'role' | 'avatarUrl' | 'verifiedSkills' | 'testResults'
   },
   {
     id: 'cand-sample-02',
+    experience: [
+      { id: 'exp-1', role: 'Backend Engineer', company: 'Ledgerline', start: '2022-09', summary: 'Payments API in TypeScript and Go; cut p95 latency by a third.' },
+      { id: 'exp-2', role: 'Junior Developer', company: 'Brightwave Digital', start: '2021-07', end: '2022-08' },
+    ],
     name: 'Daniel Novak',
     email: 'daniel.novak@example.dev',
     title: 'Backend Engineer',
@@ -34,6 +42,9 @@ const PEOPLE: Omit<User, 'role' | 'avatarUrl' | 'verifiedSkills' | 'testResults'
   },
   {
     id: 'cand-sample-03',
+    experience: [
+      { id: 'exp-1', role: 'Software Engineering Intern', company: 'Cloudmere', start: '2025-06', end: '2025-09', summary: 'Built an internal tool for tracking deploys on the platform team.' },
+    ],
     name: 'Priya Raman',
     email: 'priya.raman@example.dev',
     title: 'Computer Science student',
@@ -47,6 +58,10 @@ const PEOPLE: Omit<User, 'role' | 'avatarUrl' | 'verifiedSkills' | 'testResults'
   },
   {
     id: 'cand-sample-04',
+    experience: [
+      { id: 'exp-1', role: 'Customer Success Manager', company: 'Fieldnote', start: '2021-03', summary: 'Book of 40 B2B accounts, 96% retention.' },
+      { id: 'exp-2', role: 'Account Coordinator', company: 'Parcelpoint', start: '2018-05', end: '2021-02' },
+    ],
     name: 'Tom Hughes',
     email: 'tom.hughes@example.dev',
     title: 'Customer Success Manager',
@@ -58,6 +73,9 @@ const PEOPLE: Omit<User, 'role' | 'avatarUrl' | 'verifiedSkills' | 'testResults'
   },
   {
     id: 'cand-sample-05',
+    experience: [
+      { id: 'exp-1', role: 'Graduate Product Analyst', company: 'Tilly', start: '2025-09', summary: 'Product metrics and experiment design for the mobile app.' },
+    ],
     name: 'Sofia Marquez',
     email: 'sofia.marquez@example.dev',
     title: 'Graduate Product Analyst',

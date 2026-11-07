@@ -14,7 +14,7 @@ export interface AdvisorRequest {
   library: { id: string; title: string; category: string; difficulty: string; skills: string[]; roles: string[]; description: string; minutes: number; types: string[] }[];
   company?: string;
   // Candidates' public profiles, cut down to what judging fit needs
-  candidates?: { id: string; title: string; location: string; stage?: string; years: number; work: string; studied?: string; skills: { name: string; score: number; level: string }[]; tests: number }[];
+  candidates?: { id: string; title: string; location: string; stage?: string; years: number; work: string; studied?: string; skills: { name: string; score: number; level: string }[]; tests: number; jobs?: string[] }[];
 }
 
 const MAX_CANDIDATES = 150;
