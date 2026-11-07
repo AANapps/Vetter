@@ -19,9 +19,17 @@ export interface AdvisorTurn {
   existing?: Suggestion[];
   custom?: CustomIdea[];
   // Candidates on Vetter who suit the role, when the company asked to see some, each with why
-  people?: { candidateId: string; reason: string }[];
+  people?: SuggestedPerson[];
   // Set when the reply is a failure rather than advice
   error?: boolean;
+}
+
+export interface SuggestedPerson {
+  candidateId: string;
+  reason: string;
+  // Skills the role needs that they haven't verified, and a brief for a test that would check them
+  gaps?: string[];
+  testBrief?: string;
 }
 
 export const CUSTOM_KIND_LABELS: Record<CustomIdea['kind'], string> = {
@@ -67,9 +75,7 @@ export async function askAdvisor(turns: AdvisorTurn[], tests: AssessmentTest[], 
       body: JSON.stringify({
         messages,
         company: business?.name,
-        candidates: candidates
-          .filter((c) => c.testResults.length > 0)
-          .map((c) => ({
+        candidates: candidates.map((c) => ({
             id: c.id,
             title: c.title,
             location: c.location,
@@ -79,7 +85,7 @@ export async function askAdvisor(turns: AdvisorTurn[], tests: AssessmentTest[], 
             ...((c.studySubject || c.university) && { studied: [c.studySubject, c.university].filter(Boolean).join(', ') }),
             skills: c.verifiedSkills.map((s) => ({ name: s.skillName, score: s.score, level: s.level })),
             tests: new Set(c.testResults.map((r) => r.testId)).size,
-          })),
+        })),
         library: library.map((t) => ({
           id: t.id,
           title: t.title,

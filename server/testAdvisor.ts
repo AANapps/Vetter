@@ -50,7 +50,17 @@ const responseSchema = {
     },
     people: {
       type: 'array',
-      items: { type: 'object', properties: { candidateId: { type: 'string' }, reason: { type: 'string' } }, required: ['candidateId', 'reason'], additionalProperties: false },
+      items: {
+        type: 'object',
+        properties: {
+          candidateId: { type: 'string' },
+          reason: { type: 'string' },
+          gaps: { type: 'array', items: { type: 'string' } },
+          testBrief: { type: 'string' },
+        },
+        required: ['candidateId', 'reason', 'gaps', 'testBrief'],
+        additionalProperties: false,
+      },
     },
   },
   required: ['reply', 'roadmap', 'existing', 'custom', 'people'],
@@ -65,7 +75,7 @@ const instructions = (req: AdvisorRequest) =>
     '- roadmap: two to five short steps for how to assess the role with Vetter, in order. Example steps: a screening test from the library, a hands-on simulation, a written case, then an interview on their answers. Keep each detail to one sentence.',
     '- existing: up to four tests from THE LIBRARY below on the same subject, best first, by their exact id, each with a one-sentence reason tied to the role. Include the closest ones even when the level or focus isn\'t exact, and then say so in the reason (e.g. "Pitched at senior; edit a copy to make it junior-friendly"). Leave it empty only when nothing in the library is on the subject at all.',
     '- custom: up to three custom pieces worth building only where the library has a gap or where a simulation of a specific tool would show far more than the library does. Each has a short title, a kind (app for an app simulation, sheet, database, code, written, or mixed), why it adds signal the library lacks, and a brief: two or three sentences a test writer could build it from, naming the role, level, tool and what the candidate must do. Leave it empty when the library covers the role well.',
-    '- people: only when the company asks to see candidates (who might suit, who to contact, people for the role), up to five from THE CANDIDATES below who best suit the role, best first, by their exact id. Each reason is one or two sentences naming the verified scores and facts that make them fit (e.g. "Scored 88 on SQL and 81 on Excel; four years as an analyst in London, open to hybrid"), and any gap worth checking. Say in reply how many you found and what you looked for; if no one fits well, say so and list the closest. When they ask only for candidates, roadmap, existing and custom may be empty. When they don\'t ask for candidates, leave people empty.',
+    '- people: only when the company asks to see candidates (who might suit, who to contact, people for the role), up to five from THE CANDIDATES below who best suit the role, best first, by their exact id. Each reason is one or two sentences naming the verified scores and facts that make them fit (e.g. "Scored 88 on SQL and 81 on Excel; four years as an analyst in London, open to hybrid"), and any gap worth checking. For each, gaps lists the skills the role needs that they have no verified score for (or a weak one), as short names like "SQL" or "Excel"; empty when nothing important is missing. Candidates with no verified skills at all can still be listed when their title and background fit, with the role\'s key skills as gaps. testBrief is two sentences a test writer could build a short test from to check those gaps for this role and level; empty when gaps is empty. Say in reply how many you found and what you looked for, and that the company can send them tests to verify the gaps; if no one fits well, say so and list the closest. When they ask only for candidates, roadmap, existing and custom may be empty. When they don\'t ask for candidates, leave people empty.',
     'Recommend; never write questions. Never invent library tests, candidates or ids. Don\'t mention prices or plans.',
     `THE LIBRARY:\n${JSON.stringify(req.library)}`,
     `THE CANDIDATES:\n${JSON.stringify((req.candidates ?? []).slice(0, MAX_CANDIDATES))}`,

@@ -1352,6 +1352,11 @@ export default function App() {
               turns={advisorTurns}
               onTurns={setAdvisorTurns}
               candidates={allCandidates}
+              onInvite={(jobId, candidateId) => {
+                handleInviteToJob(jobId, [candidateId]);
+                const job = jobs.find((j) => j.id === jobId);
+                showToast(`Sent ${job?.title ?? 'the job'}'s tests. They'll see the request when they next sign in.`);
+              }}
               renderProfile={(personId, close) => {
                 const person = allCandidates.find((c) => c.id === personId);
                 return person ? (
