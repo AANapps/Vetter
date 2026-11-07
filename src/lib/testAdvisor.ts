@@ -1,4 +1,4 @@
-import { AssessmentTest, Business } from '../types';
+import { AssessmentTest, Business, User } from '../types';
 import { Suggestion, libraryFor, matchExisting } from './testGeneration';
 
 // The company home's chat (server/testAdvisor.ts does the AI side): who they're hiring in, a roadmap, the library tests
@@ -18,6 +18,8 @@ export interface AdvisorTurn {
   roadmap?: { step: string; detail: string }[];
   existing?: Suggestion[];
   custom?: CustomIdea[];
+  // Candidates on Vetter who suit the role, when the company asked to see some, each with why
+  people?: { candidateId: string; reason: string }[];
   // Set when the reply is a failure rather than advice
   error?: boolean;
 }
@@ -31,7 +33,29 @@ export const CUSTOM_KIND_LABELS: Record<CustomIdea['kind'], string> = {
   mixed: 'Custom test',
 };
 
-export async function askAdvisor(turns: AdvisorTurn[], tests: AssessmentTest[], business?: Business): Promise<AdvisorTurn> {
+// Whether a message asks to see people rather than tests
+const ASKS_FOR_PEOPLE = /\b(candidates?|people|applicants?|who (could|might|would)|talent|profiles?)\b/i;
+
+// Without the AI: candidates whose title or verified skills share words with what was asked, best scores first
+function matchPeople(asked: string, candidates: User[]) {
+  const words = asked.toLowerCase().split(/[^a-z0-9+#]+/).filter((w) => w.length > 2 && !['the', 'and', 'for', 'who', 'candidates', 'candidate', 'people', 'show', 'some', 'with', 'that', 'could', 'might', 'suit', 'role'].includes(w));
+  return candidates
+    .map((c) => {
+      const hay = `${c.title} ${c.verifiedSkills.map((s) => s.skillName).join(' ')}`.toLowerCase();
+      const hits = words.filter((w) => hay.includes(w)).length;
+      const best = [...c.verifiedSkills].sort((a, b) => b.score - a.score).slice(0, 2);
+      return { c, hits, best };
+    })
+    .filter((m) => m.hits > 0)
+    .sort((a, b) => b.hits - a.hits || (b.best[0]?.score ?? 0) - (a.best[0]?.score ?? 0))
+    .slice(0, 5)
+    .map(({ c, best }) => ({
+      candidateId: c.id,
+      reason: `${c.title || 'Candidate'}${best.length ? `, verified in ${best.map((s) => `${s.skillName} (${s.score})`).join(' and ')}` : ''}.`,
+    }));
+}
+
+export async function askAdvisor(turns: AdvisorTurn[], tests: AssessmentTest[], business?: Business, candidates: User[] = []): Promise<AdvisorTurn> {
   const library = libraryFor(tests, business);
   const messages = turns.filter((t) => !t.error).map(({ role, text }) => ({ role, text }));
   let res: Response | undefined;
@@ -43,6 +67,19 @@ export async function askAdvisor(turns: AdvisorTurn[], tests: AssessmentTest[], 
       body: JSON.stringify({
         messages,
         company: business?.name,
+        candidates: candidates
+          .filter((c) => c.testResults.length > 0)
+          .map((c) => ({
+            id: c.id,
+            title: c.title,
+            location: c.location,
+            ...(c.careerStage && { stage: c.careerStage }),
+            years: c.yearsExperience,
+            work: c.workPreference,
+            ...((c.studySubject || c.university) && { studied: [c.studySubject, c.university].filter(Boolean).join(', ') }),
+            skills: c.verifiedSkills.map((s) => ({ name: s.skillName, score: s.score, level: s.level })),
+            tests: new Set(c.testResults.map((r) => r.testId)).size,
+          })),
         library: library.map((t) => ({
           id: t.id,
           title: t.title,
@@ -64,6 +101,17 @@ export async function askAdvisor(turns: AdvisorTurn[], tests: AssessmentTest[], 
   // No AI here (or no endpoint at all): the library tests that share the most words with what they asked for
   if (!res.ok && (body.error === 'not-configured' || res.status === 404)) {
     const asked = messages.filter((m) => m.role === 'user').map((m) => m.text).join('\n');
+    const lastAsk = messages[messages.length - 1]?.text ?? '';
+    if (ASKS_FOR_PEOPLE.test(lastAsk)) {
+      const people = matchPeople(asked, candidates);
+      return {
+        role: 'assistant',
+        text: people.length
+          ? "Vetter's AI isn't switched on here, so these are the candidates whose titles and verified skills match the words you used."
+          : "Vetter's AI isn't switched on here, and no candidate's title or verified skills match those words. Try naming the skills or the role.",
+        people,
+      };
+    }
     const existing = matchExisting(asked, library);
     return {
       role: 'assistant',
@@ -85,5 +133,6 @@ export async function askAdvisor(turns: AdvisorTurn[], tests: AssessmentTest[], 
     roadmap: body.roadmap ?? [],
     existing,
     custom: body.custom ?? [],
+    people: body.people ?? [],
   };
 }

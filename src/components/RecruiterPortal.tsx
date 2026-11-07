@@ -38,6 +38,8 @@ interface RecruiterPortalProps {
   onEditOwnTest: (testId: string) => void;
   // The company's leads pipeline, shown first in the Candidates tab
   leads?: React.ReactNode;
+  // Every candidate on Vetter, to browse (src/components/BrowseCandidates.tsx)
+  browse?: React.ReactNode;
 }
 
 // Tests written in the builder have ids like test-custom-<timestamp> or test-vetter-<timestamp>
@@ -63,6 +65,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   onEditDraftByHand,
   onEditOwnTest,
   leads,
+  browse,
 }) => {
   // A business only manages its own jobs and its own tests; the Vetter team sees every company's jobs
   const isVetter = !business;
@@ -124,8 +127,8 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
       ].filter((sec) => sec.tests.length > 0)
     : [{ heading: null, tests: shownTests }];
   // The Candidates tab: the leads pipeline, or everyone on Vetter ranked for a job
-  const [candidatesView, setCandidatesView] = useState<'leads' | 'ranked'>(leads ? 'leads' : 'ranked');
-  const showRanked = section === 'candidates' && (candidatesView === 'ranked' || !leads);
+  const [candidatesView, setCandidatesView] = useState<'leads' | 'browse' | 'ranked'>(leads ? 'leads' : browse ? 'browse' : 'ranked');
+  const showRanked = section === 'candidates' && (candidatesView === 'ranked' || (candidatesView === 'leads' && !leads) || (candidatesView === 'browse' && !browse));
   const selectedJob = jobs.find((j) => j.id === selectedJobId) || jobs[0];
 
   // The test builder, open on a new test or one being edited
@@ -196,12 +199,13 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
       )}
 
       {/* Candidates */}
-      {section === 'candidates' && leads && (
+      {section === 'candidates' && (leads || browse) && (
         <div role="tablist" aria-label="Candidates" className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1 text-xs font-semibold">
           {(
             [
-              ['leads', 'Leads'],
-              ['ranked', 'Ranked by job'],
+              ...(leads ? [['leads', 'Leads'] as const] : []),
+              ...(browse ? [['browse', 'All candidates'] as const] : []),
+              ['ranked', 'Ranked by job'] as const,
             ] as const
           ).map(([id, label]) => (
             <button
@@ -219,6 +223,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
         </div>
       )}
       {section === 'candidates' && leads && candidatesView === 'leads' && leads}
+      {section === 'candidates' && browse && candidatesView === 'browse' && browse}
       {showRanked && !selectedJob && (
         <p className="text-xs text-slate-500">Post a job to start seeing ranked candidates.</p>
       )}

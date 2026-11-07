@@ -27,6 +27,7 @@ import { TestField } from './lib/testRoles';
 import { GlobalSearch } from './components/GlobalSearch';
 import { PersonProfileModal } from './components/PersonProfileModal';
 import { CandidateProfilePage } from './components/CandidateProfilePage';
+import { BrowseCandidates } from './components/BrowseCandidates';
 import { BusinessJobs } from './components/BusinessJobs';
 import { JobTestsEditor } from './components/JobTestsEditor';
 import { TestGenerator } from './components/TestGenerator';
@@ -1350,6 +1351,35 @@ export default function App() {
               }
               turns={advisorTurns}
               onTurns={setAdvisorTurns}
+              candidates={allCandidates}
+              renderProfile={(personId, close) => {
+                const person = allCandidates.find((c) => c.id === personId);
+                return person ? (
+                  <CandidateProfilePage
+                    popup
+                    person={person}
+                    tests={tests}
+                    candidates={allCandidates}
+                    businesses={businesses}
+                    business={leadsBusiness}
+                    jobs={leadsJobs}
+                    leadRows={leadRows}
+                    onBack={close}
+                    onOpenPage={() => {
+                      close();
+                      openPerson(personId);
+                    }}
+                    onOpenTest={(testId) => {
+                      close();
+                      openTestPage(testId);
+                    }}
+                    onOpenJob={(jobId) => {
+                      close();
+                      openBusinessJob(jobId);
+                    }}
+                  />
+                ) : null;
+              }}
               onContinue={(ready) => {
                 // AI tests already built stay on the plan
                 setTestPlan((prev) => ({ readyIds: ready.map((t) => t.id), ideas: prev?.ideas ?? [], suggestions: prev?.suggestions ?? [] }));
@@ -1448,6 +1478,7 @@ export default function App() {
               onContinueDraft={(d) => openGenerator({ jobId: d.jobId, resume: d })}
               onEditDraftByHand={(d) => setDraftBuilder({ draft: d.test, jobId: d.jobId, alsoAdd: [], record: d })}
               onEditOwnTest={editOwnTest}
+              browse={<BrowseCandidates candidates={allCandidates} onOpenPerson={openPerson} />}
               leads={
                 <LeadsPage
                   business={leadsBusiness}

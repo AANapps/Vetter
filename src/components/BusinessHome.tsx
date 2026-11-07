@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { PixelDot } from './PixelDot';
 import { ArrowRight, ArrowUp, Check, Eye, Lock, Pencil, Plus, Wand2, X } from 'lucide-react';
-import { AssessmentTest, Business, JobPosting, levelName } from '../types';
+import { AssessmentTest, Business, JobPosting, User, levelName } from '../types';
+import { Pic } from './Pic';
 import { AdvisorTurn, CUSTOM_KIND_LABELS, CustomIdea, askAdvisor } from '../lib/testAdvisor';
 import { Credit, loadCredit } from '../lib/aiRequest';
 import { CreditMeter, EXAMPLE_CREDIT } from './CreditMeter';
@@ -30,6 +31,10 @@ interface BusinessHomeProps {
   onSeePlans: () => void;
   onOpenTest: (testId: string) => void;
   onGoTo: (tab: 'business-jobs' | 'business-tests' | 'business-candidates') => void;
+  // Everyone on Vetter, for the chat to suggest when the company asks to see candidates
+  candidates: User[];
+  // A candidate's profile in a pop-up over the chat
+  renderProfile: (personId: string, onClose: () => void) => React.ReactNode;
 }
 
 const STARTERS = [
@@ -37,6 +42,7 @@ const STARTERS = [
   'A data analyst who works in Excel and SQL',
   'A customer support agent using a help desk',
   'A graduate financial analyst',
+  'Show me candidates for a data analyst role',
 ];
 
 // A company's home: a chat with Vetter about who they're hiring, which answers with a roadmap, the library tests that
@@ -59,8 +65,12 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
   onSeePlans,
   onOpenTest,
   onGoTo,
+  candidates,
+  renderProfile,
 }) => {
   const [input, setInput] = useState('');
+  // The candidate whose profile is open over the chat
+  const [viewing, setViewing] = useState<string | null>(null);
   const [thinking, setThinking] = useState(false);
   // Ready-made tests ticked from any reply; they stay ticked as the chat goes on, until the company carries on with them
   const [picked, setPicked] = useState<string[]>([]);
@@ -91,7 +101,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
     onTurns(next);
     setInput('');
     setThinking(true);
-    const reply = await askAdvisor(next, tests, business);
+    const reply = await askAdvisor(next, tests, business, candidates);
     onTurns([...next, reply]);
     setThinking(false);
     inputRef.current?.focus();
@@ -103,6 +113,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
     // the conversation does, and the message box stays at the bottom
     <div className="relative isolate h-[calc(100dvh-3.5rem-1px)] lg:h-[100dvh] overflow-hidden">
       {topUpOpen && credit && <CreditsDialog credit={credit} onUpdated={setCredit} onClose={() => setTopUpOpen(false)} />}
+      {viewing && renderProfile(viewing, () => setViewing(null))}
       {/* Faint colour drifting behind the glass */}
       <div className="ai-aurora" aria-hidden="true">
         <span />
@@ -171,6 +182,8 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
                   onBuildWithAI={onBuildWithAI}
                   onSeePlans={onSeePlans}
                   onOpenTest={onOpenTest}
+                  candidates={candidates}
+                  onViewPerson={setViewing}
                 />
               )
             )
@@ -178,7 +191,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
           {thinking && (
             <div className="flex items-center gap-2 text-sm text-slate-500">
               <span className="ai-mark w-7 h-7 rounded-lg text-white text-xs font-pixel flex items-center justify-center"><span>V<PixelDot /></span></span>
-              <span className="ai-shimmer font-medium">Looking through the library…</span>
+              <span className="ai-shimmer font-medium">Looking through Vetter…</span>
             </div>
           )}
           <div ref={endRef} />
@@ -322,11 +335,15 @@ const AdvisorReply: React.FC<{
   onBuildWithAI: (brief: string) => void;
   onSeePlans: () => void;
   onOpenTest: (testId: string) => void;
-}> = ({ turn, aiAllowed, picked, onBuildIdea, onTogglePick, onPickAll, onEditCopy, onSeePlans, onOpenTest }) => (
+  candidates: User[];
+  onViewPerson: (personId: string) => void;
+}> = ({ turn, aiAllowed, picked, onBuildIdea, onTogglePick, onPickAll, onEditCopy, onSeePlans, onOpenTest, candidates, onViewPerson }) => (
   <div className="flex gap-3">
     <span className="ai-mark w-7 h-7 shrink-0 rounded-lg text-white text-xs font-pixel flex items-center justify-center"><span>V<PixelDot /></span></span>
     <div className="ai-glass min-w-0 flex-1 space-y-4 p-4 sm:p-5 rounded-2xl rounded-tl-md border border-white/80 shadow-sm">
       <p className={`text-sm leading-relaxed whitespace-pre-wrap ${turn.error ? 'text-slate-800' : 'text-slate-800'}`}>{turn.text}</p>
+
+      {!!turn.people?.length && <PeopleList people={turn.people} candidates={candidates} onView={onViewPerson} />}
 
       {!!turn.roadmap?.length && (
         <div className="space-y-2">
@@ -447,3 +464,60 @@ const CustomCard: React.FC<{ idea: CustomIdea; aiAllowed: boolean; onBuild: () =
     )}
   </li>
 );
+
+// Candidates the chat suggests: who they are, their strongest verified scores and why they suit the role; each opens
+// their profile in a pop-up
+const PeopleList: React.FC<{ people: { candidateId: string; reason: string }[]; candidates: User[]; onView: (id: string) => void }> = ({ people, candidates, onView }) => {
+  const found = people.flatMap((p) => {
+    const c = candidates.find((x) => x.id === p.candidateId);
+    return c ? [{ c, reason: p.reason }] : [];
+  });
+  if (!found.length) return null;
+  return (
+    <div className="space-y-2">
+      <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Candidates</h3>
+      <ul className="space-y-2.5">
+        {found.map(({ c, reason }, i) => {
+          const top = [...c.verifiedSkills].sort((a, b) => b.score - a.score).slice(0, 3);
+          return (
+            <li key={c.id}>
+              <button
+                onClick={() => onView(c.id)}
+                className="w-full text-left p-4 bg-white border border-slate-200 hover:border-indigo-300 hover:shadow-sm rounded-xl flex gap-3.5 transition group"
+              >
+                <span className="relative shrink-0">
+                  <Pic src={c.avatarUrl} alt="" referrerPolicy="no-referrer" className="w-11 h-11 rounded-full object-cover bg-slate-100" />
+                  <span className="absolute -top-1 -left-1 w-5 h-5 rounded-full bg-slate-900 text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-white">{i + 1}</span>
+                </span>
+                <span className="min-w-0 flex-1 space-y-1.5">
+                  <span className="flex items-start justify-between gap-3">
+                    <span className="min-w-0">
+                      <span className="block text-sm font-semibold text-slate-900 truncate group-hover:text-indigo-700">{c.name}</span>
+                      <span className="block text-[11px] text-slate-500 truncate">
+                        {[c.title, c.location, c.careerStage].filter(Boolean).join(' · ')}
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-[11px] font-semibold text-indigo-700 inline-flex items-center gap-0.5">
+                      View profile
+                      <ArrowRight className="w-3 h-3" />
+                    </span>
+                  </span>
+                  {top.length > 0 && (
+                    <span className="flex flex-wrap gap-1.5">
+                      {top.map((s) => (
+                        <span key={s.skillId} className="px-2 py-0.5 rounded-full bg-slate-100 text-[11px] text-slate-700">
+                          {s.skillName} <span className="font-mono font-semibold text-slate-900">{s.score}</span>
+                        </span>
+                      ))}
+                    </span>
+                  )}
+                  <span className="block text-xs text-slate-600 leading-relaxed">{reason}</span>
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+};

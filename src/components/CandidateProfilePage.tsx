@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ArrowLeft, BadgeCheck, Briefcase, Check, ChevronRight, GraduationCap, Link2, MapPin, Star } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { ArrowLeft, BadgeCheck, Briefcase, Check, ChevronRight, ExternalLink, GraduationCap, Link2, MapPin, Star, X } from 'lucide-react';
 import { AssessmentTest, Business, JobPosting, User } from '../types';
 import { LeadRow, stageInfo } from '../lib/leads';
 import { Pic } from './Pic';
@@ -21,6 +21,9 @@ interface CandidateProfilePageProps {
   onBack: () => void;
   onOpenTest: (testId: string) => void;
   onOpenJob: (jobId: string) => void;
+  // Shown over the page (from the home chat) rather than as a page; it closes with onBack and can open the full page
+  popup?: boolean;
+  onOpenPage?: () => void;
 }
 
 const formatDay = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -46,8 +49,16 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
   onBack,
   onOpenTest,
   onOpenJob,
+  popup,
+  onOpenPage,
 }) => {
   const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    if (!popup) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onBack();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [popup, onBack]);
   // The profile they sent to this company, if they applied; otherwise the one they show
   const sentWith = jobs.map((j) => person.applicationProfiles?.[j.id]).find(Boolean);
   const profile = person.jobProfiles?.find((p) => p.id === (sentWith ?? person.activeProfileId));
@@ -79,21 +90,40 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
     }
   };
 
-  return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6">
-      <div className="flex items-center justify-between gap-3">
-        <button onClick={onBack} className="text-xs font-semibold text-slate-500 hover:text-slate-900 inline-flex items-center gap-1.5">
-          <ArrowLeft className="w-4 h-4" />
-          Back
-        </button>
+  const topBar = popup ? (
+    <div className="flex items-center justify-end gap-2">
+      {onOpenPage && (
         <button
-          onClick={copyLink}
+          onClick={onOpenPage}
           className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:border-slate-300 rounded-lg inline-flex items-center gap-1.5"
         >
-          {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Link2 className="w-3.5 h-3.5" />}
-          {copied ? 'Link copied' : 'Copy link'}
+          <ExternalLink className="w-3.5 h-3.5" />
+          Open full page
         </button>
-      </div>
+      )}
+      <button onClick={onBack} aria-label="Close" className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-white">
+        <X className="w-5 h-5" />
+      </button>
+    </div>
+  ) : (
+    <div className="flex items-center justify-between gap-3">
+      <button onClick={onBack} className="text-xs font-semibold text-slate-500 hover:text-slate-900 inline-flex items-center gap-1.5">
+        <ArrowLeft className="w-4 h-4" />
+        Back
+      </button>
+      <button
+        onClick={copyLink}
+        className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:border-slate-300 rounded-lg inline-flex items-center gap-1.5"
+      >
+        {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Link2 className="w-3.5 h-3.5" />}
+        {copied ? 'Link copied' : 'Copy link'}
+      </button>
+    </div>
+  );
+
+  const body = (
+    <>
+      {topBar}
 
       {/* The top of the CV: photo, name, headline and the facts that matter, then the four numbers */}
       <header className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
@@ -251,6 +281,21 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
             <p className="text-[11px] text-slate-500 leading-relaxed">What Vetter's monitor saw while they took your jobs' tests: leaving the window, pasting and the like.</p>
           </section>
         </aside>
+      </div>
+    </>
+  );
+
+  if (!popup) return <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6">{body}</div>;
+  return (
+    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-2 sm:p-6 bg-slate-900/50 backdrop-blur-sm" onClick={onBack}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={person.name}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-5xl max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-3rem)] overflow-y-auto overscroll-contain bg-slate-50 rounded-2xl shadow-2xl p-4 sm:p-6 space-y-6 animate-[fade-in_150ms_ease-out]"
+      >
+        {body}
       </div>
     </div>
   );
