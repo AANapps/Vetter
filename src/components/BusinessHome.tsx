@@ -113,6 +113,10 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
     <div className="h-full max-w-6xl mx-auto px-4 sm:px-6 grid grid-cols-1 grid-rows-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_17rem] gap-8">
       {/* The chat */}
       <section className="min-w-0 min-h-0 flex flex-col">
+        {/* Vetter's name at the top left of the chat, as chat apps show theirs; phones have it in the header already */}
+        <div className="hidden lg:flex items-center h-14 shrink-0">
+          <span className="font-pixel text-lg text-indigo-950">Vetter<PixelDot /></span>
+        </div>
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain py-8 space-y-6 -mx-2 px-2">
           {turns.length === 0 ? (
             <div className="pt-10 sm:pt-20 space-y-6 text-center">
