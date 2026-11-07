@@ -52,6 +52,12 @@ interface LeadsViewProps {
   onOpenJobLeads?: (jobId: string) => void;
 }
 
+// "Jane Doe" as "Jane D.", to keep a card to two short lines
+const shortName = (name: string) => {
+  const [first, ...rest] = name.trim().split(/\s+/);
+  const last = rest[rest.length - 1];
+  return last ? `${first} ${last[0].toUpperCase()}.` : first;
+};
 const TIERS = ['Top Match', 'Strong Fit', 'Borderline', 'Needs Upskilling'];
 const WORK_PREFS = ['Remote', 'Hybrid', 'On-site'] as const;
 const SOURCES = Object.keys(SOURCE_LABELS) as LeadSource[];
@@ -233,11 +239,31 @@ export const LeadsView: React.FC<LeadsViewProps> = ({ rows, jobs, fixedJob, onUp
         dragId === r.id ? 'opacity-40' : ''
       } ${openId === r.id ? 'border-indigo-400 ring-1 ring-indigo-400' : 'border-slate-200'}`}
     >
-      <div className="flex items-center gap-2">
-        <Pic src={r.candidate.avatarUrl} alt="" referrerPolicy="no-referrer" className="w-7 h-7 rounded-full object-cover bg-slate-100 shrink-0" />
-        <div className="min-w-0 flex-1">
-          <div className="text-xs font-semibold text-slate-900 truncate">{r.candidate.name}</div>
-          <div className="text-[11px] text-slate-500 truncate">{fixedJob ? r.candidate.title : r.job.title}</div>
+      {/* First name and last initial with their fit, then the stars under the name with their tests beside them */}
+      <div className="flex items-center gap-2" title={`${r.candidate.name} · ${fixedJob ? r.candidate.title : r.job.title}`}>
+        <Pic src={r.candidate.avatarUrl} alt="" referrerPolicy="no-referrer" className="w-8 h-8 rounded-full object-cover bg-slate-100 shrink-0" />
+        <div className="min-w-0 flex-1 space-y-0.5">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold text-slate-900 truncate">{shortName(r.candidate.name)}</span>
+            <span className="text-[11px] text-slate-500 shrink-0">
+              Fit <span className="font-mono font-semibold text-slate-800">{r.fit}%</span>
+            </span>
+          </div>
+          <div className="flex items-center justify-between gap-2 text-[11px]">
+            <Stars value={r.lead?.rating} size="w-3 h-3" />
+            <span className="flex items-center gap-1.5 text-slate-500 shrink-0">
+              {r.lead?.note && <StickyNote className="w-3 h-3 text-slate-400" />}
+              {r.lead?.dueDate && (
+                <span className="inline-flex items-center gap-0.5 text-amber-700">
+                  <CalendarDays className="w-3 h-3" />
+                  {formatDay(r.lead.dueDate)}
+                </span>
+              )}
+              <span>
+                Tests <ScoreText row={r} />
+              </span>
+            </span>
+          </div>
         </div>
       </div>
       {(r.integrity.length > 0 || r.progress.done > 0) && (
@@ -245,26 +271,6 @@ export const LeadsView: React.FC<LeadsViewProps> = ({ rows, jobs, fixedJob, onUp
           <IntegrityBadge sittings={r.integrity} />
         </div>
       )}
-      <div className="flex items-center justify-between gap-2 text-[11px]">
-        <span className="text-slate-500">
-          Tests <ScoreText row={r} />
-        </span>
-        <span className="text-slate-500">
-          Fit <span className="font-mono font-semibold text-slate-800">{r.fit}%</span>
-        </span>
-      </div>
-      <div className="flex items-center justify-between gap-2">
-        <Stars value={r.lead?.rating} size="w-3 h-3" />
-        <span className="flex items-center gap-1.5 text-[11px] text-slate-400">
-          {r.lead?.note && <StickyNote className="w-3 h-3" />}
-          {r.lead?.dueDate && (
-            <span className="inline-flex items-center gap-0.5 text-amber-700">
-              <CalendarDays className="w-3 h-3" />
-              {formatDay(r.lead.dueDate)}
-            </span>
-          )}
-        </span>
-      </div>
       {(r.lead?.tags?.length || r.archiveReason) && (
         <div className="flex flex-wrap gap-1">
           {r.archiveReason && <span className="px-1.5 py-0.5 rounded bg-indigo-50 text-slate-800 text-[10px] font-medium">{r.autoRejected ? 'Suspected cheating · set aside automatically' : r.archiveReason}</span>}
