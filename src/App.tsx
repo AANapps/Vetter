@@ -25,6 +25,7 @@ import { FollowSuggestions } from './components/DiscoverSidebar';
 import { TestField } from './lib/testRoles';
 import { GlobalSearch } from './components/GlobalSearch';
 import { PersonProfileModal } from './components/PersonProfileModal';
+import { CandidateProfilePage } from './components/CandidateProfilePage';
 import { BusinessJobs } from './components/BusinessJobs';
 import { JobTestsEditor } from './components/JobTestsEditor';
 import { TestGenerator } from './components/TestGenerator';
@@ -148,6 +149,12 @@ const businessJobIdFromPath = () => {
   return match ? decodeURIComponent(match[1]) : null;
 };
 
+// A candidate's profile as a company sees it, at /business/candidates/<id>/
+const businessCandidateIdFromPath = () => {
+  const match = window.location.pathname.match(/^\/business\/candidates\/([^/]+)\/?$/);
+  return match ? decodeURIComponent(match[1]) : null;
+};
+
 // The pages each side has; companies is on both
 const SIDE_TABS: Record<'candidate' | 'staff', AppTab[]> = {
   candidate: ['home', 'tests', 'jobs', 'ranked', 'learn', 'upskill', 'profile', 'companies', 'guides'],
@@ -167,6 +174,7 @@ const tabFromUrl = (role: UserRole, current?: AppTab): AppTab => {
   if (isUpskillIndexPath(pathname)) return 'upskill';
   if (isGuidesPath(pathname)) return 'guides';
   if (businessJobIdFromPath()) return 'business-jobs';
+  if (businessCandidateIdFromPath()) return 'business-candidates';
   const path = pathname.endsWith('/') ? pathname : `${pathname}/`;
   return (Object.entries(TAB_PATHS).find(([, p]) => p === path)?.[0] as AppTab | undefined) ?? 'home';
 };
@@ -320,6 +328,8 @@ export default function App() {
   const [jobPageId, setJobPageId] = useState<string | null>(jobIdFromUrl);
   // The company's job open on its side, at /business/jobs/<id>/
   const [selectedJobId, setSelectedJobId] = useState<string | null>(businessJobIdFromPath);
+  // A candidate's profile open on the company side, as a page at /business/candidates/<id>/
+  const [candidatePageId, setCandidatePageId] = useState<string | null>(businessCandidateIdFromPath);
   // Each course has its own page at /learn/<id>/
   const [coursePageId, setCoursePageId] = useState<string | null>(() => courseIdFromPath(window.location.pathname));
   // The home page's hiring side, at /#/business (and older #/pricing links): for companies, where candidates see theirs
@@ -333,6 +343,7 @@ export default function App() {
     setJobPageId(jobIdFromUrl());
     setCoursePageId(courseIdFromPath(window.location.pathname));
     setSelectedJobId(businessJobIdFromPath());
+    setCandidatePageId(businessCandidateIdFromPath());
     const role = roleRef.current;
     const tab = tabFromUrl(role, currentTabRef.current);
     // An address for the other side's page (e.g. back to Home after signing in as a company): your side's first page
@@ -354,7 +365,7 @@ export default function App() {
   // A new page starts at the top, however it was reached: a link, a tab, back or forward
   useLayoutEffect(() => {
     window.scrollTo(0, 0);
-  }, [currentTab, testPageId, jobPageId, coursePageId, selectedJobId, guideSlug]);
+  }, [currentTab, testPageId, jobPageId, coursePageId, selectedJobId, guideSlug, candidatePageId]);
   useEffect(() => {
     window.addEventListener('hashchange', syncPagesFromUrl);
     window.addEventListener('popstate', syncPagesFromUrl);
@@ -648,6 +659,21 @@ export default function App() {
   };
 
   // One of a company's jobs, or the list of them
+  // Companies open a candidate's profile as a page of its own; candidates see each other's in a pop-up
+  const cameFromApp = useRef(false);
+  const openPerson = (personId: string) => {
+    if (roleRef.current === 'candidate') return setProfilePersonId(personId);
+    cameFromApp.current = true;
+    navigateTo(`/business/candidates/${encodeURIComponent(personId)}/`);
+  };
+  // Back to wherever they opened it from, or to Candidates from a shared link
+  const closeCandidatePage = () => {
+    if (cameFromApp.current) {
+      cameFromApp.current = false;
+      history.back();
+    } else navigateTo(TAB_PATHS['business-candidates']);
+  };
+
   const openBusinessJob = (jobId: string | null) => {
     navigateTo(jobId ? `/business/jobs/${encodeURIComponent(jobId)}/` : TAB_PATHS['business-jobs']);
     window.scrollTo(0, 0);
@@ -1047,6 +1073,11 @@ export default function App() {
     });
   const candidateSection = CANDIDATE_SECTIONS[currentTab];
   const profilePerson = profilePersonId ? allCandidates.find((c) => c.id === profilePersonId) : undefined;
+  const candidatePagePerson = activeRole !== 'candidate' && candidatePageId ? allCandidates.find((c) => c.id === candidatePageId) : undefined;
+  // A candidate's page is titled after them; runs after the title effect above, so it wins while the page is open
+  useEffect(() => {
+    if (candidatePagePerson) document.title = `${candidatePagePerson.name} | Vetter`;
+  }, [candidatePagePerson?.id, currentTab]);
   const businessSection = BUSINESS_SECTIONS[currentTab];
   // A company's leads across its own jobs; the Vetter team's across every company's
   const leadsBusiness = activeRole === 'admin' ? undefined : recruiterBusiness;
@@ -1113,7 +1144,7 @@ export default function App() {
             tests={tests}
             // Companies are hidden for now, so search leaves them out
             businesses={[]}
-            onOpenPerson={setProfilePersonId}
+            onOpenPerson={openPerson}
             onOpenTest={openTestPage}
             onOpenCompany={openCompany}
             onClose={mobile?.onClose}
@@ -1355,7 +1386,7 @@ export default function App() {
               onUpdateJobRequirements={handleUpdateJobRequirements}
               onEmail={handleEmailJob}
               onInvite={handleInviteToJob}
-              onOpenPerson={setProfilePersonId}
+              onOpenPerson={openPerson}
               onOpenTest={openTestPage}
               leadRows={leadRows}
               onUpdateLead={handleUpdateLead}
@@ -1371,7 +1402,23 @@ export default function App() {
             />
           )}
 
-          {!detailPage && activeRole !== 'candidate' && businessSection && (
+          {!detailPage && candidatePagePerson && (
+            <CandidateProfilePage
+              key={candidatePagePerson.id}
+              person={candidatePagePerson}
+              tests={tests}
+              candidates={allCandidates}
+              businesses={businesses}
+              business={leadsBusiness}
+              jobs={leadsJobs}
+              leadRows={leadRows}
+              onBack={closeCandidatePage}
+              onOpenTest={openTestPage}
+              onOpenJob={openBusinessJob}
+            />
+          )}
+
+          {!detailPage && !candidatePagePerson && activeRole !== 'candidate' && businessSection && (
             <RecruiterPortal
               key={activeRole}
               section={businessSection}
@@ -1404,7 +1451,7 @@ export default function App() {
                   jobs={leadsJobs}
                   rows={leadRows}
                   onUpdateLead={handleUpdateLead}
-                  onOpenPerson={setProfilePersonId}
+                  onOpenPerson={openPerson}
                   onOpenJobLeads={openJobLeads}
                 />
               }
