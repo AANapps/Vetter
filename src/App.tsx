@@ -1,7 +1,7 @@
 import type { IntegrityReport } from './lib/integrity';
 import { PublicTestReview } from './components/PublicTestReview';
 import { AnswerRecord, saveSubmission } from './lib/submissions';
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { PixelDot } from './components/PixelDot';
 import { CurrencyPicker } from './components/CurrencyPicker';
 import { User, UserRole, AssessmentTest, JobPosting, Business, SocialState, AppNotification, JobInvitation, Lead, TestDraft, TrialResult, ResultBreakdown, hasAiTests, madeWithAI, isPublic } from './types';
@@ -9,6 +9,7 @@ import { INITIAL_RECRUITER, INITIAL_BUSINESSES, STANDARD_ASSESSMENTS } from './d
 import { loadData, saveData, clearData, createSeedData } from './lib/store';
 import { getPercentile } from './lib/leaderboard';
 import { initialsAvatar, withComputedPercentiles } from './data/seedCandidates';
+import { buildSampleCandidates } from './data/sampleCandidates';
 import { addTestResult, removeTestResults } from './lib/results';
 import { simulateAttempt, simulateJobTestStep } from './lib/liveActivity';
 import { Navigation, AppTab, NAV_TABS } from './components/Navigation';
@@ -284,7 +285,9 @@ export default function App() {
 
   // The signed-in candidate, when there is one; visitors and companies aren't among the candidates
   const isCandidateAccount = firebaseEnabled && !!viewer && viewer.role === 'candidate' && candidate.id === viewer.uid;
-  const otherCandidates = cloud ? cloud.profiles.filter((p) => p.id !== candidate.id) : localOthers;
+  // On the live site, five sample candidates join the real ones (src/data/sampleCandidates.ts)
+  const samples = useMemo(() => buildSampleCandidates(STANDARD_ASSESSMENTS), []);
+  const otherCandidates = cloud ? [...cloud.profiles.filter((p) => p.id !== candidate.id), ...samples] : localOthers;
   const othersRef = useRef(otherCandidates);
   othersRef.current = otherCandidates;
 

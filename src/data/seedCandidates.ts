@@ -3,7 +3,7 @@ import { AssessmentTest, TestResult, User, VerifiedSkill } from '../types';
 import { getPercentile } from '../lib/leaderboard';
 
 // Deterministic random numbers so the seeded leaderboards are the same on every load
-function mulberry32(seed: number) {
+export function mulberry32(seed: number) {
   return () => {
     seed |= 0;
     seed = (seed + 0x6d2b79f5) | 0;
