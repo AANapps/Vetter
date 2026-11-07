@@ -522,7 +522,7 @@ const StaffNav: React.FC<{
             currentTab === tabs[0].id ? 'text-slate-900 shadow-xs' : 'text-slate-700'
           }`}
         >
-          Create
+          Create with AI
         </button>
         <div className="[&_input]:bg-white">{renderSearch(null)}</div>
       </div>
@@ -577,7 +577,7 @@ const StaffNav: React.FC<{
           }}
           className="create-border px-3 py-1.5 rounded-lg text-sm font-semibold text-slate-700 hover:text-slate-900"
         >
-          Create
+          Create with AI
         </button>
       </header>
       {drawerOpen && (

@@ -290,7 +290,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
                 onClick={() => (onTurns([]), clearPicks())}
                 className="create-border w-full px-3 py-2 text-sm font-semibold text-slate-700 hover:text-slate-900 rounded-lg flex items-center justify-center"
               >
-                Create
+                Create with AI
               </button>
             )}
           </div>
