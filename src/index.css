@@ -524,13 +524,10 @@ select option {
   to { opacity: 1; }
 }
 
-/* The Create button: a multicoloured border that flows round, with a soft glow of the same colours behind it.
+/* The Create button: a multicoloured border that flows round, glowing in the same colours. The glow (::before) sits
+   behind and the white fill (::after) is laid over it, so only the border and the space around it glow.
    The gradient is three buttons wide and repeats, so sliding it 150% moves it exactly one repeat and loops cleanly */
 @keyframes create-flow {
-  from { background-position: 0 0, 0% 0; }
-  to { background-position: 0 0, 150% 0; }
-}
-@keyframes create-glow {
   from { background-position: 0% 0; }
   to { background-position: 150% 0; }
 }
@@ -538,24 +535,30 @@ select option {
   position: relative;
   isolation: isolate;
   border: 1.5px solid transparent;
-  background:
-    linear-gradient(#fff, #fff) padding-box,
-    linear-gradient(90deg, #4285f4, #9b72cb, #d96570, #f4b400, #4285f4) border-box;
-  background-size: 100% 100%, 300% 100%;
+  background: linear-gradient(90deg, #4285f4, #9b72cb, #d96570, #f4b400, #4285f4) border-box;
+  background-size: 300% 100%;
   animation: create-flow 4s linear infinite;
 }
-.create-border::before {
+.create-border::before,
+.create-border::after {
   content: '';
   position: absolute;
-  inset: -2px;
   z-index: -1;
+}
+.create-border::before {
+  inset: -2px;
   border-radius: inherit;
-  background: linear-gradient(90deg, #4285f4, #9b72cb, #d96570, #f4b400, #4285f4);
+  background: inherit;
   background-size: 300% 100%;
   filter: blur(8px);
   opacity: 0.4;
   transition: opacity 200ms;
-  animation: create-glow 4s linear infinite;
+  animation: create-flow 4s linear infinite;
+}
+.create-border::after {
+  inset: 0;
+  border-radius: calc(0.5rem - 1.5px);
+  background: #fff;
 }
 .create-border:hover::before { opacity: 0.7; }
 @media (prefers-reduced-motion: reduce) {
