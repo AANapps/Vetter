@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { PixelDot } from './PixelDot';
-import { ArrowRight, ArrowUp, Check, Eye, Lock, Pencil, Plus, Sparkles, Wand2, X } from 'lucide-react';
+import { ArrowRight, ArrowUp, Check, Eye, Lock, Pencil, Plus, Wand2, X } from 'lucide-react';
 import { AssessmentTest, Business, JobPosting, levelName } from '../types';
 import { AdvisorTurn, CUSTOM_KIND_LABELS, CustomIdea, askAdvisor } from '../lib/testAdvisor';
 import { Credit, loadCredit } from '../lib/aiRequest';
@@ -147,9 +147,9 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
                 </button>
                 <button
                   onClick={() => (aiAllowed ? onBuildWithAI('') : onSeePlans())}
-                  className="px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 rounded-lg flex items-center gap-1.5"
+                  className="create-border px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:text-indigo-900 rounded-lg flex items-center gap-1.5"
                 >
-                  {aiAllowed ? <Sparkles className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+                  {!aiAllowed && <Lock className="w-3.5 h-3.5" />}
                   Write a test with AI
                 </button>
               </div>
@@ -280,9 +280,9 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
             </button>
             <button
               onClick={() => (aiAllowed ? onBuildWithAI('') : onSeePlans())}
-              className="w-full px-3 py-2 text-sm font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg flex items-center gap-2"
+              className="create-border w-full px-3 py-2 text-sm font-semibold text-indigo-700 hover:text-indigo-900 rounded-lg flex items-center gap-2"
             >
-              {aiAllowed ? <Sparkles className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+              {!aiAllowed && <Lock className="w-4 h-4" />}
               Write a test with AI
             </button>
             {turns.length > 0 && (

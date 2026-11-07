@@ -272,9 +272,8 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
             <div className="flex flex-wrap gap-2 self-start">
               <button
                 onClick={() => onGenerateTest()}
-                className="px-4 py-2.5 text-sm font-semibold text-indigo-700 bg-white border border-indigo-200 hover:bg-indigo-50 rounded-lg flex items-center gap-2"
+                className="create-border px-4 py-2.5 text-sm font-semibold text-indigo-700 hover:text-indigo-900 rounded-lg flex items-center gap-2"
               >
-                <Sparkles className="w-4 h-4" />
                 Write with AI
               </button>
               <button
