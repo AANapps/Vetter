@@ -20,9 +20,17 @@ export interface AdvisorTurn {
   custom?: CustomIdea[];
   // Candidates on Vetter who suit the role, when the company asked to see some, each with why
   people?: SuggestedPerson[];
+  // What the chat took the company to want: people, a test, both, or it couldn't tell and asked
+  intent?: AdvisorIntent;
+  // Quick answers to a question the reply asks
+  options?: string[];
+  // For a test: what Vetter's AI would write it from
+  brief?: string;
   // Set when the reply is a failure rather than advice
   error?: boolean;
 }
+
+export type AdvisorIntent = 'candidates' | 'test' | 'both' | 'unclear';
 
 export interface SuggestedPerson {
   candidateId: string;
@@ -41,8 +49,9 @@ export const CUSTOM_KIND_LABELS: Record<CustomIdea['kind'], string> = {
   mixed: 'Custom test',
 };
 
-// Whether a message asks to see people rather than tests
-const ASKS_FOR_PEOPLE = /\b(candidates?|people|applicants?|who (could|might|would)|talent|profiles?)\b/i;
+// Without the AI, what a message is after: a test when it names one, people when it's looking for someone
+const ASKS_FOR_TEST = /\b(tests?|assessments?|exams?|quiz|screening task)\b/i;
+const ASKS_FOR_PEOPLE = /\b(candidates?|people|applicants?|who (could|might|would)|talent|profiles?|looking for|need(s|ing)? (a|an|some)|hiring (a|an)|find (me )?(a|an|some|someone))\b/i;
 
 // Without the AI: candidates whose title or verified skills share words with what was asked, best scores first
 function matchPeople(asked: string, candidates: User[]) {
@@ -109,13 +118,14 @@ export async function askAdvisor(turns: AdvisorTurn[], tests: AssessmentTest[], 
   if (!res.ok && (body.error === 'not-configured' || res.status === 404)) {
     const asked = messages.filter((m) => m.role === 'user').map((m) => m.text).join('\n');
     const lastAsk = messages[messages.length - 1]?.text ?? '';
-    if (ASKS_FOR_PEOPLE.test(lastAsk)) {
+    if (ASKS_FOR_PEOPLE.test(lastAsk) && !ASKS_FOR_TEST.test(lastAsk)) {
       const people = matchPeople(asked, candidates);
       return {
         role: 'assistant',
         text: people.length
           ? "Vetter's AI isn't switched on here, so these are the candidates whose titles and verified skills match the words you used."
           : "Vetter's AI isn't switched on here, and no candidate's title or verified skills match those words. Try naming the skills or the role.",
+        intent: 'candidates',
         people,
       };
     }
@@ -141,5 +151,8 @@ export async function askAdvisor(turns: AdvisorTurn[], tests: AssessmentTest[], 
     existing,
     custom: body.custom ?? [],
     people: body.people ?? [],
+    intent: body.intent,
+    options: (body.options ?? []).slice(0, 4),
+    brief: String(body.brief ?? '').trim() || undefined,
   };
 }

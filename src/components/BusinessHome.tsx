@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { PixelDot } from './PixelDot';
-import { ArrowRight, ArrowUp, Check, Eye, Lock, Pencil, Plus, Wand2, X } from 'lucide-react';
+import { ArrowRight, ArrowUp, Check, ChevronDown, Eye, Lock, Pencil, Plus, Send, Wand2, X } from 'lucide-react';
 import { AssessmentTest, Business, JobPosting, User, levelName } from '../types';
 import { Pic } from './Pic';
 import { AdvisorTurn, CUSTOM_KIND_LABELS, CustomIdea, SuggestedPerson, askAdvisor } from '../lib/testAdvisor';
@@ -39,12 +39,12 @@ interface BusinessHomeProps {
   onInvite: (jobId: string, candidateId: string) => void;
 }
 
+// Both things the chat does: find people, and make a test
 const STARTERS = [
-  'A junior front-end developer who knows React',
-  'A data analyst who works in Excel and SQL',
-  'A customer support agent using a help desk',
-  'A graduate financial analyst',
-  'Show me candidates for a data analyst role',
+  "I'm looking for a data analyst who knows SQL",
+  'Find me a junior React developer',
+  'Create a test for a customer support agent',
+  'How should I test a graduate financial analyst?',
 ];
 
 // A company's home: a chat with Vetter about who they're hiring, which answers with a roadmap, the library tests that
@@ -192,6 +192,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
                   onViewPerson={setViewing}
                   jobs={jobs}
                   onInvite={onInvite}
+                  onQuickReply={i === turns.length - 1 && !thinking ? send : undefined}
                 />
               )
             )
@@ -347,11 +348,46 @@ const AdvisorReply: React.FC<{
   onViewPerson: (personId: string) => void;
   jobs: JobPosting[];
   onInvite: (jobId: string, candidateId: string) => void;
-}> = ({ turn, aiAllowed, picked, onBuildIdea, onTogglePick, onPickAll, onEditCopy, onBuildWithAI, onSeePlans, onOpenTest, candidates, onViewPerson, jobs, onInvite }) => (
+  // Set on the latest reply only: a quick answer sends it as the company's next message
+  onQuickReply?: (text: string) => void;
+}> = ({ turn, aiAllowed, picked, onBuildIdea, onTogglePick, onPickAll, onEditCopy, onBuildWithAI, onSeePlans, onOpenTest, candidates, onViewPerson, jobs, onInvite, onQuickReply }) => (
   <div className="flex gap-3">
     <span className="ai-mark w-7 h-7 shrink-0 rounded-lg text-white text-xs font-pixel flex items-center justify-center">V</span>
     <div className="ai-glass min-w-0 flex-1 space-y-4 p-4 sm:p-5 rounded-2xl rounded-tl-md border border-white/80 shadow-sm">
       <p className={`text-sm leading-relaxed whitespace-pre-wrap ${turn.error ? 'text-slate-800' : 'text-slate-800'}`}>{turn.text}</p>
+
+      {/* A question it asked, with answers to tap */}
+      {!!turn.options?.length && (
+        <div className="flex flex-wrap gap-2">
+          {turn.options.map((o) => (
+            <button
+              key={o}
+              onClick={() => onQuickReply?.(o)}
+              disabled={!onQuickReply}
+              className="px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-white border border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50 rounded-full disabled:opacity-50 disabled:cursor-default"
+            >
+              {o}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* They want a test: the custom one Vetter's AI would write, ready to start */}
+      {turn.brief && (turn.intent === 'test' || turn.intent === 'both') && (
+        <div className="p-4 bg-white border border-slate-200 rounded-xl flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Your test</div>
+            <p className="mt-1 text-sm text-slate-700 leading-relaxed">{turn.brief}</p>
+          </div>
+          <button
+            onClick={() => (aiAllowed ? onBuildWithAI(turn.brief!) : onSeePlans())}
+            className="create-border shrink-0 self-start sm:self-center px-4 py-2 text-sm font-semibold text-indigo-700 hover:text-indigo-900 rounded-lg inline-flex items-center gap-1.5"
+          >
+            {!aiAllowed && <Lock className="w-3.5 h-3.5" />}
+            Create with AI
+          </button>
+        </div>
+      )}
 
       {!!turn.people?.length && (
         <PeopleList
@@ -485,9 +521,9 @@ const CustomCard: React.FC<{ idea: CustomIdea; aiAllowed: boolean; onBuild: () =
   </li>
 );
 
-// Candidates the chat suggests: who they are, their strongest verified scores and why they suit the role; each opens
-// their profile in a pop-up. Where the role's skills aren't verified, the card says which and offers to send them a
-// job's tests or to write a test that checks the gaps
+// Candidates the chat suggests, as a table: who they are with their strongest verified scores, why they suit the role
+// and what isn't verified yet. A row opens their profile in a pop-up; its actions send them a job's tests or start an
+// AI test for the gaps
 const PeopleList: React.FC<{
   people: SuggestedPerson[];
   candidates: User[];
@@ -505,16 +541,29 @@ const PeopleList: React.FC<{
   return (
     <div className="space-y-2">
       <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Candidates</h3>
-      <ul className="space-y-2.5">
-        {found.map(({ c, p }, i) => (
-          <PersonCard key={c.id} rank={i + 1} c={c} p={p} onView={() => onView(c.id)} jobs={jobs} onInvite={onInvite} onBuildTest={onBuildTest} aiAllowed={aiAllowed} />
-        ))}
-      </ul>
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+        <div className={`hidden md:grid ${PEOPLE_COLS} gap-3 px-4 py-2 bg-slate-50/80 border-b border-slate-200 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400`}>
+          <span className="text-center">#</span>
+          <span>Candidate</span>
+          <span>Why they fit</span>
+          <span>Not verified</span>
+          <span />
+        </div>
+        <ol className="divide-y divide-slate-100">
+          {found.map(({ c, p }, i) => (
+            <PersonRow key={c.id} rank={i + 1} c={c} p={p} onView={() => onView(c.id)} jobs={jobs} onInvite={onInvite} onBuildTest={onBuildTest} aiAllowed={aiAllowed} />
+          ))}
+        </ol>
+      </div>
     </div>
   );
 };
 
-const PersonCard: React.FC<{
+// Written out in full so Tailwind sees them
+const PEOPLE_COLS = 'grid-cols-[1.25rem_minmax(0,1.3fr)_minmax(0,1.6fr)_minmax(0,0.9fr)_5.5rem]';
+const PEOPLE_ROW = 'grid-cols-[1.25rem_minmax(0,1fr)] md:grid-cols-[1.25rem_minmax(0,1.3fr)_minmax(0,1.6fr)_minmax(0,0.9fr)_5.5rem]';
+
+const PersonRow: React.FC<{
   rank: number;
   c: User;
   p: SuggestedPerson;
@@ -524,105 +573,119 @@ const PersonCard: React.FC<{
   onBuildTest: (brief: string) => void;
   aiAllowed: boolean;
 }> = ({ rank, c, p, onView, jobs, onInvite, onBuildTest, aiAllowed }) => {
-  const top = [...c.verifiedSkills].sort((a, b) => b.score - a.score).slice(0, 3);
-  const gaps = p.gaps?.length ? p.gaps : c.verifiedSkills.length === 0 ? ['No verified skills yet'] : [];
-  // Jobs with tests to send; ones they're already invited to say so
+  const top = [...c.verifiedSkills].sort((a, b) => b.score - a.score).slice(0, 2);
+  const gaps = p.gaps?.length ? p.gaps : c.verifiedSkills.length === 0 ? ['Anything yet'] : [];
   const withTests = jobs.filter((j) => j.status === 'active' && j.testIds.length > 0);
   const [sentTo, setSentTo] = useState<string[]>([]);
   const invited = (j: JobPosting) => sentTo.includes(j.id) || j.invitations.some((x) => x.candidateId === c.id);
-  const [jobId, setJobId] = useState(() => withTests.find((j) => !invited(j))?.id ?? '');
-  const brief =
-    p.testBrief ||
-    `A short test for ${c.name.split(' ')[0]}, ${c.title || 'a candidate'}, checking ${gaps.join(', ')} for the role we discussed.`;
-  return (
-    <li className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-      <button onClick={onView} className="w-full text-left p-4 flex gap-3.5 hover:bg-slate-50/60 transition-colors group">
-        <span className="relative shrink-0">
-          <Pic src={c.avatarUrl} alt="" referrerPolicy="no-referrer" className="w-11 h-11 rounded-full object-cover bg-slate-100" />
-          <span className="absolute -top-1 -left-1 w-5 h-5 rounded-full bg-slate-900 text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-white">{rank}</span>
-        </span>
-        <span className="min-w-0 flex-1 space-y-1.5">
-          <span className="flex items-start justify-between gap-3">
-            <span className="min-w-0">
-              <span className="block text-sm font-semibold text-slate-900 truncate group-hover:text-indigo-700">{c.name}</span>
-              <span className="block text-[11px] text-slate-500 truncate">{[c.title, c.location, c.careerStage].filter(Boolean).join(' · ')}</span>
-            </span>
-            <span className="shrink-0 text-[11px] font-semibold text-indigo-700 inline-flex items-center gap-0.5">
-              View profile
-              <ArrowRight className="w-3 h-3" />
-            </span>
-          </span>
-          {top.length > 0 && (
-            <span className="flex flex-wrap gap-1.5">
-              {top.map((s) => (
-                <span key={s.skillId} className="px-2 py-0.5 rounded-full bg-slate-100 text-[11px] text-slate-700">
-                  {s.skillName} <span className="font-mono font-semibold text-slate-900">{s.score}</span>
-                </span>
-              ))}
-            </span>
-          )}
-          <span className="block text-xs text-slate-600 leading-relaxed">{p.reason}</span>
-        </span>
-      </button>
+  const [sending, setSending] = useState(false);
+  const [jobId, setJobId] = useState(() => withTests.find((j) => !invited(j))?.id ?? withTests[0]?.id ?? '');
+  const job = withTests.find((j) => j.id === jobId);
+  const brief = p.testBrief || `A short test for ${c.name.split(' ')[0]}, ${c.title || 'a candidate'}, checking ${gaps.join(', ')} for the role we discussed.`;
+  const stop = (fn: () => void) => (e: React.MouseEvent) => {
+    e.stopPropagation();
+    fn();
+  };
 
-      {gaps.length > 0 && (
-        <div className="px-4 py-3 bg-amber-50/50 border-t border-amber-100 space-y-2.5">
-          <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-            <span className="font-semibold text-amber-900">Not verified yet:</span>
-            {gaps.map((g) => (
-              <span key={g} className="px-2 py-0.5 rounded-full bg-white border border-amber-200 text-amber-900">
+  return (
+    <li>
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onView}
+        onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onView())}
+        className={`grid ${PEOPLE_ROW} gap-x-3 gap-y-2 items-start px-4 py-3 cursor-pointer hover:bg-slate-50/70 transition-colors group`}
+      >
+        <span className="pt-2 text-center text-[11px] font-mono font-bold text-slate-400 tabular-nums">{rank}</span>
+        <span className="flex items-start gap-2.5 min-w-0">
+          <Pic src={c.avatarUrl} alt="" referrerPolicy="no-referrer" className="w-9 h-9 rounded-full object-cover bg-slate-100 shrink-0" />
+          <span className="min-w-0 space-y-1">
+            <span className="block text-sm font-semibold text-slate-900 truncate group-hover:text-indigo-700">{c.name}</span>
+            <span className="block text-[11px] text-slate-500 truncate">{[c.title, c.location].filter(Boolean).join(' · ')}</span>
+            {top.length > 0 && (
+              <span className="flex flex-wrap gap-1">
+                {top.map((s) => (
+                  <span key={s.skillId} className="px-1.5 py-px rounded-full bg-slate-100 text-[10px] text-slate-700">
+                    {s.skillName} <span className="font-mono font-semibold text-slate-900">{s.score}</span>
+                  </span>
+                ))}
+              </span>
+            )}
+          </span>
+        </span>
+        <span className="col-start-2 md:col-start-auto text-xs text-slate-600 leading-relaxed">{p.reason}</span>
+        <span className="col-start-2 md:col-start-auto flex flex-wrap gap-1">
+          {gaps.length ? (
+            gaps.map((g) => (
+              <span key={g} className="px-1.5 py-px rounded-full bg-amber-50 border border-amber-200 text-[10px] font-medium text-amber-900">
                 {g}
               </span>
-            ))}
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {withTests.length > 0 ? (
-              <span className="inline-flex items-center rounded-lg border border-slate-200 bg-white overflow-hidden">
-                <select
-                  value={jobId}
-                  onChange={(e) => setJobId(e.target.value)}
-                  aria-label="Job whose tests to send"
-                  className="pl-2.5 pr-1 py-1.5 text-xs text-slate-700 bg-transparent max-w-[11rem] focus:outline-none"
-                >
-                  {withTests.map((j) => (
-                    <option key={j.id} value={j.id}>
-                      {j.title}
-                      {invited(j) ? ' (invited)' : ''}
-                    </option>
-                  ))}
-                </select>
-                {(() => {
-                  const job = withTests.find((j) => j.id === jobId);
-                  const done = !!job && invited(job);
-                  return (
-                    <button
-                      onClick={() => {
-                        if (!job || done) return;
-                        onInvite(job.id, c.id);
-                        setSentTo((prev) => [...prev, job.id]);
-                      }}
-                      disabled={!job || done}
-                      className={`px-3 py-1.5 text-xs font-semibold border-l border-slate-200 inline-flex items-center gap-1 ${
-                        done ? 'text-emerald-700 bg-emerald-50' : 'text-white bg-indigo-600 hover:bg-indigo-700'
-                      }`}
-                    >
-                      {done ? <Check className="w-3 h-3" /> : <ArrowUp className="w-3 h-3 rotate-45" />}
-                      {done ? 'Tests sent' : "Send the job's tests"}
-                    </button>
-                  );
-                })()}
-              </span>
-            ) : (
-              <span className="text-[11px] text-slate-500">Post a job with tests to send them a request.</span>
-            )}
-            <button
-              onClick={() => onBuildTest(brief)}
-              className="create-border px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:text-indigo-900 rounded-lg inline-flex items-center gap-1"
-            >
-              {!aiAllowed && <Lock className="w-3 h-3" />}
-              Create a test with AI
-            </button>
-          </div>
+            ))
+          ) : (
+            <span className="inline-flex items-center gap-1 text-[11px] text-emerald-700">
+              <Check className="w-3 h-3" />
+              Covered
+            </span>
+          )}
+        </span>
+        <span className="col-start-2 md:col-start-auto flex md:justify-end items-center gap-1.5">
+          <button
+            onClick={stop(() => setSending((o) => !o))}
+            title="Send them one of your jobs' tests"
+            aria-expanded={sending}
+            className="h-7 px-2 rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-indigo-300 hover:text-indigo-700 inline-flex items-center gap-1 text-[11px] font-semibold"
+          >
+            <Send className="w-3 h-3" />
+            <ChevronDown className={`w-3 h-3 transition-transform ${sending ? 'rotate-180' : ''}`} />
+          </button>
+          <button
+            onClick={stop(() => onBuildTest(brief))}
+            title={aiAllowed ? 'Create a test for their gaps with AI' : 'Creating tests with AI needs a subscription'}
+            aria-label="Create a test with AI"
+            className="create-border h-7 px-2 rounded-lg text-indigo-700 hover:text-indigo-900 inline-flex items-center"
+          >
+            {aiAllowed ? <Wand2 className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+          </button>
+        </span>
+      </div>
+
+      {/* Sending a job's tests, opened from the row */}
+      {sending && (
+        <div className="px-4 pb-3 md:pl-12 flex flex-wrap items-center gap-2">
+          {withTests.length === 0 ? (
+            <span className="text-[11px] text-slate-500">Post a job with tests to send them a request.</span>
+          ) : (
+            <>
+              <span className="text-[11px] text-slate-500">Send the tests for</span>
+              <select
+                value={jobId}
+                onChange={(e) => setJobId(e.target.value)}
+                aria-label="Job whose tests to send"
+                className="px-2 py-1 text-xs text-slate-700 bg-white border border-slate-200 rounded-lg max-w-[14rem]"
+              >
+                {withTests.map((j) => (
+                  <option key={j.id} value={j.id}>
+                    {j.title}
+                    {invited(j) ? ' (sent)' : ''}
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={() => {
+                  if (!job || invited(job)) return;
+                  onInvite(job.id, c.id);
+                  setSentTo((prev) => [...prev, job.id]);
+                }}
+                disabled={!job || invited(job)}
+                className={`px-3 py-1 text-xs font-semibold rounded-lg inline-flex items-center gap-1 ${
+                  job && invited(job) ? 'text-emerald-700 bg-emerald-50' : 'text-white bg-indigo-600 hover:bg-indigo-700'
+                }`}
+              >
+                {job && invited(job) ? <Check className="w-3 h-3" /> : <Send className="w-3 h-3" />}
+                {job && invited(job) ? 'Sent' : 'Send'}
+              </button>
+            </>
+          )}
         </div>
       )}
     </li>
