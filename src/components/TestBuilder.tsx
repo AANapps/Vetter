@@ -40,7 +40,15 @@ export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, dra
   const [passingScore, setPassingScore] = useState(source?.passingScore ?? 70);
   const [skills, setSkills] = useState((source?.skillsTested ?? []).join(', '));
   const [roles, setRoles] = useState<TestRole[]>(source?.roles ?? []);
-  const [questions, setQuestions] = useState<Question[]>(source?.questions ?? []);
+  // A copy of a library test is a test of its own from the start: its questions get new ids (questions about a task
+  // follow it to its new id), so nothing the copy is answered with, changed or scored on reaches the library's test
+  const [questions, setQuestions] = useState<Question[]>(() => {
+    const qs = source?.questions ?? [];
+    if (!isCopy) return qs;
+    const stamp = Date.now();
+    const ids = new Map(qs.map((q, i) => [q.id, `${q.id}-c${stamp}-${i}`]));
+    return qs.map((q) => ({ ...q, id: ids.get(q.id)!, ...(q.taskId && { taskId: ids.get(q.taskId) ?? q.taskId }) }));
+  });
   // A copy of a Vetter module test keeps its core areas; every question, Vetter's or the company's, sits in one at a level
   const aspects = source?.aspects;
   const [selected, setSelected] = useState<Selection>('details');
@@ -109,6 +117,9 @@ export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, dra
       skillsTested: skillsTested.length ? skillsTested : [category],
       ...(isVetter && { roles }),
       ...(aspects && { aspects }),
+      // A simulation's scenario and the hire's blueprint go with the questions, into a copy or a change alike
+      ...(source?.scenario && { scenario: source.scenario }),
+      ...(source?.blueprint && { blueprint: source.blueprint }),
     };
   };
 
@@ -140,7 +151,7 @@ export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, dra
             <X className="w-5 h-5" />
           </button>
           <div className="min-w-0">
-            <h1 className="text-sm font-bold truncate">{initial ? `Edit ${initial.title}` : draft ? (isCopy ? `Your copy of ${draft.title}` : 'Review the AI draft') : 'New test'}</h1>
+            <h1 className="text-sm font-bold truncate">{initial ? `Edit ${initial.title}` : draft ? (isCopy ? `New test from the ${draft.title} template` : 'Review the AI draft') : 'New test'}</h1>
             <p className="text-[11px] text-slate-500 truncate">
               {business ? `For ${business.name}'s jobs` : 'For the Vetter test library, open to every candidate'} &middot; {questions.length}{' '}
               {questions.length === 1 ? 'question' : 'questions'} &middot; ~{minutes} min

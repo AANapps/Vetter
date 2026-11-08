@@ -148,14 +148,14 @@ export const TestPage: React.FC<TestPageProps> = ({
             </button>
           )}
 
-          {onCustomize && test.aspects && (
+          {onCustomize && (
             <button
               onClick={onCustomize}
-              title="Keep Vetter's questions and add your own to any area and level"
+              title="Opens a copy in the builder to change as you like; saving it makes a new test of your own, and this one stays as it is"
               className="px-4 py-2.5 text-xs font-semibold text-indigo-700 bg-white border border-indigo-200 hover:border-indigo-400 rounded-lg transition-colors flex items-center gap-2 shrink-0 self-start"
             >
               <PlusCircle className="w-3.5 h-3.5" />
-              <span>Add your own questions</span>
+              <span>Use as a template</span>
             </button>
           )}
 

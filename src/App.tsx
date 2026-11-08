@@ -1201,7 +1201,10 @@ export default function App() {
               }
               onSend={activeRole === 'candidate' ? undefined : () => setEditingTests({ addTestIds: [testPageTest.id] })}
               onCustomize={
-                activeRole === 'recruiter' && recruiterBusiness && testPageTest.type === 'standard'
+                // Any test in the library, Vetter's or another company's approved one, can start a test of their own
+                activeRole === 'recruiter' &&
+                recruiterBusiness &&
+                (testPageTest.type === 'standard' || (testPageTest.publicStatus === 'approved' && testPageTest.businessId !== recruiterBusiness.id))
                   ? () => setDraftBuilder({ draft: testPageTest, isCopy: true, alsoAdd: [] })
                   : undefined
               }
@@ -1633,7 +1636,7 @@ export default function App() {
             handleCreateTest(test);
             deleteTestDraft(draftBuilder.record?.id);
             if (draftBuilder.jobId) addTestsToJob(draftBuilder.jobId, [test.id, ...draftBuilder.alsoAdd]);
-            else showToast(`"${test.title}" saved to your tests.`);
+            else showToast(draftBuilder.isCopy ? `"${test.title}" saved as a new test of your own. The library's test is unchanged.` : `"${test.title}" saved to your tests.`);
             markPlanBuilt(test.id);
             setDraftBuilder(null);
           }}

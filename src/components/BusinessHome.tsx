@@ -459,11 +459,11 @@ const AdvisorReply: React.FC<{
                   </button>
                   <button
                     onClick={() => onEditCopy(test)}
-                    title="Opens a copy in the builder; saving it makes it your own test"
+                    title="Opens a copy in the builder; saving it makes a new test of your own, and the library's stays as it is"
                     className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:border-indigo-300 rounded-lg flex items-center gap-1"
                   >
                     <Pencil className="w-3 h-3" />
-                    Edit a copy
+                    Use as a template
                   </button>
                   <button onClick={() => onOpenTest(test.id)} className="px-2 py-1.5 text-xs font-semibold text-slate-500 hover:text-indigo-700 flex items-center gap-1">
                     <Eye className="w-3 h-3" />
