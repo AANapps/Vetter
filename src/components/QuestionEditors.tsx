@@ -4,6 +4,7 @@ import { Question } from '../types';
 import { MOCK_DATABASE, SqlExecutionResult, executeSqlQuery } from '../lib/sqlEngine';
 import { CodeExecutionResult, runJavaScriptCode } from '../lib/codeEngine';
 import { QUESTION_STYLES } from '../lib/questionTypes';
+import { contactText, messageText, parseAddress, parseContact, parseMessage } from '../lib/emailTasks';
 
 // Editing one question in the test builder: what every question has, then what its style needs
 
@@ -86,6 +87,12 @@ export const QuestionEditor: React.FC<EditorProps & { share: number }> = ({ ques
         {q.type === 'multi' && <OptionsEditor question={q} onChange={onChange} multiple />}
         {q.type === 'text' && <AcceptedAnswersEditor question={q} onChange={onChange} />}
         {q.type === 'written' && <RubricEditor question={q} onChange={onChange} />}
+        {q.type === 'email' && (
+          <div className="space-y-6">
+            <EmailEditor question={q} onChange={onChange} />
+            <RubricEditor question={q} onChange={onChange} />
+          </div>
+        )}
         {q.type === 'case' && (
           <div>
             <label htmlFor={`${q.id}-label`} className={labelClass}>
@@ -192,6 +199,86 @@ const AcceptedAnswersEditor: React.FC<EditorProps> = ({ question: q, onChange })
 };
 
 // A written answer: the points a strong answer makes, each an equal share of its marks, and a model answer
+// An email task: the thread written out with its headers, the address book, and who the reply should go to. Each box
+// keeps the text as typed and the task is read from it, so nothing jumps about while typing
+const EmailEditor: React.FC<EditorProps> = ({ question: q, onChange }) => {
+  const task = q.email ?? { thread: [], contacts: [], to: [], cc: [], avoid: [] };
+  const [messages, setMessages] = useState(() => (task.thread.length ? task.thread : [{ from: '', to: [], cc: [], date: '', subject: '', body: '' }]).map(messageText));
+  const [book, setBook] = useState(() => task.contacts.map(contactText).join('\n'));
+  const [who, setWho] = useState(() => ({ to: task.to.join(', '), cc: task.cc.join(', '), avoid: task.avoid.join(', ') }));
+  const save = (change: Partial<typeof task>) => onChange({ email: { ...task, ...change } });
+  const setMessage = (i: number, text: string) => {
+    const next = withItem(messages, i, text);
+    setMessages(next);
+    save({ thread: next.map(parseMessage) });
+  };
+  const addresses = (text: string) => text.split(/[,;\n]/).map((a) => parseAddress(a).email).filter(Boolean);
+  const setRecipients = (key: 'to' | 'cc' | 'avoid', text: string) => {
+    setWho((prev) => ({ ...prev, [key]: text }));
+    save({ [key]: addresses(text) });
+  };
+  return (
+    <div className="space-y-5">
+      <fieldset className="space-y-2">
+        <legend className={labelClass}>The emails in the thread, oldest first</legend>
+        <p className="text-[11px] text-slate-500 -mt-1">Headers first (From, To, Cc, Date, Subject), a blank line, then the email. Write the candidate as You &lt;you@yourcompany.com&gt;.</p>
+        {messages.map((m, i) => (
+          <div key={i} className="flex items-start gap-2">
+            <textarea
+              rows={9}
+              value={m}
+              onChange={(e) => setMessage(i, e.target.value)}
+              aria-label={`Email ${i + 1}`}
+              className={`${inputClass} font-mono text-xs`}
+            />
+            <RemoveButton
+              label={`Remove email ${i + 1}`}
+              disabled={messages.length <= 1}
+              onClick={() => {
+                const next = messages.filter((_, x) => x !== i);
+                setMessages(next);
+                save({ thread: next.map(parseMessage) });
+              }}
+            />
+          </div>
+        ))}
+        <AddButton label="Add an email to the thread" onClick={() => setMessages((prev) => [...prev, 'From: \nTo: You <you@yourcompany.com>\nCc: \nDate: \nSubject: \n\n'])} />
+      </fieldset>
+      <div>
+        <label htmlFor={`${q.id}-book`} className={labelClass}>
+          Address book
+        </label>
+        <p className="text-[11px] text-slate-500 mb-1">One person a line: Name | Role | email. Include the right people and some plausible wrong ones.</p>
+        <textarea
+          id={`${q.id}-book`}
+          rows={6}
+          value={book}
+          onChange={(e) => {
+            setBook(e.target.value);
+            save({ contacts: e.target.value.split('\n').map(parseContact).filter((c): c is NonNullable<typeof c> => !!c) });
+          }}
+          placeholder={'Priya Shah | Finance manager | priya@yourcompany.com'}
+          className={`${inputClass} font-mono text-xs`}
+        />
+      </div>
+      {(
+        [
+          ['to', 'The reply goes to', 'Required. Emails, separated by commas'],
+          ['cc', 'Should be copied in', 'Optional'],
+          ['avoid', 'Must not get it', 'Optional, e.g. the customer on an internal matter'],
+        ] as const
+      ).map(([key, label, hint]) => (
+        <div key={key}>
+          <label htmlFor={`${q.id}-${key}`} className={labelClass}>
+            {label} <span className="font-normal text-slate-400">({hint})</span>
+          </label>
+          <input id={`${q.id}-${key}`} value={who[key]} onChange={(e) => setRecipients(key, e.target.value)} className={`${inputClass} font-mono text-xs`} />
+        </div>
+      ))}
+    </div>
+  );
+};
+
 const RubricEditor: React.FC<EditorProps> = ({ question: q, onChange }) => {
   const points = q.rubric ?? [];
   return (

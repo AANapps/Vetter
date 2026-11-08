@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { meter } from './meter.js';
-import { APP_KINDS, APP_TASK_RULES, DEPTH_STYLE_RULES, QUALITY_RULES, TASK_RULES, WORKSPACE_RULES, MAX_PROMPT, PRICES, apiFailure, questionSchema, researchSoftware } from './generateTest.js';
+import { APP_KINDS, APP_TASK_RULES, DEPTH_STYLE_RULES, EMAIL_RULES, QUALITY_RULES, SimulationCompany, simulationRules, TASK_RULES, WORKSPACE_RULES, MAX_PROMPT, PRICES, apiFailure, questionSchema, researchSoftware } from './generateTest.js';
 
 /**
  * Building a test by talking to Vetter: the company says what it wants, Vetter writes a draft, and every message after
@@ -14,6 +14,9 @@ export interface ChatRequest {
   messages: { role: 'user' | 'assistant'; text: string }[];
   // The job the test is for, written out, when it's built from one
   job?: string;
+  jobTitle?: string;
+  // The company hiring, where the job simulation is set
+  company?: SimulationCompany;
   // The draft as it stands, with app pages left out (see draftForModel in src/lib/testChat.ts)
   draft?: Record<string, unknown>;
   // Library tests already picked, when picking from the library
@@ -86,6 +89,8 @@ export const responseSchema = {
 // How every question is written and how a test is put together: shared by the chat, the planner (server/planTest.ts)
 // and the section writer (server/writeQuestions.ts)
 export interface GuideRequest {
+  company?: SimulationCompany;
+  jobTitle?: string;
   styles?: string[];
   levels: string[];
   tables: { name: string; columns: string[] }[];
@@ -128,9 +133,11 @@ export const stylesNote = (req: Picks) =>
     .join('');
 
 export function styleGuide(req: GuideRequest): string {
-  return `- Every question must be answerable from its prompt alone, and check what the job really needs, not trivia.${QUALITY_RULES}
-- Styles: choice, multi, text, written, order, match for any job; case for a case study with sub-questions; sheet, database
-  and app are hands-on tasks in a working window.
+  return `${simulationRules(req.company, req.jobTitle)}
+- Every question must be answerable from its prompt alone, and check what the job really needs, not trivia.${QUALITY_RULES}
+- Styles: choice, multi, text, written, order, match for any job; email for replying to work email; case for a case
+  study with sub-questions; sheet, database and app are hands-on tasks in a working window.
+  Unless told otherwise, every test has 2 to 4 email tasks, some standing alone and some about a hands-on task.
   Unless told otherwise, every test has hands-on tasks that match how the job is really done: sheet for Excel work
   (finance, ops, analysts), database for SQL work, app for any other software the job names (a CRM, helpdesk, design
   tool, accounting package...), app for physical and trade work (a mock-up of the device or equipment, e.g. a specific
@@ -147,7 +154,7 @@ Style rules (testCases is an empty list for choice, multi, text, order and match
 - order: 4 to 6 items listed in the RIGHT order (candidates see them shuffled).
 - match: 3 to 5 pairs; each left prompt with its right answer, all distinct.
 - code: JavaScript. starterCode defines "function solution(...)". solutionCode is a correct reference implementation. 3 to 5 testCases; input is a JSON array of the arguments, e.g. "[[3,1,2]]" calls solution([3,1,2]); expectedOutput is the JSON result.
-- sql: query only these tables: ${req.tables.map((t) => `${t.name}(${t.columns.join(', ')})`).join('; ')}. List the tables used in "tables". solutionCode is a correct SQLite query; starterCode is a comment and "SELECT ".${DEPTH_STYLE_RULES}${WORKSPACE_RULES}${APP_KINDS}
+- sql: query only these tables: ${req.tables.map((t) => `${t.name}(${t.columns.join(', ')})`).join('; ')}. List the tables used in "tables". solutionCode is a correct SQLite query; starterCode is a comment and "SELECT ".${DEPTH_STYLE_RULES}${EMAIL_RULES}${WORKSPACE_RULES}${APP_KINDS}
   In this conversation appHtml is NOT the page: a separate page builder writes each page from the spec you put in appHtml,
   then the page is tried out. appHtml holds the complete spec for the builder, in plain text, 250 to 600 words: which kind it is and what it copies or shows; the layout
   and screens (or the item drawn and its views); every piece of realistic data or detail it holds, spelled out (names,
@@ -171,6 +178,7 @@ HOW TO TALK
 - If asked something you can't do (a style not listed below, uploading files), say so and offer the nearest thing.
 
 ${stylesNote(req)}THE DRAFT
+- The draft's scenario is the job simulation's setting and its people: keep to them, and use those people in anything new.
 - Include "test" whenever the draft is new or changes, with every question in order. skillsTested IS the blueprint: one line per competency, written "skill | weight | why it matters | how the test proves it". For a question that stays exactly as it is, set keep to its id and type to its type, and leave every other field empty ("", [], 0, -1). Leave "test" out when nothing changes (a question, a chat).
 - A sheet or database question can only be kept whole or written again from scratch.
 - APP CHANGES: to change an app page already in the draft (a new screen, a button that should do something, different

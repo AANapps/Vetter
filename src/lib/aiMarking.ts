@@ -1,10 +1,11 @@
 import { AssessmentTest, Question } from '../types';
 import { QuestionRunResult } from './grading';
+import { emailAnswer, emailMark } from './questionTypes';
 
 // A second marking by Vetter's AI for code, SQL and short answers that the automatic checks didn't give full marks.
 // It can only raise a score, never lower it, and code that still fails its checks can't reach full marks.
 
-const MARKED_BY_AI: Question['type'][] = ['text', 'written', 'code', 'sql', 'schema'];
+const MARKED_BY_AI: Question['type'][] = ['text', 'written', 'email', 'code', 'sql', 'schema'];
 // The most a task can get from the AI while its automatic checks still fail
 const CAP: Partial<Record<Question['type'], number>> = { code: 90, sql: 90, schema: 90, text: 100, written: 100 };
 const TIMEOUT_MS = 45000;
@@ -16,6 +17,13 @@ export interface AiMark {
 
 function describe(q: Question, run: QuestionRunResult): { reference: string; autoResult: string } {
   if (q.type === 'text') return { reference: `Accepted answers: ${(q.acceptedAnswers ?? []).join(' | ')}`, autoResult: "Didn't match an accepted answer exactly." };
+  if (q.type === 'email') {
+    const last = q.email?.thread.at(-1);
+    return {
+      reference: `The email being replied to, from ${last?.from ?? 'a colleague'}: ${last?.subject ?? ''}\n${last?.body ?? ''}\n\nMarking points for the reply, each an equal share:\n${(q.rubric ?? []).map((p, i) => `${i + 1}. ${p}`).join('\n')}${q.solutionCode ? `\n\nModel reply:\n${q.solutionCode}` : ''}`,
+      autoResult: 'Who it was sent to is marked separately. Mark only what the reply says and how it says it.',
+    };
+  }
   if (q.type === 'written')
     return {
       reference: `Marking points, each an equal share:\n${(q.rubric ?? []).map((p, i) => `${i + 1}. ${p}`).join('\n')}${q.solutionCode ? `\n\nModel answer:\n${q.solutionCode}` : ''}`,
@@ -31,6 +39,11 @@ function describe(q: Question, run: QuestionRunResult): { reference: string; aut
   };
 }
 
+const emailText = (answer: string) => {
+  const r = emailAnswer(answer);
+  return `To: ${r.to.join(', ')}\nCc: ${r.cc.join(', ')}\nSubject: ${r.subject}\n\n${r.body}`;
+};
+
 // Marks from the AI for the tasks worth a second look, or an empty result when it isn't available
 export async function aiMarks(test: AssessmentTest, codes: Record<string, string>, perQuestion: Record<string, number>, runs: Record<string, QuestionRunResult>) {
   const items = test.questions
@@ -38,7 +51,9 @@ export async function aiMarks(test: AssessmentTest, codes: Record<string, string
     .map((q) => ({ q, answer: codes[q.id] ?? '' }))
     // Nothing written, or the starter code untouched, has nothing to give credit for
     .filter(({ q, answer }) => answer.trim() !== '' && answer.trim() !== q.starterCode.trim())
-    .map(({ q, answer }) => ({ id: q.id, type: q.type, title: q.title, prompt: q.prompt, answer, autoScore: perQuestion[q.id], ...describe(q, runs[q.id]) }));
+    // An email goes to the marker as it was sent; nothing typed in the body is nothing to mark
+    .filter(({ q, answer }) => q.type !== 'email' || emailAnswer(answer).body.trim() !== '')
+    .map(({ q, answer }) => ({ id: q.id, type: q.type, title: q.title, prompt: q.prompt, answer: q.type === 'email' ? emailText(answer) : answer, autoScore: perQuestion[q.id], ...describe(q, runs[q.id]) }));
   if (items.length === 0) return {};
 
   const controller = new AbortController();
@@ -59,7 +74,7 @@ export async function aiMarks(test: AssessmentTest, codes: Record<string, string
       // A short answer the AI judges right in meaning gets full marks: typos and extra words cost nothing
       const aiScore = q.type === 'text' && m.score >= 80 ? 100 : Math.round(m.score);
       // A written answer is marked by the AI alone: the first mark only matched words, which can be gamed
-      const score = q.type === 'written' ? Math.max(0, Math.min(100, aiScore)) : Math.max(perQuestion[q.id], Math.min(aiScore, CAP[q.type] ?? 90));
+      const score = q.type === 'email' ? emailMark(q, emailAnswer(codes[q.id] ?? ''), Math.max(0, Math.min(100, aiScore))) : q.type === 'written' ? Math.max(0, Math.min(100, aiScore)) : Math.max(perQuestion[q.id], Math.min(aiScore, CAP[q.type] ?? 90));
       result[q.id] = { score, feedback: String(m.feedback ?? '').slice(0, 300) };
     }
     return result;

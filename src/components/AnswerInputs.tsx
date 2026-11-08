@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ArrowDown, ArrowUp, GripVertical, X } from 'lucide-react';
 import { Question } from '../types';
+import { EmailInbox } from './EmailInbox';
 import { matchAnswer, multiAnswer, orderAnswer, shuffledIndexes } from '../lib/questionTypes';
 
 interface AnswerInputProps {
@@ -19,6 +20,7 @@ export const AnswerInput: React.FC<AnswerInputProps> = (props) => {
     written: 'Write your answer',
     order: 'Drag the items into the right order',
     match: 'Drag each answer onto the prompt it belongs to',
+    email: 'Your inbox',
   };
   return (
     <div className="space-y-3">
@@ -29,6 +31,7 @@ export const AnswerInput: React.FC<AnswerInputProps> = (props) => {
       {q.type === 'written' && <WrittenAnswer {...props} />}
       {q.type === 'order' && <OrderItems {...props} />}
       {q.type === 'match' && <MatchPairs {...props} />}
+      {q.type === 'email' && <EmailInbox {...props} />}
       <p className="text-[11px] text-slate-500 pt-1">
         You can change your answer until you submit. Answers are marked when you submit the test
         {q.type === 'multi' || q.type === 'order' || q.type === 'match' ? ', with credit for each part you get right' : ''}.

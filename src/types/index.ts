@@ -168,7 +168,7 @@ export interface ResultBreakdown {
 // multi: tick every right option; text: a short typed answer; order: drag items into sequence; match: drag each answer onto its prompt.
 // sheet and database are worked in a spreadsheet or a database window, and marked on what the candidate leaves behind
 // written: an extended answer marked on its rubric; case: a case study to read, with sub-questions and no answer of its own
-export type QuestionType = 'sql' | 'code' | 'scenario' | 'choice' | 'schema' | 'multi' | 'text' | 'written' | 'order' | 'match' | 'case' | 'sheet' | 'database' | 'app';
+export type QuestionType = 'sql' | 'code' | 'scenario' | 'choice' | 'schema' | 'multi' | 'text' | 'written' | 'order' | 'match' | 'case' | 'sheet' | 'database' | 'app' | 'email';
 
 // A table of sample data: the starting tables of a database task
 export interface DataTable {
@@ -189,6 +189,37 @@ export interface TestScenario {
   role: string;
   brief: string;
   files?: CaseFile[];
+  // Who the candidate works with at the company, the same people in every email and question of the test
+  people?: EmailContact[];
+}
+
+// Someone at (or around) the company in a job simulation, who emails can come from and go to
+export interface EmailContact {
+  name: string;
+  role: string;
+  email: string;
+}
+
+// One email in a thread the candidate reads
+export interface EmailMessage {
+  from: string;
+  to: string[];
+  cc: string[];
+  date: string;
+  subject: string;
+  body: string;
+}
+
+// An email task: a thread lands in the candidate's inbox and they write the reply, choosing who it goes to and who is
+// copied in. Marked on the recipients (to, cc, and anyone it must not go to) and on what the reply says (rubric)
+export interface EmailTask {
+  thread: EmailMessage[];
+  // The address book the candidate picks recipients from
+  contacts: EmailContact[];
+  to: string[];
+  cc: string[];
+  // People the reply must not go to, e.g. a customer on an internal matter
+  avoid: string[];
 }
 
 export interface TestCase {
@@ -229,6 +260,8 @@ export interface Question {
   tables?: DataTable[];
   // App simulations: the simulated product as one HTML page (its name is in contextData). Checks read its saved state
   appHtml?: string;
+  // Email tasks: the thread, the address book and who the reply should go to (its marking points are in rubric)
+  email?: EmailTask;
   // A question about a hands-on task (a spreadsheet, database or app question) or a case study: its id. It's asked
   // beside the task's window or the case's material, about what the candidate did, found or read there
   taskId?: string;

@@ -1,8 +1,8 @@
-import { Question, QuestionType } from '../types';
+import { EmailTask, Question, QuestionType } from '../types';
 
 // The answer-style questions: picked, typed or arranged rather than written as code. Their answer is kept as a
 // string like code is: the option index for multiple choice, JSON for the rest, the text itself for short answers.
-export const ANSWER_TYPES: QuestionType[] = ['choice', 'multi', 'text', 'written', 'order', 'match'];
+export const ANSWER_TYPES: QuestionType[] = ['choice', 'multi', 'text', 'written', 'order', 'match', 'email'];
 export const isAnswerType = (type: QuestionType) => ANSWER_TYPES.includes(type);
 
 // Worked in an app window (a spreadsheet, a SQL workbench or a simulated product) and marked on what the candidate leaves behind
@@ -57,6 +57,38 @@ export const matchAnswer = (q: Question, answer: string): (number | null)[] =>
   parse<(number | null)[]>(answer, (q.pairs ?? []).map(() => null));
 
 export const multiAnswer = (answer: string): number[] => parse<number[]>(answer, []);
+
+// An email task's answer: the reply as the candidate sends it
+export interface EmailReply {
+  to: string[];
+  cc: string[];
+  subject: string;
+  body: string;
+}
+export const emailAnswer = (answer: string): EmailReply => {
+  const r = parse<Partial<EmailReply>>(answer, {});
+  return { to: Array.isArray(r.to) ? r.to : [], cc: Array.isArray(r.cc) ? r.cc : [], subject: typeof r.subject === 'string' ? r.subject : '', body: typeof r.body === 'string' ? r.body : '' };
+};
+// The reply's share of an email task's marks that goes on who it's sent to; the rest is what it says
+export const EMAIL_RECIPIENT_SHARE = 30;
+const sameAddress = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+// Out of 100: everyone who should get it does (someone meant for To who is only copied in counts half), and every
+// person it mustn't go to costs as much as a right one earns
+export function recipientScore(task: EmailTask | undefined, reply: EmailReply): number {
+  if (!task) return 0;
+  const inTo = (e: string) => reply.to.some((r) => sameAddress(r, e));
+  const inCc = (e: string) => reply.cc.some((r) => sameAddress(r, e));
+  const expected = task.to.length + task.cc.length;
+  const earned =
+    task.to.reduce((n, e) => n + (inTo(e) ? 1 : inCc(e) ? 0.5 : 0), 0) +
+    task.cc.reduce((n, e) => n + (inTo(e) || inCc(e) ? 1 : 0), 0) -
+    task.avoid.filter((e) => inTo(e) || inCc(e)).length;
+  if (expected === 0) return earned < 0 || reply.to.length === 0 ? 0 : 100;
+  return Math.round(Math.max(0, Math.min(1, earned / expected)) * 100);
+}
+// An email's mark from its recipients and a mark for what it says
+export const emailMark = (q: Question, reply: EmailReply, bodyMark: number) =>
+  Math.round((recipientScore(q.email, reply) * EMAIL_RECIPIENT_SHARE + bodyMark * (100 - EMAIL_RECIPIENT_SHARE)) / 100);
 
 const normalise = (text: string) =>
   text
@@ -125,6 +157,10 @@ export function gradeAnswer(q: Question, answer: string): number {
     }
     case 'written':
       return roughWrittenMark(q, answer);
+    case 'email': {
+      const reply = emailAnswer(answer);
+      return reply.body.trim() || reply.to.length ? emailMark(q, reply, roughWrittenMark(q, reply.body)) : 0;
+    }
     default:
       return 0;
   }
@@ -148,7 +184,7 @@ export function roughWrittenMark(q: Question, answer: string): number {
 
 // Whether the candidate has given an answer yet, for the task tabs
 export const hasAnswer = (q: Question, answer: string) =>
-  q.type === 'match' ? matchAnswer(q, answer).some((a) => a !== null) : answer.trim() !== '' && answer !== '[]';
+  q.type === 'email' ? emailAnswer(answer).body.trim() !== '' : q.type === 'match' ? matchAnswer(q, answer).some((a) => a !== null) : answer.trim() !== '' && answer !== '[]';
 
 // What the builder offers, in the order it offers them
 export const QUESTION_STYLES: { type: QuestionType; label: string; hint: string }[] = [
@@ -158,6 +194,7 @@ export const QUESTION_STYLES: { type: QuestionType; label: string; hint: string 
   { type: 'written', label: 'Written answer', hint: 'A paragraph or two, marked against the points a strong answer makes' },
   { type: 'order', label: 'Drag to order', hint: 'Put steps or items in sequence' },
   { type: 'match', label: 'Drag to match', hint: 'Pair each prompt with its answer' },
+  { type: 'email', label: 'Email reply', hint: 'An email lands in their inbox: they reply, choosing who it goes to and who to copy in' },
   { type: 'case', label: 'Case study', hint: 'Material to read (emails, a ticket, figures) with questions on it' },
   { type: 'code', label: 'Coding', hint: 'Write a JavaScript function, run against test cases' },
   { type: 'sql', label: 'SQL query', hint: 'Query sample tables, checked against your solution' },
@@ -191,6 +228,14 @@ export function blankQuestion(type: QuestionType): Question {
       return { ...base, timeLimitMinutes: 6, weight: 15, rubric: ['', '', ''] };
     case 'case':
       return { ...base, timeLimitMinutes: 4, weight: 0 };
+    case 'email':
+      return {
+        ...base,
+        timeLimitMinutes: 6,
+        weight: 15,
+        rubric: ['', '', ''],
+        email: { thread: [{ from: '', to: [], cc: [], date: '', subject: '', body: '' }], contacts: [], to: [], cc: [], avoid: [] },
+      };
     case 'order':
       return { ...base, items: ['', '', ''] };
     case 'match':
@@ -230,6 +275,11 @@ export function questionProblems(q: Question): string[] {
     case 'written':
       if (filled(q.rubric).length === 0) problems.push('Add at least one marking point');
       break;
+    case 'email':
+      if (!q.email?.thread.some((m) => m.body.trim())) problems.push('Write the email they reply to');
+      if (!q.email?.to.length) problems.push('Pick who the reply should go to');
+      if (filled(q.rubric).length === 0) problems.push('Add at least one marking point');
+      break;
     case 'order':
       if (filled(q.items).length < 3) problems.push('Add at least three items');
       break;
@@ -261,6 +311,21 @@ export function tidyQuestion(q: Question): Question {
   }
   if (q.type === 'text') return { ...q, acceptedAnswers: filled(q.acceptedAnswers).map((a) => a.trim()) };
   if (q.type === 'written') return { ...q, rubric: filled(q.rubric).map((a) => a.trim()) };
+  if (q.type === 'email' && q.email) {
+    const known = (list: string[]) => [...new Set(list.map((e) => e.trim()).filter(Boolean))];
+    return {
+      ...q,
+      rubric: filled(q.rubric).map((a) => a.trim()),
+      email: {
+        ...q.email,
+        thread: q.email.thread.filter((m) => m.body.trim() || m.subject.trim()),
+        contacts: q.email.contacts.filter((c) => c.name.trim() && c.email.trim()),
+        to: known(q.email.to),
+        cc: known(q.email.cc),
+        avoid: known(q.email.avoid),
+      },
+    };
+  }
   // A case has no answer, so no marks of its own
   if (q.type === 'case') return { ...q, weight: 0 };
   if (q.type === 'order') return { ...q, items: filled(q.items).map((i) => i.trim()) };

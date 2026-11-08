@@ -1,7 +1,7 @@
 import { collection, doc, getDocs, query, setDoc, where } from 'firebase/firestore';
 import { AssessmentTest, Question } from '../types';
 import { db, firebaseEnabled } from './firebase';
-import { matchAnswer, multiAnswer, orderAnswer, orderedQuestions } from './questionTypes';
+import { matchAnswer, emailAnswer, multiAnswer, orderAnswer, orderedQuestions } from './questionTypes';
 import type { QuestionRunResult } from './grading';
 
 /**
@@ -67,6 +67,19 @@ function readable(q: Question, raw: string): { answer: string; correct?: string 
       return { answer: raw, correct: (q.acceptedAnswers ?? []).join('  ·  ') };
     case 'written':
       return { answer: raw, correct: (q.rubric ?? []).filter((p) => p.trim()).map((p) => `• ${p}`).join('\n') };
+    case 'email': {
+      const r = emailAnswer(raw);
+      const t = q.email;
+      return {
+        answer: r.body.trim() || r.to.length ? `To: ${r.to.join(', ') || '(no one)'}\nCc: ${r.cc.join(', ') || '(no one)'}\nSubject: ${r.subject}\n\n${r.body}` : '',
+        correct: [
+          t ? `To: ${t.to.join(', ')}` : '',
+          t?.cc.length ? `Cc: ${t.cc.join(', ')}` : '',
+          t?.avoid.length ? `Not to: ${t.avoid.join(', ')}` : '',
+          ...(q.rubric ?? []).filter((p) => p.trim()).map((p) => `• ${p}`),
+        ].filter(Boolean).join('\n'),
+      };
+    }
     case 'order':
       return {
         answer: raw ? orderAnswer(q, raw).map((i, n) => `${n + 1}. ${q.items?.[i] ?? ''}`).join('\n') : '',

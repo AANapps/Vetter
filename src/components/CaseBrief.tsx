@@ -11,13 +11,25 @@ export const CaseBrief: React.FC<{ scenario: TestScenario; defaultOpen?: boolean
       <button onClick={() => setOpen((o) => !o)} className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left" aria-expanded={open}>
         <span className="flex items-center gap-2 font-semibold text-slate-800">
           <Briefcase className="w-3.5 h-3.5 text-slate-800" />
-          Case brief: {scenario.role} at {scenario.company}
+          Your role: {scenario.role} at {scenario.company}
         </span>
         {open ? <ChevronDown className="w-3.5 h-3.5 text-slate-800" /> : <ChevronRight className="w-3.5 h-3.5 text-slate-800" />}
       </button>
       {open && (
         <div className="px-3 pb-3 space-y-3">
           <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">{scenario.brief}</p>
+          {scenario.people && scenario.people.length > 0 && (
+            <div className="space-y-1.5">
+              <div className="font-semibold text-slate-800">Who you work with</div>
+              <ul className="grid sm:grid-cols-2 gap-x-4 gap-y-1">
+                {scenario.people.map((p) => (
+                  <li key={p.email} className="text-slate-700 truncate" title={p.email}>
+                    <span className="font-medium text-slate-900">{p.name}</span>, {p.role}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           {scenario.files && scenario.files.length > 0 && (
             <div className="space-y-1.5">
               <div className="font-semibold text-slate-800">Files shared with you</div>

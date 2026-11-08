@@ -13,7 +13,7 @@ import { ChatRequest, levelPick, styleGuide, stylesNote } from './testChat.js';
 const MAX_TURNS = 24;
 const MAX_TEXT = 4000;
 
-const ITEM_TYPES = ['choice', 'multi', 'text', 'written', 'order', 'match', 'case', 'code', 'sql', 'sheet', 'database', 'app'];
+const ITEM_TYPES = ['choice', 'multi', 'text', 'written', 'order', 'match', 'email', 'case', 'code', 'sql', 'sheet', 'database', 'app'];
 
 // The plan's item types are held to the styles the company picked (a case or task needs its own style picked too)
 const schemaFor = (styles?: string[]) => {
@@ -47,6 +47,10 @@ const schema = {
         difficulty: { type: 'string' },
         passingScore: { type: 'integer' },
         roles: { type: 'array', items: { type: 'string' } },
+        // The job simulation: the company, the candidate's setting there, and the people they work with, "Name | Role | email"
+        company: { type: 'string' },
+        setting: { type: 'string' },
+        people: { type: 'array', items: { type: 'string' } },
         // One competency a line: "skill | weight | why it matters | how the test proves it"
         blueprint: { type: 'array', items: { type: 'string' } },
         items: {
@@ -68,7 +72,7 @@ const schema = {
           },
         },
       },
-      required: ['title', 'description', 'category', 'difficulty', 'passingScore', 'roles', 'blueprint', 'items'],
+      required: ['title', 'description', 'category', 'difficulty', 'passingScore', 'roles', 'company', 'setting', 'people', 'blueprint', 'items'],
       additionalProperties: false,
     },
   },
@@ -94,6 +98,9 @@ to that case or task's ref, and every other item has taskRef "". brief: 2 to 4 s
 detail or trap it turns on, what a strong answer shows, and which competency it serves. Vary the situations, so no two
 items test the same thing. points and minutes as the rules below say (minutes is timeLimitMinutes; a case is 0 points).
 blueprint: one line per competency, written "skill | weight | why it matters | how the test proves it".
+company, setting and people: the job simulation's company, setting and cast, as the rules below say. Every brief names
+the people involved, from that cast, so the writers keep the test one connected working day. An email item's brief says
+who it's from, what it turns on, and who the reply should go to, be copied to, and must not go to.
 difficulty is one of: ${req.levels.join(', ')}; ${levelPick(req)}.
 
 ${stylesNote(req)}${styleGuide(req)}

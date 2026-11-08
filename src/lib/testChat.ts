@@ -1,3 +1,4 @@
+import { contactText, emailToRaw, parseContact } from './emailTasks';
 import { AssessmentTest, BlueprintItem, Business, Question, QuestionType, SkillCategory, TEST_DIFFICULTIES, TestDifficulty, TestRole } from '../types';
 import { MOCK_DATABASE } from './sqlEngine';
 import { probeApp } from './appSimulation';
@@ -54,7 +55,7 @@ export interface ChatContext {
 
 // A question type the company allows: any, when it hasn't ticked one
 const allowedStyle = (ctx: ChatContext, type: unknown) => !ctx.styles.length || ctx.styles.includes(type as QuestionType);
-const QUESTION_TYPES: QuestionType[] = ['choice', 'multi', 'text', 'written', 'order', 'match', 'case', 'sheet', 'database', 'app', 'code', 'sql'];
+const QUESTION_TYPES: QuestionType[] = ['choice', 'multi', 'text', 'written', 'order', 'match', 'email', 'case', 'sheet', 'database', 'app', 'code', 'sql'];
 
 // The draft as the AI sees it: everything it needs to change a question, except app pages, which it can only keep whole
 export const draftForModel = (test: AssessmentTest) => ({
@@ -66,6 +67,8 @@ export const draftForModel = (test: AssessmentTest) => ({
   // The blueprint travels as skillsTested lines, as the AI writes it
   skillsTested: test.blueprint?.length ? test.blueprint.map((b) => `${b.skill} | ${b.weight} | ${b.why} | ${b.how}`) : test.skillsTested,
   roles: test.roles ?? [],
+  // The company the candidate works at in the simulation, and who they work with
+  ...(test.scenario && { scenario: { company: test.scenario.company, role: test.scenario.role, brief: test.scenario.brief, people: (test.scenario.people ?? []).map(contactText) } }),
   questions: orderedQuestions(test.questions).map((q, i) => ({
     number: i + 1,
     id: q.id,
@@ -84,6 +87,7 @@ export const draftForModel = (test: AssessmentTest) => ({
     ...(q.type === 'case' && { contextData: q.contextData ?? '' }),
     ...(q.items && { items: q.items }),
     ...(q.pairs && { pairs: q.pairs }),
+    ...(q.type === 'email' && emailToRaw(q)),
     ...((q.type === 'code' || q.type === 'sql') && { starterCode: q.starterCode, solutionCode: q.solutionCode }),
     ...(q.type === 'sql' && { tables: (q.contextData ?? '').match(/Table: (\w+)/g)?.map((t) => t.slice(7)) ?? [] }),
     ...(q.type !== 'app' && q.testCases.length > 0 && { testCases: q.testCases.map(({ description, input, expectedOutput }) => ({ description, input, expectedOutput })) }),
@@ -186,6 +190,12 @@ async function buildDraft(raw: RawTest, previous: AssessmentTest | undefined, ct
   const dropped = items.length - questions.length;
   if (!questions.length) return { dropped };
   const total = questions.reduce((sum, q) => sum + q.weight, 0) || 1;
+  // The job simulation's setting, from the plan: the company the candidate works at, their role, their first morning
+  // there and the people they work with. A change in the chat keeps the setting the test already has
+  const people = ((raw.people ?? []) as unknown[]).map((p) => parseContact(String(p))).filter((c): c is NonNullable<typeof c> => !!c).slice(0, 16);
+  const scenario: AssessmentTest['scenario'] = String(raw.setting ?? '').trim()
+    ? { company: String(raw.company ?? '').trim() || ctx.business?.name || 'the company', role: ctx.jobTitle || String(raw.role ?? '').trim() || String(raw.title ?? 'the role'), brief: String(raw.setting).trim(), ...(people.length && { people }) }
+    : previous?.scenario;
   // The level the company picked wins over the AI's
   const difficulty = ctx.level ?? (TEST_DIFFICULTIES.includes(raw.difficulty) ? (raw.difficulty as TestDifficulty) : previous?.difficulty ?? 'Junior');
   return {
@@ -208,6 +218,7 @@ async function buildDraft(raw: RawTest, previous: AssessmentTest | undefined, ct
       skillsTested: (raw.skillsTested ?? []).map((line: unknown) => String(line).split('|')[0].trim()).filter(Boolean).slice(0, 8),
       ...((blueprintOf(raw.skillsTested) ?? previous?.blueprint) && { blueprint: blueprintOf(raw.skillsTested) ?? previous?.blueprint }),
       ...(!ctx.business && { roles: ((raw.roles ?? []) as string[]).filter((r): r is TestRole => (ALL_ROLES as string[]).includes(r)) }),
+      ...(scenario && { scenario }),
     },
   };
 }
@@ -320,6 +331,9 @@ export async function sendChat(state: ChatState, text: string, ctx: ChatContext,
   const request = {
     messages: messages.map(({ role, text }) => ({ role, text })),
     job: ctx.job,
+    // The company hiring: the simulation is set there, so the candidate works for it from the first question
+    company: ctx.business && { name: ctx.business.name, industry: ctx.business.industry, description: ctx.business.description, website: ctx.business.websiteUrl, headquarters: ctx.business.headquarters },
+    jobTitle: ctx.jobTitle,
     draft: state.draft && draftForModel(state.draft),
     existing: state.existing.map((s) => s.test.id),
     wantExisting: ctx.wantExisting,

@@ -36,7 +36,7 @@ export const questionSchema = {
     // A hands-on task's own label (e.g. "t1"), and on a question about a task, that task's label
     ref: { type: 'string' },
     taskRef: { type: 'string' },
-    type: { type: 'string', enum: ['choice', 'multi', 'text', 'written', 'order', 'match', 'case', 'code', 'sql', 'sheet', 'database', 'app'] },
+    type: { type: 'string', enum: ['choice', 'multi', 'text', 'written', 'order', 'match', 'email', 'case', 'code', 'sql', 'sheet', 'database', 'app'] },
     title: { type: 'string' },
     prompt: { type: 'string' },
     // A sheet's file name, a database's name
@@ -229,6 +229,57 @@ bluff or look up the answer quickly.
 - Scale to the level: Beginner and Junior still apply what they know to a situation; Professional and Senior weigh
   competing priorities, spot what's missing and handle exceptions.`;
 
+// Every AI-written test is a job simulation: the candidate is working at the hiring company, in the role, from start to end
+export interface SimulationCompany {
+  name?: string;
+  industry?: string;
+  description?: string;
+  website?: string;
+  headquarters?: string;
+}
+export const simulationRules = (company?: SimulationCompany, jobTitle?: string) => `
+JOB SIMULATION: the whole test is a working day (or week) in the job${jobTitle ? ` of ${jobTitle}` : ''} at ${
+  company?.name
+    ? `${company.name}${company.industry ? `, ${company.industry}` : ''}${company.headquarters ? `, based in ${company.headquarters}` : ''}${company.description ? `. About them: ${company.description.slice(0, 600)}` : ''}${company.website ? ` (${company.website})` : ''}`
+    : 'a realistic invented company that fits the job'
+}. The candidate has just started there; every question, case, email and task happens at that company, in its line of
+business, with its products, customers and suppliers, and the same cast of colleagues throughout:
+- The setting: who the candidate is, who they report to, the team and what's on this week, in 2 to 4 sentences
+  addressed to the candidate ("You've just joined ... as ..."). It opens the test.
+- The people: 5 to 10 people they deal with, each "Name | Role | email": their manager, teammates, other teams (finance,
+  ops, legal, IT...), and customers or suppliers outside the company (with their own email domains). Company emails use
+  the company's real domain${company?.website ? ` (from ${company.website})` : ''}. Use these people, by name, in every
+  scenario, email and task, so the test hangs together as one job.
+- Work arrives the way it really does: emails, chat messages, tickets, a manager's request, a customer on the phone. Use
+  email tasks for the communication the job needs (who to reply to, who to copy in, who must not see it), and
+  questions on who to contact, escalate to or hand over to, from the people above.
+- The hands-on tasks are in the software the job uses at this company, with this company's data, and they connect to the
+  rest: an email asks for the work, the candidate does it in the app or spreadsheet, then replies with what they found.
+- Invent nothing about the company that would be embarrassing or untrue in a damaging way (no scandals, lawsuits or
+  real named staff): its people are made up, its situations are ordinary working ones.`;
+
+// Email tasks: a thread in the candidate's inbox and the reply they write, with who it goes to
+export const EMAIL_RULES = `
+- email: a thread lands in the candidate's work inbox and they write the reply, choosing who it goes To and who is Cc'd
+  from the address book. Use it for the communication the job really involves: answering a customer, pushing back on a
+  manager, escalating a problem, handing over to a colleague, chasing a supplier. prompt: one or two sentences, as the
+  candidate would see it at work ("Priya needs an answer before her 2pm call."), never which recipients are right.
+  items: the thread, oldest first, 1 to 4 emails, each written out exactly as
+  "From: Name <address>\nTo: Name <address>, ...\nCc: ...\nDate: Tue 4 Mar, 09:12\nSubject: ...\n\n<body>", the
+  candidate being one of the people it was sent to (as "You <you@<company domain>>"). Bodies are real work email, 60 to
+  220 words, with the detail the reply turns on: a figure that doesn't add up, a request that clashes with policy, a
+  customer who is cc'd on something internal, a deadline, a person who needs to know. options: the address book, 5 to 9
+  people the candidate could write to, each "Name | Role | address" (colleagues, their manager, other teams, the
+  customer or supplier), including the people the reply should go to and plausible wrong choices.
+  pairs: who the reply goes to, one pair each: { left: "to", right: address } for whoever it must be sent to,
+  { left: "cc", right: address } for whoever should be copied in (a manager to keep informed, the team that must act),
+  { left: "not", right: address } for anyone it must not go to (a customer on an internal matter, someone it would
+  embarrass or who shouldn't see the figures). Make the choice of recipients a real judgement: Reply all should be wrong
+  in at least some emails, and someone who isn't on the thread yet should need adding in others.
+  acceptedAnswers: 3 to 6 marking points for the reply's content and tone, tied to the thread. solutionCode: the model
+  reply. timeLimitMinutes 4 to 8. An email can be about an app task (taskRef) when the reply depends on what the
+  candidate does or finds in the app, e.g. "update the order in the system, then let the customer know".`;
+
 // The two styles that give a test depth: a case to read with questions on it, and a written answer marked on its points
 export const DEPTH_STYLE_RULES = `
 - written: an extended answer of 80 to 250 words, for judgement, diagnosis, explaining a decision, a plan, or the actual
@@ -248,13 +299,15 @@ conversation: 4 to 7 competencies, each with why it matters in this job (what go
 test proves it, and its share of the marks (adding up to 100). Every question serves one of them, and the weights decide
 where the marks go.
 SECTIONS: unless the company asks otherwise, the test builds up through these, in order:
-1. Foundations: 4 to 8 fast questions (choice, multi, text, order, match), each led by its own scenario.
-2. Case studies: 1 or 2 cases, each followed by 3 to 5 sub-questions mixing fast formats with at least one written.
-3. Hands-on tasks: 2 or 3 of sheet, database or app (or code for developers), each followed by 2 to 4 sub-questions
-   about what the candidate found or did in it, including a written one where it fits (what they'd tell the customer or
+1. Foundations: 4 to 8 fast questions (choice, multi, text, order, match), each led by its own scenario at the company.
+2. The inbox: 1 or 2 email tasks, plus a question on who to contact, escalate to or hand over to.
+3. Case studies: 1 or 2 cases, each followed by 3 to 5 sub-questions mixing fast formats with at least one written.
+4. Hands-on tasks: 2 or 3 of sheet, database or app (or code for developers), each followed by 2 to 4 sub-questions
+   about what the candidate found or did in it, including an email reply about it where it fits (the customer or
+   manager who asked for the work) or a written one (what they'd tell the customer or
    manager, why it happened, what they'd check next).
 Size: 20 to 32 questions counting sub-questions, 45 to 75 minutes in all, never more than 45 questions.
-Sub-questions: give each case and each sheet, database or app task a short ref ("c1", "t1"...) and set taskRef on the
+Sub-questions (an email can be one): give each case and each sheet, database or app task a short ref ("c1", "t1"...) and set taskRef on the
 questions about it; they're answered beside it, so they may rely on what it shows. Every other question has taskRef "",
 and every question that isn't a case or task has ref "". A kept case or task's ref is its id.`;
 
@@ -275,7 +328,7 @@ Style rules (testCases is an empty list for choice, multi, text, order and match
 - order: 4 to 6 items listed in the RIGHT order (candidates see them shuffled).
 - match: 3 to 5 pairs; each left prompt with its right answer, all distinct.
 - code: JavaScript. starterCode defines "function solution(...)". solutionCode is a correct reference implementation. 3 to 5 testCases; input is a JSON array of the arguments, e.g. "[[3,1,2]]" calls solution([3,1,2]); expectedOutput is the JSON result.
-- sql: query only these tables: ${req.tables.map((t) => `${t.name}(${t.columns.join(', ')})`).join('; ')}. List the tables used in "tables". solutionCode is a correct SQLite query; starterCode is a comment and "SELECT ".${DEPTH_STYLE_RULES}${req.styles.includes('app') ? APP_RULES : ''}
+- sql: query only these tables: ${req.tables.map((t) => `${t.name}(${t.columns.join(', ')})`).join('; ')}. List the tables used in "tables". solutionCode is a correct SQLite query; starterCode is a comment and "SELECT ".${DEPTH_STYLE_RULES}${req.styles.includes('email') ? EMAIL_RULES : ''}${req.styles.includes('app') ? APP_RULES : ''}
 timeLimitMinutes is realistic for the question (2 to 4 for answer styles, as the scenario takes reading, 5 to 10 for code and sql, 6 to 12 for app), and across the test they add up to 25 to 35. points reflect importance; a task counts for more than a question about it.${req.styles.includes('app') ? TASK_RULES : ''}
 category must be one of: ${req.categories.join(', ')}. passingScore between 60 and 80. roles: pick from ${req.roles.join(', ')}.
 Write plainly, in British English, with no em dashes.`

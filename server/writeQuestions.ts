@@ -15,6 +15,9 @@ export interface WriteRequest extends GuideRequest {
   plan: {
     title: string;
     difficulty: string;
+    company?: string;
+    setting?: string;
+    people?: string[];
     blueprint: string[];
     items: { ref: string; taskRef: string; type: string; title: string; brief: string; points: number; minutes: number }[];
   };
@@ -57,6 +60,7 @@ export async function writeQuestions(body: unknown, apiKey: string | undefined, 
   const content = [
     req.job ? `THE JOB:\n${req.job.slice(0, MAX_PROMPT)}` : '',
     req.brief ? `WHAT THE COMPANY SAID:\n${req.brief.slice(0, MAX_TEXT)}` : '',
+    req.plan.setting ? `THE JOB SIMULATION, at ${req.plan.company || 'the company'}:\n${req.plan.setting}\n\nTHE PEOPLE (use these, by name and address; an email's address book is drawn from them):\n${(req.plan.people ?? []).join('\n')}` : '',
     `WHAT THE HIRE NEEDS:\n${req.plan.blueprint.join('\n')}`,
     `THE WHOLE PLAN:\n${req.plan.items.map(line).join('\n')}`,
     `WRITE NOW:\n${req.plan.items.filter((i) => wanted.has(i.ref)).map(line).join('\n')}`,

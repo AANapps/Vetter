@@ -135,7 +135,7 @@ const Answer: React.FC<{ a: AnswerRecord }> = ({ a }) => {
       {!isHandsOn(a.type) && (
         <div className="grid sm:grid-cols-2 gap-2.5">
           <Block label="Their answer" tone={a.score === 100 ? 'good' : a.score > 0 ? 'part' : 'bad'} mono={isCode(a.type)} text={a.answer || '(no answer)'} />
-          {a.correct && <Block label={a.type === 'written' ? 'What a strong answer covers' : 'Right answer'} tone="neutral" text={a.correct} />}
+          {a.correct && <Block label={a.type === 'written' || a.type === 'email' ? 'What a strong answer covers' : 'Right answer'} tone="neutral" text={a.correct} />}
         </div>
       )}
 

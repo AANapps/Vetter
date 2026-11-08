@@ -1,3 +1,4 @@
+import { emailFromRaw } from './emailTasks';
 import { AssessmentTest, Business, JobPosting, Question, QuestionType, SkillCategory, TestDifficulty, TestRole, isPublic } from '../types';
 import { SKILL_IDS } from '../data/seedCandidates';
 import { MOCK_DATABASE, executeSqlQuery } from './sqlEngine';
@@ -261,7 +262,7 @@ export const uid = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${M
 // One AI-written question made into a real one, or null if it doesn't hold up
 export async function checkQuestion(raw: RawQuestion): Promise<Question | null> {
   const type = raw.type as QuestionType;
-  if (!['choice', 'multi', 'text', 'written', 'order', 'match', 'case', 'code', 'sql', 'sheet', 'database', 'app'].includes(type)) return null;
+  if (!['choice', 'multi', 'text', 'written', 'order', 'match', 'case', 'code', 'sql', 'sheet', 'database', 'app', 'email'].includes(type)) return null;
   const q: Question = {
     id: uid('q'),
     title: String(raw.title ?? '').trim(),
@@ -279,6 +280,16 @@ export async function checkQuestion(raw: RawQuestion): Promise<Question | null> 
   if (type === 'written') {
     q.rubric = (raw.rubric ?? raw.acceptedAnswers ?? []).map((p) => String(p).trim()).filter(Boolean).slice(0, 8);
     if (raw.solutionCode?.trim()) q.solutionCode = raw.solutionCode.trim();
+  }
+  // An email task: a thread to reply to, who the reply goes to, and its marking points
+  if (type === 'email') {
+    const email = emailFromRaw(raw as Parameters<typeof emailFromRaw>[0]);
+    const rubric = (raw.acceptedAnswers ?? []).map((p) => String(p).trim()).filter(Boolean).slice(0, 8);
+    if (!email || !rubric.length) return null;
+    q.email = email;
+    q.rubric = rubric;
+    if (raw.solutionCode?.trim()) q.solutionCode = raw.solutionCode.trim();
+    return q.title && q.prompt ? q : null;
   }
   // A case is material to read: it needs enough of it to ask about, and carries no marks of its own
   if (type === 'case') {
