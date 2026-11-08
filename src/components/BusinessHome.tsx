@@ -521,7 +521,7 @@ const CustomCard: React.FC<{ idea: CustomIdea; aiAllowed: boolean; onBuild: () =
   </li>
 );
 
-// Candidates the chat suggests, as a table: who they are with their strongest verified scores, why they suit the role
+// Candidates the chat suggests, as a ranked list: who they are with their strongest verified scores, why they suit the role
 // and what isn't verified yet. A row opens their profile in a pop-up; its actions send them a job's tests or start an
 // AI test for the gaps
 const PeopleList: React.FC<{
@@ -542,13 +542,6 @@ const PeopleList: React.FC<{
     <div className="space-y-2">
       <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Candidates</h3>
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-        <div className={`hidden md:grid ${PEOPLE_COLS} gap-3 px-4 py-2 bg-slate-50/80 border-b border-slate-200 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400`}>
-          <span className="text-center">#</span>
-          <span>Candidate</span>
-          <span>Why they fit</span>
-          <span>Not verified</span>
-          <span />
-        </div>
         <ol className="divide-y divide-slate-100">
           {found.map(({ c, p }, i) => (
             <PersonRow key={c.id} rank={i + 1} c={c} p={p} onView={() => onView(c.id)} jobs={jobs} onInvite={onInvite} onBuildTest={onBuildTest} aiAllowed={aiAllowed} />
@@ -558,10 +551,6 @@ const PeopleList: React.FC<{
     </div>
   );
 };
-
-// Written out in full so Tailwind sees them
-const PEOPLE_COLS = 'grid-cols-[1.25rem_minmax(0,1.3fr)_minmax(0,1.6fr)_minmax(0,0.9fr)_5.5rem]';
-const PEOPLE_ROW = 'grid-cols-[1.25rem_minmax(0,1fr)] md:grid-cols-[1.25rem_minmax(0,1.3fr)_minmax(0,1.6fr)_minmax(0,0.9fr)_5.5rem]';
 
 const PersonRow: React.FC<{
   rank: number;
@@ -594,64 +583,71 @@ const PersonRow: React.FC<{
         tabIndex={0}
         onClick={onView}
         onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onView())}
-        className={`grid ${PEOPLE_ROW} gap-x-3 gap-y-2 items-start px-4 py-3 cursor-pointer hover:bg-slate-50/70 transition-colors group`}
+        className="px-4 sm:px-5 py-4 cursor-pointer hover:bg-slate-50/70 transition-colors group"
       >
-        <span className="pt-2 text-center text-[11px] font-mono font-bold text-slate-400 tabular-nums">{rank}</span>
-        <span className="flex items-start gap-2.5 min-w-0">
-          <Pic src={c.avatarUrl} alt="" referrerPolicy="no-referrer" className="w-9 h-9 rounded-full object-cover bg-slate-100 shrink-0" />
-          <span className="min-w-0 space-y-1">
-            <span className="block text-sm font-semibold text-slate-900 truncate group-hover:text-indigo-700">{c.name}</span>
-            <span className="block text-[11px] text-slate-500 truncate">{[c.title, c.location].filter(Boolean).join(' · ')}</span>
+        {/* Who they are, with the actions on the right */}
+        <div className="flex items-start gap-3">
+          <span className="w-4 pt-2.5 shrink-0 text-center text-[11px] font-mono font-bold text-slate-400 tabular-nums">{rank}</span>
+          <Pic src={c.avatarUrl} alt="" referrerPolicy="no-referrer" className="w-10 h-10 rounded-full object-cover bg-slate-100 shrink-0" />
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-semibold text-slate-900 truncate group-hover:text-indigo-700">{c.name}</div>
+            <div className="text-xs text-slate-500 truncate">{[c.title, c.location].filter(Boolean).join(' · ')}</div>
             {top.length > 0 && (
-              <span className="flex flex-wrap gap-1">
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
                 {top.map((s) => (
-                  <span key={s.skillId} className="px-1.5 py-px rounded-full bg-slate-100 text-[10px] text-slate-700">
+                  <span key={s.skillId} className="px-2 py-0.5 rounded-full bg-slate-100 text-[11px] text-slate-700">
                     {s.skillName} <span className="font-mono font-semibold text-slate-900">{s.score}</span>
                   </span>
                 ))}
+              </div>
+            )}
+          </div>
+          <div className="shrink-0 flex items-center gap-1.5">
+            <button
+              onClick={stop(() => setSending((o) => !o))}
+              title="Send them one of your jobs' tests"
+              aria-expanded={sending}
+              className="h-8 px-2.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-indigo-300 hover:text-indigo-700 inline-flex items-center gap-1 text-xs font-semibold"
+            >
+              <Send className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Send tests</span>
+              <ChevronDown className={`w-3 h-3 transition-transform ${sending ? 'rotate-180' : ''}`} />
+            </button>
+            <button
+              onClick={stop(() => onBuildTest(brief))}
+              title={aiAllowed ? 'Create a test for their gaps with AI' : 'Creating tests with AI needs a subscription'}
+              aria-label="Create a test with AI"
+              className="create-border h-8 px-2.5 rounded-lg text-indigo-700 hover:text-indigo-900 inline-flex items-center"
+            >
+              {aiAllowed ? <Wand2 className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+        </div>
+
+        {/* Why they fit and what isn't verified, at full width under the name */}
+        <div className="mt-3 sm:pl-[4.25rem] space-y-2.5">
+          <p className="text-[13px] text-slate-600 leading-relaxed">{p.reason}</p>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mr-1">Not verified</span>
+            {gaps.length ? (
+              gaps.map((g) => (
+                <span key={g} className="px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-[11px] font-medium text-amber-900">
+                  {g}
+                </span>
+              ))
+            ) : (
+              <span className="inline-flex items-center gap-1 text-[11px] text-emerald-700">
+                <Check className="w-3 h-3" />
+                Nothing, all covered
               </span>
             )}
-          </span>
-        </span>
-        <span className="col-start-2 md:col-start-auto text-xs text-slate-600 leading-relaxed">{p.reason}</span>
-        <span className="col-start-2 md:col-start-auto flex flex-wrap gap-1">
-          {gaps.length ? (
-            gaps.map((g) => (
-              <span key={g} className="px-1.5 py-px rounded-full bg-amber-50 border border-amber-200 text-[10px] font-medium text-amber-900">
-                {g}
-              </span>
-            ))
-          ) : (
-            <span className="inline-flex items-center gap-1 text-[11px] text-emerald-700">
-              <Check className="w-3 h-3" />
-              Covered
-            </span>
-          )}
-        </span>
-        <span className="col-start-2 md:col-start-auto flex md:justify-end items-center gap-1.5">
-          <button
-            onClick={stop(() => setSending((o) => !o))}
-            title="Send them one of your jobs' tests"
-            aria-expanded={sending}
-            className="h-7 px-2 rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-indigo-300 hover:text-indigo-700 inline-flex items-center gap-1 text-[11px] font-semibold"
-          >
-            <Send className="w-3 h-3" />
-            <ChevronDown className={`w-3 h-3 transition-transform ${sending ? 'rotate-180' : ''}`} />
-          </button>
-          <button
-            onClick={stop(() => onBuildTest(brief))}
-            title={aiAllowed ? 'Create a test for their gaps with AI' : 'Creating tests with AI needs a subscription'}
-            aria-label="Create a test with AI"
-            className="create-border h-7 px-2 rounded-lg text-indigo-700 hover:text-indigo-900 inline-flex items-center"
-          >
-            {aiAllowed ? <Wand2 className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
-          </button>
-        </span>
+          </div>
+        </div>
       </div>
 
       {/* Sending a job's tests, opened from the row */}
       {sending && (
-        <div className="px-4 pb-3 md:pl-12 flex flex-wrap items-center gap-2">
+        <div className="px-4 sm:px-5 pb-4 sm:pl-[5.5rem] flex flex-wrap items-center gap-2">
           {withTests.length === 0 ? (
             <span className="text-[11px] text-slate-500">Post a job with tests to send them a request.</span>
           ) : (
