@@ -119,7 +119,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
       {/* Pop-ups go on the page body: the chat is its own layer (isolate), which would leave them under the side menu */}
       {topUpOpen && credit && createPortal(<CreditsDialog credit={credit} onUpdated={setCredit} onClose={() => setTopUpOpen(false)} />, document.body)}
       {viewing && createPortal(renderProfile(viewing, () => setViewing(null)), document.body)}
-      {/* Faint colour drifting behind the glass */}
+      {/* Faint colour behind the frosted panels, holding still */}
       <div className="ai-aurora" aria-hidden="true">
         <span />
         <span />
@@ -134,7 +134,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
             <div className="pt-10 sm:pt-20 space-y-6 text-center">
               <div className="space-y-2">
                 <span className="mx-auto w-fit flex items-center font-pixel">
-                  <span className="ai-mark w-11 h-11 rounded-2xl text-white text-lg flex items-center justify-center shadow-lg shadow-indigo-200">V</span>
+                  <span className="ai-mark-still w-11 h-11 rounded-2xl text-white text-lg flex items-center justify-center shadow-lg shadow-indigo-200">V</span>
                   <span className="text-2xl text-indigo-950 ml-1">etter<PixelDot /></span>
                 </span>
                 <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">Who are you hiring?</h1>
@@ -354,7 +354,7 @@ const AdvisorReply: React.FC<{
   onQuickReply?: (text: string) => void;
 }> = ({ turn, aiAllowed, picked, onBuildIdea, onTogglePick, onPickAll, onEditCopy, onBuildWithAI, onSeePlans, onOpenTest, candidates, onViewPerson, jobs, onInvite, onQuickReply }) => (
   <div className="flex gap-3">
-    <span className="ai-mark w-7 h-7 shrink-0 rounded-lg text-white text-xs font-pixel flex items-center justify-center">V</span>
+    <span className="ai-mark-still w-7 h-7 shrink-0 rounded-lg text-white text-xs font-pixel flex items-center justify-center">V</span>
     <div className="ai-glass min-w-0 flex-1 space-y-4 p-4 sm:p-5 rounded-2xl rounded-tl-md border border-white/80 shadow-sm">
       <p className={`text-sm leading-relaxed whitespace-pre-wrap ${turn.error ? 'text-slate-800' : 'text-slate-800'}`}>{turn.text}</p>
 
