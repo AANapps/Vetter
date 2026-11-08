@@ -13,7 +13,7 @@ import { ChatRequest, levelPick, styleGuide, stylesNote } from './testChat.js';
 const MAX_TURNS = 24;
 const MAX_TEXT = 4000;
 
-const ITEM_TYPES = ['choice', 'multi', 'text', 'written', 'order', 'match', 'email', 'case', 'code', 'sql', 'sheet', 'database', 'app'];
+const ITEM_TYPES = ['choice', 'multi', 'text', 'written', 'order', 'match', 'email', 'assistant', 'case', 'code', 'sql', 'sheet', 'database', 'app'];
 
 // The plan's item types are held to the styles the company picked (a case or task needs its own style picked too)
 const schemaFor = (styles?: string[]) => {

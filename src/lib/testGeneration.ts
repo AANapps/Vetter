@@ -262,7 +262,7 @@ export const uid = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${M
 // One AI-written question made into a real one, or null if it doesn't hold up
 export async function checkQuestion(raw: RawQuestion): Promise<Question | null> {
   const type = raw.type as QuestionType;
-  if (!['choice', 'multi', 'text', 'written', 'order', 'match', 'case', 'code', 'sql', 'sheet', 'database', 'app', 'email'].includes(type)) return null;
+  if (!['choice', 'multi', 'text', 'written', 'order', 'match', 'case', 'code', 'sql', 'sheet', 'database', 'app', 'email', 'assistant'].includes(type)) return null;
   const q: Question = {
     id: uid('q'),
     title: String(raw.title ?? '').trim(),
@@ -280,6 +280,19 @@ export async function checkQuestion(raw: RawQuestion): Promise<Question | null> 
   if (type === 'written') {
     q.rubric = (raw.rubric ?? raw.acceptedAnswers ?? []).map((p) => String(p).trim()).filter(Boolean).slice(0, 8);
     if (raw.solutionCode?.trim()) q.solutionCode = raw.solutionCode.trim();
+  }
+  // An AI-assisted task: the material the candidate has (starterCode), the assistant's private notes (appHtml), the
+  // marking points for the work (acceptedAnswers) and for how the assistant is used (items)
+  if (type === 'assistant') {
+    const brief = String(raw.appHtml ?? '').trim();
+    const rubric = (raw.acceptedAnswers ?? []).map((p) => String(p).trim()).filter(Boolean).slice(0, 8);
+    const process = (raw.items ?? []).map((p) => String(p).trim()).filter(Boolean).slice(0, 6);
+    if (brief.length < 60 || !rubric.length || !process.length) return null;
+    q.assistant = { material: String(raw.starterCode ?? '').trim(), brief, process };
+    q.starterCode = '';
+    q.rubric = rubric;
+    if (raw.solutionCode?.trim()) q.solutionCode = raw.solutionCode.trim();
+    return q.title && q.prompt ? q : null;
   }
   // An email task: a thread to reply to, who the reply goes to, and its marking points
   if (type === 'email') {

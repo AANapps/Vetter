@@ -2,7 +2,7 @@ import { EmailTask, Question, QuestionType } from '../types';
 
 // The answer-style questions: picked, typed or arranged rather than written as code. Their answer is kept as a
 // string like code is: the option index for multiple choice, JSON for the rest, the text itself for short answers.
-export const ANSWER_TYPES: QuestionType[] = ['choice', 'multi', 'text', 'written', 'order', 'match', 'email'];
+export const ANSWER_TYPES: QuestionType[] = ['choice', 'multi', 'text', 'written', 'order', 'match', 'email', 'assistant'];
 export const isAnswerType = (type: QuestionType) => ANSWER_TYPES.includes(type);
 
 // Worked in an app window (a spreadsheet, a SQL workbench or a simulated product) and marked on what the candidate leaves behind
@@ -69,6 +69,27 @@ export const emailAnswer = (answer: string): EmailReply => {
   const r = parse<Partial<EmailReply>>(answer, {});
   return { to: Array.isArray(r.to) ? r.to : [], cc: Array.isArray(r.cc) ? r.cc : [], subject: typeof r.subject === 'string' ? r.subject : '', body: typeof r.body === 'string' ? r.body : '' };
 };
+// An AI-assisted task's answer: the conversation with the assistant, and the work handed in
+export interface AssistantTurn {
+  role: 'user' | 'assistant';
+  text: string;
+}
+export interface AssistantAnswer {
+  chat: AssistantTurn[];
+  final: string;
+}
+export const assistantAnswer = (answer: string): AssistantAnswer => {
+  const r = parse<Partial<AssistantAnswer>>(answer, {});
+  return {
+    chat: Array.isArray(r.chat) ? r.chat.filter((t) => t && (t.role === 'user' || t.role === 'assistant') && typeof t.text === 'string') : [],
+    final: typeof r.final === 'string' ? r.final : '',
+  };
+};
+// The prompts a candidate can send in one AI-assisted task
+export const ASSISTANT_PROMPTS = 15;
+// The final work's share of an AI-assisted task's marks; the rest is how the assistant was used
+export const ASSISTANT_RESULT_SHARE = 60;
+
 // The reply's share of an email task's marks that goes on who it's sent to; the rest is what it says
 export const EMAIL_RECIPIENT_SHARE = 30;
 const sameAddress = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
@@ -157,6 +178,11 @@ export function gradeAnswer(q: Question, answer: string): number {
     }
     case 'written':
       return roughWrittenMark(q, answer);
+    case 'assistant': {
+      // A first mark on the work handed in only; Vetter's AI marks the work and the conversation properly
+      const { final } = assistantAnswer(answer);
+      return final.trim() ? Math.round((roughWrittenMark(q, final) * ASSISTANT_RESULT_SHARE) / 100) : 0;
+    }
     case 'email': {
       const reply = emailAnswer(answer);
       return reply.body.trim() || reply.to.length ? emailMark(q, reply, roughWrittenMark(q, reply.body)) : 0;
@@ -184,7 +210,7 @@ export function roughWrittenMark(q: Question, answer: string): number {
 
 // Whether the candidate has given an answer yet, for the task tabs
 export const hasAnswer = (q: Question, answer: string) =>
-  q.type === 'email' ? emailAnswer(answer).body.trim() !== '' : q.type === 'match' ? matchAnswer(q, answer).some((a) => a !== null) : answer.trim() !== '' && answer !== '[]';
+  q.type === 'email' ? emailAnswer(answer).body.trim() !== '' : q.type === 'assistant' ? assistantAnswer(answer).final.trim() !== '' : q.type === 'match' ? matchAnswer(q, answer).some((a) => a !== null) : answer.trim() !== '' && answer !== '[]';
 
 // What the builder offers, in the order it offers them
 export const QUESTION_STYLES: { type: QuestionType; label: string; hint: string }[] = [
@@ -195,6 +221,7 @@ export const QUESTION_STYLES: { type: QuestionType; label: string; hint: string 
   { type: 'order', label: 'Drag to order', hint: 'Put steps or items in sequence' },
   { type: 'match', label: 'Drag to match', hint: 'Pair each prompt with its answer' },
   { type: 'email', label: 'Email reply', hint: 'An email lands in their inbox: they reply, choosing who it goes to and who to copy in' },
+  { type: 'assistant', label: 'AI-assisted task', hint: 'They prompt an AI assistant through a piece of work; marked on the result and on how they used the AI' },
   { type: 'case', label: 'Case study', hint: 'Material to read (emails, a ticket, figures) with questions on it' },
   { type: 'code', label: 'Coding', hint: 'Write a JavaScript function, run against test cases' },
   { type: 'sql', label: 'SQL query', hint: 'Query sample tables, checked against your solution' },
@@ -228,6 +255,8 @@ export function blankQuestion(type: QuestionType): Question {
       return { ...base, timeLimitMinutes: 6, weight: 15, rubric: ['', '', ''] };
     case 'case':
       return { ...base, timeLimitMinutes: 4, weight: 0 };
+    case 'assistant':
+      return { ...base, timeLimitMinutes: 10, weight: 20, rubric: ['', '', ''], assistant: { material: '', brief: '', process: ['', ''] } };
     case 'email':
       return {
         ...base,
@@ -275,6 +304,10 @@ export function questionProblems(q: Question): string[] {
     case 'written':
       if (filled(q.rubric).length === 0) problems.push('Add at least one marking point');
       break;
+    case 'assistant':
+      if (!q.assistant?.brief.trim()) problems.push("Write the assistant's notes");
+      if (filled(q.rubric).length === 0) problems.push('Add at least one marking point for the work');
+      break;
     case 'email':
       if (!q.email?.thread.some((m) => m.body.trim())) problems.push('Write the email they reply to');
       if (!q.email?.to.length) problems.push('Pick who the reply should go to');
@@ -311,6 +344,8 @@ export function tidyQuestion(q: Question): Question {
   }
   if (q.type === 'text') return { ...q, acceptedAnswers: filled(q.acceptedAnswers).map((a) => a.trim()) };
   if (q.type === 'written') return { ...q, rubric: filled(q.rubric).map((a) => a.trim()) };
+  if (q.type === 'assistant' && q.assistant)
+    return { ...q, rubric: filled(q.rubric).map((a) => a.trim()), assistant: { ...q.assistant, process: filled(q.assistant.process).map((p) => p.trim()) } };
   if (q.type === 'email' && q.email) {
     const known = (list: string[]) => [...new Set(list.map((e) => e.trim()).filter(Boolean))];
     return {

@@ -168,7 +168,7 @@ export interface ResultBreakdown {
 // multi: tick every right option; text: a short typed answer; order: drag items into sequence; match: drag each answer onto its prompt.
 // sheet and database are worked in a spreadsheet or a database window, and marked on what the candidate leaves behind
 // written: an extended answer marked on its rubric; case: a case study to read, with sub-questions and no answer of its own
-export type QuestionType = 'sql' | 'code' | 'scenario' | 'choice' | 'schema' | 'multi' | 'text' | 'written' | 'order' | 'match' | 'case' | 'sheet' | 'database' | 'app' | 'email';
+export type QuestionType = 'sql' | 'code' | 'scenario' | 'choice' | 'schema' | 'multi' | 'text' | 'written' | 'order' | 'match' | 'case' | 'sheet' | 'database' | 'app' | 'email' | 'assistant';
 
 // A table of sample data: the starting tables of a database task
 export interface DataTable {
@@ -208,6 +208,18 @@ export interface EmailMessage {
   date: string;
   subject: string;
   body: string;
+}
+
+// An AI-assisted task: the candidate prompts an AI assistant through a piece of work and hands in the result. Marked on
+// the result and on how they used the assistant: the context they gave it, whether they checked what it said
+export interface AssistantTask {
+  // What the candidate is handed to work from (notes, figures, a draft), shown to them and known to the assistant
+  material: string;
+  // The assistant's own notes, never shown to the candidate: what it knows, and the weakness it has (a wrong assumption
+  // it makes unless it's given the right context or asked to check), so relying on it blindly shows
+  brief: string;
+  // What good use of the assistant looks like here, each an equal share of the process marks
+  process: string[];
 }
 
 // An email task: a thread lands in the candidate's inbox and they write the reply, choosing who it goes to and who is
@@ -262,6 +274,9 @@ export interface Question {
   appHtml?: string;
   // Email tasks: the thread, the address book and who the reply should go to (its marking points are in rubric)
   email?: EmailTask;
+  // AI-assisted tasks: the candidate works with an AI assistant to get the job done (the final work's marking points
+  // are in rubric)
+  assistant?: AssistantTask;
   // A question about a hands-on task (a spreadsheet, database or app question) or a case study: its id. It's asked
   // beside the task's window or the case's material, about what the candidate did, found or read there
   taskId?: string;

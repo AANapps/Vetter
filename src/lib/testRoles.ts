@@ -146,6 +146,7 @@ export const QUESTION_TYPE_LABELS: Record<Question['type'], string> = {
   database: 'SQL database',
   app: 'App simulation',
   email: 'Email reply',
+  assistant: 'AI-assisted task',
 };
 
 // "3 checks" for code tasks; answer-style questions say what's to pick or arrange
@@ -158,6 +159,8 @@ export function describeChecks(q: Question): string {
       return 'one answer';
     case 'written':
       return `${q.rubric?.length ?? 0} marking points`;
+    case 'assistant':
+      return `work with AI, ${(q.rubric?.length ?? 0) + (q.assistant?.process.length ?? 0)} marking points`;
     case 'email':
       return `a reply, ${q.rubric?.length ?? 0} marking points`;
     case 'case':

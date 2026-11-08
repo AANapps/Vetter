@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { meter } from './meter.js';
-import { APP_KINDS, APP_TASK_RULES, DEPTH_STYLE_RULES, EMAIL_RULES, QUALITY_RULES, SimulationCompany, simulationRules, TASK_RULES, WORKSPACE_RULES, MAX_PROMPT, PRICES, apiFailure, questionSchema, researchSoftware } from './generateTest.js';
+import { APP_KINDS, APP_TASK_RULES, DEPTH_STYLE_RULES, EMAIL_RULES, ASSISTANT_RULES, QUALITY_RULES, SimulationCompany, simulationRules, TASK_RULES, WORKSPACE_RULES, MAX_PROMPT, PRICES, apiFailure, questionSchema, researchSoftware } from './generateTest.js';
 
 /**
  * Building a test by talking to Vetter: the company says what it wants, Vetter writes a draft, and every message after
@@ -138,6 +138,9 @@ export function styleGuide(req: GuideRequest): string {
 - Styles: choice, multi, text, written, order, match for any job; email for replying to work email; case for a case
   study with sub-questions; sheet, database and app are hands-on tasks in a working window.
   Unless told otherwise, every test has 2 to 4 email tasks, some standing alone and some about a hands-on task.
+  assistant is an AI-assisted task: the candidate prompts an AI assistant through real work. Include one when the job
+  uses AI tools day to day or the company asks for it (unless told otherwise, most office, analyst, marketing,
+  developer and customer roles now do).
   Unless told otherwise, every test has hands-on tasks that match how the job is really done: sheet for Excel work
   (finance, ops, analysts), database for SQL work, app for any other software the job names (a CRM, helpdesk, design
   tool, accounting package...), app for physical and trade work (a mock-up of the device or equipment, e.g. a specific
@@ -154,7 +157,7 @@ Style rules (testCases is an empty list for choice, multi, text, order and match
 - order: 4 to 6 items listed in the RIGHT order (candidates see them shuffled).
 - match: 3 to 5 pairs; each left prompt with its right answer, all distinct.
 - code: JavaScript. starterCode defines "function solution(...)". solutionCode is a correct reference implementation. 3 to 5 testCases; input is a JSON array of the arguments, e.g. "[[3,1,2]]" calls solution([3,1,2]); expectedOutput is the JSON result.
-- sql: query only these tables: ${req.tables.map((t) => `${t.name}(${t.columns.join(', ')})`).join('; ')}. List the tables used in "tables". solutionCode is a correct SQLite query; starterCode is a comment and "SELECT ".${DEPTH_STYLE_RULES}${EMAIL_RULES}${WORKSPACE_RULES}${APP_KINDS}
+- sql: query only these tables: ${req.tables.map((t) => `${t.name}(${t.columns.join(', ')})`).join('; ')}. List the tables used in "tables". solutionCode is a correct SQLite query; starterCode is a comment and "SELECT ".${DEPTH_STYLE_RULES}${EMAIL_RULES}${ASSISTANT_RULES}${WORKSPACE_RULES}${APP_KINDS}
   In this conversation appHtml is NOT the page: a separate page builder writes each page from the spec you put in appHtml,
   then the page is tried out. appHtml holds the complete spec for the builder, in plain text, 250 to 600 words: which kind it is and what it copies or shows; the layout
   and screens (or the item drawn and its views); every piece of realistic data or detail it holds, spelled out (names,

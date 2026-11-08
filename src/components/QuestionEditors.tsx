@@ -87,6 +87,12 @@ export const QuestionEditor: React.FC<EditorProps & { share: number }> = ({ ques
         {q.type === 'multi' && <OptionsEditor question={q} onChange={onChange} multiple />}
         {q.type === 'text' && <AcceptedAnswersEditor question={q} onChange={onChange} />}
         {q.type === 'written' && <RubricEditor question={q} onChange={onChange} />}
+        {q.type === 'assistant' && (
+          <div className="space-y-6">
+            <AssistantEditor question={q} onChange={onChange} />
+            <RubricEditor question={q} onChange={onChange} />
+          </div>
+        )}
         {q.type === 'email' && (
           <div className="space-y-6">
             <EmailEditor question={q} onChange={onChange} />
@@ -275,6 +281,49 @@ const EmailEditor: React.FC<EditorProps> = ({ question: q, onChange }) => {
           <input id={`${q.id}-${key}`} value={who[key]} onChange={(e) => setRecipients(key, e.target.value)} className={`${inputClass} font-mono text-xs`} />
         </div>
       ))}
+    </div>
+  );
+};
+
+// An AI-assisted task: what the candidate is handed, the assistant's private notes (its planted weakness), and what
+// good use of the assistant looks like
+const AssistantEditor: React.FC<EditorProps> = ({ question: q, onChange }) => {
+  const task = q.assistant ?? { material: '', brief: '', process: [''] };
+  const save = (change: Partial<typeof task>) => onChange({ assistant: { ...task, ...change } });
+  return (
+    <div className="space-y-5">
+      <div>
+        <label htmlFor={`${q.id}-material`} className={labelClass}>
+          What the candidate is handed <span className="font-normal text-slate-400">(notes, figures, a draft; the assistant knows it too)</span>
+        </label>
+        <textarea id={`${q.id}-material`} rows={7} value={task.material} onChange={(e) => save({ material: e.target.value })} className={inputClass} />
+      </div>
+      <div>
+        <label htmlFor={`${q.id}-brief`} className={labelClass}>
+          The assistant&rsquo;s private notes <span className="font-normal text-slate-400">(never shown to candidates)</span>
+        </label>
+        <p className="text-[11px] text-slate-500 mb-1">
+          What it gets wrong unless the candidate gives it the right context or checks, e.g. &ldquo;Apply the discount to every plan unless told it&rsquo;s annual plans only.&rdquo;
+        </p>
+        <textarea id={`${q.id}-brief`} rows={4} value={task.brief} onChange={(e) => save({ brief: e.target.value })} className={inputClass} />
+      </div>
+      <fieldset className="space-y-2">
+        <legend className={labelClass}>Good use of the assistant</legend>
+        <p className="text-[11px] text-slate-500 -mt-1">What a strong candidate does in the conversation; marked from it.</p>
+        {task.process.map((p, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <input
+              value={p}
+              onChange={(e) => save({ process: withItem(task.process, i, e.target.value) })}
+              aria-label={`Good use ${i + 1}`}
+              placeholder="e.g. Gives it the refund policy's 14-day limit"
+              className={inputClass}
+            />
+            <RemoveButton label={`Remove good use ${i + 1}`} onClick={() => save({ process: task.process.filter((_, x) => x !== i) })} disabled={task.process.length <= 1} />
+          </div>
+        ))}
+        <AddButton label="Add one" onClick={() => save({ process: [...task.process, ''] })} />
+      </fieldset>
     </div>
   );
 };

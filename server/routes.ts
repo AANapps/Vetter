@@ -5,6 +5,7 @@ import { buildApp } from './buildApp.js';
 import { planTest } from './planTest.js';
 import { writeQuestions } from './writeQuestions.js';
 import { testAdvisor } from './testAdvisor.js';
+import { taskAssistant } from './taskAssistant.js';
 import { metered } from './meter.js';
 import { PACKS, balanceFor, billingOn, charge, confirmTopUp, hasEnough, penceFor, startTopUp, usageFor, whoIsAsking } from './credits.js';
 
@@ -105,6 +106,8 @@ export const API_ROUTES: Record<string, Handler> = {
   // The company home's chat recommends tests and plans; it writes nothing, so a quicker model is enough by default
   // (and it's free, so companies can ask before they buy)
   '/api/test-advisor': logged('test-advisor', (body, env) => testAdvisor(body, env.ANTHROPIC_API_KEY, env.ADVISOR_MODEL || 'claude-sonnet-5-5')),
+  // The assistant candidates work with in an AI-assisted task: Vetter's cost, like marking, on a quick model by default
+  '/api/task-assistant': logged('task-assistant', (body, env) => taskAssistant(body, env.ANTHROPIC_API_KEY, env.ASSISTANT_MODEL || 'claude-haiku-5-5')),
   // Marking a candidate's answers is Vetter's cost, not the company's credit
   '/api/grade-answers': logged('grade-answers', (body, env) => gradeAnswers(body, env.ANTHROPIC_API_KEY, env.GRADING_MODEL || testModel(env))),
 };

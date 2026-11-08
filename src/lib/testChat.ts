@@ -55,7 +55,7 @@ export interface ChatContext {
 
 // A question type the company allows: any, when it hasn't ticked one
 const allowedStyle = (ctx: ChatContext, type: unknown) => !ctx.styles.length || ctx.styles.includes(type as QuestionType);
-const QUESTION_TYPES: QuestionType[] = ['choice', 'multi', 'text', 'written', 'order', 'match', 'email', 'case', 'sheet', 'database', 'app', 'code', 'sql'];
+const QUESTION_TYPES: QuestionType[] = ['choice', 'multi', 'text', 'written', 'order', 'match', 'email', 'assistant', 'case', 'sheet', 'database', 'app', 'code', 'sql'];
 
 // The draft as the AI sees it: everything it needs to change a question, except app pages, which it can only keep whole
 export const draftForModel = (test: AssessmentTest) => ({
@@ -88,6 +88,7 @@ export const draftForModel = (test: AssessmentTest) => ({
     ...(q.items && { items: q.items }),
     ...(q.pairs && { pairs: q.pairs }),
     ...(q.type === 'email' && emailToRaw(q)),
+    ...(q.type === 'assistant' && { starterCode: q.assistant?.material ?? '', appHtml: q.assistant?.brief ?? '', acceptedAnswers: q.rubric ?? [], items: q.assistant?.process ?? [], solutionCode: q.solutionCode ?? '' }),
     ...((q.type === 'code' || q.type === 'sql') && { starterCode: q.starterCode, solutionCode: q.solutionCode }),
     ...(q.type === 'sql' && { tables: (q.contextData ?? '').match(/Table: (\w+)/g)?.map((t) => t.slice(7)) ?? [] }),
     ...(q.type !== 'app' && q.testCases.length > 0 && { testCases: q.testCases.map(({ description, input, expectedOutput }) => ({ description, input, expectedOutput })) }),

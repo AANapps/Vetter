@@ -120,6 +120,7 @@ export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose, on
     has((q) => isWorkspaceType(q.type)) &&
       'Spreadsheet, database and app tasks open a working copy of the tool. Do the work there and leave it: it’s marked as you leave it.',
     has((q) => q.type === 'case') && 'Case studies give you material to read, with questions about it beside it.',
+    has((q) => q.type === 'assistant') && 'AI-assisted tasks give you an AI assistant to work with. Use it as you would at work: it can be wrong, and how you use it is marked as well as what you hand in.',
     has((q) => q.type === 'email') && 'Email tasks put a thread in your inbox. Reply as you would at work: who you send it to and copy in is marked, as well as what you say.',
     has((q) => q.type === 'written') && 'Written answers are marked on the points a strong answer makes, not on length or polish.',
     has((q) => !isAnswerType(q.type) && !isWorkspaceType(q.type) && q.type !== 'case') &&

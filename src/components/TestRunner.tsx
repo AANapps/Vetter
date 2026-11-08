@@ -598,7 +598,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
                         {isDone(q) && <CheckCircle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-600" />}
                       </div>
                       <RichText text={q.prompt} className="text-sm leading-relaxed text-slate-800" />
-                      <AnswerInput question={q} answer={userCodes[q.id] ?? ''} onChange={(val) => setAnswer(q.id, val)} />
+                      <AnswerInput question={q} answer={userCodes[q.id] ?? ''} onChange={(val) => setAnswer(q.id, val)} company={test.scenario?.company ?? test.companyName} />
                     </section>
                   ))}
                 </div>
@@ -624,7 +624,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
                 )}
               </div>
               <div className="pt-2">
-                <AnswerInput key={currentQ.id} question={currentQ} answer={currentCode} onChange={handleCodeChange} />
+                <AnswerInput key={currentQ.id} question={currentQ} answer={currentCode} onChange={handleCodeChange} company={test.scenario?.company ?? test.companyName} />
               </div>
             </div>
           </div>

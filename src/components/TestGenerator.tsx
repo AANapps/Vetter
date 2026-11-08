@@ -50,7 +50,7 @@ const minutesOf = (test: AssessmentTest) => test.questions.reduce((sum, q) => su
 const countOf = (test: AssessmentTest) => test.questions.filter((q) => q.type !== 'case').length;
 
 // The question types a company can pick from, in the order shown: answer styles, then hands-on tasks
-const PICKABLE: QuestionType[] = ['choice', 'multi', 'text', 'written', 'order', 'match', 'email', 'case', 'sheet', 'database', 'app', 'code', 'sql'];
+const PICKABLE: QuestionType[] = ['choice', 'multi', 'text', 'written', 'order', 'match', 'email', 'assistant', 'case', 'sheet', 'database', 'app', 'code', 'sql'];
 const PICKABLE_STYLES = PICKABLE.map((type) => QUESTION_STYLES.find((s) => s.type === type)!).filter(Boolean);
 
 // Build a test by talking to Vetter: describe the job, get a draft, then ask for changes until it's right

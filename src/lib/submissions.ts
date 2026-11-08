@@ -1,7 +1,8 @@
 import { collection, doc, getDocs, query, setDoc, where } from 'firebase/firestore';
 import { AssessmentTest, Question } from '../types';
 import { db, firebaseEnabled } from './firebase';
-import { matchAnswer, emailAnswer, multiAnswer, orderAnswer, orderedQuestions } from './questionTypes';
+import { assistantText } from './aiMarking';
+import { assistantAnswer, matchAnswer, emailAnswer, multiAnswer, orderAnswer, orderedQuestions } from './questionTypes';
 import type { QuestionRunResult } from './grading';
 
 /**
@@ -67,6 +68,16 @@ function readable(q: Question, raw: string): { answer: string; correct?: string 
       return { answer: raw, correct: (q.acceptedAnswers ?? []).join('  ·  ') };
     case 'written':
       return { answer: raw, correct: (q.rubric ?? []).filter((p) => p.trim()).map((p) => `• ${p}`).join('\n') };
+    case 'assistant':
+      return {
+        answer: assistantAnswer(raw).final.trim() || assistantAnswer(raw).chat.length ? assistantText(raw) : '',
+        correct: [
+          'The work:',
+          ...(q.rubric ?? []).filter((p) => p.trim()).map((p) => `• ${p}`),
+          'Using the assistant:',
+          ...(q.assistant?.process ?? []).map((p) => `• ${p}`),
+        ].join('\n'),
+      };
     case 'email': {
       const r = emailAnswer(raw);
       const t = q.email;

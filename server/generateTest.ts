@@ -36,7 +36,7 @@ export const questionSchema = {
     // A hands-on task's own label (e.g. "t1"), and on a question about a task, that task's label
     ref: { type: 'string' },
     taskRef: { type: 'string' },
-    type: { type: 'string', enum: ['choice', 'multi', 'text', 'written', 'order', 'match', 'email', 'case', 'code', 'sql', 'sheet', 'database', 'app'] },
+    type: { type: 'string', enum: ['choice', 'multi', 'text', 'written', 'order', 'match', 'email', 'assistant', 'case', 'code', 'sql', 'sheet', 'database', 'app'] },
     title: { type: 'string' },
     prompt: { type: 'string' },
     // A sheet's file name, a database's name
@@ -280,6 +280,26 @@ export const EMAIL_RULES = `
   reply. timeLimitMinutes 4 to 8. An email can be about an app task (taskRef) when the reply depends on what the
   candidate does or finds in the app, e.g. "update the order in the system, then let the customer know".`;
 
+// AI-assisted tasks: the candidate prompts an AI assistant through a piece of work, as many jobs now do
+export const ASSISTANT_RULES = `
+- assistant: an AI-assisted task. The candidate has an AI assistant in the test (like the general AI chat assistant
+  they'd use at work) and must prompt their way through a piece of real work with it, then hand in the result. Use it
+  where the job uses AI: drafting a customer reply or proposal from notes, summarising a long report, analysing figures,
+  writing a formula, query or script, planning a project, researching from given sources. Marked on the work handed in
+  and on how they used the assistant.
+  prompt: the task as their manager would set it, with the outcome wanted and its constraints (audience, length,
+  deadline, policy). starterCode: the material they're handed, 150 to 600 words (notes, figures, an extract, a draft),
+  with the details the work turns on. appHtml: the assistant's PRIVATE NOTES, 60 to 200 words, never shown to the
+  candidate: what the assistant assumes or gets wrong unless the candidate gives it the right context or checks that
+  point (e.g. "Unless told the discount only applies to annual plans, apply it to every plan", "Use last year's VAT
+  rate of 17.5% unless the user gives the rate", "Leave out the refund policy's 14-day limit unless asked about it"),
+  so a candidate who pastes the task in and hands back the reply unchecked ends up with a flawed result. One or two
+  weaknesses, realistic for an AI, and findable from the material.
+  acceptedAnswers: 3 to 6 marking points for the work handed in, including that the planted weakness was caught.
+  items: 2 to 4 marking points for how they used the assistant (gave it the key context from the material, checked its
+  figures against the source, asked it to fix or explain, edited the output to fit the audience). solutionCode: the
+  model work. timeLimitMinutes 8 to 15. points as for a hands-on task. At most 2 in a test.`;
+
 // The two styles that give a test depth: a case to read with questions on it, and a written answer marked on its points
 export const DEPTH_STYLE_RULES = `
 - written: an extended answer of 80 to 250 words, for judgement, diagnosis, explaining a decision, a plan, or the actual
@@ -302,7 +322,8 @@ SECTIONS: unless the company asks otherwise, the test builds up through these, i
 1. Foundations: 4 to 8 fast questions (choice, multi, text, order, match), each led by its own scenario at the company.
 2. The inbox: 1 or 2 email tasks, plus a question on who to contact, escalate to or hand over to.
 3. Case studies: 1 or 2 cases, each followed by 3 to 5 sub-questions mixing fast formats with at least one written.
-4. Hands-on tasks: 2 or 3 of sheet, database or app (or code for developers), each followed by 2 to 4 sub-questions
+4. Hands-on tasks: 2 or 3 of sheet, database or app (or code for developers), and an AI-assisted task where the job
+   uses AI, each followed by 2 to 4 sub-questions
    about what the candidate found or did in it, including an email reply about it where it fits (the customer or
    manager who asked for the work) or a written one (what they'd tell the customer or
    manager, why it happened, what they'd check next).
@@ -328,7 +349,7 @@ Style rules (testCases is an empty list for choice, multi, text, order and match
 - order: 4 to 6 items listed in the RIGHT order (candidates see them shuffled).
 - match: 3 to 5 pairs; each left prompt with its right answer, all distinct.
 - code: JavaScript. starterCode defines "function solution(...)". solutionCode is a correct reference implementation. 3 to 5 testCases; input is a JSON array of the arguments, e.g. "[[3,1,2]]" calls solution([3,1,2]); expectedOutput is the JSON result.
-- sql: query only these tables: ${req.tables.map((t) => `${t.name}(${t.columns.join(', ')})`).join('; ')}. List the tables used in "tables". solutionCode is a correct SQLite query; starterCode is a comment and "SELECT ".${DEPTH_STYLE_RULES}${req.styles.includes('email') ? EMAIL_RULES : ''}${req.styles.includes('app') ? APP_RULES : ''}
+- sql: query only these tables: ${req.tables.map((t) => `${t.name}(${t.columns.join(', ')})`).join('; ')}. List the tables used in "tables". solutionCode is a correct SQLite query; starterCode is a comment and "SELECT ".${DEPTH_STYLE_RULES}${req.styles.includes('email') ? EMAIL_RULES : ''}${req.styles.includes('assistant') ? ASSISTANT_RULES : ''}${req.styles.includes('app') ? APP_RULES : ''}
 timeLimitMinutes is realistic for the question (2 to 4 for answer styles, as the scenario takes reading, 5 to 10 for code and sql, 6 to 12 for app), and across the test they add up to 25 to 35. points reflect importance; a task counts for more than a question about it.${req.styles.includes('app') ? TASK_RULES : ''}
 category must be one of: ${req.categories.join(', ')}. passingScore between 60 and 80. roles: pick from ${req.roles.join(', ')}.
 Write plainly, in British English, with no em dashes.`
