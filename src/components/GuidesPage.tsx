@@ -2,6 +2,7 @@ import React from 'react';
 import { ArrowRight, BookOpen, Clock, Lightbulb } from 'lucide-react';
 import { GUIDES, GUIDE_AUDIENCES, Guide, guideBySlug } from '../data/guides';
 import { BackButton } from './BackButton';
+import { backOr } from '../lib/back';
 
 interface GuidesPageProps {
   // The guide open, or null for the list
@@ -47,7 +48,7 @@ export const GuidesPage: React.FC<GuidesPageProps> = ({ slug, onOpen }) => {
   const next = (guide.next ?? []).map(guideBySlug).filter((g): g is Guide => !!g);
   return (
     <article className="max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
-      <BackButton onClick={() => onOpen(null)}>All guides</BackButton>
+      <BackButton onClick={() => backOr(() => onOpen(null))}>Back</BackButton>
       <p className="mt-6 text-xs font-semibold uppercase tracking-wider text-indigo-600">
         {GUIDE_AUDIENCES.find((a) => a.id === guide.audience)?.label} · {guide.minutes} min read
       </p>

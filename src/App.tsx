@@ -26,6 +26,7 @@ import { FollowSuggestions } from './components/DiscoverSidebar';
 import { TestField } from './lib/testRoles';
 import { GlobalSearch } from './components/GlobalSearch';
 import { PersonProfileModal } from './components/PersonProfileModal';
+import { backOr, pushPage, replacePage } from './lib/back';
 import { CandidateProfilePage } from './components/CandidateProfilePage';
 import { BrowseCandidates } from './components/BrowseCandidates';
 import { BusinessJobs } from './components/BusinessJobs';
@@ -353,7 +354,7 @@ export default function App() {
     // An address for the other side's page (e.g. back to Home after signing in as a company): your side's first page
     if (!SIDE_TABS[sideOf(role)].includes(tab)) {
       const home = SIDE_TABS[sideOf(role)][0];
-      history.replaceState(null, '', TAB_PATHS[home]);
+      replacePage(TAB_PATHS[home]);
       setCurrentTab(home);
       return;
     }
@@ -363,7 +364,7 @@ export default function App() {
   // replace: a redirect rather than a step, so back doesn't land on it
   const navigateTo = (url: string, replace = false) => {
     const here = window.location.pathname + window.location.search + window.location.hash;
-    if (url !== here) history[replace ? 'replaceState' : 'pushState'](null, '', url);
+    if (url !== here) (replace ? replacePage : pushPage)(url);
     syncPagesFromUrl();
   };
   // A new page starts at the top, however it was reached: a link, a tab, back or forward
@@ -395,7 +396,7 @@ export default function App() {
             : currentTab === 'ranked'
             ? 'Leaderboards | Vetter'
             : SITE_TITLE;
-    if (job && /^#\/(jobs|exams)\//.test(window.location.hash)) history.replaceState(null, '', jobPath(job));
+    if (job && /^#\/(jobs|exams)\//.test(window.location.hash)) replacePage(jobPath(job));
   }, [jobPageId, coursePageId, guideSlug, currentTab, jobs]);
 
   // Following a company's link to a test ties the candidate's results on it back to that company
@@ -419,7 +420,7 @@ export default function App() {
   // Companies opening a job's link land on that job's results, at its own address on their side
   useEffect(() => {
     if (!jobPageId || activeRole === 'candidate') return;
-    history.replaceState(null, '', `/business/jobs/${encodeURIComponent(jobPageId)}/`);
+    replacePage(`/business/jobs/${encodeURIComponent(jobPageId)}/`);
     syncPagesFromUrl();
   }, [jobPageId, activeRole]);
   // Choosing a job's tests: the job (or every job, when sending a test from its page) and any tests to add
@@ -664,19 +665,12 @@ export default function App() {
 
   // One of a company's jobs, or the list of them
   // Companies open a candidate's profile as a page of its own; candidates see each other's in a pop-up
-  const cameFromApp = useRef(false);
   const openPerson = (personId: string) => {
     if (roleRef.current === 'candidate') return setProfilePersonId(personId);
-    cameFromApp.current = true;
     navigateTo(`/business/candidates/${encodeURIComponent(personId)}/`);
   };
   // Back to wherever they opened it from, or to Candidates from a shared link
-  const closeCandidatePage = () => {
-    if (cameFromApp.current) {
-      cameFromApp.current = false;
-      history.back();
-    } else navigateTo(TAB_PATHS['business-candidates']);
-  };
+  const closeCandidatePage = () => backOr(() => navigateTo(TAB_PATHS['business-candidates']));
 
   const openBusinessJob = (jobId: string | null) => {
     navigateTo(jobId ? `/business/jobs/${encodeURIComponent(jobId)}/` : TAB_PATHS['business-jobs']);
@@ -1178,7 +1172,7 @@ export default function App() {
               onOpenJob={openJobPage}
               onOpenCourse={openCoursePage}
               onTrainTeam={trainTeam}
-              onBack={() => goToTab(currentTab)}
+              onBack={() => backOr(() => goToTab(currentTab))}
             />
           )}
           {!testPageTest && (currentTab === 'learn' || currentTab === 'upskill') && !coursePage && (
@@ -1223,7 +1217,7 @@ export default function App() {
               onStartTest={startTest}
               onOpenJob={activeRole === 'candidate' ? openJobPage : undefined}
               onOpenTest={openTestPage}
-              onBack={() => goToTab(activeRole === 'candidate' ? 'tests' : 'business-tests')}
+              onBack={() => backOr(() => goToTab(activeRole === 'candidate' ? 'tests' : 'business-tests'))}
             />
           )}
 

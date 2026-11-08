@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { backOr } from '../lib/back';
 import { Pic } from './Pic';
 import { User, AssessmentTest, JobPosting, CandidateJobMatch, Business, TestRole, TEST_DIFFICULTIES, JobProfile, isPublic, levelName } from '../types';
 import { activeProfileOf, asProfile, profilesOf } from '../lib/jobProfiles';
@@ -1080,7 +1081,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
         </div>
       )}
 
-      {jobPage && <JobPage {...jobDetailsProps(jobPage)} onBack={() => onNavigate('jobs')} />}
+      {jobPage && <JobPage {...jobDetailsProps(jobPage)} onBack={() => backOr(() => onNavigate('jobs'))} />}
 
       {/* Full job listing pop-up */}
       {openJob && (

@@ -534,7 +534,7 @@ export const JobDetailsModal: React.FC<JobDetailsProps & { onClose: () => void; 
 // The job's own page, linkable at /jobs/<slug>/
 export const JobPage: React.FC<JobDetailsProps & { onBack: () => void }> = ({ onBack, ...props }) => (
   <div className="space-y-6">
-    <BackButton onClick={onBack}>Job Board</BackButton>
+    <BackButton onClick={onBack}>Back</BackButton>
     <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
       <div className="p-6 border-b border-slate-200">
         <JobHeader job={props.job} match={props.match} titleAs="h1" isApplied={props.isApplied} onApply={props.onApply} />

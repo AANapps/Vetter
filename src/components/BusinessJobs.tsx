@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Pic } from './Pic';
 import { BackButton } from './BackButton';
+import { backOr } from '../lib/back';
 import { AssessmentTest, Business, JobPosting, TrialResult, User } from '../types';
 import { JobDetailsModal } from './JobDetails';
 import { TIERS, tiersOf } from '../lib/tiers';
@@ -457,7 +458,7 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-6">
-      <BackButton onClick={() => onSelect(null)}>All jobs</BackButton>
+      <BackButton onClick={() => backOr(() => onSelect(null))}>Back</BackButton>
 
       <div className="space-y-2">
         {!business && <div className="text-xs font-semibold text-indigo-700">{job.companyName}</div>}

@@ -75,7 +75,7 @@ export const TestPage: React.FC<TestPageProps> = ({
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-8 space-y-6">
-      <BackButton onClick={onBack}>All tests</BackButton>
+      <BackButton onClick={onBack}>Back</BackButton>
 
       {referredByCompany && (
         <p className="px-4 py-3 bg-indigo-50 border border-indigo-200 rounded-xl text-xs text-indigo-900">

@@ -71,7 +71,7 @@ export const CoursePage: React.FC<CoursePageProps> = ({
       <section className="bg-slate-900 text-white">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 pb-12">
           <BackButton onClick={onBack} tone="dark">
-            All courses
+            Back
           </BackButton>
           <div className="mt-6 grid gap-8 lg:grid-cols-[1fr_340px] items-start">
             <div>
