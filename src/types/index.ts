@@ -557,8 +557,14 @@ export type ArchiveReason = 'Not a fit' | 'Below pass mark' | 'Suspected cheatin
 
 // What the company has recorded about one candidate for one job; anyone without one is at their starting stage
 // A test still being written: kept only for its company (and the Vetter team) until it's saved as a test
+// What the AI writes: a skills test of separate questions, or a job simulation (a working day at the company, with its
+// people, emails and tools)
+export type TestKind = 'test' | 'simulation';
+
 export interface TestDraft {
   id: string;
+  // A skills test or a job simulation, as the company chose
+  kind?: TestKind;
   // The company it's for; '' for the Vetter library
   businessId: string;
   // The job it was being written for, if any

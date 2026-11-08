@@ -98,9 +98,13 @@ to that case or task's ref, and every other item has taskRef "". brief: 2 to 4 s
 detail or trap it turns on, what a strong answer shows, and which competency it serves. Vary the situations, so no two
 items test the same thing. points and minutes as the rules below say (minutes is timeLimitMinutes; a case is 0 points).
 blueprint: one line per competency, written "skill | weight | why it matters | how the test proves it".
-company, setting and people: the job simulation's company, setting and cast, as the rules below say. Every brief names
-the people involved, from that cast, so the writers keep the test one connected working day. An email item's brief says
-who it's from, what it turns on, and who the reply should go to, be copied to, and must not go to.
+${
+    req.kind === 'simulation'
+      ? `company, setting and people: the job simulation's company, setting and cast, as the rules below say. Every brief names
+the people involved, from that cast, so the writers keep the test one connected working day.`
+      : `company, setting and people: "", "" and [] (this is a skills test).`
+  } An email item's brief says who it's from, what it turns on, and who the reply should go to, be copied to, and must
+not go to.
 difficulty is one of: ${req.levels.join(', ')}; ${levelPick(req)}.
 
 ${stylesNote(req)}${styleGuide(req)}

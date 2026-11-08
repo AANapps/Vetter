@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { PixelDot } from './PixelDot';
+import { TestKindPicker } from './TestKindPicker';
 import { ArrowRight, ArrowUp, Check, ChevronDown, Eye, Lock, Pencil, Plus, Send, Wand2, X } from 'lucide-react';
-import { AssessmentTest, Business, JobPosting, User, levelName } from '../types';
+import { AssessmentTest, Business, JobPosting, TestKind, User, levelName } from '../types';
 import { Pic } from './Pic';
 import { AdvisorTurn, CUSTOM_KIND_LABELS, CustomIdea, SuggestedPerson, askAdvisor } from '../lib/testAdvisor';
 import { Credit, loadCredit } from '../lib/aiRequest';
@@ -27,7 +28,7 @@ interface BusinessHomeProps {
   // Builds an AI test straight away; the picked tests (and the reply's other ideas) wait in the test plan for it
   onBuildIdea: (idea: CustomIdea, picked: AssessmentTest[], others: CustomIdea[]) => void;
   onEditCopy: (test: AssessmentTest) => void;
-  onBuildWithAI: (brief: string) => void;
+  onBuildWithAI: (brief: string, kind?: TestKind) => void;
   onCreateOwn: () => void;
   onSeePlans: () => void;
   onOpenTest: (testId: string) => void;
@@ -343,7 +344,7 @@ const AdvisorReply: React.FC<{
   onTogglePick: (testId: string) => void;
   onPickAll: (testIds: string[]) => void;
   onEditCopy: (test: AssessmentTest) => void;
-  onBuildWithAI: (brief: string) => void;
+  onBuildWithAI: (brief: string, kind?: TestKind) => void;
   onSeePlans: () => void;
   onOpenTest: (testId: string) => void;
   candidates: User[];
@@ -374,20 +375,15 @@ const AdvisorReply: React.FC<{
         </div>
       )}
 
-      {/* They want a test: the custom one Vetter's AI would write, ready to start */}
+      {/* They want something built: what Vetter's AI would write from, and the company picks a skills test or a job
+          simulation of it, as two big buttons */}
       {turn.brief && (turn.intent === 'test' || turn.intent === 'both') && (
-        <div className="p-4 bg-white border border-slate-200 rounded-xl flex flex-col sm:flex-row sm:items-center gap-3">
-          <div className="min-w-0 flex-1">
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Your test</div>
+        <div className="p-4 bg-white border border-slate-200 rounded-xl space-y-3">
+          <div>
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">What Vetter would build</div>
             <p className="mt-1 text-sm text-slate-700 leading-relaxed">{turn.brief}</p>
           </div>
-          <button
-            onClick={() => (aiAllowed ? onBuildWithAI(turn.brief!) : onSeePlans())}
-            className="create-border shrink-0 self-start sm:self-center px-4 py-2 text-sm font-semibold text-indigo-700 hover:text-indigo-900 rounded-lg inline-flex items-center gap-1.5"
-          >
-            {!aiAllowed && <Lock className="w-3.5 h-3.5" />}
-            Create with AI
-          </button>
+          <TestKindPicker compact locked={!aiAllowed} onPick={(kind) => (aiAllowed ? onBuildWithAI(turn.brief!, kind) : onSeePlans())} />
         </div>
       )}
 

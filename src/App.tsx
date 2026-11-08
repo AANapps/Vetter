@@ -4,7 +4,7 @@ import { AnswerRecord, saveSubmission } from './lib/submissions';
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { PixelDot } from './components/PixelDot';
 import { CurrencyPicker } from './components/CurrencyPicker';
-import { User, UserRole, AssessmentTest, JobPosting, Business, SocialState, AppNotification, JobInvitation, Lead, TestDraft, TrialResult, ResultBreakdown, hasAiTests, madeWithAI, isPublic } from './types';
+import { User, UserRole, AssessmentTest, JobPosting, Business, SocialState, AppNotification, JobInvitation, Lead, TestDraft, TestKind, TrialResult, ResultBreakdown, hasAiTests, madeWithAI, isPublic } from './types';
 import { INITIAL_RECRUITER, INITIAL_BUSINESSES, STANDARD_ASSESSMENTS } from './data/mockData';
 import { loadData, saveData, clearData, createSeedData } from './lib/store';
 import { getPercentile } from './lib/leaderboard';
@@ -438,7 +438,7 @@ export default function App() {
   // seed: a first message ready to send, e.g. to rebuild a library test in depth
   // autoSend: the seed is sent as the chat opens, so building starts at once
   // editTestId: a saved test reopened in the chat, to change it by asking
-  const [generator, setGenerator] = useState<{ jobId?: string; resume?: TestDraft; seed?: string; autoSend?: boolean; editTestId?: string } | null>(null);
+  const [generator, setGenerator] = useState<{ jobId?: string; resume?: TestDraft; seed?: string; autoSend?: boolean; editTestId?: string; kind?: TestKind } | null>(null);
   // What a company took from the home chat (ready-made picks, AI tests built or started, the reply's other AI ideas)
   // and the brief of the AI test being built for it. A test saved while one is being built is marked built on the
   // plan; moving from the AI chat to the builder keeps it. The plan then asks whether to create a job for them all
@@ -488,7 +488,7 @@ export default function App() {
     openGenerator(pending ? { jobId: pending.jobId ?? jobId, resume: pending } : { jobId, editTestId: testId });
   };
 
-  const openGenerator = (g: { jobId?: string; resume?: TestDraft; seed?: string; autoSend?: boolean; editTestId?: string }) => (aiAllowed ? setGenerator(g) : setPlansOpen(true));
+  const openGenerator = (g: { jobId?: string; resume?: TestDraft; seed?: string; autoSend?: boolean; editTestId?: string; kind?: TestKind }) => (aiAllowed ? setGenerator(g) : setPlansOpen(true));
   // Builds one of the home chat's AI ideas straight away; the test plan opens with it once it's saved (or closed)
   const startPlanBuild = (idea: CustomIdea) => {
     setPlanBuilding(idea.brief);
@@ -1400,7 +1400,7 @@ export default function App() {
                 startPlanBuild(idea);
               }}
               onEditCopy={(test) => setDraftBuilder({ draft: test, isCopy: true, alsoAdd: [] })}
-              onBuildWithAI={(brief) => openGenerator(brief ? { seed: brief } : {})}
+              onBuildWithAI={(brief, kind) => openGenerator({ ...(brief && { seed: brief }), ...(kind && { kind }) })}
               onCreateOwn={() => setDraftBuilder({ alsoAdd: [] })}
               onSeePlans={() => setPlansOpen(true)}
               onOpenTest={openTestPage}
@@ -1593,6 +1593,7 @@ export default function App() {
           }}
           seed={generator.seed}
           autoSend={generator.autoSend}
+          kind={generator.kind}
           onSaveDraft={saveTestDraft}
           onSaveTest={(test) => {
             const id = saveNewTest(test);

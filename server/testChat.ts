@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { meter } from './meter.js';
-import { APP_KINDS, APP_TASK_RULES, DEPTH_STYLE_RULES, EMAIL_RULES, ASSISTANT_RULES, QUALITY_RULES, SimulationCompany, simulationRules, TASK_RULES, WORKSPACE_RULES, MAX_PROMPT, PRICES, apiFailure, questionSchema, researchSoftware } from './generateTest.js';
+import { APP_KINDS, APP_TASK_RULES, DEPTH_STYLE_RULES, EMAIL_RULES, ASSISTANT_RULES, QUALITY_RULES, SKILLS_TEST_RULES, SimulationCompany, simulationRules, TASK_RULES, WORKSPACE_RULES, MAX_PROMPT, PRICES, apiFailure, questionSchema, researchSoftware } from './generateTest.js';
 
 /**
  * Building a test by talking to Vetter: the company says what it wants, Vetter writes a draft, and every message after
@@ -15,6 +15,8 @@ export interface ChatRequest {
   // The job the test is for, written out, when it's built from one
   job?: string;
   jobTitle?: string;
+  // A skills test or a job simulation, as the company picked
+  kind?: 'test' | 'simulation';
   // The company hiring, where the job simulation is set
   company?: SimulationCompany;
   // The draft as it stands, with app pages left out (see draftForModel in src/lib/testChat.ts)
@@ -89,6 +91,7 @@ export const responseSchema = {
 // How every question is written and how a test is put together: shared by the chat, the planner (server/planTest.ts)
 // and the section writer (server/writeQuestions.ts)
 export interface GuideRequest {
+  kind?: 'test' | 'simulation';
   company?: SimulationCompany;
   jobTitle?: string;
   styles?: string[];
@@ -133,14 +136,20 @@ export const stylesNote = (req: Picks) =>
     .join('');
 
 export function styleGuide(req: GuideRequest): string {
-  return `${simulationRules(req.company, req.jobTitle)}
+  const sim = req.kind === 'simulation';
+  return `${sim ? simulationRules(req.company, req.jobTitle) : SKILLS_TEST_RULES}
 - Every question must be answerable from its prompt alone, and check what the job really needs, not trivia.${QUALITY_RULES}
 - Styles: choice, multi, text, written, order, match for any job; email for replying to work email; case for a case
   study with sub-questions; sheet, database and app are hands-on tasks in a working window.
-  Unless told otherwise, every test has 2 to 4 email tasks, some standing alone and some about a hands-on task.
+${
+    sim
+      ? `  Unless told otherwise, the simulation has 2 to 4 email tasks, some standing alone and some about a hands-on task.
   assistant is an AI-assisted task: the candidate prompts an AI assistant through real work. Include one when the job
   uses AI tools day to day or the company asks for it (unless told otherwise, most office, analyst, marketing,
-  developer and customer roles now do).
+  developer and customer roles now do).`
+      : `  email and assistant (an AI-assisted task) are there if the company asks for them or the skill is communication or
+  working with AI; otherwise a skills test sticks to the other styles.`
+  }
   Unless told otherwise, every test has hands-on tasks that match how the job is really done: sheet for Excel work
   (finance, ops, analysts), database for SQL work, app for any other software the job names (a CRM, helpdesk, design
   tool, accounting package...), app for physical and trade work (a mock-up of the device or equipment, e.g. a specific
@@ -181,7 +190,7 @@ HOW TO TALK
 - If asked something you can't do (a style not listed below, uploading files), say so and offer the nearest thing.
 
 ${stylesNote(req)}THE DRAFT
-- The draft's scenario is the job simulation's setting and its people: keep to them, and use those people in anything new.
+- ${req.kind === 'simulation' ? "The draft's scenario is the job simulation's setting and its people: keep to them, and use those people in anything new." : 'This is a skills test, not a job simulation: keep it one, unless the company asks for a simulation (then send lookUp "REPLAN").'}
 - Include "test" whenever the draft is new or changes, with every question in order. skillsTested IS the blueprint: one line per competency, written "skill | weight | why it matters | how the test proves it". For a question that stays exactly as it is, set keep to its id and type to its type, and leave every other field empty ("", [], 0, -1). Leave "test" out when nothing changes (a question, a chat).
 - A sheet or database question can only be kept whole or written again from scratch.
 - APP CHANGES: to change an app page already in the draft (a new screen, a button that should do something, different

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AlertCircle, ArrowUp, Check, ChevronDown, ChevronUp, Library, X } from 'lucide-react';
-import { AssessmentTest, Business, JobPosting, QuestionType, TEST_DIFFICULTIES, TestDifficulty, TestDraft, levelName } from '../types';
+import { AssessmentTest, Business, JobPosting, QuestionType, TEST_DIFFICULTIES, TestDifficulty, TestDraft, TestKind, levelName } from '../types';
+import { TestKindPicker } from './TestKindPicker';
 import { QUESTION_STYLES } from '../lib/questionTypes';
 import { DraftPreview, Dropdown, draftProblems, finaliseDraft } from './DraftPreview';
 import { jobBrief } from '../lib/testGeneration';
@@ -36,6 +37,8 @@ interface TestGeneratorProps {
   seed?: string;
   // Sends the first message straight away, so Vetter starts building as the chat opens
   autoSend?: boolean;
+  // A skills test or a job simulation, when the company has already said; otherwise it's asked first
+  kind?: TestKind;
   onClose: () => void;
 }
 
@@ -54,9 +57,19 @@ const PICKABLE: QuestionType[] = ['choice', 'multi', 'text', 'written', 'order',
 const PICKABLE_STYLES = PICKABLE.map((type) => QUESTION_STYLES.find((s) => s.type === type)!).filter(Boolean);
 
 // Build a test by talking to Vetter: describe the job, get a draft, then ask for changes until it's right
-export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tests, onOpenTest, onSaveTest, onAddToJob, editing, onUpdateTest, onEditDraft, onSaveDraft, resume, seed, autoSend, onClose }) => {
+export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tests, onOpenTest, onSaveTest, onAddToJob, editing, onUpdateTest, onEditDraft, onSaveDraft, resume, seed, autoSend, kind: kindAsked, onClose }) => {
   // The saved test being changed, opened from its job or from a draft of changes to it
   const [original] = useState(() => editing ?? (resume?.editsTestId ? tests.find((t) => t.id === resume.editsTestId) : undefined));
+  // A skills test or a job simulation: picked before anything is written; a test already made is whichever it is
+  const [kind, setKind] = useState<TestKind | undefined>(
+    () => kindAsked ?? resume?.kind ?? (original ? (original.scenario ? 'simulation' : 'test') : resume ? (resume.test.scenario ? 'simulation' : 'test') : undefined)
+  );
+  const greetingFor = (k?: TestKind) =>
+    k === 'simulation'
+      ? job
+        ? `I've read the ${job.title} job description. I'll set the simulation at ${business?.name ?? 'your company'}: a working day with colleagues, emails to handle and the tools they'd use. Tell me what matters most, or ask me to write a first draft.`
+        : `Tell me about the role: what they do day to day, who they work with, the tools they use and the level. I'll write a working day at ${business?.name ?? 'your company'} for them to do, and we'll refine it together.`
+      : null;
   const greeting = original
     ? `This is "${original.title}" as it stands. Tell me what to change: harder or easier, shorter, a different tool, rewrite question 3, add a case study. Keep asking until it's right, then save the changes.`
     : job
@@ -74,7 +87,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
           research: resume.research,
           researchedFor: resume.researchedFor,
         }
-      : { messages: [{ role: 'assistant', text: greeting }], existing: [], ...(original && { draft: original }) }
+      : { messages: [{ role: 'assistant', text: greetingFor(kind) ?? greeting }], existing: [], ...(original && { draft: original }) }
   );
   // What's been saved, to tell whether closing loses anything
   const [savedChat] = useState(() => chat);
@@ -139,7 +152,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
   const draft = chat.draft;
   const started = chat.messages.some((m) => m.role === 'user');
   // Changing a saved test doesn't pick library tests to go with it
-  const ctx = { job: job ? jobBrief(job) : undefined, jobTitle: job?.title, level: difficulty, levels: pickedLevels, questionCount, timeLimit, wantExisting: !!job && !original, tests, business, styles, viewing: focus };
+  const ctx = { kind, job: job ? jobBrief(job) : undefined, jobTitle: job?.title, level: difficulty, levels: pickedLevels, questionCount, timeLimit, wantExisting: !!job && !original, tests, business, styles, viewing: focus };
   const toggleStyle = (type: QuestionType) => setStyles((prev) => (prev.includes(type) ? prev.filter((t) => t !== type) : PICKABLE.filter((t) => t === type || prev.includes(t))));
   const toggle = <T,>(set: React.Dispatch<React.SetStateAction<T[]>>, value: T) => set((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]));
   // The types Vetter may use: any, when none are ticked
@@ -175,6 +188,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
     existing: chat.existing.map((s) => ({ testId: s.test.id, reason: s.reason })),
     ...(chat.research !== undefined && { research: chat.research, researchedFor: chat.researchedFor }),
     styles,
+    ...(kind && { kind }),
     ...(timeLimit !== undefined && { timeLimit }),
     ...(questionCount && { questionCount }),
     difficulties: pickedLevels,
@@ -244,11 +258,35 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
   // Once only, even if React mounts the chat twice
   const autoSent = useRef(false);
   useEffect(() => {
-    if (!autoSend || !seed || resume || autoSent.current) return;
+    if (!autoSend || !seed || resume || !kind || autoSent.current) return;
     autoSent.current = true;
     send(seed);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [kind]);
+  const pickKind = (k: TestKind) => {
+    setKind(k);
+    // The opening message speaks to what's being built
+    setChat((c) => (c.messages.some((m) => m.role === 'user') ? c : { ...c, messages: [{ role: 'assistant', text: greetingFor(k) ?? greeting }] }));
+  };
+
+  // Nothing is written until the company says which it wants
+  if (!kind)
+    return (
+      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/60">
+        <div role="dialog" aria-modal="true" aria-label="What would you like to build?" className="bg-white sm:rounded-2xl rounded-t-2xl max-w-3xl w-full shadow-2xl p-6 sm:p-8 flex flex-col items-center gap-6">
+          <div className="w-full flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-bold text-slate-900">What would you like to build?</h2>
+              <p className="text-sm text-slate-500">{job ? `For ${job.title}` : business ? `For ${business.name}'s jobs` : 'For the Vetter test library'}. You can refine either one with Vetter afterwards.</p>
+            </div>
+            <button onClick={onClose} aria-label="Close" className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <TestKindPicker onPick={pickKind} />
+        </div>
+      </div>
+    );
 
   const suggestions = original && !started
     ? ['Make it harder', 'Make it shorter', 'Rewrite the weakest question']
@@ -292,7 +330,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
         <div className="px-5 pt-4 pb-3 border-b border-slate-200 flex items-start justify-between gap-4">
           <div className="min-w-0">
             <h2 className="text-xl font-bold text-slate-900">
-              {original ? `Edit ${original.title}` : 'Build a test with Vetter'}
+              {original ? `Edit ${original.title}` : kind === 'simulation' ? 'Build a job simulation with Vetter' : 'Build a skills test with Vetter'}
             </h2>
             <p className="text-sm text-slate-500 truncate">{job ? `${job.title} · ${job.companyName}` : business ? `For ${business.name}'s jobs` : 'For the Vetter test library'}</p>
           </div>

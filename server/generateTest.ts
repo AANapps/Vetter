@@ -229,7 +229,13 @@ bluff or look up the answer quickly.
 - Scale to the level: Beginner and Junior still apply what they know to a situation; Professional and Senior weigh
   competing priorities, spot what's missing and handle exceptions.`;
 
-// Every AI-written test is a job simulation: the candidate is working at the hiring company, in the role, from start to end
+// A skills test: separate questions, each standing on its own scenario, with no company setting or cast
+export const SKILLS_TEST_RULES = `
+SKILLS TEST: this is a skills test, not a job simulation. Each question, case and task stands on its own scenario
+(different workplaces and people are fine), testing the skills the job needs one by one. There is no setting or cast:
+leave company, setting and people empty ("", "" and []).`;
+
+// A job simulation: the candidate is working at the hiring company, in the role, from start to end
 export interface SimulationCompany {
   name?: string;
   industry?: string;
@@ -320,7 +326,8 @@ test proves it, and its share of the marks (adding up to 100). Every question se
 where the marks go.
 SECTIONS: unless the company asks otherwise, the test builds up through these, in order:
 1. Foundations: 4 to 8 fast questions (choice, multi, text, order, match), each led by its own scenario at the company.
-2. The inbox: 1 or 2 email tasks, plus a question on who to contact, escalate to or hand over to.
+2. In a job simulation, the inbox: 1 or 2 email tasks, plus a question on who to contact, escalate to or hand over to.
+   (A skills test leaves this section out.)
 3. Case studies: 1 or 2 cases, each followed by 3 to 5 sub-questions mixing fast formats with at least one written.
 4. Hands-on tasks: 2 or 3 of sheet, database or app (or code for developers), and an AI-assisted task where the job
    uses AI, each followed by 2 to 4 sub-questions

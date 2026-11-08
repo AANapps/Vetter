@@ -1,5 +1,5 @@
 import { contactText, emailToRaw, parseContact } from './emailTasks';
-import { AssessmentTest, BlueprintItem, Business, Question, QuestionType, SkillCategory, TEST_DIFFICULTIES, TestDifficulty, TestRole } from '../types';
+import { AssessmentTest, BlueprintItem, Business, Question, QuestionType, TestKind, SkillCategory, TEST_DIFFICULTIES, TestDifficulty, TestRole } from '../types';
 import { MOCK_DATABASE } from './sqlEngine';
 import { probeApp } from './appSimulation';
 import { isGroupType, orderedQuestions } from './questionTypes';
@@ -32,6 +32,8 @@ export interface ChatState {
 }
 
 export interface ChatContext {
+  // A skills test or a job simulation, as the company picked
+  kind?: TestKind;
   job?: string;
   // The job's title, to name a test put together without the AI
   jobTitle?: string;
@@ -335,6 +337,7 @@ export async function sendChat(state: ChatState, text: string, ctx: ChatContext,
     // The company hiring: the simulation is set there, so the candidate works for it from the first question
     company: ctx.business && { name: ctx.business.name, industry: ctx.business.industry, description: ctx.business.description, website: ctx.business.websiteUrl, headquarters: ctx.business.headquarters },
     jobTitle: ctx.jobTitle,
+    kind: ctx.kind ?? 'test',
     draft: state.draft && draftForModel(state.draft),
     existing: state.existing.map((s) => s.test.id),
     wantExisting: ctx.wantExisting,
