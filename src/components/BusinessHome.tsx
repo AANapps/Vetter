@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { PixelDot } from './PixelDot';
 import { ArrowRight, ArrowUp, Check, ChevronDown, Eye, Lock, Pencil, Plus, Send, Wand2, X } from 'lucide-react';
 import { AssessmentTest, Business, JobPosting, User, levelName } from '../types';
@@ -115,8 +116,9 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
     // A chat like ChatGPT's or Claude's: exactly the window under the top bar, so the page itself never scrolls; only
     // the conversation does, and the message box stays at the bottom
     <div className="relative isolate h-[calc(100dvh-3.5rem-1px)] lg:h-[100dvh] overflow-hidden">
-      {topUpOpen && credit && <CreditsDialog credit={credit} onUpdated={setCredit} onClose={() => setTopUpOpen(false)} />}
-      {viewing && renderProfile(viewing, () => setViewing(null))}
+      {/* Pop-ups go on the page body: the chat is its own layer (isolate), which would leave them under the side menu */}
+      {topUpOpen && credit && createPortal(<CreditsDialog credit={credit} onUpdated={setCredit} onClose={() => setTopUpOpen(false)} />, document.body)}
+      {viewing && createPortal(renderProfile(viewing, () => setViewing(null)), document.body)}
       {/* Faint colour drifting behind the glass */}
       <div className="ai-aurora" aria-hidden="true">
         <span />
