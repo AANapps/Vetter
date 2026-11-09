@@ -57,7 +57,6 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
   ownTestCount,
   draftCount,
   aiAllowed,
-  planName,
   turns,
   onTurns,
   onContinue,
@@ -126,7 +125,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
         <span />
         <span />
       </div>
-    <div className="h-full max-w-6xl mx-auto px-4 sm:px-6 grid grid-cols-1 grid-rows-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_17rem] gap-8">
+    <div className="h-full max-w-4xl mx-auto px-4 sm:px-6 grid grid-cols-1 grid-rows-[minmax(0,1fr)]">
       {/* The chat */}
       <section className="min-w-0 min-h-0 flex flex-col">
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain py-8 space-y-6 -mx-2 px-2">
@@ -154,18 +153,14 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
                   </button>
                 ))}
               </div>
-              {/* On a phone the menu isn't beside the chat, so its two ways to write a test are here */}
-              <div className="lg:hidden flex flex-wrap justify-center gap-2 pt-2">
-                <button onClick={onCreateOwn} className="px-3 py-1.5 text-xs font-semibold text-slate-700 border border-slate-200 rounded-lg flex items-center gap-1.5">
-                  <Plus className="w-3.5 h-3.5" />
-                  Create test manually
-                </button>
+              {/* Or write one by hand */}
+              <div className="flex justify-center pt-1">
                 <button
-                  onClick={() => (aiAllowed ? onBuildWithAI('') : onSeePlans())}
-                  className="create-border px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:text-indigo-900 rounded-lg flex items-center gap-1.5"
+                  onClick={onCreateOwn}
+                  className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:border-indigo-300 hover:text-indigo-700 rounded-lg flex items-center gap-1.5"
                 >
-                  {!aiAllowed && <Lock className="w-3.5 h-3.5" />}
-                  Create with AI
+                  <Plus className="w-3.5 h-3.5" />
+                  Create a test manually
                 </button>
               </div>
             </div>
@@ -280,56 +275,22 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
             </button>
           </div>
           </div>
-          <p className="mt-2 text-[11px] text-slate-400 text-center">
-            Advice is free. {aiAllowed ? 'AI test creation is on your plan.' : 'Creating custom tests with AI needs a subscription.'}
-          </p>
-        </form>
-      </section>
-
-      {/* Ways to start a test, beside the chat */}
-      <aside className="hidden lg:block min-h-0 overflow-y-auto py-8">
-        <div className="ai-glass space-y-5 p-3 rounded-2xl border border-white/80 shadow-sm">
-          {/* The pages are in the menu on the left; here, the ways to start a test */}
-          <div className="space-y-2">
-            <button
-              onClick={onCreateOwn}
-              className="w-full px-3 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-200 hover:border-indigo-300 hover:text-indigo-700 rounded-lg flex items-center gap-2"
-            >
-              <Plus className="w-4 h-4" />
-              Create test manually
-            </button>
-            <button
-              onClick={() => (aiAllowed ? onBuildWithAI('') : onSeePlans())}
-              className="create-border w-full px-3 py-2 text-sm font-semibold text-indigo-700 hover:text-indigo-900 rounded-lg flex items-center gap-2"
-            >
-              {!aiAllowed && <Lock className="w-4 h-4" />}
-              Create with AI
-            </button>
+          <div className="mt-2 flex items-center justify-center gap-4 text-[11px]">
             {turns.length > 0 && (
-              <button
-                onClick={() => (onTurns([]), clearPicks())}
-                className="create-border w-full px-3 py-2 text-sm font-semibold text-slate-700 hover:text-slate-900 rounded-lg flex items-center justify-center"
-              >
-                Create with AI
-              </button>
-            )}
-          </div>
-
-          <div className={`p-4 rounded-xl text-xs space-y-1.5 ${aiAllowed ? 'bg-emerald-50 text-emerald-900' : 'bg-slate-50 text-slate-600'}`}>
-            <div className="font-semibold text-slate-900">{planName}</div>
-            {aiAllowed ? (
-              <p>AI-written tests and app simulations are included.</p>
-            ) : (
               <>
-                <p>Ready-made tests, editing copies and writing your own are free. Custom tests written by AI need a subscription.</p>
-                <button onClick={onSeePlans} className="font-semibold text-indigo-700 hover:text-indigo-900">
-                  See plans &rarr;
+                <button type="button" onClick={() => (onTurns([]), clearPicks())} className="font-semibold text-slate-500 hover:text-slate-900">
+                  New chat
+                </button>
+                <button type="button" onClick={onCreateOwn} className="font-semibold text-slate-500 hover:text-slate-900 inline-flex items-center gap-1">
+                  <Plus className="w-3 h-3" />
+                  Create a test manually
                 </button>
               </>
             )}
           </div>
-        </div>
-      </aside>
+        </form>
+      </section>
+
     </div>
     </div>
   );
