@@ -38,6 +38,7 @@ import { JobProfileEditor } from './JobProfileEditor';
 import { Studies, StudiesEditor } from './StudiesEditor';
 import { ExperienceDetails, ExperienceEditor } from './ExperienceEditor';
 import { ExperienceList, ProfileLinks } from './ExperienceList';
+import { SkillList } from './SkillList';
 import { stageOf } from '../lib/audience';
 import { ProfileSidebar } from './ProfileSidebar';
 import { TestHistory } from './TestHistory';
@@ -63,6 +64,7 @@ interface CandidatePortalProps {
   onUpdateProfiles: (profiles: JobProfile[], activeProfileId: string) => void;
   onUpdateStudies: (studies: Studies) => void;
   onUpdateExperience: (details: ExperienceDetails) => void;
+  onUpdateSkills: (skills: string[]) => void;
   // Takes a test the candidate took off their record
   onDeleteTest: (testId: string) => void;
   // The roles the Tests page is narrowed to (a role, an industry, or a field picked on Home), or null for every test
@@ -90,6 +92,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   onUpdateProfiles,
   onUpdateStudies,
   onUpdateExperience,
+  onUpdateSkills,
   onDeleteTest,
   jobPageId,
   onOpenJob,
@@ -434,7 +437,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-base font-bold text-slate-900">Experience</h2>
-            <p className="text-xs text-slate-500">Your jobs, how you'd like to work and where to see more. Companies see this on your profile; your skills come from Vetter's tests.</p>
+            <p className="text-xs text-slate-500">Your jobs, how you'd like to work and where to see more. Companies see this on your profile; verified skills come from Vetter's tests.</p>
           </div>
           <button
             onClick={() => setEditingExperience(true)}
@@ -452,6 +455,17 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
           </button>
         )}
         {!!candidate.links?.length && <ProfileLinks links={candidate.links} />}
+      </section>
+
+      {/* Skills in their own words: a list they add to with + */}
+      <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
+        <div>
+          <h2 className="text-base font-bold text-slate-900">Skills</h2>
+          <p className="text-xs text-slate-500">
+            List what you can do. Companies see these on your profile as your own claim; ones a Vetter test has verified get a tick.
+          </p>
+        </div>
+        <SkillList skills={candidate.skills ?? []} verified={candidate.verifiedSkills.map((v) => v.skillName)} onChange={onUpdateSkills} />
       </section>
 
       {/* SECTION 1: VERIFIED SKILL PASSPORT */}

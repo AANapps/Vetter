@@ -89,6 +89,8 @@ export interface User {
   applicationProfiles?: Record<string, string>;
   // What they've done, in their own words: jobs, most recent first. Skills aren't typed in; Vetter's tests verify them
   experience?: WorkExperience[];
+  // Skills they list themselves, in their own words; shown as their claim until a Vetter test verifies them
+  skills?: string[];
   // Where to see more of them: LinkedIn, GitHub, a portfolio
   links?: ProfileLink[];
 }

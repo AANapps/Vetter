@@ -7,6 +7,7 @@ import { TestHistory } from './TestHistory';
 import { IntegrityBadge } from './IntegrityBadge';
 import { getBadgeTier } from './VerifiedSkillBadge';
 import { ExperienceList, ProfileLinks } from './ExperienceList';
+import { SkillList } from './SkillList';
 
 interface CandidateProfilePageProps {
   person: User;
@@ -189,6 +190,13 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
             <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs">
               <Heading aside={<span className="text-[11px] text-slate-400">In their own words</span>}>Experience</Heading>
               <ExperienceList items={person.experience} />
+            </section>
+          )}
+
+          {!!person.skills?.length && (
+            <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs">
+              <Heading aside={<span className="text-[11px] text-slate-400">In their own words · ticked ones are verified</span>}>Skills</Heading>
+              <SkillList skills={person.skills} verified={person.verifiedSkills.map((v) => v.skillName)} />
             </section>
           )}
 

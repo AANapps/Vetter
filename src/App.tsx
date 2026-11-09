@@ -1339,6 +1339,7 @@ export default function App() {
                 setCandidate((prev) => ({ ...prev, ...details }));
                 showToast('Experience saved.');
               }}
+              onUpdateSkills={(skills) => setCandidate((prev) => ({ ...prev, skills }))}
               onDeleteTest={(testId) => {
                 // Everyone's standing on the test moves up a place
                 const everyone = withComputedPercentiles([removeTestResults(candidate, testId), ...otherCandidates]);
