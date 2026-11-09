@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { PixelDot } from './PixelDot';
+import { ThemeToggle } from './ThemeToggle';
 import { Pic } from './Pic';
 import { UserRole } from '../types';
 import { ArrowLeftRight,
@@ -162,6 +163,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                   <BookOpen className="w-3.5 h-3.5 text-indigo-600" />
                   <span>How-to guides</span>
                 </button>
+                <ThemeToggle />
                 {accounts?.email && <div className="text-[11px] text-slate-500 truncate -mt-1">{accounts.email}</div>}
                 {/* The Vetter team's admin page */}
                 {accounts?.canSwitchViews && (
@@ -423,6 +425,7 @@ const VisitorHeader: React.FC<{ currentTab: AppTab; onTabChange: (tab: AppTab) =
           ))}
         </nav>
         <div className="ml-auto flex items-center gap-1 sm:gap-2">
+          <ThemeToggle compact />
           <button onClick={onSignIn} className="px-3 py-1.5 text-sm font-medium text-slate-700 hover:text-slate-900">
             Sign in
           </button>

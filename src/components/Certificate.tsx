@@ -37,7 +37,7 @@ export const CertificateDialog: React.FC<{ cert: CertificateDetails; onClose: ()
           </button>
         </div>
 
-        <div className="vetter-certificate bg-white rounded-2xl shadow-2xl p-3 print:shadow-none print:rounded-none">
+        <div className="vetter-certificate theme-light bg-white rounded-2xl shadow-2xl p-3 print:shadow-none print:rounded-none">
           <div className="border-4 border-double border-indigo-200 rounded-xl px-6 sm:px-12 py-10 text-center space-y-5">
             <div className="flex items-center justify-center gap-2 text-indigo-700">
               <Award className="w-8 h-8" />
