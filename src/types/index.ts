@@ -312,7 +312,10 @@ export type TestDifficulty = 'Beginner' | 'Junior' | 'Professional' | 'Senior';
 
 // In the public library, for every company to use and every candidate to take: Vetter's own tests, and companies'
 // tests the Vetter team approved
-export const isPublic = (test: Pick<AssessmentTest, 'type' | 'publicStatus'>) => test.type === 'standard' || test.publicStatus === 'approved';
+// Training is never in the library: it's a company's own, for its team
+export const isPublic = (test: Pick<AssessmentTest, 'type' | 'publicStatus'> & { purpose?: 'training' }) =>
+  test.purpose !== 'training' && (test.type === 'standard' || test.publicStatus === 'approved');
+export const isTraining = (test: { purpose?: 'training' }) => test.purpose === 'training';
 
 // Whether a test is changed by asking Vetter (made in the test chat) or by hand. Tests saved before this was recorded
 // are told apart by what only the chat leaves: a blueprint (which the builder used to drop on saving), or question ids
@@ -321,9 +324,9 @@ const CHAT_QUESTION_ID = /^q-[a-z0-9]+-[a-z0-9]{5}$/;
 export const madeWithAI = (test: AssessmentTest) =>
   (test.madeWith ?? (test.blueprint?.length || test.questions.some((q) => CHAT_QUESTION_ID.test(q.id)) ? 'ai' : 'hand')) === 'ai';
 
-// The minutes a candidate has for a test, or null when it has no time limit
-export const timerOf = (test: { timeLimit?: number | 'none'; estimatedMinutes: number }): number | null =>
-  test.timeLimit === 'none' ? null : test.timeLimit ?? test.estimatedMinutes;
+// The minutes a candidate has for a test, or null when it has no time limit. Training is never timed
+export const timerOf = (test: { timeLimit?: number | 'none'; estimatedMinutes: number; purpose?: 'training' }): number | null =>
+  test.purpose === 'training' || test.timeLimit === 'none' ? null : test.timeLimit ?? test.estimatedMinutes;
 
 // The levels tests come in. Beginner is no longer offered; tests saved at it are treated as Junior
 export const TEST_DIFFICULTIES: TestDifficulty[] = ['Junior', 'Professional', 'Senior'];
@@ -606,6 +609,9 @@ export interface Assignment {
   completedAt?: string;
   score?: number;
   durationSeconds?: number;
+  // Training passed: when they first reached the pass mark, and the score then. Their certificate is made from it
+  certifiedAt?: string;
+  certificateScore?: number;
 }
 
 export interface TestDraft {

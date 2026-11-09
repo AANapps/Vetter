@@ -61,7 +61,7 @@ export const jobBrief = (job: JobPosting) =>
 
 // The tests a company can use: Vetter's library, plus its own
 export const libraryFor = (tests: AssessmentTest[], business?: Business) =>
-  tests.filter((t) => isMainVersion(t) && (isPublic(t) || (business && t.businessId === business.id)));
+  tests.filter((t) => isMainVersion(t) && t.purpose !== 'training' && (isPublic(t) || (business && t.businessId === business.id)));
 
 // Words too common in job ads to say anything about fit
 const STOP = new Set(

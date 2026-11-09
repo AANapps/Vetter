@@ -563,3 +563,11 @@ select option {
 @media (prefers-reduced-motion: reduce) {
   .create-border, .create-border::before { animation: none; }
 }
+
+/* Printing a training certificate prints only the certificate */
+@media print {
+  body:has(.vetter-certificate) * { visibility: hidden; }
+  body:has(.vetter-certificate) .vetter-certificate,
+  body:has(.vetter-certificate) .vetter-certificate * { visibility: visible; }
+  body:has(.vetter-certificate) .vetter-certificate { position: fixed; inset: 0; margin: auto; height: fit-content; }
+}

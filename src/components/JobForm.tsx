@@ -23,7 +23,7 @@ const inputClass =
 export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, onSave, onCancel, initialTestIds = [] }) => {
   const [businessId, setBusinessId] = useState(businesses[0]?.id ?? '');
   const business = businesses.find((b) => b.id === businessId) ?? businesses[0];
-  const companyTests = tests.filter((t) => t.type === 'custom' && t.businessId === business?.id);
+  const companyTests = tests.filter((t) => t.type === 'custom' && t.businessId === business?.id && t.purpose !== 'training');
   // Each Vetter test once; its level is chosen when it's ticked
   const vetterTests = tests.filter((t) => isPublic(t) && isMainVersion(t) && t.businessId !== business?.id);
 

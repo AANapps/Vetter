@@ -85,7 +85,6 @@ export const TeamPage: React.FC<TeamPageProps> = ({
     setInvite('');
   };
 
-  const training = tests.filter((t) => t.purpose === 'training' && t.businessId === business.id);
 
   return (
     <div className="max-w-5xl mx-auto space-y-8">
@@ -258,6 +257,7 @@ export const TeamPage: React.FC<TeamPageProps> = ({
                         {a.dueDate && <span className={overdue ? 'text-rose-600' : ''}> · due {shortDate(a.dueDate)}</span>}
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap">
+                        {a.certifiedAt && <span className="mr-1.5 px-1.5 py-px rounded border text-[10px] font-semibold bg-amber-50 text-amber-700 border-amber-200">Certified</span>}
                         {a.completedAt ? (
                           <span className={`font-semibold tabular-nums ${t && (a.score ?? 0) >= t.passingScore ? 'text-emerald-700' : 'text-amber-700'}`}>
                             {a.score}/100 <span className="font-normal text-slate-400">· {shortDate(a.completedAt)}</span>
@@ -282,13 +282,6 @@ export const TeamPage: React.FC<TeamPageProps> = ({
         </section>
       )}
 
-      {training.length === 0 && (
-        <p className="text-sm text-slate-500">
-          Training is a copy of an app your team uses, with guided tasks set at {business.name} and the worked answers at the end. Ask Vetter on the
-          home chat (e.g. "train my support team on Zendesk") or press Create training with AI.
-        </p>
-      )}
-
       {assigning && (
         <AssignDialog
           members={active}
@@ -308,17 +301,18 @@ export const TeamPage: React.FC<TeamPageProps> = ({
 };
 
 // Picking who gets what: the company's training, its own simulations and tests, then Vetter's library
-const AssignDialog: React.FC<{
+export const AssignDialog: React.FC<{
   members: TeamMember[];
   initial: string[];
+  initialTestId?: string;
   tests: AssessmentTest[];
   business: Business;
   nameOf: (m: TeamMember) => string;
   onClose: () => void;
   onAssign: (members: TeamMember[], test: AssessmentTest, dueDate?: string, note?: string) => void;
-}> = ({ members, initial, tests, business, nameOf, onClose, onAssign }) => {
+}> = ({ members, initial, initialTestId, tests, business, nameOf, onClose, onAssign }) => {
   const [who, setWho] = useState<string[]>(initial);
-  const [testId, setTestId] = useState<string | null>(null);
+  const [testId, setTestId] = useState<string | null>(initialTestId ?? null);
   const [q, setQ] = useState('');
   const [due, setDue] = useState('');
   const [note, setNote] = useState('');

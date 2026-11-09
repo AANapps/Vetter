@@ -62,6 +62,7 @@ import { useCourseProgress } from './lib/courseProgress';
 import { BusinessHome } from './components/BusinessHome';
 import { TeamPage } from './components/TeamPage';
 import { TeamWork } from './components/TeamWork';
+import { TrainingPage } from './components/TrainingPage';
 import { PlansDialog } from './components/PlansDialog';
 import { AdvisorTurn } from './lib/testAdvisor';
 
@@ -145,6 +146,7 @@ const TAB_PATHS: Record<AppTab, string> = {
   'business-tests': '/business/tests/',
   'business-candidates': '/business/candidates/',
   'business-team': '/business/team/',
+  'business-training': '/business/training/',
   ranked: '/ranked/',
   guides: '/guides/',
 };
@@ -164,7 +166,7 @@ const businessCandidateIdFromPath = () => {
 // The pages each side has; companies is on both
 const SIDE_TABS: Record<'candidate' | 'staff', AppTab[]> = {
   candidate: ['home', 'tests', 'jobs', 'ranked', 'learn', 'upskill', 'profile', 'companies', 'guides'],
-  staff: ['business-home', 'business-jobs', 'business-tests', 'business-candidates', 'business-team', 'companies', 'guides'],
+  staff: ['business-home', 'business-jobs', 'business-tests', 'business-candidates', 'business-training', 'business-team', 'companies', 'guides'],
 };
 const sideOf = (role: UserRole) => (role === 'candidate' ? 'candidate' : 'staff');
 
@@ -993,7 +995,9 @@ export default function App() {
   const updateAssignment = (id: string, change: Partial<Assignment>) => setAssignments((prev) => prev.map((a) => (a.id === id ? { ...a, ...change } : a)));
   const finishAssignment = (assignment: Assignment, test: AssessmentTest, score: number, durationSeconds: number, answers?: AnswerRecord[]) => {
     const completedAt = new Date().toISOString();
-    updateAssignment(assignment.id, { completedAt, score, durationSeconds });
+    // Passing training earns a certificate, kept from the first pass even if a later go scores lower
+    const certifies = test.purpose === 'training' && score >= test.passingScore && !assignment.certifiedAt;
+    updateAssignment(assignment.id, { completedAt, score, durationSeconds, ...(certifies && { certifiedAt: completedAt, certificateScore: score }) });
     if (answers?.length)
       saveSubmission({
         id: `${test.id}__${candidate.id}__${Date.now()}`,
@@ -1006,7 +1010,13 @@ export default function App() {
         completedAt,
         answers,
       }).catch((err) => console.error("Couldn't keep the answers for the company", err));
-    showToast(`You scored ${score}/100. ${assignment.companyName} can see how you got on.`);
+    showToast(
+      certifies
+        ? `You passed with ${score}/100 and earned a certificate. Find it under Training on your home.`
+        : test.purpose === 'training' && score < test.passingScore
+        ? `You scored ${score}/100. ${test.passingScore} passes; have another go when you're ready.`
+        : `You scored ${score}/100. ${assignment.companyName} can see how you got on.`
+    );
     setAssignmentRun(null);
   };
 
@@ -1127,7 +1137,10 @@ export default function App() {
     if (id && testDraftsRef.current.some((d) => d.id === id)) setTestDrafts((prev) => prev.filter((d) => d.id !== id));
   };
   // A company's drafts; the Vetter team sees every one
-  const visibleDrafts = activeRole === 'admin' ? testDrafts : testDrafts.filter((d) => d.businessId === recruiterBusiness?.id);
+  // Training drafts live with the training, not the tests
+  const isTrainingDraft = (d: TestDraft) => d.kind === 'training' || d.test.purpose === 'training';
+  const visibleDrafts = (activeRole === 'admin' ? testDrafts : testDrafts.filter((d) => d.businessId === recruiterBusiness?.id)).filter((d) => !isTrainingDraft(d));
+  const trainingDrafts = testDrafts.filter((d) => d.businessId === recruiterBusiness?.id && isTrainingDraft(d));
 
   const addTestsToJob = (jobId: string, testIds: string[]) => {
     const job = jobs.find((j) => j.id === jobId);
@@ -1386,6 +1399,7 @@ export default function App() {
                 onRespond={respondToTeam}
                 onLeave={(m) => (setTeam((prev) => prev.filter((x) => x.id !== m.id)), showToast(`You've left ${m.companyName}'s team.`))}
                 onStart={(assignment, test) => setAssignmentRun({ assignment, test })}
+                personName={candidate.name}
               />
             </div>
           )}
@@ -1448,7 +1462,7 @@ export default function App() {
               business={activeRole === 'admin' ? undefined : recruiterBusiness}
               jobs={activeRole === 'admin' ? jobs : jobs.filter((j) => j.businessId === recruiterBusiness?.id)}
               tests={tests}
-              ownTestCount={tests.filter((t) => (activeRole === 'admin' ? t.type === 'standard' : t.type === 'custom' && t.businessId === recruiterBusiness?.id)).length}
+              ownTestCount={tests.filter((t) => (activeRole === 'admin' ? t.type === 'standard' : t.type === 'custom' && t.businessId === recruiterBusiness?.id && t.purpose !== 'training')).length}
               draftCount={testDrafts.filter((d) => d.businessId === (activeRole === 'admin' ? '' : recruiterBusiness?.id)).length}
               aiAllowed={aiAllowed}
               planName={
@@ -1514,6 +1528,31 @@ export default function App() {
               onOpenTest={openTestPage}
               onGoTo={goToTab}
             />
+          )}
+
+          {!detailPage && activeRole !== 'candidate' && currentTab === 'business-training' && (
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+              {recruiterBusiness ? (
+                <TrainingPage
+                  business={recruiterBusiness}
+                  training={tests.filter((t) => t.purpose === 'training' && t.businessId === recruiterBusiness.id)}
+                  drafts={trainingDrafts}
+                  team={ourTeam}
+                  assignments={ourAssignments}
+                  candidates={otherCandidates.concat(activeRole === 'recruiter' && !firebaseEnabled ? [candidate] : [])}
+                  aiAllowed={aiAllowed}
+                  onCreate={() => openGenerator({ kind: 'training' })}
+                  onSeePlans={() => setPlansOpen(true)}
+                  onContinueDraft={(d) => openGenerator({ resume: d })}
+                  onTry={(test) => setTrialTest({ test })}
+                  onEdit={(test) => editOwnTest(test.id)}
+                  onAssign={assignWork}
+                  onGoToTeam={() => goToTab('business-team')}
+                />
+              ) : (
+                <p className="text-sm text-slate-500">Training belongs to a company. Switch to a company's view to make and send training.</p>
+              )}
+            </div>
           )}
 
           {!detailPage && activeRole !== 'candidate' && currentTab === 'business-team' && (
@@ -1732,7 +1771,7 @@ export default function App() {
           onSaveTest={(test) => {
             const id = saveNewTest(test);
             deleteTestDraft(generator.resume?.id);
-            if (!generator.jobId) showToast(`"${test.title}" saved to your tests.`);
+            if (!generator.jobId) showToast(test.purpose === 'training' ? `"${test.title}" saved to your training.` : `"${test.title}" saved to your tests.`);
             markPlanBuilt(id);
             return id;
           }}
@@ -1820,6 +1859,7 @@ export default function App() {
       {trialTest && (
         <TestRunner
           test={trialTest.test}
+          training={trialTest.test.purpose === 'training'}
           savedNote="Saved for your team as a trial. It isn't on any leaderboard or among any job's candidates."
           onClose={() => setTrialTest(null)}
           onComplete={(testId, score, durationSeconds) => {

@@ -23,7 +23,9 @@ const STEPS = ['Pick tests', 'Details'] as const;
 const attemptsFor = (job: JobPosting | undefined) => job?.maxAttempts ?? (job?.testIds.length ? 0 : 2);
 
 // Choosing a job's tests is two steps: pick them, then set the pass mark and whether they're needed to apply
-export const JobTestsEditor: React.FC<JobTestsEditorProps> = ({ jobs, tests, addTestIds = [], onSave, onCancel }) => {
+export const JobTestsEditor: React.FC<JobTestsEditorProps> = ({ jobs, tests: allTests, addTestIds = [], onSave, onCancel }) => {
+  // Training is for a company's team, never a job's candidates
+  const tests = allTests.filter((t) => t.purpose !== 'training');
   const [step, setStep] = useState(0);
   const [jobId, setJobId] = useState(jobs[0]?.id ?? '');
   const job = jobs.find((j) => j.id === jobId) ?? jobs[0];

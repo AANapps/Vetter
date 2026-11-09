@@ -194,7 +194,7 @@ service cloud.firestore {
       allow update: if isAdmin()
         || (worksAt(resource.data.businessId) && changed().hasOnly(['dueDate', 'note']))
         || (signedIn() && resource.data.get('uid', null) == uid()
-          && changed().hasOnly(['startedAt', 'completedAt', 'score', 'durationSeconds'])
+          && changed().hasOnly(['startedAt', 'completedAt', 'score', 'durationSeconds', 'certifiedAt', 'certificateScore'])
           && request.resource.data.get('score', 0) is number
           && request.resource.data.get('score', 0) >= 0 && request.resource.data.get('score', 0) <= 100);
       allow delete: if isAdmin() || worksAt(resource.data.businessId);

@@ -1,7 +1,8 @@
 import React from 'react';
-import { Building2, Check, Clock, Play, RotateCcw, X } from 'lucide-react';
+import { Award, Building2, Check, Clock, Play, RotateCcw, X } from 'lucide-react';
 import { Assignment, AssessmentTest, TeamMember } from '../types';
 import { KindChip } from './TeamPage';
+import { CertificateDetails, CertificateDialog } from './Certificate';
 
 /**
  * Someone's side of a company's team: invitations to join, and the tests, job simulations and training their companies
@@ -15,14 +16,28 @@ interface TeamWorkProps {
   onRespond: (member: TeamMember, accept: boolean) => void;
   onLeave: (member: TeamMember) => void;
   onStart: (assignment: Assignment, test: AssessmentTest) => void;
+  personName: string;
 }
 
 const shortDate = (iso?: string) => (iso ? new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '');
 
-export const TeamWork: React.FC<TeamWorkProps> = ({ invitations, memberships, assignments, tests, onRespond, onLeave, onStart }) => {
+export const TeamWork: React.FC<TeamWorkProps> = ({ invitations, memberships, assignments, tests, onRespond, onLeave, onStart, personName }) => {
+  const [cert, setCert] = React.useState<CertificateDetails | null>(null);
   if (!invitations.length && !memberships.length) return null;
-  const todo = assignments.filter((a) => !a.completedAt);
-  const done = assignments.filter((a) => a.completedAt);
+  // Training and tests are kept apart: what's to do first, then what's done
+  const isTrainingWork = (a: Assignment) => tests.find((t) => t.id === a.testId)?.purpose === 'training';
+  const ordered = (list: Assignment[]) => [...list.filter((a) => !a.completedAt), ...list.filter((a) => a.completedAt)];
+  const trainingWork = ordered(assignments.filter(isTrainingWork));
+  const testWork = ordered(assignments.filter((a) => !isTrainingWork(a)));
+  const certificateOf = (a: Assignment, t: AssessmentTest): CertificateDetails => ({
+    id: a.id,
+    name: personName,
+    trainingTitle: t.title,
+    companyName: a.companyName,
+    skills: t.skillsTested,
+    score: a.certificateScore ?? a.score ?? 0,
+    certifiedAt: a.certifiedAt!,
+  });
   const row = (a: Assignment) => {
     const t = tests.find((x) => x.id === a.testId);
     if (!t) return null;
@@ -36,13 +51,22 @@ export const TeamWork: React.FC<TeamWorkProps> = ({ invitations, memberships, as
             <KindChip test={t} />
           </div>
           <div className="text-xs text-slate-500 mt-0.5">
-            From {a.companyName} · ~{t.estimatedMinutes} min
+            From {a.companyName} · ~{t.estimatedMinutes} min{training ? ', untimed' : ''}
             {a.dueDate && <span className={overdue ? 'text-rose-600 font-semibold' : ''}> · due {shortDate(a.dueDate)}</span>}
             {a.note && <span className="block text-slate-600 mt-0.5">“{a.note}”</span>}
           </div>
         </div>
         {a.completedAt ? (
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            {a.certifiedAt && (
+              <button
+                onClick={() => setCert(certificateOf(a, t))}
+                className="px-3 py-1.5 text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-200 hover:bg-amber-100 rounded-lg inline-flex items-center gap-1"
+              >
+                <Award className="w-3.5 h-3.5" />
+                Certificate
+              </button>
+            )}
             <span className="text-sm font-semibold tabular-nums text-slate-900">
               {a.score}/100 <span className="text-xs font-normal text-slate-400">· {shortDate(a.completedAt)}</span>
             </span>
@@ -108,19 +132,27 @@ export const TeamWork: React.FC<TeamWorkProps> = ({ invitations, memberships, as
               ))}
             </div>
           </div>
-          {assignments.length === 0 ? (
+          {assignments.length === 0 && (
             <p className="p-4 text-sm text-slate-500 bg-white border border-dashed border-slate-300 rounded-xl inline-flex items-center gap-2 w-full">
               <Clock className="w-4 h-4" />
               Nothing to do yet. Training and tests your team sends you will appear here.
             </p>
-          ) : (
-            <ul className="bg-white border border-slate-200 rounded-xl divide-y divide-slate-100">
-              {todo.map(row)}
-              {done.map(row)}
-            </ul>
+          )}
+          {trainingWork.length > 0 && (
+            <div className="space-y-1.5">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Training</h3>
+              <ul className="bg-white border border-slate-200 rounded-xl divide-y divide-slate-100">{trainingWork.map(row)}</ul>
+            </div>
+          )}
+          {testWork.length > 0 && (
+            <div className="space-y-1.5">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Tests and simulations</h3>
+              <ul className="bg-white border border-slate-200 rounded-xl divide-y divide-slate-100">{testWork.map(row)}</ul>
+            </div>
           )}
         </section>
       )}
+      {cert && <CertificateDialog cert={cert} onClose={() => setCert(null)} />}
     </div>
   );
 };

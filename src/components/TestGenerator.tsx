@@ -64,7 +64,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
   const kindOf = (t: AssessmentTest): TestKind => (t.purpose === 'training' ? 'training' : t.scenario ? 'simulation' : 'test');
   const [kind] = useState<TestKind>(() => kindAsked ?? resume?.kind ?? (original ? kindOf(original) : resume ? kindOf(resume.test) : 'simulation'));
   // Training is marked as such when it's saved, so it's kept off leaderboards and profiles and goes to the team
-  const withPurpose = (t: AssessmentTest): AssessmentTest => (kind === 'training' ? { ...t, purpose: 'training' } : t);
+  const withPurpose = (t: AssessmentTest): AssessmentTest => (kind === 'training' ? { ...t, purpose: 'training', timeLimit: 'none' } : t);
   const greetingFor = (k?: TestKind) =>
     k === 'training'
       ? `Which app or way of working should your team learn? Tell me who it's for, what they need to be able to do and anything they get wrong today. I'll build a copy of the app set at ${business?.name ?? 'your company'}, with guided tasks from easy to tricky and worked answers at the end, and you can send it to your team.`

@@ -79,7 +79,7 @@ export const BusinessesView: React.FC<BusinessesViewProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {filteredBusinesses.map((biz) => {
           const bizJobs = jobs.filter((j) => j.businessId === biz.id && j.status === 'active');
-          const bizTestCount = tests.filter((t) => t.type === 'custom' && t.businessId === biz.id).length;
+          const bizTestCount = tests.filter((t) => t.type === 'custom' && t.businessId === biz.id && t.purpose !== 'training').length;
 
           return (
             <div

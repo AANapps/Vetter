@@ -70,7 +70,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   // A business only manages its own jobs and its own tests; the Vetter team sees every company's jobs
   const isVetter = !business;
   const jobs = isVetter ? allJobs : allJobs.filter((j) => j.businessId === business.id);
-  const companyTests = isVetter ? [] : tests.filter((t) => t.type === 'custom' && t.businessId === business.id);
+  const companyTests = isVetter ? [] : tests.filter((t) => t.type === 'custom' && t.businessId === business.id && t.purpose !== 'training');
   // The public library: Vetter's tests and other companies' approved ones (a company's own are in companyTests)
   const vetterTests = tests.filter((t) => isPublic(t) && isMainVersion(t) && (isVetter || t.businessId !== business.id));
 
