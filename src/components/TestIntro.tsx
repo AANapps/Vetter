@@ -215,6 +215,28 @@ export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose, on
                     Read every section before you begin. The clock starts only when you press <strong>Begin the test</strong>, and it can&rsquo;t be
                     paused once it has.
                   </p>
+                  {(() => {
+                    // Which questions the company lets them use AI on, numbered as they'll see them
+                    const numbered = groupQuestions(test.questions).flatMap((g) => g.questions).filter((q) => q.type !== 'case');
+                    const allowed = numbered.flatMap((q, i) => (q.aiAllowed ? [i + 1] : []));
+                    const inbox = (test.scenario?.inbox?.length ?? 0) > 0;
+                    return (
+                      <>
+                        {inbox && (
+                          <p className="text-slate-700">
+                            Like a real day at work, you have an <strong>Inbox</strong> tab: emails with the details your tasks need. Check it as you go.
+                          </p>
+                        )}
+                        {allowed.length > 0 && (
+                          <p className="text-slate-700">
+                            {test.companyName ?? 'The company'} allows AI on question{allowed.length === 1 ? '' : 's'}{' '}
+                            <strong>{allowed.length === 1 ? allowed[0] : `${allowed.slice(0, -1).join(', ')} and ${allowed.at(-1)}`}</strong>: an AI assistant tab opens
+                            on {allowed.length === 1 ? 'it' : 'those'}, and they see how you used it. Anywhere else, work on your own.
+                          </p>
+                        )}
+                      </>
+                    );
+                  })()}
                   {attempt && <AttemptTerms attempt={attempt} isLast={isLastAttempt} />}
                 </>
               )}
@@ -302,7 +324,11 @@ export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose, on
                 <>
                   <p>This assessment is monitored. By beginning it you agree to the following rules.</p>
                   <ol className="space-y-2.5">
-                    {INTEGRITY_RULES.map((rule, i) => (
+                    {INTEGRITY_RULES.map((r) =>
+                      test.questions.some((q) => q.aiAllowed) && r.startsWith('Work alone.')
+                        ? 'Work alone. No help from other people, and no outside AI, code generators or web searches. Where the company allows AI, use the AI assistant tab in the test.'
+                        : r
+                    ).map((rule, i) => (
                       <li key={rule} className="flex gap-3">
                         <span className="font-mono text-xs text-slate-400 pt-0.5">{String(i + 1).padStart(2, '0')}</span>
                         <span>{rule}</span>

@@ -193,6 +193,8 @@ export interface TestScenario {
   files?: CaseFile[];
   // Who the candidate works with at the company, the same people in every email and question of the test
   people?: EmailContact[];
+  // Emails already in the candidate's inbox, which they read in the workspace's Inbox tab while doing the tasks
+  inbox?: EmailMessage[];
 }
 
 // Someone at (or around) the company in a job simulation, who emails can come from and go to
@@ -284,6 +286,8 @@ export interface Question {
   callouts?: AppCallout[];
   // Email tasks: the thread, the address book and who the reply should go to (its marking points are in rubric)
   email?: EmailTask;
+  // The company lets the candidate use an AI assistant (the workspace's AI tab) on this question
+  aiAllowed?: boolean;
   // AI-assisted tasks: the candidate works with an AI assistant to get the job done (the final work's marking points
   // are in rubric)
   assistant?: AssistantTask;

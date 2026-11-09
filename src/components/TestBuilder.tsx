@@ -227,6 +227,7 @@ export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, dra
                     <span className="block text-[10px] text-slate-500 truncate">
                       {QUESTION_STYLES.find((s) => s.type === q.type)?.label ?? q.type} &middot; {share(q)}%
                       {q.aspect && ` · ${aspects?.find((a) => a.id === q.aspect)?.name ?? q.aspect}${q.tier ? `, ${q.tier}` : ''}`}
+                      {q.aiAllowed && <span className="ml-1 px-1 rounded bg-indigo-50 text-indigo-700 font-semibold">AI allowed</span>}
                     </span>
                   </span>
                 </OutlineButton>

@@ -51,6 +51,8 @@ const schema = {
         company: { type: 'string' },
         setting: { type: 'string' },
         people: { type: 'array', items: { type: 'string' } },
+        // Emails already in the candidate's inbox when the day starts, each written out "From: ...\nTo: ...\n...\n\nbody"
+        inbox: { type: 'array', items: { type: 'string' } },
         // One competency a line: "skill | weight | why it matters | how the test proves it"
         blueprint: { type: 'array', items: { type: 'string' } },
         items: {
@@ -72,7 +74,7 @@ const schema = {
           },
         },
       },
-      required: ['title', 'description', 'category', 'difficulty', 'passingScore', 'roles', 'company', 'setting', 'people', 'blueprint', 'items'],
+      required: ['title', 'description', 'category', 'difficulty', 'passingScore', 'roles', 'company', 'setting', 'people', 'inbox', 'blueprint', 'items'],
       additionalProperties: false,
     },
   },
@@ -110,8 +112,15 @@ blueprint: one line per competency, written "skill | weight | why it matters | h
 ${
     req.kind !== 'test'
       ? `company, setting and people: the job simulation's company, setting and cast, as the rules below say. Every brief names
-the people involved, from that cast, so the writers keep the test one connected working day.`
-      : `company, setting and people: "", "" and [] (this is a skills test).`
+the people involved, from that cast, so the writers keep the test one connected working day.
+inbox: the candidate works in a real-feeling workspace with an Inbox tab beside the apps. Write 3 to 8 emails already in
+their inbox when the day starts, each exactly "From: Name <address>\nTo: Name <address>, ...\nCc: ...\nDate: Tue 4 Mar,
+08:47\nSubject: ...\n\n<body>", from the cast: the requests behind the hands-on tasks and the details they need
+(account numbers, the policy, figures, deadlines, an approval limit, a customer's complaint), plus one or two ordinary
+ones that don't matter, as a real inbox has. The hands-on tasks then point to them ("Priya's email has the account
+details") instead of repeating everything, so the candidate has to go and find what they need. An app task's brief names
+the inbox email it relies on. Email tasks' own threads are separate: they arrive with their task.`
+      : `company, setting, people and inbox: "", "", [] and [] (this is a skills test).`
   } An email item's brief says who it's from, what it turns on, and who the reply should go to, be copied to, and must
 not go to.
 difficulty is one of: ${req.levels.join(', ')}; ${levelPick(req)}.

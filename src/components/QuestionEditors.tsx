@@ -82,6 +82,19 @@ export const QuestionEditor: React.FC<EditorProps & { share: number }> = ({ ques
         )}
       </div>
 
+      {/* The company chooses which questions candidates may use AI on; they get an AI tab on those */}
+      {q.type !== 'case' && q.type !== 'assistant' && (
+        <label className="flex items-start gap-2.5 p-3 max-w-xl rounded-lg border border-slate-200 bg-slate-50 cursor-pointer">
+          <input type="checkbox" checked={!!q.aiAllowed} onChange={(e) => onChange({ aiAllowed: e.target.checked || undefined })} className="mt-0.5 accent-indigo-600" />
+          <span>
+            <span className="block text-sm font-semibold text-slate-900">Allow AI on this question</span>
+            <span className="block text-xs text-slate-500">
+              Candidates get an AI assistant tab while they're on it{q.taskId ? ' (and the task it belongs to)' : ''}. You'll see their conversation with their answers.
+            </span>
+          </span>
+        </label>
+      )}
+
       <div className="pt-4 border-t border-slate-200">
         {q.type === 'choice' && <OptionsEditor question={q} onChange={onChange} multiple={false} />}
         {q.type === 'multi' && <OptionsEditor question={q} onChange={onChange} multiple />}

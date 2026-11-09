@@ -1,4 +1,4 @@
-import { contactText, emailToRaw, parseContact } from './emailTasks';
+import { contactText, emailToRaw, messageText, parseContact, parseMessage } from './emailTasks';
 import { AppCallout, AssessmentTest, BlueprintItem, Business, Question, QuestionType, TestKind, SkillCategory, TEST_DIFFICULTIES, TestDifficulty, TestRole } from '../types';
 import { MOCK_DATABASE } from './sqlEngine';
 import { probeApp } from './appSimulation';
@@ -70,7 +70,7 @@ export const draftForModel = (test: AssessmentTest) => ({
   skillsTested: test.blueprint?.length ? test.blueprint.map((b) => `${b.skill} | ${b.weight} | ${b.why} | ${b.how}`) : test.skillsTested,
   roles: test.roles ?? [],
   // The company the candidate works at in the simulation, and who they work with
-  ...(test.scenario && { scenario: { company: test.scenario.company, role: test.scenario.role, brief: test.scenario.brief, people: (test.scenario.people ?? []).map(contactText) } }),
+  ...(test.scenario && { scenario: { company: test.scenario.company, role: test.scenario.role, brief: test.scenario.brief, people: (test.scenario.people ?? []).map(contactText), inbox: (test.scenario.inbox ?? []).map(messageText) } }),
   questions: orderedQuestions(test.questions).map((q, i) => ({
     number: i + 1,
     id: q.id,
@@ -196,8 +196,9 @@ async function buildDraft(raw: RawTest, previous: AssessmentTest | undefined, ct
   // The job simulation's setting, from the plan: the company the candidate works at, their role, their first morning
   // there and the people they work with. A change in the chat keeps the setting the test already has
   const people = ((raw.people ?? []) as unknown[]).map((p) => parseContact(String(p))).filter((c): c is NonNullable<typeof c> => !!c).slice(0, 16);
+  const inbox = ((raw.inbox ?? []) as unknown[]).map((m) => parseMessage(String(m))).filter((m) => m.subject && m.body).slice(0, 10);
   const scenario: AssessmentTest['scenario'] = String(raw.setting ?? '').trim()
-    ? { company: String(raw.company ?? '').trim() || ctx.business?.name || 'the company', role: ctx.jobTitle || String(raw.role ?? '').trim() || String(raw.title ?? 'the role'), brief: String(raw.setting).trim(), ...(people.length && { people }) }
+    ? { company: String(raw.company ?? '').trim() || ctx.business?.name || 'the company', role: ctx.jobTitle || String(raw.role ?? '').trim() || String(raw.title ?? 'the role'), brief: String(raw.setting).trim(), ...(people.length && { people }), ...(inbox.length && { inbox }) }
     : previous?.scenario;
   // The level the company picked wins over the AI's
   const difficulty = ctx.level ?? (TEST_DIFFICULTIES.includes(raw.difficulty) ? (raw.difficulty as TestDifficulty) : previous?.difficulty ?? 'Junior');

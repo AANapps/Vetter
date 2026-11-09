@@ -31,6 +31,7 @@ import { SpreadsheetWindow } from './SpreadsheetWindow';
 import { DatabaseWindow } from './DatabaseWindow';
 import { AppWindow } from './AppWindow';
 import { CaseBrief } from './CaseBrief';
+import { AiPanel, AiTurn, FilesPanel, InboxItem, InboxPanel, WorkspaceTabs, WorkspaceView } from './Workspace';
 import { CheatingWarning, TestIntro } from './TestIntro';
 import { IntegrityReport, countScreens, startIntegrityMonitor } from '../lib/integrity';
 
@@ -200,6 +201,28 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
   const followUps = currentGroup.task ? currentGroup.questions.slice(1) : [];
   // Cases are read, not answered, so only questions are numbered
   const numberOf = (q: Question) => ordered.filter((x) => x.type !== 'case').indexOf(q) + 1;
+  // The workspace around the task: the Inbox (emails waiting at the start, and the threads that are questions), the
+  // files handed over, and the AI tab on the questions the company allows it on
+  const [view, setView] = useState<WorkspaceView>('task');
+  const [readMail, setReadMail] = useState<Set<number>>(() => new Set());
+  const [aiChats, setAiChats] = useState<Record<string, AiTurn[]>>({});
+  const aiChatsRef = useRef(aiChats);
+  aiChatsRef.current = aiChats;
+  const inboxItems: InboxItem[] = useMemo(
+    () => [
+      ...(test.scenario?.inbox ?? []).map((message) => ({ message })),
+      ...ordered.flatMap((q) => (q.type === 'email' && q.email ? q.email.thread.map((message) => ({ message, replyIn: `question ${ordered.filter((x) => x.type !== 'case').indexOf(q) + 1}` })) : [])),
+    ],
+    [test.id]
+  );
+  const workFiles = test.scenario?.files ?? [];
+  const aiInTest = test.questions.some((q) => q.aiAllowed);
+  const aiHere = currentGroup.questions.some((q) => q.aiAllowed);
+  const aiKey = currentGroup.questions[0].id;
+  useEffect(() => {
+    if (view === 'ai' && !aiHere) setView('task');
+  }, [aiHere]);
+  const showWorkspace = inboxItems.length > 0 || workFiles.length > 0 || aiInTest;
   const isDone = (q: Question) =>
     q.type === 'case' ||
     questionScores[q.id] !== undefined ||
@@ -257,23 +280,17 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
     };
   }, [hasStarted]);
 
-  // How long the candidate was away the last time they left, shown when they come back
+  // How long the candidate has been away: from the moment they first left until they press "back to the test". Going
+  // back and leaving again while the warning is still up doesn't restart it, and it counts up live
   const awaySinceRef = useRef<number | null>(null);
   const [lastAway, setLastAway] = useState<number | null>(null);
   useEffect(() => {
-    if (!hasStarted) return;
-    const back = () => {
-      if (document.hidden || !document.hasFocus() || awaySinceRef.current === null) return;
-      setLastAway(Math.max(1, Math.round((Date.now() - awaySinceRef.current) / 1000)));
-      awaySinceRef.current = null;
-    };
-    document.addEventListener('visibilitychange', back);
-    window.addEventListener('focus', back);
-    return () => {
-      document.removeEventListener('visibilitychange', back);
-      window.removeEventListener('focus', back);
-    };
-  }, [hasStarted]);
+    if (!leftTab) return;
+    const tick = () => awaySinceRef.current !== null && setLastAway(Math.max(1, Math.round((Date.now() - awaySinceRef.current) / 1000)));
+    tick();
+    const timer = setInterval(tick, 1000);
+    return () => clearInterval(timer);
+  }, [leftTab]);
 
   // The integrity monitor: tabs, windows, resizing, copy and paste, screens. Leaving the test brings up a warning
   useEffect(() => {
@@ -287,8 +304,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
           total: r.tabSwitches + r.windowSwitches + r.externalPastes + r.resizes + r.copies + r.cuts + r.screenshotKeys,
         });
         if (e.type === 'tab-hidden' || e.type === 'window-blur') {
-          awaySinceRef.current ??= Date.now();
-          setLastAway(null);
+          if (!preview && !training) awaySinceRef.current ??= Date.now();
           const away = r.tabSwitches + r.windowSwitches;
           setFocusWarning(`You left the test: recorded (${away} ${away === 1 ? 'time' : 'times'})`);
           if (!preview && !training) setLeftTab(true);
@@ -363,7 +379,13 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
     }
     const score = weightedScore(test, perQuestion);
     setAiMarked(marks);
-    answersRef.current = answerRecords(test, userCodesRef.current, perQuestion, feedback, graded.runs, marks);
+    // Where AI was used, the conversation goes with the answer, so the company sees how it was used
+    answersRef.current = answerRecords(test, userCodesRef.current, perQuestion, feedback, graded.runs, marks).map((r) => {
+      const chat = aiChatsRef.current[r.id];
+      if (!chat?.length) return r;
+      const transcript = chat.map((t) => `${t.role === 'user' ? 'Candidate' : 'AI'}: ${t.text}`).join('\n\n');
+      return { ...r, answer: `${r.answer}\n\n--- Used the AI assistant (${chat.filter((t) => t.role === 'user').length} messages) ---\n${transcript}`.slice(0, 20000) };
+    });
     setQuestionScores(perQuestion);
     setQuestionFeedback(feedback);
     setFinalScore(score);
@@ -523,8 +545,39 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
         </div>
       )}
 
+      {showWorkspace && (
+        <WorkspaceTabs
+          view={view}
+          onView={setView}
+          taskLabel={currentGroup.task ? currentGroup.task.contextData || currentGroup.task.title : `Question ${numberOf(currentQ)}`}
+          inboxCount={inboxItems.length}
+          unread={inboxItems.length - readMail.size}
+          fileCount={workFiles.length}
+          aiInTest={aiInTest}
+          aiHere={aiHere}
+        />
+      )}
+
       {/* Main Split Workstation */}
-      <div ref={currentGroup.task ? taskSplit.containerRef : codeSplit.containerRef} className="flex-1 flex overflow-hidden">
+      <div ref={currentGroup.task ? taskSplit.containerRef : codeSplit.containerRef} className="relative flex-1 flex overflow-hidden">
+        {/* The workspace's other tabs open over the task, which stays as it was underneath */}
+        {view !== 'task' && (
+          <div className="absolute inset-0 z-30 bg-white">
+            {view === 'inbox' ? (
+              <InboxPanel items={inboxItems} read={readMail} onRead={(i) => setReadMail((prev) => (prev.has(i) ? prev : new Set(prev).add(i)))} />
+            ) : view === 'files' ? (
+              <FilesPanel files={workFiles} />
+            ) : (
+              <AiPanel
+                key={aiKey}
+                task={`${currentGroup.questions.map((q) => `${q.title}\n${q.prompt}`).join('\n\n')}`.slice(0, 4000)}
+                company={test.scenario?.company ?? test.companyName}
+                chat={aiChats[aiKey] ?? []}
+                onChat={(chat) => setAiChats((prev) => ({ ...prev, [aiKey]: chat }))}
+              />
+            )}
+          </div>
+        )}
         {/* While resizing, a cover keeps the drag from being caught by the work window (an app runs in a frame) */}
         {(codeSplit.dragging || taskSplit.dragging) && <div className="fixed inset-0 z-40 cursor-col-resize" />}
         {/* A hands-on task: its window on the left, the brief and the questions about it on the right */}
@@ -958,9 +1011,9 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
                 <div className="text-[10px] text-slate-400">Still running</div>
               </div>
               <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                <div className="text-[11px] text-slate-500">You were away for</div>
+                <div className="text-[11px] text-slate-500">Away from the test for</div>
                 <div className="font-mono text-2xl font-bold tabular-nums text-slate-900">{lastAway === null ? '…' : formatTime(lastAway)}</div>
-                <div className="text-[10px] text-slate-400">Recorded</div>
+                <div className="text-[10px] text-slate-400">Counting until you go back to the test</div>
               </div>
             </div>
             <ul className="text-xs text-slate-700 space-y-1.5 list-disc pl-5">
@@ -969,7 +1022,11 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
             </ul>
             <CheatingWarning compact />
             <button
-              onClick={() => setLeftTab(false)}
+              onClick={() => {
+                awaySinceRef.current = null;
+                setLastAway(null);
+                setLeftTab(false);
+              }}
               autoFocus
               className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-lg shadow-xs"
             >
