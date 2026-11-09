@@ -771,6 +771,12 @@ export default function App() {
   };
 
   const openNotification = (id: string) => {
+    // A team invitation or team work: they're answered and started from the home page
+    if (id.startsWith('team:')) {
+      goToTab('home');
+      window.scrollTo(0, 0);
+      return;
+    }
     const note = notifications.find((n) => n.id === id);
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
     if (note) openJobPage(note.jobId);
@@ -1176,6 +1182,25 @@ export default function App() {
         },
       ];
     });
+  // Invitations to join a company's team, and work a team sent, at the top of the bell until answered or done
+  const teamNotifications = [
+    ...myTeamInvites.map((m) => ({
+      id: `team:${m.id}`,
+      text: `${m.companyName} invited you to join its team`,
+      detail: 'Open your home to join or decline',
+      when: new Date(m.invitedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+      read: false,
+    })),
+    ...myAssignments
+      .filter((a) => !a.completedAt)
+      .map((a) => ({
+        id: `team:${a.id}`,
+        text: `${a.companyName} sent you "${tests.find((t) => t.id === a.testId)?.title ?? 'some work'}"`,
+        detail: a.dueDate ? `Due ${new Date(a.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : 'Open your home to start it',
+        when: new Date(a.assignedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+        read: !!a.startedAt,
+      })),
+  ];
   const candidateSection = CANDIDATE_SECTIONS[currentTab];
   const profilePerson = profilePersonId ? allCandidates.find((c) => c.id === profilePersonId) : undefined;
   const candidatePagePerson = activeRole !== 'candidate' && candidatePageId ? allCandidates.find((c) => c.id === candidatePageId) : undefined;
@@ -1232,7 +1257,7 @@ export default function App() {
             ? `${recruiter.title} · ${recruiterBusiness.name}`
             : recruiter.title
         }
-        notifications={activeRole === 'candidate' && !isVisitor ? candidateNotifications : undefined}
+        notifications={activeRole === 'candidate' && !isVisitor ? [...teamNotifications, ...candidateNotifications] : undefined}
         visitor={
           isVisitor
             ? {
