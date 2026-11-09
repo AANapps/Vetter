@@ -355,6 +355,9 @@ export interface AssessmentTest {
   // Module tests: the core areas every level covers; each question names one. Companies can add their own questions
   // to any area at any level
   aspects?: TestAspect[];
+  // Training: written to teach employees a piece of software or a way of working, not to hire. Never on leaderboards or
+  // profiles; a company assigns it to its team, and each person sees feedback on every task when they finish
+  purpose?: 'training';
   // What the hire needs, worked out before the questions were written: each competency, why it matters, how the test
   // proves it, and its share of the marks
   blueprint?: BlueprintItem[];
@@ -557,9 +560,43 @@ export type ArchiveReason = 'Not a fit' | 'Below pass mark' | 'Suspected cheatin
 
 // What the company has recorded about one candidate for one job; anyone without one is at their starting stage
 // A test still being written: kept only for its company (and the Vetter team) until it's saved as a test
-// What the AI writes: a skills test of separate questions, or a job simulation (a working day at the company, with its
-// people, emails and tools)
-export type TestKind = 'test' | 'simulation';
+// What the AI writes: a skills test of separate questions, a job simulation (a working day at the company, with its
+// people, emails and tools), or a training simulation that teaches the team an app or a way of working
+export type TestKind = 'test' | 'simulation' | 'training';
+
+// Someone a company asked to join its team on Vetter, by their account (picked from candidates) or by email. Once they
+// accept, the company can assign them tests, job simulations and training. Kept in teamMembers/<businessId>__<key>,
+// where key is their uid, or their email for someone invited by address
+export interface TeamMember {
+  id: string;
+  businessId: string;
+  companyName: string;
+  uid?: string;
+  email?: string;
+  name: string;
+  status: 'invited' | 'active' | 'declined';
+  invitedAt: string; // ISO timestamp
+  joinedAt?: string;
+}
+
+// A test, job simulation or training a company gave someone on its team, and how they got on. Kept private to the
+// company and the person: it's never on their public profile or a leaderboard
+export interface Assignment {
+  id: string;
+  businessId: string;
+  companyName: string;
+  memberId: string;
+  // Their account, once they've joined
+  uid?: string;
+  testId: string;
+  assignedAt: string; // ISO timestamp
+  dueDate?: string; // YYYY-MM-DD
+  note?: string;
+  startedAt?: string;
+  completedAt?: string;
+  score?: number;
+  durationSeconds?: number;
+}
 
 export interface TestDraft {
   id: string;

@@ -15,7 +15,7 @@ import {
   where,
   writeBatch,
 } from 'firebase/firestore';
-import { AppNotification, AssessmentTest, Business, FeedComment, FeedPost, JobInvitation, JobPosting, Lead, SocialState, TestDraft, TrialResult, User } from '../types';
+import { AppNotification, Assignment, AssessmentTest, Business, TeamMember, FeedComment, FeedPost, JobInvitation, JobPosting, Lead, SocialState, TestDraft, TrialResult, User } from '../types';
 import { db } from './firebase';
 import { Company } from './accounts';
 import { initialsAvatar } from '../data/seedCandidates';
@@ -68,6 +68,10 @@ export interface CloudData {
   // Tests a company is still writing
   testDrafts: TestDraft[];
   trials: TrialResult[];
+  // A company's team (people it invited, and who joined), or, for a candidate, the companies that asked them to join
+  team: TeamMember[];
+  // Tests, simulations and training given to people on a team: the company's, or the candidate's own
+  assignments: Assignment[];
 }
 
 const kudosId = (itemId: string, uid: string) => `${encodeURIComponent(itemId)}__${uid}`;
@@ -136,6 +140,15 @@ export function useCloudData(viewer: Viewer | null, enabled: boolean, onError: (
       watch('invitations', collectionGroup(d, 'invitations'), ...mine('candidateId'));
       watch('emailInvites', collectionGroup(d, 'emailInvites'), ...(viewer.role === 'candidate' ? [where('email', '==', viewer.email.toLowerCase())] : mine('businessId')));
       watch('notifications', collection(d, 'notifications'), where('userId', '==', viewer.uid));
+      if (viewer.role === 'candidate') {
+        // Invited by their account, or by their address before they had one
+        watch('teamByUid', collection(d, 'teamMembers'), where('uid', '==', viewer.uid));
+        watch('teamByEmail', collection(d, 'teamMembers'), where('email', '==', viewer.email.toLowerCase()));
+        watch('assignments', collection(d, 'assignments'), where('uid', '==', viewer.uid));
+      } else {
+        watch('teamByUid', collection(d, 'teamMembers'), ...mine('businessId'));
+        watch('assignments', collection(d, 'assignments'), ...mine('businessId'));
+      }
       if (viewer.role !== 'candidate') {
         watch('leads', collection(d, 'leads'), ...mine('businessId'));
         watch('testDrafts', collection(d, 'testDrafts'), ...mine('businessId'));
@@ -152,7 +165,7 @@ export function useCloudData(viewer: Viewer | null, enabled: boolean, onError: (
     return () => stops.forEach((s) => s());
   }, [enabled, key]);
 
-  const needed = ['jobs', 'tests', 'profiles', 'companies', 'posts', 'comments', 'kudos', ...(viewer ? ['applications', 'invitations', 'emailInvites', 'notifications'] : []), ...(viewer && viewer.role !== 'candidate' ? ['leads', 'testDrafts', 'trials'] : [])];
+  const needed = ['jobs', 'tests', 'profiles', 'companies', 'posts', 'comments', 'kudos', ...(viewer ? ['applications', 'invitations', 'emailInvites', 'notifications'] : []), ...(viewer && viewer.role !== 'candidate' ? ['leads', 'testDrafts', 'trials'] : []), ...(viewer ? ['teamByUid', 'assignments'] : []), ...(viewer?.role === 'candidate' ? ['teamByEmail'] : [])];
   if (!enabled || needed.some((n) => !parts[n])) return null;
 
   const applications = (parts.applications ?? []) as Application[];
@@ -202,6 +215,8 @@ export function useCloudData(viewer: Viewer | null, enabled: boolean, onError: (
     leads: (parts.leads ?? []) as Lead[],
     testDrafts: ((parts.testDrafts ?? []) as TestDraft[]).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
     trials: ((parts.trials ?? []) as TrialResult[]).sort((a, b) => b.completedAt.localeCompare(a.completedAt)),
+    team: [...new Map([...((parts.teamByUid ?? []) as TeamMember[]), ...((parts.teamByEmail ?? []) as TeamMember[])].map((m) => [m.id, m])).values()],
+    assignments: ((parts.assignments ?? []) as Assignment[]).sort((a, b) => b.assignedAt.localeCompare(a.assignedAt)),
   };
 }
 
@@ -322,4 +337,24 @@ export function putTrial(trial: TrialResult, onError: (err: unknown) => void) {
 export function syncLeads(prev: Lead[], next: Lead[], onError: (err: unknown) => void) {
   const changed = next.filter((l) => !same(prev.find((p) => p.id === l.id), l));
   return run(changed.map((l) => setDoc(doc(db(), 'leads', l.id), JSON.parse(JSON.stringify(l)))), onError);
+}
+
+// Team invitations sent, answered or taken back, and people leaving a team
+export function syncTeam(prev: TeamMember[], next: TeamMember[], onError: (err: unknown) => void) {
+  const d = db();
+  const writes = [
+    ...next.filter((m) => !same(prev.find((p) => p.id === m.id), m)).map((m) => setDoc(doc(d, 'teamMembers', m.id), JSON.parse(JSON.stringify(m)))),
+    ...prev.filter((p) => !next.some((m) => m.id === p.id)).map((p) => deleteDoc(doc(d, 'teamMembers', p.id))),
+  ];
+  return run(writes, onError);
+}
+
+// Work given to the team, and each person's progress on it
+export function syncAssignments(prev: Assignment[], next: Assignment[], onError: (err: unknown) => void) {
+  const d = db();
+  const writes = [
+    ...next.filter((a) => !same(prev.find((p) => p.id === a.id), a)).map((a) => setDoc(doc(d, 'assignments', a.id), JSON.parse(JSON.stringify(a)))),
+    ...prev.filter((p) => !next.some((a) => a.id === p.id)).map((p) => deleteDoc(doc(d, 'assignments', p.id))),
+  ];
+  return run(writes, onError);
 }

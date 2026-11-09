@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { meter } from './meter.js';
-import { APP_KINDS, APP_TASK_RULES, DEPTH_STYLE_RULES, EMAIL_RULES, ASSISTANT_RULES, QUALITY_RULES, SKILLS_TEST_RULES, SimulationCompany, simulationRules, TASK_RULES, WORKSPACE_RULES, MAX_PROMPT, PRICES, apiFailure, questionSchema, researchSoftware } from './generateTest.js';
+import { APP_KINDS, APP_TASK_RULES, DEPTH_STYLE_RULES, EMAIL_RULES, ASSISTANT_RULES, QUALITY_RULES, SKILLS_TEST_RULES, TRAINING_RULES, SimulationCompany, simulationRules, TASK_RULES, WORKSPACE_RULES, MAX_PROMPT, PRICES, apiFailure, questionSchema, researchSoftware } from './generateTest.js';
 
 /**
  * Building a test by talking to Vetter: the company says what it wants, Vetter writes a draft, and every message after
@@ -16,7 +16,7 @@ export interface ChatRequest {
   job?: string;
   jobTitle?: string;
   // A skills test or a job simulation, as the company picked
-  kind?: 'test' | 'simulation';
+  kind?: 'test' | 'simulation' | 'training';
   // The company hiring, where the job simulation is set
   company?: SimulationCompany;
   // The draft as it stands, with app pages left out (see draftForModel in src/lib/testChat.ts)
@@ -91,7 +91,7 @@ export const responseSchema = {
 // How every question is written and how a test is put together: shared by the chat, the planner (server/planTest.ts)
 // and the section writer (server/writeQuestions.ts)
 export interface GuideRequest {
-  kind?: 'test' | 'simulation';
+  kind?: 'test' | 'simulation' | 'training';
   company?: SimulationCompany;
   jobTitle?: string;
   styles?: string[];
@@ -136,8 +136,8 @@ export const stylesNote = (req: Picks) =>
     .join('');
 
 export function styleGuide(req: GuideRequest): string {
-  const sim = req.kind === 'simulation';
-  return `${sim ? simulationRules(req.company, req.jobTitle) : SKILLS_TEST_RULES}
+  const sim = req.kind !== 'test';
+  return `${sim ? simulationRules(req.company, req.jobTitle) : SKILLS_TEST_RULES}${req.kind === 'training' ? TRAINING_RULES : ''}
 - Every question must be answerable from its prompt alone, and check what the job really needs, not trivia.${QUALITY_RULES}
 - Styles: choice, multi, text, written, order, match for any job; email for replying to work email; case for a case
   study with sub-questions; sheet, database and app are hands-on tasks in a working window.
@@ -190,7 +190,7 @@ HOW TO TALK
 - If asked something you can't do (a style not listed below, uploading files), say so and offer the nearest thing.
 
 ${stylesNote(req)}THE DRAFT
-- ${req.kind === 'simulation' ? "The draft's scenario is the job simulation's setting and its people: keep to them, and use those people in anything new." : 'This is a skills test, not a job simulation: keep it one, unless the company asks for a simulation (then send lookUp "REPLAN").'}
+- ${req.kind === 'training' ? "This is training for the company's own people: keep it teaching (clear steps, worked answers), set in the draft's scenario with its people." : req.kind === 'simulation' ? "The draft's scenario is the job simulation's setting and its people: keep to them, and use those people in anything new." : 'This is a skills test, not a job simulation: keep it one, unless the company asks for a simulation (then send lookUp "REPLAN").'}
 - Include "test" whenever the draft is new or changes, with every question in order. skillsTested IS the blueprint: one line per competency, written "skill | weight | why it matters | how the test proves it". For a question that stays exactly as it is, set keep to its id and type to its type, and leave every other field empty ("", [], 0, -1). Leave "test" out when nothing changes (a question, a chat).
 - A sheet or database question can only be kept whole or written again from scratch.
 - APP CHANGES: to change an app page already in the draft (a new screen, a button that should do something, different

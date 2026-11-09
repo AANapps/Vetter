@@ -19,6 +19,8 @@ interface PersonProfileModalProps {
   companyResultsFor: 'all' | string | null;
   showIntegrity?: boolean;
   onOpenTest: (testId: string) => void;
+  // A company viewing: asks them to join its team; 'invited' or 'member' once they have been
+  team?: { status: 'none' | 'invited' | 'member'; onInvite: () => void };
 }
 
 // Someone's profile: who they are, what they've verified and every test they've taken that the viewer may see
@@ -34,6 +36,7 @@ export const PersonProfileModal: React.FC<PersonProfileModalProps> = ({
   companyResultsFor,
   showIntegrity,
   onOpenTest,
+  team,
 }) => {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -88,6 +91,16 @@ export const PersonProfileModal: React.FC<PersonProfileModalProps> = ({
             }`}
           >
             {isFollowing ? 'Following' : 'Follow'}
+          </button>
+        )}
+
+        {!isYou && team && (
+          <button
+            onClick={team.onInvite}
+            disabled={team.status !== 'none'}
+            className="w-full py-2 text-xs font-semibold rounded-lg text-indigo-700 bg-indigo-50 hover:bg-indigo-100 disabled:text-slate-500 disabled:bg-slate-100"
+          >
+            {team.status === 'member' ? 'On your team' : team.status === 'invited' ? 'Invited to your team' : 'Invite to your team'}
           </button>
         )}
 

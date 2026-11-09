@@ -30,7 +30,7 @@ export interface AdvisorTurn {
   error?: boolean;
 }
 
-export type AdvisorIntent = 'candidates' | 'test' | 'both' | 'unclear';
+export type AdvisorIntent = 'candidates' | 'test' | 'both' | 'training' | 'unclear';
 
 export interface SuggestedPerson {
   candidateId: string;

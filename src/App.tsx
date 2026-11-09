@@ -4,7 +4,7 @@ import { AnswerRecord, saveSubmission } from './lib/submissions';
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { PixelDot } from './components/PixelDot';
 import { CurrencyPicker } from './components/CurrencyPicker';
-import { User, UserRole, AssessmentTest, JobPosting, Business, SocialState, AppNotification, JobInvitation, Lead, TestDraft, TestKind, TrialResult, ResultBreakdown, hasAiTests, madeWithAI, isPublic } from './types';
+import { User, UserRole, Assignment, TeamMember, AssessmentTest, JobPosting, Business, SocialState, AppNotification, JobInvitation, Lead, TestDraft, TestKind, TrialResult, ResultBreakdown, hasAiTests, madeWithAI, isPublic } from './types';
 import { INITIAL_RECRUITER, INITIAL_BUSINESSES, STANDARD_ASSESSMENTS } from './data/mockData';
 import { loadData, saveData, clearData, createSeedData } from './lib/store';
 import { getPercentile } from './lib/leaderboard';
@@ -44,7 +44,7 @@ import { firebaseEnabled } from './lib/firebase';
 import { useAccount } from './lib/useAccount';
 import { loadProfile, saveProfile } from './lib/profiles';
 import { Account, accountError, signOut } from './lib/accounts';
-import { Viewer, apply, syncJobs, syncLeads, syncNotifications, syncSocial, putTestDraft, putTrial, syncTestDrafts, syncTests, useCloudData } from './lib/cloud';
+import { Viewer, apply, syncAssignments, syncTeam, syncJobs, syncLeads, syncNotifications, syncSocial, putTestDraft, putTrial, syncTestDrafts, syncTests, useCloudData } from './lib/cloud';
 import { LeadsPage } from './components/LeadsPage';
 import { LeadChange } from './components/LeadsView';
 import { LeadRow, buildLeadRows, updatedLead } from './lib/leads';
@@ -60,6 +60,8 @@ import { CoursePage } from './components/CoursePage';
 import { COURSES, courseIdFromPath, coursePath, isLearnIndexPath, isUpskillIndexPath } from './data/courses';
 import { useCourseProgress } from './lib/courseProgress';
 import { BusinessHome } from './components/BusinessHome';
+import { TeamPage } from './components/TeamPage';
+import { TeamWork } from './components/TeamWork';
 import { PlansDialog } from './components/PlansDialog';
 import { AdvisorTurn } from './lib/testAdvisor';
 
@@ -142,6 +144,7 @@ const TAB_PATHS: Record<AppTab, string> = {
   'business-jobs': '/business/jobs/',
   'business-tests': '/business/tests/',
   'business-candidates': '/business/candidates/',
+  'business-team': '/business/team/',
   ranked: '/ranked/',
   guides: '/guides/',
 };
@@ -161,7 +164,7 @@ const businessCandidateIdFromPath = () => {
 // The pages each side has; companies is on both
 const SIDE_TABS: Record<'candidate' | 'staff', AppTab[]> = {
   candidate: ['home', 'tests', 'jobs', 'ranked', 'learn', 'upskill', 'profile', 'companies', 'guides'],
-  staff: ['business-home', 'business-jobs', 'business-tests', 'business-candidates', 'companies', 'guides'],
+  staff: ['business-home', 'business-jobs', 'business-tests', 'business-candidates', 'business-team', 'companies', 'guides'],
 };
 const sideOf = (role: UserRole) => (role === 'candidate' ? 'candidate' : 'staff');
 
@@ -234,6 +237,8 @@ export default function App() {
   const [localLeads, setLocalLeads] = useState<Lead[]>(initialData.leads);
   const [localTestDrafts, setLocalTestDrafts] = useState<TestDraft[]>(initialData.testDrafts);
   const [localTrials, setLocalTrials] = useState<TrialResult[]>(initialData.trials);
+  const [localTeam, setLocalTeam] = useState<TeamMember[]>(initialData.team);
+  const [localAssignments, setLocalAssignments] = useState<Assignment[]>(initialData.assignments);
 
   // With accounts on, everything real comes from Firebase (src/lib/cloud.ts) and changes are written back there;
   // without them, the demo's example data lives in this browser
@@ -257,6 +262,12 @@ export default function App() {
   const leads = cloud ? cloud.leads : localLeads;
   const testDrafts = cloud ? cloud.testDrafts : localTestDrafts;
   const trials = cloud ? cloud.trials : localTrials;
+  const team = cloud ? cloud.team : localTeam;
+  const assignments = cloud ? cloud.assignments : localAssignments;
+  const teamRef = useRef(team);
+  teamRef.current = team;
+  const assignmentsRef = useRef(assignments);
+  assignmentsRef.current = assignments;
   const testDraftsRef = useRef(testDrafts);
   testDraftsRef.current = testDrafts;
   const leadsRef = useRef(leads);
@@ -282,6 +293,10 @@ export default function App() {
     firebaseEnabled ? syncNotifications(notificationsRef.current, update(notificationsRef.current), reportCloudError) : setLocalNotifications(update);
   const setLeads = (update: Update<Lead[]>) =>
     firebaseEnabled ? syncLeads(leadsRef.current, update(leadsRef.current), reportCloudError) : setLocalLeads(update);
+  const setTeam = (update: Update<TeamMember[]>) =>
+    firebaseEnabled ? syncTeam(teamRef.current, update(teamRef.current), reportCloudError) : setLocalTeam(update);
+  const setAssignments = (update: Update<Assignment[]>) =>
+    firebaseEnabled ? syncAssignments(assignmentsRef.current, update(assignmentsRef.current), reportCloudError) : setLocalAssignments(update);
   const setTestDrafts = (update: Update<TestDraft[]>) =>
     firebaseEnabled ? syncTestDrafts(testDraftsRef.current, update(testDraftsRef.current), reportCloudError) : setLocalTestDrafts(update);
 
@@ -295,8 +310,8 @@ export default function App() {
 
   useEffect(() => {
     if (firebaseEnabled) return;
-    saveData({ candidate, otherCandidates, jobs, tests, social, notifications, leads, testDrafts, trials });
-  }, [candidate, otherCandidates, jobs, tests, social, notifications, leads, testDrafts, trials]);
+    saveData({ candidate, otherCandidates, jobs, tests, social, notifications, leads, testDrafts, trials, team, assignments });
+  }, [candidate, otherCandidates, jobs, tests, social, notifications, leads, testDrafts, trials, team, assignments]);
 
   // Changes one person's invitation to a job's tests, adding it if they don't have one yet
   const updateInvitation = (jobId: string, candidateId: string, change: Partial<JobInvitation>) =>
@@ -916,6 +931,85 @@ export default function App() {
     showToast(`You scored ${score}/100. Saved to your team's trials.`);
   };
 
+  // A company's team: people it invited, and the work it sends them (src/components/TeamPage.tsx)
+  const ourTeam = recruiterBusiness ? team.filter((m) => m.businessId === recruiterBusiness.id) : [];
+  const ourAssignments = recruiterBusiness ? assignments.filter((a) => a.businessId === recruiterBusiness.id) : [];
+  const inviteToTeam = (invitee: { uid: string; name: string } | { email: string }) => {
+    if (!recruiterBusiness) return showToast('Your company needs to be set up before you can invite your team.');
+    const key = 'uid' in invitee ? invitee.uid : invitee.email;
+    const id = `${recruiterBusiness.id}__${key}`;
+    const existing = team.find((m) => m.id === id);
+    if (existing && existing.status !== 'declined') return showToast(existing.status === 'active' ? 'They’re already on your team.' : 'They’ve already been invited.');
+    const member: TeamMember = {
+      id,
+      businessId: recruiterBusiness.id,
+      companyName: recruiterBusiness.name,
+      ...('uid' in invitee ? { uid: invitee.uid, name: invitee.name } : { email: invitee.email, name: invitee.email }),
+      status: 'invited',
+      invitedAt: new Date().toISOString(),
+    };
+    // Asked again after declining: a fresh invitation
+    if (existing && firebaseEnabled) syncTeam([existing], [], reportCloudError).then(() => setTeam((prev) => [...prev.filter((m) => m.id !== id), member]));
+    else setTeam((prev) => [...prev.filter((m) => m.id !== id), member]);
+    showToast(`Invited ${member.name} to join ${recruiterBusiness.name}'s team.`);
+  };
+  const assignWork = (members: TeamMember[], test: AssessmentTest, dueDate?: string, note?: string) => {
+    if (!recruiterBusiness) return;
+    const now = new Date();
+    const made: Assignment[] = members
+      .filter((m) => m.uid)
+      .map((m, i) => ({
+        id: `asg-${now.getTime()}-${i}-${Math.random().toString(36).slice(2, 7)}`,
+        businessId: recruiterBusiness.id,
+        companyName: recruiterBusiness.name,
+        memberId: m.id,
+        uid: m.uid!,
+        testId: test.id,
+        assignedAt: now.toISOString(),
+        ...(dueDate && { dueDate }),
+        ...(note && { note }),
+      }));
+    setAssignments((prev) => [...made, ...prev]);
+    showToast(`Sent "${test.title}" to ${made.length} ${made.length === 1 ? 'person' : 'people'}.`);
+  };
+
+  // Someone's own side of it: companies that asked them to join, and the work sent to them
+  const myEmail = (account?.email ?? candidate.email ?? '').toLowerCase();
+  const myTeamInvites = activeRole === 'candidate' && !isVisitor ? team.filter((m) => m.status === 'invited' && (m.uid === candidate.id || (!!myEmail && m.email === myEmail))) : [];
+  const myTeams = activeRole === 'candidate' && !isVisitor ? team.filter((m) => m.status === 'active' && m.uid === candidate.id) : [];
+  const myAssignments = activeRole === 'candidate' && !isVisitor ? assignments.filter((a) => a.uid === candidate.id && myTeams.some((m) => m.id === a.memberId)) : [];
+  const respondToTeam = (member: TeamMember, accept: boolean) => {
+    setTeam((prev) =>
+      prev.map((m) =>
+        m.id === member.id
+          ? { ...m, uid: candidate.id, name: candidate.name, status: accept ? 'active' : 'declined', ...(accept && { joinedAt: new Date().toISOString() }) }
+          : m
+      )
+    );
+    showToast(accept ? `You've joined ${member.companyName}'s team.` : `Declined ${member.companyName}'s invitation.`);
+  };
+  // Work from the team being done now; its result goes to the company only
+  const [assignmentRun, setAssignmentRun] = useState<{ assignment: Assignment; test: AssessmentTest } | null>(null);
+  const updateAssignment = (id: string, change: Partial<Assignment>) => setAssignments((prev) => prev.map((a) => (a.id === id ? { ...a, ...change } : a)));
+  const finishAssignment = (assignment: Assignment, test: AssessmentTest, score: number, durationSeconds: number, answers?: AnswerRecord[]) => {
+    const completedAt = new Date().toISOString();
+    updateAssignment(assignment.id, { completedAt, score, durationSeconds });
+    if (answers?.length)
+      saveSubmission({
+        id: `${test.id}__${candidate.id}__${Date.now()}`,
+        candidateId: candidate.id,
+        candidateName: candidate.name,
+        businessId: assignment.businessId,
+        testId: test.id,
+        testTitle: test.title,
+        score,
+        completedAt,
+        answers,
+      }).catch((err) => console.error("Couldn't keep the answers for the company", err));
+    showToast(`You scored ${score}/100. ${assignment.companyName} can see how you got on.`);
+    setAssignmentRun(null);
+  };
+
   // A candidate starting one of a job's tests from the job: the company sees them on the job from now
   const startJobTest = (test: AssessmentTest, jobId: string) => {
     if (activeRole !== 'candidate') {
@@ -1281,6 +1375,19 @@ export default function App() {
               onOpenGuide={(slug) => navigateTo(slug ? `/guides/${slug}/` : '/guides/')}
             />
           )}
+          {!detailPage && !isVisitor && !hiringHome && activeRole === 'candidate' && currentTab === 'home' && (myTeamInvites.length > 0 || myTeams.length > 0) && (
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-8 -mb-8">
+              <TeamWork
+                invitations={myTeamInvites}
+                memberships={myTeams}
+                assignments={myAssignments}
+                tests={tests}
+                onRespond={respondToTeam}
+                onLeave={(m) => (setTeam((prev) => prev.filter((x) => x.id !== m.id)), showToast(`You've left ${m.companyName}'s team.`))}
+                onStart={(assignment, test) => setAssignmentRun({ assignment, test })}
+              />
+            </div>
+          )}
           {!detailPage && !isVisitor && !hiringHome && activeRole === 'candidate' && currentTab === 'home' && (
             <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 grid grid-cols-1 lg:grid-cols-[minmax(0,300px)_minmax(0,1fr)_minmax(0,280px)] gap-6 items-start">
               <CandidateHome
@@ -1406,6 +1513,32 @@ export default function App() {
               onOpenTest={openTestPage}
               onGoTo={goToTab}
             />
+          )}
+
+          {!detailPage && activeRole !== 'candidate' && currentTab === 'business-team' && (
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+              {recruiterBusiness ? (
+                <TeamPage
+                  business={recruiterBusiness}
+                  team={ourTeam}
+                  assignments={ourAssignments}
+                  tests={tests}
+                  candidates={otherCandidates.concat(activeRole === 'recruiter' && !firebaseEnabled ? [candidate] : [])}
+                  aiAllowed={aiAllowed}
+                  onInviteEmail={(email) => inviteToTeam({ email })}
+                  onInviteCandidate={(c) => inviteToTeam({ uid: c.id, name: c.name })}
+                  onRemoveMember={(m) => setTeam((prev) => prev.filter((x) => x.id !== m.id))}
+                  onAssign={assignWork}
+                  onUnassign={(a) => setAssignments((prev) => prev.filter((x) => x.id !== a.id))}
+                  onCreateTraining={() => openGenerator({ kind: 'training' })}
+                  onSeePlans={() => setPlansOpen(true)}
+                  onOpenTest={openTestPage}
+                  onViewPerson={setProfilePersonId}
+                />
+              ) : (
+                <p className="text-sm text-slate-500">Teams belong to a company. Switch to a company's view to invite people and send them training.</p>
+              )}
+            </div>
           )}
 
           {!detailPage && activeRole !== 'candidate' && currentTab === 'business-jobs' && (
@@ -1671,6 +1804,18 @@ export default function App() {
         />
       )}
 
+      {assignmentRun && (
+        <TestRunner
+          test={assignmentRun.test}
+          training={assignmentRun.test.purpose === 'training'}
+          savedNote={`Shared with ${assignmentRun.assignment.companyName} only. It isn't on your profile or any leaderboard.`}
+          onClose={() => setAssignmentRun(null)}
+          onBegin={() => !assignmentRun.assignment.startedAt && updateAssignment(assignmentRun.assignment.id, { startedAt: new Date().toISOString() })}
+          onComplete={(_testId, score, durationSeconds, _integrity, _breakdown, answers) => finishAssignment(assignmentRun.assignment, assignmentRun.test, score, durationSeconds, answers)}
+          getPercentileFor={(score) => getPercentile(score, assignmentRun.test.id, allCandidates, candidate.id)}
+        />
+      )}
+
       {trialTest && (
         <TestRunner
           test={trialTest.test}
@@ -1694,6 +1839,14 @@ export default function App() {
           tests={tests}
           candidates={allCandidates}
           businesses={businesses}
+          team={
+            activeRole === 'recruiter' && recruiterBusiness
+              ? (() => {
+                  const m = ourTeam.find((x) => x.uid === profilePerson.id && x.status !== 'declined');
+                  return { status: m ? (m.status === 'active' ? 'member' : 'invited') : 'none', onInvite: () => inviteToTeam({ uid: profilePerson.id, name: profilePerson.name }) };
+                })()
+              : undefined
+          }
           companyResultsFor={
             activeRole === 'admin' || (activeRole === 'candidate' && profilePerson.id === candidate.id)
               ? 'all'

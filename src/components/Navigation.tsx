@@ -3,7 +3,7 @@ import { PixelDot } from './PixelDot';
 import { Pic } from './Pic';
 import { UserRole } from '../types';
 import { ArrowLeftRight,
-  BookOpen, Building2, LogOut, Menu, ShieldCheck, Trophy, X, Bell, Briefcase, ChevronDown, ClipboardCheck, House, Repeat, Search, Users } from 'lucide-react';
+  BookOpen, Building2, LogOut, Menu, ShieldCheck, Trophy, X, Bell, Briefcase, ChevronDown, ClipboardCheck, GraduationCap, House, Repeat, Search, Users } from 'lucide-react';
 
 export type AppTab =
   | 'home'
@@ -17,6 +17,7 @@ export type AppTab =
   | 'business-jobs'
   | 'business-tests'
   | 'business-candidates'
+  | 'business-team'
   | 'ranked'
   | 'guides';
 
@@ -37,6 +38,7 @@ export const NAV_TABS: Record<'candidate' | 'recruiter', { id: AppTab; label: st
     { id: 'business-jobs', label: 'Your jobs', icon: Briefcase },
     { id: 'business-tests', label: 'Tests', icon: ClipboardCheck },
     { id: 'business-candidates', label: 'Candidates', icon: Users },
+    { id: 'business-team', label: 'Team', icon: GraduationCap },
   ],
 };
 

@@ -235,6 +235,22 @@ SKILLS TEST: this is a skills test, not a job simulation. Each question, case an
 (different workplaces and people are fine), testing the skills the job needs one by one. There is no setting or cast:
 leave company, setting and people empty ("", "" and []).`;
 
+// Training: the same working setting as a job simulation, but written to teach the company's people, usually one app
+export const TRAINING_RULES = `
+TRAINING: this is a training simulation for people who already work at the company, not a hiring test. It teaches
+them to do real work in the software (or the process) the company names, step by step:
+- Build it around one or more app tasks that copy that software as closely as you can (its screens, terms and buttons),
+  starting easy and building up: find your way round, then the everyday jobs, then the trickier ones and the mistakes
+  people make. Use the company's own data and people.
+- Every prompt says plainly what to do and why it matters at work, as a good trainer would ("Raise a refund for Priya's
+  order; refunds over £200 need a manager's sign-off, so add Tom as approver."). Teaching beats trickery: no traps,
+  and anything they need to know is in the prompt or the material.
+- solutionCode on every question is the worked answer with a short explanation, written to the trainee; rubric points
+  and feedback teach the right way of working. They see all of it when they finish.
+- Quick questions (choice, order, match) check they understood the step just done; skip long written answers unless the
+  company asks.
+- skillsTested lists what they'll be able to do afterwards. passingScore is 70 unless told otherwise.`;
+
 // A job simulation: the candidate is working at the hiring company, in the role, from start to end
 export interface SimulationCompany {
   name?: string;

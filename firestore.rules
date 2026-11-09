@@ -160,6 +160,46 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+    // People a company asked to join its team (by their account, or by email before they have one), so it can give
+    // them tests, simulations and training. The company sends and takes back invitations; the person accepts, declines
+    // or leaves. The id is <company>__<their uid or email>
+    function invitedPerson(data) {
+      return signedIn() && (data.get('uid', null) == uid()
+        || (verified() && data.get('email', null) == request.auth.token.email.lower()));
+    }
+    match /teamMembers/{memberId} {
+      allow read: if signedIn() && (isAdmin() || worksAt(resource.data.businessId) || invitedPerson(resource.data));
+      allow create: if (isAdmin() || worksAt(request.resource.data.businessId))
+        && request.resource.data.id == memberId && request.resource.data.status == 'invited'
+        && memberId == request.resource.data.businessId + '__' + request.resource.data.get('uid', request.resource.data.get('email', ''))
+        && request.resource.data.keys().hasOnly(['id', 'businessId', 'companyName', 'uid', 'email', 'name', 'status', 'invitedAt']);
+      allow update: if (isAdmin()
+          || (worksAt(resource.data.businessId) && changed().hasOnly(['name', 'companyName'])))
+        || (invitedPerson(resource.data) && changed().hasOnly(['status', 'uid', 'joinedAt', 'name'])
+          && request.resource.data.status in ['active', 'declined'] && request.resource.data.get('uid', null) == uid());
+      allow delete: if isAdmin() || worksAt(resource.data.businessId) || invitedPerson(resource.data);
+    }
+
+    // Work given to someone on a company's team, and how they got on: only the company, that person and the Vetter
+    // team see it. Only people who joined the team can be given work; they record starting and finishing it
+    function teamMemberDoc(memberId) { return get(/databases/$(database)/documents/teamMembers/$(memberId)).data; }
+    match /assignments/{assignmentId} {
+      allow read: if signedIn() && (isAdmin() || worksAt(resource.data.businessId) || resource.data.get('uid', null) == uid());
+      allow create: if (isAdmin() || worksAt(request.resource.data.businessId))
+        && request.resource.data.id == assignmentId
+        && teamMemberDoc(request.resource.data.memberId).businessId == request.resource.data.businessId
+        && teamMemberDoc(request.resource.data.memberId).status == 'active'
+        && request.resource.data.uid == teamMemberDoc(request.resource.data.memberId).uid
+        && request.resource.data.keys().hasOnly(['id', 'businessId', 'companyName', 'memberId', 'uid', 'testId', 'assignedAt', 'dueDate', 'note']);
+      allow update: if isAdmin()
+        || (worksAt(resource.data.businessId) && changed().hasOnly(['dueDate', 'note']))
+        || (signedIn() && resource.data.get('uid', null) == uid()
+          && changed().hasOnly(['startedAt', 'completedAt', 'score', 'durationSeconds'])
+          && request.resource.data.get('score', 0) is number
+          && request.resource.data.get('score', 0) >= 0 && request.resource.data.get('score', 0) <= 100);
+      allow delete: if isAdmin() || worksAt(resource.data.businessId);
+    }
+
     // A company's own tries at tests, seen only by its team and the Vetter team
     match /trials/{trialId} {
       allow read: if signedIn() && (isAdmin() || worksAt(resource.data.businessId));

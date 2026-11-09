@@ -40,12 +40,12 @@ interface BusinessHomeProps {
   onInvite: (jobId: string, candidateId: string) => void;
 }
 
-// Both things the chat does: find people, and make a test
+// What the chat does: find people, make a job simulation, and train the team
 const STARTERS = [
   "I'm looking for a data analyst who knows SQL",
   'Find me a junior React developer',
   'Create a test for a customer support agent',
-  'How should I test a graduate financial analyst?',
+  'Train my support team on Zendesk',
 ];
 
 // A company's home: a chat with Vetter about who they're hiring, which answers with a roadmap, the library tests that
@@ -374,19 +374,20 @@ const AdvisorReply: React.FC<{
         </div>
       )}
 
-      {/* They want something built: the job simulation (a day in the life at their company) Vetter's AI would write */}
-      {turn.brief && (turn.intent === 'test' || turn.intent === 'both') && (
+      {/* They want something built: the job simulation (a day in the life at their company) Vetter's AI would write, or
+          training for their team */}
+      {turn.brief && (turn.intent === 'test' || turn.intent === 'both' || turn.intent === 'training') && (
         <div className="p-4 bg-white border border-slate-200 rounded-xl flex flex-col sm:flex-row sm:items-center gap-3">
           <div className="min-w-0 flex-1">
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Your job simulation</div>
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{turn.intent === 'training' ? 'Your training simulation' : 'Your job simulation'}</div>
             <p className="mt-1 text-sm text-slate-700 leading-relaxed">{turn.brief}</p>
           </div>
           <button
-            onClick={() => (aiAllowed ? onBuildWithAI(turn.brief!, 'simulation') : onSeePlans())}
+            onClick={() => (aiAllowed ? onBuildWithAI(turn.brief!, turn.intent === 'training' ? 'training' : 'simulation') : onSeePlans())}
             className="create-border shrink-0 self-start sm:self-center px-4 py-2 text-sm font-semibold text-indigo-700 hover:text-indigo-900 rounded-lg inline-flex items-center gap-1.5"
           >
             {!aiAllowed && <Lock className="w-3.5 h-3.5" />}
-            Create job simulation
+            {turn.intent === 'training' ? 'Create training' : 'Create job simulation'}
           </button>
         </div>
       )}

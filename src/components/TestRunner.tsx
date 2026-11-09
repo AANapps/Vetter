@@ -93,6 +93,9 @@ const ResizeHandle: React.FC<{ onPointerDown: (e: React.PointerEvent) => void; o
   </div>
 );
 
+// In training, the worked answer is shown for questions whose solutionCode is written for a person to read
+const WORKED_ANSWER_TYPES: Question['type'][] = ['choice', 'multi', 'text', 'written', 'order', 'match', 'email', 'assistant', 'scenario'];
+
 interface TestRunnerProps {
   test: AssessmentTest;
   onClose: () => void;
@@ -107,6 +110,8 @@ interface TestRunnerProps {
   onBegin?: () => void;
   // Which try at the job's test this is, and how many the job allows
   attempt?: { number: number; limit?: number };
+  // Training for a company's team: no warnings for leaving the tab, no badge or percentile, and the worked answers at the end
+  training?: boolean;
 }
 
 // Every candidate gets their own numbers: the test's data is varied from a fresh seed before it opens (lib/variants.ts).
@@ -131,7 +136,7 @@ export const TestRunner: React.FC<TestRunnerProps> = (props) => {
   return <TestRunnerInner {...props} test={own} />;
 };
 
-const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete, getPercentileFor, preview, savedNote, onBegin, attempt }) => {
+const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete, getPercentileFor, preview, savedNote, onBegin, attempt, training }) => {
   // Each hands-on task is shown with the questions about it; every other question on its own
   const groups = useMemo(() => groupQuestions(test.questions), [test.questions]);
   const ordered = useMemo(() => groups.flatMap((g) => g.questions), [groups]);
@@ -286,7 +291,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
           setLastAway(null);
           const away = r.tabSwitches + r.windowSwitches;
           setFocusWarning(`You left the test: recorded (${away} ${away === 1 ? 'time' : 'times'})`);
-          if (!preview) setLeftTab(true);
+          if (!preview && !training) setLeftTab(true);
         }
         if (e.type === 'paste-external') setFocusWarning('Pasted text from outside the test: recorded');
         if (e.type === 'screens-changed' && (r.screens ?? 1) > 1) setFocusWarning('A second screen was connected: recorded');
@@ -1030,7 +1035,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
                   <CheckCircle2 className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900">{preview ? 'Preview finished' : 'Test complete!'}</h3>
+                  <h3 className="text-lg font-bold text-slate-900">{preview ? 'Preview finished' : training ? 'Training complete' : 'Test complete!'}</h3>
                   <p className="text-xs text-slate-500">
                     {preview
                       ? 'This is how candidates are scored. Nothing is saved.'
@@ -1043,6 +1048,16 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
                 </div>
               </div>
 
+              {training ? (
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-center">
+                  <div className="text-xs text-slate-500 mb-1 font-medium">Your score</div>
+                  <div className="text-3xl font-extrabold font-mono tabular-nums text-slate-900">{finalScore}</div>
+                  <div className={`text-[11px] mt-1 font-medium ${finalScore >= test.passingScore ? 'text-emerald-700' : 'text-amber-700'}`}>
+                    {finalScore >= test.passingScore ? 'Well done: you’ve got the hang of it' : `Worth another go: ${test.passingScore} shows you’ve got it`}
+                  </div>
+                </div>
+              ) : (
+                <>
               {/* The badge this score earns */}
               <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-white p-4">
                 <span className={`absolute inset-x-0 top-0 h-1 ${earnedTier.barClass}`} aria-hidden="true" />
@@ -1077,6 +1092,9 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
                 </div>
               </div>
 
+                </>
+              )}
+
               {breakdown && <ResultBreakdownPanel breakdown={breakdown} testLevel={test.difficulty} />}
 
               <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600 space-y-1.5 max-h-64 overflow-y-auto">
@@ -1097,6 +1115,12 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
                         </span>
                         <span className="font-mono font-semibold tabular-nums text-slate-900">{questionScores[q.id] ?? 0}/100</span>
                       </div>
+                      {training && q.solutionCode && WORKED_ANSWER_TYPES.includes(q.type) && (
+                        <div className="mt-0.5 pl-4 text-[11px] text-slate-600 whitespace-pre-wrap">
+                          <span className="font-semibold text-slate-800">How to do it: </span>
+                          {q.solutionCode}
+                        </div>
+                      )}
                       {missed.length > 0 && (
                         <ul
                           className={`mt-0.5 pl-4 text-[11px] list-disc ${

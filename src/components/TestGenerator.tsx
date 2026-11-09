@@ -59,12 +59,16 @@ const PICKABLE_STYLES = PICKABLE.map((type) => QUESTION_STYLES.find((s) => s.typ
 export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tests, onOpenTest, onSaveTest, onAddToJob, editing, onUpdateTest, onEditDraft, onSaveDraft, resume, seed, autoSend, kind: kindAsked, onClose }) => {
   // The saved test being changed, opened from its job or from a draft of changes to it
   const [original] = useState(() => editing ?? (resume?.editsTestId ? tests.find((t) => t.id === resume.editsTestId) : undefined));
-  // What the AI writes is a job simulation (a day in the life at the company); a skills test already made stays one
-  const [kind] = useState<TestKind>(
-    () => kindAsked ?? resume?.kind ?? (original ? (original.scenario ? 'simulation' : 'test') : resume ? (resume.test.scenario ? 'simulation' : 'test') : 'simulation')
-  );
+  // What the AI writes is a job simulation (a day in the life at the company) or training for the team; a skills test
+  // already made stays one
+  const kindOf = (t: AssessmentTest): TestKind => (t.purpose === 'training' ? 'training' : t.scenario ? 'simulation' : 'test');
+  const [kind] = useState<TestKind>(() => kindAsked ?? resume?.kind ?? (original ? kindOf(original) : resume ? kindOf(resume.test) : 'simulation'));
+  // Training is marked as such when it's saved, so it's kept off leaderboards and profiles and goes to the team
+  const withPurpose = (t: AssessmentTest): AssessmentTest => (kind === 'training' ? { ...t, purpose: 'training' } : t);
   const greetingFor = (k?: TestKind) =>
-    k === 'simulation'
+    k === 'training'
+      ? `Which app or way of working should your team learn? Tell me who it's for, what they need to be able to do and anything they get wrong today. I'll build a copy of the app set at ${business?.name ?? 'your company'}, with guided tasks from easy to tricky and worked answers at the end, and you can send it to your team.`
+      : k === 'simulation'
       ? job
         ? `I've read the ${job.title} job description. I'll set the simulation at ${business?.name ?? 'your company'}: a working day with colleagues, emails to handle and the tools they'd use. Tell me what matters most, or ask me to write a first draft.`
         : `Tell me about the role: what they do day to day, who they work with, the tools they use and the level. I'll write a working day at ${business?.name ?? 'your company'} for them to do, and we'll refine it together.`
@@ -268,6 +272,8 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
     : !started
     ? job
       ? ['Write a first draft', 'Focus on the hands-on tools they use', 'Keep it under 20 minutes']
+      : kind === 'training'
+      ? ['New starters on our Salesforce CRM', 'Support staff handling refunds in Zendesk', 'The finance team on Xero month-end']
       : ['A junior accounts assistant using Excel and Xero', 'A customer support agent in Zendesk', 'A junior data analyst who writes SQL']
     : draft
     ? [
@@ -289,12 +295,12 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
   const finish = () => {
     if (unfinished) return;
     if (original) {
-      if (draft) onUpdateTest(asSaved(finaliseDraft(draft)));
+      if (draft) onUpdateTest(withPurpose(asSaved(finaliseDraft(draft))));
       onClose();
       return;
     }
     const ids = [...chosen];
-    if (draft && keepNew) ids.push(onSaveTest({ ...finaliseDraft(draft), madeWith: 'ai' }));
+    if (draft && keepNew) ids.push(onSaveTest(withPurpose({ ...finaliseDraft(draft), madeWith: 'ai' })));
     if (job && ids.length) onAddToJob(job.id, ids);
     onClose();
   };
@@ -305,7 +311,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
         <div className="px-5 pt-4 pb-3 border-b border-slate-200 flex items-start justify-between gap-4">
           <div className="min-w-0">
             <h2 className="text-xl font-bold text-slate-900">
-              {original ? `Edit ${original.title}` : kind === 'simulation' ? 'Build a job simulation with Vetter' : 'Build a skills test with Vetter'}
+              {original ? `Edit ${original.title}` : kind === 'training' ? 'Build training with Vetter' : kind === 'simulation' ? 'Build a job simulation with Vetter' : 'Build a skills test with Vetter'}
             </h2>
             <p className="text-sm text-slate-500 truncate">{job ? `${job.title} · ${job.companyName}` : business ? `For ${business.name}'s jobs` : 'For the Vetter test library'}</p>
           </div>
@@ -569,7 +575,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                 }}
                 locked={working}
                 flash={flash}
-                onOpenBuilder={() => (onEditDraft(asSaved(finaliseDraft(draft)), chosen, record(draft)), onClose())}
+                onOpenBuilder={() => (onEditDraft(withPurpose(asSaved(finaliseDraft(draft))), chosen, record(draft)), onClose())}
                 toolbarExtra={
                   job && !original && chat.existing.length > 0 ? (
                     <Dropdown
