@@ -22,6 +22,8 @@ export interface BuildAppRequest {
   fix?: { html: string; problems: string[] };
   // A change the company asked for: the page as it is, and what to change
   edit?: { html: string; change: string };
+  // Training for a company's own people rather than a hiring test: the tips can guide them step by step
+  training?: boolean;
 }
 
 const MAX_TEXT = 8000;
@@ -41,12 +43,21 @@ const schema = {
         additionalProperties: false,
       },
     },
+    callouts: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: { ref: { type: 'string' }, text: { type: 'string' } },
+        required: ['ref', 'text'],
+        additionalProperties: false,
+      },
+    },
   },
-  required: ['appHtml', 'testCases'],
+  required: ['appHtml', 'testCases', 'callouts'],
   additionalProperties: false,
 };
 
-const SYSTEM = (research: string) => `You build the interactive pages candidates work in on Vetter, a skills-testing platform for hiring. A test
+const SYSTEM = (research: string, training: boolean) => `You build the interactive pages candidates work in on Vetter, a skills-testing platform for hiring. A test
 designer has written the task and a spec for the page. Build exactly that page, so a candidate who can really do the job
 succeeds and one who can't is found out.
 ${APP_PAGE_RULES}
@@ -55,6 +66,15 @@ your page really keeps and expectedOutput its value once the task is done right 
 a JSON array, compared in any order; numbers to 2 decimal places). Keep the designer's intent for each check; change a
 path or value only to match the page you built. 3 to 6 checks; the starting state must fail every one, and none may be
 passable without doing the task properly.
+TIPS ON THE PAGE: candidates find long instructions hard to follow, so the page itself shows where things are. Give 3 to
+6 elements the task uses a data-ref attribute with a short unique name (data-ref="orders-list"), on an element that is
+on screen when it matters (the button, the list, the form field, the tab), and return callouts: one for each, in the
+order the candidate will need them, ref being the data-ref and text at most 18 words, plain and friendly, saying what it
+is and what it's for ("New refunds start here: pick the order first, then the reason."). ${
+  training
+    ? 'This is training for the company\'s own people: the tips may guide them step by step through the task.'
+    : 'This is a hiring test: tips show where things are and what they do, never which choice is right, the values to enter or the answer to any check.'
+}
 ${research ? `\nRESEARCH on what the page copies:\n${research.slice(0, MAX_TEXT)}` : ''}`;
 
 export async function buildApp(body: unknown, apiKey: string | undefined, model: string): Promise<{ status: number; json: unknown }> {
@@ -72,7 +92,7 @@ export async function buildApp(body: unknown, apiKey: string | undefined, model:
         // five-minute limit
         output_config: { effort: 'low', format: { type: 'json_schema', schema } },
         ...(!model.includes('haiku') && { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' as const }),
-        system: SYSTEM(req.research ?? ''),
+        system: SYSTEM(req.research ?? '', !!req.training),
         messages: [
           {
             role: 'user',
@@ -85,14 +105,14 @@ export async function buildApp(body: unknown, apiKey: string | undefined, model:
                 ? [
                     `THE PAGE AS YOU BUILT IT:\n${String(req.fix.html).slice(0, MAX_PAGE)}`,
                     `PROBLEMS FOUND WHEN VETTER CLICKED THROUGH IT:\n${(req.fix.problems ?? []).slice(0, 30).map((p) => `- ${String(p).slice(0, 200)}`).join('\n')}`,
-                    'Return the whole page again with every problem fixed: make each control named above do what its label says in this kind of product, or grey it out (disabled, reduced opacity, cursor:not-allowed, a "Not available in this test" title) when it is outside the task. Fix any errors. Keep everything that already works, the data and the state paths the checks read.',
+                    'Return the whole page again, keeping its data-ref tips, with every problem fixed: make each control named above do what its label says in this kind of product, or grey it out (disabled, reduced opacity, cursor:not-allowed, a "Not available in this test" title) when it is outside the task. Fix any errors. Keep everything that already works, the data and the state paths the checks read.',
                   ]
                 : []),
               ...(req.edit?.html
                 ? [
                     `THE PAGE AS IT IS NOW:\n${String(req.edit.html).slice(0, MAX_PAGE)}`,
                     `THE CHANGE THE COMPANY ASKED FOR:\n${String(req.edit.change ?? '').slice(0, MAX_TEXT)}`,
-                    'Return the whole page again with exactly that change made, done properly and working (new screens, controls, data or behaviour all fully functional, as in the real product). Keep everything else as it is: the look, the data the task\'s questions rely on, and the state paths the checks read, unless the change needs them to change; then update the checks to match.',
+                    'Return the whole page again (with its data-ref tips and callouts, updated for the change) with exactly that change made, done properly and working (new screens, controls, data or behaviour all fully functional, as in the real product). Keep everything else as it is: the look, the data the task\'s questions rely on, and the state paths the checks read, unless the change needs them to change; then update the checks to match.',
                   ]
                 : []),
             ].join('\n\n'),

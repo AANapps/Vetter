@@ -236,6 +236,11 @@ export interface EmailTask {
   avoid: string[];
 }
 
+export interface AppCallout {
+  ref: string;
+  text: string;
+}
+
 export interface TestCase {
   id: string;
   description: string;
@@ -274,6 +279,9 @@ export interface Question {
   tables?: DataTable[];
   // App simulations: the simulated product as one HTML page (its name is in contextData). Checks read its saved state
   appHtml?: string;
+  // App simulations: tips pinned to parts of the page (elements marked data-ref="<ref>"), shown as glowing pop-ups the
+  // candidate can close, so where things are is shown on the app rather than described in the prompt
+  callouts?: AppCallout[];
   // Email tasks: the thread, the address book and who the reply should go to (its marking points are in rubric)
   email?: EmailTask;
   // AI-assisted tasks: the candidate works with an AI assistant to get the job done (the final work's marking points

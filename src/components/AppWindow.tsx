@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, Lock, RotateCcw } from 'lucide-react';
+import { AlertTriangle, Lightbulb, Lock, RotateCcw } from 'lucide-react';
+import { AppCallout } from '../types';
 import { appDocument, parseAppState, readAppMessage } from '../lib/appSimulation';
 
 interface AppWindowProps {
@@ -7,14 +8,16 @@ interface AppWindowProps {
   onChange: (json: string) => void;
   html: string;
   appName: string;
+  // Tips pinned to parts of the app, shown as glowing pop-ups
+  callouts?: AppCallout[];
 }
 
 // A simulated product the candidate works in, framed like a browser window. Its state is saved as they go, and the
 // app resumes from it when they come back to the task
-export const AppWindow: React.FC<AppWindowProps> = ({ value, onChange, html, appName }) => {
+export const AppWindow: React.FC<AppWindowProps> = ({ value, onChange, html, appName, callouts }) => {
   const frameRef = useRef<HTMLIFrameElement>(null);
   // The page is built once per load: rebuilding it on every save would reload the app under the candidate
-  const [doc, setDoc] = useState(() => appDocument(html, parseAppState(value)));
+  const [doc, setDoc] = useState(() => appDocument(html, parseAppState(value), false, callouts));
   const [error, setError] = useState<string | null>(null);
   // Bumped on reset, so the frame reloads even when the page is the same as when it first loaded
   const [loads, setLoads] = useState(0);
@@ -35,7 +38,7 @@ export const AppWindow: React.FC<AppWindowProps> = ({ value, onChange, html, app
     if (!window.confirm(`Start ${appName} again from the beginning? Your work in it will be lost.`)) return;
     setError(null);
     onChange('');
-    setDoc(appDocument(html, null));
+    setDoc(appDocument(html, null, false, callouts));
     setLoads((n) => n + 1);
   };
 
@@ -51,6 +54,16 @@ export const AppWindow: React.FC<AppWindowProps> = ({ value, onChange, html, app
           <Lock className="w-3 h-3 shrink-0" />
           <span className="truncate">{appName} &middot; practice workspace</span>
         </div>
+        {!!callouts?.length && (
+          <button
+            onClick={() => frameRef.current?.contentWindow?.postMessage({ source: 'vetter-tips' }, '*')}
+            className="flex items-center gap-1 text-[11px] font-semibold text-indigo-700 hover:text-indigo-900"
+            title="Show the tips on the app again"
+          >
+            <Lightbulb className="w-3 h-3" />
+            Tips
+          </button>
+        )}
         <button onClick={reset} className="flex items-center gap-1 text-[11px] font-semibold text-slate-600 hover:text-slate-900" title="Start the app again">
           <RotateCcw className="w-3 h-3" />
           Reset

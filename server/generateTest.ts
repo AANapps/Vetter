@@ -197,7 +197,9 @@ export const APP_PAGE_RULES = `  For every kind, appHtml is ONE self-contained H
 
 // The task wording and the checks on the page's state
 export const APP_TASK_RULES = `
-  prompt: the task, as a manager or customer would ask for it: the outcome wanted in 3 to 5 concrete steps, not which buttons to press.
+  prompt: short and easy to scan: one sentence on who's asking and why, then the outcome wanted as 3 to 5 numbered steps,
+  one line each, not which buttons to press. Don't describe the screen: the page builder pins tips to the parts of the
+  app the candidate needs, so where things are is shown on the app itself.
   testCases (REQUIRED for app: an app question without them is thrown away): 3 to 6 checks on the final state. input is a dotted path into the state object, e.g. "dashboard.widgets.0.type"
   or "parts.battery.connected"; expectedOutput is its value once the task is done right ("|" between acceptable forms; a list as a
   JSON array, compared in any order; numbers to 2 decimal places). description says what's checked without giving the

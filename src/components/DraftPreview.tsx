@@ -326,7 +326,7 @@ const PreviewGroup: React.FC<{
               files={test.scenario?.files}
             />
           ) : (
-            <AppWindow key={`${first.id}-${first.appHtml?.length ?? 0}-${first.starterCode?.length ?? 0}`} value={answers[first.id] ?? ''} onChange={(v) => setAnswer(first.id, v)} html={first.appHtml ?? ''} appName={first.contextData || first.title} />
+            <AppWindow key={`${first.id}-${first.appHtml?.length ?? 0}-${first.starterCode?.length ?? 0}`} value={answers[first.id] ?? ''} onChange={(v) => setAnswer(first.id, v)} html={first.appHtml ?? ''} appName={first.contextData || first.title} callouts={first.callouts} />
           )}
         </div>
       )}

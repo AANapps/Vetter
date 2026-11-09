@@ -1,5 +1,5 @@
 import { contactText, emailToRaw, parseContact } from './emailTasks';
-import { AssessmentTest, BlueprintItem, Business, Question, QuestionType, TestKind, SkillCategory, TEST_DIFFICULTIES, TestDifficulty, TestRole } from '../types';
+import { AppCallout, AssessmentTest, BlueprintItem, Business, Question, QuestionType, TestKind, SkillCategory, TEST_DIFFICULTIES, TestDifficulty, TestRole } from '../types';
 import { MOCK_DATABASE } from './sqlEngine';
 import { probeApp } from './appSimulation';
 import { isGroupType, orderedQuestions } from './questionTypes';
@@ -106,18 +106,18 @@ type RawTest = Record<string, any> & { questions?: RawQuestion[] };
 // check, or as it was when the build failed (it's then dropped by the checks)
 // Then clicks through it out of sight, and when a control does nothing or throws an error, sends it back once with the
 // list to fix
-async function buildAppPage(item: RawQuestion, research?: string): Promise<RawQuestion> {
+async function buildAppPage(item: RawQuestion, research?: string, training?: boolean): Promise<RawQuestion> {
   const request = (fix?: { html: string; problems: string[] }) =>
-    aiFetch('/api/build-app', { title: item.title, prompt: item.prompt, brief: item.appHtml, testCases: item.testCases ?? [], research, ...(fix && { fix }) }).then(async (res) => (res.ok ? ((await res.json()) as { appHtml?: string; testCases?: RawQuestion['testCases'] }) : null));
+    aiFetch('/api/build-app', { title: item.title, prompt: item.prompt, brief: item.appHtml, testCases: item.testCases ?? [], research, training, ...(fix && { fix }) }).then(async (res) => (res.ok ? ((await res.json()) as { appHtml?: string; testCases?: RawQuestion['testCases']; callouts?: AppCallout[] }) : null));
   try {
     const page = await request();
     if (!page?.appHtml) return item;
-    const built: RawQuestion = { ...item, appHtml: page.appHtml, testCases: page.testCases?.length ? page.testCases : item.testCases };
+    const built: RawQuestion = { ...item, appHtml: page.appHtml, testCases: page.testCases?.length ? page.testCases : item.testCases, callouts: page.callouts ?? [] };
     const problems = await appProblems(built);
     if (!problems.length) return built;
     const fixed = await request({ html: built.appHtml!, problems }).catch(() => null);
     if (!fixed?.appHtml) return built;
-    const repaired: RawQuestion = { ...built, appHtml: fixed.appHtml, testCases: fixed.testCases?.length ? fixed.testCases : built.testCases };
+    const repaired: RawQuestion = { ...built, appHtml: fixed.appHtml, testCases: fixed.testCases?.length ? fixed.testCases : built.testCases, callouts: fixed.callouts?.length ? fixed.callouts : built.callouts };
     // The repair is kept unless it made things worse: it must still load
     const after = await probeApp(repaired.appHtml!, checksOf(repaired));
     return after.state ? repaired : built;
@@ -134,11 +134,11 @@ async function editAppPage(question: Question, change: string, taskPrompt: strin
   try {
     const res = await aiFetch('/api/build-app', { title: question.title, prompt, brief: change, testCases: checks, research, edit: { html: question.appHtml ?? '', change } });
     if (!res.ok) return null;
-    const page = (await res.json()) as { appHtml?: string; testCases?: RawQuestion['testCases'] };
+    const page = (await res.json()) as { appHtml?: string; testCases?: RawQuestion['testCases']; callouts?: AppCallout[] };
     if (!page.appHtml) return null;
-    const checked = await checkQuestion({ type: 'app', title: question.title, prompt, appHtml: page.appHtml, testCases: (page.testCases?.length ? page.testCases : checks) as RawQuestion['testCases'], points: question.weight, timeLimitMinutes: question.timeLimitMinutes });
+    const checked = await checkQuestion({ type: 'app', title: question.title, prompt, appHtml: page.appHtml, testCases: (page.testCases?.length ? page.testCases : checks) as RawQuestion['testCases'], callouts: page.callouts?.length ? page.callouts : question.callouts, points: question.weight, timeLimitMinutes: question.timeLimitMinutes });
     // Same question, so the questions about it stay joined to it
-    return checked ? { ...question, prompt, appHtml: checked.appHtml, contextData: checked.contextData, starterCode: checked.starterCode, testCases: checked.testCases } : null;
+    return checked ? { ...question, prompt, appHtml: checked.appHtml, contextData: checked.contextData, starterCode: checked.starterCode, testCases: checked.testCases, callouts: checked.callouts } : null;
   } catch {
     return null;
   }
@@ -185,7 +185,7 @@ async function buildDraft(raw: RawTest, previous: AssessmentTest | undefined, ct
       if (item.keep) return previous?.questions.find((q) => q.id === item.keep) ?? null;
       // In a conversation an app comes with the spec for its page, not the page: anything that isn't HTML is built first
       const isSpec = item.type === 'app' && !!item.appHtml?.trim() && !/<(html|body|div|script|style|svg)\b/i.test(item.appHtml);
-      const ready = isSpec ? await buildAppPage(item, research) : item;
+      const ready = isSpec ? await buildAppPage(item, research, ctx.kind === 'training') : item;
       return checkQuestion(ready);
     })
   );

@@ -397,6 +397,12 @@ export async function checkQuestion(raw: RawQuestion): Promise<Question | null> 
     // The starting state, so the runner can tell a task the candidate hasn't touched
     q.starterCode = JSON.stringify(probe.state);
     q.testCases = checks.map((tc, i) => ({ id: uid('tc'), description: tc.description || `Check ${i + 1}`, input: tc.input.trim(), expectedOutput: tc.expectedOutput.trim() }));
+    // Tips pinned to the page, kept only where the element they point at is really there
+    const callouts = (raw.callouts ?? [])
+      .map((c) => ({ ref: String(c?.ref ?? '').trim(), text: String(c?.text ?? '').trim().slice(0, 160) }))
+      .filter((c) => c.ref && c.text && raw.appHtml!.includes(`data-ref="${c.ref}"`))
+      .slice(0, 6);
+    if (callouts.length) q.callouts = callouts;
     return q.title && q.prompt ? q : null;
   }
   if (type === 'choice' && (q.correctOption === undefined || q.correctOption < 0 || q.correctOption >= (q.options?.length ?? 0))) return null;
