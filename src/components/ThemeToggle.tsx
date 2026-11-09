@@ -13,15 +13,21 @@ export const ThemeToggle: React.FC<{ compact?: boolean }> = ({ compact }) => {
         {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
       </button>
     );
+  // In the account menu: a row with an on/off switch that slides across
   return (
     <button
-      role="menuitemcheckbox"
+      role="switch"
       aria-checked={dark}
       onClick={() => setTheme(dark ? 'light' : 'dark')}
-      className="w-full flex items-center justify-center gap-2 py-1.5 text-xs font-semibold text-slate-700 bg-white rounded-full"
+      className="w-full flex items-center justify-between gap-3 px-3 py-1.5 text-xs font-semibold text-slate-700 rounded-full hover:bg-slate-100"
     >
-      {dark ? <Sun className="w-3.5 h-3.5 text-indigo-600" /> : <Moon className="w-3.5 h-3.5 text-indigo-600" />}
-      <span>{dark ? 'Light mode' : 'Dark mode'}</span>
+      <span className="flex items-center gap-2">
+        <Moon className="w-3.5 h-3.5 text-indigo-600" />
+        Dark mode
+      </span>
+      <span className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors duration-200 ${dark ? 'bg-indigo-600' : 'bg-slate-300'}`} aria-hidden="true">
+        <span className={`absolute left-0.5 h-4 w-4 rounded-full bg-[#ffffff] shadow transition-transform duration-200 ${dark ? 'translate-x-4' : 'translate-x-0'}`} />
+      </span>
     </button>
   );
 };
