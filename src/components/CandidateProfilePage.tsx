@@ -8,6 +8,7 @@ import { IntegrityBadge } from './IntegrityBadge';
 import { getBadgeTier } from './VerifiedSkillBadge';
 import { ExperienceList, ProfileLinks } from './ExperienceList';
 import { SkillList } from './SkillList';
+import { ApplicantSummary } from './ApplicantSummary';
 
 interface CandidateProfilePageProps {
   person: User;
@@ -179,6 +180,9 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_18rem] gap-6 items-start">
         <div className="space-y-6 min-w-0">
+          {/* How they did on the company's job simulations, next to what their profile has proven */}
+          <ApplicantSummary person={person} rows={rows} tests={tests} candidates={candidates} onOpenTest={onOpenTest} onOpenJob={onOpenJob} />
+
           {bio && (
             <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs">
               <Heading>About</Heading>

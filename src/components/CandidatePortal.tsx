@@ -66,7 +66,8 @@ interface CandidatePortalProps {
   onUpdateExperience: (details: ExperienceDetails) => void;
   onUpdateSkills: (skills: string[]) => void;
   // Takes a test the candidate took off their record
-  onDeleteTest: (testId: string) => void;
+  // Hides a test from their public profile (companies still see it), or shows it again
+  onToggleHidden: (testId: string) => void;
   // The roles the Tests page is narrowed to (a role, an industry, or a field picked on Home), or null for every test
   testField: TestField | null;
   onTestFieldChange: (field: TestField | null) => void;
@@ -93,7 +94,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   onUpdateStudies,
   onUpdateExperience,
   onUpdateSkills,
-  onDeleteTest,
+  onToggleHidden,
   jobPageId,
   onOpenJob,
   testField,
@@ -539,7 +540,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
             <div>
               <h2 className="text-base font-bold text-slate-900">Your tests</h2>
               <p className="text-xs text-slate-500">
-                Everything you've taken. Others see your Vetter tests; results on a company's test go to that company only. You can delete a test unless its result was sent to a company.
+                Everything you've taken, every attempt. Others see your Vetter tests; results on a company's test go to that company only. You can hide a test from your public profile, but companies still see it.
               </p>
             </div>
             <TestHistory
@@ -549,7 +550,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
               businesses={businesses}
               companyResultsFor="all"
               onOpenTest={onOpenTest}
-              onDelete={onDeleteTest}
+              onToggleHidden={onToggleHidden}
               emptyText="You haven't taken a test yet."
             />
           </div>

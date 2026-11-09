@@ -10,7 +10,8 @@ import { loadData, saveData, clearData, createSeedData } from './lib/store';
 import { getPercentile } from './lib/leaderboard';
 import { initialsAvatar, withComputedPercentiles } from './data/seedCandidates';
 import { buildSampleCandidates } from './data/sampleCandidates';
-import { addTestResult, removeTestResults } from './lib/results';
+import { RETAKE_DAYS, addTestResult, nextAttemptAt, removeTestResults } from './lib/results';
+import { getLeaderboard } from './lib/leaderboard';
 import { simulateAttempt, simulateJobTestStep } from './lib/liveActivity';
 import { Navigation, AppTab, NAV_TABS } from './components/Navigation';
 import { CandidatePortal, CandidateSection } from './components/CandidatePortal';
@@ -645,7 +646,22 @@ export default function App() {
       <AccountGate user={user} account={account} company={company} />
     ) : null;
   const startTest = (test: AssessmentTest) =>
-    activeRole !== 'candidate' ? setTrialTest({ test }) : requireAccount('Create a free account to take this test and get a verified score.', () => setActiveTest(test));
+    activeRole !== 'candidate'
+      ? setTrialTest({ test })
+      : requireAccount('Create a free account to take this test and get a verified score.', () => {
+          // A library test can be taken again once the retake gap has passed since the last start
+          const next = isPublic(test) ? nextAttemptAt(candidate, test.id) : null;
+          if (next) return showToast(`You can take "${test.title}" again from ${next.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })}. Each library test can be taken once every ${RETAKE_DAYS} days.`);
+          setActiveTest(test);
+        });
+  // Pressing Begin on a library test is an attempt, finished or not
+  const recordTestStart = (test: AssessmentTest) =>
+    setCandidate((prev) => ({ ...prev, testStarts: [...(prev.testStarts ?? []), { testId: test.id, startedAt: new Date().toISOString() }] }));
+  // Where a score would place them on a library test's board, against everyone else's best
+  const rankFor = (testId: string, score: number) => {
+    const others = getLeaderboard(testId, allCandidates.filter((c) => c.id !== candidate.id));
+    return { rank: others.filter((e) => e.score > score).length + 1, of: others.length + 1 };
+  };
 
   const showToast = (message: string, ms = 4000) => {
     setToast(message);
@@ -905,9 +921,7 @@ export default function App() {
       goToTab(isPublic(completedTest) ? 'profile' : 'jobs');
     }
 
-    setActiveTestJobId(null);
-    setActiveTest(null);
-    setActiveAttempt(null);
+    // The runner stays open on the result (saved already); closing it clears these
   };
 
   // Whose trials these are: the company's, or the Vetter team's
@@ -1023,7 +1037,6 @@ export default function App() {
         ? `You scored ${score}/100. ${test.passingScore} passes; have another go when you're ready.`
         : `You scored ${score}/100. ${assignment.companyName} can see how you got on.`
     );
-    setAssignmentRun(null);
   };
 
   // A candidate starting one of a job's tests from the job: the company sees them on the job from now
@@ -1378,12 +1391,13 @@ export default function App() {
                 showToast('Experience saved.');
               }}
               onUpdateSkills={(skills) => setCandidate((prev) => ({ ...prev, skills }))}
-              onDeleteTest={(testId) => {
-                // Everyone's standing on the test moves up a place
-                const everyone = withComputedPercentiles([removeTestResults(candidate, testId), ...otherCandidates]);
-                setCandidate(everyone[0]);
-                setOtherCandidates(everyone.slice(1));
-                showToast('Test deleted from your record.');
+              onToggleHidden={(testId) => {
+                const hidden = (candidate.hiddenTestIds ?? []).includes(testId);
+                setCandidate((prev) => ({
+                  ...prev,
+                  hiddenTestIds: hidden ? (prev.hiddenTestIds ?? []).filter((id) => id !== testId) : [...(prev.hiddenTestIds ?? []), testId],
+                }));
+                showToast(hidden ? 'Shown on your public profile again.' : 'Hidden from your public profile. Companies still see it.');
               }}
               jobPageId={jobPageId}
               onOpenJob={openJobPage}
@@ -1862,7 +1876,9 @@ export default function App() {
             setActiveTestJobId(null);
             setActiveAttempt(null);
           }}
-          onBegin={activeTestJobId ? () => recordJobTestStart(activeTest, activeTestJobId) : undefined}
+          onBegin={activeTestJobId ? () => recordJobTestStart(activeTest, activeTestJobId) : isPublic(activeTest) ? () => recordTestStart(activeTest) : undefined}
+          getRankFor={isPublic(activeTest) ? (score) => rankFor(activeTest.id, score) : undefined}
+          retakeDays={!activeTestJobId && isPublic(activeTest) ? RETAKE_DAYS : undefined}
           attempt={activeAttempt ?? undefined}
           onComplete={handleCompleteTest}
           getPercentileFor={(score) => getPercentile(score, activeTest.id, allCandidates, candidate.id)}
@@ -1889,7 +1905,6 @@ export default function App() {
           onClose={() => setTrialTest(null)}
           onComplete={(testId, score, durationSeconds) => {
             saveTrial(testId, score, durationSeconds, trialTest.jobId);
-            setTrialTest(null);
           }}
           getPercentileFor={(score) => getPercentile(score, trialTest.test.id, allCandidates, '')}
         />

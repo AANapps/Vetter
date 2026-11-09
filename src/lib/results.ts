@@ -51,3 +51,37 @@ export function removeTestResults(user: User, testId: string): User {
     verifiedSkills: user.verifiedSkills.filter((s) => s.testId !== testId),
   };
 }
+
+// ---- Attempts: every start counts, and a library test can be retaken once the gap has passed ----
+export const RETAKE_DAYS = 14;
+const DAY = 86400000;
+const timeOf = (r: TestResult) => r.completedTime ?? `${r.completedAt}T23:59:59.000Z`;
+
+// When they last started or finished the test
+export function lastAttemptAt(user: User, testId: string): string | undefined {
+  const times = [
+    ...(user.testStarts ?? []).filter((s) => s.testId === testId).map((s) => s.startedAt),
+    ...user.testResults.filter((r) => r.testId === testId).map(timeOf),
+  ].sort();
+  return times.at(-1);
+}
+
+// The earliest they may start the test again, or null if they can now
+export function nextAttemptAt(user: User, testId: string, now = Date.now()): Date | null {
+  const last = lastAttemptAt(user, testId);
+  if (!last) return null;
+  const next = new Date(new Date(last).getTime() + RETAKE_DAYS * DAY);
+  return next.getTime() > now ? next : null;
+}
+
+// Starts with no result before the next start: they began and left without submitting
+export function unfinishedStarts(user: User, testId: string, now = Date.now()): number {
+  const starts = (user.testStarts ?? []).filter((s) => s.testId === testId).map((s) => s.startedAt).sort();
+  const results = user.testResults.filter((r) => r.testId === testId).map(timeOf);
+  return starts.filter((start, i) => {
+    const until = starts[i + 1] ?? new Date(now).toISOString();
+    // A start still under way (in the last few hours, with nothing after it) isn't counted yet
+    if (!starts[i + 1] && now - new Date(start).getTime() < 3 * 3600000) return false;
+    return !results.some((t) => t >= start && t <= until);
+  }).length;
+}

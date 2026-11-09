@@ -111,6 +111,10 @@ interface TestRunnerProps {
   onBegin?: () => void;
   // Which try at the job's test this is, and how many the job allows
   attempt?: { number: number; limit?: number };
+  // Where this score places them among everyone on the test, shown with the result (library tests)
+  getRankFor?: (score: number) => { rank: number; of: number } | null;
+  // A library test: leaving still counts as an attempt, and the next try waits this many days
+  retakeDays?: number;
   // Training for a company's team: no warnings for leaving the tab, no badge or percentile, and the worked answers at the end
   training?: boolean;
 }
@@ -137,7 +141,7 @@ export const TestRunner: React.FC<TestRunnerProps> = (props) => {
   return <TestRunnerInner {...props} test={own} />;
 };
 
-const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete, getPercentileFor, preview, savedNote, onBegin, attempt, training }) => {
+const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete, getPercentileFor, preview, savedNote, onBegin, attempt, training, getRankFor, retakeDays }) => {
   // Each hands-on task is shown with the questions about it; every other question on its own
   const groups = useMemo(() => groupQuestions(test.questions), [test.questions]);
   const ordered = useMemo(() => groups.flatMap((g) => g.questions), [groups]);
@@ -161,6 +165,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [finalScore, setFinalScore] = useState(0);
   const [finalPercentile, setFinalPercentile] = useState(0);
+  const [finalRank, setFinalRank] = useState<{ rank: number; of: number } | null>(null);
   // Module tests: the score by level and by area, and the level reached
   const [breakdown, setBreakdown] = useState<ResultBreakdown | undefined>();
   const [finalDuration, setFinalDuration] = useState(0);
@@ -389,15 +394,21 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
     setQuestionScores(perQuestion);
     setQuestionFeedback(feedback);
     setFinalScore(score);
-    setBreakdown(breakdownFor(test, perQuestion));
+    const levels = breakdownFor(test, perQuestion);
+    const duration = Math.round((Date.now() - startedAtRef.current) / 1000);
+    setBreakdown(levels);
     setFinalPercentile(getPercentileFor(score));
-    setFinalDuration(Math.round((Date.now() - startedAtRef.current) / 1000));
+    setFinalRank(getRankFor?.(score) ?? null);
+    setFinalDuration(duration);
     setIsSubmitting(false);
     setShowCompletionModal(true);
+    // Saved the moment it's marked: closing the tab on the result can't throw a score away
+    if (!preview) onComplete(test.id, score, duration, integrityRef.current, levels, answersRef.current);
   };
 
   const handleConfirmFinish = () => {
-    onComplete(test.id, finalScore, finalDuration, integrityRef.current, breakdown, answersRef.current);
+    if (preview) onComplete(test.id, finalScore, finalDuration, integrityRef.current, breakdown, answersRef.current);
+    else onClose();
   };
 
   // Signed and Begin pressed: the try counts from here, so it's recorded once, before the countdown
@@ -438,6 +449,10 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
         </>
       )}
       .
+    </>
+  ) : retakeDays ? (
+    <>
+      <strong>It still counts as an attempt:</strong> your record shows it as left unfinished, and you can try again in {retakeDays} days.
     </>
   ) : (
     <>
@@ -1143,9 +1158,21 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
                   )}
                 </div>
                 <div>
-                  <div className="text-xs text-slate-500 mb-1 font-medium">Percentile on this test</div>
-                  <div className="text-3xl font-extrabold text-slate-900 font-mono tabular-nums">{finalPercentile}th</div>
-                  <div className="text-[11px] text-indigo-700 mt-1 font-medium">{earnedTier.sublabel}</div>
+                  {finalRank ? (
+                    <>
+                      <div className="text-xs text-slate-500 mb-1 font-medium">Your rank on this test</div>
+                      <div className="text-3xl font-extrabold text-slate-900 font-mono tabular-nums">#{finalRank.rank}</div>
+                      <div className="text-[11px] text-indigo-700 mt-1 font-medium">
+                        of {finalRank.of} worldwide · top {Math.max(1, Math.round((finalRank.rank / finalRank.of) * 100))}%
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="text-xs text-slate-500 mb-1 font-medium">Percentile on this test</div>
+                      <div className="text-3xl font-extrabold text-slate-900 font-mono tabular-nums">{finalPercentile}th</div>
+                      <div className="text-[11px] text-indigo-700 mt-1 font-medium">{earnedTier.sublabel}</div>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -1205,7 +1232,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
                 onClick={handleConfirmFinish}
                 className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-lg transition-colors flex items-center justify-center gap-2 shadow-xs"
               >
-                <span>{preview ? 'Back to the builder' : 'Save Result'}</span>
+                <span>{preview ? 'Back to the builder' : 'Done'}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>

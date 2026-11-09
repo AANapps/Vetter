@@ -2,6 +2,7 @@ import React from 'react';
 import { BackButton } from './BackButton';
 import { Globe, Link2, Pencil, Play, PlusCircle } from 'lucide-react';
 import { AssessmentTest, Business, JobPosting, TEST_DIFFICULTIES, User, UserRole, timerOf, isPublic, levelName } from '../types';
+import { RETAKE_DAYS, nextAttemptAt } from '../lib/results';
 import { getLeaderboard, getTestStats } from '../lib/leaderboard';
 import { TestLeaderboard, formatDuration } from './TestLeaderboard';
 import { QUESTION_TYPE_LABELS, describeChecks } from '../lib/testRoles';
@@ -62,6 +63,9 @@ export const TestPage: React.FC<TestPageProps> = ({
   const leaderboard = getLeaderboard(test.id, candidates);
   const stats = getTestStats(test, candidates);
   const yourEntry = leaderboard.find((e) => e.candidate.id === currentCandidateId);
+  // A library test can be taken once every RETAKE_DAYS days
+  const you = candidates.find((c) => c.id === currentCandidateId);
+  const retakeFrom = viewerRole === 'candidate' && you && isPublic(test) ? nextAttemptAt(you, test.id) : null;
   const usedByJobs = jobs.filter((j) => j.testIds.includes(test.id) && j.status === 'active');
   // Candidates take company tests through the jobs they're attached to, or the company's own link
   // Companies try Vetter's tests and their own (the Vetter team any test) as practice runs that aren't saved
@@ -159,7 +163,15 @@ export const TestPage: React.FC<TestPageProps> = ({
             </button>
           )}
 
-          {canStart && (
+          {canStart && retakeFrom && (
+            <span
+              className="px-4 py-2.5 text-xs font-semibold text-slate-500 bg-slate-100 rounded-lg flex items-center gap-2 shrink-0 self-start"
+              title={`Each library test can be taken once every ${RETAKE_DAYS} days`}
+            >
+              Retake from {retakeFrom.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+            </span>
+          )}
+          {canStart && !retakeFrom && (
             <button
               onClick={() => onStartTest(test)}
               className="px-4 py-2.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors flex items-center gap-2 shadow-xs shrink-0 self-start"
@@ -197,7 +209,7 @@ export const TestPage: React.FC<TestPageProps> = ({
         </div>
       </div>
 
-      <TestLeaderboard entries={leaderboard} passingScore={test.passingScore} currentCandidateId={currentCandidateId} onTakeTest={canStart && viewerRole === 'candidate' ? () => onStartTest(test) : undefined} />
+      <TestLeaderboard entries={leaderboard} passingScore={test.passingScore} currentCandidateId={currentCandidateId} onTakeTest={canStart && !retakeFrom && viewerRole === 'candidate' ? () => onStartTest(test) : undefined} />
 
       {/* Module tests: the core areas every level covers, and what this level adds */}
       {test.aspects && test.questions.some((q) => q.aspect) && (
