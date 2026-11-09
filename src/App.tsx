@@ -973,7 +973,11 @@ export default function App() {
     // Asked again after declining: a fresh invitation
     if (existing && firebaseEnabled) syncTeam([existing], [], reportCloudError).then(() => setTeam((prev) => [...prev.filter((m) => m.id !== id), member]));
     else setTeam((prev) => [...prev.filter((m) => m.id !== id), member]);
-    showToast(`Invited ${member.name} to join ${recruiterBusiness.name}'s team.`);
+    showToast(
+      'email' in invitee
+        ? `Invited ${invitee.email}. They'll see it on their Vetter home and in their notifications once they sign in with that address.`
+        : `Invited ${member.name}. They'll see it on their Vetter home and in their notifications.`
+    );
   };
   const assignWork = (members: TeamMember[], test: AssessmentTest, dueDate?: string, note?: string) => {
     if (!recruiterBusiness) return;
@@ -1602,7 +1606,8 @@ export default function App() {
                   team={ourTeam}
                   assignments={ourAssignments}
                   tests={tests}
-                  candidates={otherCandidates.concat(activeRole === 'recruiter' && !firebaseEnabled ? [candidate] : [])}
+                  // The live site's sample candidates aren't real people, so they can't be invited
+                  candidates={otherCandidates.filter((c) => !(firebaseEnabled && c.id.startsWith('cand-sample-'))).concat(activeRole === 'recruiter' && !firebaseEnabled ? [candidate] : [])}
                   aiAllowed={aiAllowed}
                   onInviteEmail={(email) => inviteToTeam({ email })}
                   onInviteCandidate={(c) => inviteToTeam({ uid: c.id, name: c.name })}
@@ -1921,7 +1926,7 @@ export default function App() {
           candidates={allCandidates}
           businesses={businesses}
           team={
-            activeRole === 'recruiter' && recruiterBusiness
+            activeRole === 'recruiter' && recruiterBusiness && !(firebaseEnabled && profilePerson.id.startsWith('cand-sample-'))
               ? (() => {
                   const m = ourTeam.find((x) => x.uid === profilePerson.id && x.status !== 'declined');
                   return { status: m ? (m.status === 'active' ? 'member' : 'invited') : 'none', onInvite: () => inviteToTeam({ uid: profilePerson.id, name: profilePerson.name }) };
