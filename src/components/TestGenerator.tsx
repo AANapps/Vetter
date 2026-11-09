@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AlertCircle, ArrowUp, Check, ChevronDown, ChevronUp, Library, X } from 'lucide-react';
 import { AssessmentTest, Business, JobPosting, QuestionType, TEST_DIFFICULTIES, TestDifficulty, TestDraft, TestKind, levelName } from '../types';
-import { TestKindPicker } from './TestKindPicker';
 import { QUESTION_STYLES } from '../lib/questionTypes';
 import { DraftPreview, Dropdown, draftProblems, finaliseDraft } from './DraftPreview';
 import { jobBrief } from '../lib/testGeneration';
@@ -37,7 +36,7 @@ interface TestGeneratorProps {
   seed?: string;
   // Sends the first message straight away, so Vetter starts building as the chat opens
   autoSend?: boolean;
-  // A skills test or a job simulation, when the company has already said; otherwise it's asked first
+  // A skills test or a job simulation; new ones are job simulations
   kind?: TestKind;
   onClose: () => void;
 }
@@ -60,9 +59,9 @@ const PICKABLE_STYLES = PICKABLE.map((type) => QUESTION_STYLES.find((s) => s.typ
 export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tests, onOpenTest, onSaveTest, onAddToJob, editing, onUpdateTest, onEditDraft, onSaveDraft, resume, seed, autoSend, kind: kindAsked, onClose }) => {
   // The saved test being changed, opened from its job or from a draft of changes to it
   const [original] = useState(() => editing ?? (resume?.editsTestId ? tests.find((t) => t.id === resume.editsTestId) : undefined));
-  // A skills test or a job simulation: picked before anything is written; a test already made is whichever it is
-  const [kind, setKind] = useState<TestKind | undefined>(
-    () => kindAsked ?? resume?.kind ?? (original ? (original.scenario ? 'simulation' : 'test') : resume ? (resume.test.scenario ? 'simulation' : 'test') : undefined)
+  // What the AI writes is a job simulation (a day in the life at the company); a skills test already made stays one
+  const [kind] = useState<TestKind>(
+    () => kindAsked ?? resume?.kind ?? (original ? (original.scenario ? 'simulation' : 'test') : resume ? (resume.test.scenario ? 'simulation' : 'test') : 'simulation')
   );
   const greetingFor = (k?: TestKind) =>
     k === 'simulation'
@@ -258,35 +257,11 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
   // Once only, even if React mounts the chat twice
   const autoSent = useRef(false);
   useEffect(() => {
-    if (!autoSend || !seed || resume || !kind || autoSent.current) return;
+    if (!autoSend || !seed || resume || autoSent.current) return;
     autoSent.current = true;
     send(seed);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kind]);
-  const pickKind = (k: TestKind) => {
-    setKind(k);
-    // The opening message speaks to what's being built
-    setChat((c) => (c.messages.some((m) => m.role === 'user') ? c : { ...c, messages: [{ role: 'assistant', text: greetingFor(k) ?? greeting }] }));
-  };
-
-  // Nothing is written until the company says which it wants
-  if (!kind)
-    return (
-      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/60">
-        <div role="dialog" aria-modal="true" aria-label="What would you like to build?" className="bg-white sm:rounded-2xl rounded-t-2xl max-w-3xl w-full shadow-2xl p-6 sm:p-8 flex flex-col items-center gap-6">
-          <div className="w-full flex items-start justify-between gap-4">
-            <div>
-              <h2 className="text-xl font-bold text-slate-900">What would you like to build?</h2>
-              <p className="text-sm text-slate-500">{job ? `For ${job.title}` : business ? `For ${business.name}'s jobs` : 'For the Vetter test library'}. You can refine either one with Vetter afterwards.</p>
-            </div>
-            <button onClick={onClose} aria-label="Close" className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg">
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-          <TestKindPicker onPick={pickKind} />
-        </div>
-      </div>
-    );
+  }, []);
 
   const suggestions = original && !started
     ? ['Make it harder', 'Make it shorter', 'Rewrite the weakest question']

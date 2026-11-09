@@ -337,7 +337,7 @@ export async function sendChat(state: ChatState, text: string, ctx: ChatContext,
     // The company hiring: the simulation is set there, so the candidate works for it from the first question
     company: ctx.business && { name: ctx.business.name, industry: ctx.business.industry, description: ctx.business.description, website: ctx.business.websiteUrl, headquarters: ctx.business.headquarters },
     jobTitle: ctx.jobTitle,
-    kind: ctx.kind ?? 'test',
+    kind: ctx.kind ?? 'simulation',
     draft: state.draft && draftForModel(state.draft),
     existing: state.existing.map((s) => s.test.id),
     wantExisting: ctx.wantExisting,
