@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { meter } from './meter.js';
 import { MAX_PROMPT, PRICES, apiFailure, researchSoftware } from './generateTest.js';
-import { ChatRequest, levelPick, styleGuide, stylesNote } from './testChat.js';
+import { ChatRequest, backgroundNote, levelPick, styleGuide, stylesNote } from './testChat.js';
 
 /**
  * The first step of writing a test from the conversation: what the hire needs (the blueprint) and an outline of every
@@ -90,6 +90,7 @@ HOW TO TALK
 - Reply like a sharp, friendly hiring consultant: short, plain British English, no em dashes, no markdown. 1 to 4 sentences.
 - If the conversation is too vague to plan a useful test (no idea of the role or what matters), ask up to 2 short
   questions in reply and leave out "plan". Otherwise plan straight away; don't interrogate.
+- ALREADY SETTLED, when given, is what the company told Vetter before this chat: never ask again about anything it covers; plan straight away.
 ${
     req.kind === 'training'
       ? `- This is TRAINING for the company's own people. Until the company has said which areas they want training in,
@@ -146,7 +147,7 @@ function conversation(req: ChatRequest): Anthropic.Beta.BetaMessageParam[] {
   const turns = req.messages.slice(-MAX_TURNS).map((m) => ({ role: m.role, content: m.text.slice(0, MAX_TEXT) }));
   while (turns.length && turns[0].role !== 'user') turns.shift();
   const last = turns[turns.length - 1];
-  const context = [req.job ? `THE JOB:\n${req.job.slice(0, MAX_PROMPT)}` : '', req.draft ? `THE DRAFT BEING REPLACED (for reference):\n${JSON.stringify(req.draft).slice(0, 20000)}` : '']
+  const context = [req.job ? `THE JOB:\n${req.job.slice(0, MAX_PROMPT)}` : '', backgroundNote(req), req.draft ? `THE DRAFT BEING REPLACED (for reference):\n${JSON.stringify(req.draft).slice(0, 20000)}` : '']
     .filter(Boolean)
     .join('\n\n');
   return [...turns.slice(0, -1), { role: 'user', content: `${context}${context ? '\n\n' : ''}THE COMPANY SAYS:\n${last.content}` }];

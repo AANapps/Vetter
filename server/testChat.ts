@@ -21,6 +21,9 @@ export interface ChatRequest {
   kind?: TestKind;
   // The company hiring, where the job simulation is set
   company?: SimulationCompany;
+  // What the company already said in the home chat before opening this one (its messages and the choices it picked):
+  // settled, so not asked again
+  background?: string;
   // The draft as it stands, with app pages left out (see draftForModel in src/lib/testChat.ts)
   draft?: Record<string, unknown>;
   // Library tests already picked, when picking from the library
@@ -186,6 +189,7 @@ function instructions(req: ChatRequest, research: string): string {
 HOW TO TALK
 - Reply like a sharp, friendly hiring consultant: short, plain British English, no em dashes, no markdown headings. 1 to 4 sentences usually.
 - If the first message is too vague to write a useful test (no idea of the role or what matters), ask up to 2 short questions instead of writing. Otherwise write a first draft straight away; don't interrogate.
+- ALREADY SETTLED below is what the company told Vetter before this chat. Never ask again about anything it covers (the role, level, what to build, what to focus on); use it, and write straight away.
 - After writing or changing the draft, say in a sentence what you did, then offer one or two specific ways to sharpen it (e.g. "Want a task in Xero itself?").
 - When asked to change something, change exactly that and keep the rest. Questions are numbered from 1 in the order of the draft.
 - The company can edit the draft by hand between messages. The draft you're given is always the latest: treat their edits as deliberate, keep them, and don't undo them unless asked.
@@ -222,6 +226,10 @@ ${req.library.map((t) => `- ${t.id}: ${t.title} (${t.category}, ${t.difficulty};
 }
 
 // The conversation as Claude sees it; the latest message carries the job and the draft as they stand
+// The home chat's answers, for the planner and the chat alike
+export const backgroundNote = (req: { background?: string }) =>
+  req.background?.trim() ? `ALREADY SETTLED (the company's earlier chat with Vetter; don't ask about any of it again):\n${req.background.slice(0, MAX_PROMPT)}` : '';
+
 function conversation(req: ChatRequest): Anthropic.Beta.BetaMessageParam[] {
   const turns = req.messages.slice(-MAX_TURNS).map((m) => ({ role: m.role, content: m.text.slice(0, MAX_TEXT) }));
   // Claude's turns must alternate and start with the company's
@@ -229,6 +237,7 @@ function conversation(req: ChatRequest): Anthropic.Beta.BetaMessageParam[] {
   const last = turns[turns.length - 1];
   const context = [
     req.job ? `THE JOB:\n${req.job.slice(0, MAX_PROMPT)}` : '',
+    backgroundNote(req),
     req.draft ? `THE DRAFT AS IT STANDS:\n${JSON.stringify(req.draft)}` : 'THERE IS NO DRAFT YET.',
     req.viewing
       ? `THE COMPANY HAS OPEN BESIDE THE CHAT: ${req.viewing.label}, the app "${req.viewing.app}" (question id ${req.viewing.id}). Unless they say otherwise, "this", "it", "here", "the app", a screen, button or field they mention means this page, so change it through appEdits.`

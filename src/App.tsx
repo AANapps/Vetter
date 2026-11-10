@@ -459,7 +459,7 @@ export default function App() {
   // seed: a first message ready to send, e.g. to rebuild a library test in depth
   // autoSend: the seed is sent as the chat opens, so building starts at once
   // editTestId: a saved test reopened in the chat, to change it by asking
-  const [generator, setGenerator] = useState<{ jobId?: string; resume?: TestDraft; seed?: string; autoSend?: boolean; editTestId?: string; kind?: TestKind; fromHome?: boolean } | null>(null);
+  const [generator, setGenerator] = useState<{ jobId?: string; resume?: TestDraft; seed?: string; autoSend?: boolean; editTestId?: string; kind?: TestKind; fromHome?: boolean; background?: string } | null>(null);
   // What the creator saved while it was open from the home chat, reported in the chat when it closes
   const builtInCreator = useRef<{ test: AssessmentTest; kind: TestKind; testId?: string; draft?: boolean } | null>(null);
   // What a company took from the home chat (ready-made picks, AI tests built or started, the reply's other AI ideas)
@@ -500,6 +500,36 @@ export default function App() {
 
   // None while a new company is still being set up
   const recruiterBusiness: Business | undefined = businesses.find((b) => b.id === recruiter.businessId);
+
+  // The home chat is kept on this device per company, so a reload doesn't lose what was said and picked. Library tests in
+  // it are stored by id and looked up again
+  const homeChatKey = activeRole === 'recruiter' && recruiterBusiness ? `vetter.homeChat.${recruiterBusiness.id}` : null;
+  const homeChatLoaded = useRef<string | null>(null);
+  useEffect(() => {
+    if (!homeChatKey || homeChatLoaded.current === homeChatKey || !tests.length) return;
+    homeChatLoaded.current = homeChatKey;
+    try {
+      const saved = JSON.parse(localStorage.getItem(homeChatKey) ?? 'null') as (AdvisorTurn & { existingIds?: { testId: string; reason: string }[] })[] | null;
+      if (!saved?.length) return;
+      setAdvisorTurns(
+        saved.map(({ existingIds, ...t }) => ({
+          ...t,
+          ...(existingIds && { existing: existingIds.flatMap(({ testId, reason }) => tests.filter((x) => x.id === testId).map((test) => ({ test, reason }))) }),
+        }))
+      );
+    } catch {
+      // Storage refused or the saved chat is unreadable: start a new one
+    }
+  }, [homeChatKey, tests.length]);
+  useEffect(() => {
+    if (!homeChatKey || homeChatLoaded.current !== homeChatKey) return;
+    try {
+      const slim = advisorTurns.slice(-40).map(({ existing, ...t }) => ({ ...t, ...(existing?.length && { existingIds: existing.map((e) => ({ testId: e.test.id, reason: e.reason })) }) }));
+      localStorage.setItem(homeChatKey, JSON.stringify(slim));
+    } catch {
+      // Private windows can refuse storage; the chat then lasts for this visit
+    }
+  }, [advisorTurns, homeChatKey]);
   // Tests written by AI come with a paid plan; the Vetter team always has them. Everything else is free
   // For now every company gets AI test creation, whatever its plan; set to false to put it back behind paid plans
   const AI_TESTS_FOR_ALL = true;
@@ -519,11 +549,20 @@ export default function App() {
     openGenerator(pending ? { jobId: pending.jobId ?? jobId, resume: pending } : { jobId, editTestId: testId });
   };
 
-  const openGenerator = (g: { jobId?: string; resume?: TestDraft; seed?: string; autoSend?: boolean; editTestId?: string; kind?: TestKind; fromHome?: boolean }) => {
+  const openGenerator = (g: { jobId?: string; resume?: TestDraft; seed?: string; autoSend?: boolean; editTestId?: string; kind?: TestKind; fromHome?: boolean; background?: string }) => {
+    if (!aiAllowed) return setPlansOpen(true);
+    // One build at a time: a minimised one would be lost if another replaced it
+    if (generator) return showToast("You've got one being built already. Open it from the tab in the corner, and close it before starting another.");
     builtInCreator.current = null;
-    if (aiAllowed) setGenerator(g);
-    else setPlansOpen(true);
+    setGenerator(g);
   };
+  // The home chat as the creator is told it: what the company said and picked, in order, and what Vetter asked
+  const homeChatSummary = (turns: AdvisorTurn[]) =>
+    turns
+      .slice(-16)
+      .map((t) => (t.role === 'user' ? `Company: ${t.text}` : `Vetter: ${t.text}${t.brief ? `\n(The role: ${t.brief})` : ''}`))
+      .join('\n')
+      .slice(-5000);
   // Back in the home chat after the creator: what was made and where it is, then an offer to build something more from
   // the same brief
   const reportBuild = (brief?: string) => {
@@ -1640,7 +1679,11 @@ export default function App() {
                 startPlanBuild(idea);
               }}
               onEditCopy={(test) => setDraftBuilder({ draft: test, isCopy: true, alsoAdd: [] })}
-              onBuildWithAI={(brief, kind) => openGenerator({ ...(brief && { seed: brief }), ...(kind && { kind }), fromHome: true })}
+              onBuildWithAI={(brief, kind) =>
+                // Everything is settled in the chat by now (the role, the kind, what to focus on), so building starts at
+                // once, and Vetter is told what was said so it doesn't ask again
+                openGenerator({ ...(brief && { seed: brief, autoSend: true }), ...(kind && { kind }), fromHome: true, background: homeChatSummary(advisorTurns) })
+              }
               onCreateOwn={() => setDraftBuilder({ alsoAdd: [] })}
               onSeePlans={() => setPlansOpen(true)}
               onOpenTest={openTestPage}
@@ -1897,6 +1940,7 @@ export default function App() {
           }}
           seed={generator.seed}
           autoSend={generator.autoSend}
+          background={generator.background}
           kind={generator.kind}
           onSaveDraft={async (record) => {
             const ok = await saveTestDraft(record);

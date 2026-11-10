@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AlertCircle, ArrowUp, Check, ChevronDown, ChevronUp, Library, X } from 'lucide-react';
+import { AlertCircle, ArrowUp, Check, ChevronDown, ChevronUp, Library, Loader2, Maximize2, Minus, X } from 'lucide-react';
 import { AssessmentTest, Business, JobPosting, QuestionType, TEST_DIFFICULTIES, TestDifficulty, TestDraft, TestKind, levelName } from '../types';
 import { QUESTION_STYLES } from '../lib/questionTypes';
 import { DraftPreview, Dropdown, draftProblems, finaliseDraft } from './DraftPreview';
@@ -37,6 +37,8 @@ interface TestGeneratorProps {
   seed?: string;
   // Sends the first message straight away, so Vetter starts building as the chat opens
   autoSend?: boolean;
+  // What the company already settled in the home chat (its messages and picks), passed to Vetter so it isn't asked again
+  background?: string;
   // A skills test or a job simulation; new ones are job simulations
   kind?: TestKind;
   onClose: () => void;
@@ -57,7 +59,8 @@ const PICKABLE: QuestionType[] = ['choice', 'multi', 'text', 'written', 'order',
 const PICKABLE_STYLES = PICKABLE.map((type) => QUESTION_STYLES.find((s) => s.type === type)!).filter(Boolean);
 
 // Build a test by talking to Vetter: describe the job, get a draft, then ask for changes until it's right
-export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tests, onOpenTest, onSaveTest, onAddToJob, editing, onUpdateTest, onEditDraft, onSaveDraft, resume, seed, autoSend, kind: kindAsked, onClose }) => {
+export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tests, onOpenTest, onSaveTest, onAddToJob, editing, onUpdateTest, onEditDraft, onSaveDraft, resume, seed, autoSend, background: backgroundGiven, kind: kindAsked, onClose }) => {
+  const background = backgroundGiven ?? resume?.background;
   // The saved test being changed, opened from its job or from a draft of changes to it
   const [original] = useState(() => editing ?? (resume?.editsTestId ? tests.find((t) => t.id === resume.editsTestId) : undefined));
   // What the AI writes is a job simulation (a day in the life at the company) or training for the team; a skills test
@@ -166,7 +169,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
     setChat((c) => ({ ...c, messages: [{ role: 'assistant', text: greetingFor(next) ?? greeting }] }));
   };
   // Changing a saved test doesn't pick library tests to go with it
-  const ctx = { kind, job: job ? jobBrief(job) : undefined, jobTitle: job?.title, level: difficulty, levels: pickedLevels, questionCount, timeLimit, wantExisting: !!job && !original, tests, business, styles, viewing: focus };
+  const ctx = { kind, job: job ? jobBrief(job) : undefined, jobTitle: job?.title, level: difficulty, levels: pickedLevels, questionCount, timeLimit, wantExisting: !!job && !original, tests, business, styles, viewing: focus, background };
   const toggleStyle = (type: QuestionType) => setStyles((prev) => (prev.includes(type) ? prev.filter((t) => t !== type) : PICKABLE.filter((t) => t === type || prev.includes(t))));
   const toggle = <T,>(set: React.Dispatch<React.SetStateAction<T[]>>, value: T) => set((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]));
   // The types Vetter may use: any, when none are ticked
@@ -203,6 +206,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
     ...(chat.research !== undefined && { research: chat.research, researchedFor: chat.researchedFor }),
     styles,
     ...(kind && { kind }),
+    ...(background && { background }),
     ...(timeLimit !== undefined && { timeLimit }),
     ...(questionCount && { questionCount }),
     difficulties: pickedLevels,
@@ -222,8 +226,11 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
     onClose();
   };
 
+  // Minimised, the creator keeps working out of the way, as a tab in the corner the company can open again
+  const [minimised, setMinimised] = useState(false);
+
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close();
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && !minimised && close();
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   });
@@ -316,8 +323,27 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
     onClose();
   };
 
+  const tabTitle = original ? `Editing ${original.title}` : draft?.title || (kind === 'training' ? 'Training' : kind === 'standalone' ? 'Interactive simulation' : 'Job simulation test');
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/60 backdrop-blur-sm">
+    <>
+    {minimised && (
+      <div role="status" className="fixed bottom-20 md:bottom-4 right-4 z-50 w-[min(22rem,calc(100vw-2rem))] bg-white border border-slate-200 rounded-xl shadow-xl flex items-center gap-3 p-3">
+        <span className={`w-9 h-9 shrink-0 rounded-lg flex items-center justify-center ${working ? 'bg-indigo-50 text-indigo-600' : draft ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
+          {working ? <Loader2 className="w-4 h-4 animate-spin" /> : draft ? <Check className="w-4 h-4" /> : <Minus className="w-4 h-4" />}
+        </span>
+        <button onClick={() => setMinimised(false)} className="min-w-0 flex-1 text-left" title="Open">
+          <span className="block text-sm font-semibold text-slate-900 truncate">{tabTitle}</span>
+          <span className="block text-xs text-slate-500 truncate">{working ? stage || 'Vetter is building it…' : draft ? 'Ready to look over and save' : 'Waiting for you'}</span>
+        </button>
+        <button onClick={() => setMinimised(false)} aria-label="Open" title="Open" className="p-1.5 text-slate-500 hover:text-indigo-700 rounded-md hover:bg-slate-50">
+          <Maximize2 className="w-4 h-4" />
+        </button>
+        <button onClick={close} disabled={working} aria-label="Close" title={working ? 'Wait for Vetter to finish first' : 'Close'} className="p-1.5 text-slate-400 hover:text-slate-700 rounded-md hover:bg-slate-50 disabled:opacity-40">
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+    )}
+    <div className={minimised ? 'hidden' : 'fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/60 backdrop-blur-sm'}>
       <div role="dialog" aria-modal="true" aria-label="Build a test with Vetter" className="bg-white sm:rounded-2xl rounded-t-2xl max-w-7xl w-full h-[calc(100dvh-1rem)] sm:h-[min(52rem,calc(100vh-2rem))] flex flex-col shadow-2xl overflow-hidden">
         <div className="px-5 pt-4 pb-3 border-b border-slate-200 flex items-start justify-between gap-4">
           <div className="min-w-0">
@@ -361,6 +387,9 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                 Save test
               </button>
             )}
+            <button onClick={() => setMinimised(true)} aria-label="Minimise" title="Minimise: keep it building while you carry on" className="p-1 text-slate-400 hover:text-slate-700">
+              <Minus className="w-5 h-5" />
+            </button>
             <button onClick={close} disabled={working} aria-label="Close" className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-40">
               <X className="w-5 h-5" />
             </button>
@@ -631,6 +660,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
       </div>
       {topUpOpen && credit && <CreditsDialog credit={credit} onUpdated={setCredit} onClose={closeTopUp} />}
     </div>
+    </>
   );
 };
 

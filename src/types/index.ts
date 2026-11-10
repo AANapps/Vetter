@@ -634,6 +634,8 @@ export interface Assignment {
 export interface TestDraft {
   id: string;
   // A skills test or a job simulation, as the company chose
+  // What the company had already settled in the home chat before this build, so the creator doesn't ask again
+  background?: string;
   kind?: TestKind;
   // The company it's for; '' for the Vetter library
   businessId: string;

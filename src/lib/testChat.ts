@@ -53,6 +53,8 @@ export interface ChatContext {
   timeLimit?: number | 'none';
   // The app task open beside the chat, which "this" and "the app" mean
   viewing?: { id: string; label: string; app: string };
+  // What the company already settled in the home chat, never asked again
+  background?: string;
 }
 
 // A question type the company allows: any, when it hasn't ticked one
@@ -360,6 +362,7 @@ export async function sendChat(state: ChatState, text: string, ctx: ChatContext,
     // The company hiring: the simulation is set there, so the candidate works for it from the first question
     company: ctx.business && { name: ctx.business.name, industry: ctx.business.industry, sector: ctx.business.sector, description: ctx.business.description, website: ctx.business.websiteUrl, headquarters: ctx.business.headquarters },
     jobTitle: ctx.jobTitle,
+    background: ctx.background,
     kind: ctx.kind ?? 'simulation',
     draft: state.draft && draftForModel(state.draft),
     existing: state.existing.map((s) => s.test.id),
