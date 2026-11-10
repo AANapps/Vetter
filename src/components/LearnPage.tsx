@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useCurrency } from '../lib/currency';
 import { ArrowRight, BadgeCheck, Briefcase, Building2, Clock, Repeat, TrendingUp } from 'lucide-react';
 import { COURSES, COURSE_CATEGORIES, Course, courseHours, courseLessons, coursePriceLabel } from '../data/courses';
+import { SectorId, courseInSector, sectorLabel } from '../lib/sectors';
 import { CourseProgress } from '../lib/courseProgress';
 
 // Two ways in: switching to a new career, or upskilling in the job you have
@@ -12,6 +13,8 @@ interface LearnPageProps {
   progress: CourseProgress;
   onOpenCourse: (courseId: string) => void;
   onTrainTeam: () => void;
+  // The sector picked at the top of the page; courses outside it are left out
+  sector?: SectorId;
 }
 
 // Where career switchers often come from and the course that gets them there
@@ -59,7 +62,6 @@ const TRACKS: Record<
   },
 };
 
-const CATEGORIES = ['All', ...COURSE_CATEGORIES.filter((cat) => COURSES.some((c) => c.category === cat))];
 
 export const percentDone = (course: Course, progress: CourseProgress) => {
   const done = progress[course.id]?.done.length ?? 0;
@@ -101,11 +103,15 @@ export const CourseCard: React.FC<{ course: Course; progress: CourseProgress; on
 const courseTitle = (id: string) => COURSES.find((c) => c.id === id)?.title ?? id;
 
 // The course catalogue, framed for career switchers (/learn/) or employees upskilling (/upskill/). Each course has its own page
-export const LearnPage: React.FC<LearnPageProps> = ({ track, progress, onOpenCourse, onTrainTeam }) => {
-  const [category, setCategory] = useState('All');
+export const LearnPage: React.FC<LearnPageProps> = ({ track, progress, onOpenCourse, onTrainTeam, sector = 'all' }) => {
+  const [picked, setCategory] = useState('All');
   const t = TRACKS[track];
   const Icon = t.icon;
-  const forTrack = COURSES.filter((c) => c.audiences.includes(t.audience));
+  const forTrack = COURSES.filter((c) => c.audiences.includes(t.audience) && courseInSector(sector)(c));
+  const CATEGORIES = ['All', ...COURSE_CATEGORIES.filter((cat) => forTrack.some((c) => c.category === cat))];
+  // A category from another sector falls back to all of this one
+  const category = CATEGORIES.includes(picked) ? picked : 'All';
+  const switchPaths = SWITCH_PATHS.filter((s) => forTrack.some((c) => c.id === s.courseId));
   // Switchers see bootcamps first; employees see the shortest courses first
   const shown = forTrack
     .filter((c) => category === 'All' || c.category === category)
@@ -122,11 +128,12 @@ export const LearnPage: React.FC<LearnPageProps> = ({ track, progress, onOpenCou
           <p className="mt-4 text-lg text-slate-600 max-w-2xl">{t.intro}</p>
 
           {/* Popular routes: from what you do now to where you want to be */}
+          {(track !== 'switch' || switchPaths.length > 0) && (
           <div className="mt-10">
             <h2 className="text-sm font-bold text-slate-900">{track === 'switch' ? 'Popular switches' : 'Popular by role'}</h2>
             <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {track === 'switch'
-                ? SWITCH_PATHS.map((s) => (
+                ? switchPaths.map((s) => (
                     <button
                       key={s.from + s.to}
                       onClick={() => onOpenCourse(s.courseId)}
@@ -155,6 +162,7 @@ export const LearnPage: React.FC<LearnPageProps> = ({ track, progress, onOpenCou
                   ))}
             </div>
           </div>
+          )}
         </div>
       </section>
 
@@ -182,6 +190,11 @@ export const LearnPage: React.FC<LearnPageProps> = ({ track, progress, onOpenCou
               <CourseCard key={c.id} course={c} progress={progress} onOpen={() => onOpenCourse(c.id)} />
             ))}
           </div>
+          {shown.length === 0 && (
+            <p className="mt-4 bg-white border border-slate-200 rounded-xl p-8 text-center text-xs text-slate-500">
+              No courses in {sectorLabel(sector)} yet. Pick another sector at the top to see more.
+            </p>
+          )}
         </section>
 
         {track === 'switch' ? (

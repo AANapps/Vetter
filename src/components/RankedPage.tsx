@@ -103,7 +103,7 @@ export const RankedPage: React.FC<{
           {board ? (
             <TestBoard board={board} allCandidates={allCandidates} viewerId={viewerId} onOpenTest={onOpenTest} onBack={() => pick(null)} />
           ) : ranked.length === 0 ? (
-            <p className="text-sm text-slate-600 bg-white border border-slate-200 rounded-xl p-6 text-center">No one has been ranked yet. Take a test to be first.</p>
+            <p className="text-sm text-slate-600 bg-white border border-slate-200 rounded-xl p-6 text-center">{boards.length === 0 ? 'No tests in this sector yet. Pick another sector at the top to see more.' : 'No one has been ranked yet. Take a test to be first.'}</p>
           ) : (
             // The collated view: every ranked test as a card with its top three, most taken first
             <ol className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">

@@ -66,6 +66,8 @@ import { TeamWork } from './components/TeamWork';
 import { TrainingPage } from './components/TrainingPage';
 import { PlansDialog } from './components/PlansDialog';
 import { AdvisorTurn } from './lib/testAdvisor';
+import { SectorId, jobInSector, loadSector, roleInSector, saveSector, testInSector } from './lib/sectors';
+import { SectorBar } from './components/SectorPicker';
 
 const CANDIDATE_SECTIONS: Partial<Record<AppTab, CandidateSection>> = {
   profile: 'profile',
@@ -481,6 +483,14 @@ export default function App() {
   const [plansOpen, setPlansOpen] = useState(false);
   // What the candidate's Tests page is narrowed to, e.g. a field picked on Home
   const [testField, setTestField] = useState<TestField | null>(null);
+  // The sector the candidate browses: tests, jobs, leaderboards, the feed and courses all narrow to it
+  const [sector, setSectorState] = useState<SectorId>(loadSector);
+  const setSector = (next: SectorId) => {
+    setSectorState(next);
+    saveSector(next);
+    // A role or field picked on the Tests page goes when it's outside the new sector
+    if (testField && !testField.roles.some(roleInSector(next))) setTestField(null);
+  };
   // Opened from search
   const [profilePersonId, setProfilePersonId] = useState<string | null>(null);
   const [companiesQuery, setCompaniesQuery] = useState('');
@@ -1177,6 +1187,9 @@ export default function App() {
     : [candidate, ...otherCandidates];
   const testPageTest = testPageId ? tests.find((t) => t.id === testPageId) : undefined;
   const coursePage = COURSES.find((c) => c.id === coursePageId);
+  // What the candidate's browsing pages list, in the sector picked
+  const sectorTests = sector === 'all' ? tests : tests.filter(testInSector(sector));
+  const sectorJobs = sector === 'all' ? jobs : jobs.filter(jobInSector(sector, tests));
   // A test page replaces the tab's own content
   const detailPage = testPageTest;
   // The company home: a chat that fills the window (src/components/BusinessHome.tsx)
@@ -1219,6 +1232,12 @@ export default function App() {
       })),
   ];
   const candidateSection = CANDIDATE_SECTIONS[currentTab];
+  // The sector picker sits on the pages a candidate browses: Home's feed, Tests, Jobs, Ranked and Career switch
+  const showSectorBar =
+    activeRole === 'candidate' &&
+    !detailPage &&
+    !jobPageId &&
+    (['tests', 'jobs', 'ranked'].includes(currentTab) || (currentTab === 'home' && !isVisitor && !hiringHome) || (currentTab === 'learn' && !coursePage));
   const profilePerson = profilePersonId ? allCandidates.find((c) => c.id === profilePersonId) : undefined;
   const candidatePagePerson = activeRole !== 'candidate' && candidatePageId ? allCandidates.find((c) => c.id === candidatePageId) : undefined;
   // A candidate's page is titled after them; runs after the title effect above, so it wins while the page is open
@@ -1306,6 +1325,7 @@ export default function App() {
         <main className={`flex-1 bg-white ${chatHome ? '' : 'pb-16'}`}>
           {accountGate ?? (
           <>
+          {showSectorBar && <SectorBar sector={sector} onChange={setSector} wide={currentTab !== 'learn'} />}
           {activeRole === 'recruiter' && company && account && company.ownerUid === account.uid && companyBusiness && <TeamRequests company={company} />}
           {activeRole === 'admin' && firebaseEnabled && account?.role === 'admin' && <CompanyReview />}
           {activeRole === 'admin' && !testPageTest && <PublicTestReview tests={tests} onOpen={openTestPage} onDecide={decidePublic} />}
@@ -1328,10 +1348,11 @@ export default function App() {
             <LearnPage
               key={currentTab}
               track={currentTab === 'upskill' ? 'upskill' : 'switch'}
+              sector={sector}
               progress={courseProgress.progress} onOpenCourse={openCoursePage} onTrainTeam={trainTeam} />
           )}
           {currentTab === 'ranked' && !testPageTest && (
-            <RankedPage tests={tests} allCandidates={allCandidates} viewerId={isVisitor ? '' : candidate.id} onOpenTest={openTestPage} />
+            <RankedPage tests={sectorTests} allCandidates={allCandidates} viewerId={isVisitor ? '' : candidate.id} onOpenTest={openTestPage} />
           )}
           {currentTab === 'guides' && <GuidesPage slug={guideSlug} onOpen={(slug) => navigateTo(slug ? `/guides/${slug}/` : '/guides/')} />}
           {testPageTest && (
@@ -1407,6 +1428,7 @@ export default function App() {
               onOpenJob={openJobPage}
               testField={testField}
               onTestFieldChange={setTestField}
+              sector={sector}
               canApply={() => {
                 if (isVisitor) setAuthDialog({ mode: 'sign-up', reason: 'Create a free account to apply. Your verified scores go with your application.' });
                 return !isVisitor;
@@ -1451,7 +1473,7 @@ export default function App() {
               <CandidateHome
                 candidate={candidate}
                 jobs={jobs}
-                tests={tests}
+                tests={sectorTests}
                 businesses={businesses}
                 onOpenJob={openJobPage}
                 onStartTest={startTest}
@@ -1460,7 +1482,7 @@ export default function App() {
                 visitor={isVisitor ? { onJoin: () => setAuthDialog({ mode: 'sign-up' }), onSignIn: () => setAuthDialog({ mode: 'sign-in' }) } : undefined}
               />
               <div className="space-y-4 lg:col-start-3 lg:row-start-1">
-                <TopPerformers tests={tests} allCandidates={allCandidates} onOpenTest={openTestPage} onOpenRanked={() => goToTab('ranked')} />
+                <TopPerformers tests={sectorTests} allCandidates={allCandidates} onOpenTest={openTestPage} onOpenRanked={() => goToTab('ranked')} />
                 <FollowSuggestions
                   viewer={candidate}
                   allCandidates={allCandidates}
@@ -1472,8 +1494,8 @@ export default function App() {
               <DiscoverFeed
                 candidate={candidate}
                 allCandidates={allCandidates}
-                tests={tests}
-                jobs={jobs}
+                tests={sectorTests}
+                jobs={sectorJobs}
                 businesses={businesses}
                 social={social}
                 onSocialChange={setSocial}

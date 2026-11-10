@@ -99,6 +99,9 @@ export const FieldSlider: React.FC<{ tests: AssessmentTest[]; onOpenField: (fiel
     </li>
   );
 
+  // Nothing to browse in the sector picked
+  if (fields.length === 0) return null;
+
   return (
     <section className="space-y-3">
       <div>

@@ -4,6 +4,7 @@ import { Pic } from './Pic';
 import { User, AssessmentTest, JobPosting, CandidateJobMatch, Business, TestRole, TEST_DIFFICULTIES, JobProfile, isPublic, levelName } from '../types';
 import { activeProfileOf, asProfile, profilesOf } from '../lib/jobProfiles';
 import { ROLE_GROUPS, ROLE_SECTIONS, TestField, sectionsFor } from '../lib/testRoles';
+import { SectorId, industryInSector, jobInSector, sectorLabel, testInSector } from '../lib/sectors';
 import { isMainVersion, levelsOf } from '../lib/testLevels';
 import { LevelPicker } from './LevelPicker';
 import { DemandBadge } from './DemandBadge';
@@ -71,6 +72,8 @@ interface CandidatePortalProps {
   // The roles the Tests page is narrowed to (a role, an industry, or a field picked on Home), or null for every test
   testField: TestField | null;
   onTestFieldChange: (field: TestField | null) => void;
+  // The sector picked at the top of the page: the job board and the Tests page list only what's in it
+  sector: SectorId;
   // Checked before an application opens; false when the visitor has to sign in first (and has been asked to)
   canApply?: () => boolean;
   // Set when the candidate is on a job's own page (/jobs/<slug>/)
@@ -99,6 +102,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   onOpenJob,
   testField,
   onTestFieldChange,
+  sector,
   canApply,
 }) => {
   // Tests page filters
@@ -124,7 +128,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   const activeProfile = activeProfileOf(candidate);
   const shown = asProfile(candidate, activeProfile);
 
-  const activeJobs = jobs.filter((j) => j.status === 'active');
+  const activeJobs = jobs.filter((j) => j.status === 'active' && (sector === 'all' || jobInSector(sector, tests)(j)));
 
   // Compute live vector matches
   const rankedJobs: CandidateJobMatch[] = rankJobsForCandidate(candidate, activeJobs);
@@ -194,7 +198,8 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   // Vetter-made tests are open to everyone; company tests are taken through the jobs they're attached to
   // Each test is listed once; its levels are picked on the card
   const allVetterVersions = tests.filter((t) => isPublic(t));
-  const vetterTests = allVetterVersions.filter(isMainVersion);
+  const vetterTests = allVetterVersions.filter((t) => isMainVersion(t) && (sector === 'all' || testInSector(sector)(t)));
+  const roleGroups = ROLE_GROUPS.filter((g) => industryInSector(sector)(g.industry));
   const testDifficulties = TEST_DIFFICULTIES.filter((d) => allVetterVersions.some((t) => t.difficulty === d));
   const filteredTests = vetterTests.filter((t) => {
     const versions = levelsOf(t, tests);
@@ -613,8 +618,8 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
             <h1 className="text-xl font-bold text-slate-900 tracking-tight">Job Board</h1>
             <p className="text-xs text-slate-500">
               {boardJobs.length === activeJobs.length
-                ? `${activeJobs.length} open jobs.`
-                : `${boardJobs.length} of ${activeJobs.length} open jobs match your search.`}{' '}
+                ? `${activeJobs.length} open ${sector === 'all' ? '' : `${sectorLabel(sector)} `}jobs.`
+                : `${boardJobs.length} of ${activeJobs.length} open ${sector === 'all' ? '' : `${sectorLabel(sector)} `}jobs match your search.`}{' '}
               Your fit score is based on your verified skills.
             </p>
           </div>
@@ -712,7 +717,13 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
             </div>
           )}
 
-          {boardJobs.length === 0 && (
+          {activeJobs.length === 0 && sector !== 'all' && (
+            <div className="bg-white border border-slate-200 rounded-xl p-8 text-center text-xs text-slate-500 shadow-xs">
+              No open jobs in {sectorLabel(sector)} yet. Pick another sector at the top to see more.
+            </div>
+          )}
+
+          {boardJobs.length === 0 && activeJobs.length > 0 && (
             <div className="bg-white border border-slate-200 rounded-xl p-8 text-center text-xs text-slate-500 shadow-xs space-y-2">
               <p>No jobs match your filters.</p>
               <button onClick={() => setJobFilters(defaultJobFilters(homeCity))} className="font-semibold text-indigo-700 hover:underline">
@@ -843,7 +854,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                 <RoleButton label={testField.label} count={filteredTests.length} active onClick={() => {}} />
               )}
             </div>
-            {ROLE_GROUPS.map((group) => (
+            {roleGroups.map((group) => (
               <div key={group.industry} className="space-y-1">
                 <button
                   onClick={() => onTestFieldChange({ label: group.industry, roles: group.roles })}
@@ -996,7 +1007,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
 
           {filteredTests.length === 0 && (
             <div className="bg-white border border-slate-200 rounded-xl p-8 text-center text-xs text-slate-500 shadow-xs">
-              No tests match these filters.
+              {vetterTests.length === 0 ? `No tests in ${sectorLabel(sector)} yet. Pick another sector at the top to see more.` : 'No tests match these filters.'}
             </div>
           )}
 
