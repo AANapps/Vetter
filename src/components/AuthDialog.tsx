@@ -1,3 +1,5 @@
+import { SectorSelect } from './SectorPicker';
+import type { SectorId } from '../lib/sectors';
 import React, { useEffect, useState } from 'react';
 import { AlertCircle, Briefcase, CheckCircle2, Search, X } from 'lucide-react';
 import { accountError, continueWithGoogle, createAccount, resetPassword, signIn, signUp } from '../lib/accounts';
@@ -27,6 +29,7 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ initialMode, reason, ini
   const [companyName, setCompanyName] = useState('');
   const [website, setWebsite] = useState('');
   const [noWorkEmail, setNoWorkEmail] = useState(false);
+  const [sector, setSector] = useState<SectorId | ''>('');
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -61,7 +64,7 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ initialMode, reason, ini
           name,
           email,
           password,
-          ...(role === 'recruiter' && { company: { name: companyName.trim(), website: website.trim(), noWorkEmail: noWorkEmail || freeEmail } }),
+          ...(role === 'recruiter' && { company: { name: companyName.trim(), website: website.trim(), noWorkEmail: noWorkEmail || freeEmail, ...(sector && { sector }) } }),
         });
         onClose();
       }
@@ -79,12 +82,12 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ initialMode, reason, ini
     setBusy(true);
     try {
       const { user, hasAccount } = await continueWithGoogle();
-      const enough = role === 'candidate' || companyName.trim() !== '';
+      const enough = role === 'candidate' || (companyName.trim() !== '' && sector !== '');
       if (!hasAccount && mode === 'sign-up' && enough) {
         await createAccount(user, {
           role,
           name: name.trim() || user.displayName || user.email!.split('@')[0],
-          ...(role === 'recruiter' && { company: { name: companyName.trim(), website: website.trim(), noWorkEmail: isFreeEmail(user.email ?? '') } }),
+          ...(role === 'recruiter' && { company: { name: companyName.trim(), website: website.trim(), noWorkEmail: isFreeEmail(user.email ?? ''), ...(sector && { sector }) } }),
         });
       }
       onClose();
@@ -231,6 +234,13 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ initialMode, reason, ini
                 {siteMismatch && (
                   <p className="text-[11px] text-slate-800 mt-1">Your email domain doesn't match this website. Check both; it helps candidates trust your jobs.</p>
                 )}
+              </div>
+              <div>
+                <label htmlFor="auth-sector" className="block text-xs font-semibold text-slate-700 mb-1">
+                  Sector you hire in
+                </label>
+                <SectorSelect id="auth-sector" required value={sector} onChange={setSector} className={inputClass} />
+                <p className="text-[11px] text-slate-500 mt-1">Your jobs are listed under it for candidates. You can change it later, and for each job.</p>
               </div>
               {freeEmail && (
                 <label className="flex items-start gap-2 text-xs text-slate-700 cursor-pointer">

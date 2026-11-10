@@ -12,6 +12,16 @@ import {
 import { collection, doc, getDoc, getDocs, onSnapshot, query, serverTimestamp, setDoc, updateDoc, where, writeBatch } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import { domainOf, isFreeEmail } from './emailDomains';
+import type { SectorId } from './sectors';
+
+// What a company sign-up gives before its email is verified, kept on the account until the company is made
+export interface CompanySetup {
+  name: string;
+  website: string;
+  noWorkEmail: boolean;
+  // The sector it hires in
+  sector?: SectorId;
+}
 
 /**
  * Accounts, kept in Firestore. firestore.rules enforces the same rules on the server, so none of this can be
@@ -35,7 +45,7 @@ export interface Account {
   status: AccountStatus;
   companyId?: string;
   // What a company sign-up entered, used once the email is verified
-  companySetup?: { name: string; website: string; noWorkEmail: boolean };
+  companySetup?: CompanySetup;
 }
 
 export interface Company {
@@ -49,6 +59,8 @@ export interface Company {
   // Only for the Vetter team's review queue, from the owner's account; companies' records are public, so it isn't kept there
   ownerEmail?: string;
   status: 'active' | 'pending-review' | 'rejected';
+  // The sector it hires in, picked at sign-up and changed on Your jobs
+  sector?: SectorId;
   // The plan it pays for, set by the Vetter team
   plan?: 'free' | 'per-job' | 'growth' | 'scale';
 }
@@ -89,7 +101,7 @@ export async function signUp(input: {
   name: string;
   email: string;
   password: string;
-  company?: { name: string; website: string; noWorkEmail: boolean };
+  company?: CompanySetup;
 }) {
   if (input.password.length < 8) throw Object.assign(new Error(), { code: 'auth/weak-password' });
   const { user } = await createUserWithEmailAndPassword(auth(), input.email.trim(), input.password);
@@ -101,7 +113,7 @@ export async function signUp(input: {
 // The Vetter account for someone just signed up: a candidate, or a company sign-up waiting to set up its company
 export const createAccount = (
   user: FirebaseUser,
-  input: { role: 'candidate' | 'recruiter'; name: string; company?: { name: string; website: string; noWorkEmail: boolean } }
+  input: { role: 'candidate' | 'recruiter'; name: string; company?: CompanySetup }
 ) =>
   setDoc(userRef(user.uid), {
     email: user.email,
@@ -144,6 +156,7 @@ export async function finishCompanySetup(account: Account) {
     batch.set(companyRef(id), {
       name: setup.name,
       website: setup.website,
+      ...(setup.sector && { sector: setup.sector }),
       ownerUid: account.uid,
       ownerName: account.name,
       status: 'pending-review',
@@ -162,6 +175,7 @@ export async function finishCompanySetup(account: Account) {
     batch.set(companyRef(domain), {
       name: setup.name,
       website: setup.website,
+      ...(setup.sector && { sector: setup.sector }),
       domain,
       ownerUid: account.uid,
       ownerName: account.name,
@@ -182,6 +196,9 @@ export async function companyForDomain(domain: string): Promise<Company | null> 
 export function watchAccount(uid: string, onChange: (account: Account | null) => void) {
   return onSnapshot(userRef(uid), (snap) => onChange(snap.exists() ? ({ uid, ...snap.data() } as Account) : null));
 }
+
+// The owner changing the sector the company hires in
+export const updateCompanySector = (companyId: string, sector: SectorId) => updateDoc(companyRef(companyId), { sector });
 
 export function watchCompany(id: string, onChange: (company: Company | null) => void) {
   return onSnapshot(companyRef(id), (snap) => onChange(snap.exists() ? ({ id, ...snap.data() } as Company) : null));

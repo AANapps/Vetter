@@ -52,9 +52,11 @@ await check('asks to join Acme', async () => A.finishCompanySetup(await account(
 console.log('    status:', (await account(bob)).status);
 await check('cannot approve himself', () => updateDoc(doc(db, 'users', bob), { status: 'active' }), false);
 await check('cannot take over the company', () => updateDoc(doc(db, 'companies', 'acme.io'), { ownerUid: bob }), false);
+await check('a colleague cannot change the company\'s sector', () => updateDoc(doc(db, 'companies', 'acme.io'), { sector: 'retail' }), false);
 await A.signOut();
 await A.signIn('alice@acme.io', 'password123');
 await check('owner approves Bob', () => A.decideMember('acme.io', bob, true), true);
+await check('owner changes the company\'s sector', () => A.updateCompanySector('acme.io', 'trades'), true);
 console.log('    Bob now:', (await account(bob)).status);
 await A.signOut();
 

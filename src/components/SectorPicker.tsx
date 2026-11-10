@@ -1,6 +1,6 @@
 import React from 'react';
 import { Layers } from 'lucide-react';
-import { SECTORS, SectorId } from '../lib/sectors';
+import { PICKABLE_SECTORS, SECTORS, SectorId } from '../lib/sectors';
 
 // The bar under the header on the candidate's browsing pages: pick a sector and every list on the site narrows to it
 export const SectorBar: React.FC<{ sector: SectorId; onChange: (sector: SectorId) => void; wide?: boolean }> = ({ sector, onChange, wide }) => (
@@ -31,4 +31,26 @@ export const SectorBar: React.FC<{ sector: SectorId; onChange: (sector: SectorId
       )}
     </div>
   </div>
+);
+
+// Choosing the sector a company hires in, or a job is in: at sign-up, on Your jobs and in the job form
+export const SectorSelect: React.FC<{
+  id: string;
+  value: SectorId | '';
+  onChange: (sector: SectorId) => void;
+  className: string;
+  required?: boolean;
+}> = ({ id, value, onChange, className, required }) => (
+  <select id={id} required={required} value={value} onChange={(e) => onChange(e.target.value as SectorId)} className={className}>
+    {value === '' && (
+      <option value="" disabled>
+        Pick a sector
+      </option>
+    )}
+    {PICKABLE_SECTORS.map((s) => (
+      <option key={s.id} value={s.id}>
+        {s.label}
+      </option>
+    ))}
+  </select>
 );

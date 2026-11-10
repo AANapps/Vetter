@@ -1,4 +1,5 @@
 import type { IntegrityReport } from '../lib/integrity';
+import type { SectorId } from '../lib/sectors';
 export type UserRole = 'candidate' | 'recruiter' | 'admin';
 
 // The skill a test verifies
@@ -430,6 +431,8 @@ export interface Business {
   websiteUrl: string;
   description: string;
   techStack: string[];
+  // The sector it hires in, picked at sign-up (src/lib/sectors.ts); its jobs start in it
+  sector?: SectorId;
   // The plan it pays for; unset or 'free' has no AI test creation. Only the Vetter team sets it
   plan?: BusinessPlan;
 }
@@ -461,6 +464,9 @@ export interface JobPosting {
   salaryRange: string;
   description: string;
   department: string;
+  // The sector candidates find it under; set from the company's when it's posted, and changeable on the job's page.
+  // Without one, its tests (or its title) decide
+  sector?: SectorId;
   postedDate: string;
   // Full listing details; optional so quickly created jobs still work
   employmentType?: 'Full-time' | 'Part-time' | 'Contract' | 'Internship';

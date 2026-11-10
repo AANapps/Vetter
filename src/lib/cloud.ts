@@ -88,6 +88,7 @@ export const businessOf = (c: Company & Partial<Business>): Business => ({
   websiteUrl: c.website ?? '',
   description: c.description ?? '',
   techStack: c.techStack ?? [],
+  ...(c.sector && { sector: c.sector }),
   ...(c.plan && { plan: c.plan }),
 });
 

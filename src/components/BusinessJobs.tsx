@@ -4,6 +4,8 @@ import { BackButton } from './BackButton';
 import { backOr } from '../lib/back';
 import { AssessmentTest, Business, JobPosting, TrialResult, User } from '../types';
 import { JobDetailsModal } from './JobDetails';
+import { SectorSelect } from './SectorPicker';
+import { SectorId, jobSector, sectorLabel as sectorName } from '../lib/sectors';
 import { TIERS, tiersOf } from '../lib/tiers';
 import { calculateCandidateJobMatch } from '../lib/matchingAlgorithm';
 import {
@@ -56,6 +58,10 @@ interface BusinessJobsProps {
   // The company's own test: edited where it was made (the test chat for AI tests, the builder for ones made by hand)
   onEditTest: (jobId: string, testId: string) => void;
   onUpdateJobRequirements: (jobId: string, requirements: JobPosting['requirements']) => void;
+  // The sector a job is listed under for candidates
+  onUpdateJobSector: (jobId: string, sector: SectorId) => void;
+  // The sector the company hires in, which new jobs start in; only its owner can change it
+  onUpdateCompanySector?: (sector: SectorId) => void;
   onEmail: (jobId: string, emails: string[]) => void;
   onInvite: (jobId: string, candidateIds: string[]) => void;
   onOpenPerson: (personId: string) => void;
@@ -164,6 +170,7 @@ const confirmDeleteJob = (job: JobPosting, candidates: User[]) => {
 
 const JobList: React.FC<BusinessJobsProps> = ({
   business,
+  onUpdateCompanySector,
   businesses,
   jobs,
   tests,
@@ -212,6 +219,24 @@ const JobList: React.FC<BusinessJobsProps> = ({
           <p className="text-sm text-slate-500 max-w-xl">
             Each job has its tests. Send them to candidates, and every score lands on the job as it comes in.
           </p>
+          {business && (
+            <div className="pt-1 flex items-center gap-2 text-xs text-slate-600">
+              <label htmlFor="company-sector" className="font-semibold">
+                Your sector
+              </label>
+              {onUpdateCompanySector ? (
+                <SectorSelect
+                  id="company-sector"
+                  value={business.sector ?? ''}
+                  onChange={onUpdateCompanySector}
+                  className="px-2 py-1 bg-white border border-slate-300 rounded-lg text-xs font-medium text-slate-800"
+                />
+              ) : (
+                <span id="company-sector">{business.sector ? sectorName(business.sector) : 'Not set'}</span>
+              )}
+              <span className="text-slate-400">New jobs start in it; each job can be changed on its page.</span>
+            </div>
+          )}
         </div>
         <button
           onClick={() => setIsCreating(true)}
@@ -410,6 +435,7 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
   onSuggestTests,
   onEditTest,
   onUpdateJobRequirements,
+  onUpdateJobSector,
   onEmail,
   onInvite,
   onOpenPerson,
@@ -489,6 +515,16 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
           <span>&middot; {job.salaryRange}</span>
           {job.closingDate && <span>&middot; closes {formatDay(job.closingDate)}</span>}
           <span>&middot; {job.applicantCount} applicants</span>
+          <span className="flex items-center gap-1.5">
+            &middot;
+            <label htmlFor={`job-sector-${job.id}`}>Listed under</label>
+            <SectorSelect
+              id={`job-sector-${job.id}`}
+              value={jobSector(job, tests) ?? ''}
+              onChange={(sector) => onUpdateJobSector(job.id, sector)}
+              className="px-1.5 py-0.5 bg-white border border-slate-300 rounded-md text-xs font-medium text-slate-800"
+            />
+          </span>
         </p>
         <p className="text-sm text-slate-600 max-w-2xl">{job.description}</p>
       </div>

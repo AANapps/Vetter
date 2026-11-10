@@ -44,7 +44,7 @@ import { CheckCircle2 } from 'lucide-react';
 import { firebaseEnabled } from './lib/firebase';
 import { useAccount } from './lib/useAccount';
 import { loadProfile, saveProfile } from './lib/profiles';
-import { Account, accountError, signOut } from './lib/accounts';
+import { Account, accountError, signOut, updateCompanySector } from './lib/accounts';
 import { Viewer, apply, syncAssignments, syncTeam, syncJobs, syncLeads, syncNotifications, syncSocial, putTestDraft, putTrial, syncTestDrafts, syncTests, useCloudData } from './lib/cloud';
 import { LeadsPage } from './components/LeadsPage';
 import { LeadChange } from './components/LeadsView';
@@ -66,7 +66,7 @@ import { TeamWork } from './components/TeamWork';
 import { TrainingPage } from './components/TrainingPage';
 import { PlansDialog } from './components/PlansDialog';
 import { AdvisorTurn } from './lib/testAdvisor';
-import { SectorId, jobInSector, loadSector, roleInSector, saveSector, testInSector } from './lib/sectors';
+import { SectorId, jobInSector, loadSector, roleInSector, saveSector, sectorLabel, testInSector } from './lib/sectors';
 import { SectorBar } from './components/SectorPicker';
 
 const CANDIDATE_SECTIONS: Partial<Record<AppTab, CandidateSection>> = {
@@ -228,6 +228,7 @@ export default function App() {
           websiteUrl: company.website,
           description: '',
           techStack: [],
+          ...(company.sector && { sector: company.sector }),
           ...(company.plan && { plan: company.plan }),
         }
       : undefined;
@@ -1082,8 +1083,10 @@ export default function App() {
     updateInvitation(jobId, candidate.id, { attempts: withAttemptStarted(invitation, test.id, now), ...(invitation?.startedAt ? {} : { startedAt: now }) });
   };
 
+  // A new job is in its company's sector unless it was given one
   const handleCreateJob = (newJob: JobPosting) => {
-    setJobs((prev) => [newJob, ...prev]);
+    const companySector = businesses.find((b) => b.id === newJob.businessId)?.sector;
+    setJobs((prev) => [{ ...(companySector && { sector: companySector }), ...newJob }, ...prev]);
   };
 
   const handleSaveJobTests = (jobId: string, change: Pick<JobPosting, 'testIds' | 'testPassingScore' | 'testsRequired' | 'maxAttempts'>) => {
@@ -1099,6 +1102,11 @@ export default function App() {
 
   const handleUpdateJobRequirements = (jobId: string, requirements: JobPosting['requirements']) => {
     setJobs((prev) => prev.map((j) => (j.id === jobId ? { ...j, requirements } : j)));
+  };
+
+  const handleUpdateJobSector = (jobId: string, sector: SectorId) => {
+    setJobs((prev) => prev.map((j) => (j.id === jobId ? { ...j, sector } : j)));
+    showToast(`Listed under ${sectorLabel(sector)}.`);
   };
 
   const handleCreateTest = (newTest: AssessmentTest) => {
@@ -1662,6 +1670,17 @@ export default function App() {
               onSuggestTests={(jobId) => openGenerator({ jobId })}
               onEditTest={(jobId, testId) => editOwnTest(testId, jobId)}
               onUpdateJobRequirements={handleUpdateJobRequirements}
+              onUpdateJobSector={handleUpdateJobSector}
+              onUpdateCompanySector={
+                // The owner's to change, saved on the company's record
+                activeRole === 'recruiter' && company && account && company.ownerUid === account.uid
+                  ? (next) =>
+                      updateCompanySector(company.id, next).then(
+                        () => showToast(`Your sector is now ${sectorLabel(next)}. New jobs start in it.`),
+                        (err) => showToast(accountError(err))
+                      )
+                  : undefined
+              }
               onEmail={handleEmailJob}
               onInvite={handleInviteToJob}
               onOpenPerson={openPerson}

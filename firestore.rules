@@ -317,7 +317,7 @@ service cloud.firestore {
 
       allow update: if isAdmin()
         || (signedIn() && resource.data.ownerUid == uid()
-          && changed().hasOnly(['name', 'website', 'logo', 'industry', 'headquarters', 'companySize', 'description', 'techStack']));
+          && changed().hasOnly(['name', 'website', 'logo', 'industry', 'sector', 'headquarters', 'companySize', 'description', 'techStack']));
       allow delete: if isAdmin();
 
       match /members/{memberId} {

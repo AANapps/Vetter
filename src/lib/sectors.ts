@@ -19,6 +19,9 @@ export const SECTORS: { id: SectorId; label: string }[] = [
   { id: 'trades', label: 'Trades' },
 ];
 
+// The sectors a company or job can be in: every one but All
+export const PICKABLE_SECTORS = SECTORS.filter((s) => s.id !== 'all');
+
 export const sectorLabel = (id: SectorId) => SECTORS.find((s) => s.id === id)?.label ?? 'All sectors';
 
 const CATEGORY_SECTOR: Record<SkillCategory, SectorId> = {
@@ -98,8 +101,9 @@ export const roleInSector = (sector: SectorId) => (role: string) =>
 
 export const courseInSector = (sector: SectorId) => (course: Course) => inSector(sector, COURSE_SECTOR[course.category]);
 
-// A job is in the sector most of its tests are in; without tests, its title and department decide
+// A job's sector: the one its company picked for it, else the one most of its tests are in, else its title and department's
 export function jobSector(job: JobPosting, tests: AssessmentTest[]): SectorId | undefined {
+  if (job.sector && job.sector !== 'all') return job.sector;
   const counts = new Map<SectorId, number>();
   for (const id of job.testIds) {
     const test = tests.find((t) => t.id === id);

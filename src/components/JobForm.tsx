@@ -3,6 +3,8 @@ import { AssessmentTest, Business, JobPosting, isPublic, levelName } from '../ty
 import { CITIES } from '../lib/geo';
 import { EMPLOYMENT_TYPES, EXPERIENCE_LEVELS, formatSalaryRange } from '../lib/jobFilters';
 import { Plus } from 'lucide-react';
+import { SectorSelect } from './SectorPicker';
+import { SectorId } from '../lib/sectors';
 import { isMainVersion, levelsOf, versionTitle } from '../lib/testLevels';
 
 interface JobFormProps {
@@ -29,6 +31,9 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
 
   const [title, setTitle] = useState('');
   const [department, setDepartment] = useState('Core Engineering');
+  // Starts in the company's sector; a job can be listed under another
+  const [pickedSector, setSector] = useState<SectorId | ''>('');
+  const sector = pickedSector || business?.sector || '';
   // Every field the job board filters on is asked for here, so new jobs filter like the seeded ones
   const [location, setLocation] = useState(CITIES[business?.headquarters ?? ''] ? business!.headquarters : 'San Francisco, CA');
   const [workType, setWorkType] = useState<JobPosting['workType']>('Remote');
@@ -96,6 +101,7 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
       salaryRange: formatSalaryRange(salaryMin, salaryMax),
       description: description || `We are hiring a ${title.trim()} to join ${business.name}.`,
       department: department.trim(),
+      ...(sector && { sector }),
       postedDate: new Date().toISOString().split('T')[0],
       employmentType,
       experienceLevel: experience,
@@ -154,6 +160,12 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
               onChange={(e) => setTitle(e.target.value)}
               className={inputClass}
             />
+          </div>
+
+          <div>
+            <label htmlFor="job-sector" className="block text-xs font-semibold text-slate-700 mb-1">Sector</label>
+            <SectorSelect id="job-sector" required value={sector} onChange={setSector} className={`${inputClass} font-medium`} />
+            <p className="text-[11px] text-slate-500 mt-1">Candidates browsing this sector see the job.</p>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
