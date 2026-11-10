@@ -207,6 +207,86 @@ export const APP_TASK_RULES = `
 
 export const APP_RULES = `${APP_KINDS}\n${APP_PAGE_RULES}${APP_TASK_RULES}`;
 
+// What a simulation looks like in each sector. Work that isn't done at a computer is simulated as the real thing:
+// the place, the equipment, the people and what happens there, not a software screen
+const SECTOR_SIMULATIONS: Record<string, string> = {
+  trades: `TRADES: this work is practical and done on site, not at a computer, so no app copies software. Every app is
+  hands-on (kind b) or a format of your own (kind c), drawn as the real thing in detailed SVG:
+  • Interactive diagrams the candidate builds or fixes: a circuit, wiring, consumer unit, plumbing or heating schematic
+    where components are dragged from a parts tray onto the board and wired terminal to terminal; the diagram re-draws
+    as it changes and the circuit is really modelled (series and parallel, a lamp lights only on a closed circuit, an
+    RCD trips on a fault, a wrong cable rating overheats), so the result follows from what they built.
+  • A toolbox: the right tools as recognisable icons (multimeter, two-pole voltage tester, proving unit, insulation
+    resistance and loop testers, screwdrivers, strippers, crimpers, pipe cutter, spirit level...). A meter clipped to two
+    points gives the reading the modelled circuit really has there; tools used wrongly have real consequences.
+  • Real events: a call-out (a customer's tripping circuit, a leak under a sink, a dead socket), a site walk-round to
+    spot hazards on a drawn scene, a job with a customer interrupting. Safe working is marked: isolating, locking off,
+    proving dead (and the tester on a known live source before and after), PPE, the order steps are done in.`,
+  hospitality: `HOSPITALITY: the work happens on a floor, not at a desk, so simulate the place itself as a live game:
+  • A floor plan drawn in SVG (the counter, till, coffee machine, kitchen stations, tables, the door) with a game clock
+    running faster than real time. Customer avatars walk in on a schedule, queue, and order in speech bubbles (with
+    allergies, changes and the odd complaint); each has a patience bar that runs down while they wait.
+  • The candidate takes orders on the till, then makes them by working the stations step by step (grind, tamp,
+    extract, steam and pour for coffee; prep, cook, plate for food), the item drawn as it's made; staff avatars move to
+    the station they're sent to. Orders are served to the right table; mistakes (wrong milk, an allergen, a long wait)
+    show on the customer.
+  • Back-office jobs interrupt the shift, as they do: a delivery to check against the order note, a rota to fix after a
+    sick call, a stock order before the cut-off, the till cash-up and banking. The candidate juggles them against the
+    queue, so prioritising and keeping to time are part of the mark.
+  • The state records every order (what was asked, what was served, when), each customer's wait, and what was done in
+    the back office and when.`,
+  retail: `RETAIL: simulate the shop, not a desk: a shop floor drawn in SVG with customer avatars arriving on a game clock,
+  a working till (scanning, offers, refunds and exchanges under the returns policy, card and cash with change), shelves
+  to fill and fix against a planogram by dragging stock, a delivery to check in, price changes to make, a customer
+  asking for help or complaining, and the cash-up at close. Interruptions compete for time, as they do.`,
+  healthcare: `HEALTHCARE: simulate the ward or clinic: patients drawn at their bedsides with observation charts that
+  update on a clock, scoring (e.g. NEWS2) and escalating at the right point, a medication round from a drug chart with
+  checks to make before giving anything, call bells and relatives interrupting, handover notes to write, and infection
+  control steps. Unsafe moves are recorded, never prevented or pointed out.`,
+};
+
+export const sectorSimulationRules = (sector?: string) =>
+  sector && SECTOR_SIMULATIONS[sector] ? `\nSIMULATIONS FOR THIS SECTOR: the company hires in ${sector}. ${SECTOR_SIMULATIONS[sector]}\n` : '';
+
+// A test that mixes questions with gamified simulations
+export const GAMIFIED_TEST_RULES = `
+GAMIFIED TEST: the test mixes every kind of question (short answers, choice, select-all, ordering, matching, written)
+with 2 or 3 simulations the candidate plays: interactive, game-like tasks in the place the job is done, built around
+what the company describes. They feel like a game (a clock, things happening, people reacting, drag and drop, live
+results), while being marked strictly on what the candidate does. The quick questions set up and follow on from the
+simulations: e.g. a question on which cable size a circuit needs, then a simulation where they wire it.`;
+
+// One advanced simulation on its own, marked on the tasks it sets
+export const STANDALONE_RULES = `
+STANDALONE SIMULATION: this replaces the SECTIONS and size above. The whole test is ONE app question: an advanced
+simulation that works through the job's functions one by one, each a task the candidate completes inside it. Nothing
+else: no other questions, no case, no sub-questions, no inbox.
+- Plan 8 to 15 tasks, from the everyday to the hardest, each testing one function of the job (e.g. for a café: open
+  up, take and make the first orders, handle an allergy, check in a delivery, fix the rota, cash up). The page shows
+  them one at a time as the day goes on (a task card: "Task 3 of 10" and what's needed), and the candidate moves on
+  when they're done or chooses to skip; earlier work stays as it is.
+- testCases: one check per task, 8 to 15, each a dotted path into the state recording that task's result, with the
+  description naming the task (e.g. "Task 4: the delivery's short items recorded"). The mark is the share of tasks
+  done right.
+- timeLimitMinutes 25 to 45, points 100. The spec (appHtml) may run to 1,500 words: it describes the scene, every
+  task in order with its data, events and check, and the state object's keys (tasks.1 ... tasks.<n>).`;
+
+// The page builder's extra rules for a game-like simulation
+export const GAME_PAGE_RULES = `
+GAME-LIKE SIMULATION: this page is an interactive simulation, not a form. Make it feel alive:
+  • A scene drawn in detailed SVG (the place, the equipment, the people as simple friendly avatars), animated with
+    requestAnimationFrame or CSS transitions: people walk in, wait, react; things heat, fill, light up or break.
+  • A game clock where time matters (shown on screen, running faster than real time), events arriving on a schedule
+    from the spec, and timers or patience bars where waiting counts. Pause only via a Pause button.
+  • Direct manipulation: drag and drop with pointer events (mouse and touch), snapping to targets, tools picked from a
+    tray and used on the scene, things that can be rotated, connected or combined. Every action changes the scene.
+  • Model the real behaviour behind it (a circuit's current, an order's state, a patient's obs), so results follow
+    from what the candidate does, not from a script.
+  • Feedback shows what happened in the world (a lamp lights, a customer frowns, a breaker trips), never whether a
+    check passed or what the right answer is.
+  • When the spec copies a piece of software, keep it a faithful copy of that software, and bring in only what fits it
+    (work arriving on a clock, people chasing, live results); don't turn its screens into a cartoon.`;
+
 // How hard and how real the questions are: the same rules for a test written in one go and one built in the chat
 export const QUALITY_RULES = `
 QUESTION QUALITY: write questions that really test the candidate: a strong one finds them demanding and a weak one can't
@@ -257,6 +337,8 @@ them to do real work in the software (or the process) the company names, step by
 export interface SimulationCompany {
   name?: string;
   industry?: string;
+  // The sector it hires in (src/lib/sectors.ts): decides what its simulations look like
+  sector?: string;
   description?: string;
   website?: string;
   headquarters?: string;

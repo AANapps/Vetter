@@ -56,7 +56,9 @@ export interface ChatContext {
 }
 
 // A question type the company allows: any, when it hasn't ticked one
-const allowedStyle = (ctx: ChatContext, type: unknown) => !ctx.styles.length || ctx.styles.includes(type as QuestionType);
+// A standalone simulation is one app and nothing else
+const stylesOf = (ctx: ChatContext): QuestionType[] => (ctx.kind === 'standalone' ? ['app'] : ctx.styles);
+const allowedStyle = (ctx: ChatContext, type: unknown) => !stylesOf(ctx).length || stylesOf(ctx).includes(type as QuestionType);
 const QUESTION_TYPES: QuestionType[] = ['choice', 'multi', 'text', 'written', 'order', 'match', 'email', 'assistant', 'case', 'sheet', 'database', 'app', 'code', 'sql'];
 
 // The draft as the AI sees it: everything it needs to change a question, except app pages, which it can only keep whole
@@ -106,11 +108,25 @@ type RawTest = Record<string, any> & { questions?: RawQuestion[] };
 // check, or as it was when the build failed (it's then dropped by the checks)
 // Then clicks through it out of sight, and when a control does nothing or throws an error, sends it back once with the
 // list to fix
-async function buildAppPage(item: RawQuestion, research?: string, training?: boolean): Promise<RawQuestion> {
-  const request = (fix?: { html: string; problems: string[] }) =>
-    aiFetch('/api/build-app', { title: item.title, prompt: item.prompt, brief: item.appHtml, testCases: item.testCases ?? [], research, training, ...(fix && { fix }) }).then(async (res) => (res.ok ? ((await res.json()) as { appHtml?: string; testCases?: RawQuestion['testCases']; callouts?: AppCallout[] }) : null));
+// How the page builder is asked to build an app: as training, as a game-like simulation (in a gamified test or as the
+// whole of a standalone one), and for the company's sector
+export interface PageMode {
+  training?: boolean;
+  game?: 'gamified' | 'standalone';
+  sector?: string;
+}
+export const pageModeOf = (ctx: ChatContext): PageMode => ({
+  training: ctx.kind === 'training',
+  game: ctx.kind === 'standalone' ? 'standalone' : ctx.kind === 'simulation' ? 'gamified' : undefined,
+  sector: ctx.business?.sector,
+});
+
+async function buildAppPage(item: RawQuestion, research?: string, mode: PageMode = {}): Promise<RawQuestion> {
+  const request = (fix?: { html: string; problems: string[] }, quick?: boolean) =>
+    aiFetch('/api/build-app', { title: item.title, prompt: item.prompt, brief: item.appHtml, testCases: item.testCases ?? [], research, ...mode, ...(quick && { quick }), ...(fix && { fix }) }).then(async (res) => (res.ok ? ((await res.json()) as { appHtml?: string; testCases?: RawQuestion['testCases']; callouts?: AppCallout[] }) : null));
   try {
-    const page = await request();
+    // A game page is built with more thought; if that doesn't come back (it can run out of time), once more at the usual effort
+    const page = (await request().catch(() => null)) ?? (mode.game ? await request(undefined, true) : null);
     if (!page?.appHtml) return item;
     const built: RawQuestion = { ...item, appHtml: page.appHtml, testCases: page.testCases?.length ? page.testCases : item.testCases, callouts: page.callouts ?? [] };
     const problems = await appProblems(built);
@@ -128,11 +144,11 @@ async function buildAppPage(item: RawQuestion, research?: string, training?: boo
 
 // An app page changed as the company asked: the builder gets the page as it is and the change, and the result is
 // checked like a new page (it must load and its checks must still fail at the start). Null when it doesn't hold up
-async function editAppPage(question: Question, change: string, taskPrompt: string, research?: string): Promise<Question | null> {
+async function editAppPage(question: Question, change: string, taskPrompt: string, research?: string, mode: PageMode = {}): Promise<Question | null> {
   const checks = question.testCases.map(({ description, input, expectedOutput }) => ({ description, input, expectedOutput }));
   const prompt = taskPrompt?.trim() || question.prompt;
   try {
-    const res = await aiFetch('/api/build-app', { title: question.title, prompt, brief: change, testCases: checks, research, edit: { html: question.appHtml ?? '', change } });
+    const res = await aiFetch('/api/build-app', { title: question.title, prompt, brief: change, testCases: checks, research, ...mode, quick: true, edit: { html: question.appHtml ?? '', change } });
     if (!res.ok) return null;
     const page = (await res.json()) as { appHtml?: string; testCases?: RawQuestion['testCases']; callouts?: AppCallout[] };
     if (!page.appHtml) return null;
@@ -185,7 +201,7 @@ async function buildDraft(raw: RawTest, previous: AssessmentTest | undefined, ct
       if (item.keep) return previous?.questions.find((q) => q.id === item.keep) ?? null;
       // In a conversation an app comes with the spec for its page, not the page: anything that isn't HTML is built first
       const isSpec = item.type === 'app' && !!item.appHtml?.trim() && !/<(html|body|div|script|style|svg)\b/i.test(item.appHtml);
-      const ready = isSpec ? await buildAppPage(item, research, ctx.kind === 'training') : item;
+      const ready = isSpec ? await buildAppPage(item, research, pageModeOf(ctx)) : item;
       return checkQuestion(ready);
     })
   );
@@ -321,7 +337,13 @@ async function planAndWrite(state: ChatState, messages: ChatMessage[], ctx: Chat
   });
   const questions = written.flat();
   const apps = questions.filter((q) => q.type === 'app').length;
-  progress(apps ? `Building ${apps} interactive ${apps === 1 ? 'task' : 'tasks'} and checking every answer…` : 'Checking every answer…');
+  progress(
+    ctx.kind === 'standalone' && apps
+      ? 'Building the simulation and trying every task out. This takes about five minutes…'
+      : apps
+      ? `Building ${apps} interactive ${apps === 1 ? 'task' : 'tasks'} and checking every answer…`
+      : 'Checking every answer…'
+  );
   const built = await buildDraft({ ...plan, skillsTested: plan.blueprint, questions }, undefined, ctx, research);
   const missing = plan.items.length - questions.length;
   return { body: { ...body, test: undefined }, built: { ...built, dropped: built.dropped + missing } };
@@ -336,15 +358,15 @@ export async function sendChat(state: ChatState, text: string, ctx: ChatContext,
     messages: messages.map(({ role, text }) => ({ role, text })),
     job: ctx.job,
     // The company hiring: the simulation is set there, so the candidate works for it from the first question
-    company: ctx.business && { name: ctx.business.name, industry: ctx.business.industry, description: ctx.business.description, website: ctx.business.websiteUrl, headquarters: ctx.business.headquarters },
+    company: ctx.business && { name: ctx.business.name, industry: ctx.business.industry, sector: ctx.business.sector, description: ctx.business.description, website: ctx.business.websiteUrl, headquarters: ctx.business.headquarters },
     jobTitle: ctx.jobTitle,
     kind: ctx.kind ?? 'simulation',
     draft: state.draft && draftForModel(state.draft),
     existing: state.existing.map((s) => s.test.id),
     wantExisting: ctx.wantExisting,
-    styles: ctx.styles,
-    questionCount: ctx.questionCount,
-    questionRange: ctx.questionRange,
+    styles: stylesOf(ctx),
+    questionCount: ctx.kind === 'standalone' ? 1 : ctx.questionCount,
+    questionRange: ctx.kind === 'standalone' ? undefined : ctx.questionRange,
     timeLimit: ctx.timeLimit,
     viewing: ctx.viewing,
     // One level ticked is the test's level; several are a spread to pitch across
@@ -415,7 +437,7 @@ export async function sendChat(state: ChatState, text: string, ctx: ChatContext,
   if (draft && edits.length) {
     progress(edits.length === 1 ? 'Changing the app…' : `Changing ${edits.length} apps…`);
     const research = body.research ?? state.research;
-    const changed = await Promise.all(edits.map((e) => editAppPage(draft!.questions.find((q) => q.id === e.id)!, e.change, e.taskPrompt, research)));
+    const changed = await Promise.all(edits.map((e) => editAppPage(draft!.questions.find((q) => q.id === e.id)!, e.change, e.taskPrompt, research, pageModeOf(ctx))));
     const failed = changed.filter((q) => !q).length;
     draft = withChangedQuestions(draft, changed.filter((q): q is Question => !!q));
     if (failed) note = [note, `${failed === 1 ? "One app change didn't" : `${failed} app changes didn't`} pass Vetter's checks, so ${failed === 1 ? 'that app was' : 'those apps were'} left as ${failed === 1 ? 'it was' : 'they were'}. Try asking again.`].filter(Boolean).join(' ');

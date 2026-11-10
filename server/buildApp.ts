@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { meter } from './meter.js';
-import { APP_PAGE_RULES, PRICES, apiFailure } from './generateTest.js';
+import { APP_PAGE_RULES, GAME_PAGE_RULES, PRICES, apiFailure, sectorSimulationRules } from './generateTest.js';
 
 /**
  * Builds one interactive page of a test from the spec the test designer wrote (its appBrief). Each page is a request of
@@ -24,11 +24,18 @@ export interface BuildAppRequest {
   edit?: { html: string; change: string };
   // Training for a company's own people rather than a hiring test: the tips can guide them step by step
   training?: boolean;
+  // A game-like simulation in a gamified test, or the one advanced simulation that is the whole test: built with more
+  // thought and, standalone, more room and a check per task
+  game?: 'gamified' | 'standalone';
+  // The sector the company hires in, which decides what the simulation shows
+  sector?: string;
+  // A retry after a game page ran out of time: built at the usual effort
+  quick?: boolean;
 }
 
 const MAX_TEXT = 8000;
-// A page is under 60KB, so the one being repaired fits whole
-const MAX_PAGE = 90000;
+// A page is under 60KB (a standalone simulation 100KB), so the one being repaired fits whole
+const MAX_PAGE = 150000;
 
 const schema = {
   type: 'object',
@@ -57,14 +64,22 @@ const schema = {
   additionalProperties: false,
 };
 
-const SYSTEM = (research: string, training: boolean) => `You build the interactive pages candidates work in on Vetter, a skills-testing platform for hiring. A test
+const SYSTEM = (research: string, training: boolean, game?: BuildAppRequest['game'], sector?: string) => `You build the interactive pages candidates work in on Vetter, a skills-testing platform for hiring. A test
 designer has written the task and a spec for the page. Build exactly that page, so a candidate who can really do the job
 succeeds and one who can't is found out.
-${APP_PAGE_RULES}
+${APP_PAGE_RULES}${game ? GAME_PAGE_RULES : ''}${sectorSimulationRules(sector)}${
+  game === 'standalone'
+    ? `
+STANDALONE: this page is the whole test, so it may be up to 100KB. It works through the spec's tasks one at a time: a
+task card ("Task 3 of 10", what's needed, Done and Skip buttons) over the simulation, the next task arriving when one is
+done or skipped, every earlier result kept. The state records each task's outcome under tasks.<n>, and there is one
+check per task (8 to 15), its description naming the task.`
+    : ''
+}
 Return appHtml and testCases. testCases are the designer's checks, with each input a dotted path into the state object
 your page really keeps and expectedOutput its value once the task is done right ("|" between acceptable forms; a list as
 a JSON array, compared in any order; numbers to 2 decimal places). Keep the designer's intent for each check; change a
-path or value only to match the page you built. 3 to 6 checks; the starting state must fail every one, and none may be
+path or value only to match the page you built. ${game === 'standalone' ? '8 to 15 checks, one per task' : '3 to 6 checks'}; the starting state must fail every one, and none may be
 passable without doing the task properly.
 TIPS ON THE PAGE: candidates find long instructions hard to follow, so the page itself shows where things are. Give 3 to
 6 elements the task uses a data-ref attribute with a short unique name (data-ref="orders-list"), on an element that is
@@ -89,18 +104,19 @@ export async function buildApp(body: unknown, apiKey: string | undefined, model:
         model,
         max_tokens: 64000,
         // Low effort: the designer has done the thinking in the spec, and a page at higher effort can run past the host's
-        // five-minute limit
-        output_config: { effort: 'low', format: { type: 'json_schema', schema } },
+        // five-minute limit. Game-like simulations get more (their behaviour is harder to get right); one that ran out of
+        // time is retried at low
+        output_config: { effort: req.game && !req.quick ? 'medium' : 'low', format: { type: 'json_schema', schema } },
         ...(!model.includes('haiku') && { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' as const }),
-        system: SYSTEM(req.research ?? '', !!req.training),
+        system: SYSTEM(req.research ?? '', !!req.training, req.game, req.sector),
         messages: [
           {
             role: 'user',
             content: [
               `TASK TITLE: ${String(req.title ?? '').slice(0, 200)}`,
               `THE TASK AS THE CANDIDATE READS IT:\n${String(req.prompt ?? '').slice(0, MAX_TEXT)}`,
-              `THE PAGE SPEC:\n${req.brief.slice(0, MAX_TEXT)}`,
-              `THE PLANNED CHECKS:\n${JSON.stringify((req.testCases ?? []).slice(0, 8))}`,
+              `THE PAGE SPEC:\n${req.brief.slice(0, req.game === 'standalone' ? MAX_TEXT * 2 : MAX_TEXT)}`,
+              `THE PLANNED CHECKS:\n${JSON.stringify((req.testCases ?? []).slice(0, req.game === 'standalone' ? 15 : 8))}`,
               ...(req.fix?.html
                 ? [
                     `THE PAGE AS YOU BUILT IT:\n${String(req.fix.html).slice(0, MAX_PAGE)}`,

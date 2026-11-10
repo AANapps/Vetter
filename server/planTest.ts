@@ -110,7 +110,10 @@ detail or trap it turns on, what a strong answer shows, and which competency it 
 items test the same thing. points and minutes as the rules below say (minutes is timeLimitMinutes; a case is 0 points).
 blueprint: one line per competency, written "skill | weight | why it matters | how the test proves it".
 ${
-    req.kind !== 'test'
+    req.kind === 'standalone'
+      ? `company, setting and people: the simulation's company, setting and cast, as the rules below say; inbox is []. The
+plan has exactly one item: the app, its brief listing every task in order.`
+      : req.kind !== 'test'
       ? `company, setting and people: the job simulation's company, setting and cast, as the rules below say. Every brief names
 the people involved, from that cast, so the writers keep the test one connected working day.
 inbox: the candidate works in a real-feeling workspace with an Inbox tab beside the apps. Write 3 to 8 emails already in

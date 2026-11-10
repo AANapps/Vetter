@@ -590,7 +590,9 @@ export type ArchiveReason = 'Not a fit' | 'Below pass mark' | 'Suspected cheatin
 // A test still being written: kept only for its company (and the Vetter team) until it's saved as a test
 // What the AI writes: a skills test of separate questions, a job simulation (a working day at the company, with its
 // people, emails and tools), or a training simulation that teaches the team an app or a way of working
-export type TestKind = 'test' | 'simulation' | 'training';
+// A skills test, a gamified test (every kind of question mixed with simulations), one standalone simulation marked on
+// the tasks it sets, or training for a company's own people
+export type TestKind = 'test' | 'simulation' | 'standalone' | 'training';
 
 // Someone a company asked to join its team on Vetter, by their account (picked from candidates) or by email. Once they
 // accept, the company can assign them tests, job simulations and training. Kept in teamMembers/<businessId>__<key>,

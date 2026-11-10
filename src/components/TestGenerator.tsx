@@ -61,13 +61,17 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
   const [original] = useState(() => editing ?? (resume?.editsTestId ? tests.find((t) => t.id === resume.editsTestId) : undefined));
   // What the AI writes is a job simulation (a day in the life at the company) or training for the team; a skills test
   // already made stays one
-  const kindOf = (t: AssessmentTest): TestKind => (t.purpose === 'training' ? 'training' : t.scenario ? 'simulation' : 'test');
-  const [kind] = useState<TestKind>(() => kindAsked ?? resume?.kind ?? (original ? kindOf(original) : resume ? kindOf(resume.test) : 'simulation'));
+  const kindOf = (t: AssessmentTest): TestKind =>
+    t.purpose === 'training' ? 'training' : t.questions.length === 1 && t.questions[0].type === 'app' ? 'standalone' : t.scenario ? 'simulation' : 'test';
+  // A new one can still switch between a gamified test and a standalone simulation until the first message is sent
+  const [kind, setKind] = useState<TestKind>(() => kindAsked ?? resume?.kind ?? (original ? kindOf(original) : resume ? kindOf(resume.test) : 'simulation'));
   // Training is marked as such when it's saved, so it's kept off leaderboards and profiles and goes to the team
   const withPurpose = (t: AssessmentTest): AssessmentTest => (kind === 'training' ? { ...t, purpose: 'training', timeLimit: 'none' } : t);
   const greetingFor = (k?: TestKind) =>
     k === 'training'
       ? `Which app or way of working should your team learn? Tell me who it's for, what they need to be able to do and anything they get wrong today. I'll build a copy of the app set at ${business?.name ?? 'your company'}, with guided tasks from easy to tricky and worked answers at the end, and you can send it to your team.`
+      : k === 'standalone'
+      ? `Tell me about the role and I'll build one advanced simulation of the job at ${business?.name ?? 'your company'}: the place, the equipment and the people, with 8 to 15 tasks that test each part of the job one by one. It's marked on how many tasks they get right.`
       : k === 'simulation'
       ? job
         ? `I've read the ${job.title} job description. I'll set the simulation at ${business?.name ?? 'your company'}: a working day with colleagues, emails to handle and the tools they'd use. Tell me what matters most, or ask me to write a first draft.`
@@ -154,6 +158,12 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
 
   const draft = chat.draft;
   const started = chat.messages.some((m) => m.role === 'user');
+  // Switching between the two kinds of simulation before anything is written: the greeting changes with it
+  const canSwitchKind = !original && !started && !draft && (kind === 'simulation' || kind === 'standalone');
+  const switchKind = (next: TestKind) => {
+    setKind(next);
+    setChat((c) => ({ ...c, messages: [{ role: 'assistant', text: greetingFor(next) ?? greeting }] }));
+  };
   // Changing a saved test doesn't pick library tests to go with it
   const ctx = { kind, job: job ? jobBrief(job) : undefined, jobTitle: job?.title, level: difficulty, levels: pickedLevels, questionCount, timeLimit, wantExisting: !!job && !original, tests, business, styles, viewing: focus };
   const toggleStyle = (type: QuestionType) => setStyles((prev) => (prev.includes(type) ? prev.filter((t) => t !== type) : PICKABLE.filter((t) => t === type || prev.includes(t))));
@@ -274,7 +284,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
       ? ['Write a first draft', 'Focus on the hands-on tools they use', 'Keep it under 20 minutes']
       : kind === 'training'
       ? ['New starters on our Salesforce CRM', 'Support staff handling refunds in Zendesk', 'The finance team on Xero month-end']
-      : ['A junior accounts assistant using Excel and Xero', 'A customer support agent in Zendesk', 'A junior data analyst who writes SQL']
+      : SECTOR_EXAMPLES[business?.sector ?? ''] ?? ['A junior accounts assistant using Excel and Xero', 'A customer support agent in Zendesk', 'A junior data analyst who writes SQL']
     : draft
     ? [
         ...(offTypes.length ? ['Use only the question types I picked'] : []),
@@ -311,7 +321,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
         <div className="px-5 pt-4 pb-3 border-b border-slate-200 flex items-start justify-between gap-4">
           <div className="min-w-0">
             <h2 className="text-xl font-bold text-slate-900">
-              {original ? `Edit ${original.title}` : kind === 'training' ? 'Build training with Vetter' : kind === 'simulation' ? 'Build a job simulation with Vetter' : 'Build a skills test with Vetter'}
+              {original ? `Edit ${original.title}` : kind === 'training' ? 'Build training with Vetter' : kind === 'standalone' ? 'Build a standalone simulation with Vetter' : kind === 'simulation' ? 'Build a job simulation test with Vetter' : 'Build a skills test with Vetter'}
             </h2>
             <p className="text-sm text-slate-500 truncate">{job ? `${job.title} · ${job.companyName}` : business ? `For ${business.name}'s jobs` : 'For the Vetter test library'}</p>
           </div>
@@ -356,8 +366,13 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
           </div>
         </div>
 
+        {/* The two kinds of simulation, picked before the first message */}
+        {canSwitchKind && <KindPicker kind={kind} onChange={switchKind} />}
+
         {/* What Vetter may write, each a list to tick; whatever's left unticked Vetter decides. Locked while it works */}
         <div className="px-5 py-2 border-b border-slate-200 flex flex-wrap items-center gap-2" aria-busy={working}>
+          {kind !== 'standalone' && (
+          <>
           <Dropdown label={<>Question types: <Summary text={styles.length ? summarise(styles.map((t) => PICKABLE_STYLES.find((s) => s.type === t)?.label ?? t)) : undefined} /></>} width="w-72" disabled={working}>
             {() => (
               <PickList legend="Question types Vetter may use" picked={styles.length} onClear={() => setStyles([])}>
@@ -411,6 +426,8 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
               </button>
             )}
           </div>
+          </>
+          )}
           <Dropdown label={<>Time limit: <Summary text={timeLimit === 'none' ? 'None' : timeLimit ? `${timeLimit} min` : undefined} /></>} width="w-56" disabled={working}>
             {(close) => (
               <PickList legend="Time limit" picked={timeLimit === undefined ? 0 : 1} onClear={() => (setTimeLimit(undefined), close())} note="Vetter decides: the time the questions add up to.">
@@ -729,3 +746,43 @@ const WorkingStep: React.FC<{ first: boolean; stage: string }> = ({ first, stage
     </span>
   );
 };
+
+// Starting points in sectors whose work isn't done at a desk
+const SECTOR_EXAMPLES: Record<string, string[]> = {
+  trades: ['An electrician finding a fault on a domestic ring circuit', 'A plumber fitting and testing a new radiator', 'An apprentice electrician wiring a lighting circuit'],
+  hospitality: ['A barista through a busy morning rush', 'A café supervisor: orders, a delivery, the rota and cash-up', 'A line cook on a Friday dinner service'],
+  retail: ['A sales assistant on the till and shop floor', 'A store supervisor handling deliveries and a complaint', 'A visual merchandiser resetting a bay to a planogram'],
+  healthcare: ['A healthcare assistant on a morning ward round', 'A staff nurse doing a medication round', 'A receptionist at a busy GP surgery'],
+};
+
+// The two kinds of simulation Vetter's AI builds for a job
+const KIND_OPTIONS: { kind: TestKind; label: string; blurb: string }[] = [
+  {
+    kind: 'simulation',
+    label: 'Job simulation test',
+    blurb: 'Every kind of question (short answers, tick boxes, ordering, written) mixed with interactive simulations of the work, suited to your sector.',
+  },
+  {
+    kind: 'standalone',
+    label: 'Standalone simulation',
+    blurb: 'One advanced simulation of the job that tests each part of it as a task, one by one. Marked on the tasks they get right.',
+  },
+];
+
+const KindPicker: React.FC<{ kind: TestKind; onChange: (kind: TestKind) => void }> = ({ kind, onChange }) => (
+  <fieldset className="px-5 py-3 border-b border-slate-200 grid gap-2 sm:grid-cols-2">
+    <legend className="sr-only">What to build</legend>
+    {KIND_OPTIONS.map((o) => (
+      <label
+        key={o.kind}
+        className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer ${kind === o.kind ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:border-slate-400'}`}
+      >
+        <input type="radio" name="build-kind" checked={kind === o.kind} onChange={() => onChange(o.kind)} className="mt-0.5 accent-indigo-600" />
+        <span className="min-w-0">
+          <span className={`block text-sm font-semibold ${kind === o.kind ? 'text-indigo-900' : 'text-slate-900'}`}>{o.label}</span>
+          <span className="block text-xs text-slate-600 mt-0.5">{o.blurb}</span>
+        </span>
+      </label>
+    ))}
+  </fieldset>
+);

@@ -340,16 +340,30 @@ const AdvisorReply: React.FC<{
       {turn.brief && (turn.intent === 'test' || turn.intent === 'both' || turn.intent === 'training') && (
         <div className="p-4 bg-white border border-slate-200 rounded-xl flex flex-col sm:flex-row sm:items-center gap-3">
           <div className="min-w-0 flex-1">
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{turn.intent === 'training' ? 'Your training simulation' : 'Your job simulation'}</div>
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{turn.intent === 'training' ? 'Your training simulation' : 'What Vetter will build'}</div>
             <p className="mt-1 text-sm text-slate-700 leading-relaxed">{turn.brief}</p>
           </div>
-          <button
-            onClick={() => (aiAllowed ? onBuildWithAI(turn.brief!, turn.intent === 'training' ? 'training' : 'simulation') : onSeePlans())}
-            className="create-border shrink-0 self-start sm:self-center px-4 py-2 text-sm font-semibold text-indigo-700 hover:text-indigo-900 rounded-lg inline-flex items-center gap-1.5"
-          >
-            {!aiAllowed && <Lock className="w-3.5 h-3.5" />}
-            {turn.intent === 'training' ? 'Create training' : 'Create job simulation'}
-          </button>
+          {/* Training is one thing; a hire gets the choice of a test mixing questions with simulations, or one standalone
+              simulation marked on its tasks */}
+          <div className="shrink-0 self-start sm:self-center flex flex-col gap-2">
+            {(turn.intent === 'training'
+              ? [{ kind: 'training' as const, label: 'Create training', title: undefined }]
+              : [
+                  { kind: 'simulation' as const, label: 'Create job simulation test', title: 'Questions of every kind mixed with interactive simulations of the work' },
+                  { kind: 'standalone' as const, label: 'Create standalone simulation', title: 'One advanced simulation, marked on the tasks they complete' },
+                ]
+            ).map((o) => (
+              <button
+                key={o.kind}
+                onClick={() => (aiAllowed ? onBuildWithAI(turn.brief!, o.kind) : onSeePlans())}
+                title={o.title}
+                className="create-border px-4 py-2 text-sm font-semibold text-indigo-700 hover:text-indigo-900 rounded-lg inline-flex items-center gap-1.5"
+              >
+                {!aiAllowed && <Lock className="w-3.5 h-3.5" />}
+                {o.label}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
