@@ -1,4 +1,4 @@
-import { AssessmentTest, Business, User } from '../types';
+import { AssessmentTest, Business, TestKind, User } from '../types';
 import { Suggestion, libraryFor, matchExisting } from './testGeneration';
 
 // The company home's chat (server/testAdvisor.ts does the AI side): who they're hiring in, a roadmap, the library tests
@@ -28,6 +28,10 @@ export interface AdvisorTurn {
   brief?: string;
   // Set when the reply is a failure rather than advice
   error?: boolean;
+  // Written by Vetter itself on coming back from the AI creator: what was just made (saved, or kept as a draft)
+  created?: { title: string; kind: TestKind; testId?: string; draft?: boolean; questions: number; apps: number };
+  // Offers to build something more from the same brief, the kind just made named (written by Vetter itself)
+  offerMore?: { brief: string; built: TestKind };
 }
 
 export type AdvisorIntent = 'candidates' | 'test' | 'both' | 'training' | 'unclear';

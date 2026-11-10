@@ -18,7 +18,8 @@ interface TestGeneratorProps {
   tests: AssessmentTest[];
   onOpenTest: (testId: string) => void;
   // Saves the new test as it is and returns its id
-  onSaveTest: (test: AssessmentTest) => string;
+  // Saves the new test, told which kind it is; returns its id
+  onSaveTest: (test: AssessmentTest, kind: TestKind) => string;
   onAddToJob: (jobId: string, testIds: string[]) => void;
   // A saved test to change by asking Vetter: the chat starts from it, and saving updates it in place
   editing?: AssessmentTest;
@@ -310,7 +311,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
       return;
     }
     const ids = [...chosen];
-    if (draft && keepNew) ids.push(onSaveTest(withPurpose({ ...finaliseDraft(draft), madeWith: 'ai' })));
+    if (draft && keepNew) ids.push(onSaveTest(withPurpose({ ...finaliseDraft(draft), madeWith: 'ai' }), kind));
     if (job && ids.length) onAddToJob(job.id, ids);
     onClose();
   };
@@ -321,7 +322,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
         <div className="px-5 pt-4 pb-3 border-b border-slate-200 flex items-start justify-between gap-4">
           <div className="min-w-0">
             <h2 className="text-xl font-bold text-slate-900">
-              {original ? `Edit ${original.title}` : kind === 'training' ? 'Build training with Vetter' : kind === 'standalone' ? 'Build a standalone simulation with Vetter' : kind === 'simulation' ? 'Build a job simulation test with Vetter' : 'Build a skills test with Vetter'}
+              {original ? `Edit ${original.title}` : kind === 'training' ? 'Build training with Vetter' : kind === 'standalone' ? 'Build an interactive simulation with Vetter' : kind === 'simulation' ? 'Build a job simulation test with Vetter' : 'Build a skills test with Vetter'}
             </h2>
             <p className="text-sm text-slate-500 truncate">{job ? `${job.title} · ${job.companyName}` : business ? `For ${business.name}'s jobs` : 'For the Vetter test library'}</p>
           </div>
@@ -764,7 +765,7 @@ const KIND_OPTIONS: { kind: TestKind; label: string; blurb: string }[] = [
   },
   {
     kind: 'standalone',
-    label: 'Standalone simulation',
+    label: 'Interactive simulation',
     blurb: 'One advanced simulation of the job that tests each part of it as a task, one by one. Marked on the tasks they get right.',
   },
 ];

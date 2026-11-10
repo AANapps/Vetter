@@ -459,7 +459,9 @@ export default function App() {
   // seed: a first message ready to send, e.g. to rebuild a library test in depth
   // autoSend: the seed is sent as the chat opens, so building starts at once
   // editTestId: a saved test reopened in the chat, to change it by asking
-  const [generator, setGenerator] = useState<{ jobId?: string; resume?: TestDraft; seed?: string; autoSend?: boolean; editTestId?: string; kind?: TestKind } | null>(null);
+  const [generator, setGenerator] = useState<{ jobId?: string; resume?: TestDraft; seed?: string; autoSend?: boolean; editTestId?: string; kind?: TestKind; fromHome?: boolean } | null>(null);
+  // What the creator saved while it was open from the home chat, reported in the chat when it closes
+  const builtInCreator = useRef<{ test: AssessmentTest; kind: TestKind; testId?: string; draft?: boolean } | null>(null);
   // What a company took from the home chat (ready-made picks, AI tests built or started, the reply's other AI ideas)
   // and the brief of the AI test being built for it. A test saved while one is being built is marked built on the
   // plan; moving from the AI chat to the builder keeps it. The plan then asks whether to create a job for them all
@@ -517,7 +519,39 @@ export default function App() {
     openGenerator(pending ? { jobId: pending.jobId ?? jobId, resume: pending } : { jobId, editTestId: testId });
   };
 
-  const openGenerator = (g: { jobId?: string; resume?: TestDraft; seed?: string; autoSend?: boolean; editTestId?: string; kind?: TestKind }) => (aiAllowed ? setGenerator(g) : setPlansOpen(true));
+  const openGenerator = (g: { jobId?: string; resume?: TestDraft; seed?: string; autoSend?: boolean; editTestId?: string; kind?: TestKind; fromHome?: boolean }) => {
+    builtInCreator.current = null;
+    if (aiAllowed) setGenerator(g);
+    else setPlansOpen(true);
+  };
+  // Back in the home chat after the creator: what was made and where it is, then an offer to build something more from
+  // the same brief
+  const reportBuild = (brief?: string) => {
+    const built = builtInCreator.current;
+    builtInCreator.current = null;
+    if (!built) return;
+    const { test, kind, testId, draft } = built;
+    const apps = test.questions.filter((q) => q.type === 'app').length;
+    const what = kind === 'standalone' ? 'interactive simulation' : kind === 'training' ? 'training' : 'job simulation test';
+    const turns: AdvisorTurn[] = [
+      {
+        role: 'assistant',
+        text: draft
+          ? `Your ${what} is saved as a draft. Carry on with it any time from Drafts in your test library.`
+          : kind === 'standalone'
+          ? `Your interactive simulation is created and saved in your test library. Send it to candidates from there, or add it to a job.`
+          : `Your ${what} is created${apps ? `, with ${apps} app ${apps === 1 ? 'simulation' : 'simulations'},` : ''} and saved in your test library. Send it to candidates from there, or add it to a job.`,
+        created: { title: test.title, kind, testId, draft, questions: test.questions.filter((q) => q.type !== 'case').length, apps },
+      },
+    ];
+    if (brief && kind !== 'training')
+      turns.push({
+        role: 'assistant',
+        text: kind === 'standalone' ? 'Want a job simulation test for this role too, or another simulation?' : 'Want an interactive simulation for this role too, or another test?',
+        offerMore: { brief, built: kind },
+      });
+    setAdvisorTurns((prev) => [...prev, ...turns]);
+  };
   // Builds one of the home chat's AI ideas straight away; the test plan opens with it once it's saved (or closed)
   const startPlanBuild = (idea: CustomIdea) => {
     setPlanBuilding(idea.brief);
@@ -1595,7 +1629,7 @@ export default function App() {
                 startPlanBuild(idea);
               }}
               onEditCopy={(test) => setDraftBuilder({ draft: test, isCopy: true, alsoAdd: [] })}
-              onBuildWithAI={(brief, kind) => openGenerator({ ...(brief && { seed: brief }), ...(kind && { kind }) })}
+              onBuildWithAI={(brief, kind) => openGenerator({ ...(brief && { seed: brief }), ...(kind && { kind }), fromHome: true })}
               onCreateOwn={() => setDraftBuilder({ alsoAdd: [] })}
               onSeePlans={() => setPlansOpen(true)}
               onOpenTest={openTestPage}
@@ -1840,6 +1874,7 @@ export default function App() {
           tests={tests}
           onOpenTest={(testId) => {
             setGenerator(null);
+            if (generator.fromHome) reportBuild(generator.seed);
             openTestPage(testId);
           }}
           resume={generator.resume}
@@ -1852,9 +1887,14 @@ export default function App() {
           seed={generator.seed}
           autoSend={generator.autoSend}
           kind={generator.kind}
-          onSaveDraft={saveTestDraft}
-          onSaveTest={(test) => {
+          onSaveDraft={async (record) => {
+            const ok = await saveTestDraft(record);
+            if (ok && !record.editsTestId) builtInCreator.current = { test: record.test, kind: record.kind ?? generator.kind ?? 'simulation', draft: true };
+            return ok;
+          }}
+          onSaveTest={(test, kind) => {
             const id = saveNewTest(test);
+            builtInCreator.current = { test, kind, testId: id };
             deleteTestDraft(generator.resume?.id);
             if (!generator.jobId) showToast(test.purpose === 'training' ? `"${test.title}" saved to your training.` : `"${test.title}" saved to your tests.`);
             markPlanBuilt(id);
@@ -1867,6 +1907,7 @@ export default function App() {
           }}
           onClose={() => {
             setGenerator(null);
+            if (generator.fromHome) reportBuild(generator.seed);
             if (!planToBuilder.current) setPlanBuilding(null);
             planToBuilder.current = false;
           }}

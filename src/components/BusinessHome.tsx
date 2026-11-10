@@ -6,6 +6,7 @@ import { AssessmentTest, Business, JobPosting, TestKind, User, levelName } from 
 import { Pic } from './Pic';
 import { AdvisorTurn, CUSTOM_KIND_LABELS, CustomIdea, SuggestedPerson, askAdvisor } from '../lib/testAdvisor';
 import { Credit, loadCredit } from '../lib/aiRequest';
+import { KindChoice, kindLabel } from './KindChoice';
 import { CreditMeter, EXAMPLE_CREDIT } from './CreditMeter';
 import { CreditsDialog } from './CreditsDialog';
 
@@ -185,6 +186,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
                   onBuildWithAI={onBuildWithAI}
                   onSeePlans={onSeePlans}
                   onOpenTest={onOpenTest}
+                  onOpenLibrary={() => onGoTo('business-tests')}
                   candidates={candidates}
                   onViewPerson={setViewing}
                   jobs={jobs}
@@ -307,13 +309,14 @@ const AdvisorReply: React.FC<{
   onBuildWithAI: (brief: string, kind?: TestKind) => void;
   onSeePlans: () => void;
   onOpenTest: (testId: string) => void;
+  onOpenLibrary: () => void;
   candidates: User[];
   onViewPerson: (personId: string) => void;
   jobs: JobPosting[];
   onInvite: (jobId: string, candidateId: string) => void;
   // Set on the latest reply only: a quick answer sends it as the company's next message
   onQuickReply?: (text: string) => void;
-}> = ({ turn, aiAllowed, picked, onBuildIdea, onTogglePick, onPickAll, onEditCopy, onBuildWithAI, onSeePlans, onOpenTest, candidates, onViewPerson, jobs, onInvite, onQuickReply }) => (
+}> = ({ turn, aiAllowed, picked, onBuildIdea, onTogglePick, onPickAll, onEditCopy, onBuildWithAI, onSeePlans, onOpenTest, onOpenLibrary, candidates, onViewPerson, jobs, onInvite, onQuickReply }) => (
   <div className="flex gap-3">
     <span className="ai-mark-still w-7 h-7 shrink-0 rounded-lg text-white text-xs font-pixel flex items-center justify-center">V</span>
     <div className="ai-glass min-w-0 flex-1 space-y-4 p-4 sm:p-5 rounded-2xl rounded-tl-md border border-white/80 shadow-sm">
@@ -335,36 +338,67 @@ const AdvisorReply: React.FC<{
         </div>
       )}
 
-      {/* They want something built: the job simulation (a day in the life at their company) Vetter's AI would write, or
-          training for their team */}
-      {turn.brief && (turn.intent === 'test' || turn.intent === 'both' || turn.intent === 'training') && (
+      {/* They want something built. Training is one thing; for a hire, Vetter asks which kind: a test mixing questions
+          with simulations, or one interactive simulation marked on its tasks */}
+      {turn.brief && turn.intent === 'training' && (
         <div className="p-4 bg-white border border-slate-200 rounded-xl flex flex-col sm:flex-row sm:items-center gap-3">
           <div className="min-w-0 flex-1">
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{turn.intent === 'training' ? 'Your training simulation' : 'What Vetter will build'}</div>
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Your training simulation</div>
             <p className="mt-1 text-sm text-slate-700 leading-relaxed">{turn.brief}</p>
           </div>
-          {/* Training is one thing; a hire gets the choice of a test mixing questions with simulations, or one standalone
-              simulation marked on its tasks */}
-          <div className="shrink-0 self-start sm:self-center flex flex-col gap-2">
-            {(turn.intent === 'training'
-              ? [{ kind: 'training' as const, label: 'Create training', title: undefined }]
-              : [
-                  { kind: 'simulation' as const, label: 'Create job simulation test', title: 'Questions of every kind mixed with interactive simulations of the work' },
-                  { kind: 'standalone' as const, label: 'Create standalone simulation', title: 'One advanced simulation, marked on the tasks they complete' },
-                ]
-            ).map((o) => (
-              <button
-                key={o.kind}
-                onClick={() => (aiAllowed ? onBuildWithAI(turn.brief!, o.kind) : onSeePlans())}
-                title={o.title}
-                className="create-border px-4 py-2 text-sm font-semibold text-indigo-700 hover:text-indigo-900 rounded-lg inline-flex items-center gap-1.5"
-              >
-                {!aiAllowed && <Lock className="w-3.5 h-3.5" />}
-                {o.label}
+          <button
+            onClick={() => (aiAllowed ? onBuildWithAI(turn.brief!, 'training') : onSeePlans())}
+            className="create-border shrink-0 self-start sm:self-center px-4 py-2 text-sm font-semibold text-indigo-700 hover:text-indigo-900 rounded-lg inline-flex items-center gap-1.5"
+          >
+            {!aiAllowed && <Lock className="w-3.5 h-3.5" />}
+            Create training
+          </button>
+        </div>
+      )}
+      {turn.brief && (turn.intent === 'test' || turn.intent === 'both') && (
+        <div className="space-y-3">
+          <div className="p-3 bg-white/70 border border-slate-200 rounded-xl">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">The role</div>
+            <p className="mt-1 text-sm text-slate-700 leading-relaxed">{turn.brief}</p>
+          </div>
+          <p className="text-sm font-semibold text-slate-900">Which would you like me to build?</p>
+          <KindChoice aiAllowed={aiAllowed} onPick={(kind) => (aiAllowed ? onBuildWithAI(turn.brief!, kind) : onSeePlans())} />
+        </div>
+      )}
+
+      {/* Just made in the creator: where it is now */}
+      {turn.created && (
+        <div className="p-4 bg-white border border-slate-200 rounded-xl flex flex-col sm:flex-row sm:items-center gap-3">
+          <span className={`w-9 h-9 shrink-0 rounded-full flex items-center justify-center ${turn.created.draft ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
+            {turn.created.draft ? <Pencil className="w-4 h-4" /> : <Check className="w-4 h-4" />}
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+              {kindLabel(turn.created.kind)} · {turn.created.draft ? 'Draft' : 'Saved'}
+            </div>
+            <p className="mt-0.5 text-sm font-semibold text-slate-900 truncate">{turn.created.title}</p>
+            <p className="text-xs text-slate-500">
+              {turn.created.kind === 'standalone'
+                ? 'One interactive simulation'
+                : `${turn.created.questions} ${turn.created.questions === 1 ? 'question' : 'questions'}${turn.created.apps ? `, ${turn.created.apps} ${turn.created.apps === 1 ? 'app simulation' : 'app simulations'}` : ''}`}
+            </p>
+          </div>
+          <div className="shrink-0 flex flex-wrap gap-2">
+            {turn.created.testId && (
+              <button onClick={() => onOpenTest(turn.created!.testId!)} className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:border-indigo-400 rounded-lg">
+                Open it
               </button>
-            ))}
+            )}
+            <button onClick={onOpenLibrary} className="px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg inline-flex items-center gap-1">
+              Go to test library <ArrowRight className="w-3 h-3" />
+            </button>
           </div>
         </div>
+      )}
+
+      {/* And what else to build from the same brief */}
+      {turn.offerMore && (
+        <KindChoice aiAllowed={aiAllowed} built={turn.offerMore.built} onPick={(kind) => (aiAllowed ? onBuildWithAI(turn.offerMore!.brief, kind) : onSeePlans())} />
       )}
 
       {!!turn.people?.length && (
