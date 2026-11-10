@@ -563,44 +563,23 @@ export default function App() {
       .map((t) => (t.role === 'user' ? `Company: ${t.text}` : `Vetter: ${t.text}${t.brief ? `\n(The role: ${t.brief})` : ''}`))
       .join('\n')
       .slice(-5000);
-  // Back in the home chat after the creator: what was made and where it is, then an offer to build something more from
-  // the same brief
-  const reportBuild = (brief?: string) => {
+  // Back in the home chat after the creator: one short message saying what was made and where it is, then simply asking
+  // what they'd like to do next; whatever they say goes to the chat as usual
+  const reportBuild = () => {
     const built = builtInCreator.current;
     builtInCreator.current = null;
     if (!built) return;
     const { test, kind, testId, draft } = built;
     const apps = test.questions.filter((q) => q.type === 'app').length;
     const what = kind === 'standalone' ? 'interactive simulation' : kind === 'training' ? 'training' : 'job simulation test';
-    const turns: AdvisorTurn[] = [
-      {
-        role: 'assistant',
-        text: draft
-          ? `Your ${what} is saved as a draft. Carry on with it any time from Drafts in your test library.`
-          : kind === 'standalone'
-          ? `Your interactive simulation is created and saved in your test library. Send it to candidates from there, or add it to a job.`
-          : `Your ${what} is created${apps ? `, with ${apps} app ${apps === 1 ? 'simulation' : 'simulations'},` : ''} and saved in your test library. Send it to candidates from there, or add it to a job.`,
-        created: { title: test.title, kind, testId, draft, questions: test.questions.filter((q) => q.type !== 'case').length, apps },
-      },
-    ];
-    setAdvisorTurns((prev) => {
-      // The role's brief from the focus step, its ideas worth building and the library tests that fit, carried over
-      const focus = [...prev].reverse().find((t) => t.askFocus)?.askFocus;
-      const library = [...prev].reverse().find((t) => t.brief && t.existing?.length)?.existing;
-      const roleBrief = focus?.brief ?? brief;
-      const more: AdvisorTurn[] =
-        roleBrief && kind !== 'training'
-          ? [
-              {
-                role: 'assistant',
-                text: kind === 'standalone' ? 'Want a job simulation test for this role too, or another simulation?' : 'Want an interactive simulation for this role too, or another test?',
-                offerMore: { brief: roleBrief, built: kind, ideas: focus?.ideas },
-                ...(library?.length && { existing: library }),
-              },
-            ]
-          : [];
-      return [...prev, ...turns, ...more];
-    });
+    const turn: AdvisorTurn = {
+      role: 'assistant',
+      text: draft
+        ? `Your ${what} "${test.title}" is saved as a draft, so you can pick it up any time from your test library. What would you like to do next?`
+        : `Done! Your ${what} "${test.title}" is saved in your test library. What would you like to do next?`,
+      created: { title: test.title, kind, testId, draft, questions: test.questions.filter((q) => q.type !== 'case').length, apps },
+    };
+    setAdvisorTurns((prev) => [...prev, turn]);
   };
   // Builds one of the home chat's AI ideas straight away; the test plan opens with it once it's saved (or closed)
   const startPlanBuild = (idea: CustomIdea) => {
@@ -1928,7 +1907,7 @@ export default function App() {
           tests={tests}
           onOpenTest={(testId) => {
             setGenerator(null);
-            if (generator.fromHome) reportBuild(generator.seed);
+            if (generator.fromHome) reportBuild();
             openTestPage(testId);
           }}
           resume={generator.resume}
@@ -1962,7 +1941,7 @@ export default function App() {
           }}
           onClose={() => {
             setGenerator(null);
-            if (generator.fromHome) reportBuild(generator.seed);
+            if (generator.fromHome) reportBuild();
             if (!planToBuilder.current) setPlanBuilding(null);
             planToBuilder.current = false;
           }}

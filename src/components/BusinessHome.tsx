@@ -431,11 +431,6 @@ const AdvisorReply: React.FC<{
         </div>
       )}
 
-      {/* And what else to build from the same brief */}
-      {turn.offerMore && (
-        <KindChoice aiAllowed={aiAllowed} built={turn.offerMore.built} onPick={(kind) => (aiAllowed ? onChooseKind(turn.offerMore!.brief, kind, turn.offerMore!.ideas ?? []) : onSeePlans())} />
-      )}
-
       {/* Step two: what to build into it, from what's worth building for this role, or typed below */}
       {turn.askFocus && (
         <div className="space-y-2">
@@ -495,11 +490,7 @@ const AdvisorReply: React.FC<{
       )}
 
       {!isChoosing(turn) && !!turn.existing?.length && (
-        <details className="group/lib space-y-2" open={!turn.offerMore}>
-          <summary className={`${turn.offerMore ? '' : 'hidden'} cursor-pointer list-none text-xs font-semibold text-indigo-700 hover:text-indigo-900`}>
-            Also send ready-made tests from Vetter's library ({turn.existing.length})
-          </summary>
-        <div className="space-y-2 pt-2">
+        <div className="space-y-2">
           <div className="flex items-center justify-between gap-3">
             <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Tests to take alongside</h3>
             {turn.existing.length > 1 && (
@@ -554,7 +545,6 @@ const AdvisorReply: React.FC<{
             })}
           </ul>
         </div>
-        </details>
       )}
 
     </div>
