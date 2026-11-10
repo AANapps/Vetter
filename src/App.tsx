@@ -544,13 +544,24 @@ export default function App() {
         created: { title: test.title, kind, testId, draft, questions: test.questions.filter((q) => q.type !== 'case').length, apps },
       },
     ];
-    if (brief && kind !== 'training')
-      turns.push({
-        role: 'assistant',
-        text: kind === 'standalone' ? 'Want a job simulation test for this role too, or another simulation?' : 'Want an interactive simulation for this role too, or another test?',
-        offerMore: { brief, built: kind },
-      });
-    setAdvisorTurns((prev) => [...prev, ...turns]);
+    setAdvisorTurns((prev) => {
+      // The role's brief from the focus step, its ideas worth building and the library tests that fit, carried over
+      const focus = [...prev].reverse().find((t) => t.askFocus)?.askFocus;
+      const library = [...prev].reverse().find((t) => t.brief && t.existing?.length)?.existing;
+      const roleBrief = focus?.brief ?? brief;
+      const more: AdvisorTurn[] =
+        roleBrief && kind !== 'training'
+          ? [
+              {
+                role: 'assistant',
+                text: kind === 'standalone' ? 'Want a job simulation test for this role too, or another simulation?' : 'Want an interactive simulation for this role too, or another test?',
+                offerMore: { brief: roleBrief, built: kind, ideas: focus?.ideas },
+                ...(library?.length && { existing: library }),
+              },
+            ]
+          : [];
+      return [...prev, ...turns, ...more];
+    });
   };
   // Builds one of the home chat's AI ideas straight away; the test plan opens with it once it's saved (or closed)
   const startPlanBuild = (idea: CustomIdea) => {

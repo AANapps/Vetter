@@ -30,8 +30,12 @@ export interface AdvisorTurn {
   error?: boolean;
   // Written by Vetter itself on coming back from the AI creator: what was just made (saved, or kept as a draft)
   created?: { title: string; kind: TestKind; testId?: string; draft?: boolean; questions: number; apps: number };
-  // Offers to build something more from the same brief, the kind just made named (written by Vetter itself)
-  offerMore?: { brief: string; built: TestKind };
+  // Offers to build something more from the same brief, the kind just made named, with library tests that fit to send
+  // alongside (written by Vetter itself)
+  offerMore?: { brief: string; built: TestKind; ideas?: CustomIdea[] };
+  // The second step, once the kind is picked: what it should focus on, from the ideas worth building or typed in
+  // (written by Vetter itself)
+  askFocus?: { brief: string; kind: TestKind; ideas: CustomIdea[] };
 }
 
 export type AdvisorIntent = 'candidates' | 'test' | 'both' | 'training' | 'unclear';
