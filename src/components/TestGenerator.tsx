@@ -3,6 +3,7 @@ import { AlertCircle, ArrowUp, Check, ChevronDown, ChevronUp, Library, Loader2, 
 import { AssessmentTest, Business, JobPosting, QuestionType, TEST_DIFFICULTIES, TestDifficulty, TestDraft, TestKind, levelName } from '../types';
 import { QUESTION_STYLES } from '../lib/questionTypes';
 import { DraftPreview, Dropdown, draftProblems, finaliseDraft } from './DraftPreview';
+import { BuildingCard } from './BuildingCard';
 import { jobBrief } from '../lib/testGeneration';
 import { ChatState, sendChat } from '../lib/testChat';
 import { versionTitle } from '../lib/testLevels';
@@ -323,6 +324,13 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
     onClose();
   };
 
+  const buildingTitle = draft
+    ? 'Updating your draft'
+    : kind === 'training'
+    ? 'Building your training'
+    : kind === 'standalone'
+    ? 'Building your interactive simulation'
+    : 'Building your job simulation test';
   const tabTitle = original ? `Editing ${original.title}` : draft?.title || (kind === 'training' ? 'Training' : kind === 'standalone' ? 'Interactive simulation' : 'Job simulation test');
   return (
     <>
@@ -611,7 +619,15 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
           </section>
 
           {/* The test as the candidate will see it, updating as the conversation goes and editable in place */}
-          <section className={`${pane === 'draft' ? 'block' : 'hidden'} lg:block min-h-0 overflow-hidden bg-slate-50/60`}>
+          <section className={`${pane === 'draft' ? 'block' : 'hidden'} lg:block relative min-h-0 overflow-hidden bg-slate-50/60`}>
+            {/* While Vetter works on a draft already there, the building card sits over it */}
+            {working && draft && (
+              <div className="absolute inset-x-0 top-0 z-10 p-4 flex justify-center bg-gradient-to-b from-slate-50/95 via-slate-50/80 to-transparent pb-10">
+                <div className="w-full max-w-md">
+                  <BuildingCard compact title={buildingTitle} stage={stage} />
+                </div>
+              </div>
+            )}
             {draft ? (
               <DraftPreview
                 test={draft}
@@ -641,7 +657,11 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
               />
             ) : (
               <div className="h-full overflow-y-auto px-5 py-4 space-y-5">
-                {job && chat.existing.length > 0 ? (
+                {working ? (
+                  <div className="h-full flex items-center justify-center py-12">
+                    <BuildingCard title={buildingTitle} stage={stage} />
+                  </div>
+                ) : job && chat.existing.length > 0 ? (
                   <LibraryPicks job={job} existing={chat.existing} chosen={chosen} setChosen={setChosen} onOpenTest={onOpenTest} />
                 ) : (
                   <div className="h-full flex flex-col items-center justify-center text-center gap-2 py-12">

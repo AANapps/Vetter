@@ -854,3 +854,34 @@ html.theme-switching, html.theme-switching * { transition: background-color 0.2s
 }
 html.dark .kind-option-1 { animation-name: kind-option-dark; }
 @keyframes kind-option-dark { 0%, 30% { border-color: transparent; background: transparent; } 36%, 92% { border-color: #6366f1; background: rgb(99 102 241 / 0.15); } 100% { border-color: transparent; background: transparent; } }
+
+/* The building card in the creator's preview (src/components/BuildingCard.tsx): a cog, a hammer, then tabs settling,
+   each for a third of the loop */
+.build-phase { opacity: 0; }
+.build-phase-1 { animation: build-phase-1 7.5s ease-in-out infinite; }
+.build-phase-2 { animation: build-phase-2 7.5s ease-in-out infinite; }
+.build-phase-3 { animation: build-phase-3 7.5s ease-in-out infinite; }
+@keyframes build-phase-1 { 0%, 29% { opacity: 1; transform: none; } 33%, 96% { opacity: 0; transform: scale(0.85); } 100% { opacity: 1; transform: none; } }
+@keyframes build-phase-2 { 0%, 30% { opacity: 0; transform: scale(0.85); } 35%, 62% { opacity: 1; transform: none; } 67%, 100% { opacity: 0; transform: scale(0.85); } }
+@keyframes build-phase-3 { 0%, 63% { opacity: 0; transform: scale(0.85); } 68%, 95% { opacity: 1; transform: none; } 100% { opacity: 0; transform: scale(0.85); } }
+.build-cog { animation: build-spin 2.4s linear infinite; }
+@keyframes build-spin { to { transform: rotate(360deg); } }
+.build-hammer { transform-origin: 75% 75%; animation: build-knock 0.75s cubic-bezier(0.5, 0, 0.75, 0) infinite; }
+@keyframes build-knock { 0% { transform: rotate(-28deg); } 55% { transform: rotate(6deg); } 62% { transform: rotate(2deg); } 100% { transform: rotate(-28deg); } }
+.build-strike { transform-origin: center; animation: build-strike 0.75s ease-out infinite; }
+@keyframes build-strike { 0%, 50% { opacity: 0; transform: scaleX(0.4); } 58% { opacity: 1; transform: scaleX(1); } 100% { opacity: 0; transform: scaleX(1.2); } }
+.build-tab { flex: 1 1 0; animation: build-tab-a 1.6s ease-in-out infinite alternate; }
+.build-tab-b { animation-name: build-tab-b; }
+.build-tab-c { animation-name: build-tab-c; }
+@keyframes build-tab-a { from { flex-grow: 3; } to { flex-grow: 1; } }
+@keyframes build-tab-b { from { flex-grow: 1; } to { flex-grow: 3; } }
+@keyframes build-tab-c { from { flex-grow: 2; } to { flex-grow: 1.2; } }
+.build-tab-line { width: 60%; animation: build-line 1.6s ease-in-out infinite alternate; }
+@keyframes build-line { to { width: 88%; } }
+.build-bar { animation: build-bar 1.4s ease-in-out infinite; }
+@keyframes build-bar { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
+@media (prefers-reduced-motion: reduce) {
+  .build-stage *, .build-bar { animation: none !important; }
+  .build-phase-1 { opacity: 1; }
+  .build-bar { width: 100%; opacity: 0.4; }
+}
