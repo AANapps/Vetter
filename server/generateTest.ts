@@ -193,7 +193,14 @@ export const APP_PAGE_RULES = `  For every kind, appHtml is ONE self-contained H
   • Keep everything the candidate can change in ONE plain JSON object; for hands-on work, include the steps taken in order
     (e.g. steps: ["power_off", "heat_screen", ...]), what is attached or removed, and any damage done. On load, start from
     window.vetterSaved when it isn't null (the candidate coming back to the task), otherwise from the starting state. Call
-    vetter.save(state) once on load and again after every change. Never show which values are checked or what they should be.`;
+    vetter.save(state) once on load and again after every change. Never show which values are checked or what they should be.
+  • VERY CLEAR TO USE: a simple game anyone understands in seconds, without help. A one-line "How it works" bar says how
+    to interact (e.g. "Drag parts onto the board. Click two terminals to connect them. Click a dial to turn it.").
+    Every part, port, terminal, control and tool is labelled with its real name. Draggable things look grabbable (a
+    handle, cursor:grab, a lift and shadow while dragged), drop targets and connection points highlight as something
+    nears them, a connection is drawn as a visible wire or line, and anything placed or connected can be undone or
+    removed. Displays and readings are large and easy to read, with their units. Calculations are typed into a clearly
+    labelled box with the unit beside it. Clear about HOW to work it, never about what the right setup or answer is.`;
 
 // The task wording and the checks on the page's state
 export const APP_TASK_RULES = `
@@ -306,6 +313,20 @@ bluff or look up the answer quickly.
   the right action in the wrong order. Options are similar in length and wording, so the answer can't be spotted by
   its form, and never "all of the above" or "none of the above".
 - Short answers are a number or term worked out from the scenario, not recalled.
+- CALCULATIONS: wherever the job really involves working something out, make the candidate calculate it, from the
+  figures in the scenario, the way they would at work: e.g. a dose from weight and concentration, a cable size or volt
+  drop, a dilution, a mix ratio, a tolerance, a margin, VAT, change from a till, a stock reorder, a rota's hours, a
+  reading converted to the right unit. Give every figure needed (and a distractor or two), state the unit and rounding
+  wanted, and accept only the right answer (a text answer, or a value entered in a simulation and checked in its state).
+  Several steps beat one. Include at least one calculation in any test whose job uses them.
+- EQUIPMENT AND INSTRUMENTS: when the company says the candidate must know an instrument, machine, tool or piece of kit
+  (a multimeter, an oscilloscope, a pipette, a centrifuge, a blood pressure monitor, a torque wrench, a coffee machine,
+  a lab balance...), test it hands-on, not only in words: an app of kind (b) that draws a clear labelled diagram of that
+  instrument (its real controls, dials, ports, probes and display) and has the candidate set it up and use it, like a
+  simple game: drag the leads or parts into the right ports, connect it to the right points, turn the dial to the right
+  range or mode, set the values, then take and record the reading or result, which follows from how they set it up (a
+  wrong range or port gives the wrong or no reading, as it would). Questions on reading its display or picking its
+  setting can follow it as sub-questions.`;
 - Tasks carry the snags of real work: messy or inconsistent data, an edge case, a conflicting request, a trap a careless
   person falls into. Checks reward doing it properly, not just doing something.
 - Scale to the level: Beginner and Junior still apply what they know to a situation; Professional and Senior weigh
