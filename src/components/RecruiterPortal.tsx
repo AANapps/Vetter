@@ -505,7 +505,19 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                         </span>
                       </div>
                       <ul className="divide-y divide-slate-100">
-                        {c.tests.map((t) => (
+                        {c.id === 'vetter'
+                          ? c.tests.map((t) => (
+                              <YourTestRow
+                                key={t.id}
+                                test={t}
+                                usedBy={usedByOf(t)}
+                                onOpen={() => onOpenTest(t.id)}
+                                onEditWithAI={() => onEditWithAI(t.id)}
+                                onEditByHand={() => setBuilding({ initial: t })}
+                                onDelete={() => deleteTest(t)}
+                              />
+                            ))
+                          : c.tests.map((t) => (
                           <li key={t.id}>
                             <button onClick={() => onOpenTest(t.id)} className="w-full text-left px-4 py-2.5 hover:bg-slate-50 flex flex-wrap items-center gap-x-3 gap-y-1">
                               <span className="text-sm font-medium text-slate-900 break-words min-w-0">{t.title}</span>
@@ -566,7 +578,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                         ranked={getTestStats(t, allCandidates).candidatesRanked}
                         onOpen={() => onOpenTest(t.id)}
                         onEdit={own ? () => onEditByHand(t.id) : isVetter ? editFor(t) : undefined}
-                        onAiEdit={own ? () => onEditWithAI(t.id) : undefined}
+                        onAiEdit={own || (isVetter && isEditable(t)) ? () => onEditWithAI(t.id) : undefined}
                         // The Vetter team can delete library tests written in the builder; the built-in ones stay
                         onDelete={own ? () => deleteTest(t) : isVetter && isEditable(t) ? () => deleteTest(t) : undefined}
                         onDeepen={isVetter ? () => onGenerateTest(deepenSeed(t)) : undefined}
@@ -719,7 +731,8 @@ const YourTestRow: React.FC<{
     <button onClick={onOpen} className="min-w-0 flex-1 text-left">
       <span className="block text-sm font-semibold text-slate-900 truncate">{test.title}</span>
       <span className="block text-xs text-slate-500 truncate">
-        {levelName(test.difficulty)} &middot; ~{test.estimatedMinutes} min &middot; {usedBy.length ? (usedBy.length === 1 ? usedBy[0].title : `${usedBy.length} jobs`) : 'Not on a job'}
+        {madeWithAI(test) ? 'Made with AI' : 'Made by hand'} &middot; {levelName(test.difficulty)} &middot; ~{test.estimatedMinutes} min &middot;{' '}
+        {usedBy.length ? (usedBy.length === 1 ? usedBy[0].title : `${usedBy.length} jobs`) : 'Not on a job'}
       </span>
     </button>
     <button onClick={onEditWithAI} aria-label={`Edit ${test.title} with AI`} className="shrink-0 px-2.5 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 rounded-lg inline-flex items-center gap-1.5">

@@ -1480,6 +1480,11 @@ export default function App() {
                   ? () => setDraftBuilder({ draft: testPageTest, isCopy: true, alsoAdd: [] })
                   : undefined
               }
+              {...(activeRole === 'admin' && testPageTest.type !== 'custom' && /^test-(custom|vetter)-\d{10,}$/.test(testPageTest.id) && {
+                // A library test the Vetter team made in the app: changed by asking Vetter, or by hand
+                onEditWithAI: () => enhanceTest(testPageTest.id),
+                onEdit: () => setDraftBuilder({ draft: testPageTest, alsoAdd: [] }),
+              })}
               {...(activeRole === 'recruiter' && recruiterBusiness && testPageTest.type === 'custom' && testPageTest.businessId === recruiterBusiness.id && {
                 // The company's own test: changed by asking Vetter, or by hand in the builder
                 onEditWithAI: () => enhanceTest(testPageTest.id),
