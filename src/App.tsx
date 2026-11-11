@@ -498,8 +498,28 @@ export default function App() {
   const [profilePersonId, setProfilePersonId] = useState<string | null>(null);
   const [companiesQuery, setCompaniesQuery] = useState('');
 
+  // The Vetter team in the company view picks a real company to see it as (the demo company isn't one on the live
+  // site), kept on this device
+  const adminAsCompany = firebaseEnabled && account?.role === 'admin';
+  const [adminCompanyId, setAdminCompanyIdState] = useState(() => {
+    try {
+      return localStorage.getItem('vetter.adminCompany') ?? '';
+    } catch {
+      return '';
+    }
+  });
+  const setAdminCompanyId = (id: string) => {
+    setAdminCompanyIdState(id);
+    try {
+      localStorage.setItem('vetter.adminCompany', id);
+    } catch {
+      // Private windows can refuse storage; the pick then lasts for the visit
+    }
+  };
   // None while a new company is still being set up
-  const recruiterBusiness: Business | undefined = businesses.find((b) => b.id === recruiter.businessId);
+  const recruiterBusiness: Business | undefined = adminAsCompany
+    ? businesses.find((b) => b.id === adminCompanyId) ?? businesses.find((b) => b.id === recruiter.businessId) ?? businesses[0]
+    : businesses.find((b) => b.id === recruiter.businessId);
 
   // The home chat is kept on this device per company, so a reload doesn't lose what was said and picked. Library tests in
   // it are stored by id and looked up again
@@ -1809,6 +1829,7 @@ export default function App() {
               onContinueDraft={(d) => openGenerator({ jobId: d.jobId, resume: d })}
               onEditDraftByHand={(d) => setDraftBuilder({ draft: d.test, jobId: d.jobId, alsoAdd: [], record: d })}
               onEditOwnTest={editOwnTest}
+              {...(adminAsCompany && activeRole === 'recruiter' && { companyPicker: { onPick: setAdminCompanyId } })}
               onEditWithAI={(testId) => enhanceTest(testId)}
               onEditByHand={(testId) => {
                 const test = tests.find((t) => t.id === testId);

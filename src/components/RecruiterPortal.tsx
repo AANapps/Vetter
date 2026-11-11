@@ -36,6 +36,8 @@ interface RecruiterPortalProps {
   onEditDraftByHand: (draft: TestDraft) => void;
   // Opens one of the company's saved tests where it's edited: the test chat if made with AI, the builder if by hand
   onEditOwnTest: (testId: string) => void;
+  // The Vetter team in the company view: which company it's seeing the page as
+  companyPicker?: { onPick: (businessId: string) => void };
   // One of the company's saved tests opened in the test chat to change by asking, however it was made
   onEditWithAI: (testId: string) => void;
   // One of the company's saved tests opened in the builder, however it was made
@@ -70,6 +72,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   onEditOwnTest,
   onEditWithAI,
   onEditByHand,
+  companyPicker,
   leads,
   browse,
 }) => {
@@ -77,8 +80,19 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   const isVetter = !business;
   const jobs = isVetter ? allJobs : allJobs.filter((j) => j.businessId === business.id);
   const companyTests = isVetter ? [] : tests.filter((t) => t.type === 'custom' && t.businessId === business.id && t.purpose !== 'training');
+  // For the Vetter team: every company's own tests, company by company, the busiest first
+  const byCompany = isVetter
+    ? [
+        ...tests
+          .filter((t) => t.type === 'custom' && t.businessId && t.purpose !== 'training')
+          .reduce((m, t) => m.set(t.businessId!, [...(m.get(t.businessId!) ?? []), t]), new Map<string, AssessmentTest[]>()),
+      ]
+        .map(([id, own]) => ({ id, name: businesses.find((b) => b.id === id)?.name ?? own[0].companyName ?? 'A company', tests: [...own].sort((a, b) => madeAt(b) - madeAt(a)) }))
+        .sort((a, b) => b.tests.length - a.tests.length || a.name.localeCompare(b.name))
+    : [];
   // The public library: Vetter's tests and other companies' approved ones (a company's own are in companyTests)
-  const vetterTests = tests.filter((t) => isPublic(t) && isMainVersion(t) && (isVetter || t.businessId !== business.id));
+  // (for the Vetter team, companies' tests are listed on their own, so the library is Vetter's alone)
+  const vetterTests = tests.filter((t) => isPublic(t) && isMainVersion(t) && (isVetter ? t.type !== 'custom' : t.businessId !== business.id));
 
   const [selectedJobId, setSelectedJobId] = useState<string>(jobs[0]?.id || '');
   // The Tests page: one list of the company's tests and Vetter's, browsed by industry and role (as candidates browse
@@ -283,6 +297,74 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
             </div>
           </div>
 
+          {/* The Vetter team in the company view sees the page as one company, picked here */}
+          {companyPicker && business && (
+            <label className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
+              <span className="font-semibold">Viewing as</span>
+              <select
+                value={business.id}
+                onChange={(e) => companyPicker.onPick(e.target.value)}
+                className="px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900"
+              >
+                {businesses.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+
+          {/* For the Vetter team: what each company has made, apart from Vetter's library */}
+          {isVetter && (
+            <section aria-labelledby="company-tests" className="space-y-3">
+              <div>
+                <h2 id="company-tests" className="text-lg font-bold text-slate-900">
+                  Companies' own tests{' '}
+                  <span className="font-mono font-normal text-slate-400 tabular-nums">{byCompany.reduce((n, c) => n + c.tests.length, 0)}</span>
+                </h2>
+                <p className="text-xs text-slate-500">Tests each company made for its jobs, separate from Vetter's library.</p>
+              </div>
+              {byCompany.length === 0 ? (
+                <p className="bg-white border border-dashed border-slate-300 rounded-xl px-5 py-6 text-center text-sm text-slate-500">No company has made a test yet.</p>
+              ) : (
+                <div className="bg-white border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-200">
+                  {byCompany.map((c) => (
+                    <div key={c.id}>
+                      <div className="px-4 py-2.5 bg-slate-50 flex items-baseline justify-between gap-3">
+                        <h3 className="text-sm font-semibold text-slate-900">{c.name}</h3>
+                        <span className="text-xs font-mono text-slate-400 tabular-nums">
+                          {c.tests.length} {c.tests.length === 1 ? 'test' : 'tests'}
+                        </span>
+                      </div>
+                      <ul className="divide-y divide-slate-100">
+                        {c.tests.map((t) => (
+                          <li key={t.id}>
+                            <button onClick={() => onOpenTest(t.id)} className="w-full text-left px-4 py-2.5 hover:bg-slate-50 flex flex-wrap items-center gap-x-3 gap-y-1">
+                              <span className="text-sm font-medium text-slate-900 break-words min-w-0">{t.title}</span>
+                              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${madeWithAI(t) ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-100 text-slate-600'}`}>
+                                {madeWithAI(t) ? 'Made with AI' : 'Made by hand'}
+                              </span>
+                              {t.publicStatus && (
+                                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-900 text-white">
+                                  {t.publicStatus === 'approved' ? 'Public' : t.publicStatus === 'pending' ? 'Waiting for approval' : 'Not approved'}
+                                </span>
+                              )}
+                              <span className="ml-auto text-xs text-slate-500 tabular-nums">
+                                {levelName(t.difficulty)} &middot; ~{t.estimatedMinutes} min
+                                {madeAt(t) ? <> &middot; {new Date(madeAt(t)).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: '2-digit' })}</> : null}
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+
           {/* The company's own tests first, each ready to change by asking Vetter or by hand */}
           {!isVetter && (
             <section aria-labelledby="my-tests" className="space-y-3">
@@ -378,12 +460,10 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
             </div>
           )}
 
-          {!isVetter && (
-            <div className="pt-2">
-              <h2 className="text-lg font-bold text-slate-900">All tests</h2>
-              <p className="text-xs text-slate-500">Yours and Vetter's library together, to add to any job.</p>
-            </div>
-          )}
+          <div className="pt-2">
+            <h2 className="text-lg font-bold text-slate-900">{isVetter ? "Vetter's library" : 'All tests'}</h2>
+            <p className="text-xs text-slate-500">{isVetter ? 'The tests every candidate can take.' : "Yours and Vetter's library together, to add to any job."}</p>
+          </div>
           <div className="grid grid-cols-1 lg:grid-cols-[15rem_minmax(0,1fr)] gap-6 items-start">
           {/* Browse by industry and role, as candidates do */}
           <aside className="hidden lg:block bg-white border border-slate-200 rounded-xl p-4 space-y-4 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto lg:overscroll-contain [scrollbar-width:thin]">
