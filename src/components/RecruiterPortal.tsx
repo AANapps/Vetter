@@ -283,56 +283,12 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
             </div>
           </div>
 
-          {savedMessage && (
-            <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl flex items-center gap-3 shadow-xs">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span className="font-medium">{savedMessage}</span>
-            </div>
-          )}
-
-          <dl className="grid grid-cols-2 md:grid-cols-4 gap-px bg-slate-200 rounded-xl overflow-hidden border border-slate-200">
-            {[
-              { label: 'Tests', value: allTests.length },
-              { label: isVetter ? 'Written in the builder' : 'Written by you', value: isVetter ? vetterTests.filter(isEditable).length : companyTests.length },
-              { label: isVetter ? 'On a job' : 'On your jobs', value: allTests.filter((t) => usedByOf(t).length > 0).length },
-              { label: 'Drafts', value: drafts.length },
-            ].map((st) => (
-              <div key={st.label} className="bg-white px-5 py-4">
-                <dt className="text-xs text-slate-500">{st.label}</dt>
-                <dd className="text-2xl font-bold text-slate-900 font-mono tabular-nums">{st.value}</dd>
-              </div>
-            ))}
-          </dl>
-
-          {/* Tests still being written */}
-          {drafts.length > 0 && (
-            <div className="space-y-3">
-              <div>
-                <h2 className="text-sm font-bold text-slate-900">Drafts</h2>
-                <p className="text-xs text-slate-500">Only {business ? 'your company' : 'the Vetter team'} can see these. Candidates can't take them until they're saved.</p>
-              </div>
-              <ul className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {drafts.map((d) => (
-                  <DraftCard
-                    key={d.id}
-                    draft={d}
-                    job={allJobs.find((j) => j.id === d.jobId)}
-                    showCompany={isVetter}
-                    onContinue={d.messages?.length ? () => onContinueDraft(d) : undefined}
-                    onEdit={() => onEditDraftByHand(d)}
-                    onDelete={() => window.confirm(`Delete the draft "${d.test.title}"? This can't be undone.`) && onDeleteDraft(d.id)}
-                  />
-                ))}
-              </ul>
-            </div>
-          )}
-
           {/* The company's own tests first, each ready to change by asking Vetter or by hand */}
           {!isVetter && (
             <section aria-labelledby="my-tests" className="space-y-3">
               <div className="flex items-baseline justify-between gap-3">
                 <div>
-                  <h2 id="my-tests" className="text-sm font-bold text-slate-900">
+                  <h2 id="my-tests" className="text-lg font-bold text-slate-900">
                     My tests <span className="font-mono font-normal text-slate-400 tabular-nums">{companyTests.length}</span>
                   </h2>
                   <p className="text-xs text-slate-500">Tests {business.name} made. Edit with AI to change one by asking: harder, shorter, a new task, a different tool.</p>
@@ -378,6 +334,56 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
             </section>
           )}
 
+          {savedMessage && (
+            <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl flex items-center gap-3 shadow-xs">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span className="font-medium">{savedMessage}</span>
+            </div>
+          )}
+
+          <dl className="grid grid-cols-2 md:grid-cols-4 gap-px bg-slate-200 rounded-xl overflow-hidden border border-slate-200">
+            {[
+              { label: 'Tests', value: allTests.length },
+              { label: isVetter ? 'Written in the builder' : 'Written by you', value: isVetter ? vetterTests.filter(isEditable).length : companyTests.length },
+              { label: isVetter ? 'On a job' : 'On your jobs', value: allTests.filter((t) => usedByOf(t).length > 0).length },
+              { label: 'Drafts', value: drafts.length },
+            ].map((st) => (
+              <div key={st.label} className="bg-white px-5 py-4">
+                <dt className="text-xs text-slate-500">{st.label}</dt>
+                <dd className="text-2xl font-bold text-slate-900 font-mono tabular-nums">{st.value}</dd>
+              </div>
+            ))}
+          </dl>
+
+          {/* Tests still being written */}
+          {drafts.length > 0 && (
+            <div className="space-y-3">
+              <div>
+                <h2 className="text-sm font-bold text-slate-900">Drafts</h2>
+                <p className="text-xs text-slate-500">Only {business ? 'your company' : 'the Vetter team'} can see these. Candidates can't take them until they're saved.</p>
+              </div>
+              <ul className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {drafts.map((d) => (
+                  <DraftCard
+                    key={d.id}
+                    draft={d}
+                    job={allJobs.find((j) => j.id === d.jobId)}
+                    showCompany={isVetter}
+                    onContinue={d.messages?.length ? () => onContinueDraft(d) : undefined}
+                    onEdit={() => onEditDraftByHand(d)}
+                    onDelete={() => window.confirm(`Delete the draft "${d.test.title}"? This can't be undone.`) && onDeleteDraft(d.id)}
+                  />
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {!isVetter && (
+            <div className="pt-2">
+              <h2 className="text-lg font-bold text-slate-900">All tests</h2>
+              <p className="text-xs text-slate-500">Yours and Vetter's library together, to add to any job.</p>
+            </div>
+          )}
           <div className="grid grid-cols-1 lg:grid-cols-[15rem_minmax(0,1fr)] gap-6 items-start">
           {/* Browse by industry and role, as candidates do */}
           <aside className="hidden lg:block bg-white border border-slate-200 rounded-xl p-4 space-y-4 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto lg:overscroll-contain [scrollbar-width:thin]">
