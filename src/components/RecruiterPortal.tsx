@@ -99,6 +99,8 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   // them), narrowed by source and a search
   const [testQuery, setTestQuery] = useState('');
   const [testSource, setTestSource] = useState<'all' | 'yours' | 'vetter' | 'on-jobs'>('all');
+  // The Tests page's two tabs: the tests made here (for the Vetter team, every company's) and the whole list
+  const [testsTab, setTestsTab] = useState<'yours' | 'all'>('yours');
   const [testField, setTestField] = useState<{ label: string; roles: TestRole[] } | null>(null);
   const usedByOf = (t: AssessmentTest) => jobs.filter((j) => j.testIds.includes(t.id));
   const allTests = [...companyTests, ...vetterTests];
@@ -315,13 +317,45 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
             </label>
           )}
 
+          {/* Two tabs at the top of the list: the tests made here, and every test */}
+          <div role="tablist" aria-label="Tests" className="flex gap-6 border-b border-slate-200">
+            {(
+              [
+                ['yours', 'Your tests', isVetter ? byCompany.reduce((n, c) => n + c.tests.length, 0) : companyTests.length],
+                ['all', isVetter ? "Vetter's library" : 'All tests', allTests.length],
+              ] as const
+            ).map(([id, label, count]) => (
+              <button
+                key={id}
+                role="tab"
+                id={`tests-tab-${id}`}
+                aria-selected={testsTab === id}
+                aria-controls={`tests-panel-${id}`}
+                onClick={() => setTestsTab(id)}
+                className={`-mb-px pb-2.5 text-sm font-semibold border-b-2 transition-colors ${
+                  testsTab === id ? 'border-indigo-600 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                {label} <span className="font-normal text-slate-400 tabular-nums">{count}</span>
+              </button>
+            ))}
+          </div>
+
+          {savedMessage && (
+            <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl flex items-center gap-3 shadow-xs">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span className="font-medium">{savedMessage}</span>
+            </div>
+          )}
+
+          {testsTab === 'yours' && (
+          <div role="tabpanel" id="tests-panel-yours" aria-labelledby="tests-tab-yours" className="space-y-6">
           {/* For the Vetter team: what each company has made, apart from Vetter's library */}
           {isVetter && (
             <section aria-labelledby="company-tests" className="space-y-3">
               <div>
-                <h2 id="company-tests" className="text-lg font-bold text-slate-900">
-                  Companies' own tests{' '}
-                  <span className="font-mono font-normal text-slate-400 tabular-nums">{byCompany.reduce((n, c) => n + c.tests.length, 0)}</span>
+                <h2 id="company-tests" className="sr-only">
+                  Your tests
                 </h2>
                 <p className="text-xs text-slate-500">Tests each company made for its jobs, separate from Vetter's library.</p>
               </div>
@@ -368,8 +402,8 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
           {/* The company's own tests first, each ready to change by asking Vetter or by hand */}
           {!isVetter && (
             <section aria-labelledby="your-tests" className="space-y-3">
-              <h2 id="your-tests" className="text-lg font-bold text-slate-900">
-                Your tests <span className="font-normal text-slate-400 tabular-nums">{companyTests.length}</span>
+              <h2 id="your-tests" className="sr-only">
+                Your tests
               </h2>
               {companyTests.length === 0 ? (
                 <div className="bg-white border border-dashed border-slate-300 rounded-xl px-5 py-8 text-center space-y-3">
@@ -401,13 +435,6 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                 </ul>
               )}
             </section>
-          )}
-
-          {savedMessage && (
-            <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl flex items-center gap-3 shadow-xs">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span className="font-medium">{savedMessage}</span>
-            </div>
           )}
 
           <dl className="grid grid-cols-2 md:grid-cols-4 gap-px bg-slate-200 rounded-xl overflow-hidden border border-slate-200">
@@ -447,10 +474,12 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
             </div>
           )}
 
-          <div className="pt-2">
-            <h2 className="text-lg font-bold text-slate-900">{isVetter ? "Vetter's library" : 'All tests'}</h2>
-            <p className="text-xs text-slate-500">{isVetter ? 'The tests every candidate can take.' : "Yours and Vetter's library together, to add to any job."}</p>
           </div>
+          )}
+
+          {testsTab === 'all' && (
+          <div role="tabpanel" id="tests-panel-all" aria-labelledby="tests-tab-all" className="space-y-6">
+          <p className="text-xs text-slate-500">{isVetter ? 'The tests every candidate can take.' : "Yours and Vetter's library together, to add to any job."}</p>
           <div className="grid grid-cols-1 lg:grid-cols-[15rem_minmax(0,1fr)] gap-6 items-start">
           {/* Browse by industry and role, as candidates do */}
           <aside className="hidden lg:block bg-white border border-slate-200 rounded-xl p-4 space-y-4 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto lg:overscroll-contain [scrollbar-width:thin]">
@@ -581,6 +610,8 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
           </div>
           </div>
           </div>
+          </div>
+          )}
         </div>
       )}
 
