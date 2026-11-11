@@ -93,6 +93,10 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   // The public library: Vetter's tests and other companies' approved ones (a company's own are in companyTests)
   // (for the Vetter team, companies' tests are listed on their own, so the library is Vetter's alone)
   const vetterTests = tests.filter((t) => isPublic(t) && isMainVersion(t) && (isVetter ? t.type !== 'custom' : t.businessId !== business.id));
+  // For the Vetter team, Your tests starts with the library tests it made in the app (with the AI or by hand), newest
+  // first, then every company's own
+  const madeHere = isVetter ? tests.filter((t) => t.type !== 'custom' && isEditable(t) && t.purpose !== 'training').sort((a, b) => madeAt(b) - madeAt(a)) : [];
+  const yourGroups = [...(madeHere.length ? [{ id: 'vetter', name: 'Made by the Vetter team (in the library)', tests: madeHere }] : []), ...byCompany];
 
   const [selectedJobId, setSelectedJobId] = useState<string>(jobs[0]?.id || '');
   // The Tests page: one list of the company's tests and Vetter's, browsed by industry and role (as candidates browse
@@ -119,7 +123,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   const inSource = (t: AssessmentTest, src: typeof testSource) =>
     src === 'all' || (src === 'yours' ? t.type === 'custom' : src === 'vetter' ? vetterTests.includes(t) : usedByOf(t).length > 0);
   // For the Vetter team, Your tests is every company's own tests, listed company by company
-  const countFor = (src: typeof testSource) => (isVetter && src === 'yours' ? byCompany.reduce((n, c) => n + c.tests.length, 0) : allTests.filter((t) => inSource(t, src)).length);
+  const countFor = (src: typeof testSource) => (isVetter && src === 'yours' ? yourGroups.reduce((n, c) => n + c.tests.length, 0) : allTests.filter((t) => inSource(t, src)).length);
   // A test's roles: its own, or for a company's test (which has none) the roles the library's tests of its category
   // are for, so it's filed beside them
   const rolesByCategory = new Map<string, TestRole[]>();
@@ -487,12 +491,12 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
 
           {isVetter && testSource === 'yours' ? (
             <div className="space-y-2">
-              <p className="text-xs text-slate-500">Tests each company made for its jobs, separate from Vetter's library.</p>
-              {byCompany.length === 0 ? (
-                <p className="bg-white border border-dashed border-slate-300 rounded-xl px-5 py-6 text-center text-sm text-slate-500">No company has made a test yet.</p>
+              <p className="text-xs text-slate-500">Tests made here, newest first: the Vetter team's own (saved to the library), then each company's for its jobs.</p>
+              {yourGroups.length === 0 ? (
+                <p className="bg-white border border-dashed border-slate-300 rounded-xl px-5 py-6 text-center text-sm text-slate-500">No tests made here yet.</p>
               ) : (
                 <div className="bg-white border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-200">
-                  {byCompany.map((c) => (
+                  {yourGroups.map((c) => (
                     <div key={c.id}>
                       <div className="px-4 py-2.5 bg-slate-50 flex items-baseline justify-between gap-3">
                         <h3 className="text-sm font-semibold text-slate-900">{c.name}</h3>
