@@ -169,17 +169,6 @@ export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, dra
             <span className="hidden sm:inline">Try it as a candidate</span>
             <span className="sm:hidden">Try it</span>
           </button>
-          {onEnhance && (
-            <button
-              onClick={() => onEnhance({ ...build(), title: title.trim() || 'Untitled test', questions, totalQuestions: questions.length })}
-              title="Improve this test by asking Vetter; your changes here go with it"
-              className="px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-white border border-indigo-200 hover:border-indigo-400 rounded-lg flex items-center gap-1.5"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Enhance with AI</span>
-              <span className="sm:hidden">Enhance</span>
-            </button>
-          )}
           {onSaveDraft && (
             <button onClick={saveDraft} disabled={savingDraft} className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:border-indigo-400 disabled:opacity-40 rounded-lg">
               {savingDraft ? 'Saving…' : 'Save draft'}
@@ -450,6 +439,18 @@ export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, dra
           </div>
         </main>
       </div>
+
+      {/* The company's own test can be taken to the test chat at any point, with what's been changed here */}
+      {onEnhance && (
+        <button
+          onClick={() => onEnhance({ ...build(), title: title.trim() || 'Untitled test', questions, totalQuestions: questions.length })}
+          title="Improve this test by asking Vetter; your changes here go with it"
+          className="fixed bottom-5 right-5 z-20 px-4 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-full shadow-lg flex items-center gap-2"
+        >
+          <Sparkles className="w-4 h-4" />
+          Enhance with AI
+        </button>
+      )}
 
       {preview && (
         <TestRunner test={preview} preview onClose={() => setPreview(null)} onComplete={() => setPreview(null)} getPercentileFor={() => 0} />

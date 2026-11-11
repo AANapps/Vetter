@@ -1449,11 +1449,11 @@ export default function App() {
                   ? () => setDraftBuilder({ draft: testPageTest, isCopy: true, alsoAdd: [] })
                   : undefined
               }
-              onEdit={
-                activeRole === 'recruiter' && recruiterBusiness && testPageTest.type === 'custom' && testPageTest.businessId === recruiterBusiness.id
-                  ? () => editOwnTest(testPageTest.id)
-                  : undefined
-              }
+              {...(activeRole === 'recruiter' && recruiterBusiness && testPageTest.type === 'custom' && testPageTest.businessId === recruiterBusiness.id && {
+                // The company's own test: changed by asking Vetter, or by hand in the builder
+                onEditWithAI: () => enhanceTest(testPageTest.id),
+                onEdit: () => setDraftBuilder({ draft: testPageTest, alsoAdd: [] }),
+              })}
               {...(activeRole === 'recruiter' && recruiterBusiness && testPageTest.type === 'custom' && testPageTest.businessId === recruiterBusiness.id && {
                 onAskToPublish: () => askToPublish(testPageTest.id),
                 onWithdrawPublic: () => withdrawPublic(testPageTest.id),
@@ -1980,10 +1980,10 @@ export default function App() {
             setDraftBuilder(null);
           }}
           onCancel={() => (setDraftBuilder(null), setPlanBuilding(null))}
-          // A saved test made by hand, opened from Edit: to the test chat with whatever's been changed here
+          // A company's saved test, however it was made: to the test chat with whatever's been changed here
           onEnhance={(() => {
             const saved = tests.find((t) => t.id === draftBuilder.draft?.id);
-            if (!saved || draftBuilder.isCopy || madeWithAI(saved)) return undefined;
+            if (!saved || draftBuilder.isCopy || saved.type !== 'custom' || !saved.businessId || saved.businessId !== recruiterBusiness?.id) return undefined;
             return (test: AssessmentTest) => {
               if (!aiAllowed) return setPlansOpen(true);
               const jobId = draftBuilder.jobId;

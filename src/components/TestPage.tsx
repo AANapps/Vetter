@@ -1,6 +1,6 @@
 import React from 'react';
 import { BackButton } from './BackButton';
-import { Globe, Link2, Pencil, Play, PlusCircle } from 'lucide-react';
+import { Globe, Link2, Pencil, Play, PlusCircle, Sparkles } from 'lucide-react';
 import { AssessmentTest, Business, JobPosting, TEST_DIFFICULTIES, User, UserRole, timerOf, isPublic, levelName } from '../types';
 import { RETAKE_DAYS, nextAttemptAt } from '../lib/results';
 import { getLeaderboard, getTestStats } from '../lib/leaderboard';
@@ -28,8 +28,10 @@ interface TestPageProps {
   onSend?: () => void;
   // Companies take a copy of a Vetter module test to add their own questions to its areas and levels
   onCustomize?: () => void;
-  // The company's own test: opens where it's edited
+  // The company's own test: opens in the builder
   onEdit?: () => void;
+  // The company's own test: opens in the test chat, to change by asking
+  onEditWithAI?: () => void;
   // The company's own test: offered to the public library (the Vetter team approves it first), or taken back out
   onAskToPublish?: () => void;
   onWithdrawPublic?: () => void;
@@ -52,6 +54,7 @@ export const TestPage: React.FC<TestPageProps> = ({
   onSend,
   onCustomize,
   onEdit,
+  onEditWithAI,
   onAskToPublish,
   onWithdrawPublic,
   onStartTest,
@@ -141,14 +144,25 @@ export const TestPage: React.FC<TestPageProps> = ({
             </button>
           )}
 
+          {onEditWithAI && (
+            <button
+              onClick={onEditWithAI}
+              title="Change this test by telling Vetter what to change"
+              className="px-4 py-2.5 text-xs font-semibold text-indigo-700 bg-white border border-indigo-200 hover:border-indigo-400 rounded-lg transition-colors flex items-center gap-2 shrink-0 self-start"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Edit with AI</span>
+            </button>
+          )}
+
           {onEdit && (
             <button
               onClick={onEdit}
-              title="Edit this test"
+              title="Edit this test by hand"
               className="px-4 py-2.5 text-xs font-semibold text-indigo-700 bg-white border border-indigo-200 hover:border-indigo-400 rounded-lg transition-colors flex items-center gap-2 shrink-0 self-start"
             >
               <Pencil className="w-3.5 h-3.5" />
-              <span>Edit</span>
+              <span>{onEditWithAI ? 'Edit by hand' : 'Edit'}</span>
             </button>
           )}
 
