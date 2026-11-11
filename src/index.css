@@ -879,6 +879,9 @@ html.dark .kind-option-1 { animation-name: kind-option-dark; }
 .build-tab-line { width: 60%; animation: build-line 1.6s ease-in-out infinite alternate; }
 @keyframes build-line { to { width: 88%; } }
 .build-bar { animation: build-bar 1.4s ease-in-out infinite; }
+/* Over a draft being changed: the draft blurred and dimmed behind the card */
+.build-veil { background: rgb(248 250 252 / 0.55); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+html.dark .build-veil { background: rgb(11 17 30 / 0.6); }
 @keyframes build-bar { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
 @media (prefers-reduced-motion: reduce) {
   .build-stage *, .build-bar { animation: none !important; }

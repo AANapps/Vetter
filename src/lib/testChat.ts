@@ -123,20 +123,31 @@ export const pageModeOf = (ctx: ChatContext): PageMode => ({
   sector: ctx.business?.sector,
 });
 
-async function buildAppPage(item: RawQuestion, research?: string, mode: PageMode = {}): Promise<RawQuestion> {
+// What Vetter is doing right now, told to the company as it happens (each call is a real step starting)
+type Progress = (stage: string) => void;
+
+async function buildAppPage(item: RawQuestion, research?: string, mode: PageMode = {}, step: Progress = () => {}): Promise<RawQuestion> {
   const request = (fix?: { html: string; problems: string[] }, quick?: boolean) =>
     aiFetch('/api/build-app', { title: item.title, prompt: item.prompt, brief: item.appHtml, testCases: item.testCases ?? [], research, ...mode, ...(quick && { quick }), ...(fix && { fix }) }).then(async (res) => (res.ok ? ((await res.json()) as { appHtml?: string; testCases?: RawQuestion['testCases']; callouts?: AppCallout[] }) : null));
   try {
     // A game page is built with more thought; if that doesn't come back (it can run out of time), once more at the usual effort
-    const page = (await request().catch(() => null)) ?? (mode.game ? await request(undefined, true) : null);
+    step('writing the page: its screens, layout, controls and checks…');
+    let page = await request().catch(() => null);
+    if (!page && mode.game) {
+      step("the first try didn't come back in time, so writing it again more quickly…");
+      page = await request(undefined, true);
+    }
     if (!page?.appHtml) return item;
     const built: RawQuestion = { ...item, appHtml: page.appHtml, testCases: page.testCases?.length ? page.testCases : item.testCases, callouts: page.callouts ?? [] };
+    step('clicking every control to see it works…');
     const problems = await appProblems(built);
     if (!problems.length) return built;
+    step(`fixing ${problems.length === 1 ? 'a problem' : `${problems.length} problems`} found clicking through it…`);
     const fixed = await request({ html: built.appHtml!, problems }).catch(() => null);
     if (!fixed?.appHtml) return built;
     const repaired: RawQuestion = { ...built, appHtml: fixed.appHtml, testCases: fixed.testCases?.length ? fixed.testCases : built.testCases, callouts: fixed.callouts?.length ? fixed.callouts : built.callouts };
     // The repair is kept unless it made things worse: it must still load
+    step('loading the fixed page to make sure it still works…');
     const after = await probeApp(repaired.appHtml!, checksOf(repaired));
     return after.state ? repaired : built;
   } catch {
@@ -146,14 +157,16 @@ async function buildAppPage(item: RawQuestion, research?: string, mode: PageMode
 
 // An app page changed as the company asked: the builder gets the page as it is and the change, and the result is
 // checked like a new page (it must load and its checks must still fail at the start). Null when it doesn't hold up
-async function editAppPage(question: Question, change: string, taskPrompt: string, research?: string, mode: PageMode = {}): Promise<Question | null> {
+async function editAppPage(question: Question, change: string, taskPrompt: string, research?: string, mode: PageMode = {}, step: Progress = () => {}): Promise<Question | null> {
   const checks = question.testCases.map(({ description, input, expectedOutput }) => ({ description, input, expectedOutput }));
   const prompt = taskPrompt?.trim() || question.prompt;
   try {
+    step('rewriting the page with your change…');
     const res = await aiFetch('/api/build-app', { title: question.title, prompt, brief: change, testCases: checks, research, ...mode, quick: true, edit: { html: question.appHtml ?? '', change } });
     if (!res.ok) return null;
     const page = (await res.json()) as { appHtml?: string; testCases?: RawQuestion['testCases']; callouts?: AppCallout[] };
     if (!page.appHtml) return null;
+    step('loading the changed page and checking its tasks can still be marked…');
     const checked = await checkQuestion({ type: 'app', title: question.title, prompt, appHtml: page.appHtml, testCases: (page.testCases?.length ? page.testCases : checks) as RawQuestion['testCases'], callouts: page.callouts?.length ? page.callouts : question.callouts, points: question.weight, timeLimitMinutes: question.timeLimitMinutes });
     // Same question, so the questions about it stay joined to it
     return checked ? { ...question, prompt, appHtml: checked.appHtml, contextData: checked.contextData, starterCode: checked.starterCode, testCases: checked.testCases, callouts: checked.callouts } : null;
@@ -193,18 +206,49 @@ function blueprintOf(raw: unknown): BlueprintItem[] | undefined {
   return rows.map((r) => ({ ...r, weight: Math.round(((r.weight || (total === rows.length ? 1 : 0)) / total) * 100) }));
 }
 
+// Simulation pages are built side by side; the status names the page whose step just started, and once one is done,
+// how many are built and which are still going
+function pageTracker(titles: string[], progress: Progress) {
+  const name = (title: string) => `“${title.trim() || 'The simulation'}”`;
+  const current = new Map<number, string>();
+  let built = 0;
+  const show = (i: number) => {
+    const line = `${name(titles[i])}: ${current.get(i)}`;
+    progress(titles.length > 1 && built ? `${built} of ${titles.length} simulations built. ${line}` : line);
+  };
+  return {
+    step: (i: number) => (what: string) => (current.set(i, what), show(i)),
+    done: (i: number) => {
+      built++;
+      current.delete(i);
+      const next = current.keys().next();
+      if (!next.done) show(next.value);
+    },
+  };
+}
+
 // The AI's new version of the draft made into a real test: kept questions carried over, new ones checked. New app
 // pages are built first, side by side, each in its own request
-async function buildDraft(raw: RawTest, previous: AssessmentTest | undefined, ctx: ChatContext, research?: string): Promise<{ test?: AssessmentTest; dropped: number }> {
+async function buildDraft(raw: RawTest, previous: AssessmentTest | undefined, ctx: ChatContext, research?: string, progress: Progress = () => {}): Promise<{ test?: AssessmentTest; dropped: number }> {
   // A new question in a type the company hasn't picked is left out, whatever the AI sent; kept ones stay until rewritten
   const items = (raw.questions ?? []).filter((item) => item.keep || allowedStyle(ctx, item.type));
+  // In a conversation an app comes with the spec for its page, not the page: anything that isn't HTML is built first
+  const isSpec = (item: RawQuestion) => !item.keep && item.type === 'app' && !!item.appHtml?.trim() && !/<(html|body|div|script|style|svg)\b/i.test(item.appHtml);
+  const pages = items.filter(isSpec);
+  const fresh = items.filter((item) => !item.keep).length;
+  if (!pages.length && fresh) progress(`Checking ${fresh === 1 ? 'the new question' : `all ${fresh} questions`} and their answers…`);
+  const tracker = pageTracker(pages.map((item) => String(item.title ?? '')), progress);
   const built = await Promise.all(
     items.map(async (item) => {
       if (item.keep) return previous?.questions.find((q) => q.id === item.keep) ?? null;
-      // In a conversation an app comes with the spec for its page, not the page: anything that isn't HTML is built first
-      const isSpec = item.type === 'app' && !!item.appHtml?.trim() && !/<(html|body|div|script|style|svg)\b/i.test(item.appHtml);
-      const ready = isSpec ? await buildAppPage(item, research, pageModeOf(ctx)) : item;
-      return checkQuestion(ready);
+      if (!isSpec(item)) return checkQuestion(item);
+      const i = pages.indexOf(item);
+      const step = tracker.step(i);
+      const ready = await buildAppPage(item, research, pageModeOf(ctx), step);
+      step('checking its tasks start unfinished, so they can be marked…');
+      const checked = await checkQuestion(ready);
+      tracker.done(i);
+      return checked;
     })
   );
   const questions = linkTasks(items, built);
@@ -304,7 +348,14 @@ function sectionsOf(items: PlanItem[]): string[][] {
 // A new test in stages, each request short enough for the host's time limit: the plan (what the hire needs and an
 // outline), then every section written at once, then every interactive page built and tried out
 async function planAndWrite(state: ChatState, messages: ChatMessage[], ctx: ChatContext, request: Record<string, unknown>, progress: (stage: string) => void) {
-  progress('Working out what this hire really needs…');
+  // The server researches the job on the web first when the test can have simulations and nothing's been researched yet
+  const researching = !state.research && (!stylesOf(ctx).length || stylesOf(ctx).includes('app'));
+  const role = ctx.jobTitle?.trim();
+  progress(
+    researching
+      ? `Searching the web for how ${role ? `a ${role}` : 'this job'} is really done, then planning the test…`
+      : 'Planning the test: what this hire needs and the sections…'
+  );
   const planned = await post('/api/plan-test', request);
   if (planned.failure) return { failure: planned.failure };
   const body = planned.body;
@@ -325,12 +376,12 @@ async function planAndWrite(state: ChatState, messages: ChatMessage[], ctx: Chat
   });
 
   const sections = sectionsOf(plan.items);
-  progress(`Writing ${plan.items.length} questions in ${sections.length} sections…`);
+  progress(`Planned ${plan.items.length} ${plan.items.length === 1 ? 'question' : 'questions'}. Writing ${sections.length === 1 ? 'the section' : `${sections.length} sections side by side`}…`);
   const brief = messages.filter((m) => m.role === 'user').map((m) => m.text).join('\n\n');
   let done = 0;
   const written = await inBatches(sections, 6, async (write) => {
     const part = await post('/api/write-questions', { ...request, brief, plan, write, research });
-    progress(`Written ${++done} of ${sections.length} sections…`);
+    if (++done < sections.length) progress(`Written ${done} of ${sections.length} sections. Still writing the rest…`);
     // Matched to the plan by position; the plan's ref and taskRef win, since the writer sometimes drops them
     return ((part.body.questions ?? []) as RawQuestion[]).slice(0, write.length).map((q, i) => {
       const item = plan.items.find((it) => it.ref === write[i]);
@@ -342,7 +393,7 @@ async function planAndWrite(state: ChatState, messages: ChatMessage[], ctx: Chat
   // Each simulation's spec is checked against how the job is really done and fixed before its page is built; a check
   // that fails leaves the spec as written
   if (apps) {
-    progress(`Checking ${apps === 1 ? 'the simulation' : `${apps} simulations`} against how the job is really done…`);
+    progress(`Checking ${apps === 1 ? 'the simulation' : `${apps} simulations`} against how the job is really done, as someone in the job would…`);
     questions = await Promise.all(
       questions.map(async (q) => {
         if (q.type !== 'app' || !q.appHtml) return q;
@@ -362,14 +413,7 @@ async function planAndWrite(state: ChatState, messages: ChatMessage[], ctx: Chat
       })
     );
   }
-  progress(
-    ctx.kind === 'standalone' && apps
-      ? 'Building the simulation and trying every task out. This takes about five minutes…'
-      : apps
-      ? `Building ${apps} interactive ${apps === 1 ? 'task' : 'tasks'} and checking every answer…`
-      : 'Checking every answer…'
-  );
-  const built = await buildDraft({ ...plan, skillsTested: plan.blueprint, questions }, undefined, ctx, research);
+  const built = await buildDraft({ ...plan, skillsTested: plan.blueprint, questions }, undefined, ctx, research, progress);
   const missing = plan.items.length - questions.length;
   return { body: { ...body, test: undefined }, built: { ...built, dropped: built.dropped + missing } };
 }
@@ -416,7 +460,7 @@ export async function sendChat(state: ChatState, text: string, ctx: ChatContext,
     body = out.body ?? {};
     staged = out.built;
   } else {
-    progress('Thinking it over…');
+    progress('Reading your message and working out the changes…');
     ({ body, failure } = await post('/api/test-chat', request));
     // Vetter judged the change too big to make in one go: plan and write the test afresh
     if (!failure && body.lookUp === 'REPLAN') {
@@ -454,16 +498,23 @@ export async function sendChat(state: ChatState, text: string, ctx: ChatContext,
   let draft = state.draft;
   let note: string | undefined;
   if (staged || body.test) {
-    const built = staged ?? (await buildDraft(body.test, state.draft, ctx, body.research ?? state.research));
+    const built = staged ?? (await buildDraft(body.test, state.draft, ctx, body.research ?? state.research, progress));
     if (built.test) draft = built.test;
     if (built.dropped) note = built.test ? `${built.dropped} ${built.dropped === 1 ? 'question' : 'questions'} failed Vetter's checks and ${built.dropped === 1 ? 'was' : 'were'} left out.` : "None of the new questions passed Vetter's checks, so the draft wasn't changed. Try asking again.";
   }
   // Changes to app pages in the draft, made in place by the page builder, side by side
   const edits = ((body.appEdits ?? []) as { id: string; change: string; taskPrompt: string }[]).filter((e) => e.change?.trim() && draft?.questions.some((q) => q.id === e.id && q.type === 'app'));
   if (draft && edits.length) {
-    progress(edits.length === 1 ? 'Changing the app…' : `Changing ${edits.length} apps…`);
     const research = body.research ?? state.research;
-    const changed = await Promise.all(edits.map((e) => editAppPage(draft!.questions.find((q) => q.id === e.id)!, e.change, e.taskPrompt, research, pageModeOf(ctx))));
+    const targets = edits.map((e) => draft!.questions.find((q) => q.id === e.id)!);
+    const tracker = pageTracker(targets.map((q) => q.title), progress);
+    const changed = await Promise.all(
+      edits.map(async (e, i) => {
+        const out = await editAppPage(targets[i], e.change, e.taskPrompt, research, pageModeOf(ctx), tracker.step(i));
+        tracker.done(i);
+        return out;
+      })
+    );
     const failed = changed.filter((q) => !q).length;
     draft = withChangedQuestions(draft, changed.filter((q): q is Question => !!q));
     if (failed) note = [note, `${failed === 1 ? "One app change didn't" : `${failed} app changes didn't`} pass Vetter's checks, so ${failed === 1 ? 'that app was' : 'those apps were'} left as ${failed === 1 ? 'it was' : 'they were'}. Try asking again.`].filter(Boolean).join(' ');

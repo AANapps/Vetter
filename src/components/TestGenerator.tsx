@@ -540,7 +540,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                 <div className="flex gap-2.5">
                   <VAvatar pulse />
                   <div className="px-4 py-2.5 rounded-3xl rounded-tl-lg bg-slate-100 text-base leading-[1.65] text-slate-600">
-                    <WorkingStep first={!draft} stage={stage} />
+                    <WorkingStep stage={stage} />
                   </div>
                 </div>
               )}
@@ -620,12 +620,10 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
 
           {/* The test as the candidate will see it, updating as the conversation goes and editable in place */}
           <section className={`${pane === 'draft' ? 'block' : 'hidden'} lg:block relative min-h-0 overflow-hidden bg-slate-50/60`}>
-            {/* While Vetter works on a draft already there, the building card sits over it */}
+            {/* While Vetter works on a draft already there, the building card sits over it, the draft blurred behind */}
             {working && draft && (
-              <div className="absolute inset-x-0 top-0 z-10 p-4 flex justify-center bg-gradient-to-b from-slate-50/95 via-slate-50/80 to-transparent pb-10">
-                <div className="w-full max-w-md">
-                  <BuildingCard compact title={buildingTitle} stage={stage} />
-                </div>
+              <div className="absolute inset-0 z-10 p-4 flex items-center justify-center build-veil">
+                <BuildingCard title={buildingTitle} stage={stage} />
               </div>
             )}
             {draft ? (
@@ -771,28 +769,17 @@ const VAvatar: React.FC<{ pulse?: boolean }> = ({ pulse }) => (
   </span>
 );
 
-// What Vetter says while it works: the real steps first, then it keeps going round these until it's done
-const FIRST_STEPS = ['Reading the job…', 'Working out what this hire really needs…', 'Looking up the software it uses…', 'Planning the sections…', 'Writing the case studies…', 'Writing the questions…', 'Building the interactive tasks…', 'Trying out every task…', 'Checking every answer…'];
-const EDIT_STEPS = ['Thinking it over…', 'Updating the draft…', 'Building any new tasks…', 'Checking the new questions…'];
-const STILL_GOING = ['Building…', 'Working on it…', 'Putting it together…', 'Polishing the questions…', 'Double-checking…', 'Finishing up…', 'Nearly there…'];
-const STEP_MS = 10000;
-
-// The stage Vetter reports when it has one, with how long it's been going, since a thorough test takes a few minutes
-const WorkingStep: React.FC<{ first: boolean; stage: string }> = ({ first, stage }) => {
-  const steps = first ? FIRST_STEPS : EDIT_STEPS;
-  const [tick, setTick] = useState(0);
+// What Vetter is doing right now, only ever the step it's really on (sent as each one starts), with how long it's been
+// going, since a thorough test takes a few minutes
+const WorkingStep: React.FC<{ stage: string }> = ({ stage }) => {
   const [seconds, setSeconds] = useState(0);
   useEffect(() => {
-    setTick(0);
-    setSeconds(0);
-    const timer = setInterval(() => setTick((t) => t + 1), STEP_MS);
     const clock = setInterval(() => setSeconds((s) => s + 1), 1000);
-    return () => (clearInterval(timer), clearInterval(clock));
-  }, [first]);
-  const text = stage || (tick < steps.length ? steps[tick] : STILL_GOING[(tick - steps.length) % STILL_GOING.length]);
+    return () => clearInterval(clock);
+  }, []);
   return (
     <span>
-      {text}
+      {stage || 'Starting…'}
       {seconds >= 5 && <span className="ml-2 text-slate-400 tabular-nums">{Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}</span>}
     </span>
   );
