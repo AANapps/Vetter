@@ -578,10 +578,10 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                         usedBy={usedByOf(t)}
                         ranked={getTestStats(t, allCandidates).candidatesRanked}
                         onOpen={() => onOpenTest(t.id)}
-                        onEdit={own || (isVetter && isEditable(t)) ? () => editTest(t) : undefined}
+                        // The Vetter team edits any library test; Enhance with AI is in the builder for one made by hand
+                        onEdit={own || isVetter ? () => editTest(t) : undefined}
                         // The Vetter team can delete library tests written in the builder; the built-in ones stay
                         onDelete={own ? () => deleteTest(t) : isVetter && isEditable(t) ? () => deleteTest(t) : undefined}
-                        onDeepen={isVetter ? () => onGenerateTest(deepenSeed(t)) : undefined}
                       />
                     );
                   }),
@@ -614,13 +614,6 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
     </div>
   );
 };
-
-// What the test chat is asked when the Vetter team rebuilds a library test in depth
-const deepenSeed = (t: AssessmentTest) =>
-  `Rebuild this Vetter library test in depth, as a full test with a case study, written answers and hands-on tasks:\n\n` +
-  `${t.title} (${levelName(t.difficulty)}, ${t.category})\n${t.description}\nSkills: ${t.skillsTested.join(', ')}` +
-  (t.roles?.length ? `\nFor: ${t.roles.join(', ')}` : '') +
-  `\n\nIt currently has ${t.questions.length} questions: ${t.questions.map((q) => q.title).join('; ')}.`;
 
 // One test on one line: what it is and whose, how long, how it's doing, the jobs it's on, and what can be done to it
 const TestRow: React.FC<{
@@ -689,16 +682,6 @@ const TestRow: React.FC<{
         )}
       </div>
       <div className="flex items-center justify-end gap-2">
-        {onDeepen && test.questions.length < 12 && (
-          <button onClick={stop(onDeepen)} title="Write a full, in-depth version of this test with Vetter's AI" aria-label={`Rebuild ${test.title} in depth`} className="text-indigo-600 hover:text-indigo-900">
-            <Sparkles className="w-3.5 h-3.5" />
-          </button>
-        )}
-        {onAiEdit && (
-          <button onClick={stop(onAiEdit)} title="Edit with AI: tell Vetter what to change" aria-label={`Edit ${test.title} with AI`} className="text-indigo-600 hover:text-indigo-900">
-            <Sparkles className="w-3.5 h-3.5" />
-          </button>
-        )}
         {onEdit && (
           <button onClick={stop(onEdit)} title="Edit" aria-label={`Edit ${test.title}`} className="text-slate-400 hover:text-indigo-700">
             <Pencil className="w-3.5 h-3.5" />

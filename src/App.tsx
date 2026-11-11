@@ -1480,8 +1480,8 @@ export default function App() {
                   ? () => setDraftBuilder({ draft: testPageTest, isCopy: true, alsoAdd: [] })
                   : undefined
               }
-              {...(activeRole === 'admin' && testPageTest.type !== 'custom' && /^test-(custom|vetter)-\d{10,}$/.test(testPageTest.id) && {
-                // A library test the Vetter team made in the app: back to the AI chat if made with AI, else the builder
+              {...((activeRole === 'admin' || account?.role === 'admin') && testPageTest.type !== 'custom' && {
+                // Any library test, for the Vetter team (in either view): back to the AI chat if made with AI, else the builder
                 onEdit: () => (madeWithAI(testPageTest) ? enhanceTest(testPageTest.id) : setDraftBuilder({ draft: testPageTest, alsoAdd: [] })),
               })}
               {...(activeRole === 'recruiter' && recruiterBusiness && testPageTest.type === 'custom' && testPageTest.businessId === recruiterBusiness.id && {
@@ -2020,7 +2020,7 @@ export default function App() {
             const saved = tests.find((t) => t.id === draftBuilder.draft?.id);
             const companys = saved?.type === 'custom' && !!saved.businessId && saved.businessId === recruiterBusiness?.id;
             // The Vetter team's own library tests, made in the app, too
-            const vetters = activeRole === 'admin' && saved?.type !== 'custom' && !!saved && /^test-(custom|vetter)-\d{10,}$/.test(saved.id);
+            const vetters = (activeRole === 'admin' || account?.role === 'admin') && !!saved && saved.type !== 'custom';
             if (!saved || draftBuilder.isCopy || !(companys || vetters)) return undefined;
             return (test: AssessmentTest) => {
               if (!aiAllowed) return setPlansOpen(true);
