@@ -326,7 +326,7 @@ bluff or look up the answer quickly.
   simple game: drag the leads or parts into the right ports, connect it to the right points, turn the dial to the right
   range or mode, set the values, then take and record the reading or result, which follows from how they set it up (a
   wrong range or port gives the wrong or no reading, as it would). Questions on reading its display or picking its
-  setting can follow it as sub-questions.`;
+  setting can follow it as sub-questions.
 - Tasks carry the snags of real work: messy or inconsistent data, an edge case, a conflicting request, a trap a careless
   person falls into. Checks reward doing it properly, not just doing something.
 - Scale to the level: Beginner and Junior still apply what they know to a situation; Professional and Senior weigh
