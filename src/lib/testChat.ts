@@ -123,8 +123,41 @@ export const pageModeOf = (ctx: ChatContext): PageMode => ({
   sector: ctx.business?.sector,
 });
 
-// What Vetter is doing right now, told to the company as it happens (each call is a real step starting)
-type Progress = (stage: string) => void;
+// What Vetter is doing right now, told to the company as it happens (each call is a real step starting). The major
+// steps come along as a checklist when it changes; a call without one leaves the last checklist as it was
+export interface BuildStep {
+  id: string;
+  label: string;
+  status: 'todo' | 'doing' | 'done';
+}
+export type Progress = (stage: string, steps?: BuildStep[]) => void;
+
+// The checklist of a build's major steps, all shown from the start. Starting a step ticks off every step before it;
+// steps can be added once they're known, or dropped once they're not needed
+function checklist(progress: Progress, items: [string, string][]) {
+  let steps: BuildStep[] = items.map(([id, label]) => ({ id, label, status: 'todo' }));
+  const emit = (stage: string) => progress(stage, steps.map((step) => ({ ...step })));
+  return {
+    start(ids: string | string[], stage: string) {
+      const list = Array.isArray(ids) ? ids : [ids];
+      const first = steps.findIndex((step) => list.includes(step.id));
+      steps = steps.map((step, i) => (list.includes(step.id) ? { ...step, status: 'doing' } : first >= 0 && i < first ? { ...step, status: 'done' } : step));
+      emit(stage);
+    },
+    has: (id: string) => steps.some((step) => step.id === id),
+    drop(ids: string[]) {
+      steps = steps.filter((step) => !ids.includes(step.id));
+    },
+    add(items: [string, string][]) {
+      steps = [...steps, ...items.filter(([id]) => !steps.some((step) => step.id === id)).map(([id, label]) => ({ id, label, status: 'todo' as const }))];
+    },
+    finish() {
+      steps = steps.map((step) => ({ ...step, status: 'done' }));
+      emit('Done');
+    },
+  };
+}
+type Checklist = ReturnType<typeof checklist>;
 
 async function buildAppPage(item: RawQuestion, research?: string, mode: PageMode = {}, step: Progress = () => {}): Promise<RawQuestion> {
   const request = (fix?: { html: string; problems: string[] }, quick?: boolean) =>
@@ -229,14 +262,18 @@ function pageTracker(titles: string[], progress: Progress) {
 
 // The AI's new version of the draft made into a real test: kept questions carried over, new ones checked. New app
 // pages are built first, side by side, each in its own request
-async function buildDraft(raw: RawTest, previous: AssessmentTest | undefined, ctx: ChatContext, research?: string, progress: Progress = () => {}): Promise<{ test?: AssessmentTest; dropped: number }> {
+async function buildDraft(raw: RawTest, previous: AssessmentTest | undefined, ctx: ChatContext, research?: string, progress: Progress = () => {}, list?: Checklist): Promise<{ test?: AssessmentTest; dropped: number }> {
   // A new question in a type the company hasn't picked is left out, whatever the AI sent; kept ones stay until rewritten
   const items = (raw.questions ?? []).filter((item) => item.keep || allowedStyle(ctx, item.type));
   // In a conversation an app comes with the spec for its page, not the page: anything that isn't HTML is built first
   const isSpec = (item: RawQuestion) => !item.keep && item.type === 'app' && !!item.appHtml?.trim() && !/<(html|body|div|script|style|svg)\b/i.test(item.appHtml);
   const pages = items.filter(isSpec);
   const fresh = items.filter((item) => !item.keep).length;
-  if (!pages.length && fresh) progress(`Checking ${fresh === 1 ? 'the new question' : `all ${fresh} questions`} and their answers…`);
+  if (!pages.length) list?.drop(['build']);
+  const checking = `Checking ${fresh === 1 ? 'the new question' : `all ${fresh} questions`} and their answers…`;
+  // The other questions are checked while the pages are built, so both steps run at once
+  if (pages.length && list?.has('build')) list.start(fresh > pages.length ? ['build', 'check'] : ['build'], `Building ${pages.length === 1 ? 'the simulation' : `${pages.length} simulations side by side`}…`);
+  else if (fresh) (list ? list.start('check', checking) : progress(checking));
   const tracker = pageTracker(pages.map((item) => String(item.title ?? '')), progress);
   const built = await Promise.all(
     items.map(async (item) => {
@@ -347,11 +384,26 @@ function sectionsOf(items: PlanItem[]): string[][] {
 
 // A new test in stages, each request short enough for the host's time limit: the plan (what the hire needs and an
 // outline), then every section written at once, then every interactive page built and tried out
-async function planAndWrite(state: ChatState, messages: ChatMessage[], ctx: ChatContext, request: Record<string, unknown>, progress: (stage: string) => void) {
+async function planAndWrite(state: ChatState, messages: ChatMessage[], ctx: ChatContext, request: Record<string, unknown>, progress: Progress, before: [string, string][] = []) {
   // The server researches the job on the web first when the test can have simulations and nothing's been researched yet
   const researching = !state.research && (!stylesOf(ctx).length || stylesOf(ctx).includes('app'));
   const role = ctx.jobTitle?.trim();
-  progress(
+  const sims = !stylesOf(ctx).length || stylesOf(ctx).includes('app');
+  const list = checklist(progress, [
+    ...before,
+    ...(researching ? [['research', `Research how ${role ? `a ${role}` : 'the job'} is really done`] as [string, string]] : []),
+    ['plan', 'Plan what the hire needs and the sections'],
+    ['write', 'Write the questions, scenarios and figures'],
+    ...(sims
+      ? ([
+          ['spec', 'Check the simulations against the real job'],
+          ['build', 'Design and build the simulations'],
+        ] as [string, string][])
+      : []),
+    ['check', 'Check every question, answer and mark'],
+  ]);
+  list.start(
+    researching ? 'research' : 'plan',
     researching
       ? `Searching the web for how ${role ? `a ${role}` : 'this job'} is really done, then planning the test…`
       : 'Planning the test: what this hire needs and the sections…'
@@ -359,6 +411,7 @@ async function planAndWrite(state: ChatState, messages: ChatMessage[], ctx: Chat
   const planned = await post('/api/plan-test', request);
   if (planned.failure) return { failure: planned.failure };
   const body = planned.body;
+  if (researching) list.start('plan', 'Planning the test: what this hire needs and the sections…');
   const research: string | undefined = body.research ?? state.research;
   const plan = body.plan as (Record<string, any> & { items: PlanItem[]; blueprint: string[] }) | undefined;
   // Only items in the picked styles, and no questions about a case or task that's gone
@@ -376,7 +429,8 @@ async function planAndWrite(state: ChatState, messages: ChatMessage[], ctx: Chat
   });
 
   const sections = sectionsOf(plan.items);
-  progress(`Planned ${plan.items.length} ${plan.items.length === 1 ? 'question' : 'questions'}. Writing ${sections.length === 1 ? 'the section' : `${sections.length} sections side by side`}…`);
+  if (!plan.items.some((item) => item.type === 'app')) list.drop(['spec', 'build']);
+  list.start('write', `Planned ${plan.items.length} ${plan.items.length === 1 ? 'question' : 'questions'}. Writing ${sections.length === 1 ? 'the section' : `${sections.length} sections side by side`}…`);
   const brief = messages.filter((m) => m.role === 'user').map((m) => m.text).join('\n\n');
   let done = 0;
   const written = await inBatches(sections, 6, async (write) => {
@@ -392,8 +446,9 @@ async function planAndWrite(state: ChatState, messages: ChatMessage[], ctx: Chat
   const apps = questions.filter((q) => q.type === 'app').length;
   // Each simulation's spec is checked against how the job is really done and fixed before its page is built; a check
   // that fails leaves the spec as written
+  if (!apps) list.drop(['spec', 'build']);
   if (apps) {
-    progress(`Checking ${apps === 1 ? 'the simulation' : `${apps} simulations`} against how the job is really done, as someone in the job would…`);
+    list.start('spec', `Checking ${apps === 1 ? 'the simulation' : `${apps} simulations`} against how the job is really done, as someone in the job would…`);
     questions = await Promise.all(
       questions.map(async (q) => {
         if (q.type !== 'app' || !q.appHtml) return q;
@@ -413,14 +468,15 @@ async function planAndWrite(state: ChatState, messages: ChatMessage[], ctx: Chat
       })
     );
   }
-  const built = await buildDraft({ ...plan, skillsTested: plan.blueprint, questions }, undefined, ctx, research, progress);
+  const built = await buildDraft({ ...plan, skillsTested: plan.blueprint, questions }, undefined, ctx, research, progress, list);
+  list.finish();
   const missing = plan.items.length - questions.length;
   return { body: { ...body, test: undefined }, built: { ...built, dropped: built.dropped + missing } };
 }
 
 // One turn: the company's message in, Vetter's reply and the draft's new version out. A first draft (or a rewrite of
 // most of it) is planned and written in stages; other changes are made in one go
-export async function sendChat(state: ChatState, text: string, ctx: ChatContext, progress: (stage: string) => void = () => {}): Promise<ChatState> {
+export async function sendChat(state: ChatState, text: string, ctx: ChatContext, progress: Progress = () => {}): Promise<ChatState> {
   const messages: ChatMessage[] = [...state.messages, { role: 'user', text }];
   const library = libraryFor(ctx.tests, ctx.business);
   const request = {
@@ -454,17 +510,22 @@ export async function sendChat(state: ChatState, text: string, ctx: ChatContext,
   let body: Record<string, any> = {};
   let failure: string | undefined;
   let staged: { test?: AssessmentTest; dropped: number } | undefined;
+  // The checklist for a change to a draft (a new draft has its own, in planAndWrite)
+  let list: Checklist | undefined;
   if (!state.draft) {
     const out = await planAndWrite(state, messages, ctx, request, progress);
     ({ failure } = out);
     body = out.body ?? {};
     staged = out.built;
   } else {
-    progress('Reading your message and working out the changes…');
+    const read: [string, string] = ['read', 'Read your message and work out the changes'];
+    list = checklist(progress, [read]);
+    list.start('read', 'Reading your message and working out the changes…');
     ({ body, failure } = await post('/api/test-chat', request));
     // Vetter judged the change too big to make in one go: plan and write the test afresh
     if (!failure && body.lookUp === 'REPLAN') {
-      const out = await planAndWrite(state, messages, ctx, request, progress);
+      list = undefined;
+      const out = await planAndWrite(state, messages, ctx, request, progress, [read]);
       ({ failure } = out);
       body = out.body ?? {};
       staged = out.built;
@@ -497,14 +558,25 @@ export async function sendChat(state: ChatState, text: string, ctx: ChatContext,
   });
   let draft = state.draft;
   let note: string | undefined;
+  const appEditsOn = (test?: AssessmentTest) => ((body.appEdits ?? []) as { id: string; change: string; taskPrompt: string }[]).filter((e) => e.change?.trim() && test?.questions.some((q) => q.id === e.id && q.type === 'app'));
+  if (list && !staged) {
+    const edits = appEditsOn(draft);
+    const newPages = ((body.test?.questions ?? []) as RawQuestion[]).some((q) => !q.keep && q.type === 'app');
+    list.add([
+      ...(newPages ? [['build', 'Design and build the new simulations'] as [string, string]] : []),
+      ...(body.test ? [['check', 'Check every new question, answer and mark'] as [string, string]] : []),
+      ...(edits.length ? [['edit', `Change ${edits.length === 1 ? 'the simulation' : 'the simulations'} and try ${edits.length === 1 ? 'it' : 'them'} out`] as [string, string]] : []),
+    ]);
+  }
   if (staged || body.test) {
-    const built = staged ?? (await buildDraft(body.test, state.draft, ctx, body.research ?? state.research, progress));
+    const built = staged ?? (await buildDraft(body.test, state.draft, ctx, body.research ?? state.research, progress, list));
     if (built.test) draft = built.test;
     if (built.dropped) note = built.test ? `${built.dropped} ${built.dropped === 1 ? 'question' : 'questions'} failed Vetter's checks and ${built.dropped === 1 ? 'was' : 'were'} left out.` : "None of the new questions passed Vetter's checks, so the draft wasn't changed. Try asking again.";
   }
   // Changes to app pages in the draft, made in place by the page builder, side by side
-  const edits = ((body.appEdits ?? []) as { id: string; change: string; taskPrompt: string }[]).filter((e) => e.change?.trim() && draft?.questions.some((q) => q.id === e.id && q.type === 'app'));
+  const edits = appEditsOn(draft);
   if (draft && edits.length) {
+    list?.start('edit', 'Changing the simulation…');
     const research = body.research ?? state.research;
     const targets = edits.map((e) => draft!.questions.find((q) => q.id === e.id)!);
     const tracker = pageTracker(targets.map((q) => q.title), progress);
@@ -519,6 +591,7 @@ export async function sendChat(state: ChatState, text: string, ctx: ChatContext,
     draft = withChangedQuestions(draft, changed.filter((q): q is Question => !!q));
     if (failed) note = [note, `${failed === 1 ? "One app change didn't" : `${failed} app changes didn't`} pass Vetter's checks, so ${failed === 1 ? 'that app was' : 'those apps were'} left as ${failed === 1 ? 'it was' : 'they were'}. Try asking again.`].filter(Boolean).join(' ');
   }
+  list?.finish();
   return {
     messages: [...messages, { role: 'assistant', text: String(body.reply ?? '').trim() || 'Done.', ...(note && { note }) }],
     draft,

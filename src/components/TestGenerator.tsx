@@ -5,7 +5,7 @@ import { QUESTION_STYLES } from '../lib/questionTypes';
 import { DraftPreview, Dropdown, draftProblems, finaliseDraft } from './DraftPreview';
 import { BuildingCard } from './BuildingCard';
 import { jobBrief } from '../lib/testGeneration';
-import { ChatState, sendChat } from '../lib/testChat';
+import { BuildStep, ChatState, sendChat } from '../lib/testChat';
 import { versionTitle } from '../lib/testLevels';
 import { Credit, estimateTest, loadCredit, pounds, setAiPurpose } from '../lib/aiRequest';
 import { CreditsDialog } from './CreditsDialog';
@@ -108,6 +108,8 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
   const [working, setWorking] = useState(false);
   // What Vetter is doing right now, as it reports it
   const [stage, setStage] = useState('');
+  // The build's major steps, ticked off as it goes
+  const [steps, setSteps] = useState<BuildStep[]>([]);
   const [savingDraft, setSavingDraft] = useState(false);
   const [chosen, setChosen] = useState<string[]>([]);
   const [keepNew, setKeepNew] = useState(true);
@@ -254,7 +256,11 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
     // Each charge names the test it was for
     setAiPurpose(chat.draft?.title || original?.title || (job ? `${job.title} test` : 'New test'));
     setStage('');
-    const next = await sendChat(base, message, ctx, setStage);
+    setSteps([]);
+    const next = await sendChat(base, message, ctx, (line, list) => {
+      setStage(line);
+      if (list) setSteps(list);
+    });
     setChat(next);
     // New library picks start ticked, unless the job has them already
     setChosen((prev) => [...new Set([...prev.filter((id) => next.existing.some((s) => s.test.id === id)), ...next.existing.filter((s) => !chat.existing.some((e) => e.test.id === s.test.id) && !job?.testIds.includes(s.test.id)).map((s) => s.test.id)])]);
@@ -623,7 +629,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
             {/* While Vetter works on a draft already there, the building card sits over it, the draft blurred behind */}
             {working && draft && (
               <div className="absolute inset-0 z-10 p-4 flex items-center justify-center build-veil">
-                <BuildingCard title={buildingTitle} stage={stage} />
+                <BuildingCard title={buildingTitle} stage={stage} steps={steps} />
               </div>
             )}
             {draft ? (
@@ -657,7 +663,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
               <div className="h-full overflow-y-auto px-5 py-4 space-y-5">
                 {working ? (
                   <div className="h-full flex items-center justify-center py-12">
-                    <BuildingCard title={buildingTitle} stage={stage} />
+                    <BuildingCard title={buildingTitle} stage={stage} steps={steps} />
                   </div>
                 ) : job && chat.existing.length > 0 ? (
                   <LibraryPicks job={job} existing={chat.existing} chosen={chosen} setChosen={setChosen} onOpenTest={onOpenTest} />

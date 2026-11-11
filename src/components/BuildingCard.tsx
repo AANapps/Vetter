@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Cog, Hammer } from "lucide-react";
+import { Check, Cog, Hammer } from "lucide-react";
+import type { BuildStep } from "../lib/testChat";
 
 // Shown in the creator's preview while Vetter builds: a cog turning, then a hammer knocking, then the tabs of the test
 // settling into place, round and round, with what it's doing right now underneath
@@ -8,7 +9,9 @@ export const BuildingCard: React.FC<{
   title: string;
   stage: string;
   compact?: boolean;
-}> = ({ title, stage, compact }) => {
+  // The build's major steps: grey until done, then ticked in purple; the one under way spins
+  steps?: BuildStep[];
+}> = ({ title, stage, compact, steps }) => {
   const [seconds, setSeconds] = useState(0);
   useEffect(() => {
     const clock = setInterval(() => setSeconds((s) => s + 1), 1000);
@@ -68,6 +71,35 @@ export const BuildingCard: React.FC<{
         <div className="mt-3 h-1 w-full rounded-full bg-slate-100 overflow-hidden">
           <span className="build-bar block h-full w-1/3 rounded-full bg-indigo-500" />
         </div>
+        {!compact && !!steps?.length && (
+          <ul className="mt-4 w-full space-y-2 text-left" aria-label="What Vetter is doing">
+            {steps.map((step) => (
+              <li key={step.id} className="flex items-start gap-2.5 text-[13px] leading-snug">
+                {step.status === "done" ? (
+                  <span className="mt-px w-4 h-4 shrink-0 rounded bg-violet-600 flex items-center justify-center">
+                    <Check className="w-3 h-3 text-white" strokeWidth={3} />
+                  </span>
+                ) : step.status === "doing" ? (
+                  <span className="mt-px w-4 h-4 shrink-0 rounded-full border-2 border-violet-200 border-t-violet-600 animate-spin" />
+                ) : (
+                  <span className="mt-px w-4 h-4 shrink-0 rounded border-2 border-slate-300" />
+                )}
+                <span
+                  className={
+                    step.status === "done"
+                      ? "text-violet-700 font-medium"
+                      : step.status === "doing"
+                        ? "text-slate-900 font-semibold"
+                        : "text-slate-400"
+                  }
+                >
+                  {step.label}
+                  <span className="sr-only">{step.status === "done" ? " (done)" : step.status === "doing" ? " (in progress)" : " (to do)"}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );
