@@ -36,6 +36,10 @@ interface RecruiterPortalProps {
   onEditDraftByHand: (draft: TestDraft) => void;
   // Opens one of the company's saved tests where it's edited: the test chat if made with AI, the builder if by hand
   onEditOwnTest: (testId: string) => void;
+  // One of the company's saved tests opened in the test chat to change by asking, however it was made
+  onEditWithAI: (testId: string) => void;
+  // One of the company's saved tests opened in the builder, however it was made
+  onEditByHand: (testId: string) => void;
   // The company's leads pipeline, shown first in the Candidates tab
   leads?: React.ReactNode;
   // Every candidate on Vetter, to browse (src/components/BrowseCandidates.tsx)
@@ -64,6 +68,8 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   onContinueDraft,
   onEditDraftByHand,
   onEditOwnTest,
+  onEditWithAI,
+  onEditByHand,
   leads,
   browse,
 }) => {
@@ -321,6 +327,47 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
             </div>
           )}
 
+          {/* The company's own tests first, each ready to change by asking Vetter or by hand */}
+          {!isVetter && (
+            <section aria-labelledby="my-tests" className="space-y-3">
+              <div className="flex items-baseline justify-between gap-3">
+                <div>
+                  <h2 id="my-tests" className="text-sm font-bold text-slate-900">
+                    My tests <span className="font-mono font-normal text-slate-400 tabular-nums">{companyTests.length}</span>
+                  </h2>
+                  <p className="text-xs text-slate-500">Tests {business.name} made. Edit with AI to change one by asking: harder, shorter, a new task, a different tool.</p>
+                </div>
+              </div>
+              {companyTests.length === 0 ? (
+                <div className="bg-white border border-dashed border-slate-300 rounded-xl px-5 py-8 text-center space-y-3">
+                  <p className="text-sm text-slate-500">You haven't made any tests yet.</p>
+                  <div className="flex flex-wrap justify-center gap-2">
+                    <button onClick={() => onGenerateTest()} className="create-border px-3 py-2 text-xs font-semibold text-indigo-700 hover:text-indigo-900 rounded-lg">
+                      Create with AI
+                    </button>
+                    <button onClick={() => setBuilding({})} className="px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:border-slate-400 rounded-lg">
+                      Create a test
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <ul className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                  {companyTests.map((t) => (
+                    <MyTestCard
+                      key={t.id}
+                      test={t}
+                      usedBy={usedByOf(t)}
+                      onOpen={() => onOpenTest(t.id)}
+                      onEditWithAI={() => onEditWithAI(t.id)}
+                      onEditByHand={() => onEditByHand(t.id)}
+                      onDelete={() => deleteTest(t)}
+                    />
+                  ))}
+                </ul>
+              )}
+            </section>
+          )}
+
           <div className="grid grid-cols-1 lg:grid-cols-[15rem_minmax(0,1fr)] gap-6 items-start">
           {/* Browse by industry and role, as candidates do */}
           <aside className="hidden lg:block bg-white border border-slate-200 rounded-xl p-4 space-y-4 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto lg:overscroll-contain [scrollbar-width:thin]">
@@ -437,7 +484,8 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                         usedBy={usedByOf(t)}
                         ranked={getTestStats(t, allCandidates).candidatesRanked}
                         onOpen={() => onOpenTest(t.id)}
-                        onEdit={own ? () => onEditOwnTest(t.id) : isVetter ? editFor(t) : undefined}
+                        onEdit={own ? () => onEditByHand(t.id) : isVetter ? editFor(t) : undefined}
+                        onAiEdit={own ? () => onEditWithAI(t.id) : undefined}
                         // The Vetter team can delete library tests written in the builder; the built-in ones stay
                         onDelete={own ? () => deleteTest(t) : isVetter && isEditable(t) ? () => deleteTest(t) : undefined}
                         onDeepen={isVetter ? () => onGenerateTest(deepenSeed(t)) : undefined}
@@ -491,7 +539,9 @@ const TestRow: React.FC<{
   onDelete?: () => void;
   // Rebuilds it with the AI as a full, in-depth test
   onDeepen?: () => void;
-}> = ({ test, own, usedBy, ranked, onOpen, onEdit, onDelete, onDeepen }) => {
+  // Opens it in the test chat to change by asking
+  onAiEdit?: () => void;
+}> = ({ test, own, usedBy, ranked, onOpen, onEdit, onDelete, onDeepen, onAiEdit }) => {
   const stop = (fn: () => void) => (e: React.MouseEvent) => {
     e.stopPropagation();
     fn();
@@ -550,6 +600,11 @@ const TestRow: React.FC<{
             <Sparkles className="w-3.5 h-3.5" />
           </button>
         )}
+        {onAiEdit && (
+          <button onClick={stop(onAiEdit)} title="Edit with AI: tell Vetter what to change" aria-label={`Edit ${test.title} with AI`} className="text-indigo-600 hover:text-indigo-900">
+            <Sparkles className="w-3.5 h-3.5" />
+          </button>
+        )}
         {onEdit && (
           <button onClick={stop(onEdit)} title="Edit" aria-label={`Edit ${test.title}`} className="text-slate-400 hover:text-indigo-700">
             <Pencil className="w-3.5 h-3.5" />
@@ -564,6 +619,43 @@ const TestRow: React.FC<{
     </li>
   );
 };
+
+// One of the company's own tests: what it is, where it's used, and editing it with AI or by hand
+const MyTestCard: React.FC<{
+  test: AssessmentTest;
+  usedBy: JobPosting[];
+  onOpen: () => void;
+  onEditWithAI: () => void;
+  onEditByHand: () => void;
+  onDelete: () => void;
+}> = ({ test, usedBy, onOpen, onEditWithAI, onEditByHand, onDelete }) => (
+  <li className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col gap-3 min-w-0">
+    <div className="min-w-0">
+      <button onClick={onOpen} className="text-sm font-semibold text-slate-900 hover:text-indigo-700 text-left break-words">
+        {test.title}
+      </button>
+      <p className="text-xs text-slate-500">
+        {test.category} &middot; {levelName(test.difficulty)} &middot; {test.totalQuestions} {test.totalQuestions === 1 ? 'task' : 'tasks'} &middot; ~{test.estimatedMinutes} min
+      </p>
+      <p className="text-xs text-slate-400 truncate" title={usedBy.map((j) => j.title).join(', ') || undefined}>
+        {usedBy.length ? `On ${usedBy.length === 1 ? usedBy[0].title : `${usedBy.length} jobs`}` : 'Not on a job yet'}
+      </p>
+    </div>
+    <div className="mt-auto flex flex-wrap items-center gap-2">
+      <button onClick={onEditWithAI} className="px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg inline-flex items-center gap-1.5">
+        <Sparkles className="w-3.5 h-3.5" />
+        Edit with AI
+      </button>
+      <button onClick={onEditByHand} className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:border-slate-400 rounded-lg inline-flex items-center gap-1.5">
+        <Pencil className="w-3.5 h-3.5" />
+        Edit by hand
+      </button>
+      <button onClick={onDelete} title="Delete test" aria-label={`Delete ${test.title}`} className="ml-auto text-slate-400 hover:text-rose-600">
+        <Trash2 className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  </li>
+);
 
 // A test still being written: what it is so far, and ways to carry on or throw it away
 const DraftCard: React.FC<{

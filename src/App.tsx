@@ -1809,6 +1809,11 @@ export default function App() {
               onContinueDraft={(d) => openGenerator({ jobId: d.jobId, resume: d })}
               onEditDraftByHand={(d) => setDraftBuilder({ draft: d.test, jobId: d.jobId, alsoAdd: [], record: d })}
               onEditOwnTest={editOwnTest}
+              onEditWithAI={(testId) => enhanceTest(testId)}
+              onEditByHand={(testId) => {
+                const test = tests.find((t) => t.id === testId);
+                if (test) setDraftBuilder({ draft: test, alsoAdd: [] });
+              }}
               browse={<BrowseCandidates candidates={allCandidates} onOpenPerson={openPerson} />}
               leads={
                 <LeadsPage
