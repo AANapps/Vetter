@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, Lightbulb, Lock, RotateCcw } from 'lucide-react';
+import { AlertTriangle, Lightbulb, Lock, Maximize2, Minimize2, RotateCcw } from 'lucide-react';
 import { AppCallout } from '../types';
 import { appDocument, parseAppState, readAppMessage } from '../lib/appSimulation';
 
@@ -16,6 +16,9 @@ interface AppWindowProps {
 // app resumes from it when they come back to the task
 export const AppWindow: React.FC<AppWindowProps> = ({ value, onChange, html, appName, callouts }) => {
   const frameRef = useRef<HTMLIFrameElement>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
+  // Full screen: the browser's own where it has one, otherwise the window fills the page (e.g. iPhone Safari)
+  const [full, setFull] = useState(false);
   // The page is built once per load: rebuilding it on every save would reload the app under the candidate
   const [doc, setDoc] = useState(() => appDocument(html, parseAppState(value), false, callouts));
   const [error, setError] = useState<string | null>(null);
@@ -34,6 +37,32 @@ export const AppWindow: React.FC<AppWindowProps> = ({ value, onChange, html, app
     return () => window.removeEventListener('message', onMessage);
   }, []);
 
+  useEffect(() => {
+    const onChange = () => setFull(document.fullscreenElement === boxRef.current && !!boxRef.current);
+    document.addEventListener('fullscreenchange', onChange);
+    return () => document.removeEventListener('fullscreenchange', onChange);
+  }, []);
+
+  // Escape leaves the fallback full screen (the browser handles it for its own)
+  useEffect(() => {
+    if (!full || document.fullscreenElement) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setFull(false);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [full]);
+
+  const toggleFull = () => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => setFull(false));
+    } else if (full) {
+      setFull(false);
+    } else if (boxRef.current?.requestFullscreen) {
+      boxRef.current.requestFullscreen().catch(() => setFull(true));
+    } else {
+      setFull(true);
+    }
+  };
+
   const reset = () => {
     if (!window.confirm(`Start ${appName} again from the beginning? Your work in it will be lost.`)) return;
     setError(null);
@@ -43,7 +72,10 @@ export const AppWindow: React.FC<AppWindowProps> = ({ value, onChange, html, app
   };
 
   return (
-    <div className="h-full flex flex-col bg-white border border-slate-300 rounded-lg overflow-hidden shadow-sm">
+    <div
+      ref={boxRef}
+      className={`flex flex-col bg-white overflow-hidden ${full ? 'fixed inset-0 z-[100] w-screen h-[100dvh]' : 'h-full border border-slate-300 rounded-lg shadow-sm'}`}
+    >
       <div className="h-9 px-3 flex items-center gap-3 bg-slate-100 border-b border-slate-200 shrink-0">
         <div className="flex gap-1.5" aria-hidden="true">
           <span className="w-2.5 h-2.5 rounded-full bg-rose-300" />
@@ -64,6 +96,15 @@ export const AppWindow: React.FC<AppWindowProps> = ({ value, onChange, html, app
             Tips
           </button>
         )}
+        {!full && <span className="hidden md:inline text-[11px] text-slate-500 whitespace-nowrap">Full screen for the full experience</span>}
+        <button
+          onClick={toggleFull}
+          className="flex items-center gap-1 text-[11px] font-semibold text-indigo-700 hover:text-indigo-900"
+          title={full ? 'Leave full screen (Esc)' : 'Open the app full screen'}
+        >
+          {full ? <Minimize2 className="w-3 h-3" /> : <Maximize2 className="w-3 h-3" />}
+          {full ? 'Exit full screen' : 'Full screen'}
+        </button>
         <button onClick={reset} className="flex items-center gap-1 text-[11px] font-semibold text-slate-600 hover:text-slate-900" title="Start the app again">
           <RotateCcw className="w-3 h-3" />
           Reset
