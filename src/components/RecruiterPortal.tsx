@@ -106,18 +106,20 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
     isVetter
       ? [
           ['all', 'All'],
+          ['yours', 'Your tests'],
           ['on-jobs', 'On a job'],
         ]
       : [
           ['all', 'All'],
-          ['yours', 'Yours'],
+          ['yours', 'Your tests'],
           ['vetter', 'Library'],
           ['on-jobs', 'On your jobs'],
         ]
   ) as [typeof testSource, string][];
   const inSource = (t: AssessmentTest, src: typeof testSource) =>
     src === 'all' || (src === 'yours' ? t.type === 'custom' : src === 'vetter' ? vetterTests.includes(t) : usedByOf(t).length > 0);
-  const countFor = (src: typeof testSource) => allTests.filter((t) => inSource(t, src)).length;
+  // For the Vetter team, Your tests is every company's own tests, listed company by company
+  const countFor = (src: typeof testSource) => (isVetter && src === 'yours' ? byCompany.reduce((n, c) => n + c.tests.length, 0) : allTests.filter((t) => inSource(t, src)).length);
   // A test's roles: its own, or for a company's test (which has none) the roles the library's tests of its category
   // are for, so it's filed beside them
   const rolesByCategory = new Map<string, TestRole[]>();
@@ -315,56 +317,6 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
             </label>
           )}
 
-          {/* For the Vetter team: what each company has made, apart from Vetter's library */}
-          {isVetter && (
-            <section aria-labelledby="company-tests" className="space-y-3">
-              <div>
-                <h2 id="company-tests" className="text-lg font-bold text-slate-900">
-                  Companies' own tests{' '}
-                  <span className="font-mono font-normal text-slate-400 tabular-nums">{byCompany.reduce((n, c) => n + c.tests.length, 0)}</span>
-                </h2>
-                <p className="text-xs text-slate-500">Tests each company made for its jobs, separate from Vetter's library.</p>
-              </div>
-              {byCompany.length === 0 ? (
-                <p className="bg-white border border-dashed border-slate-300 rounded-xl px-5 py-6 text-center text-sm text-slate-500">No company has made a test yet.</p>
-              ) : (
-                <div className="bg-white border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-200">
-                  {byCompany.map((c) => (
-                    <div key={c.id}>
-                      <div className="px-4 py-2.5 bg-slate-50 flex items-baseline justify-between gap-3">
-                        <h3 className="text-sm font-semibold text-slate-900">{c.name}</h3>
-                        <span className="text-xs font-mono text-slate-400 tabular-nums">
-                          {c.tests.length} {c.tests.length === 1 ? 'test' : 'tests'}
-                        </span>
-                      </div>
-                      <ul className="divide-y divide-slate-100">
-                        {c.tests.map((t) => (
-                          <li key={t.id}>
-                            <button onClick={() => onOpenTest(t.id)} className="w-full text-left px-4 py-2.5 hover:bg-slate-50 flex flex-wrap items-center gap-x-3 gap-y-1">
-                              <span className="text-sm font-medium text-slate-900 break-words min-w-0">{t.title}</span>
-                              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${madeWithAI(t) ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-100 text-slate-600'}`}>
-                                {madeWithAI(t) ? 'Made with AI' : 'Made by hand'}
-                              </span>
-                              {t.publicStatus && (
-                                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-900 text-white">
-                                  {t.publicStatus === 'approved' ? 'Public' : t.publicStatus === 'pending' ? 'Waiting for approval' : 'Not approved'}
-                                </span>
-                              )}
-                              <span className="ml-auto text-xs text-slate-500 tabular-nums">
-                                {levelName(t.difficulty)} &middot; ~{t.estimatedMinutes} min
-                                {madeAt(t) ? <> &middot; {new Date(madeAt(t)).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: '2-digit' })}</> : null}
-                              </span>
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
-          )}
-
           {/* The company's own tests first, each ready to change by asking Vetter or by hand */}
           {!isVetter && (
             <section aria-labelledby="your-tests" className="space-y-3">
@@ -533,6 +485,48 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
             </select>
           </div>
 
+          {isVetter && testSource === 'yours' ? (
+            <div className="space-y-2">
+              <p className="text-xs text-slate-500">Tests each company made for its jobs, separate from Vetter's library.</p>
+              {byCompany.length === 0 ? (
+                <p className="bg-white border border-dashed border-slate-300 rounded-xl px-5 py-6 text-center text-sm text-slate-500">No company has made a test yet.</p>
+              ) : (
+                <div className="bg-white border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-200">
+                  {byCompany.map((c) => (
+                    <div key={c.id}>
+                      <div className="px-4 py-2.5 bg-slate-50 flex items-baseline justify-between gap-3">
+                        <h3 className="text-sm font-semibold text-slate-900">{c.name}</h3>
+                        <span className="text-xs font-mono text-slate-400 tabular-nums">
+                          {c.tests.length} {c.tests.length === 1 ? 'test' : 'tests'}
+                        </span>
+                      </div>
+                      <ul className="divide-y divide-slate-100">
+                        {c.tests.map((t) => (
+                          <li key={t.id}>
+                            <button onClick={() => onOpenTest(t.id)} className="w-full text-left px-4 py-2.5 hover:bg-slate-50 flex flex-wrap items-center gap-x-3 gap-y-1">
+                              <span className="text-sm font-medium text-slate-900 break-words min-w-0">{t.title}</span>
+                              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${madeWithAI(t) ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-100 text-slate-600'}`}>
+                                {madeWithAI(t) ? 'Made with AI' : 'Made by hand'}
+                              </span>
+                              {t.publicStatus && (
+                                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-900 text-white">
+                                  {t.publicStatus === 'approved' ? 'Public' : t.publicStatus === 'pending' ? 'Waiting for approval' : 'Not approved'}
+                                </span>
+                              )}
+                              <span className="ml-auto text-xs text-slate-500 tabular-nums">
+                                {levelName(t.difficulty)} &middot; ~{t.estimatedMinutes} min
+                                {madeAt(t) ? <> &middot; {new Date(madeAt(t)).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: '2-digit' })}</> : null}
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
           <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
             <div className="hidden md:grid grid-cols-[minmax(0,1fr)_4.5rem_2.5rem_3.5rem_2.5rem_3.5rem] gap-3 px-5 py-2.5 bg-slate-50 border-b border-slate-200 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
               <span>Test</span>
@@ -579,6 +573,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
               </ul>
             )}
           </div>
+          )}
           </div>
           </div>
         </div>
