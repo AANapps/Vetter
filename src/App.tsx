@@ -1237,7 +1237,18 @@ export default function App() {
 
   const saveNewTest = (test: AssessmentTest) => {
     const id = `test-${test.type === 'custom' ? 'custom' : 'vetter'}-${Date.now()}`;
-    setTests((prev) => [{ ...test, id }, ...prev]);
+    const saved = { ...test, id };
+    const write = setTests((prev) => [saved, ...prev]);
+    // On Firebase the test only shows once the database has it; if the write is refused, it would vanish without a
+    // word, so it's kept as a draft instead and the company is told
+    if (firebaseEnabled)
+      Promise.resolve(write).then((done) => {
+        if (done !== undefined) return;
+        const businessId = saved.businessId ?? recruiterBusiness?.id ?? '';
+        putTestDraft({ id: `draft-${Date.now()}`, businessId, test: saved, kind: saved.purpose === 'training' ? 'training' : 'simulation', updatedAt: new Date().toISOString() })
+          .then(() => showToast(`"${saved.title}" couldn't be saved to your tests, so it's been kept as a draft under Tests. Open it from there and save it again.`))
+          .catch((err) => showToast(`"${saved.title}" couldn't be saved, and keeping it as a draft failed too: ${accountError(err)}`));
+      });
     return id;
   };
 
