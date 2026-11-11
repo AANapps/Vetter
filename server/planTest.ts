@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { meter } from './meter.js';
-import { MAX_PROMPT, PRICES, apiFailure, researchSoftware } from './generateTest.js';
+import { MAX_PROMPT, PRICES, apiFailure, researchJob, researchSoftware } from './generateTest.js';
 import { ChatRequest, backgroundNote, levelPick, styleGuide, stylesNote } from './testChat.js';
 
 /**
@@ -139,7 +139,7 @@ ${
     : 'Return an empty "existing" list.'
 }
 
-${research ? `RESEARCH on what the simulations copy:\n${research}\n\n` : ''}LIBRARY:
+${research ? `RESEARCH on the job and what the simulations copy. Every task, figure, term and step in the simulations must match how the job is really done, as these notes say: never work that belongs to another role, a step in the wrong order, a made-up term or a value no one in the job would see.\n${research}\n\n` : ''}LIBRARY:
 ${req.library.map((t) => `- ${t.id}: ${t.title} (${t.category}, ${t.difficulty}; skills: ${t.skills.join(', ')}; roles: ${t.roles.join(', ')}). ${t.description}`).join('\n')}`;
 }
 
@@ -190,13 +190,24 @@ export async function planTest(body: unknown, apiKey: string | undefined, model:
         ? { status: 502, json: { error: 'The plan came back incomplete. Try again.' } }
         : null;
 
+    // A test with app simulations is planned from how the job is really done, researched first, so every task is one
+    // the job really involves, done the way it's really done
+    const wantsApps = !req.styles?.length || req.styles.includes('app');
+    if (wantsApps && !research) {
+      const company = req.company ? `The company: ${[req.company.name, req.company.industry, req.company.headquarters].filter(Boolean).join(', ')}` : '';
+      const brief = [req.jobTitle ? `The role: ${req.jobTitle}` : '', company, req.job, req.background, ...req.messages.filter((m) => m.role === 'user').map((m) => m.text)].filter(Boolean).join('\n\n');
+      const found = await researchJob(client, model, brief).catch((err) => (console.error('[plan-test] job research failed', err), ''));
+      if (found) research = `HOW THE JOB IS REALLY DONE:\n${found}`;
+    }
+
     let message = await turn(client, model, req, research);
     if (failed(message)) return failed(message)!;
     let out = parse(message);
     if (out.lookUp && !sameProduct(out.lookUp, researchedFor)) {
       const brief = [`The software: ${out.lookUp}`, req.job, ...req.messages.filter((m) => m.role === 'user').map((m) => m.text)].filter(Boolean).join('\n\n');
       const found = await researchSoftware(client, model, brief).catch((err) => (console.error('[plan-test] research failed', err), ''));
-      research = found || `Nothing could be found on the web about ${out.lookUp}; build it from what you know.`;
+      // Added to the notes on the job, which stay
+      research = [research, found ? `${out.lookUp.toUpperCase()}:\n${found}` : `Nothing could be found on the web about ${out.lookUp}; build it from what you know.`].filter(Boolean).join('\n\n');
       researchedFor = out.lookUp;
       message = await turn(client, model, req, research);
       if (failed(message)) return failed(message)!;

@@ -47,10 +47,12 @@ points and minutes (as timeLimitMinutes), and following its brief. The rest of t
 items cover: don't test the same thing twice. A question about a case or task must turn on what that case or task
 contains, so read its brief. keep is "" on every question.
 ${styleGuide(req)}
-${req.research ? `\nRESEARCH on what the simulations copy:\n${req.research.slice(0, MAX_TEXT)}` : ''}`;
+${req.research ? `\nRESEARCH on the job and what the simulations copy. Every task, figure, term and step in the simulations must match how the job is really done, as these notes say: never work that belongs to another role, a step in the wrong order, a made-up term or a value no one in the job would see.\n${req.research.slice(0, MAX_TEXT * 2)}` : ''}`;
 }
 
-export async function writeQuestions(body: unknown, apiKey: string | undefined, model: string): Promise<{ status: number; json: unknown }> {
+// specModel writes a section with an app simulation: its spec decides every task the candidate does, so it gets the
+// most capable model
+export async function writeQuestions(body: unknown, apiKey: string | undefined, testModel: string, specModel = testModel): Promise<{ status: number; json: unknown }> {
   const req = body as WriteRequest;
   if (!req?.plan?.items?.length || !req.write?.length) return { status: 400, json: { error: 'Nothing to write.' } };
   if (!apiKey) return { status: 503, json: { error: 'not-configured' } };
@@ -71,6 +73,7 @@ export async function writeQuestions(body: unknown, apiKey: string | undefined, 
     .join('\n\n');
 
   const hands = req.plan.items.some((i) => wanted.has(i.ref) && ['app', 'sheet', 'database', 'code'].includes(i.type));
+  const model = req.plan.items.some((i) => wanted.has(i.ref) && i.type === 'app') ? specModel : testModel;
   const client = new Anthropic({ apiKey });
   try {
     const message = await client.beta.messages

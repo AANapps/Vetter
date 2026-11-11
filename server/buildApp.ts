@@ -90,7 +90,7 @@ is and what it's for ("New refunds start here: pick the order first, then the re
     ? 'This is training for the company\'s own people: the tips may guide them step by step through the task.'
     : 'This is a hiring test: tips show where things are and what they do, never which choice is right, the values to enter or the answer to any check.'
 }
-${research ? `\nRESEARCH on what the page copies:\n${research.slice(0, MAX_TEXT)}` : ''}`;
+${research ? `\nRESEARCH on the job and what the page copies (keep every term, step and value true to it):\n${research.slice(0, MAX_TEXT * 2)}` : ''}`;
 
 export async function buildApp(body: unknown, apiKey: string | undefined, model: string): Promise<{ status: number; json: unknown }> {
   const req = body as BuildAppRequest;

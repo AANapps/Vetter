@@ -337,8 +337,31 @@ async function planAndWrite(state: ChatState, messages: ChatMessage[], ctx: Chat
       return { ...q, ref: write[i], taskRef: item?.taskRef ?? q.taskRef ?? '' };
     });
   });
-  const questions = written.flat();
+  let questions = written.flat();
   const apps = questions.filter((q) => q.type === 'app').length;
+  // Each simulation's spec is checked against how the job is really done and fixed before its page is built; a check
+  // that fails leaves the spec as written
+  if (apps) {
+    progress(`Checking ${apps === 1 ? 'the simulation' : `${apps} simulations`} against how the job is really done…`);
+    questions = await Promise.all(
+      questions.map(async (q) => {
+        if (q.type !== 'app' || !q.appHtml) return q;
+        const related = questions.filter((other) => other.taskRef && other.taskRef === q.ref).map((other) => ({ title: other.title, prompt: other.prompt }));
+        const checked = await post('/api/check-spec', {
+          job: ctx.job,
+          jobTitle: ctx.jobTitle,
+          brief,
+          research,
+          setting: plan.setting,
+          question: { title: q.title, prompt: q.prompt, appHtml: q.appHtml, testCases: q.testCases ?? [] },
+          related,
+        });
+        const out = checked.body as { problems?: string[]; prompt?: string; appHtml?: string; testCases?: RawQuestion['testCases'] };
+        if (checked.failure || !out.problems?.length || !out.appHtml) return q;
+        return { ...q, prompt: out.prompt || q.prompt, appHtml: out.appHtml, testCases: out.testCases?.length ? out.testCases : q.testCases };
+      })
+    );
+  }
   progress(
     ctx.kind === 'standalone' && apps
       ? 'Building the simulation and trying every task out. This takes about five minutes…'

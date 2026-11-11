@@ -474,17 +474,16 @@ export { PRICES };
 // Researches the software the job uses, for app simulations to copy: plain notes, or empty when no product is named.
 // Web search runs on Anthropic's side; a long search pauses the turn, which is resumed a few times at most
 export async function researchSoftware(client: Anthropic, model: string, prompt: string): Promise<string> {
-  const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: 'user', content: `The job or test the company described:\n\n${prompt.slice(0, MAX_PROMPT)}` }];
-  for (let turn = 0; turn < 4; turn++) {
-    const message = await client.beta.messages
-      .stream({
-        model,
-        max_tokens: 16000,
-        output_config: { effort: 'low' },
-        // Dynamic filtering needs the larger models; Haiku has the basic search
-        tools: [model.includes('haiku') ? { type: 'web_search_20250305', name: 'web_search', max_uses: 6 } : { type: 'web_search_20260209', name: 'web_search', max_uses: 6 }],
-        ...(!model.includes('haiku') && { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' as const }),
-        system: `A skills test is being written for this job, including an interactive simulation candidates work in, so they can show they can really do the job.
+  return searchAndNote(client, model, `The job or test the company described:\n\n${prompt.slice(0, MAX_PROMPT)}`, SOFTWARE_RESEARCH, 'the simulation');
+}
+
+// Researches how the job is really done, for app simulations whose tasks must be exactly what the job involves: its
+// daily tasks, procedures, terms, records and equipment, plus the main software or device when one is named or usual
+export async function researchJob(client: Anthropic, model: string, prompt: string): Promise<string> {
+  return searchAndNote(client, model, `The job the company is hiring for:\n\n${prompt.slice(0, MAX_PROMPT)}`, JOB_RESEARCH, 'the job');
+}
+
+const SOFTWARE_RESEARCH = `A skills test is being written for this job, including an interactive simulation candidates work in, so they can show they can really do the job.
 Find the one thing the simulation should copy: the main software product the job or test names, or, for hands-on work, the specific device, equipment or machine (and the procedure done on it, e.g. "iPhone 13 screen replacement"). If neither is named or implied, reply with exactly NONE.
 Then search the web (official docs, help centres, repair guides such as iFixit, service manuals, tutorials) and write compact notes for a developer rebuilding it.
 For software:
@@ -500,7 +499,35 @@ For a device or equipment:
 - the procedure step by step, with the tools used, the order that matters (e.g. disconnect the battery first) and the
   common mistakes and the damage they cause
 - how a finished job is tested, and typical faults with their symptoms and readings
-Only facts you found or can be confident of. Under 900 words. No preamble.`,
+Only facts you found or can be confident of. Under 900 words. No preamble.`;
+
+const JOB_RESEARCH = `A skills test is being written for this job, with interactive simulations candidates work in, so they show they can really do it. Every task in them must be something a person in this job really does, done the way it's really done, so that someone who does the job for a living recognises all of it and finds nothing wrong.
+Search the web (professional and regulatory bodies, official guidance, training and qualification syllabuses, job profiles, vendor help centres, trade guides) and write compact notes for the test designer. Work in the country the company is in; if that's unclear, the UK.
+- the job in a sentence, at the level asked for, and what it is NOT (tasks that belong to another role, e.g. a dental nurse charts what the dentist calls out but doesn't diagnose)
+- the real daily and weekly tasks, most common and most important first
+- the key procedures step by step, in the order that matters, with the checks, the common mistakes and what they cause
+- the rules, standards and guidance the job follows (by name, e.g. HTM 01-05, COSHH, GDPR), and what they require in practice
+- exact terminology, abbreviations and notation (e.g. a dental chart's FDI or Palmer numbering, tooth surfaces and the symbols and colours used)
+- the records, forms, charts and logs the job fills in, and what goes in each field
+- the equipment, materials and instruments used, with their real names
+- the software the job usually works in (name the common products) and what's done in it; if the company names one, its layout and terms
+- realistic example data: typical values, quantities, codes, times and the situations that come up
+Only facts you found or can be confident of. Under 1,200 words. No preamble.`;
+
+// Searches the web (on Anthropic's side; a long search pauses the turn, which is resumed a few times at most) and
+// writes up notes, or "" when there's nothing to research
+async function searchAndNote(client: Anthropic, model: string, content: string, system: string, label: string): Promise<string> {
+  const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: 'user', content }];
+  for (let turn = 0; turn < 4; turn++) {
+    const message = await client.beta.messages
+      .stream({
+        model,
+        max_tokens: 16000,
+        output_config: { effort: 'low' },
+        // Dynamic filtering needs the larger models; Haiku has the basic search
+        tools: [model.includes('haiku') ? { type: 'web_search_20250305', name: 'web_search', max_uses: 8 } : { type: 'web_search_20260209', name: 'web_search', max_uses: 8 }],
+        ...(!model.includes('haiku') && { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' as const }),
+        system,
         messages,
       })
       .finalMessage();
@@ -511,7 +538,7 @@ Only facts you found or can be confident of. Under 900 words. No preamble.`,
     }
     const text = message.content.flatMap((block) => (block.type === 'text' ? [block.text] : [])).join('').trim();
     const searches = message.usage.server_tool_use?.web_search_requests ?? 0;
-    console.log(`[generate-test] researched the simulation: ${searches} searches, ${message.usage.input_tokens} in, ${message.usage.output_tokens} out`);
+    console.log(`[research] researched ${label}: ${searches} searches, ${message.usage.input_tokens} in, ${message.usage.output_tokens} out`);
     return message.stop_reason === 'refusal' || /^NONE\b/.test(text) ? '' : text;
   }
   return '';

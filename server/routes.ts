@@ -4,6 +4,7 @@ import { testChat } from './testChat.js';
 import { buildApp } from './buildApp.js';
 import { planTest } from './planTest.js';
 import { writeQuestions } from './writeQuestions.js';
+import { checkSpec } from './checkSpec.js';
 import { testAdvisor } from './testAdvisor.js';
 import { taskAssistant } from './taskAssistant.js';
 import { metered } from './meter.js';
@@ -13,6 +14,9 @@ import { PACKS, balanceFor, billingOn, charge, confirmTopUp, hasEnough, penceFor
 type Env = Record<string, string | undefined>;
 // Sonnet by default, at about half Opus's cost; set CLAUDE_MODEL=claude-opus-5-5 for the most capable model
 const testModel = (env: Env) => env.CLAUDE_MODEL || 'claude-sonnet-5-5';
+// App simulations are written and checked on Opus: their spec decides every task, and a task that isn't how the job
+// is really done ruins the simulation. SPEC_MODEL sets another
+const specModel = (env: Env) => env.SPEC_MODEL || 'claude-opus-5-5';
 
 // What the server passes along from the request: who's asking (their Firebase ID token) and the site's address
 export interface RequestMeta {
@@ -100,7 +104,9 @@ export const API_ROUTES: Record<string, Handler> = {
   // A new test in stages, each request short enough for the host's time limit: the plan, then every section written in
   // parallel, then every interactive page built in parallel
   '/api/plan-test': logged('plan-test', billed('plan-test', (body, env) => planTest(body, env.ANTHROPIC_API_KEY, testModel(env)))),
-  '/api/write-questions': logged('write-questions', billed('write-questions', (body, env) => writeQuestions(body, env.ANTHROPIC_API_KEY, testModel(env)))),
+  '/api/write-questions': logged('write-questions', billed('write-questions', (body, env) => writeQuestions(body, env.ANTHROPIC_API_KEY, testModel(env), specModel(env)))),
+  // Each app simulation's spec checked against how the job is really done, before its page is built
+  '/api/check-spec': logged('check-spec', billed('check-spec', (body, env) => checkSpec(body, env.ANTHROPIC_API_KEY, specModel(env)))),
   // Each interactive page of a test, built in its own request so a long test fits the host's time limit
   '/api/build-app': logged('build-app', billed('build-app', (body, env) => buildApp(body, env.ANTHROPIC_API_KEY, testModel(env)))),
   // The company home's chat recommends tests and plans; it writes nothing, so a quicker model is enough by default

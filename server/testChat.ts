@@ -221,7 +221,7 @@ ${
     : 'Return an empty "existing" list.'
 }
 
-${research ? `RESEARCH on what the simulations copy:\n${research}\n\n` : ''}LIBRARY:
+${research ? `RESEARCH on the job and what the simulations copy. Every task, figure, term and step in the simulations must match how the job is really done, as these notes say: never work that belongs to another role, a step in the wrong order, a made-up term or a value no one in the job would see.\n${research}\n\n` : ''}LIBRARY:
 ${req.library.map((t) => `- ${t.id}: ${t.title} (${t.category}, ${t.difficulty}; skills: ${t.skills.join(', ')}; roles: ${t.roles.join(', ')}). ${t.description}`).join('\n')}`;
 }
 
@@ -303,7 +303,8 @@ export async function testChat(body: unknown, apiKey: string | undefined, model:
       const brief = [`The software: ${out.lookUp}`, req.job, ...req.messages.filter((m) => m.role === 'user').map((m) => m.text)].filter(Boolean).join('\n\n');
       const found = await researchSoftware(client, model, brief).catch((err) => (console.error('[test-chat] research failed', err), ''));
       // Without research the app is built from what Claude already knows, with a note so it doesn't ask again
-      research = found || `Nothing could be found on the web about ${out.lookUp}; build it from what you know.`;
+      // Added to any notes on the job, which stay
+      research = [research, found ? `${out.lookUp.toUpperCase()}:\n${found}` : `Nothing could be found on the web about ${out.lookUp}; build it from what you know.`].filter(Boolean).join('\n\n');
       researchedFor = out.lookUp;
       message = await turn(client, model, req, research);
       if (message.stop_reason === 'refusal') return { status: 422, json: { error: 'Vetter declined to write this. Try describing the job differently.' } };
