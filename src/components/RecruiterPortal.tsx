@@ -171,6 +171,9 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   };
   // Tests written here can be edited; seeded ones come from code
   const editFor = (t: AssessmentTest) => (isEditable(t) ? () => setBuilding({ initial: t }) : undefined);
+  // One way to edit a test made here: one made with AI goes back to the AI chat, one made by hand to the builder (where
+  // Enhance with AI sits at the top)
+  const editTest = (t: AssessmentTest) => (madeWithAI(t) ? onEditWithAI(t.id) : onEditByHand(t.id));
   const deleteTest = (t: AssessmentTest) => {
     const onJobs = allJobs.filter((j) => j.testIds.includes(t.id));
     const taken = getTestStats(t, allCandidates).candidatesRanked;
@@ -349,8 +352,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                         test={t}
                         usedBy={usedByOf(t)}
                         onOpen={() => onOpenTest(t.id)}
-                        onEditWithAI={() => onEditWithAI(t.id)}
-                        onEditByHand={() => onEditByHand(t.id)}
+                        onEdit={() => editTest(t)}
                         onDelete={() => deleteTest(t)}
                       />
                     ))}
@@ -512,8 +514,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                                 test={t}
                                 usedBy={usedByOf(t)}
                                 onOpen={() => onOpenTest(t.id)}
-                                onEditWithAI={() => onEditWithAI(t.id)}
-                                onEditByHand={() => setBuilding({ initial: t })}
+                                onEdit={() => editTest(t)}
                                 onDelete={() => deleteTest(t)}
                               />
                             ))
@@ -577,8 +578,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                         usedBy={usedByOf(t)}
                         ranked={getTestStats(t, allCandidates).candidatesRanked}
                         onOpen={() => onOpenTest(t.id)}
-                        onEdit={own ? () => onEditByHand(t.id) : isVetter ? editFor(t) : undefined}
-                        onAiEdit={own || (isVetter && isEditable(t)) ? () => onEditWithAI(t.id) : undefined}
+                        onEdit={own || (isVetter && isEditable(t)) ? () => editTest(t) : undefined}
                         // The Vetter team can delete library tests written in the builder; the built-in ones stay
                         onDelete={own ? () => deleteTest(t) : isVetter && isEditable(t) ? () => deleteTest(t) : undefined}
                         onDeepen={isVetter ? () => onGenerateTest(deepenSeed(t)) : undefined}
@@ -723,10 +723,9 @@ const YourTestRow: React.FC<{
   test: AssessmentTest;
   usedBy: JobPosting[];
   onOpen: () => void;
-  onEditWithAI: () => void;
-  onEditByHand: () => void;
+  onEdit: () => void;
   onDelete: () => void;
-}> = ({ test, usedBy, onOpen, onEditWithAI, onEditByHand, onDelete }) => (
+}> = ({ test, usedBy, onOpen, onEdit, onDelete }) => (
   <li className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50/70">
     <button onClick={onOpen} className="min-w-0 flex-1 text-left">
       <span className="block text-sm font-semibold text-slate-900 truncate">{test.title}</span>
@@ -735,11 +734,12 @@ const YourTestRow: React.FC<{
         {usedBy.length ? (usedBy.length === 1 ? usedBy[0].title : `${usedBy.length} jobs`) : 'Not on a job'}
       </span>
     </button>
-    <button onClick={onEditWithAI} aria-label={`Edit ${test.title} with AI`} className="shrink-0 px-2.5 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 rounded-lg inline-flex items-center gap-1.5">
-      <Sparkles className="w-3.5 h-3.5" />
-      <span className="hidden sm:inline">Edit with AI</span>
-    </button>
-    <button onClick={onEditByHand} title="Edit by hand" aria-label={`Edit ${test.title} by hand`} className="shrink-0 p-1.5 text-slate-400 hover:text-slate-700 rounded-lg">
+    <button
+      onClick={onEdit}
+      title={madeWithAI(test) ? 'Edit: opens the AI chat it was made in' : 'Edit: opens the builder, with Enhance with AI at the top'}
+      aria-label={`Edit ${test.title}`}
+      className="shrink-0 p-1.5 text-slate-400 hover:text-indigo-700 rounded-lg"
+    >
       <Pencil className="w-3.5 h-3.5" />
     </button>
     <button onClick={onDelete} title="Delete test" aria-label={`Delete ${test.title}`} className="shrink-0 p-1.5 text-slate-400 hover:text-rose-600 rounded-lg">

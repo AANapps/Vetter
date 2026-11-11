@@ -1481,14 +1481,12 @@ export default function App() {
                   : undefined
               }
               {...(activeRole === 'admin' && testPageTest.type !== 'custom' && /^test-(custom|vetter)-\d{10,}$/.test(testPageTest.id) && {
-                // A library test the Vetter team made in the app: changed by asking Vetter, or by hand
-                onEditWithAI: () => enhanceTest(testPageTest.id),
-                onEdit: () => setDraftBuilder({ draft: testPageTest, alsoAdd: [] }),
+                // A library test the Vetter team made in the app: back to the AI chat if made with AI, else the builder
+                onEdit: () => (madeWithAI(testPageTest) ? enhanceTest(testPageTest.id) : setDraftBuilder({ draft: testPageTest, alsoAdd: [] })),
               })}
               {...(activeRole === 'recruiter' && recruiterBusiness && testPageTest.type === 'custom' && testPageTest.businessId === recruiterBusiness.id && {
-                // The company's own test: changed by asking Vetter, or by hand in the builder
-                onEditWithAI: () => enhanceTest(testPageTest.id),
-                onEdit: () => setDraftBuilder({ draft: testPageTest, alsoAdd: [] }),
+                // The company's own test: back to the AI chat if made with AI, else the builder
+                onEdit: () => (madeWithAI(testPageTest) ? enhanceTest(testPageTest.id) : setDraftBuilder({ draft: testPageTest, alsoAdd: [] })),
               })}
               {...(activeRole === 'recruiter' && recruiterBusiness && testPageTest.type === 'custom' && testPageTest.businessId === recruiterBusiness.id && {
                 onAskToPublish: () => askToPublish(testPageTest.id),
@@ -2020,7 +2018,10 @@ export default function App() {
           // A company's saved test, however it was made: to the test chat with whatever's been changed here
           onEnhance={(() => {
             const saved = tests.find((t) => t.id === draftBuilder.draft?.id);
-            if (!saved || draftBuilder.isCopy || saved.type !== 'custom' || !saved.businessId || saved.businessId !== recruiterBusiness?.id) return undefined;
+            const companys = saved?.type === 'custom' && !!saved.businessId && saved.businessId === recruiterBusiness?.id;
+            // The Vetter team's own library tests, made in the app, too
+            const vetters = activeRole === 'admin' && saved?.type !== 'custom' && !!saved && /^test-(custom|vetter)-\d{10,}$/.test(saved.id);
+            if (!saved || draftBuilder.isCopy || !(companys || vetters)) return undefined;
             return (test: AssessmentTest) => {
               if (!aiAllowed) return setPlansOpen(true);
               const jobId = draftBuilder.jobId;
