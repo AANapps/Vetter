@@ -68,8 +68,8 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
   // already made stays one
   const kindOf = (t: AssessmentTest): TestKind =>
     t.purpose === 'training' ? 'training' : t.questions.length === 1 && t.questions[0].type === 'app' ? 'standalone' : t.scenario ? 'simulation' : 'test';
-  // A new one can still switch between a gamified test and a standalone simulation until the first message is sent
-  const [kind, setKind] = useState<TestKind>(() => kindAsked ?? resume?.kind ?? (original ? kindOf(original) : resume ? kindOf(resume.test) : 'simulation'));
+  // New ones are job simulation tests (or training); a standalone simulation made before is still edited as one
+  const [kind] = useState<TestKind>(() => kindAsked ?? resume?.kind ?? (original ? kindOf(original) : resume ? kindOf(resume.test) : 'simulation'));
   // Training is marked as such when it's saved, so it's kept off leaderboards and profiles and goes to the team
   const withPurpose = (t: AssessmentTest): AssessmentTest => (kind === 'training' ? { ...t, purpose: 'training', timeLimit: 'none' } : t);
   const greetingFor = (k?: TestKind) =>
@@ -165,12 +165,6 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
 
   const draft = chat.draft;
   const started = chat.messages.some((m) => m.role === 'user');
-  // Switching between the two kinds of simulation before anything is written: the greeting changes with it
-  const canSwitchKind = !original && !started && !draft && (kind === 'simulation' || kind === 'standalone');
-  const switchKind = (next: TestKind) => {
-    setKind(next);
-    setChat((c) => ({ ...c, messages: [{ role: 'assistant', text: greetingFor(next) ?? greeting }] }));
-  };
   // Changing a saved test doesn't pick library tests to go with it
   const ctx = { kind, job: job ? jobBrief(job) : undefined, jobTitle: job?.title, level: difficulty, levels: pickedLevels, questionCount, timeLimit, wantExisting: !!job && !original, tests, business, styles, viewing: focus, background };
   const toggleStyle = (type: QuestionType) => setStyles((prev) => (prev.includes(type) ? prev.filter((t) => t !== type) : PICKABLE.filter((t) => t === type || prev.includes(t))));
@@ -409,9 +403,6 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
             </button>
           </div>
         </div>
-
-        {/* The two kinds of simulation, picked before the first message */}
-        {canSwitchKind && <KindPicker kind={kind} onChange={switchKind} />}
 
         {/* What Vetter may write, each a list to tick; whatever's left unticked Vetter decides. Locked while it works */}
         <div className="px-5 py-2 border-b border-slate-200 flex flex-wrap items-center gap-2" aria-busy={working}>
@@ -799,34 +790,3 @@ const SECTOR_EXAMPLES: Record<string, string[]> = {
   healthcare: ['A healthcare assistant on a morning ward round', 'A staff nurse doing a medication round', 'A receptionist at a busy GP surgery'],
 };
 
-// The two kinds of simulation Vetter's AI builds for a job
-const KIND_OPTIONS: { kind: TestKind; label: string; blurb: string }[] = [
-  {
-    kind: 'simulation',
-    label: 'Job simulation test',
-    blurb: 'Every kind of question (short answers, tick boxes, ordering, written) mixed with interactive simulations of the work, suited to your sector.',
-  },
-  {
-    kind: 'standalone',
-    label: 'Interactive simulation',
-    blurb: 'One advanced simulation of the job that tests each part of it as a task, one by one. Marked on the tasks they get right.',
-  },
-];
-
-const KindPicker: React.FC<{ kind: TestKind; onChange: (kind: TestKind) => void }> = ({ kind, onChange }) => (
-  <fieldset className="px-5 py-3 border-b border-slate-200 grid gap-2 sm:grid-cols-2">
-    <legend className="sr-only">What to build</legend>
-    {KIND_OPTIONS.map((o) => (
-      <label
-        key={o.kind}
-        className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer ${kind === o.kind ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:border-slate-400'}`}
-      >
-        <input type="radio" name="build-kind" checked={kind === o.kind} onChange={() => onChange(o.kind)} className="mt-0.5 accent-indigo-600" />
-        <span className="min-w-0">
-          <span className={`block text-sm font-semibold ${kind === o.kind ? 'text-indigo-900' : 'text-slate-900'}`}>{o.label}</span>
-          <span className="block text-xs text-slate-600 mt-0.5">{o.blurb}</span>
-        </span>
-      </label>
-    ))}
-  </fieldset>
-);

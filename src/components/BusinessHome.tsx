@@ -6,7 +6,7 @@ import { AssessmentTest, Business, JobPosting, TestKind, User, levelName } from 
 import { Pic } from './Pic';
 import { AdvisorTurn, CUSTOM_KIND_LABELS, CustomIdea, SuggestedPerson, askAdvisor } from '../lib/testAdvisor';
 import { Credit, loadCredit } from '../lib/aiRequest';
-import { KindChoice, kindLabel } from './KindChoice';
+import { kindLabel } from './KindChoice';
 import { CreditMeter, EXAMPLE_CREDIT } from './CreditMeter';
 import { CreditsDialog } from './CreditsDialog';
 
@@ -98,40 +98,9 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
     if (turns.length) endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [turns.length, thinking]);
 
-  // Step two of building: once a kind is picked, Vetter asks what to build into it, offering what's worth building for
-  // the role; the company picks one, builds it as described, or types its own
-  const chooseKind = (brief: string, kind: TestKind, ideas: CustomIdea[]) => {
-    const name = kindLabel(kind).toLowerCase();
-    const a = /^[aeiou]/.test(name) ? 'An' : 'A';
-    onTurns([
-      ...turns,
-      { role: 'user', text: kindLabel(kind) },
-      {
-        role: 'assistant',
-        text: ideas.length
-          ? `${a} ${name} it is. What should it focus on? These are worth building for this role, or type your own below.`
-          : `${a} ${name} it is. Anything it should focus on? Type it below, or build it as described.`,
-        askFocus: { brief, kind, ideas },
-      },
-    ]);
-    inputRef.current?.focus();
-  };
-  const buildFocused = (focus: NonNullable<AdvisorTurn['askFocus']>, idea?: CustomIdea, typed?: string) => {
-    const extra = idea ? `${idea.title}: ${idea.brief}` : typed;
-    onTurns([...turns, { role: 'user', text: idea?.title ?? typed ?? 'Build it as described' }]);
-    onBuildWithAI(extra ? `${focus.brief}\n\nFocus on: ${extra}` : focus.brief, focus.kind);
-  };
-  // While Vetter is asking what to focus on, what's typed is the answer
-  const askingFocus = turns[turns.length - 1]?.askFocus;
-
   const send = async (text: string) => {
     const t = text.trim();
     if (!t || thinking) return;
-    if (askingFocus) {
-      setInput('');
-      buildFocused(askingFocus, undefined, t);
-      return;
-    }
     const next: AdvisorTurn[] = [...turns, { role: 'user', text: t }];
     onTurns(next);
     setInput('');
@@ -170,8 +139,8 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
                 </span>
                 <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">Who are you hiring?</h1>
                 <p className="text-sm text-slate-500 max-w-md mx-auto">
-                  Tell Vetter the role and level. You&rsquo;ll get a short plan for testing it, the ready-made tests that fit, and any simulations worth
-                  building.
+                  Describe the role, or paste the job description. Vetter asks what it needs to know, suggests a job simulation and the ready-made
+                  tests that fit, then builds it.
                 </p>
               </div>
               <div className="flex flex-wrap justify-center gap-2 max-w-xl mx-auto">
@@ -210,8 +179,6 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
                   turn={turn}
                   aiAllowed={aiAllowed}
                   picked={picked}
-                  onChooseKind={chooseKind}
-                  onBuildFocused={buildFocused}
                   onTogglePick={togglePick}
                   onPickAll={pickAll}
                   onEditCopy={onEditCopy}
@@ -295,7 +262,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
                 }
               }}
               rows={1}
-              placeholder={askingFocus ? 'Type what it should focus on, or pick one above' : turns.length ? 'Ask a follow-up, e.g. make it more senior, or add Figma' : 'e.g. A junior front-end developer test'}
+              placeholder={turns.length ? 'Answer, or ask a follow-up, e.g. make it more senior' : 'Describe the role, or paste the job description'}
               aria-label="Message Vetter"
               className="flex-1 resize-none max-h-40 px-2 py-1.5 text-sm bg-transparent focus:outline-none"
             />
@@ -334,10 +301,6 @@ const AdvisorReply: React.FC<{
   turn: AdvisorTurn;
   aiAllowed: boolean;
   picked: string[];
-  // Picking a kind on a reply's cards: the next step asks what to focus on
-  onChooseKind: (brief: string, kind: TestKind, ideas: CustomIdea[]) => void;
-  // Building it, from the focus step: with one of the ideas, or as described
-  onBuildFocused: (focus: NonNullable<AdvisorTurn['askFocus']>, idea?: CustomIdea) => void;
   onTogglePick: (testId: string) => void;
   onPickAll: (testIds: string[]) => void;
   onEditCopy: (test: AssessmentTest) => void;
@@ -351,7 +314,7 @@ const AdvisorReply: React.FC<{
   onInvite: (jobId: string, candidateId: string) => void;
   // Set on the latest reply only: a quick answer sends it as the company's next message
   onQuickReply?: (text: string) => void;
-}> = ({ turn, aiAllowed, picked, onChooseKind, onBuildFocused, onTogglePick, onPickAll, onEditCopy, onBuildWithAI, onSeePlans, onOpenTest, onOpenLibrary, candidates, onViewPerson, jobs, onInvite, onQuickReply }) => (
+}> = ({ turn, aiAllowed, picked, onTogglePick, onPickAll, onEditCopy, onBuildWithAI, onSeePlans, onOpenTest, onOpenLibrary, candidates, onViewPerson, jobs, onInvite, onQuickReply }) => (
   <div className="flex gap-3">
     <span className="ai-mark-still w-7 h-7 shrink-0 rounded-lg text-white text-xs font-pixel flex items-center justify-center">V</span>
     <div className="ai-glass min-w-0 flex-1 space-y-4 p-4 sm:p-5 rounded-2xl rounded-tl-md border border-white/80 shadow-sm">
@@ -373,8 +336,7 @@ const AdvisorReply: React.FC<{
         </div>
       )}
 
-      {/* They want something built. Training is one thing; for a hire, Vetter asks which kind: a test mixing questions
-          with simulations, or one interactive simulation marked on its tasks */}
+      {/* Training they want built: one card to create it */}
       {turn.brief && turn.intent === 'training' && (
         <div className="p-4 bg-white border border-slate-200 rounded-xl flex flex-col sm:flex-row sm:items-center gap-3">
           <div className="min-w-0 flex-1">
@@ -390,17 +352,6 @@ const AdvisorReply: React.FC<{
           </button>
         </div>
       )}
-      {turn.brief && (turn.intent === 'test' || turn.intent === 'both') && (
-        <div className="space-y-3">
-          <div className="p-3 bg-white/70 border border-slate-200 rounded-xl">
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">The role</div>
-            <p className="mt-1 text-sm text-slate-700 leading-relaxed">{turn.brief}</p>
-          </div>
-          <p className="text-sm font-semibold text-slate-900">Which would you like me to build?</p>
-          <KindChoice aiAllowed={aiAllowed} onPick={(kind) => (aiAllowed ? onChooseKind(turn.brief!, kind, turn.custom ?? []) : onSeePlans())} />
-        </div>
-      )}
-
       {/* Just made in the creator: where it is now */}
       {turn.created && (
         <div className="p-4 bg-white border border-slate-200 rounded-xl flex flex-col sm:flex-row sm:items-center gap-3">
@@ -431,36 +382,6 @@ const AdvisorReply: React.FC<{
         </div>
       )}
 
-      {/* Step two: what to build into it, from what's worth building for this role, or typed below */}
-      {turn.askFocus && (
-        <div className="space-y-2">
-          {turn.askFocus.ideas.length > 0 && (
-            <ul className="space-y-2">
-              {turn.askFocus.ideas.map((idea, i) => (
-                <li key={i}>
-                  <button
-                    onClick={() => onBuildFocused(turn.askFocus!, idea)}
-                    className="group w-full text-left p-3 bg-white border border-slate-200 hover:border-indigo-400 rounded-xl flex items-center gap-3"
-                  >
-                    <span className="min-w-0 flex-1">
-                      <span className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-semibold text-slate-900 group-hover:text-indigo-700">{idea.title}</span>
-                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700">{CUSTOM_KIND_LABELS[idea.kind]}</span>
-                      </span>
-                      <span className="block text-xs text-slate-600 mt-0.5">{idea.why}</span>
-                    </span>
-                    <ArrowRight className="w-4 h-4 shrink-0 text-slate-400 group-hover:text-indigo-600" />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-          <button onClick={() => onBuildFocused(turn.askFocus!)} className="text-xs font-semibold text-indigo-700 hover:text-indigo-900">
-            Just build it as described
-          </button>
-        </div>
-      )}
-
       {!!turn.people?.length && (
         <PeopleList
           people={turn.people}
@@ -473,7 +394,7 @@ const AdvisorReply: React.FC<{
         />
       )}
 
-      {!isChoosing(turn) && !!turn.roadmap?.length && (
+      {!!turn.roadmap?.length && (
         <div className="space-y-2">
           <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Roadmap</h3>
           <ol className="space-y-2">
@@ -489,7 +410,7 @@ const AdvisorReply: React.FC<{
         </div>
       )}
 
-      {!isChoosing(turn) && !!turn.existing?.length && (
+      {!!turn.existing?.length && (
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-3">
             <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Tests to take alongside</h3>
@@ -547,12 +468,45 @@ const AdvisorReply: React.FC<{
         </div>
       )}
 
+      {/* Last, the job simulation Vetter suggests: what it will contain, and Build it, which opens the AI job simulation
+          creator with everything said here, so it starts building at once */}
+      {turn.brief && (turn.intent === 'test' || turn.intent === 'both') && (
+        <div className="p-4 bg-white border border-indigo-200 rounded-xl space-y-3 shadow-sm shadow-indigo-100/60">
+          <div>
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-indigo-700">Your job simulation</div>
+            <p className="mt-1 text-sm text-slate-700 leading-relaxed">{turn.brief}</p>
+          </div>
+          {!!turn.custom?.length && (
+            <ul className="space-y-1.5">
+              {turn.custom.map((idea, i) => (
+                <li key={i} className="flex gap-2 text-xs text-slate-600">
+                  <Check className="w-3.5 h-3.5 mt-px shrink-0 text-indigo-600" />
+                  <span>
+                    <span className="font-semibold text-slate-900">{idea.title}</span>
+                    <span className="ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700">{CUSTOM_KIND_LABELS[idea.kind]}</span>
+                    <span className="block mt-0.5">{idea.why}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <button
+            onClick={() => (aiAllowed ? onBuildWithAI(buildBrief(turn), 'simulation') : onSeePlans())}
+            className="px-4 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg inline-flex items-center gap-1.5"
+          >
+            {aiAllowed ? <Wand2 className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+            Build it
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
+      )}
     </div>
   </div>
 );
 
-// A reply asking which kind to build: it shows only that choice, so the company decides one thing at a time
-const isChoosing = (t: AdvisorTurn) => !!t.brief && (t.intent === 'test' || t.intent === 'both');
+// What the job simulation creator is given: the brief and the simulations it should include
+const buildBrief = (t: AdvisorTurn) =>
+  [t.brief, ...(t.custom?.length ? ['Include:', ...t.custom.map((c) => `- ${c.title}: ${c.brief}`)] : [])].join('\n');
 
 // Candidates the chat suggests, as a table that expands per row: who they are with their strongest verified scores, why they suit the role
 // and what isn't verified yet. A row expands to show the details, with View profile (a pop-up), sending a job's tests, or starting an
