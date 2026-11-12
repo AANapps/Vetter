@@ -154,7 +154,8 @@ export const APP_KINDS = `
       Make it look like the real thing, not a diagram: true proportions and colours, rounded bodies with gradients,
       highlights and shadows, glass, metal and cable textures, labelled screws and connectors drawn where they really sit,
       a large central view of the device that fills the stage, and a zoomed inset of the area being worked on. Spend most
-      of the page's size on the drawing and its states (closed, opened, each part removed). Tools show as recognisable icons.
+      of the page's size on the drawing and its states (closed, opened, each part removed). Tools show as recognisable icons,
+      each with its name written under it.
       The candidate works out the procedure: actions happen by picking a tool and using it on a part in the drawing, never
       from a list of steps, and nothing on screen numbers the steps or shows them in the right order.
   (c) ANY OTHER FORMAT you design for the skill, when the job isn't done in one product or on one device: e.g. triaging
@@ -199,7 +200,13 @@ export const APP_PAGE_RULES = `  For every kind, appHtml is ONE self-contained H
     Every part, port, terminal, control and tool is labelled with its real name. Draggable things look grabbable (a
     handle, cursor:grab, a lift and shadow while dragged), drop targets and connection points highlight as something
     nears them, a connection is drawn as a visible wire or line, and anything placed or connected can be undone or
-    removed. Displays and readings are large and easy to read, with their units. Calculations are typed into a clearly
+    removed. Displays and readings are large and easy to read, with their units.
+  • NOTHING IS A MYSTERY SHAPE: every tool, instrument, part, item and person drawn has its real name as visible text
+    beside or under it at all times (not only on hover), e.g. "Mouth mirror", "Probe", "Two-pole voltage tester". Draw
+    each one as its classic, instantly recognisable outline (the shape anyone in the job would know at a glance) with
+    its key features; if a drawing could be mistaken for something else or for a plain blob, simplify it to that classic
+    outline and keep the label. No unlabelled abstract shapes anywhere. Tool trays are cards: the drawing with its name
+    under it. Calculations are typed into a clearly
     labelled box with the unit beside it. Clear about HOW to work it, never about what the right setup or answer is.`;
 
 // The task wording and the checks on the page's state
@@ -296,6 +303,22 @@ GAME-LIKE SIMULATION: this page is an interactive simulation, not a form. Make i
 
 // How hard and how real the questions are: the same rules for a test written in one go and one built in the chat
 export const QUALITY_RULES = `
+JOB FIT FIRST: before choosing any question or task, decide from the job title and what the company says whether the
+job is DESK WORK (done mainly at a computer: office, finance, admin, analyst, developer, marketing, sales, support...) or
+HANDS-ON WORK (done with tools, equipment, patients, customers or materials: trades such as electrician, plumber, joiner,
+mechanic; dental, clinical and care roles; hospitality and retail floor staff; warehouse, beauty, manufacturing...),
+whatever the company's sector says. Every question and task must be something a person in THIS job really does or must
+know; leave out anything a good candidate would look at and think "that's not my job".
+- HANDS-ON WORK: test the fundamentals of doing the actual job: safe working and the regulations, the procedure in the
+  right order, diagnosing faults, choosing and using the right tools, instruments and materials, reading their readings,
+  the calculations done on the job, and dealing with the customer or patient in front of them. NO sheet, database, sql,
+  code or assistant tasks and no app that copies office or admin software (a spreadsheet for an electrician or a dental
+  nurse is wrong), even if those styles are picked; use the other picked styles instead. At most one email task, and
+  only if the job really involves writing one (e.g. a quote or a follow-up to a customer). Hands-on tasks are the work
+  itself: the circuit, the fault, the instrument, the patient, the station. The company can still ask for something
+  else by name, and then gets it.
+- DESK WORK: hands-on tasks are in the software the job uses (sheet, database, code, an app copying its product).
+
 QUESTION QUALITY: write questions that really test the candidate: a strong one finds them demanding and a weak one can't
 bluff or look up the answer quickly.
 - Every question opens with a full scenario, usually 80 to 200 words, before it asks anything: who the candidate is in
@@ -305,8 +328,8 @@ bluff or look up the answer quickly.
   acronyms, "which of these is a feature of X" or anything a search answers in seconds.
 - Match the format to the difficulty. Foundation knowledge and quick judgement calls use the fast formats: choice, multi,
   text, order and match (still scenario-led). The hardest, most job-defining work is done hands-on: an app simulation,
-  code, a spreadsheet or a database task, where the candidate has to actually do the job rather than recognise the
-  answer. Put the fast questions first and build up to the hands-on work.
+  code, a spreadsheet or a database task (whichever fits the job, as JOB FIT says), where the candidate has to actually
+  do the job rather than recognise the answer. Put the fast questions first and build up to the hands-on work.
 - Each one needs a judgement, a diagnosis, a calculation in more than one step, a trade-off or a priority call, the way the
   job really needs it. At least half combine two or more facts from the scenario before the answer follows.
 - Wrong options are what a capable but less experienced person would really pick: a common mistake, a half-right step,
@@ -380,8 +403,11 @@ business, with its products, customers and suppliers, and the same cast of colle
 - Work arrives the way it really does: emails, chat messages, tickets, a manager's request, a customer on the phone. Use
   email tasks for the communication the job needs (who to reply to, who to copy in, who must not see it), and
   questions on who to contact, escalate to or hand over to, from the people above.
-- The hands-on tasks are in the software the job uses at this company, with this company's data, and they connect to the
-  rest: an email asks for the work, the candidate does it in the app or spreadsheet, then replies with what they found.
+- The hands-on tasks are the job's real work at this company, and they connect to the rest. For desk work they're in the
+  software the job uses, with this company's data: an email asks for the work, the candidate does it in the app or
+  spreadsheet, then replies with what they found. For hands-on work they're the job itself (a call-out, a patient, a
+  shift), arriving the way that job's work arrives (a job sheet, a phone call, the appointment list, a customer at the
+  counter), never as office or spreadsheet work.
 - Invent nothing about the company that would be embarrassing or untrue in a damaging way (no scandals, lawsuits or
   real named staff): its people are made up, its situations are ordinary working ones.`;
 

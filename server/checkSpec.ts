@@ -48,7 +48,10 @@ recognise every task and find nothing wrong.
 
 You get the task as the candidate reads it (prompt), the spec the page is built from (appHtml: a description of the page,
 not code) and the checks run on the page's state (testCases). Read them as that professional would and look for:
-- tasks that aren't this job's at this level, or belong to another role
+- tasks that aren't this job's at this level, or belong to another role (e.g. spreadsheet or office-software work for
+  a trade, clinical or floor job, whose tasks must be the hands-on fundamentals of the job itself)
+- tools, instruments or parts that aren't named on the page or wouldn't be recognised: the spec must say each is drawn
+  as its classic outline with its name written beside it
 - steps, procedures or workflows that aren't how they're really done, or are in the wrong order
 - terms, abbreviations, notation, codes, forms or software screens that are wrong or invented
 - values, quantities, times and situations no one in the job would see

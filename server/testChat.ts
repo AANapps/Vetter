@@ -148,15 +148,16 @@ export function styleGuide(req: GuideRequest): string {
   study with sub-questions; sheet, database and app are hands-on tasks in a working window.
 ${
     sim
-      ? `  Unless told otherwise, the simulation has 2 to 4 email tasks, some standing alone and some about a hands-on task.
+      ? `  Unless told otherwise, a desk job's simulation has 2 to 4 email tasks, some standing alone and some about a hands-on
+  task; a hands-on job's has at most one, only if the job really writes emails (see JOB FIT).
   assistant is an AI-assisted task: the candidate prompts an AI assistant through real work. Include one when the job
   uses AI tools day to day or the company asks for it (unless told otherwise, most office, analyst, marketing,
-  developer and customer roles now do).`
+  developer and customer roles now do; hands-on jobs don't).`
       : `  email and assistant (an AI-assisted task) are there if the company asks for them or the skill is communication or
   working with AI; otherwise a skills test sticks to the other styles.`
   }
-  Unless told otherwise, every test has hands-on tasks that match how the job is really done: sheet for Excel work
-  (finance, ops, analysts), database for SQL work, app for any other software the job names (a CRM, helpdesk, design
+  Unless told otherwise, every test has hands-on tasks that match how the job is really done (JOB FIT above decides which
+  fit): sheet for Excel work (finance, ops, analysts; never for trades, clinical or floor jobs), database for SQL work, app for any other software the job names (a CRM, helpdesk, design
   tool, accounting package...), app for physical and trade work (a mock-up of the device or equipment, e.g. a specific
   phone for a repair technician), code for developers, and an app of your own design (kind (c) below) for any other
   skill best shown by doing it. Fast formats for the basics, hands-on for the hardest work.
