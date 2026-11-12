@@ -319,6 +319,25 @@ know; leave out anything a good candidate would look at and think "that's not my
   else by name, and then gets it.
 - DESK WORK: hands-on tasks are in the software the job uses (sheet, database, code, an app copying its product).
 
+SKILLS GAME: when the job needs general abilities, whether the company names them or the job plainly calls for them
+(multitasking, attention to detail, verbal reasoning, numerical reasoning, logical or abstract reasoning, memory,
+prioritising under pressure, spatial reasoning, reaction and accuracy...), the test MUST include one gamified skills test
+for them: an app of kind (c), titled "Skills game: " and the abilities it measures (e.g. "Skills game: multitasking and
+attention to detail"). It is a short arcade-style game in rounds and needn't relate to the job at all: pick whatever
+format best measures each ability, e.g.
+  • multitasking: two or three things to keep going at once (sort falling shapes, answer pop-up sums, keep a gauge in its
+    band), each with its own timer;
+  • attention to detail: spot every difference between two near-identical lists, codes, addresses or pictures;
+  • verbal reasoning: short passages with true / false / can't say statements, word analogies, odd one out;
+  • numerical reasoning: quick sums, tables and charts to read under a timer;
+  • logical or abstract reasoning: the next shape in a pattern, rules to work out from examples;
+  • memory: a sequence or grid shown briefly, then recalled.
+One round per ability (2 to 4 rounds), easy to understand in seconds (a "How to play" line, a round counter, a visible
+clock, a score), every round fixed in the spec (the exact items, differences and right answers), so it's the same for
+every candidate and marked fairly. The state records each round's answers (e.g. rounds.2.found: the differences
+found, rounds.3.answers: the choice for each statement), and testCases check them (3 to 6). timeLimitMinutes 5 to 10.
+It goes with the other hands-on tasks and counts like one. This applies to every job, desk or hands-on.
+
 QUESTION QUALITY: write questions that really test the candidate: a strong one finds them demanding and a weak one can't
 bluff or look up the answer quickly.
 - Every question opens with a full scenario, usually 80 to 200 words, before it asks anything: who the candidate is in
