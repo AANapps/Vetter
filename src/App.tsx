@@ -65,7 +65,8 @@ import { TeamPage } from './components/TeamPage';
 import { TeamWork } from './components/TeamWork';
 import { TrainingPage } from './components/TrainingPage';
 import { PlansDialog } from './components/PlansDialog';
-import { AdvisorTurn } from './lib/testAdvisor';
+import { AdvisorTurn, HomeBuild, testOutline } from './lib/testAdvisor';
+import { jobBrief } from './lib/testGeneration';
 import { SectorId, jobInSector, loadSector, roleInSector, saveSector, sectorLabel, testInSector } from './lib/sectors';
 import { SectorBar } from './components/SectorPicker';
 
@@ -482,6 +483,9 @@ export default function App() {
   const [draftBuilder, setDraftBuilder] = useState<{ draft?: AssessmentTest; isCopy?: boolean; jobId?: string; alsoAdd: string[]; record?: TestDraft } | null>(null);
   // The company home's chat with Vetter, kept while moving between pages
   const [advisorTurns, setAdvisorTurns] = useState<AdvisorTurn[]>([]);
+  // The test the home chat is building or changing, and something to start the chat with from elsewhere
+  const [homeBuild, setHomeBuild] = useState<HomeBuild | null>(null);
+  const [homeSeed, setHomeSeed] = useState<{ text: string; jobId?: string } | undefined>(undefined);
   // Plans, shown when AI test creation is asked for without one
   const [plansOpen, setPlansOpen] = useState(false);
   // What the candidate's Tests page is narrowed to, e.g. a field picked on Home
@@ -566,7 +570,42 @@ export default function App() {
   // The test chat on a saved test, picking up changes saved as a draft earlier where they were left
   const enhanceTest = (testId: string, jobId?: string) => {
     const pending = testDrafts.find((d) => d.editsTestId === testId);
-    openGenerator(pending ? { jobId: pending.jobId ?? jobId, resume: pending } : { jobId, editTestId: testId });
+    if (pending) openGenerator({ jobId: pending.jobId ?? jobId, resume: pending });
+    else editInChat(testId);
+  };
+
+  // Tests are made and changed in the home chat: this starts it with a message (and the job the test is for)
+  const startInChat = (text: string, jobId?: string) => {
+    if (!aiAllowed) return setPlansOpen(true);
+    if (homeBuild?.working) return showToast('Vetter is still building a test in the chat. Wait for it, or press Stop there.');
+    setHomeSeed({ text, ...(jobId && { jobId }) });
+    goToTab('business-home');
+  };
+  // A saved test opened in the home chat to change by asking
+  const editInChat = (testId: string) => {
+    const test = tests.find((t) => t.id === testId);
+    if (!test) return;
+    if (!aiAllowed) return setPlansOpen(true);
+    if (homeBuild?.working) return showToast('Vetter is still building a test in the chat. Wait for it, or press Stop there.');
+    const kind = test.purpose === 'training' ? 'training' : test.scenario ? 'simulation' : 'test';
+    setHomeBuild({ chat: { messages: [], existing: [], draft: test }, kind, testId, working: false });
+    setAdvisorTurns((prev) => [
+      ...prev,
+      {
+        role: 'assistant',
+        text: `What would you like to change in "${test.title}"? Tell me here and I'll change it and save it.`,
+        created: {
+          title: test.title,
+          kind,
+          testId,
+          questions: test.questions.filter((q) => q.type !== 'case').length,
+          apps: test.questions.filter((q) => q.type === 'app').length,
+          description: test.description,
+          outline: testOutline(test),
+        },
+      },
+    ]);
+    goToTab('business-home');
   };
 
   const openGenerator = (g: { jobId?: string; resume?: TestDraft; seed?: string; autoSend?: boolean; editTestId?: string; kind?: TestKind; fromHome?: boolean; background?: string }) => {
@@ -1644,6 +1683,25 @@ export default function App() {
               }
               turns={advisorTurns}
               onTurns={setAdvisorTurns}
+              build={homeBuild}
+              onBuild={setHomeBuild}
+              onSaveTest={(test) => {
+                const id = saveNewTest(test);
+                showToast(test.purpose === 'training' ? `"${test.title}" saved to your training.` : `"${test.title}" saved to your tests.`);
+                return id;
+              }}
+              onUpdateTest={(test) => {
+                // A change keeps the saved test's place: its id, owner, level family and kind
+                const before = tests.find((t) => t.id === test.id);
+                handleUpdateTest(
+                  before
+                    ? { ...before, ...test, id: before.id, type: before.type, ...(before.familyId && { familyId: before.familyId }), ...(before.businessId && { businessId: before.businessId, companyName: before.companyName }), ...(before.purpose && { purpose: before.purpose }) }
+                    : test
+                );
+              }}
+              seed={homeSeed}
+              onSeedUsed={() => setHomeSeed(undefined)}
+              onAddToJob={addTestsToJob}
               candidates={allCandidates}
               onInvite={(jobId, candidateId) => {
                 handleInviteToJob(jobId, [candidateId]);
@@ -1715,7 +1773,7 @@ export default function App() {
                   assignments={ourAssignments}
                   candidates={otherCandidates.concat(activeRole === 'recruiter' && !firebaseEnabled ? [candidate] : [])}
                   aiAllowed={aiAllowed}
-                  onCreate={() => openGenerator({ kind: 'training' })}
+                  onCreate={() => startInChat('I want to create training for my team.')}
                   onSeePlans={() => setPlansOpen(true)}
                   onContinueDraft={(d) => openGenerator({ resume: d })}
                   onTry={(test) => setTrialTest({ test })}
@@ -1745,7 +1803,7 @@ export default function App() {
                   onRemoveMember={(m) => setTeam((prev) => prev.filter((x) => x.id !== m.id))}
                   onAssign={assignWork}
                   onUnassign={(a) => setAssignments((prev) => prev.filter((x) => x.id !== a.id))}
-                  onCreateTraining={() => openGenerator({ kind: 'training' })}
+                  onCreateTraining={() => startInChat('I want to create training for my team.')}
                   onSeePlans={() => setPlansOpen(true)}
                   onOpenTest={openTestPage}
                   onViewPerson={setProfilePersonId}
@@ -1768,7 +1826,10 @@ export default function App() {
               onSelect={openBusinessJob}
               onCreateJob={handleCreateJob}
               onEditTests={(jobId) => setEditingTests({ jobId, addTestIds: [] })}
-              onSuggestTests={(jobId) => openGenerator({ jobId })}
+              onSuggestTests={(jobId) => {
+                const job = jobs.find((j) => j.id === jobId);
+                if (job) startInChat(`Create a test for this job:\n\n${jobBrief(job)}`, jobId);
+              }}
               onEditTest={(jobId, testId) => editOwnTest(testId, jobId)}
               onUpdateJobRequirements={handleUpdateJobRequirements}
               onUpdateJobSector={handleUpdateJobSector}
@@ -1836,7 +1897,7 @@ export default function App() {
                 setJobs((prev) => prev.map((j) => (j.testIds.includes(testId) ? { ...j, testIds: j.testIds.filter((id) => id !== testId) } : j)));
                 if (test) showToast(`${test.title} deleted.`);
               }}
-              onGenerateTest={(seed) => openGenerator({ seed })}
+              onGenerateTest={(seed) => startInChat(seed || 'I want to create a test.')}
               drafts={visibleDrafts}
               onSaveDraft={saveTestDraft}
               onDeleteDraft={deleteTestDraft}

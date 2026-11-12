@@ -1,6 +1,54 @@
 import { aiSimulationsFor } from './sectors';
 import { AssessmentTest, Business, TestKind, User } from '../types';
 import { Suggestion, libraryFor, matchExisting } from './testGeneration';
+import { orderedQuestions, QUESTION_STYLES, groupQuestions } from './questionTypes';
+import type { BuildStep, ChatState } from './testChat';
+
+// A test built in the home chat, kept by the app so it carries on while the company looks at the test: the test chat's
+// state (its draft is the saved test), the saved test's id, and while it's working, its progress
+export interface HomeBuild {
+  chat: ChatState;
+  kind: TestKind;
+  testId?: string;
+  working: boolean;
+  stage?: string;
+  steps?: BuildStep[];
+}
+
+// One line of a test's outline: the questions it numbers, what they are and what they cover
+export interface OutlineItem {
+  from: number;
+  to: number;
+  label: string;
+  detail: string;
+}
+
+// A test's questions as the candidate meets them, in sections: each hands-on task or case with its questions, and
+// runs of the same kind of question together
+export function testOutline(test: AssessmentTest): OutlineItem[] {
+  const styleOf = (type: string) => QUESTION_STYLES.find((s) => s.type === type)?.label ?? type;
+  const items: (OutlineItem & { type?: string; titles?: string[] })[] = [];
+  let n = 0;
+  for (const group of groupQuestions(orderedQuestions(test.questions))) {
+    const counted = group.questions.filter((q) => q.type !== 'case');
+    if (!counted.length) continue;
+    const from = n + 1;
+    n += counted.length;
+    if (group.task) {
+      const rest = counted.length - (group.task.type === 'case' ? 0 : 1);
+      items.push({ from, to: n, label: group.task.title, detail: `${group.task.type === 'case' ? 'Case study' : styleOf(group.task.type)}${rest > 0 ? `, then ${rest} ${rest === 1 ? 'question' : 'questions'} on it` : ''}` });
+      continue;
+    }
+    // Plain questions of the same kind in a row share a line
+    const q = counted[0];
+    const last = items[items.length - 1];
+    if (last?.type === q.type && last.to === from - 1) {
+      last.to = n;
+      last.titles!.push(q.title);
+    } else items.push({ from, to: n, label: styleOf(q.type), detail: '', type: q.type, titles: [q.title] });
+  }
+  return items.map((i) => ({ from: i.from, to: i.to, label: i.label, detail: i.titles ? `${i.titles.slice(0, 4).join(', ')}${i.titles.length > 4 ? '…' : ''}` : i.detail }));
+}
 
 // The company home's chat (server/testAdvisor.ts does the AI side): who they're hiring in, a roadmap, the library tests
 // that fit and custom pieces worth building out. Without the AI, the library is still matched on the words used.
@@ -30,7 +78,19 @@ export interface AdvisorTurn {
   // Set when the reply is a failure rather than advice
   error?: boolean;
   // Written by Vetter itself on coming back from the AI creator: what was just made (saved, or kept as a draft)
-  created?: { title: string; kind: TestKind; testId?: string; draft?: boolean; questions: number; apps: number };
+  created?: {
+    title: string;
+    kind: TestKind;
+    testId?: string;
+    draft?: boolean;
+    questions: number;
+    apps: number;
+    // Built in this chat: what it covers, and its questions in sections ("Questions 1–4: ...")
+    description?: string;
+    outline?: OutlineItem[];
+    // A change to a test already made in this chat
+    updated?: boolean;
+  };
   // The second step, once the kind is picked: what it should focus on, from the ideas worth building or typed in
   // (written by Vetter itself)
   askFocus?: { brief: string; kind: TestKind; ideas: CustomIdea[] };

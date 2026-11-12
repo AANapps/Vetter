@@ -9,6 +9,7 @@ Kept up to date as work is asked for and finished. Newest items at the bottom of
 - **Block AI app simulations on the server** for companies outside tech (today only the app hides them).
 - **Stop button: cancel on the server too.** Stop cancels the chat's requests in the browser, but a step already running on the server still finishes (and may be charged).
 - **Credit meter.** Decide whether to show "x% used", put it on every page, and warn or block before a build that would run out the credit. Billing needs `STRIPE_SECRET_KEY` to go live.
+- **Old test creator pop-up.** New tests and AI edits now happen in the home chat. The pop-up is still used to carry on drafts saved from it before; retire it once those are gone.
 - **Templates for AI simulations** (desk engines such as a virtual desktop, full inbox, records system; an instrument kit for hands-on roles) to cut AI cost and build time. Discussed, not started.
 
 ## Done
@@ -18,3 +19,4 @@ Kept up to date as work is asked for and finished. Newest items at the bottom of
 - 2026-11-12: Trades, Hospitality and Retail categories; a company sees only its sector's tests.
 - 2026-11-12: Stop button in the test chat.
 - 2026-11-12: Companies outside tech have their AI write questions only (no app simulations).
+- 2026-11-12: Tests are built and changed in the home chat (progress checklist, title, description, "Questions x to y" outline, See test), with Stop.

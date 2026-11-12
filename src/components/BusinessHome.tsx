@@ -1,11 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { PixelDot } from './PixelDot';
-import { ArrowRight, ArrowUp, Check, ChevronDown, Eye, Lock, Pencil, Plus, Send, Wand2, X } from 'lucide-react';
-import { AssessmentTest, Business, JobPosting, TestKind, User, levelName } from '../types';
+import { ArrowRight, ArrowUp, Check, ChevronDown, Circle, Eye, Loader2, Lock, Pencil, Plus, Send, Square, Wand2, X } from 'lucide-react';
+import { AssessmentTest, Business, JobPosting, QuestionType, TestKind, User, levelName } from '../types';
 import { Pic } from './Pic';
-import { AdvisorTurn, CUSTOM_KIND_LABELS, CustomIdea, SuggestedPerson, askAdvisor } from '../lib/testAdvisor';
-import { Credit, loadCredit } from '../lib/aiRequest';
+import { AdvisorTurn, CUSTOM_KIND_LABELS, CustomIdea, HomeBuild, SuggestedPerson, askAdvisor, testOutline } from '../lib/testAdvisor';
+import { Credit, loadCredit, startAiRun, stopAiRun } from '../lib/aiRequest';
+import { ChatContext, ChatState, sendChat } from '../lib/testChat';
+import { aiSimulationsFor } from '../lib/sectors';
+import { finaliseDraft } from './DraftPreview';
 import { kindLabel } from './KindChoice';
 import { CreditMeter, EXAMPLE_CREDIT } from './CreditMeter';
 import { CreditsDialog } from './CreditsDialog';
@@ -22,7 +25,18 @@ interface BusinessHomeProps {
   planName: string;
   // The conversation, kept by the app so it survives moving between pages
   turns: AdvisorTurn[];
-  onTurns: (turns: AdvisorTurn[]) => void;
+  onTurns: React.Dispatch<React.SetStateAction<AdvisorTurn[]>>;
+  // The test this chat is building or changing, kept by the app so it carries on while the company looks at the test
+  build: HomeBuild | null;
+  onBuild: React.Dispatch<React.SetStateAction<HomeBuild | null>>;
+  // Saves a test the chat built (returning its id), or a change to one
+  onSaveTest: (test: AssessmentTest, kind: TestKind) => string;
+  onUpdateTest: (test: AssessmentTest) => void;
+  // Something to start the chat with, from elsewhere in the app (e.g. "make a test for this job"), and the job the test
+  // it builds is for
+  seed?: { text: string; jobId?: string };
+  onSeedUsed: () => void;
+  onAddToJob: (jobId: string, testIds: string[]) => void;
   // The ready-made tests picked across the chat, taken on to the test plan
   onContinue: (tests: AssessmentTest[]) => void;
   // Builds an AI test straight away; the picked tests (and the reply's other ideas) wait in the test plan for it
@@ -40,6 +54,17 @@ interface BusinessHomeProps {
   // Sends a job's tests to a candidate, as an invitation
   onInvite: (jobId: string, candidateId: string) => void;
 }
+
+// Outside tech the AI writes every kind of question but app simulations (those come from Vetter's library)
+const NO_APP_STYLES: QuestionType[] = ['choice', 'multi', 'text', 'written', 'order', 'match', 'email', 'assistant', 'case', 'sheet', 'database', 'code', 'sql'];
+
+// The chat so far as the test writer is told it, so it doesn't ask again what the company already said
+const chatSummary = (turns: AdvisorTurn[]) =>
+  turns
+    .slice(-16)
+    .map((t) => (t.role === 'user' ? `Company: ${t.text}` : `Vetter: ${t.text}${t.brief ? `\n(The role: ${t.brief})` : ''}`))
+    .join('\n')
+    .slice(-5000);
 
 // What the chat does: find people, make a job simulation, and train the team
 const STARTERS = [
@@ -71,6 +96,13 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
   candidates,
   renderProfile,
   onInvite,
+  build,
+  onBuild,
+  onSaveTest,
+  onUpdateTest,
+  seed,
+  onSeedUsed,
+  onAddToJob,
 }) => {
   const [input, setInput] = useState('');
   // The candidate whose profile is open over the chat
@@ -96,20 +128,113 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
 
   useEffect(() => {
     if (turns.length) endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, [turns.length, thinking]);
+  }, [turns.length, thinking, build?.working, build?.steps?.length]);
+
+  const working = thinking || !!build?.working;
+  // The job a test built from a seed is added to
+  const jobFor = useRef<string | undefined>(undefined);
+
+  // Tests are built and changed right here: the test chat's engine (lib/testChat.ts) writes it, it's saved to the
+  // company's tests, and the reply shows what's in it with a See test button. Messages after that change it, until
+  // the company says it's done with it
+  const testContext = (kind: TestKind): ChatContext => ({
+    kind,
+    levels: [],
+    wantExisting: false,
+    tests,
+    business,
+    // Outside tech, app simulations come from Vetter's library, so the AI writes every other kind of question
+    styles: aiSimulationsFor(business) ? [] : NO_APP_STYLES,
+    background: chatSummary(turns),
+  });
+  const runTest = async (message: string, kind: TestKind, base: ChatState, testId?: string) => {
+    const signal = startAiRun().signal;
+    onBuild({ chat: base, kind, testId, working: true, stage: '', steps: [] });
+    const next = await sendChat(base, message, testContext(kind), (stage, steps) => {
+      if (!signal.aborted) onBuild((b) => b && { ...b, stage, ...(steps && { steps }) });
+    }).catch(() => base);
+    if (signal.aborted) {
+      onBuild((b) => b && { ...b, chat: base, working: false, stage: '', steps: [] });
+      onTurns((prev) => [...prev, { role: 'assistant', text: testId ? 'Stopped. Your test is as it was before that message.' : 'Stopped. Nothing was made.' }]);
+      return;
+    }
+    const reply = next.messages[next.messages.length - 1];
+    if (!next.draft || reply?.failed || next.draft === base.draft) {
+      onBuild((b) => b && { ...b, chat: next, working: false, stage: '', steps: [] });
+      onTurns((prev) => [...prev, { role: 'assistant', text: reply?.text || "Vetter couldn't build that. Try again.", ...(reply?.failed && { error: true }) }]);
+      return;
+    }
+    const finished: AssessmentTest = {
+      ...finaliseDraft(next.draft),
+      madeWith: 'ai',
+      ...(kind === 'training' && { purpose: 'training' as const, timeLimit: 'none' as const }),
+    };
+    let id = testId;
+    if (id) onUpdateTest({ ...finished, id });
+    else {
+      id = onSaveTest(finished, kind);
+      if (jobFor.current) onAddToJob(jobFor.current, [id]);
+      jobFor.current = undefined;
+    }
+    onBuild({ chat: next, kind, testId: id, working: false });
+    onTurns((prev) => [
+      ...prev,
+      {
+        role: 'assistant',
+        text: reply?.text ?? '',
+        created: {
+          title: finished.title,
+          kind,
+          testId: id,
+          questions: finished.questions.filter((q) => q.type !== 'case').length,
+          apps: finished.questions.filter((q) => q.type === 'app').length,
+          description: finished.description,
+          outline: testOutline(finished),
+          ...(testId && { updated: true }),
+        },
+      },
+    ]);
+  };
+  // Build it: the brief settled in the chat becomes the test's first message
+  const buildTest = (brief: string, kind: TestKind = 'simulation') => {
+    if (!aiAllowed) return onSeePlans();
+    if (working) return;
+    onTurns((prev) => [...prev, { role: 'user', text: kind === 'training' ? 'Build the training.' : 'Build it.' }]);
+    runTest(brief, kind, { messages: [], existing: [] });
+  };
+  const stop = () => {
+    stopAiRun();
+    onBuild((b) => b && { ...b, stage: 'Stopping…' });
+  };
 
   const send = async (text: string) => {
     const t = text.trim();
-    if (!t || thinking) return;
+    if (!t || working) return;
+    setInput('');
+    // While a test from this chat is open for changes, messages change it
+    if (build?.testId) {
+      onTurns((prev) => [...prev, { role: 'user', text: t }]);
+      runTest(t, build.kind, build.chat, build.testId);
+      return;
+    }
     const next: AdvisorTurn[] = [...turns, { role: 'user', text: t }];
     onTurns(next);
-    setInput('');
     setThinking(true);
     const reply = await askAdvisor(next, tests, business, candidates);
-    onTurns([...next, reply]);
+    onTurns((prev) => [...prev, reply]);
     setThinking(false);
     inputRef.current?.focus();
   };
+
+  // Started from elsewhere: the seed goes in as the company's first message
+  useEffect(() => {
+    if (!seed || working) return;
+    jobFor.current = seed.jobId;
+    onSeedUsed();
+    onBuild(null);
+    send(seed.text);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seed]);
 
 
   return (
@@ -139,8 +264,8 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
                 </span>
                 <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">Who are you hiring?</h1>
                 <p className="text-sm text-slate-500 max-w-md mx-auto">
-                  Describe the role, or paste the job description. Vetter asks what it needs to know, suggests a job simulation and the ready-made
-                  tests that fit, then builds it.
+                  Describe the role, or paste the job description. Vetter asks what it needs to know, then builds the test right here: you see
+                  what's in it, open it with See test, and ask for any change.
                 </p>
               </div>
               <div className="flex flex-wrap justify-center gap-2 max-w-xl mx-auto">
@@ -182,7 +307,8 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
                   onTogglePick={togglePick}
                   onPickAll={pickAll}
                   onEditCopy={onEditCopy}
-                  onBuildWithAI={onBuildWithAI}
+                  onBuildWithAI={buildTest}
+                  testOpen={!!build?.testId && build.testId === turn.created?.testId}
                   onSeePlans={onSeePlans}
                   onOpenTest={onOpenTest}
                   onOpenLibrary={() => onGoTo('business-tests')}
@@ -194,6 +320,31 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
                 />
               )
             )
+          )}
+          {build?.working && (
+            <div className="flex gap-3">
+              <span className="ai-mark w-7 h-7 shrink-0 rounded-lg text-white text-xs font-pixel flex items-center justify-center">V</span>
+              <div className="ai-glass min-w-0 flex-1 p-4 rounded-2xl rounded-tl-md border border-white/80 shadow-sm space-y-2">
+                <p className="text-sm font-semibold text-slate-900">{build.testId ? 'Changing your test…' : build.kind === 'training' ? 'Building your training…' : 'Building your test…'}</p>
+                {!!build.steps?.length && (
+                  <ul className="space-y-1">
+                    {build.steps.map((s) => (
+                      <li key={s.id} className="flex items-center gap-2 text-sm">
+                        {s.status === 'done' ? (
+                          <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                        ) : s.status === 'doing' ? (
+                          <Loader2 className="w-4 h-4 text-indigo-600 animate-spin shrink-0" />
+                        ) : (
+                          <Circle className="w-4 h-4 text-slate-300 shrink-0" />
+                        )}
+                        <span className={s.status === 'todo' ? 'text-slate-400' : 'text-slate-700'}>{s.label}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <p className="text-xs text-slate-500 ai-shimmer">{build.stage || 'Starting…'}</p>
+              </div>
+            </div>
           )}
           {thinking && (
             <div className="flex items-center gap-2 text-sm text-slate-500">
@@ -249,7 +400,22 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
               </div>
             </div>
           )}
-          <div className="ai-ring" data-busy={thinking}>
+          {build?.testId && !build.working && (
+            <div className="mb-2 flex items-center justify-between gap-3 px-3 py-2 bg-white/90 border border-indigo-200 rounded-xl text-xs">
+              <span className="min-w-0 truncate text-slate-700">
+                Changing <b className="text-slate-900">{build.chat.draft?.title ?? 'your test'}</b>: tell Vetter what to change.
+              </span>
+              <span className="shrink-0 flex items-center gap-3">
+                <button type="button" onClick={() => onOpenTest(build.testId!)} className="font-semibold text-indigo-700 hover:text-indigo-900">
+                  See test
+                </button>
+                <button type="button" onClick={() => onBuild(null)} className="font-semibold text-slate-500 hover:text-slate-900">
+                  Done
+                </button>
+              </span>
+            </div>
+          )}
+          <div className="ai-ring" data-busy={working}>
           <div className="ai-glass-solid flex items-end gap-2 p-2 rounded-[calc(1.25rem-1.5px)]">
             <textarea
               ref={inputRef}
@@ -262,24 +428,30 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
                 }
               }}
               rows={1}
-              placeholder={turns.length ? 'Answer, or ask a follow-up, e.g. make it more senior' : 'Describe the role, or paste the job description'}
+              placeholder={build?.testId ? 'Ask for a change, e.g. "make question 3 harder"' : turns.length ? 'Answer, or ask a follow-up, e.g. make it more senior' : 'Describe the role, or paste the job description'}
               aria-label="Message Vetter"
               className="flex-1 resize-none max-h-40 px-2 py-1.5 text-sm bg-transparent focus:outline-none"
             />
-            <button
-              type="submit"
-              disabled={!input.trim() || thinking}
-              aria-label="Send"
-              className="w-9 h-9 shrink-0 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center disabled:opacity-40"
-            >
-              <ArrowUp className="w-4 h-4" />
-            </button>
+            {build?.working ? (
+              <button type="button" onClick={stop} aria-label="Stop" title="Stop Vetter making any more" className="w-9 h-9 shrink-0 rounded-xl bg-slate-800 hover:bg-slate-900 text-white flex items-center justify-center">
+                <Square className="w-3.5 h-3.5 fill-current" />
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={!input.trim() || thinking}
+                aria-label="Send"
+                className="w-9 h-9 shrink-0 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center disabled:opacity-40"
+              >
+                <ArrowUp className="w-4 h-4" />
+              </button>
+            )}
           </div>
           </div>
           <div className="mt-2 flex items-center justify-center gap-4 text-[11px]">
             {turns.length > 0 && (
               <>
-                <button type="button" onClick={() => (onTurns([]), clearPicks())} className="font-semibold text-slate-500 hover:text-slate-900">
+                <button type="button" onClick={() => (onTurns([]), clearPicks(), onBuild(null))} className="font-semibold text-slate-500 hover:text-slate-900">
                   New chat
                 </button>
                 <button type="button" onClick={onCreateOwn} className="font-semibold text-slate-500 hover:text-slate-900 inline-flex items-center gap-1">
@@ -314,7 +486,9 @@ const AdvisorReply: React.FC<{
   onInvite: (jobId: string, candidateId: string) => void;
   // Set on the latest reply only: a quick answer sends it as the company's next message
   onQuickReply?: (text: string) => void;
-}> = ({ turn, aiAllowed, picked, onTogglePick, onPickAll, onEditCopy, onBuildWithAI, onSeePlans, onOpenTest, onOpenLibrary, candidates, onViewPerson, jobs, onInvite, onQuickReply }) => (
+  // This reply's test is the one the chat is changing
+  testOpen?: boolean;
+}> = ({ turn, testOpen, aiAllowed, picked, onTogglePick, onPickAll, onEditCopy, onBuildWithAI, onSeePlans, onOpenTest, onOpenLibrary, candidates, onViewPerson, jobs, onInvite, onQuickReply }) => (
   <div className="flex gap-3">
     <span className="ai-mark-still w-7 h-7 shrink-0 rounded-lg text-white text-xs font-pixel flex items-center justify-center">V</span>
     <div className="ai-glass min-w-0 flex-1 space-y-4 p-4 sm:p-5 rounded-2xl rounded-tl-md border border-white/80 shadow-sm">
@@ -352,32 +526,52 @@ const AdvisorReply: React.FC<{
           </button>
         </div>
       )}
-      {/* Just made in the creator: where it is now */}
+      {/* A test made (or changed) here: its title, what it covers, its questions in sections, and See test */}
       {turn.created && (
-        <div className="p-4 bg-white border border-slate-200 rounded-xl flex flex-col sm:flex-row sm:items-center gap-3">
-          <span className={`w-9 h-9 shrink-0 rounded-full flex items-center justify-center ${turn.created.draft ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
-            {turn.created.draft ? <Pencil className="w-4 h-4" /> : <Check className="w-4 h-4" />}
-          </span>
-          <div className="min-w-0 flex-1">
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-              {kindLabel(turn.created.kind)} · {turn.created.draft ? 'Draft' : 'Saved'}
+        <div className="p-4 bg-white border border-slate-200 rounded-xl space-y-3">
+          <div className="flex items-start gap-3">
+            <span className={`w-9 h-9 shrink-0 rounded-full flex items-center justify-center ${turn.created.draft ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
+              {turn.created.draft ? <Pencil className="w-4 h-4" /> : <Check className="w-4 h-4" />}
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                {kindLabel(turn.created.kind)} · {turn.created.draft ? 'Draft' : turn.created.updated ? 'Changed and saved' : 'Saved to your tests'}
+              </div>
+              <p className="mt-0.5 text-sm font-semibold text-slate-900">{turn.created.title}</p>
+              {turn.created.description && <p className="mt-1 text-sm text-slate-600 leading-relaxed">{turn.created.description}</p>}
+              <p className="mt-1 text-xs text-slate-500">
+                {turn.created.kind === 'standalone'
+                  ? 'One interactive simulation'
+                  : `${turn.created.questions} ${turn.created.questions === 1 ? 'question' : 'questions'}${turn.created.apps ? `, ${turn.created.apps} ${turn.created.apps === 1 ? 'app simulation' : 'app simulations'}` : ''}`}
+              </p>
             </div>
-            <p className="mt-0.5 text-sm font-semibold text-slate-900 truncate">{turn.created.title}</p>
-            <p className="text-xs text-slate-500">
-              {turn.created.kind === 'standalone'
-                ? 'One interactive simulation'
-                : `${turn.created.questions} ${turn.created.questions === 1 ? 'question' : 'questions'}${turn.created.apps ? `, ${turn.created.apps} ${turn.created.apps === 1 ? 'app simulation' : 'app simulations'}` : ''}`}
-            </p>
           </div>
-          <div className="shrink-0 flex flex-wrap gap-2">
+          {!!turn.created.outline?.length && (
+            <ul className="space-y-1.5 border-t border-slate-100 pt-3">
+              {turn.created.outline.map((o) => (
+                <li key={`${o.from}-${o.to}`} className="flex gap-2 text-sm">
+                  <Check className="w-4 h-4 mt-0.5 text-emerald-600 shrink-0" />
+                  <span className="min-w-0">
+                    <span className="font-semibold text-slate-900">
+                      {o.from === o.to ? `Question ${o.from}` : `Questions ${o.from} to ${o.to}`}: {o.label}
+                    </span>
+                    {o.detail && <span className="text-slate-500"> · {o.detail}</span>}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="flex flex-wrap items-center gap-2">
             {turn.created.testId && (
-              <button onClick={() => onOpenTest(turn.created!.testId!)} className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:border-indigo-400 rounded-lg">
-                Open it
+              <button onClick={() => onOpenTest(turn.created!.testId!)} className="px-3.5 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg inline-flex items-center gap-1.5">
+                <Eye className="w-3.5 h-3.5" />
+                See test
               </button>
             )}
-            <button onClick={onOpenLibrary} className="px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg inline-flex items-center gap-1">
-              Go to test library <ArrowRight className="w-3 h-3" />
+            <button onClick={onOpenLibrary} className="px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:border-indigo-400 rounded-lg inline-flex items-center gap-1">
+              Your test library <ArrowRight className="w-3 h-3" />
             </button>
+            {testOpen && <span className="text-xs text-slate-500">Ask below for any change.</span>}
           </div>
         </div>
       )}
