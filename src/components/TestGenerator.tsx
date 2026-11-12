@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AlertCircle, ArrowUp, Check, ChevronDown, ChevronUp, Library, Loader2, Maximize2, Minus, X } from 'lucide-react';
+import { AlertCircle, ArrowUp, Check, ChevronDown, ChevronUp, Library, Loader2, Maximize2, Minus, Square, X } from 'lucide-react';
 import { AssessmentTest, Business, JobPosting, QuestionType, TEST_DIFFICULTIES, TestDifficulty, TestDraft, TestKind, levelName } from '../types';
 import { QUESTION_STYLES } from '../lib/questionTypes';
 import { DraftPreview, Dropdown, draftProblems, finaliseDraft } from './DraftPreview';
@@ -7,7 +7,7 @@ import { BuildingCard } from './BuildingCard';
 import { jobBrief } from '../lib/testGeneration';
 import { BuildStep, ChatState, sendChat } from '../lib/testChat';
 import { versionTitle } from '../lib/testLevels';
-import { Credit, estimateTest, loadCredit, pounds, setAiPurpose } from '../lib/aiRequest';
+import { Credit, estimateTest, loadCredit, pounds, setAiPurpose, startAiRun, stopAiRun } from '../lib/aiRequest';
 import { CreditsDialog } from './CreditsDialog';
 import { CreditMeter, EXAMPLE_CREDIT } from './CreditMeter';
 
@@ -237,6 +237,13 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
   }, [chat.messages.length, working]);
 
   // again: the last message sent once more, in place of it and the failed reply
+  // Each message's run, so a stopped one that finishes late changes nothing
+  const runs = useRef(0);
+  const stop = () => {
+    stopAiRun();
+    setStage('Stopping…');
+  };
+
   const send = async (text: string, again = false) => {
     const message = text.trim();
     if (!message || working) return;
@@ -251,10 +258,24 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
     setAiPurpose(chat.draft?.title || original?.title || (job ? `${job.title} test` : 'New test'));
     setStage('');
     setSteps([]);
+    const signal = startAiRun().signal;
+    const runId = ++runs.current;
     const next = await sendChat(base, message, ctx, (line, list) => {
+      if (signal.aborted) return;
       setStage(line);
       if (list) setSteps(list);
+    }).catch((err) => {
+      if (signal.aborted) return base;
+      throw err;
     });
+    // Stopped: whatever came back is dropped and the draft stays as it was before this message
+    if (signal.aborted) {
+      if (runId === runs.current) {
+        setChat({ ...base, messages: [...base.messages, { role: 'user', text: message }, { role: 'assistant', text: 'Stopped. Nothing more was made, and your test is as it was before that message.' }] });
+        setWorking(false);
+      }
+      return;
+    }
     setChat(next);
     // New library picks start ticked, unless the job has them already
     setChosen((prev) => [...new Set([...prev.filter((id) => next.existing.some((s) => s.test.id === id)), ...next.existing.filter((s) => !chat.existing.some((e) => e.test.id === s.test.id) && !job?.testIds.includes(s.test.id)).map((s) => s.test.id)])]);
@@ -608,9 +629,15 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                   placeholder={focus ? `Ask for a change to ${focus.app}, e.g. "add a refunds screen"` : draft ? 'Ask for a change, e.g. "make question 2 harder"' : job ? 'What matters most in this hire?' : 'Describe the role or the test you want'}
                   className="flex-1 resize-none px-2.5 py-2 text-base leading-[1.6] text-slate-900 bg-transparent focus:outline-none"
                 />
-                <button type="submit" disabled={!input.trim() || working} aria-label="Send" className="p-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-30">
-                  <ArrowUp className="w-5 h-5" />
-                </button>
+                {working ? (
+                  <button type="button" onClick={stop} aria-label="Stop" title="Stop Vetter making any more" className="p-2 rounded-lg bg-slate-800 text-white hover:bg-slate-900">
+                    <Square className="w-5 h-5 fill-current" />
+                  </button>
+                ) : (
+                  <button type="submit" disabled={!input.trim()} aria-label="Send" className="p-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-30">
+                    <ArrowUp className="w-5 h-5" />
+                  </button>
+                )}
               </form>
             </div>
           </section>

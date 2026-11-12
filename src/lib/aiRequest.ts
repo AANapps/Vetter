@@ -6,7 +6,16 @@ import { auth, firebaseEnabled } from './firebase';
 let purpose = '';
 export const setAiPurpose = (name: string) => (purpose = name.trim().slice(0, 120));
 
+// Stop: every AI request of the current run is cancelled, and any the run still tries to make fail at once, so the
+// chat stops making more. A new run (the next message) starts afresh
+let run = new AbortController();
+export const startAiRun = () => (run = new AbortController());
+export const stopAiRun = () => run.abort();
+export const aiStopped = () => run.signal.aborted;
+
 export async function aiFetch(path: string, payload: unknown): Promise<Response> {
+  const signal = run.signal;
+  if (signal.aborted) throw new DOMException('Stopped', 'AbortError');
   const user = firebaseEnabled ? auth().currentUser : null;
   const token = user ? await user.getIdToken().catch(() => '') : '';
   return fetch(path, {
@@ -17,6 +26,7 @@ export async function aiFetch(path: string, payload: unknown): Promise<Response>
       ...(purpose && { 'X-Vetter-For': encodeURIComponent(purpose) }),
     },
     body: JSON.stringify(payload),
+    signal,
   });
 }
 
