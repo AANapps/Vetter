@@ -21,7 +21,10 @@ export type SkillCategory =
   | 'Data Science'
   | 'Cyber Security'
   | 'AI Engineering'
-  | 'AI Strategy';
+  | 'AI Strategy'
+  | 'Trades'
+  | 'Hospitality'
+  | 'Retail';
 
 // The jobs a test is relevant to; grouped by industry on the Tests page
 export type TestRole =
@@ -44,7 +47,18 @@ export type TestRole =
   | 'Data Scientist'
   | 'SOC Analyst'
   | 'AI Engineer'
-  | 'AI Consultant';
+  | 'AI Consultant'
+  | 'Electrician'
+  | 'Plumber'
+  | 'Mechanic'
+  | 'Carpenter'
+  | 'Dental Nurse'
+  | 'Nurse'
+  | 'Care Worker'
+  | 'Chef'
+  | 'Barista'
+  | 'Front of House'
+  | 'Retail Assistant';
 
 export interface VerifiedSkill {
   skillId: string;

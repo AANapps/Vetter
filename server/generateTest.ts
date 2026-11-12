@@ -505,7 +505,7 @@ Style rules (testCases is an empty list for choice, multi, text, order and match
 - code: JavaScript. starterCode defines "function solution(...)". solutionCode is a correct reference implementation. 3 to 5 testCases; input is a JSON array of the arguments, e.g. "[[3,1,2]]" calls solution([3,1,2]); expectedOutput is the JSON result.
 - sql: query only these tables: ${req.tables.map((t) => `${t.name}(${t.columns.join(', ')})`).join('; ')}. List the tables used in "tables". solutionCode is a correct SQLite query; starterCode is a comment and "SELECT ".${DEPTH_STYLE_RULES}${req.styles.includes('email') ? EMAIL_RULES : ''}${req.styles.includes('assistant') ? ASSISTANT_RULES : ''}${req.styles.includes('app') ? APP_RULES : ''}
 timeLimitMinutes is realistic for the question (2 to 4 for answer styles, as the scenario takes reading, 5 to 10 for code and sql, 6 to 12 for app), and across the test they add up to 25 to 35. points reflect importance; a task counts for more than a question about it.${req.styles.includes('app') ? TASK_RULES : ''}
-category must be one of: ${req.categories.join(', ')}. passingScore between 60 and 80. roles: pick from ${req.roles.join(', ')}.
+category must be one of: ${req.categories.join(', ')}, the one for the job itself: Trades for electrical, plumbing, building, mechanical and other trade work; Healthcare for clinical, dental and care work; Hospitality and Retail for that work (never a tech or office category for these jobs). passingScore between 60 and 80. roles: pick from ${req.roles.join(', ')}.
 Write plainly, in British English, with no em dashes.`
     : 'Do not include "test".'
 }

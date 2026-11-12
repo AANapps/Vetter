@@ -9,8 +9,11 @@ export const ROLE_GROUPS: { industry: string; roles: TestRole[] }[] = [
   { industry: 'Consulting & Business', roles: ['Consultant', 'Business Analyst'] },
   { industry: 'Finance & Accounting', roles: ['Financial Analyst', 'Accountant'] },
   { industry: 'Marketing & Sales', roles: ['Digital Marketer', 'Sales Representative'] },
-  { industry: 'Healthcare', roles: ['Healthcare Professional'] },
+  { industry: 'Healthcare', roles: ['Healthcare Professional', 'Nurse', 'Dental Nurse', 'Care Worker'] },
   { industry: 'Operations', roles: ['Project Manager'] },
+  { industry: 'Trades', roles: ['Electrician', 'Plumber', 'Mechanic', 'Carpenter'] },
+  { industry: 'Hospitality', roles: ['Chef', 'Barista', 'Front of House'] },
+  { industry: 'Retail', roles: ['Retail Assistant'] },
 ];
 
 // A role's tests in labelled sections, by tool or skill. The Tests page groups them under these headings, and the

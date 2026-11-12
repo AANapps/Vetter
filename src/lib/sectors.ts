@@ -43,6 +43,9 @@ const CATEGORY_SECTOR: Record<SkillCategory, SectorId> = {
   Marketing: 'marketing',
   Sales: 'marketing',
   Healthcare: 'healthcare',
+  Trades: 'trades',
+  Hospitality: 'hospitality',
+  Retail: 'retail',
 };
 
 // The Tests page's industries
@@ -56,6 +59,9 @@ const INDUSTRY_SECTOR: Record<string, SectorId> = {
   Operations: 'business',
   'Marketing & Sales': 'marketing',
   Healthcare: 'healthcare',
+  Trades: 'trades',
+  Hospitality: 'hospitality',
+  Retail: 'retail',
 };
 
 const COURSE_SECTOR: Record<string, SectorId> = {
@@ -85,7 +91,21 @@ const JOB_WORDS: [SectorId, RegExp][] = [
   ['tech', /\b(engineer|developer|software|data|platform|infrastructure|devops|security|ai|ml|product|design|frontend|backend|qa)/i],
 ];
 
-export const testSector = (test: AssessmentTest): SectorId => CATEGORY_SECTOR[test.category] ?? 'tech';
+// Hands-on work that tests made before these sectors had categories were filed under an office or tech one by mistake
+// (an electrical test under Software Development, say): their title or roles put them right
+const HANDS_ON_WORDS: [SectorId, RegExp][] = [
+  ['trades', /\b(electric(al|ian)?|wiring|consumer unit|eicr|bs ?7671|18th edition|plumb(er|ing)?|heating engineer|gas safe|joiner|carpent(er|ry)|mechanic|vehicle|welder|welding|hvac|roofer|roofing|bricklay(er|ing)|plaster(er|ing)|tiler|tiling|decorat(or|ing))\b/i],
+  ['hospitality', /\b(barista|chef|kitchen|restaurant|waiter|waitress|bartender|front of house|caf[eé]|hotel|housekeeping)\b/i],
+  ['retail', /\b(retail|shop floor|cashier|checkout|sales assistant|merchandis(er|ing))\b/i],
+];
+
+// A test's sector: the trades, hospitality or retail when its title or roles say it's that hands-on work, else its category's
+export const testSector = (test: AssessmentTest): SectorId => {
+  const own = CATEGORY_SECTOR[test.category];
+  if (own && own !== 'tech' && own !== 'business' && own !== 'marketing') return own;
+  const text = `${test.title} ${(test.roles ?? []).join(' ')}`;
+  return HANDS_ON_WORDS.find(([, re]) => re.test(text))?.[0] ?? own ?? 'tech';
+};
 
 export const industrySector = (industry: string): SectorId | undefined => INDUSTRY_SECTOR[industry];
 

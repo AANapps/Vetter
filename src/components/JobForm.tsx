@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import { AssessmentTest, Business, JobPosting, isPublic, levelName } from '../types';
 import { CITIES } from '../lib/geo';
 import { EMPLOYMENT_TYPES, EXPERIENCE_LEVELS, formatSalaryRange } from '../lib/jobFilters';
-import { Plus } from 'lucide-react';
+import { Loader2, Plus, Sparkles } from 'lucide-react';
 import { SectorSelect } from './SectorPicker';
 import { SectorId } from '../lib/sectors';
 import { isMainVersion, levelsOf, versionTitle } from '../lib/testLevels';
+import { aiFetch } from '../lib/aiRequest';
+import { Suggestion, matchExisting } from '../lib/testGeneration';
 
 interface JobFormProps {
   // The companies the job can be posted for: a company posts for itself, the Vetter team for any company
@@ -69,6 +71,12 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
   const updatePick = (testId: string, change: Partial<Pick>) => {
     setPicked((prev) => ({ ...prev, [testId]: { ...prev[testId], ...change } }));
   };
+  // Posting first asks Vetter's AI which tests fit the job description, and the company says whether to include them.
+  // Asked once per title and description, so posting again after answering doesn't ask again
+  const [suggested, setSuggested] = useState<Suggestion[] | null>(null);
+  const [include, setInclude] = useState<string[]>([]);
+  const [askedFor, setAskedFor] = useState('');
+  const [asking, setAsking] = useState(false);
   const [passingScore, setPassingScore] = useState<number>(70);
   const [requireTest, setRequireTest] = useState<boolean>(true);
 
@@ -82,9 +90,59 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
     );
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // The tests that fit the job, from the AI reading its description, or matched here when the AI can't be reached
+  const suggestFor = async (): Promise<Suggestion[]> => {
+    const library = [...companyTests, ...vetterTests];
+    if (!library.length) return [];
+    const already = new Set(Object.keys(picked));
+    try {
+      const res = await aiFetch('/api/suggest-tests', {
+        job: { title: title.trim(), description, sector, level: experience, department },
+        library: library.map((t) => ({ id: t.id, title: t.title, category: t.category, difficulty: t.difficulty, skills: t.skillsTested, roles: t.roles ?? [], description: t.description })),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      const body = (await res.json()) as { picks?: { testId: string; reason: string }[] };
+      return (body.picks ?? []).flatMap(({ testId, reason }) => {
+        const test = library.find((t) => t.id === testId);
+        return test && !already.has(test.id) ? [{ test, reason }] : [];
+      });
+    } catch {
+      return matchExisting(`${title}\n${description}`, library).filter((s) => !already.has(s.test.id));
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!business || !title.trim() || !department.trim() || salaryMax < salaryMin) return;
+    if (!business || !title.trim() || !department.trim() || salaryMax < salaryMin || asking) return;
+    const key = `${title.trim()}\n${description.trim()}`;
+    if (askedFor !== key) {
+      setAsking(true);
+      const picks = await suggestFor();
+      setAsking(false);
+      setAskedFor(key);
+      if (picks.length) {
+        setSuggested(picks);
+        setInclude(picks.map((p) => p.test.id));
+        return;
+      }
+    }
+    post(picked);
+  };
+
+  // Adds the ticked suggestions to the job's tests, then posts it
+  const answerSuggestions = (add: boolean) => {
+    const next = add ? { ...picked, ...Object.fromEntries(include.map((id) => [id, { testId: id, minScore: 70, importance: 'required' as const }])) } : picked;
+    setPicked(next);
+    setSuggested(null);
+    post(next);
+  };
+
+  const post = (picks: Record<string, Pick>) => {
+    const pickedTests = Object.values(picks)
+      .map((p) => tests.find((t) => t.id === p.testId))
+      .filter((t): t is AssessmentTest => !!t);
+    const pickFor = (testId: string) => Object.values(picks).find((p) => p.testId === testId)!;
+    if (!business) return;
     if (pickedTests.length === 0) {
       setPickError(true);
       return;
@@ -355,13 +413,65 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
             </div>
           </fieldset>
 
-          <button
-            type="submit"
-            className="w-full py-2.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-xs"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Post Job</span>
-          </button>
+          {suggested ? (
+            // Vetter's suggestions from the job description: the company decides whether they go on the job
+            <div className="p-3 border border-indigo-200 bg-indigo-50 rounded-xl space-y-2.5" role="dialog" aria-label="Suggested tests">
+              <div className="flex items-start gap-2">
+                <Sparkles className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+                <p className="text-xs text-slate-800">
+                  <span className="font-semibold">Vetter read your job description and suggests {suggested.length === 1 ? 'this test' : 'these tests'}.</span>{' '}
+                  Do you want to include {suggested.length === 1 ? 'it' : 'them'}?
+                </p>
+              </div>
+              <ul className="bg-white border border-slate-200 rounded-lg divide-y divide-slate-100">
+                {suggested.map(({ test, reason }) => (
+                  <li key={test.id} className="px-3 py-2">
+                    <label className="flex items-start gap-2.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={include.includes(test.id)}
+                        onChange={() => setInclude((prev) => (prev.includes(test.id) ? prev.filter((id) => id !== test.id) : [...prev, test.id]))}
+                        className="mt-0.5 accent-indigo-600"
+                      />
+                      <span className="min-w-0">
+                        <span className="block text-xs font-semibold text-slate-900">{test.title}</span>
+                        <span className="block text-[11px] text-slate-600">{reason}</span>
+                        <span className="block text-[11px] text-slate-400">
+                          {test.category} &middot; {test.difficulty} &middot; ~{test.estimatedMinutes} min
+                        </span>
+                      </span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={!include.length}
+                  onClick={() => answerSuggestions(true)}
+                  className="flex-1 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 rounded-lg"
+                >
+                  Include {include.length === suggested.length ? (suggested.length === 1 ? 'it' : 'them') : `${include.length} ticked`} and post
+                </button>
+                <button
+                  type="button"
+                  onClick={() => answerSuggestions(false)}
+                  className="flex-1 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg"
+                >
+                  Post without them
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="submit"
+              disabled={asking}
+              className="w-full py-2.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-70 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-xs"
+            >
+              {asking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+              <span>{asking ? 'Finding tests that fit your job description…' : 'Post Job'}</span>
+            </button>
+          )}
         </form>
       </div>
     </div>

@@ -181,7 +181,7 @@ Style rules (testCases is an empty list for choice, multi, text, order and match
   A kept app keeps its page; to change one, write it again with a new spec.${APP_TASK_RULES}
 timeLimitMinutes is realistic for the question (2 to 4 for answer styles, as the scenario takes reading, 4 to 8 for written, 3 to 6 reading time for case, 5 to 10 for code, sql, sheet and database, 6 to 12 for app), and across the test they add up to 45 to 75 unless the company asks for a different length. points reflect importance; a task counts for more than a question about it.
 ${TASK_RULES}${req.kind === 'standalone' ? STANDALONE_RULES : ''}
-category must be one of: ${req.categories.join(', ')}. passingScore between 60 and 80. roles: pick from ${req.roles.join(', ')}.`;
+category must be one of: ${req.categories.join(', ')}, the one for the job itself: Trades for electrical, plumbing, building, mechanical and other trade work; Healthcare for clinical, dental and care work; Hospitality and Retail for that work (never a tech or office category for these jobs). passingScore between 60 and 80. roles: pick from ${req.roles.join(', ')}.`;
 }
 
 function instructions(req: ChatRequest, research: string): string {
