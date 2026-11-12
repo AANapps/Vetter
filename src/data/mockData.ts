@@ -4,7 +4,6 @@ import RECRUITER_AVATAR from '../assets/images/recruiter_avatar_tech_17923298154
 import { ROLE_ASSESSMENTS } from './roleTests';
 import { CONSULTING_TEST, INDUSTRY_TESTS } from './industryTests';
 import { SIMULATION_TESTS } from './simulationTests';
-import { SKILLS_GAMES } from './skillsGames';
 import { ANALYSIS_SIMULATIONS } from './analysisSimulations';
 import { withLevelVersions } from './levelVersions';
 import { EXTRA_QUESTIONS } from './extraQuestions';
@@ -634,7 +633,7 @@ Example: solution(["/users/:id"], "/users/7") returns { route: "/users/:id", par
   ...ANALYST_SKILL_TESTS,
   ...SIMULATION_TESTS,
   ...ROLE_TRACK_TESTS,
-])))), ...SKILLS_GAMES];
+]))))];
 
 // Company-made tests, written by a business for its own jobs
 export const COMPANY_ASSESSMENTS: AssessmentTest[] = [

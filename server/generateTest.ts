@@ -319,8 +319,8 @@ know; leave out anything a good candidate would look at and think "that's not my
   else by name, and then gets it.
 - DESK WORK: hands-on tasks are in the software the job uses (sheet, database, code, an app copying its product).
 
-SKILLS GAMES: Vetter's library has ready-made skills games for general abilities (attention to detail, verbal,
-numerical and logical reasoning, memory, multitasking), suggested to the company when it posts the job. Don't build a
+SKILLS GAMES: games for general abilities (attention to detail, verbal, numerical and logical reasoning, memory,
+multitasking) are made by the Vetter team for the library and suggested when the company posts the job. Don't build a
 game for those abilities here unless the company asks for one by name; test the job's own skills instead.
 
 QUESTION QUALITY: write questions that really test the candidate: a strong one finds them demanding and a weak one can't
