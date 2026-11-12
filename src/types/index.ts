@@ -24,7 +24,9 @@ export type SkillCategory =
   | 'AI Strategy'
   | 'Trades'
   | 'Hospitality'
-  | 'Retail';
+  | 'Retail'
+  // Vetter's skills games: general abilities, for every sector
+  | 'Aptitude';
 
 // The jobs a test is relevant to; grouped by industry on the Tests page
 export type TestRole =
@@ -58,7 +60,8 @@ export type TestRole =
   | 'Chef'
   | 'Barista'
   | 'Front of House'
-  | 'Retail Assistant';
+  | 'Retail Assistant'
+  | 'Any role';
 
 export interface VerifiedSkill {
   skillId: string;

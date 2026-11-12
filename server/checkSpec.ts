@@ -58,7 +58,7 @@ not code) and the checks run on the page's state (testCases). Read them as that 
 - rules, standards or safety steps that are missing or wrong
 - checks that reward the wrong answer, or a "correct" answer a professional would disagree with
 - a task that can't be done from what the page gives the candidate
-A task titled "Skills game: ..." is a gamified test of general abilities (multitasking, attention to detail, verbal
+A task titled "Skills game: ..." (one a company asked for by name) is a gamified test of general abilities (multitasking, attention to detail, verbal
 reasoning...) and deliberately needn't relate to the job: don't make it about the job. Check instead that each round
 really measures the ability it names, is fair and the same for everyone, has exactly one right answer per item, and that
 the checks match those answers.

@@ -46,6 +46,8 @@ const CATEGORY_SECTOR: Record<SkillCategory, SectorId> = {
   Trades: 'trades',
   Hospitality: 'hospitality',
   Retail: 'retail',
+  // The skills games are for every sector
+  Aptitude: 'all',
 };
 
 // The Tests page's industries
@@ -62,6 +64,7 @@ const INDUSTRY_SECTOR: Record<string, SectorId> = {
   Trades: 'trades',
   Hospitality: 'hospitality',
   Retail: 'retail',
+  'Skills games': 'all',
 };
 
 const COURSE_SECTOR: Record<string, SectorId> = {
@@ -113,12 +116,18 @@ export const industrySector = (industry: string): SectorId | undefined => INDUST
 // and AI can use are that sector's alone (a trades company never sees a tech test). No sector picked: everything
 export const companySector = (business?: { sector?: SectorId }): SectorId | undefined =>
   business?.sector && business.sector !== 'all' ? business.sector : undefined;
-export const inCompanySector = (sector?: SectorId | '') => (test: AssessmentTest) => !sector || sector === 'all' || testSector(test) === sector;
-export const industriesFor = (sector?: SectorId | '') => ROLE_GROUPS.filter((g) => !sector || sector === 'all' || industrySector(g.industry) === sector);
+// App simulations for jobs outside tech are made by the Vetter team and kept in the library, so a company in another
+// sector has its AI write the other kinds of question only (calculations, reasoning, written and so on)
+export const aiSimulationsFor = (business?: { sector?: SectorId }) => {
+  const sector = companySector(business);
+  return !sector || sector === 'tech';
+};
+export const inCompanySector = (sector?: SectorId | '') => (test: AssessmentTest) => !sector || sector === 'all' || inSector(sector, testSector(test));
+export const industriesFor = (sector?: SectorId | '') => ROLE_GROUPS.filter((g) => !sector || sector === 'all' || inSector(sector, industrySector(g.industry)));
 
 // The categories and roles a company's new tests can be filed under: its sector's alone
 export const categoriesFor = (sector?: SectorId | '') =>
-  (Object.keys(CATEGORY_SECTOR) as SkillCategory[]).filter((c) => !sector || sector === 'all' || CATEGORY_SECTOR[c] === sector);
+  (Object.keys(CATEGORY_SECTOR) as SkillCategory[]).filter((c) => CATEGORY_SECTOR[c] !== 'all' && (!sector || sector === 'all' || CATEGORY_SECTOR[c] === sector));
 export const rolesFor = (sector?: SectorId | '') => industriesFor(sector).flatMap((g) => g.roles);
 
 // The role a hands-on test is for, from its title, for tests filed before these roles existed
@@ -144,7 +153,8 @@ export function sectorRoles(test: AssessmentTest): TestRole[] {
   return named.length ? named : test.roles ?? [];
 }
 
-export const inSector = (sector: SectorId, s: SectorId | undefined) => sector === 'all' || s === sector;
+// A test or industry in every sector ('all', the skills games) is in each of them
+export const inSector = (sector: SectorId, s: SectorId | undefined) => sector === 'all' || s === sector || s === 'all';
 
 export const testInSector = (sector: SectorId) => (test: AssessmentTest) => inSector(sector, testSector(test));
 
@@ -152,7 +162,7 @@ export const industryInSector = (sector: SectorId) => (industry: string) => inSe
 
 // The sectors a role belongs to, through the industries it's listed under
 export const roleInSector = (sector: SectorId) => (role: string) =>
-  sector === 'all' || ROLE_GROUPS.some((g) => g.roles.includes(role as never) && industrySector(g.industry) === sector);
+  sector === 'all' || ROLE_GROUPS.some((g) => g.roles.includes(role as never) && inSector(sector, industrySector(g.industry)));
 
 export const courseInSector = (sector: SectorId) => (course: Course) => inSector(sector, COURSE_SECTOR[course.category]);
 
@@ -162,7 +172,8 @@ export function jobSector(job: JobPosting, tests: AssessmentTest[]): SectorId | 
   const counts = new Map<SectorId, number>();
   for (const id of job.testIds) {
     const test = tests.find((t) => t.id === id);
-    if (test) counts.set(testSector(test), (counts.get(testSector(test)) ?? 0) + 1);
+    // The skills games fit every sector, so they don't decide the job's
+    if (test && testSector(test) !== 'all') counts.set(testSector(test), (counts.get(testSector(test)) ?? 0) + 1);
   }
   if (counts.size) return [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
   const text = `${job.title} ${job.department}`;

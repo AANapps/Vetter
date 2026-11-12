@@ -7,6 +7,7 @@ import { BuildingCard } from './BuildingCard';
 import { jobBrief } from '../lib/testGeneration';
 import { BuildStep, ChatState, sendChat } from '../lib/testChat';
 import { versionTitle } from '../lib/testLevels';
+import { aiSimulationsFor } from '../lib/sectors';
 import { Credit, estimateTest, loadCredit, pounds, setAiPurpose, startAiRun, stopAiRun } from '../lib/aiRequest';
 import { CreditsDialog } from './CreditsDialog';
 import { CreditMeter, EXAMPLE_CREDIT } from './CreditMeter';
@@ -165,14 +166,17 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
 
   const draft = chat.draft;
   const started = chat.messages.some((m) => m.role === 'user');
-  // Changing a saved test doesn't pick library tests to go with it
-  const ctx = { kind, job: job ? jobBrief(job) : undefined, jobTitle: job?.title, level: difficulty, levels: pickedLevels, questionCount, timeLimit, wantExisting: false, tests, business, styles, viewing: focus, background };
+  // Outside tech, app simulations come from Vetter's library rather than the company's AI
+  const pickable = aiSimulationsFor(business) ? PICKABLE : PICKABLE.filter((t) => t !== 'app');
+  const pickableStyles = PICKABLE_STYLES.filter((s) => pickable.includes(s.type));
   const toggleStyle = (type: QuestionType) => setStyles((prev) => (prev.includes(type) ? prev.filter((t) => t !== type) : PICKABLE.filter((t) => t === type || prev.includes(t))));
   const toggle = <T,>(set: React.Dispatch<React.SetStateAction<T[]>>, value: T) => set((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]));
   // The types Vetter may use: any, when none are ticked
-  const allowed = styles.length ? styles : PICKABLE;
+  const allowed = styles.length ? styles.filter((t) => pickable.includes(t)) : pickable;
   // Questions in the draft of a type since turned off
   const offTypes = styles.length ? [...new Set((draft?.questions ?? []).filter((q) => !styles.includes(q.type)).map((q) => q.type))] : [];
+  // Changing a saved test doesn't pick library tests to go with it
+  const ctx = { kind, job: job ? jobBrief(job) : undefined, jobTitle: job?.title, level: difficulty, levels: pickedLevels, questionCount, timeLimit, wantExisting: false, tests, business, styles: pickable === PICKABLE ? styles : allowed, viewing: focus, background };
 
   // The changed test in the place of the one being edited: same id, owner and level family, so its jobs keep it
   const asSaved = (test: AssessmentTest): AssessmentTest =>
@@ -432,7 +436,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
           <Dropdown label={<>Question types: <Summary text={styles.length ? summarise(styles.map((t) => PICKABLE_STYLES.find((s) => s.type === t)?.label ?? t)) : undefined} /></>} width="w-72" disabled={working}>
             {() => (
               <PickList legend="Question types Vetter may use" picked={styles.length} onClear={() => setStyles([])}>
-                {PICKABLE_STYLES.map((s) => (
+                {pickableStyles.map((s) => (
                   <PickRow key={s.type} on={styles.includes(s.type)} title={s.hint} onChange={() => toggleStyle(s.type)}>
                     {s.label}
                   </PickRow>

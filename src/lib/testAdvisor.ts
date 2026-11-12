@@ -1,3 +1,4 @@
+import { aiSimulationsFor } from './sectors';
 import { AssessmentTest, Business, TestKind, User } from '../types';
 import { Suggestion, libraryFor, matchExisting } from './testGeneration';
 
@@ -89,6 +90,7 @@ export async function askAdvisor(turns: AdvisorTurn[], tests: AssessmentTest[], 
       body: JSON.stringify({
         messages,
         company: business?.name,
+        simulations: aiSimulationsFor(business),
         candidates: candidates.map((c) => ({
             id: c.id,
             title: c.title,

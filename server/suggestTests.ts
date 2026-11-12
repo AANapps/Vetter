@@ -35,7 +35,12 @@ First decide whether the job is desk work (done at a computer) or hands-on work 
 hospitality, retail floor, warehouse...): never pick a spreadsheet, database, coding or office-software test for
 hands-on work unless the job description itself asks for that skill. Prefer the test at the job's level. reason is one
 sentence a hiring manager would find useful, saying what the test checks for this role; if the level or focus isn't
-exact, say so. If nothing in the library really fits, return no picks: an empty list is better than a poor fit.`;
+exact, say so. If nothing in the library really fits, return no picks: an empty list is better than a poor fit.
+SKILLS GAMES: tests titled "Skills Game: ..." measure general abilities for any job (attention to detail, verbal,
+numerical and logical reasoning, memory, multitasking). Whenever the job needs one of those, whether the description
+names it ("attention to detail", "able to multitask", "good with numbers", "strong communicator") or the work plainly
+calls for it (busy front-line roles need multitasking; handling records, stock, money or medicines needs attention to
+detail), ALWAYS include the matching skills games, up to two, alongside the job's own tests (so up to six picks in all).`;
 
 export async function suggestTests(body: unknown, apiKey: string | undefined, model: string): Promise<{ status: number; json: unknown }> {
   const req = body as SuggestTestsRequest;
@@ -68,7 +73,7 @@ export async function suggestTests(body: unknown, apiKey: string | undefined, mo
     const out = JSON.parse(message.content.flatMap((b) => (b.type === 'text' ? [b.text] : [])).join('')) as { picks?: { testId: string; reason: string }[] };
     const ids = new Set(library.map((t) => t.id));
     const seen = new Set<string>();
-    const picks = (out.picks ?? []).filter((p) => ids.has(p.testId) && !seen.has(p.testId) && seen.add(p.testId)).slice(0, 4);
+    const picks = (out.picks ?? []).filter((p) => ids.has(p.testId) && !seen.has(p.testId) && seen.add(p.testId)).slice(0, 6);
     return { status: 200, json: { picks } };
   } catch (err) {
     return apiFailure('suggest-tests', err);
