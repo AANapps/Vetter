@@ -4,6 +4,7 @@ import { SKILL_IDS } from '../data/seedCandidates';
 import { MOCK_DATABASE, executeSqlQuery } from './sqlEngine';
 import { runJavaScriptCode } from './codeEngine';
 import { isMainVersion, levelsOf } from './testLevels';
+import { categoriesFor, companySector, inCompanySector, rolesFor } from './sectors';
 import { ROLE_GROUPS } from './testRoles';
 import { isAnswerType, isGroupType, orderedQuestions, questionProblems } from './questionTypes';
 import { probeApp } from './appSimulation';
@@ -59,9 +60,14 @@ export const jobBrief = (job: JobPosting) =>
     .filter(Boolean)
     .join('\n\n');
 
-// The tests a company can use: Vetter's library, plus its own
+// The tests a company can use: Vetter's library in the company's sector, plus its own
 export const libraryFor = (tests: AssessmentTest[], business?: Business) =>
-  tests.filter((t) => isMainVersion(t) && t.purpose !== 'training' && (isPublic(t) || (business && t.businessId === business.id)));
+  tests.filter(
+    (t) =>
+      isMainVersion(t) &&
+      t.purpose !== 'training' &&
+      ((business && t.businessId === business.id) || (isPublic(t) && inCompanySector(companySector(business))(t)))
+  );
 
 // Words too common in job ads to say anything about fit
 const STOP = new Set(
@@ -420,8 +426,8 @@ export async function generateTests(opts: GenerationOptions, tests: AssessmentTe
     const res = await aiFetch('/api/generate-test', {
       ...opts,
       library: library.map((t) => ({ id: t.id, title: t.title, category: t.category, difficulty: t.difficulty, skills: t.skillsTested, roles: t.roles ?? [], description: t.description })),
-      roles: ALL_ROLES,
-      categories: CATEGORIES,
+      roles: rolesFor(companySector(business)),
+      categories: categoriesFor(companySector(business)),
       tables: Object.values(MOCK_DATABASE).map((t) => ({ name: t.name, columns: t.columns })),
     });
     body = await res.json().catch(() => ({}));
@@ -463,7 +469,8 @@ export async function generateTests(opts: GenerationOptions, tests: AssessmentTe
   if (questions.length === 0) return { existing, dropped, newTestError: "None of the AI's questions passed Vetter's checks. Try again." };
 
   const total = questions.reduce((sum, q) => sum + q.weight, 0) || 1;
-  const category = CATEGORIES.includes(raw.category) ? (raw.category as SkillCategory) : 'Consulting';
+  const allowed = categoriesFor(companySector(business));
+  const category = allowed.includes(raw.category) ? (raw.category as SkillCategory) : allowed[0] ?? 'Consulting';
   const test: AssessmentTest = {
     id: '',
     title: String(raw.title ?? 'New test').trim(),

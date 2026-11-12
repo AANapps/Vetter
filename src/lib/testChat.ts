@@ -4,7 +4,8 @@ import { MOCK_DATABASE } from './sqlEngine';
 import { probeApp } from './appSimulation';
 import { isGroupType, orderedQuestions } from './questionTypes';
 import { aiFetch } from './aiRequest';
-import { ALL_ROLES, CATEGORIES, RawQuestion, Suggestion, assembleFromBank, checkQuestion, libraryFor, linkTasks, matchExisting } from './testGeneration';
+import { categoriesFor, companySector, rolesFor } from './sectors';
+import { ALL_ROLES, RawQuestion, Suggestion, assembleFromBank, checkQuestion, libraryFor, linkTasks, matchExisting } from './testGeneration';
 
 // Building a test by talking to Vetter (server/testChat.ts does the AI side). Each turn sends the conversation and the
 // draft; what comes back is checked here like any AI-written test: new questions are run and broken ones left out.
@@ -306,7 +307,8 @@ async function buildDraft(raw: RawTest, previous: AssessmentTest | undefined, ct
     test: {
       id: '',
       title: String(raw.title ?? previous?.title ?? 'New test').trim(),
-      category: CATEGORIES.includes(raw.category) ? (raw.category as SkillCategory) : previous?.category ?? 'Consulting',
+      // In the company's sector: a category from another sector falls back to the sector's own
+      category: categoriesFor(companySector(ctx.business)).includes(raw.category) ? (raw.category as SkillCategory) : previous?.category ?? categoriesFor(companySector(ctx.business))[0] ?? 'Consulting',
       difficulty,
       type: ctx.business ? 'custom' : 'standard',
       ...(ctx.business && { businessId: ctx.business.id, companyName: ctx.business.name }),
@@ -499,8 +501,8 @@ export async function sendChat(state: ChatState, text: string, ctx: ChatContext,
     difficulty: ctx.levels.length === 1 ? ctx.level : undefined,
     difficulties: ctx.levels.length > 1 ? ctx.levels : undefined,
     library: library.map((t) => ({ id: t.id, title: t.title, category: t.category, difficulty: t.difficulty, skills: t.skillsTested, roles: t.roles ?? [], description: t.description })),
-    roles: ALL_ROLES,
-    categories: CATEGORIES,
+    roles: rolesFor(companySector(ctx.business)),
+    categories: categoriesFor(companySector(ctx.business)),
     levels: TEST_DIFFICULTIES,
     tables: Object.values(MOCK_DATABASE).map((t) => ({ name: t.name, columns: t.columns })),
     research: state.research,

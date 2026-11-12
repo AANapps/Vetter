@@ -1,4 +1,4 @@
-import { AssessmentTest, JobPosting, SkillCategory } from '../types';
+import { AssessmentTest, JobPosting, SkillCategory, TestRole } from '../types';
 import type { Course } from '../data/courses';
 import { ROLE_GROUPS } from './testRoles';
 
@@ -108,6 +108,41 @@ export const testSector = (test: AssessmentTest): SectorId => {
 };
 
 export const industrySector = (industry: string): SectorId | undefined => INDUSTRY_SECTOR[industry];
+
+// A company works in one sector, picked at sign-up: Vetter's library, the Tests page's industries and the tests its jobs
+// and AI can use are that sector's alone (a trades company never sees a tech test). No sector picked: everything
+export const companySector = (business?: { sector?: SectorId }): SectorId | undefined =>
+  business?.sector && business.sector !== 'all' ? business.sector : undefined;
+export const inCompanySector = (sector?: SectorId | '') => (test: AssessmentTest) => !sector || sector === 'all' || testSector(test) === sector;
+export const industriesFor = (sector?: SectorId | '') => ROLE_GROUPS.filter((g) => !sector || sector === 'all' || industrySector(g.industry) === sector);
+
+// The categories and roles a company's new tests can be filed under: its sector's alone
+export const categoriesFor = (sector?: SectorId | '') =>
+  (Object.keys(CATEGORY_SECTOR) as SkillCategory[]).filter((c) => !sector || sector === 'all' || CATEGORY_SECTOR[c] === sector);
+export const rolesFor = (sector?: SectorId | '') => industriesFor(sector).flatMap((g) => g.roles);
+
+// The role a hands-on test is for, from its title, for tests filed before these roles existed
+const TITLE_ROLES: [TestRole, RegExp][] = [
+  ['Electrician', /\b(electric(al|ian)?|wiring|consumer unit|eicr|bs ?7671|18th edition)\b/i],
+  ['Plumber', /\b(plumb(er|ing)?|heating|boiler|gas safe|pipework)\b/i],
+  ['Mechanic', /\b(mechanic|vehicle|motor|automotive|mot)\b/i],
+  ['Carpenter', /\b(carpent(er|ry)|joiner|joinery)\b/i],
+  ['Dental Nurse', /\bdental\b/i],
+  ['Care Worker', /\b(care (worker|assistant|home)|carer|domiciliary)\b/i],
+  ['Nurse', /\b(nurse|nursing|ward|clinical)\b/i],
+  ['Chef', /\b(chef|kitchen|cook|food prep)\b/i],
+  ['Barista', /\b(barista|coffee|caf[eé])\b/i],
+  ['Front of House', /\b(front of house|waiter|waitress|server|host|bar staff|bartender)\b/i],
+  ['Retail Assistant', /\b(retail|shop|cashier|checkout|sales assistant|till)\b/i],
+];
+// A test's roles in its sector: its own where they're that sector's, else the ones its title names
+export function sectorRoles(test: AssessmentTest): TestRole[] {
+  const sector = testSector(test);
+  const own = (test.roles ?? []).filter((r) => ROLE_GROUPS.some((g) => g.roles.includes(r) && industrySector(g.industry) === sector));
+  if (own.length || ['tech', 'business', 'marketing'].includes(sector)) return own.length ? own : test.roles ?? [];
+  const named = TITLE_ROLES.filter(([role, re]) => re.test(test.title) && ROLE_GROUPS.some((g) => g.roles.includes(role) && industrySector(g.industry) === sector)).map(([role]) => role);
+  return named.length ? named : test.roles ?? [];
+}
 
 export const inSector = (sector: SectorId, s: SectorId | undefined) => sector === 'all' || s === sector;
 

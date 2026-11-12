@@ -3,6 +3,7 @@ import { Pic } from './Pic';
 import React, { useState } from 'react';
 import { User, JobPosting, AssessmentTest, Business, TestDraft, TestRole, isPublic, levelName, madeWithAI } from '../types';
 import { ROLE_GROUPS } from '../lib/testRoles';
+import { companySector, inCompanySector, industriesFor, sectorRoles } from '../lib/sectors';
 import { getTestStats } from '../lib/leaderboard';
 import { JobCandidates } from './JobCandidates';
 import { CheckCircle2, FileText, Pencil, Plus, Search, Sparkles, Trash2 } from 'lucide-react';
@@ -92,7 +93,10 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
     : [];
   // The public library: Vetter's tests and other companies' approved ones (a company's own are in companyTests)
   // (for the Vetter team, companies' tests are listed on their own, so the library is Vetter's alone)
-  const vetterTests = tests.filter((t) => isPublic(t) && isMainVersion(t) && (isVetter ? t.type !== 'custom' : t.businessId !== business.id));
+  // A company sees its own sector's tests only (picked at sign-up); the Vetter team sees every sector
+  const sector = isVetter ? undefined : companySector(business);
+  const vetterTests = tests.filter((t) => isPublic(t) && isMainVersion(t) && (isVetter ? t.type !== 'custom' : t.businessId !== business.id) && inCompanySector(sector)(t));
+  const roleGroups = industriesFor(sector);
   // For the Vetter team, Your tests starts with the library tests it made in the app (with the AI or by hand), newest
   // first, then every company's own
   const madeHere = isVetter ? tests.filter((t) => t.type !== 'custom' && isEditable(t) && t.purpose !== 'training').sort((a, b) => madeAt(b) - madeAt(a)) : [];
@@ -128,7 +132,10 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   // are for, so it's filed beside them
   const rolesByCategory = new Map<string, TestRole[]>();
   for (const t of vetterTests) rolesByCategory.set(t.category, [...new Set([...(rolesByCategory.get(t.category) ?? []), ...(t.roles ?? [])])]);
-  const rolesOf = (t: AssessmentTest): TestRole[] => (t.roles?.length ? t.roles : rolesByCategory.get(t.category) ?? []);
+  const rolesOf = (t: AssessmentTest): TestRole[] => {
+    const roles = sectorRoles(t);
+    return roles.length ? roles : rolesByCategory.get(t.category) ?? [];
+  };
   const inField = (t: AssessmentTest, roles: TestRole[]) => rolesOf(t).some((r) => roles.includes(r));
   const sourced = allTests.filter((t) => inSource(t, testSource));
   const tq = testQuery.trim().toLowerCase();
@@ -148,8 +155,8 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   // industries is under both, so each heading's count matches the menu's. Tests for no listed role go last
   const sections: { heading: string | null; tests: AssessmentTest[] }[] = grouped
     ? [
-        ...ROLE_GROUPS.map((g) => ({ heading: g.industry, tests: shownTests.filter((t) => inField(t, g.roles)) })),
-        { heading: 'Other', tests: shownTests.filter((t) => !ROLE_GROUPS.some((g) => inField(t, g.roles))) },
+        ...roleGroups.map((g) => ({ heading: g.industry, tests: shownTests.filter((t) => inField(t, g.roles)) })),
+        { heading: 'Other', tests: shownTests.filter((t) => !roleGroups.some((g) => inField(t, g.roles))) },
       ].filter((sec) => sec.tests.length > 0)
     : [{ heading: null, tests: shownTests }];
   // The Candidates tab: the leads pipeline, or everyone on Vetter ranked for a job
@@ -416,7 +423,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
               <h2 className="text-sm font-bold text-slate-900 mb-2">Browse by role</h2>
               <RoleButton label="All tests" count={sourced.length} active={!testField} onClick={() => setTestField(null)} />
             </div>
-            {ROLE_GROUPS.map((group) => (
+            {roleGroups.map((group) => (
               <div key={group.industry} className="space-y-1">
                 <button
                   onClick={() => setTestField({ label: group.industry, roles: group.roles })}
@@ -471,14 +478,14 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
               value={testField?.label ?? ''}
               onChange={(e) => {
                 const v = e.target.value;
-                const group = ROLE_GROUPS.find((g) => g.industry === v);
+                const group = roleGroups.find((g) => g.industry === v);
                 setTestField(!v ? null : group ? { label: v, roles: group.roles } : { label: v, roles: [v as TestRole] });
               }}
               aria-label="Role"
               className="lg:hidden px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm self-start"
             >
               <option value="">All roles</option>
-              {ROLE_GROUPS.map((g) => (
+              {roleGroups.map((g) => (
                 <optgroup key={g.industry} label={g.industry}>
                   <option value={g.industry}>All of {g.industry}</option>
                   {g.roles.map((r) => (
