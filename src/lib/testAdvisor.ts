@@ -2,7 +2,7 @@ import { aiSimulationsFor } from './sectors';
 import { AssessmentTest, Business, TestKind, User } from '../types';
 import { Suggestion, libraryFor, matchExisting } from './testGeneration';
 import { orderedQuestions, QUESTION_STYLES, groupQuestions } from './questionTypes';
-import type { BuildStep, ChatState } from './testChat';
+import type { BuildStep, ChatState, TestPlan } from './testChat';
 
 // A test built in the home chat, kept by the app so it carries on while the company looks at the test: the test chat's
 // state (its draft is the saved test), the saved test's id, and while it's working, its progress
@@ -13,6 +13,9 @@ export interface HomeBuild {
   working: boolean;
   stage?: string;
   steps?: BuildStep[];
+  // Before it's built: the plan the company is looking over, which each message changes until it presses Build
+  planning?: boolean;
+  plan?: TestPlan;
 }
 
 // One line of a test's outline: the questions it numbers, what they are and what they cover
@@ -91,6 +94,12 @@ export interface AdvisorTurn {
     // A change to a test already made in this chat
     updated?: boolean;
   };
+  // Every question Vetter plans to write, listed for the company to change before pressing Build
+  plan?: TestPlan;
+  // Planning failed before there was a plan: what to try again with
+  retryPlan?: { brief: string; kind: TestKind };
+  // It failed because the company's AI credit ran out
+  needsCredit?: boolean;
   // The second step, once the kind is picked: what it should focus on, from the ideas worth building or typed in
   // (written by Vetter itself)
   askFocus?: { brief: string; kind: TestKind; ideas: CustomIdea[] };

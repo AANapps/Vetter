@@ -20,3 +20,4 @@ Kept up to date as work is asked for and finished. Newest items at the bottom of
 - 2026-11-12: Stop button in the test chat.
 - 2026-11-12: Companies outside tech have their AI write questions only (no app simulations).
 - 2026-11-12: Tests are built and changed in the home chat (progress checklist, title, description, "Questions x to y" outline, See test), with Stop.
+- 2026-11-13: Home chat lists the whole plan (every question, its type and what it tests) before building; messages change the plan, Build writes it with the building animation and checklist, and Preview opens the finished test in a pop-up.

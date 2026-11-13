@@ -100,7 +100,8 @@ ${
   they've said, plan the training around exactly those areas, easiest first.
 `
       : ''
-  }- With a plan, say in a sentence or two what the test covers and why, then offer one specific way to sharpen it.
+  }- With a plan, say in a sentence or two what the test covers and why, then offer one specific way to sharpen it. The
+  company sees every item listed under your reply and presses Build once it's happy, so never say it has been built.
 
 THE PLAN
 Plan every item of the test, in order, without writing it out: a separate writer turns each item into a full question
@@ -145,11 +146,17 @@ ${research ? `RESEARCH on the job and what the simulations copy. Every task, fig
 ${req.library.map((t) => `- ${t.id}: ${t.title} (${t.category}, ${t.difficulty}; skills: ${t.skills.join(', ')}; roles: ${t.roles.join(', ')}). ${t.description}`).join('\n')}`;
 }
 
-function conversation(req: ChatRequest): Anthropic.Beta.BetaMessageParam[] {
+// The plan the company is looking over in the chat, when it asks for a change to it before anything is written
+type PlanRequest = ChatRequest & { currentPlan?: Record<string, unknown> };
+
+function conversation(req: PlanRequest): Anthropic.Beta.BetaMessageParam[] {
   const turns = req.messages.slice(-MAX_TURNS).map((m) => ({ role: m.role, content: m.text.slice(0, MAX_TEXT) }));
   while (turns.length && turns[0].role !== 'user') turns.shift();
   const last = turns[turns.length - 1];
-  const context = [req.job ? `THE JOB:\n${req.job.slice(0, MAX_PROMPT)}` : '', backgroundNote(req), req.draft ? `THE DRAFT BEING REPLACED (for reference):\n${JSON.stringify(req.draft).slice(0, 20000)}` : '']
+  const context = [req.job ? `THE JOB:\n${req.job.slice(0, MAX_PROMPT)}` : '', backgroundNote(req), req.draft ? `THE DRAFT BEING REPLACED (for reference):\n${JSON.stringify(req.draft).slice(0, 20000)}` : '',
+    req.currentPlan
+      ? `THE PLAN SO FAR, which the company has been shown question by question and is now changing: send the whole plan again with exactly the changes it asks for, keeping every other item, the cast and the inbox as they are. In reply, say in a sentence what you changed. If the message is only a question about the plan, answer it in reply and send the plan back unchanged.\n${JSON.stringify(req.currentPlan).slice(0, 20000)}`
+      : '']
     .filter(Boolean)
     .join('\n\n');
   return [...turns.slice(0, -1), { role: 'user', content: `${context}${context ? '\n\n' : ''}THE COMPANY SAYS:\n${last.content}` }];
@@ -157,7 +164,7 @@ function conversation(req: ChatRequest): Anthropic.Beta.BetaMessageParam[] {
 
 const sameProduct = (a = '', b = '') => a.trim().toLowerCase() === b.trim().toLowerCase();
 
-async function turn(client: Anthropic, model: string, req: ChatRequest, research: string) {
+async function turn(client: Anthropic, model: string, req: PlanRequest, research: string) {
   const message = await client.beta.messages
     .stream({
       model,
@@ -176,7 +183,7 @@ async function turn(client: Anthropic, model: string, req: ChatRequest, research
 }
 
 export async function planTest(body: unknown, apiKey: string | undefined, model: string): Promise<{ status: number; json: unknown }> {
-  const req = body as ChatRequest;
+  const req = body as PlanRequest;
   if (!req || !Array.isArray(req.messages) || req.messages[req.messages.length - 1]?.role !== 'user') return { status: 400, json: { error: 'Say what you want the test to check.' } };
   if (!apiKey) return { status: 503, json: { error: 'not-configured' } };
 

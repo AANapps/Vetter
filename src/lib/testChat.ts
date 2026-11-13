@@ -384,44 +384,30 @@ function sectionsOf(items: PlanItem[]): string[][] {
   return sections;
 }
 
-// A new test in stages, each request short enough for the host's time limit: the plan (what the hire needs and an
-// outline), then every section written at once, then every interactive page built and tried out
-async function planAndWrite(state: ChatState, messages: ChatMessage[], ctx: ChatContext, request: Record<string, unknown>, progress: Progress, before: [string, string][] = []) {
-  // The server researches the job on the web first when the test can have simulations and nothing's been researched yet
-  const researching = !state.research && (!stylesOf(ctx).length || stylesOf(ctx).includes('app'));
-  const role = ctx.jobTitle?.trim();
-  const sims = !stylesOf(ctx).length || stylesOf(ctx).includes('app');
-  const list = checklist(progress, [
-    ...before,
-    ...(researching ? [['research', `Research how ${role ? `a ${role}` : 'the job'} is really done`] as [string, string]] : []),
-    ['plan', 'Plan what the hire needs and the sections'],
-    ['write', 'Write the questions, scenarios and figures'],
-    ...(sims
-      ? ([
-          ['spec', 'Check the simulations against the real job'],
-          ['build', 'Design and build the simulations'],
-        ] as [string, string][])
-      : []),
-    ['check', 'Check every question, answer and mark'],
-  ]);
-  list.start(
-    researching ? 'research' : 'plan',
-    researching
-      ? `Searching the web for how ${role ? `a ${role}` : 'this job'} is really done, then planning the test…`
-      : 'Planning the test: what this hire needs and the sections…'
-  );
+// The test's plan as the company sees it before anything is written: what the hire needs and every question, case and
+// task in order, each with its type and what it tests
+export interface TestPlan extends Record<string, any> {
+  title: string;
+  description: string;
+  difficulty: string;
+  blueprint: string[];
+  items: PlanItem[];
+}
+export type { PlanItem };
+
+// The plan step: asks Vetter for the plan (researching the job first when it can have simulations), and keeps only items
+// in the allowed styles, each with its own ref
+async function fetchPlan(ctx: ChatContext, request: Record<string, unknown>) {
   const planned = await post('/api/plan-test', request);
-  if (planned.failure) return { failure: planned.failure };
+  if (planned.failure) return { body: planned.body, failure: planned.failure };
   const body = planned.body;
-  if (researching) list.start('plan', 'Planning the test: what this hire needs and the sections…');
-  const research: string | undefined = body.research ?? state.research;
-  const plan = body.plan as (Record<string, any> & { items: PlanItem[]; blueprint: string[] }) | undefined;
+  const plan = body.plan as TestPlan | undefined;
   // Only items in the picked styles, and no questions about a case or task that's gone
   if (plan?.items?.length) {
     const allowed = plan.items.filter((item) => allowedStyle(ctx, item.type));
     plan.items = allowed.filter((item) => !item.taskRef || allowed.some((other) => other.ref === item.taskRef) || !plan.items.some((other) => other.ref === item.taskRef));
   }
-  if (!plan?.items?.length) return { body };
+  if (!plan?.items?.length) return { body, plan: undefined };
   // Every item needs its own ref to be written and matched up; blank or repeated ones get one
   const seen = new Set<string>();
   plan.items = plan.items.map((item, i) => {
@@ -429,7 +415,27 @@ async function planAndWrite(state: ChatState, messages: ChatMessage[], ctx: Chat
     seen.add(ref);
     return { ...item, ref };
   });
+  // In the order they're written and met: each case or task with its questions
+  const order = sectionsOf(plan.items).flat();
+  plan.items = order.map((ref) => plan.items.find((item) => item.ref === ref)!).filter(Boolean);
+  return { body, plan };
+}
 
+// The checklist's steps from the plan on: writing, then the simulations when there are any, then checking
+const writeSteps = (sims: boolean): [string, string][] => [
+  ['write', 'Write the questions, scenarios and figures'],
+  ...(sims
+    ? ([
+        ['spec', 'Check the simulations against the real job'],
+        ['build', 'Design and build the simulations'],
+      ] as [string, string][])
+    : []),
+  ['check', 'Check every question, answer and mark'],
+];
+
+// Writes a plan out in full: every section at once, each simulation's spec checked, then every interactive page built
+// and tried out
+async function writePlan(plan: TestPlan, research: string | undefined, messages: ChatMessage[], ctx: ChatContext, request: Record<string, unknown>, progress: Progress, list: Checklist) {
   const sections = sectionsOf(plan.items);
   if (!plan.items.some((item) => item.type === 'app')) list.drop(['spec', 'build']);
   list.start('write', `Planned ${plan.items.length} ${plan.items.length === 1 ? 'question' : 'questions'}. Writing ${sections.length === 1 ? 'the section' : `${sections.length} sections side by side`}…`);
@@ -473,15 +479,41 @@ async function planAndWrite(state: ChatState, messages: ChatMessage[], ctx: Chat
   const built = await buildDraft({ ...plan, skillsTested: plan.blueprint, questions }, undefined, ctx, research, progress, list);
   list.finish();
   const missing = plan.items.length - questions.length;
-  return { body: { ...body, test: undefined }, built: { ...built, dropped: built.dropped + missing } };
+  return { ...built, dropped: built.dropped + missing };
 }
 
-// One turn: the company's message in, Vetter's reply and the draft's new version out. A first draft (or a rewrite of
-// most of it) is planned and written in stages; other changes are made in one go
-export async function sendChat(state: ChatState, text: string, ctx: ChatContext, progress: Progress = () => {}): Promise<ChatState> {
-  const messages: ChatMessage[] = [...state.messages, { role: 'user', text }];
+// A new test in stages, each request short enough for the host's time limit: the plan (what the hire needs and an
+// outline), then every section written at once, then every interactive page built and tried out
+async function planAndWrite(state: ChatState, messages: ChatMessage[], ctx: ChatContext, request: Record<string, unknown>, progress: Progress, before: [string, string][] = []) {
+  // The server researches the job on the web first when the test can have simulations and nothing's been researched yet
+  const sims = !stylesOf(ctx).length || stylesOf(ctx).includes('app');
+  const researching = !state.research && sims;
+  const role = ctx.jobTitle?.trim();
+  const list = checklist(progress, [
+    ...before,
+    ...(researching ? [['research', `Research how ${role ? `a ${role}` : 'the job'} is really done`] as [string, string]] : []),
+    ['plan', 'Plan what the hire needs and the sections'],
+    ...writeSteps(sims),
+  ]);
+  list.start(
+    researching ? 'research' : 'plan',
+    researching
+      ? `Searching the web for how ${role ? `a ${role}` : 'this job'} is really done, then planning the test…`
+      : 'Planning the test: what this hire needs and the sections…'
+  );
+  const { body, plan, failure } = await fetchPlan(ctx, request);
+  if (failure) return { failure };
+  if (researching) list.start('plan', 'Planning the test: what this hire needs and the sections…');
+  if (!plan) return { body };
+  const research: string | undefined = body.research ?? state.research;
+  const built = await writePlan(plan, research, messages, ctx, request, progress, list);
+  return { body: { ...body, test: undefined }, built };
+}
+
+// What every request about the test carries: the conversation, the job and company, the draft, and what it may use
+function chatRequest(state: ChatState, messages: ChatMessage[], ctx: ChatContext) {
   const library = libraryFor(ctx.tests, ctx.business);
-  const request = {
+  return {
     messages: messages.map(({ role, text }) => ({ role, text })),
     job: ctx.job,
     // The company hiring: the simulation is set there, so the candidate works for it from the first question
@@ -508,6 +540,70 @@ export async function sendChat(state: ChatState, text: string, ctx: ChatContext,
     research: state.research,
     researchedFor: state.researchedFor,
   };
+}
+
+// The first half of a new test: Vetter plans it from the conversation and lists every question for the company to
+// look over, and each message after that changes the plan, until the company presses Build (buildPlan). Nothing is
+// written yet
+export async function proposePlan(
+  state: ChatState,
+  text: string,
+  ctx: ChatContext,
+  current?: TestPlan,
+  progress: (stage: string) => void = () => {}
+): Promise<{ state: ChatState; plan?: TestPlan; failure?: string }> {
+  const messages: ChatMessage[] = [...state.messages, { role: 'user', text }];
+  const request = { ...chatRequest(state, messages, ctx), ...(current && { currentPlan: current }) };
+  const role = ctx.jobTitle?.trim();
+  const sims = !stylesOf(ctx).length || stylesOf(ctx).includes('app');
+  progress(
+    !state.research && sims
+      ? `Searching the web for how ${role ? `a ${role}` : 'this job'} is really done, then planning every question…`
+      : current
+      ? 'Changing the plan…'
+      : 'Planning every question: what this hire needs and how each part tests it…'
+  );
+  const { body, plan, failure } = await fetchPlan(ctx, request);
+  if (failure) {
+    const text =
+      failure === 'no-credit'
+        ? "You've used up your AI credit. Top up to carry on: this conversation is kept, and I'll pick up right here."
+        : failure === 'not-configured'
+        ? NOT_CONFIGURED
+        : failure;
+    return { state: { ...state, messages: [...messages, { role: 'assistant', text, failed: true, ...(failure === 'no-credit' && { needsCredit: true }) }] }, failure };
+  }
+  const reply = String(body.reply ?? '').trim() || (plan ? "Here's the plan." : 'Tell me a little more about the role.');
+  return {
+    state: { ...state, messages: [...messages, { role: 'assistant', text: reply }], research: body.research ?? state.research, researchedFor: body.researchedFor ?? state.researchedFor },
+    plan: plan ?? current,
+  };
+}
+
+// The second half: the plan the company agreed written out in full, its simulations built, and every question checked
+export async function buildPlan(state: ChatState, plan: TestPlan, ctx: ChatContext, progress: Progress = () => {}): Promise<ChatState> {
+  const messages: ChatMessage[] = [...state.messages, { role: 'user', text: 'Build it.' }];
+  const request = chatRequest(state, messages, ctx);
+  const list = checklist(progress, [['plan', 'Plan every question with you'], ...writeSteps(plan.items.some((item) => item.type === 'app'))]);
+  const built = await writePlan(plan, state.research, messages, ctx, request, progress, list);
+  const note = built.dropped
+    ? built.test
+      ? `${built.dropped} ${built.dropped === 1 ? 'question' : 'questions'} failed Vetter's checks and ${built.dropped === 1 ? 'was' : 'were'} left out.`
+      : "None of the questions passed Vetter's checks, so nothing was made. Try Build again."
+    : undefined;
+  return {
+    ...state,
+    messages: [...messages, { role: 'assistant', text: built.test ? 'Built.' : "Vetter couldn't build that. Try again.", ...(note && { note }), ...(!built.test && { failed: true }) }],
+    draft: built.test,
+  };
+}
+
+// One turn: the company's message in, Vetter's reply and the draft's new version out. A first draft (or a rewrite of
+// most of it) is planned and written in stages; other changes are made in one go
+export async function sendChat(state: ChatState, text: string, ctx: ChatContext, progress: Progress = () => {}): Promise<ChatState> {
+  const messages: ChatMessage[] = [...state.messages, { role: 'user', text }];
+  const library = libraryFor(ctx.tests, ctx.business);
+  const request = chatRequest(state, messages, ctx);
 
   let body: Record<string, any> = {};
   let failure: string | undefined;
