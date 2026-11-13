@@ -1,7 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { meter } from './meter.js';
 import { APP_PAGE_RULES, GAME_PAGE_RULES, PRICES, apiFailure, sectorSimulationRules } from './generateTest.js';
-import { APP_KIT_GUIDE } from './appKit.js';
 
 /**
  * Builds one interactive page of a test from the spec the test designer wrote (its appBrief). Each page is a request of
@@ -67,10 +66,18 @@ const schema = {
   additionalProperties: false,
 };
 
+const LOOK = `
+THE LOOK: write the page's complete stylesheet yourself, so it looks like the real product it copies (the design's LOOK
+section and the RESEARCH say how): its layout and proportions, colour scheme, typography, density, borders, shadows,
+corner radii, icons and the style of its navigation, buttons, tables, forms, cards, badges and dialogs. Every area is
+clearly separated as in the real product (panel backgrounds, borders, headers, spacing), with a clear type scale and
+hover, focus, selected and empty states. Someone who uses the real product daily must feel at home at a glance. Spend
+the page's size on this as well as the behaviour; a plain or unstyled page is a failure.`;
+
 const SYSTEM = (research: string, training: boolean, game?: BuildAppRequest['game'], sector?: string) => `You build the interactive pages candidates work in on Vetter, a skills-testing platform for hiring. A test
 designer has written the task and a spec for the page. Build exactly that page, so a candidate who can really do the job
 succeeds and one who can't is found out.
-${APP_PAGE_RULES}${game ? GAME_PAGE_RULES : ''}${sectorSimulationRules(sector)}${APP_KIT_GUIDE}${
+${APP_PAGE_RULES}${game ? GAME_PAGE_RULES : ''}${sectorSimulationRules(sector)}${LOOK}${
   game === 'standalone'
     ? `
 STANDALONE: this page is the whole test, so it may be up to 100KB. It works through the spec's tasks one at a time: a

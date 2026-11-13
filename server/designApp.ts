@@ -1,7 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { meter } from './meter.js';
 import { APP_PAGE_RULES, GAME_PAGE_RULES, PRICES, apiFailure, sectorSimulationRules } from './generateTest.js';
-import { APP_KIT_GUIDE } from './appKit.js';
 import type { BuildAppRequest } from './buildApp.js';
 
 /**
@@ -28,13 +27,15 @@ no code.
 
 THE RULES THE PAGE MUST FOLLOW (design within them):
 ${APP_PAGE_RULES}${req.game ? GAME_PAGE_RULES : ''}${sectorSimulationRules(req.sector)}
-${APP_KIT_GUIDE}
 
 WRITE THE DESIGN as plain text with these numbered sections, concrete and complete, at most about 1,800 words:
-1. LOOK: the kind of product it should feel like (never a brand name), the --vk-* settings to set (hex values), density,
-   a light or dark shell, and anything distinctive about this product's look.
-2. LAYOUT: the page's structure (regions, their sizes and how they scroll), and for each screen which regions show what
-   and which kit pieces to use. Lay it out the way this kind of product really is, not a generic template.
+1. LOOK: how the real product it copies looks, in enough detail for the developer to replicate it closely: the
+   shell (top bar, side menu, panels) and its colours as hex values (in the spirit of the brand, not its exact
+   colours), the typeface (by name, following the MODERN TYPE rule) and type sizes, density, borders, shadows, corner radii, the icon style, and exactly how its
+   navigation, buttons, tables, forms, cards, badges, tabs and dialogs look, including hover, selected and empty
+   states. Name what makes it recognisable. Never the real product's name or logo on the page.
+2. LAYOUT: the page's structure as the real product has it (regions, their sizes, how they scroll and how each is
+   separated from the next), and for each screen which regions show what. Never a generic template.
 3. SCREENS AND FLOW: every screen, panel, dialog and drawer, how the candidate gets to each, and what each shows.
 4. DATA: every record the task needs with its fields and exact values (the figures, names and dates the checks and the
    task's questions depend on), plus how many realistic filler records of each kind and what they look like.

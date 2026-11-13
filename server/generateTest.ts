@@ -132,8 +132,9 @@ export const APP_KINDS = `
       based on the RESEARCH, so someone who uses it daily feels at home within seconds: the same overall layout and
       navigation (top bar, side menu, tabs, breadcrumbs, search, record pages), the same workflow and order of screens, the
       same terminology and button labels for common actions, and the same kinds of tables, forms, filters and dialogs.
-      It must look like a polished, current production app, not a mock-up: proper spacing, type scale, hover and focus
-      states, empty states and validation messages (Vetter's UI kit, given to the page builder, provides the modern look).
+      It must look like the real product, polished and current, not a mock-up: its visual design replicated (layout,
+      colours, type, density, component styles), proper spacing, type scale, hover and focus states, empty states and
+      validation messages.
       NO COPYRIGHT OR TRADEMARK INFRINGEMENT: give it an invented product name and a simple original logo (a geometric mark
       drawn in SVG), never the real product's name, logo, icons, illustrations, screenshots, help text or marketing copy.
       Draw every icon yourself as simple original SVG. Use a colour scheme in the same spirit (e.g. a dark blue top bar)
@@ -170,9 +171,15 @@ export const APP_KINDS = `
 export const APP_PAGE_RULES = `  For every kind, appHtml is ONE self-contained HTML page, under 60KB:
   • Its <title> is the product's or item's name alone: the invented name for software, e.g. <title>ClickData</title>, or
     the item worked on, e.g. <title>Phone repair: 6.1" handset</title>. Never a real brand's logo anywhere on the page.
-  • Everything inline: no external scripts, stylesheets, images or requests of any kind (Google Fonts are the only exception;
-    Vetter loads its own UI kit into the page).
+  • Everything inline: no external scripts, stylesheets, images or requests of any kind (Google Fonts are the only exception).
     No <form> submission and no alert/prompt/confirm: use buttons and in-page dialogs. It runs in a sandbox with no network.
+  • MODERN TYPE, as real apps use in 2026: one clean UI typeface loaded from Google Fonts, the real product's own when
+    it's there, otherwise Inter, Geist, DM Sans, Figtree, Manrope or IBM Plex Sans, with system-ui, -apple-system,
+    'Segoe UI', Roboto, sans-serif after it. Never Times, Georgia, Arial, Helvetica, Verdana, Tahoma, Trebuchet, Comic
+    Sans or the browser's default. Base size 13 to 14px, weights 400, 500 and 600 (700 for big numbers only), headings
+    only slightly larger with tight letter-spacing, muted grey for secondary text, tabular numbers in tables and totals,
+    and a monospace (JetBrains Mono, IBM Plex Mono) only for code and IDs. No underlines except links, no all-caps
+    except small labels, no bold body text.
   • It fits any window from 900x560 up and scrolls where it doesn't: every panel, list, table and canvas whose content can
     be taller or wider than its space has overflow:auto. Never overflow:hidden on html or body, never a fixed pixel size
     for the whole page, and no horizontal swipe or wheel handlers on the page itself.
@@ -204,7 +211,7 @@ export const APP_PAGE_RULES = `  For every kind, appHtml is ONE self-contained H
     removed. Displays and readings are large and easy to read, with their units.
   • EVERY LABEL CAN BE READ IN FULL. In a drawing, put each label in clear space beside or under what it names (a thin
     leader line to it when it can't sit next to it), never across another part. Draw all labels last, after every
-    shape, so nothing covers them, and give each a halo (class vk-svg-label, or paint-order:stroke with a 3px stroke in
+    shape, so nothing covers them, and give each a halo (paint-order:stroke with a 3px stroke in
     the background colour). Keep every label inside the viewBox with a margin, no two labels touching, and at least 12px
     tall as drawn. Leave room for the labels when you lay the drawing out; Vetter checks for hidden and cut-off labels.
   • NOTHING IS A MYSTERY SHAPE: every tool, instrument, part, item and person drawn has its real name as visible text

@@ -130,6 +130,9 @@ function bootstrap(saved: unknown) {
   return `<meta http-equiv="Content-Security-Policy" content="${CSP}">
 <style>${APP_KIT_CSS}</style>
 <style>
+/* A modern UI font for any page that doesn't set one, instead of the browser's Times New Roman; the page's own font wins */
+:where(html) { font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+:where(button, input, select, textarea) { font-family: inherit; }
 /* Whatever the page sets, it scrolls when it's taller or wider than the window, and a sideways swipe at its edge never
    reaches the browser's back gesture */
 html, body { overflow: auto !important; overscroll-behavior: none !important; }

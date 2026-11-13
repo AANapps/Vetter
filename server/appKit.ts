@@ -1,9 +1,8 @@
 /**
- * Vetter's UI kit for the interactive pages the AI builds: a modern stylesheet of building blocks (buttons, inputs,
- * tables, cards, tabs, badges, dialogs, menus, side menus...) loaded into every page ahead of the page's own styles
- * (src/lib/appSimulation.ts), and the guide the page builder is given (server/buildApp.ts). It styles pieces, never the
- * page's layout, so every app keeps its own structure. Everything is opt-in by class (vk-...), so pages built before it
- * look as they did. Each page sets its own palette, corners and density through the --vk-* settings.
+ * A stylesheet of building blocks (vk-... classes) loaded into every interactive page (src/lib/appSimulation.ts). The
+ * page builder used it for a short while (13 Nov 2026) and pages came out generic, so it's no longer told about it:
+ * pages write their own styling to look like the real product again. It stays loaded so the pages built with it keep
+ * their look; everything is opt-in by class, so no other page is affected.
  */
 
 export const APP_KIT_CSS = `@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -88,30 +87,3 @@ html:has(>body.vk-app){background:var(--vk-bg)}
 .vk-progress{height:6px;border-radius:999px;background:var(--vk-surface-2);overflow:hidden}.vk-progress>span{display:block;height:100%;background:var(--vk-accent);border-radius:inherit}
 .vk-tooltip{position:absolute;z-index:45;padding:4px 8px;border-radius:6px;background:#101828;color:#fff;font-size:12px;white-space:nowrap;pointer-events:none}
 .vk-skeleton{border-radius:6px;background:linear-gradient(90deg,var(--vk-surface-2),var(--vk-border),var(--vk-surface-2));background-size:200% 100%;animation:vk-shimmer 1.2s infinite}@keyframes vk-shimmer{to{background-position:-200% 0}}`;
-
-// What the page builder is told about the kit: what's there, and that it styles pieces, never the layout
-export const APP_KIT_GUIDE = `
-VETTER'S UI KIT: every page is loaded with a modern stylesheet (Inter font) of building blocks, so you write little CSS
-of your own and the page looks like a current, polished product. For any screen-based page (software, a till, a
-dashboard, an inbox, the panels and tool trays around a drawing) put class="vk-app" on <body> and build from these
-classes; they style pieces, never the layout, so arrange them however this product really is (its own grid, panes,
-split views, boards, calendars):
-  • Settings, set in your own :root to give the product its own feel: --vk-accent, --vk-accent-hover, --vk-accent-soft,
-    --vk-on-accent (the text colour ON accent-coloured buttons: white unless the accent is very light), --vk-bg, --vk-surface, --vk-surface-2, --vk-border, --vk-text, --vk-muted, --vk-radius (e.g. 4px
-    sharp, 12px soft), --vk-radius-lg, --vk-font. body data-density="compact" or "roomy".
-  • Shell pieces: vk-topbar (add vk-dark), vk-brand, vk-sidebar (add vk-dark), vk-nav-label, vk-nav-item (+active),
-    vk-main, vk-page-head, vk-toolbar, vk-breadcrumb. Helpers: vk-row, vk-col, vk-grow, vk-wrap, vk-between, vk-grid.
-  • Type: vk-h1, vk-h2, vk-h3, vk-muted, vk-faint, vk-small, vk-num (numbers, right-aligned).
-  • Surfaces: vk-card (vk-card-head, vk-card-body, vk-card-foot), vk-stat (vk-stat-label, vk-stat-value, vk-stat-delta
-    with vk-up or vk-down), vk-alert (+ -info, -warning, -danger, -success), vk-empty, vk-divider.
-  • Controls: vk-btn (+ vk-btn-primary, vk-btn-danger, vk-btn-ghost, vk-btn-sm, vk-btn-lg), vk-icon-btn; vk-field with
-    vk-label, vk-input / vk-select / vk-textarea (add .invalid), vk-help, vk-error; vk-search (an SVG icon then the input),
-    vk-check (label around a checkbox), input.vk-switch, vk-segmented (buttons, one .active), vk-chip (+active).
-  • Data: vk-table-wrap around table.vk-table (th.sortable, tr.selected), vk-badge (+ -green, -amber, -red, -blue,
-    -accent) with an optional vk-dot, vk-avatar (initials), vk-list with vk-list-item (+active), vk-progress > span.
-  • Navigation: vk-tabs with vk-tab (+active), vk-menu with vk-menu-item for dropdowns.
-  • Overlays: vk-backdrop > vk-modal (vk-modal-head, vk-modal-body, vk-modal-foot), vk-drawer, vk-toast, vk-tooltip.
-  In drawings, give labels class vk-svg-label (readable text with a halo). Disabled controls are greyed out by the kit. Write your own CSS only for the layout and for what the kit doesn't have
-  (a calendar, a kanban board, a floor plan, a chart, the product's distinctive parts), using the --vk-* settings so it
-  matches. Don't restyle the kit's pieces wholesale. A drawn scene (SVG equipment, a room, a device) is yours to draw as
-  before; use the kit for the panels, buttons, readouts and tool cards around it.`;

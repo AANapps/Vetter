@@ -12,6 +12,8 @@ Kept up to date as work is asked for and finished. Newest items at the bottom of
 - **Templates for AI simulations** (desk engines such as a virtual desktop, full inbox, records system; an instrument kit for hands-on roles) to cut AI cost and build time. Discussed, not started. The UI kit (server/appKit.ts) is the first piece.
 - **Simulation build time.** Each app page is now designed (~110s) then written (~175s), so a test with simulations takes about 5 minutes for its pages. If writing gets close to Vercel's 300s limit, split the write too or move it to a background worker.
 
+- **Opus for simulations.** Use Opus 5.5 for the design pass now, and for page writing once builds run in the background (Opus can pass the 300s limit). Fable 5.2 is the most capable but twice Opus's price and slower.
+
 ## Done
 
 - 2026-11-12: Tests fit the job (no spreadsheets for trades/clinical), drawings labelled.
@@ -22,4 +24,4 @@ Kept up to date as work is asked for and finished. Newest items at the bottom of
 - 2026-11-12: Tests are built and changed in the home chat (progress checklist, title, description, "Questions x to y" outline, See test), with Stop.
 - 2026-11-13: Home chat lists the whole plan (every question, its type and what it tests) before building; messages change the plan, Build writes it with the building animation and checklist, and Preview opens the finished test in a pop-up.
 - 2026-11-13: Back to a separate AI test builder: the home chat plans the questions, Build in AI test builder opens the pop-up (renamed, builder layout) which builds that plan, previews, edits and saves; Edit with AI opens it too.
-- 2026-11-13: UI kit for simulation pages (modern styles, building blocks, each app keeps its own layout) and a design pass at high effort before each page is written.
+- 2026-11-13: A design pass at high effort before each simulation page is written, describing the real product's look in detail. (A shared UI kit was tried the same day and dropped from the prompts: pages came out generic. It stays loaded only for pages built with it.) Every page defaults to a modern font, and the AI must use a modern UI typeface.
