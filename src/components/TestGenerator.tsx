@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AlertCircle, ArrowUp, Check, ChevronDown, ChevronUp, Library, Loader2, Maximize2, Minus, Square, X } from 'lucide-react';
+import { AlertCircle, ArrowUp, Check, ChevronDown, ChevronUp, Library, Loader2, Maximize2, Minus, Square, Wand2, X } from 'lucide-react';
 import { AssessmentTest, Business, JobPosting, QuestionType, TEST_DIFFICULTIES, TestDifficulty, TestDraft, TestKind, levelName } from '../types';
 import { QUESTION_STYLES } from '../lib/questionTypes';
 import { DraftPreview, Dropdown, draftProblems, finaliseDraft } from './DraftPreview';
 import { BuildingCard } from './BuildingCard';
 import { jobBrief } from '../lib/testGeneration';
-import { BuildStep, ChatState, sendChat } from '../lib/testChat';
+import { BuildStep, ChatState, TestPlan, buildPlan, sendChat } from '../lib/testChat';
+import { kindLabel } from './KindChoice';
 import { versionTitle } from '../lib/testLevels';
 import { aiSimulationsFor } from '../lib/sectors';
 import { Credit, estimateTest, loadCredit, pounds, setAiPurpose, startAiRun, stopAiRun } from '../lib/aiRequest';
@@ -43,6 +44,10 @@ interface TestGeneratorProps {
   background?: string;
   // A skills test or a job simulation; new ones are job simulations
   kind?: TestKind;
+  // The plan agreed in the home chat, built as soon as the builder opens, with that chat's state (its messages and the
+  // research on the job)
+  plan?: TestPlan;
+  planChat?: ChatState;
   onClose: () => void;
 }
 
@@ -61,7 +66,7 @@ const PICKABLE: QuestionType[] = ['choice', 'multi', 'text', 'written', 'order',
 const PICKABLE_STYLES = PICKABLE.map((type) => QUESTION_STYLES.find((s) => s.type === type)!).filter(Boolean);
 
 // Build a test by talking to Vetter: describe the job, get a draft, then ask for changes until it's right
-export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tests, onOpenTest, onSaveTest, onAddToJob, editing, onUpdateTest, onEditDraft, onSaveDraft, resume, seed, autoSend, background: backgroundGiven, kind: kindAsked, onClose }) => {
+export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tests, onOpenTest, onSaveTest, onAddToJob, editing, onUpdateTest, onEditDraft, onSaveDraft, resume, seed, autoSend, background: backgroundGiven, kind: kindAsked, plan, planChat, onClose }) => {
   const background = backgroundGiven ?? resume?.background;
   // The saved test being changed, opened from its job or from a draft of changes to it
   const [original] = useState(() => editing ?? (resume?.editsTestId ? tests.find((t) => t.id === resume.editsTestId) : undefined));
@@ -100,6 +105,13 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
           research: resume.research,
           researchedFor: resume.researchedFor,
         }
+      : plan && planChat
+      ? {
+          messages: [{ role: 'assistant', text: `Building "${plan.title}" from the plan you agreed: ${plan.items.filter((i) => i.type !== 'case').length} questions. Watch it come together on the right.` }],
+          existing: [],
+          research: planChat.research,
+          researchedFor: planChat.researchedFor,
+        }
       : { messages: [{ role: 'assistant', text: greetingFor(kind) ?? greeting }], existing: [], ...(original && { draft: original }) }
   );
   // What's been saved, to tell whether closing loses anything
@@ -130,7 +142,16 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
   const clampCount = (n: number) => Math.min(MAX_COUNT, Math.max(MIN_COUNT, Math.round(n)));
   const stepCount = (by: number) => setQuestionCount((n) => (n === undefined ? START_COUNT : clampCount(n + by)));
   const [levels, setLevels] = useState<TestDifficulty[]>(() =>
-    resume?.difficulties ?? (resume?.difficulty ? [resume.difficulty] : original ? [original.difficulty] : resume?.test.difficulty ? [resume.test.difficulty] : [])
+    resume?.difficulties ??
+      (resume?.difficulty
+        ? [resume.difficulty]
+        : original
+        ? [original.difficulty]
+        : resume?.test.difficulty
+        ? [resume.test.difficulty]
+        : TEST_DIFFICULTIES.includes(plan?.difficulty as TestDifficulty)
+        ? [plan!.difficulty as TestDifficulty]
+        : [])
   );
   // The levels in order; the highest names the test
   const pickedLevels = TEST_DIFFICULTIES.filter((d) => levels.includes(d));
@@ -302,16 +323,75 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
     });
   };
 
-  // Once only, even if React mounts the chat twice
+  // The plan agreed in the home chat, written out in full, its simulations built and every question checked
+  const runBuild = async () => {
+    if (!plan || !planChat || working) return;
+    setWorking(true);
+    setStage('');
+    setSteps([]);
+    setAiPurpose(plan.title || 'New test');
+    const balanceBefore = credit?.billing ? credit.balance : undefined;
+    const signal = startAiRun().signal;
+    const runId = ++runs.current;
+    const next = await buildPlan(planChat, plan, ctx, (line, list) => {
+      if (signal.aborted) return;
+      setStage(line);
+      if (list) setSteps(list);
+    }).catch(() => null);
+    if (runId !== runs.current) return;
+    if (signal.aborted) {
+      setChat((c) => ({ ...c, messages: [...c.messages, { role: 'assistant', text: 'Stopped. Nothing was made.', failed: true }] }));
+      setWorking(false);
+      return;
+    }
+    const reply = next?.messages[next.messages.length - 1];
+    if (!next?.draft) {
+      setChat((c) => ({ ...c, messages: [...c.messages, { role: 'assistant', text: [reply?.text, reply?.note].filter(Boolean).join(' ') || "Vetter couldn't build that.", failed: true }] }));
+      setWorking(false);
+      return;
+    }
+    setChat((c) => ({
+      ...c,
+      draft: next.draft,
+      messages: [
+        ...c.messages,
+        { role: 'assistant', text: 'Built. Look it over on the right: try any question, or edit it in place. Ask me here for anything to change, then Save test.', ...(reply?.note && { note: reply.note }) },
+      ],
+    }));
+    setFlash(true);
+    setTimeout(() => setFlash(false), 1200);
+    setWorking(false);
+    box.current?.focus();
+    loadCredit().then((c) => {
+      if (c.error) return;
+      setCredit(c);
+      const used = balanceBefore !== undefined && c.balance !== undefined ? balanceBefore - c.balance : 0;
+      if (used > 0)
+        setChat((cur) => {
+          const last = cur.messages[cur.messages.length - 1];
+          return last?.role === 'assistant' ? { ...cur, messages: [...cur.messages.slice(0, -1), { ...last, cost: used }] } : cur;
+        });
+    });
+  };
+
+  // Once only, even if React mounts the chat twice: a plan is built, a seed sent
   const autoSent = useRef(false);
   useEffect(() => {
-    if (!autoSend || !seed || resume || autoSent.current) return;
+    if (autoSent.current || resume) return;
+    if (plan && planChat) {
+      autoSent.current = true;
+      runBuild();
+      return;
+    }
+    if (!autoSend || !seed) return;
     autoSent.current = true;
     send(seed);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const suggestions = original && !started
+  const suggestions = plan && !draft
+    ? []
+    : original && !started
     ? ['Make it harder', 'Make it shorter', 'Rewrite the weakest question']
     : !started
     ? job
@@ -365,6 +445,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
           {working ? <Loader2 className="w-4 h-4 animate-spin" /> : draft ? <Check className="w-4 h-4" /> : <Minus className="w-4 h-4" />}
         </span>
         <button onClick={() => setMinimised(false)} className="min-w-0 flex-1 text-left" title="Open">
+          <span className="block text-[10px] font-semibold uppercase tracking-wider text-indigo-700">AI test builder</span>
           <span className="block text-sm font-semibold text-slate-900 truncate">{tabTitle}</span>
           <span className="block text-xs text-slate-500 truncate">{working ? stage || 'Vetter is building it…' : draft ? 'Ready to look over and save' : 'Waiting for you'}</span>
         </button>
@@ -377,13 +458,25 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
       </div>
     )}
     <div className={minimised ? 'hidden' : 'fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/60 backdrop-blur-sm'}>
-      <div role="dialog" aria-modal="true" aria-label="Build a test with Vetter" className="bg-white sm:rounded-2xl rounded-t-2xl max-w-7xl w-full h-[calc(100dvh-1rem)] sm:h-[min(52rem,calc(100vh-2rem))] flex flex-col shadow-2xl overflow-hidden">
-        <div className="px-5 pt-4 pb-3 border-b border-slate-200 flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <h2 className="text-xl font-bold text-slate-900">
-              {original ? `Edit ${original.title}` : kind === 'training' ? 'Build training with Vetter' : kind === 'standalone' ? 'Build an interactive simulation with Vetter' : kind === 'simulation' ? 'Build a job simulation test with Vetter' : 'Build a skills test with Vetter'}
-            </h2>
-            <p className="text-sm text-slate-500 truncate">{job ? `${job.title} · ${job.companyName}` : business ? `For ${business.name}'s jobs` : 'For the Vetter test library'}</p>
+      <div role="dialog" aria-modal="true" aria-label="AI test builder" className="bg-white sm:rounded-2xl rounded-t-2xl max-w-7xl w-full h-[calc(100dvh-1rem)] sm:h-[min(52rem,calc(100vh-2rem))] flex flex-col shadow-2xl overflow-hidden">
+        {/* The builder's title bar: what it is, the test it's on, and saving */}
+        <div className="px-4 sm:px-5 py-3 border-b border-slate-200 flex items-center justify-between gap-4">
+          <div className="min-w-0 flex items-center gap-3">
+            <span className="w-9 h-9 shrink-0 rounded-lg bg-indigo-600 text-white flex items-center justify-center" aria-hidden="true">
+              <Wand2 className="w-[18px] h-[18px]" />
+            </span>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-bold text-slate-900 tracking-tight">AI test builder</h2>
+                <span className="hidden sm:inline px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded bg-slate-100 text-slate-600">
+                  {original ? 'Editing' : kindLabel(kind)}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 truncate">
+                {draft?.title || original?.title || plan?.title || 'New test'}
+                {job ? ` · ${job.title}` : business ? ` · ${business.name}` : ' · Vetter test library'}
+              </p>
+            </div>
           </div>
           {/* Saving lives up here, so the chat's message box is the bottom of the window */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
@@ -430,7 +523,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
         </div>
 
         {/* What Vetter may write, each a list to tick; whatever's left unticked Vetter decides. Locked while it works */}
-        <div className="px-5 py-2 border-b border-slate-200 flex flex-wrap items-center gap-2" aria-busy={working}>
+        <div className="px-4 sm:px-5 py-2 border-b border-slate-200 bg-slate-50/80 flex flex-wrap items-center gap-2" aria-busy={working}>
           {kind !== 'standalone' && (
           <>
           <Dropdown label={<>Question types: <Summary text={styles.length ? summarise(styles.map((t) => PICKABLE_STYLES.find((s) => s.type === t)?.label ?? t)) : undefined} /></>} width="w-72" disabled={working}>
@@ -515,10 +608,10 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
           </Dropdown>
         </div>
 
-        <div className="lg:hidden flex border-b border-slate-200 text-base font-semibold" role="tablist">
+        <div className="lg:hidden flex border-b border-slate-200 text-sm font-semibold" role="tablist">
           {(['chat', 'draft'] as const).map((p) => (
             <button key={p} role="tab" aria-selected={pane === p} onClick={() => setPane(p)} className={`flex-1 py-2 ${pane === p ? 'text-indigo-700 border-b-2 border-indigo-600' : 'text-slate-500'}`}>
-              {p === 'chat' ? 'Chat' : draft ? `Test · ${draft.questions.length} questions` : 'Test'}
+              {p === 'chat' ? 'Assistant' : draft ? `Test · ${countOf(draft)} questions` : 'Test'}
             </button>
           ))}
         </div>
@@ -526,17 +619,23 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
         <div className="flex-1 min-h-0 grid grid-rows-[minmax(0,1fr)] lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] xl:grid-cols-[minmax(0,30rem)_minmax(0,1fr)]">
           {/* The conversation */}
           <section className={`${pane === 'chat' ? 'flex' : 'hidden'} lg:flex flex-col min-h-0 lg:border-r border-slate-200`}>
-            <div ref={scroller} className="flex-1 min-h-0 overflow-y-auto px-5 py-5 space-y-5" aria-live="polite">
+            <PanelHeader title="Assistant" detail="Ask for any change" />
+            <div ref={scroller} className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4" aria-live="polite">
               {chat.messages.map((m, i) =>
                 m.role === 'user' ? (
                   <div key={i} className="flex justify-end">
-                    <div className="max-w-[85%] px-4 py-2.5 rounded-3xl rounded-br-lg bg-indigo-600 text-white text-base leading-[1.65] whitespace-pre-wrap">{m.text}</div>
+                    <div className="max-w-[85%] px-3.5 py-2 rounded-2xl rounded-br-md bg-indigo-600 text-white text-sm leading-relaxed whitespace-pre-wrap">{m.text}</div>
                   </div>
                 ) : (
                   <div key={i} className="flex gap-2.5">
                     <VAvatar />
                     <div className="max-w-[85%] min-w-0">
-                      <div className="px-4 py-2.5 rounded-3xl rounded-tl-lg bg-slate-100 text-slate-800 text-base leading-[1.65] whitespace-pre-wrap">{m.text}</div>
+                      <div className="px-3.5 py-2 rounded-2xl rounded-tl-md bg-slate-100 text-slate-800 text-sm leading-relaxed whitespace-pre-wrap">{m.text}</div>
+                      {m.failed && i === chat.messages.length - 1 && !working && plan && !draft && !m.needsCredit && (
+                        <button onClick={runBuild} className="mt-1.5 px-3 py-1 rounded-full text-xs font-semibold border border-indigo-300 text-indigo-700 hover:bg-indigo-50">
+                          Build again
+                        </button>
+                      )}
                       {m.failed && i === chat.messages.length - 1 && !working && chat.messages[i - 1]?.role === 'user' && (
                         <button
                           onClick={() => (m.needsCredit ? setTopUpOpen(true) : send(chat.messages[i - 1].text, true))}
@@ -561,7 +660,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
               {working && (
                 <div className="flex gap-2.5">
                   <VAvatar pulse />
-                  <div className="px-4 py-2.5 rounded-3xl rounded-tl-lg bg-slate-100 text-base leading-[1.65] text-slate-600">
+                  <div className="px-3.5 py-2 rounded-2xl rounded-tl-md bg-slate-100 text-sm leading-relaxed text-slate-600">
                     <WorkingStep stage={stage} />
                   </div>
                 </div>
@@ -593,7 +692,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
               {suggestions.length > 0 && !working && (
                 <div className="flex gap-1.5 overflow-x-auto pb-2 -mx-1 px-1">
                   {suggestions.map((s) => (
-                    <button key={s} onClick={() => send(s)} className="shrink-0 px-3 py-1.5 rounded-full border border-slate-200 text-sm text-slate-700 hover:border-indigo-400 hover:text-indigo-700">
+                    <button key={s} onClick={() => send(s)} className="shrink-0 px-2.5 py-1 rounded-full border border-slate-200 text-xs font-medium text-slate-700 hover:border-indigo-400 hover:text-indigo-700">
                       {s}
                     </button>
                   ))}
@@ -615,7 +714,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                   e.preventDefault();
                   send(input);
                 }}
-                className="flex items-end gap-2 p-2 border border-slate-300 rounded-2xl focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100"
+                className="flex items-end gap-2 p-1.5 border border-slate-300 rounded-xl focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100"
               >
                 <textarea
                   ref={box}
@@ -631,7 +730,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                   }}
                   aria-label="Message Vetter"
                   placeholder={focus ? `Ask for a change to ${focus.app}, e.g. "add a refunds screen"` : draft ? 'Ask for a change, e.g. "make question 2 harder"' : job ? 'What matters most in this hire?' : 'Describe the role or the test you want'}
-                  className="flex-1 resize-none px-2.5 py-2 text-base leading-[1.6] text-slate-900 bg-transparent focus:outline-none"
+                  className="flex-1 resize-none px-2 py-1.5 text-sm leading-relaxed text-slate-900 bg-transparent focus:outline-none"
                 />
                 {working ? (
                   <button type="button" onClick={stop} aria-label="Stop" title="Stop Vetter making any more" className="p-2 rounded-lg bg-slate-800 text-white hover:bg-slate-900">
@@ -647,7 +746,12 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
           </section>
 
           {/* The test as the candidate will see it, updating as the conversation goes and editable in place */}
-          <section className={`${pane === 'draft' ? 'block' : 'hidden'} lg:block relative min-h-0 overflow-hidden bg-slate-50/60`}>
+          <section className={`${pane === 'draft' ? 'flex' : 'hidden'} lg:flex flex-col relative min-h-0 overflow-hidden bg-slate-50/60`}>
+            <PanelHeader
+              title="Test"
+              detail={draft ? `${countOf(draft)} ${countOf(draft) === 1 ? 'question' : 'questions'} · about ${minutesOf(draft)} min` : working ? 'Building…' : 'Appears here as candidates will see it'}
+            />
+            <div className="relative flex-1 min-h-0">
             {/* While Vetter works on a draft already there, the building card sits over it, the draft blurred behind */}
             {working && draft && (
               <div className="absolute inset-0 z-10 p-4 flex items-center justify-center build-veil">
@@ -689,6 +793,14 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                   </div>
                 ) : job && chat.existing.length > 0 ? (
                   <LibraryPicks job={job} existing={chat.existing} chosen={chosen} setChosen={setChosen} onOpenTest={onOpenTest} />
+                ) : plan && !working ? (
+                  <div className="h-full flex flex-col items-center justify-center text-center gap-3 py-12">
+                    <p className="text-sm font-semibold text-slate-700">Nothing built yet</p>
+                    <button onClick={runBuild} className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg inline-flex items-center gap-1.5">
+                      <Wand2 className="w-4 h-4" />
+                      Build again
+                    </button>
+                  </div>
                 ) : (
                   <div className="h-full flex flex-col items-center justify-center text-center gap-2 py-12">
                     <p className="text-base font-semibold text-slate-700">Your test appears here, as candidates will see it</p>
@@ -700,6 +812,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                 )}
               </div>
             )}
+            </div>
           </section>
         </div>
 
@@ -787,11 +900,19 @@ const LibraryPicks: React.FC<{
   </div>
 );
 
+// A panel's slim title bar in the builder
+const PanelHeader: React.FC<{ title: string; detail?: string }> = ({ title, detail }) => (
+  <div className="shrink-0 h-9 px-4 border-b border-slate-200 bg-white flex items-center justify-between gap-3">
+    <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{title}</span>
+    {detail && <span className="min-w-0 truncate text-xs text-slate-400">{detail}</span>}
+  </div>
+);
+
 // Vetter in the chat: a V where the avatar goes, pulsing while it works
 const VAvatar: React.FC<{ pulse?: boolean }> = ({ pulse }) => (
   <span
     aria-hidden="true"
-    className={`mt-0.5 w-8 h-8 shrink-0 rounded-full bg-indigo-600 text-white text-sm font-bold flex items-center justify-center ${pulse ? 'animate-pulse' : ''}`}
+    className={`mt-0.5 w-7 h-7 shrink-0 rounded-lg bg-indigo-600 text-white text-xs font-bold flex items-center justify-center ${pulse ? 'animate-pulse' : ''}`}
   >
     V
   </span>

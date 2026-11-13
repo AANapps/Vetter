@@ -6,11 +6,10 @@ import { AssessmentTest, Business, JobPosting, QuestionType, TestKind, User, lev
 import { Pic } from './Pic';
 import { AdvisorTurn, CUSTOM_KIND_LABELS, CustomIdea, HomeBuild, SuggestedPerson, askAdvisor, testOutline } from '../lib/testAdvisor';
 import { Credit, loadCredit, startAiRun, stopAiRun } from '../lib/aiRequest';
-import { ChatContext, ChatState, TestPlan, buildPlan, proposePlan, sendChat } from '../lib/testChat';
+import { ChatContext, ChatState, TestPlan, proposePlan } from '../lib/testChat';
 import { QUESTION_STYLES } from '../lib/questionTypes';
-import { BuildingCard } from './BuildingCard';
 import { aiSimulationsFor } from '../lib/sectors';
-import { DraftPreview, finaliseDraft } from './DraftPreview';
+import { DraftPreview } from './DraftPreview';
 import { kindLabel } from './KindChoice';
 import { CreditMeter, EXAMPLE_CREDIT } from './CreditMeter';
 import { CreditsDialog } from './CreditsDialog';
@@ -31,14 +30,16 @@ interface BusinessHomeProps {
   // The test this chat is building or changing, kept by the app so it carries on while the company looks at the test
   build: HomeBuild | null;
   onBuild: React.Dispatch<React.SetStateAction<HomeBuild | null>>;
-  // Saves a test the chat built (returning its id), or a change to one
-  onSaveTest: (test: AssessmentTest, kind: TestKind) => string;
+  // Build: the AI test builder opens on the agreed plan (with the chat's state and the job it's for) and builds it
+  onBuildPlan: (plan: TestPlan, chat: ChatState, kind: TestKind, jobId?: string) => void;
+  // Opens a saved test in the AI test builder to change by asking
+  onEditWithAI: (testId: string) => void;
+  // Saves a hand edit made in the preview
   onUpdateTest: (test: AssessmentTest) => void;
   // Something to start the chat with, from elsewhere in the app (e.g. "make a test for this job"), and the job the test
   // it builds is for
   seed?: { text: string; jobId?: string };
   onSeedUsed: () => void;
-  onAddToJob: (jobId: string, testIds: string[]) => void;
   // The ready-made tests picked across the chat, taken on to the test plan
   onContinue: (tests: AssessmentTest[]) => void;
   // Builds an AI test straight away; the picked tests (and the reply's other ideas) wait in the test plan for it
@@ -100,11 +101,11 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
   onInvite,
   build,
   onBuild,
-  onSaveTest,
+  onBuildPlan,
+  onEditWithAI,
   onUpdateTest,
   seed,
   onSeedUsed,
-  onAddToJob,
 }) => {
   const [input, setInput] = useState('');
   // The candidate whose profile is open over the chat
@@ -152,60 +153,6 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
     styles: aiSimulationsFor(business) ? [] : NO_APP_STYLES,
     background: chatSummary(turns),
   });
-  // A test the chat built (or changed) saved to the company's tests, with a reply showing what's in it and Preview
-  const saveBuilt = (next: ChatState, kind: TestKind, testId: string | undefined, text: string) => {
-    const finished: AssessmentTest = {
-      ...finaliseDraft(next.draft!),
-      madeWith: 'ai',
-      ...(kind === 'training' && { purpose: 'training' as const, timeLimit: 'none' as const }),
-    };
-    let id = testId;
-    if (id) onUpdateTest({ ...finished, id });
-    else {
-      id = onSaveTest(finished, kind);
-      if (jobFor.current) onAddToJob(jobFor.current, [id]);
-      jobFor.current = undefined;
-    }
-    onBuild({ chat: next, kind, testId: id, working: false });
-    onTurns((prev) => [
-      ...prev,
-      {
-        role: 'assistant',
-        text,
-        created: {
-          title: finished.title,
-          kind,
-          testId: id,
-          questions: finished.questions.filter((q) => q.type !== 'case').length,
-          apps: finished.questions.filter((q) => q.type === 'app').length,
-          description: finished.description,
-          outline: testOutline(finished),
-          ...(testId && { updated: true }),
-        },
-      },
-    ]);
-  };
-  // A change to a test already built here
-  const runTest = async (message: string, kind: TestKind, base: ChatState, testId?: string) => {
-    const signal = startAiRun().signal;
-    onBuild({ chat: base, kind, testId, working: true, stage: '', steps: [] });
-    const next = await sendChat(base, message, testContext(kind), (stage, steps) => {
-      if (!signal.aborted) onBuild((b) => b && { ...b, stage, ...(steps && { steps }) });
-    }).catch(() => base);
-    if (signal.aborted) {
-      onBuild((b) => b && { ...b, chat: base, working: false, stage: '', steps: [] });
-      onTurns((prev) => [...prev, { role: 'assistant', text: testId ? 'Stopped. Your test is as it was before that message.' : 'Stopped. Nothing was made.' }]);
-      return;
-    }
-    const reply = next.messages[next.messages.length - 1];
-    if (!next.draft || reply?.failed || next.draft === base.draft) {
-      onBuild((b) => b && { ...b, chat: next, working: false, stage: '', steps: [] });
-      onTurns((prev) => [...prev, { role: 'assistant', text: reply?.text || "Vetter couldn't build that. Try again.", ...(reply?.failed && { error: true }), ...(reply?.needsCredit && { needsCredit: true }) }]);
-      return;
-    }
-    saveBuilt(next, kind, testId, [reply?.text, reply?.note].filter(Boolean).join(' '));
-  };
-
   // Before anything is written, Vetter plans the test and lists every question in the chat; each message after that
   // changes the plan, until the company presses Build
   const runPlan = async (text: string, kind: TestKind, base: ChatState, current?: TestPlan) => {
@@ -238,29 +185,10 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
     if (said) onTurns((prev) => [...prev, { role: 'user', text: said }]);
     runPlan(brief, kind, { messages: [], existing: [] });
   };
-  // Build: the plan the company agreed, written out, its simulations built and every question checked
-  const buildIt = async () => {
+  // Build: the AI test builder opens on the plan the company agreed and builds it there
+  const buildIt = () => {
     if (!build?.planning || !build.plan || build.working) return;
-    const { chat: base, kind, plan } = build;
-    onTurns((prev) => [...prev, { role: 'user', text: kind === 'training' ? 'Build the training.' : 'Build it.' }]);
-    const signal = startAiRun().signal;
-    onBuild({ chat: base, kind, planning: true, plan, working: true, stage: '', steps: [] });
-    const next = await buildPlan(base, plan, testContext(kind), (stage, steps) => {
-      if (!signal.aborted) onBuild((b) => b && { ...b, stage, ...(steps && { steps }) });
-    }).catch(() => null);
-    if (signal.aborted) {
-      onBuild({ chat: base, kind, planning: true, plan, working: false });
-      onTurns((prev) => [...prev, { role: 'assistant', text: 'Stopped. Nothing was made: the plan is still here, so press Build to start again.' }]);
-      return;
-    }
-    const reply = next?.messages[next.messages.length - 1];
-    if (!next?.draft) {
-      onBuild({ chat: base, kind, planning: true, plan, working: false });
-      onTurns((prev) => [...prev, { role: 'assistant', text: [reply?.text, reply?.note].filter(Boolean).join(' ') || "Vetter couldn't build that. Try Build again.", error: true }]);
-      return;
-    }
-    const what = kind === 'training' ? 'training' : 'test';
-    saveBuilt(next, kind, undefined, [`Your ${what} is built and saved to your tests. Preview it, or tell me here what to change.`, reply?.note].filter(Boolean).join(' '));
+    onBuildPlan(build.plan, build.chat, build.kind, jobFor.current);
   };
   const stop = () => {
     stopAiRun();
@@ -272,11 +200,6 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
     if (!t || working) return;
     setInput('');
     // While a test from this chat is open for changes, messages change it
-    if (build?.testId) {
-      onTurns((prev) => [...prev, { role: 'user', text: t }]);
-      runTest(t, build.kind, build.chat, build.testId);
-      return;
-    }
     // While a plan is up, messages change it
     if (build?.planning) {
       onTurns((prev) => [...prev, { role: 'user', text: t }]);
@@ -391,7 +314,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
                   onPickAll={pickAll}
                   onEditCopy={onEditCopy}
                   onBuildWithAI={planFrom}
-                  testOpen={!!build?.testId && build.testId === turn.created?.testId}
+                  onEditWithAI={onEditWithAI}
                   onSeePlans={onSeePlans}
                   onOpenTest={onOpenTest}
                   onPreview={setPreviewId}
@@ -411,22 +334,13 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
           {build?.working && (
             <div className="flex gap-3">
               <span className="ai-mark w-7 h-7 shrink-0 rounded-lg text-white text-xs font-pixel flex items-center justify-center">V</span>
-              {build.steps ? (
-                // Building: the animation, what it's doing now, and the checklist under it
-                <BuildingCard
-                  title={build.testId ? 'Changing your test…' : build.kind === 'training' ? 'Building your training…' : 'Building your test…'}
-                  stage={build.stage ?? ''}
-                  steps={build.steps}
-                />
-              ) : (
-                <div className="ai-glass min-w-0 flex-1 p-4 rounded-2xl rounded-tl-md border border-white/80 shadow-sm space-y-1">
-                  <p className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                    <Loader2 className="w-4 h-4 text-indigo-600 animate-spin" />
-                    {build.plan ? 'Changing the plan…' : 'Planning every question…'}
-                  </p>
-                  <p className="text-xs text-slate-500 ai-shimmer">{build.stage || 'Starting…'}</p>
-                </div>
-              )}
+              <div className="ai-glass min-w-0 flex-1 p-4 rounded-2xl rounded-tl-md border border-white/80 shadow-sm space-y-1">
+                <p className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 text-indigo-600 animate-spin" />
+                  {build.plan ? 'Changing the plan…' : 'Planning every question…'}
+                </p>
+                <p className="text-xs text-slate-500 ai-shimmer">{build.stage || 'Starting…'}</p>
+              </div>
             </div>
           )}
           {thinking && (
@@ -486,7 +400,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
           {build?.planning && build.plan && !build.working && (
             <div className="mb-2 flex items-center justify-between gap-3 px-3 py-2 bg-white/90 border border-indigo-200 rounded-xl text-xs">
               <span className="min-w-0 truncate text-slate-700">
-                Planning <b className="text-slate-900">{build.plan.title || 'your test'}</b>: ask for any change, then Build.
+                Planning <b className="text-slate-900">{build.plan.title || 'your test'}</b>: ask for any change, then build it in the AI test builder.
               </span>
               <span className="shrink-0 flex items-center gap-3">
                 <button type="button" onClick={buildIt} className="font-semibold text-indigo-700 hover:text-indigo-900">
@@ -494,21 +408,6 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
                 </button>
                 <button type="button" onClick={() => onBuild(null)} className="font-semibold text-slate-500 hover:text-slate-900">
                   Cancel
-                </button>
-              </span>
-            </div>
-          )}
-          {build?.testId && !build.working && (
-            <div className="mb-2 flex items-center justify-between gap-3 px-3 py-2 bg-white/90 border border-indigo-200 rounded-xl text-xs">
-              <span className="min-w-0 truncate text-slate-700">
-                Changing <b className="text-slate-900">{build.chat.draft?.title ?? 'your test'}</b>: tell Vetter what to change.
-              </span>
-              <span className="shrink-0 flex items-center gap-3">
-                <button type="button" onClick={() => setPreviewId(build.testId!)} className="font-semibold text-indigo-700 hover:text-indigo-900">
-                  Preview
-                </button>
-                <button type="button" onClick={() => onBuild(null)} className="font-semibold text-slate-500 hover:text-slate-900">
-                  Done
                 </button>
               </span>
             </div>
@@ -526,7 +425,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
                 }
               }}
               rows={1}
-              placeholder={build?.testId ? 'Ask for a change, e.g. "make question 3 harder"' : build?.planning ? 'Ask for a change, e.g. "swap question 4 for a SQL task"' : turns.length ? 'Answer, or ask a follow-up, e.g. make it more senior' : 'Describe the role, or paste the job description'}
+              placeholder={build?.planning ? 'Ask for a change, e.g. "swap question 4 for a SQL task"' : turns.length ? 'Answer, or ask a follow-up, e.g. make it more senior' : 'Describe the role, or paste the job description'}
               aria-label="Message Vetter"
               className="flex-1 resize-none max-h-40 px-2 py-1.5 text-sm bg-transparent focus:outline-none"
             />
@@ -589,9 +488,8 @@ const AdvisorReply: React.FC<{
   onInvite: (jobId: string, candidateId: string) => void;
   // Set on the latest reply only: a quick answer sends it as the company's next message
   onQuickReply?: (text: string) => void;
-  // This reply's test is the one the chat is changing
-  testOpen?: boolean;
-}> = ({ turn, testOpen, aiAllowed, picked, onTogglePick, onPickAll, onEditCopy, onBuildWithAI, onSeePlans, onOpenTest, onPreview, onTopUp, canBuild, onBuild, onOpenLibrary, candidates, onViewPerson, jobs, onInvite, onQuickReply }) => (
+  onEditWithAI: (testId: string) => void;
+}> = ({ turn, onEditWithAI, aiAllowed, picked, onTogglePick, onPickAll, onEditCopy, onBuildWithAI, onSeePlans, onOpenTest, onPreview, onTopUp, canBuild, onBuild, onOpenLibrary, candidates, onViewPerson, jobs, onInvite, onQuickReply }) => (
   <div className="flex gap-3">
     <span className="ai-mark-still w-7 h-7 shrink-0 rounded-lg text-white text-xs font-pixel flex items-center justify-center">V</span>
     <div className="ai-glass min-w-0 flex-1 space-y-4 p-4 sm:p-5 rounded-2xl rounded-tl-md border border-white/80 shadow-sm">
@@ -697,7 +595,15 @@ const AdvisorReply: React.FC<{
             <button onClick={onOpenLibrary} className="px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:border-indigo-400 rounded-lg inline-flex items-center gap-1">
               Your test library <ArrowRight className="w-3 h-3" />
             </button>
-            {testOpen && <span className="text-xs text-slate-500">Ask below for any change.</span>}
+            {turn.created.testId && (
+              <button
+                onClick={() => onEditWithAI(turn.created!.testId!)}
+                className="px-3 py-2 text-xs font-semibold text-indigo-700 bg-white border border-indigo-200 hover:border-indigo-400 rounded-lg inline-flex items-center gap-1.5"
+              >
+                <Wand2 className="w-3.5 h-3.5" />
+                Edit in AI test builder
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -872,7 +778,7 @@ const PlanCard: React.FC<{ plan: TestPlan; canBuild: boolean; onBuild: () => voi
         <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-3">
           <button onClick={onBuild} className="px-4 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg inline-flex items-center gap-1.5">
             <Wand2 className="w-4 h-4" />
-            Build
+            Build in AI test builder
             <ArrowRight className="w-4 h-4" />
           </button>
           <span className="text-xs text-slate-500">Want something different? Ask below first, e.g. "add an SQL question on joins".</span>
@@ -920,7 +826,7 @@ const PreviewDialog: React.FC<{ test: AssessmentTest; locked: boolean; onChange:
           </button>
         </div>
         <div className="flex-1 min-h-0">
-          <DraftPreview test={test} onChange={onChange} locked={locked} flash={false} onOpenBuilder={onOpenPage} />
+          <DraftPreview test={test} onChange={onChange} locked={locked} flash={false} />
         </div>
       </div>
     </div>

@@ -66,6 +66,7 @@ import { TeamWork } from './components/TeamWork';
 import { TrainingPage } from './components/TrainingPage';
 import { PlansDialog } from './components/PlansDialog';
 import { AdvisorTurn, HomeBuild, testOutline } from './lib/testAdvisor';
+import type { ChatState, TestPlan as AgreedPlan } from './lib/testChat';
 import { jobBrief } from './lib/testGeneration';
 import { SectorId, jobInSector, loadSector, roleInSector, saveSector, sectorLabel, testInSector } from './lib/sectors';
 import { SectorBar } from './components/SectorPicker';
@@ -192,6 +193,21 @@ const tabFromUrl = (role: UserRole, current?: AppTab): AppTab => {
 };
 const initialTab = (): AppTab => tabFromUrl('candidate');
 const isHiringHash = () => window.location.hash === '#/business' || window.location.hash === '#/pricing';
+
+// The AI test builder as it's opened: for a job, from a saved draft, a first message, a saved test to change, or the plan
+// agreed in the home chat to build
+type GeneratorOpen = {
+  jobId?: string;
+  resume?: TestDraft;
+  seed?: string;
+  autoSend?: boolean;
+  editTestId?: string;
+  kind?: TestKind;
+  fromHome?: boolean;
+  background?: string;
+  plan?: AgreedPlan;
+  planChat?: ChatState;
+};
 
 export default function App() {
   const [activeRole, setActiveRole] = useState<UserRole>('candidate');
@@ -460,7 +476,7 @@ export default function App() {
   // seed: a first message ready to send, e.g. to rebuild a library test in depth
   // autoSend: the seed is sent as the chat opens, so building starts at once
   // editTestId: a saved test reopened in the chat, to change it by asking
-  const [generator, setGenerator] = useState<{ jobId?: string; resume?: TestDraft; seed?: string; autoSend?: boolean; editTestId?: string; kind?: TestKind; fromHome?: boolean; background?: string } | null>(null);
+  const [generator, setGenerator] = useState<GeneratorOpen | null>(null);
   // What the creator saved while it was open from the home chat, reported in the chat when it closes
   const builtInCreator = useRef<{ test: AssessmentTest; kind: TestKind; testId?: string; draft?: boolean } | null>(null);
   // What a company took from the home chat (ready-made picks, AI tests built or started, the reply's other AI ideas)
@@ -570,45 +586,17 @@ export default function App() {
   // The test chat on a saved test, picking up changes saved as a draft earlier where they were left
   const enhanceTest = (testId: string, jobId?: string) => {
     const pending = testDrafts.find((d) => d.editsTestId === testId);
-    if (pending) openGenerator({ jobId: pending.jobId ?? jobId, resume: pending });
-    else editInChat(testId);
+    openGenerator(pending ? { jobId: pending.jobId ?? jobId, resume: pending } : { jobId, editTestId: testId });
   };
 
   // Tests are made and changed in the home chat: this starts it with a message (and the job the test is for)
   const startInChat = (text: string, jobId?: string) => {
     if (!aiAllowed) return setPlansOpen(true);
-    if (homeBuild?.working) return showToast('Vetter is still building a test in the chat. Wait for it, or press Stop there.');
+    if (homeBuild?.working) return showToast('Vetter is still planning a test in the chat. Wait for it, or press Stop there.');
     setHomeSeed({ text, ...(jobId && { jobId }) });
     goToTab('business-home');
   };
-  // A saved test opened in the home chat to change by asking
-  const editInChat = (testId: string) => {
-    const test = tests.find((t) => t.id === testId);
-    if (!test) return;
-    if (!aiAllowed) return setPlansOpen(true);
-    if (homeBuild?.working) return showToast('Vetter is still building a test in the chat. Wait for it, or press Stop there.');
-    const kind = test.purpose === 'training' ? 'training' : test.scenario ? 'simulation' : 'test';
-    setHomeBuild({ chat: { messages: [], existing: [], draft: test }, kind, testId, working: false });
-    setAdvisorTurns((prev) => [
-      ...prev,
-      {
-        role: 'assistant',
-        text: `What would you like to change in "${test.title}"? Tell me here and I'll change it and save it.`,
-        created: {
-          title: test.title,
-          kind,
-          testId,
-          questions: test.questions.filter((q) => q.type !== 'case').length,
-          apps: test.questions.filter((q) => q.type === 'app').length,
-          description: test.description,
-          outline: testOutline(test),
-        },
-      },
-    ]);
-    goToTab('business-home');
-  };
-
-  const openGenerator = (g: { jobId?: string; resume?: TestDraft; seed?: string; autoSend?: boolean; editTestId?: string; kind?: TestKind; fromHome?: boolean; background?: string }) => {
+  const openGenerator = (g: GeneratorOpen) => {
     if (!aiAllowed) return setPlansOpen(true);
     // One build at a time: a minimised one would be lost if another replaced it
     if (generator) return showToast("You've got one being built already. Open it from the tab in the corner, and close it before starting another.");
@@ -636,8 +624,18 @@ export default function App() {
       text: draft
         ? `Your ${what} "${test.title}" is saved as a draft, so you can pick it up any time from your test library. What would you like to do next?`
         : `Done! Your ${what} "${test.title}" is saved in your test library. What would you like to do next?`,
-      created: { title: test.title, kind, testId, draft, questions: test.questions.filter((q) => q.type !== 'case').length, apps },
+      created: {
+        title: test.title,
+        kind,
+        testId,
+        draft,
+        questions: test.questions.filter((q) => q.type !== 'case').length,
+        apps,
+        ...(!draft && { description: test.description, outline: testOutline(test) }),
+      },
     };
+    // The plan it was built from is done with
+    setHomeBuild(null);
     setAdvisorTurns((prev) => [...prev, turn]);
   };
   // Builds one of the home chat's AI ideas straight away; the test plan opens with it once it's saved (or closed)
@@ -1685,11 +1683,11 @@ export default function App() {
               onTurns={setAdvisorTurns}
               build={homeBuild}
               onBuild={setHomeBuild}
-              onSaveTest={(test) => {
-                const id = saveNewTest(test);
-                showToast(test.purpose === 'training' ? `"${test.title}" saved to your training.` : `"${test.title}" saved to your tests.`);
-                return id;
-              }}
+              // Build opens the AI test builder on the plan agreed in the chat; the finished test is reported back here
+              onBuildPlan={(plan, chat, kind, jobId) =>
+                openGenerator({ plan, planChat: chat, kind, ...(jobId && { jobId }), fromHome: true, background: homeChatSummary(advisorTurns) })
+              }
+              onEditWithAI={(testId) => enhanceTest(testId)}
               onUpdateTest={(test) => {
                 // A change keeps the saved test's place: its id, owner, level family and kind
                 const before = tests.find((t) => t.id === test.id);
@@ -1701,7 +1699,6 @@ export default function App() {
               }}
               seed={homeSeed}
               onSeedUsed={() => setHomeSeed(undefined)}
-              onAddToJob={addTestsToJob}
               candidates={allCandidates}
               onInvite={(jobId, candidateId) => {
                 handleInviteToJob(jobId, [candidateId]);
@@ -2022,6 +2019,8 @@ export default function App() {
           autoSend={generator.autoSend}
           background={generator.background}
           kind={generator.kind}
+          plan={generator.plan}
+          planChat={generator.planChat}
           onSaveDraft={async (record) => {
             const ok = await saveTestDraft(record);
             if (ok && !record.editsTestId) builtInCreator.current = { test: record.test, kind: record.kind ?? generator.kind ?? 'simulation', draft: true };

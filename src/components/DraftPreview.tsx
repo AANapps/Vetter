@@ -41,7 +41,8 @@ interface DraftPreviewProps {
   locked: boolean;
   // Glows briefly when Vetter changes the draft
   flash: boolean;
-  onOpenBuilder: () => void;
+  // Opens the draft in the manual test builder; without it the link isn't shown
+  onOpenBuilder?: () => void;
   // More buttons for the toolbar, e.g. the library picks
   toolbarExtra?: React.ReactNode;
   // Told which task or question is on screen, with its label ("Task 2"), so the chat can talk about it
@@ -190,11 +191,13 @@ export const DraftPreview: React.FC<DraftPreviewProps> = ({ test, onChange, lock
                   </li>
                 ))}
               </ol>
-              <div className="px-3 py-2 border-t border-slate-100">
-                <button onClick={() => (close(), onOpenBuilder())} disabled={locked} className="text-xs font-semibold text-indigo-700 hover:text-indigo-900 disabled:opacity-40">
-                  Open in the full test builder
-                </button>
-              </div>
+              {onOpenBuilder && (
+                <div className="px-3 py-2 border-t border-slate-100">
+                  <button onClick={() => (close(), onOpenBuilder())} disabled={locked} className="text-xs font-semibold text-indigo-700 hover:text-indigo-900 disabled:opacity-40">
+                    Edit by hand in the manual builder
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </Dropdown>
