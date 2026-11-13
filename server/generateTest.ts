@@ -202,6 +202,11 @@ export const APP_PAGE_RULES = `  For every kind, appHtml is ONE self-contained H
     handle, cursor:grab, a lift and shadow while dragged), drop targets and connection points highlight as something
     nears them, a connection is drawn as a visible wire or line, and anything placed or connected can be undone or
     removed. Displays and readings are large and easy to read, with their units.
+  • EVERY LABEL CAN BE READ IN FULL. In a drawing, put each label in clear space beside or under what it names (a thin
+    leader line to it when it can't sit next to it), never across another part. Draw all labels last, after every
+    shape, so nothing covers them, and give each a halo (class vk-svg-label, or paint-order:stroke with a 3px stroke in
+    the background colour). Keep every label inside the viewBox with a margin, no two labels touching, and at least 12px
+    tall as drawn. Leave room for the labels when you lay the drawing out; Vetter checks for hidden and cut-off labels.
   • NOTHING IS A MYSTERY SHAPE: every tool, instrument, part, item and person drawn has its real name as visible text
     beside or under it at all times (not only on hover), e.g. "Mouth mirror", "Probe", "Two-pole voltage tester". Draw
     each one as its classic, instantly recognisable outline (the shape anyone in the job would know at a glance) with

@@ -75,6 +75,7 @@ html:has(>body.vk-app){background:var(--vk-bg)}
 .vk-avatar{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;flex-shrink:0;border-radius:50%;background:var(--vk-accent-soft);color:var(--vk-accent);font-size:11px;font-weight:700}
 .vk-list{display:flex;flex-direction:column}.vk-list-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--vk-border);cursor:pointer}.vk-list-item:hover{background:var(--vk-surface-2)}.vk-list-item.active{background:var(--vk-accent-soft);box-shadow:inset 3px 0 0 var(--vk-accent)}
 .vk-chip{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border:1px solid var(--vk-border-strong);border-radius:999px;background:var(--vk-surface);font-size:12px;font-weight:500;cursor:pointer}.vk-chip.active{border-color:var(--vk-accent);background:var(--vk-accent-soft);color:var(--vk-accent)}
+.vk-svg-label{font-family:var(--vk-font);font-size:13px;font-weight:600;fill:var(--vk-text);paint-order:stroke;stroke:var(--vk-surface);stroke-width:3.5px;stroke-linejoin:round}
 .vk-divider{height:1px;background:var(--vk-border);border:0;margin:12px 0}
 .vk-kbd{padding:1px 6px;border:1px solid var(--vk-border-strong);border-bottom-width:2px;border-radius:4px;font-size:11px;font-family:ui-monospace,monospace;background:var(--vk-surface)}
 .vk-backdrop{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(16,24,40,.45);backdrop-filter:blur(2px)}
@@ -110,7 +111,7 @@ split views, boards, calendars):
     -accent) with an optional vk-dot, vk-avatar (initials), vk-list with vk-list-item (+active), vk-progress > span.
   • Navigation: vk-tabs with vk-tab (+active), vk-menu with vk-menu-item for dropdowns.
   • Overlays: vk-backdrop > vk-modal (vk-modal-head, vk-modal-body, vk-modal-foot), vk-drawer, vk-toast, vk-tooltip.
-  Disabled controls are greyed out by the kit. Write your own CSS only for the layout and for what the kit doesn't have
+  In drawings, give labels class vk-svg-label (readable text with a halo). Disabled controls are greyed out by the kit. Write your own CSS only for the layout and for what the kit doesn't have
   (a calendar, a kanban board, a floor plan, a chart, the product's distinctive parts), using the --vk-* settings so it
   matches. Don't restyle the kit's pieces wholesale. A drawn scene (SVG equipment, a room, a device) is yours to draw as
   before; use the kit for the panels, buttons, readouts and tool cards around it.`;

@@ -128,8 +128,8 @@ export async function buildApp(body: unknown, apiKey: string | undefined, model:
               ...(req.fix?.html
                 ? [
                     `THE PAGE AS YOU BUILT IT:\n${String(req.fix.html).slice(0, MAX_PAGE)}`,
-                    `PROBLEMS FOUND WHEN VETTER CLICKED THROUGH IT:\n${(req.fix.problems ?? []).slice(0, 30).map((p) => `- ${String(p).slice(0, 200)}`).join('\n')}`,
-                    'Return the whole page again, keeping its data-ref tips, with every problem fixed: make each control named above do what its label says in this kind of product, or grey it out (disabled, reduced opacity, cursor:not-allowed, a "Not available in this test" title) when it is outside the task. Fix any errors. Keep everything that already works, the data and the state paths the checks read.',
+                    `PROBLEMS FOUND WHEN VETTER TRIED IT OUT:\n${(req.fix.problems ?? []).slice(0, 30).map((p) => `- ${String(p).slice(0, 200)}`).join('\n')}`,
+                    'Return the whole page again, keeping its data-ref tips, with every problem fixed. For a label hidden, cut off or overlapping: move it into clear space beside or under what it names (with a leader line if needed), draw it after the shapes so it sits on top, give it a halo, and keep it inside the drawing, so every letter can be read. For a control: make each control named above do what its label says in this kind of product, or grey it out (disabled, reduced opacity, cursor:not-allowed, a "Not available in this test" title) when it is outside the task. Fix any errors. Keep everything that already works, the data and the state paths the checks read.',
                   ]
                 : []),
               ...(req.edit?.html

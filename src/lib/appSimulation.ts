@@ -34,7 +34,65 @@ const AUDIT = `<script>
     var cs = getComputedStyle(el);
     return cs.visibility !== 'hidden' && cs.display !== 'none' && parseFloat(cs.opacity) > 0.45 && cs.pointerEvents !== 'none' && cs.cursor !== 'not-allowed';
   }
+  // Labels in drawings that can't be read: a filled shape drawn after a label on top of it, two labels on top of each
+  // other, or a label running off the edge of its drawing. Checked as the page first shows, before anything is clicked
+  var SHAPES = { rect: 1, circle: 1, ellipse: 1, path: 1, polygon: 1, image: 1, use: 1 };
+  var SKIP = 'defs, clipPath, mask, marker, pattern, symbol, linearGradient, radialGradient, filter';
+  function shown(el) {
+    for (var n = el; n && n.nodeType === 1; n = n.parentNode) {
+      var cs = getComputedStyle(n);
+      if (cs.display === 'none' || cs.visibility === 'hidden' || parseFloat(cs.opacity) < 0.3) return false;
+    }
+    return true;
+  }
+  function overlap(a, b) {
+    var w = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+    var h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+    return w > 0 && h > 0 ? w * h : 0;
+  }
+  function labelProblems() {
+    var out = [];
+    Array.prototype.forEach.call(document.querySelectorAll('svg'), function (svg) {
+      if (svg.closest(SKIP) || !shown(svg)) return;
+      var box = svg.getBoundingClientRect();
+      if (box.width < 20 || box.height < 20) return;
+      var all = Array.prototype.slice.call(svg.querySelectorAll('*')).filter(function (el) { return !el.closest(SKIP); });
+      var texts = [];
+      all.forEach(function (el, i) {
+        if (el.tagName.toLowerCase() !== 'text' || !shown(el)) return;
+        var words = (el.textContent || '').replace(/\\s+/g, ' ').trim();
+        var r = el.getBoundingClientRect();
+        if (!words || r.width < 2 || r.height < 2) return;
+        texts.push({ el: el, i: i, words: words.slice(0, 40), r: r });
+      });
+      texts.forEach(function (t) {
+        var area = t.r.width * t.r.height;
+        // Off the edge of the drawing
+        var inside = overlap(t.r, box) / area;
+        if (inside < 0.85) return out.push('The label "' + t.words + '" runs off the edge of the drawing and is cut off');
+        // A filled shape painted over it (drawn later, so on top)
+        for (var j = t.i + 1; j < all.length; j++) {
+          var el = all[j];
+          if (!SHAPES[el.tagName.toLowerCase()] || el.contains(t.el) || !shown(el)) continue;
+          var cs = getComputedStyle(el);
+          var tag = el.tagName.toLowerCase();
+          var painted = tag === 'image' || tag === 'use' || (cs.fill !== 'none' && parseFloat(cs.fillOpacity) > 0.35 && !/rgba\\([^)]*,\\s*0(\\.[0-2])?\\)/.test(cs.fill));
+          if (!painted) continue;
+          if (overlap(t.r, el.getBoundingClientRect()) / area > 0.35) return out.push('The label "' + t.words + '" is hidden behind a shape drawn on top of it');
+        }
+        // Two labels on top of each other
+        for (var k = 0; k < texts.length; k++) {
+          var o = texts[k];
+          if (o === t || o.i < t.i || o.el.contains(t.el) || t.el.contains(o.el)) continue;
+          if (overlap(t.r, o.r) / Math.min(area, o.r.width * o.r.height) > 0.3) return out.push('The labels "' + t.words + '" and "' + o.words + '" sit on top of each other');
+        }
+      });
+    });
+    return out.filter(function (p, i) { return out.indexOf(p) === i; }).slice(0, 12);
+  }
+  var labels = [];
   function run() {
+    try { labels = labelProblems(); } catch (e) {}
     var sel = 'button, a[href], [role="button"], [role="tab"], [role="menuitem"], [role="link"], [onclick], summary';
     var els = Array.prototype.slice.call(document.querySelectorAll(sel)).filter(usable).slice(0, 80);
     var dead = [];
@@ -42,7 +100,7 @@ const AUDIT = `<script>
     function next() {
       if (i >= els.length) {
         current = '';
-        parent.postMessage({ source: 'vetter-app', audit: { checked: els.length, dead: dead.slice(0, 20), errors: errors.slice(0, 10) } }, '*');
+        parent.postMessage({ source: 'vetter-app', audit: { checked: els.length, dead: dead.slice(0, 20), errors: errors.slice(0, 10), labels: labels } }, '*');
         return;
       }
       var el = els[i++];
@@ -186,7 +244,7 @@ export function appDocument(html: string, saved?: unknown, audit = false, tips?:
   return `<!doctype html><html><head><meta charset="utf-8">${head}</head><body>${html}</body></html>`;
 }
 
-export type AppAudit = { checked: number; dead: string[]; errors?: string[] };
+export type AppAudit = { checked: number; dead: string[]; errors?: string[]; labels?: string[] };
 export type AppMessage = { state?: Record<string, unknown>; error?: string; audit?: AppAudit };
 
 // A message from an app frame, or null for anything else posted to the window

@@ -238,6 +238,7 @@ async function appProblems(q: RawQuestion): Promise<string[]> {
   return [
     ...(probe.audit?.dead ?? []).map((name) => `The control "${name}" does nothing when clicked`),
     ...(probe.audit?.errors ?? []).map((err) => `Clicking ${err}`),
+    ...(probe.audit?.labels ?? []),
   ];
 }
 
