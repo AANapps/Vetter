@@ -491,14 +491,14 @@ async function planAndWrite(state: ChatState, messages: ChatMessage[], ctx: Chat
   const role = ctx.jobTitle?.trim();
   const list = checklist(progress, [
     ...before,
-    ...(researching ? [['research', `Research how ${role ? `a ${role}` : 'the job'} is really done`] as [string, string]] : []),
+    ...(researching ? [['research', `Analyse the ${role ? `${role} role` : 'job'}`] as [string, string]] : []),
     ['plan', 'Plan what the hire needs and the sections'],
     ...writeSteps(sims),
   ]);
   list.start(
     researching ? 'research' : 'plan',
     researching
-      ? `Searching the web for how ${role ? `a ${role}` : 'this job'} is really done, then planning the test…`
+      ? `Analysing the ${role ? `${role} role` : 'job'}, then planning the test…`
       : 'Planning the test: what this hire needs and the sections…'
   );
   const { body, plan, failure } = await fetchPlan(ctx, request);
@@ -558,7 +558,7 @@ export async function proposePlan(
   const sims = !stylesOf(ctx).length || stylesOf(ctx).includes('app');
   progress(
     !state.research && sims
-      ? `Searching the web for how ${role ? `a ${role}` : 'this job'} is really done, then planning every question…`
+      ? `Analysing the ${role ? `${role} role` : 'job'}, then planning every question…`
       : current
       ? 'Changing the plan…'
       : 'Planning every question: what this hire needs and how each part tests it…'
