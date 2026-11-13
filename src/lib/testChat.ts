@@ -160,12 +160,28 @@ function checklist(progress: Progress, items: [string, string][]) {
 }
 type Checklist = ReturnType<typeof checklist>;
 
+// The page designed in detail first (its look, layout, screens, data, state and controls), in a request of its own at
+// high effort; undefined when that doesn't come back, and the page is then built from the spec alone
+async function designAppPage(item: RawQuestion, research: string | undefined, mode: PageMode): Promise<string | undefined> {
+  try {
+    const res = await aiFetch('/api/design-app', { title: item.title, prompt: item.prompt, brief: item.appHtml, testCases: item.testCases ?? [], research, ...mode });
+    if (!res.ok) return undefined;
+    const body = (await res.json()) as { design?: string };
+    return body.design?.trim() || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 async function buildAppPage(item: RawQuestion, research?: string, mode: PageMode = {}, step: Progress = () => {}): Promise<RawQuestion> {
+  let design: string | undefined;
   const request = (fix?: { html: string; problems: string[] }, quick?: boolean) =>
-    aiFetch('/api/build-app', { title: item.title, prompt: item.prompt, brief: item.appHtml, testCases: item.testCases ?? [], research, ...mode, ...(quick && { quick }), ...(fix && { fix }) }).then(async (res) => (res.ok ? ((await res.json()) as { appHtml?: string; testCases?: RawQuestion['testCases']; callouts?: AppCallout[] }) : null));
+    aiFetch('/api/build-app', { title: item.title, prompt: item.prompt, brief: item.appHtml, testCases: item.testCases ?? [], research, ...mode, ...(design && { design }), ...(quick && { quick }), ...(fix && { fix }) }).then(async (res) => (res.ok ? ((await res.json()) as { appHtml?: string; testCases?: RawQuestion['testCases']; callouts?: AppCallout[] }) : null));
   try {
     // A game page is built with more thought; if that doesn't come back (it can run out of time), once more at the usual effort
-    step('writing the page: its screens, layout, controls and checks…');
+    step('designing it: the look, layout, screens and data…');
+    design = await designAppPage(item, research, mode);
+    step('writing the page from the design…');
     let page = await request().catch(() => null);
     if (!page && mode.game) {
       step("the first try didn't come back in time, so writing it again more quickly…");

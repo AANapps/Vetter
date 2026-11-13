@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { meter } from './meter.js';
 import { APP_PAGE_RULES, GAME_PAGE_RULES, PRICES, apiFailure, sectorSimulationRules } from './generateTest.js';
+import { APP_KIT_GUIDE } from './appKit.js';
 
 /**
  * Builds one interactive page of a test from the spec the test designer wrote (its appBrief). Each page is a request of
@@ -31,6 +32,8 @@ export interface BuildAppRequest {
   sector?: string;
   // A retry after a game page ran out of time: built at the usual effort
   quick?: boolean;
+  // The page worked out in detail by the designer (server/designApp.ts), to type out
+  design?: string;
 }
 
 const MAX_TEXT = 8000;
@@ -67,7 +70,7 @@ const schema = {
 const SYSTEM = (research: string, training: boolean, game?: BuildAppRequest['game'], sector?: string) => `You build the interactive pages candidates work in on Vetter, a skills-testing platform for hiring. A test
 designer has written the task and a spec for the page. Build exactly that page, so a candidate who can really do the job
 succeeds and one who can't is found out.
-${APP_PAGE_RULES}${game ? GAME_PAGE_RULES : ''}${sectorSimulationRules(sector)}${
+${APP_PAGE_RULES}${game ? GAME_PAGE_RULES : ''}${sectorSimulationRules(sector)}${APP_KIT_GUIDE}${
   game === 'standalone'
     ? `
 STANDALONE: this page is the whole test, so it may be up to 100KB. It works through the spec's tasks one at a time: a
@@ -117,6 +120,11 @@ export async function buildApp(body: unknown, apiKey: string | undefined, model:
               `THE TASK AS THE CANDIDATE READS IT:\n${String(req.prompt ?? '').slice(0, MAX_TEXT)}`,
               `THE PAGE SPEC:\n${req.brief.slice(0, req.game === 'standalone' ? MAX_TEXT * 2 : MAX_TEXT)}`,
               `THE PLANNED CHECKS:\n${JSON.stringify((req.testCases ?? []).slice(0, req.game === 'standalone' ? 15 : 8))}`,
+              ...(req.design && !req.fix?.html && !req.edit?.html
+                ? [
+                    `THE PAGE DESIGN, worked out in detail by Vetter's product designer: build exactly this, with its look, layout, screens, data, state and controls (where it and the spec disagree, the spec wins):\n${String(req.design).slice(0, MAX_TEXT * 3)}`,
+                  ]
+                : []),
               ...(req.fix?.html
                 ? [
                     `THE PAGE AS YOU BUILT IT:\n${String(req.fix.html).slice(0, MAX_PAGE)}`,

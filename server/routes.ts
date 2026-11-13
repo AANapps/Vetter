@@ -2,6 +2,7 @@ import { generateTest } from './generateTest.js';
 import { gradeAnswers } from './gradeAnswers.js';
 import { testChat } from './testChat.js';
 import { buildApp } from './buildApp.js';
+import { designApp } from './designApp.js';
 import { planTest } from './planTest.js';
 import { writeQuestions } from './writeQuestions.js';
 import { checkSpec } from './checkSpec.js';
@@ -108,6 +109,9 @@ export const API_ROUTES: Record<string, Handler> = {
   '/api/write-questions': logged('write-questions', billed('write-questions', (body, env) => writeQuestions(body, env.ANTHROPIC_API_KEY, testModel(env), specModel(env)))),
   // Each app simulation's spec checked against how the job is really done, before its page is built
   '/api/check-spec': logged('check-spec', billed('check-spec', (body, env) => checkSpec(body, env.ANTHROPIC_API_KEY, specModel(env)))),
+  // Each interactive page is designed first at high effort (its own request, so the thinking gets its own time limit),
+  // then built from that design. DESIGN_MODEL sets another model
+  '/api/design-app': logged('design-app', billed('design-app', (body, env) => designApp(body, env.ANTHROPIC_API_KEY, env.DESIGN_MODEL || testModel(env)))),
   // Each interactive page of a test, built in its own request so a long test fits the host's time limit
   '/api/build-app': logged('build-app', billed('build-app', (body, env) => buildApp(body, env.ANTHROPIC_API_KEY, testModel(env)))),
   // The company home's chat recommends tests and plans; it writes nothing, so a quicker model is enough by default

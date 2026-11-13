@@ -1,3 +1,4 @@
+import { APP_KIT_CSS } from '../../server/appKit';
 import { Question } from '../types';
 
 /**
@@ -69,6 +70,7 @@ const AUDIT = `<script>
 function bootstrap(saved: unknown) {
   const json = JSON.stringify(saved ?? null).replace(/</g, '\\u003c');
   return `<meta http-equiv="Content-Security-Policy" content="${CSP}">
+<style>${APP_KIT_CSS}</style>
 <style>
 /* Whatever the page sets, it scrolls when it's taller or wider than the window, and a sideways swipe at its edge never
    reaches the browser's back gesture */

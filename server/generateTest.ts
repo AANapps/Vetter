@@ -132,8 +132,8 @@ export const APP_KINDS = `
       based on the RESEARCH, so someone who uses it daily feels at home within seconds: the same overall layout and
       navigation (top bar, side menu, tabs, breadcrumbs, search, record pages), the same workflow and order of screens, the
       same terminology and button labels for common actions, and the same kinds of tables, forms, filters and dialogs.
-      It must look like a polished production app, not a mock-up: proper spacing, type scale, hover and focus states,
-      empty states and validation messages.
+      It must look like a polished, current production app, not a mock-up: proper spacing, type scale, hover and focus
+      states, empty states and validation messages (Vetter's UI kit, given to the page builder, provides the modern look).
       NO COPYRIGHT OR TRADEMARK INFRINGEMENT: give it an invented product name and a simple original logo (a geometric mark
       drawn in SVG), never the real product's name, logo, icons, illustrations, screenshots, help text or marketing copy.
       Draw every icon yourself as simple original SVG. Use a colour scheme in the same spirit (e.g. a dark blue top bar)
@@ -170,7 +170,8 @@ export const APP_KINDS = `
 export const APP_PAGE_RULES = `  For every kind, appHtml is ONE self-contained HTML page, under 60KB:
   • Its <title> is the product's or item's name alone: the invented name for software, e.g. <title>ClickData</title>, or
     the item worked on, e.g. <title>Phone repair: 6.1" handset</title>. Never a real brand's logo anywhere on the page.
-  • Everything inline: no external scripts, stylesheets, images or requests of any kind (Google Fonts are the only exception).
+  • Everything inline: no external scripts, stylesheets, images or requests of any kind (Google Fonts are the only exception;
+    Vetter loads its own UI kit into the page).
     No <form> submission and no alert/prompt/confirm: use buttons and in-page dialogs. It runs in a sandbox with no network.
   • It fits any window from 900x560 up and scrolls where it doesn't: every panel, list, table and canvas whose content can
     be taller or wider than its space has overflow:auto. Never overflow:hidden on html or body, never a fixed pixel size
