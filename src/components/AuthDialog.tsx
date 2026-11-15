@@ -98,7 +98,7 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ initialMode, reason, ini
     }
   };
 
-  const title = mode === 'sign-in' ? 'Sign in to Vetter' : mode === 'reset' ? 'Reset your password' : 'Create your Vetter account';
+  const title = mode === 'sign-in' ? 'Sign in to Praxa' : mode === 'reset' ? 'Reset your password' : 'Create your Praxa account';
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/60 backdrop-blur-sm" onClick={onClose}>
@@ -246,7 +246,7 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ initialMode, reason, ini
                 <label className="flex items-start gap-2 text-xs text-slate-700 cursor-pointer">
                   <input type="checkbox" checked={noWorkEmail} onChange={(e) => setNoWorkEmail(e.target.checked)} className="mt-0.5 accent-indigo-600" />
                   <span>
-                    I don't have a work email. <span className="text-slate-500">Vetter's team will check your company before you can post jobs, usually within a working day.</span>
+                    I don't have a work email. <span className="text-slate-500">Praxa's team will check your company before you can post jobs, usually within a working day.</span>
                   </span>
                 </label>
               )}
@@ -273,14 +273,14 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ initialMode, reason, ini
           <p className="text-xs text-slate-500 text-center">
             {mode === 'sign-up' ? (
               <>
-                Already on Vetter?{' '}
+                Already on Praxa?{' '}
                 <button type="button" onClick={() => setMode('sign-in')} className="font-semibold text-indigo-700 hover:underline">
                   Sign in
                 </button>
               </>
             ) : (
               <>
-                New to Vetter?{' '}
+                New to Praxa?{' '}
                 <button type="button" onClick={() => setMode('sign-up')} className="font-semibold text-indigo-700 hover:underline">
                   Create an account
                 </button>

@@ -3,10 +3,10 @@ import { meter } from './meter.js';
 import { CODE_RULE, APP_KINDS, APP_TASK_RULES, DEPTH_STYLE_RULES, EMAIL_RULES, ASSISTANT_RULES, GAMIFIED_TEST_RULES, QUALITY_RULES, SKILLS_TEST_RULES, STANDALONE_RULES, TRAINING_RULES, SimulationCompany, sectorSimulationRules, simulationRules, TASK_RULES, WORKSPACE_RULES, MAX_PROMPT, PRICES, apiFailure, questionSchema, researchSoftware } from './generateTest.js';
 
 /**
- * Building a test by talking to Vetter: the company says what it wants, Vetter writes a draft, and every message after
+ * Building a test by talking to Praxa: the company says what it wants, Praxa writes a draft, and every message after
  * that changes the draft (harder, shorter, more Excel, drop question 3). Each turn gets the conversation and the draft
  * as it stands, and sends back a reply plus the draft's new version, or nothing when it doesn't change.
- * Questions Vetter leaves as they are come back as { keep: id }, so a long app simulation isn't rewritten each turn.
+ * Questions Praxa leaves as they are come back as { keep: id }, so a long app simulation isn't rewritten each turn.
  * The browser checks every new question (src/lib/testChat.ts) before it joins the draft.
  */
 
@@ -185,12 +185,12 @@ category must be one of: ${req.categories.join(', ')}, the one for the job itsel
 }
 
 function instructions(req: ChatRequest, research: string): string {
-  return `You are Vetter's test designer, talking with a company on Vetter, a skills-based hiring platform. Together you build one skills test for a job, refining it over the conversation.
+  return `You are Praxa's test designer, talking with a company on Praxa, a skills-based hiring platform. Together you build one skills test for a job, refining it over the conversation.
 
 HOW TO TALK
 - Reply like a sharp, friendly hiring consultant: short, plain British English, no em dashes, no markdown headings. 1 to 4 sentences usually.
 - If the first message is too vague to write a useful test (no idea of the role or what matters), ask up to 2 short questions instead of writing. Otherwise write a first draft straight away; don't interrogate.
-- ALREADY SETTLED below is what the company told Vetter before this chat. Never ask again about anything it covers (the role, level, what to build, what to focus on); use it, and write straight away.
+- ALREADY SETTLED below is what the company told Praxa before this chat. Never ask again about anything it covers (the role, level, what to build, what to focus on); use it, and write straight away.
 - After writing or changing the draft, say in a sentence what you did, then offer one or two specific ways to sharpen it (e.g. "Want a task in Xero itself?").
 - When asked to change something, change exactly that and keep the rest. Questions are numbered from 1 in the order of the draft.
 - The company can edit the draft by hand between messages. The draft you're given is always the latest: treat their edits as deliberate, keep them, and don't undo them unless asked.
@@ -205,16 +205,16 @@ ${stylesNote(req)}THE DRAFT
   written "<question id> ## <change> ## <new task text>": the change is a precise, complete description of what to change
   on the page for the page builder (it sees the page's code, not this conversation); the new task text is what the
   candidate now reads, if the change means the task should read differently, otherwise leave it empty (end the line
-  with "##"). Don't use "##" anywhere else in the line. Change the questions about it in "test" too if they no longer fit. Vetter's
+  with "##"). Don't use "##" anywhere else in the line. Change the questions about it in "test" too if they no longer fit. Praxa's
   page builder makes the change and tries the page out. appEdits is "" when no app page changes. Write an app again from
   scratch only when asked for a different product or a new task.
 - If the change means rewriting more than about half of the test (a different level, a different job, "start again"),
-  don't write it here: send lookUp "REPLAN", reply "" and no test. Vetter plans and writes the test afresh from the
+  don't write it here: send lookUp "REPLAN", reply "" and no test. Praxa plans and writes the test afresh from the
   conversation, section by section.
 - The size and sections are set out under BLUEPRINT and SECTIONS below. difficulty is one of: ${req.levels.join(', ')}; ${levelPick(req)}.
 ${styleGuide(req)}
 software: the one product, device or equipment the app simulations copy (e.g. "Xero" or "iPhone 13"), or "" when the draft has none.
-lookUp: when this turn should add (or rewrite) an app simulation of a product, device or equipment that the RESEARCH below doesn't cover${research ? '' : ' (there is no research yet)'}, put its name here (with the procedure for a device, e.g. "iPhone 13 screen replacement") and send only reply "" and existing, with no test; Vetter researches it and asks you again. Otherwise "".
+lookUp: when this turn should add (or rewrite) an app simulation of a product, device or equipment that the RESEARCH below doesn't cover${research ? '' : ' (there is no research yet)'}, put its name here (with the procedure for a device, e.g. "iPhone 13 screen replacement") and send only reply "" and existing, with no test; Praxa researches it and asks you again. Otherwise "".
 
 ${
   req.wantExisting
@@ -229,7 +229,7 @@ ${req.library.map((t) => `- ${t.id}: ${t.title} (${t.category}, ${t.difficulty};
 // The conversation as Claude sees it; the latest message carries the job and the draft as they stand
 // The home chat's answers, for the planner and the chat alike
 export const backgroundNote = (req: { background?: string }) =>
-  req.background?.trim() ? `ALREADY SETTLED (the company's earlier chat with Vetter; don't ask about any of it again):\n${req.background.slice(0, MAX_PROMPT)}` : '';
+  req.background?.trim() ? `ALREADY SETTLED (the company's earlier chat with Praxa; don't ask about any of it again):\n${req.background.slice(0, MAX_PROMPT)}` : '';
 
 function conversation(req: ChatRequest): Anthropic.Beta.BetaMessageParam[] {
   const turns = req.messages.slice(-MAX_TURNS).map((m) => ({ role: m.role, content: m.text.slice(0, MAX_TEXT) }));
@@ -293,7 +293,7 @@ export async function testChat(body: unknown, apiKey: string | undefined, model:
     const parse = (m: Anthropic.Beta.BetaMessage) => JSON.parse(m.content.flatMap((b) => (b.type === 'text' ? [b.text] : [])).join(''));
 
     let message = await turn(client, model, req, research);
-    if (message.stop_reason === 'refusal') return { status: 422, json: { error: 'Vetter declined to write this. Try describing the job differently.' } };
+    if (message.stop_reason === 'refusal') return { status: 422, json: { error: 'Praxa declined to write this. Try describing the job differently.' } };
     if (message.stop_reason === 'max_tokens') return { status: 502, json: { error: 'The test came back incomplete. Try asking for fewer questions.' } };
     let out = parse(message);
 
@@ -308,7 +308,7 @@ export async function testChat(body: unknown, apiKey: string | undefined, model:
       research = [research, found ? `${out.lookUp.toUpperCase()}:\n${found}` : `Nothing could be found on the web about ${out.lookUp}; build it from what you know.`].filter(Boolean).join('\n\n');
       researchedFor = out.lookUp;
       message = await turn(client, model, req, research);
-      if (message.stop_reason === 'refusal') return { status: 422, json: { error: 'Vetter declined to write this. Try describing the job differently.' } };
+      if (message.stop_reason === 'refusal') return { status: 422, json: { error: 'Praxa declined to write this. Try describing the job differently.' } };
       if (message.stop_reason === 'max_tokens') return { status: 502, json: { error: 'The test came back incomplete. Try asking for fewer questions.' } };
       out = parse(message);
     }

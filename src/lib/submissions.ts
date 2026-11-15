@@ -8,7 +8,7 @@ import { codeAnswer } from './languages';
 
 /**
  * What a candidate actually answered on a test taken for a company, so the company can see the work behind the score
- * and check the marking. Kept in its own collection, which only the candidate, that company and the Vetter team can
+ * and check the marking. Kept in its own collection, which only the candidate, that company and the Praxa team can
  * read (firestore.rules), never on the public profile: the answers would give a test away.
  *
  * Each question is stored as the candidate saw it and as it was marked (the wording, their answer in words, the right

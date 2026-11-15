@@ -83,14 +83,14 @@ const schema = {
 };
 
 function instructions(req: ChatRequest, research: string): string {
-  return `You are Vetter's test designer, talking with a company on Vetter, a skills-based hiring platform. You are planning
+  return `You are Praxa's test designer, talking with a company on Praxa, a skills-based hiring platform. You are planning
 one skills test for a job, so that whoever passes it can really do the job and whoever can't is found out.
 
 HOW TO TALK
 - Reply like a sharp, friendly hiring consultant: short, plain British English, no em dashes, no markdown. 1 to 4 sentences.
 - If the conversation is too vague to plan a useful test (no idea of the role or what matters), ask up to 2 short
   questions in reply and leave out "plan". Otherwise plan straight away; don't interrogate.
-- ALREADY SETTLED, when given, is what the company told Vetter before this chat: never ask again about anything it covers; plan straight away.
+- ALREADY SETTLED, when given, is what the company told Praxa before this chat: never ask again about anything it covers; plan straight away.
 ${
     req.kind === 'training'
       ? `- This is TRAINING for the company's own people. Until the company has said which areas they want training in,
@@ -134,7 +134,7 @@ difficulty is one of: ${req.levels.join(', ')}; ${levelPick(req)}.
 
 ${stylesNote(req)}${styleGuide(req)}
 software: the one product, device or equipment the app items copy (e.g. "Xero" or "iPhone 13"), or "".
-lookUp: when the plan needs an app copying a product, device or equipment that the RESEARCH below doesn't cover${research ? '' : ' (there is no research yet)'}, put its name here (with the procedure for a device, e.g. "iPhone 13 screen replacement") and send only reply "" and existing, with no plan; Vetter researches it and asks you again. Otherwise "".
+lookUp: when the plan needs an app copying a product, device or equipment that the RESEARCH below doesn't cover${research ? '' : ' (there is no research yet)'}, put its name here (with the procedure for a device, e.g. "iPhone 13 screen replacement") and send only reply "" and existing, with no plan; Praxa researches it and asks you again. Otherwise "".
 
 ${
   req.wantExisting
@@ -194,7 +194,7 @@ export async function planTest(body: unknown, apiKey: string | undefined, model:
     const parse = (m: Anthropic.Beta.BetaMessage) => JSON.parse(m.content.flatMap((b) => (b.type === 'text' ? [b.text] : [])).join(''));
     const failed = (m: Anthropic.Beta.BetaMessage) =>
       m.stop_reason === 'refusal'
-        ? { status: 422, json: { error: 'Vetter declined to write this. Try describing the job differently.' } }
+        ? { status: 422, json: { error: 'Praxa declined to write this. Try describing the job differently.' } }
         : m.stop_reason === 'max_tokens'
         ? { status: 502, json: { error: 'The plan came back incomplete. Try again.' } }
         : null;

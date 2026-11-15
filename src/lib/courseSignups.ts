@@ -2,7 +2,7 @@ import { addDoc, collection, getDocs, limit, orderBy, query, serverTimestamp } f
 import { db, firebaseEnabled } from './firebase';
 
 /**
- * Career switch courses are sold by sign-up, not checkout: the person leaves their email and phone, and the Vetter
+ * Career switch courses are sold by sign-up, not checkout: the person leaves their email and phone, and the Praxa
  * team contacts them. Sign-ups go to Firestore `courseSignups`, which only admins can read (see firestore.rules).
  */
 export interface CourseSignup {
@@ -37,7 +37,7 @@ export async function submitCourseSignup(signup: CourseSignup): Promise<void> {
   await addDoc(collection(db(), 'courseSignups'), { ...data, createdAt: serverTimestamp() });
 }
 
-// The Vetter team's list of course sign-ups, newest first (admins only; see firestore.rules)
+// The Praxa team's list of course sign-ups, newest first (admins only; see firestore.rules)
 export async function listCourseSignups(): Promise<(CourseSignup & { id: string; createdAt?: Date })[]> {
   const snap = await getDocs(query(collection(db(), 'courseSignups'), orderBy('createdAt', 'desc'), limit(200)));
   return snap.docs.map((d) => {

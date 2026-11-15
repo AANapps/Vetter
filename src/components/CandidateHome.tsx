@@ -47,7 +47,7 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, jobs, t
   const items = visitor ? [] : invitesFor(candidate, jobs);
   const open = items.filter((i) => i.progress.score === undefined);
   const finished = items.filter((i) => i.progress.score !== undefined);
-  // Vetter tests to take next: ones they haven't tried, in their usual categories first
+  // Praxa tests to take next: ones they haven't tried, in their usual categories first
   const takenIds = new Set(candidate.testResults.map((r) => r.testId));
   const theirCategories = new Set(candidate.verifiedSkills.map((s) => s.category));
   const suggested = tests
@@ -78,10 +78,10 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, jobs, t
             <h1 className="text-lg font-bold text-slate-900 tracking-tight">Get hired on what you can do</h1>
             <p className="text-sm text-slate-600">Take a free test, get a verified score, and apply to jobs that hire on skill rather than CVs.</p>
             <button onClick={visitor.onJoin} className="w-full py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg">
-              Join Vetter, it's free
+              Join Praxa, it's free
             </button>
             <p className="text-xs text-slate-500 text-center">
-              Already on Vetter?{' '}
+              Already on Praxa?{' '}
               <button onClick={visitor.onSignIn} className="font-semibold text-indigo-700 hover:underline">
                 Sign in
               </button>
@@ -90,7 +90,7 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, jobs, t
         </section>
       ) : (
       <>
-      {/* Who you are at a glance: photo, name, what you do, and your record on Vetter */}
+      {/* Who you are at a glance: photo, name, what you do, and your record on Praxa */}
       <section className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
         <div className="h-14 bg-indigo-700" />
         <div className="px-5 pb-5 -mt-8 space-y-3">
@@ -243,7 +243,7 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, jobs, t
             Open
           </button>
         </div>
-        {linkError && <p className="text-xs font-semibold text-slate-800">That link doesn't match a job on Vetter. Check it and try again.</p>}
+        {linkError && <p className="text-xs font-semibold text-slate-800">That link doesn't match a job on Praxa. Check it and try again.</p>}
       </form>
 
       {finished.length > 0 && (

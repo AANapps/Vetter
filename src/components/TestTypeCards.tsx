@@ -1,7 +1,7 @@
 import React from 'react';
 
 /**
- * The kinds of question a Vetter test can set, each with a small drawing of what the candidate sees, one line on
+ * The kinds of question a Praxa test can set, each with a small drawing of what the candidate sees, one line on
  * what it shows and how it's marked. The drawings are inline SVG on one 240x140 grid in the site's greys and navy, so
  * they read as a set.
  */

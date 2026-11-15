@@ -8,7 +8,7 @@ import { CaseBrief } from './CaseBrief';
 
 export const INTEGRITY_RULES = [
   'Stay on this tab, in this window, for the whole test. Switching tabs, windows or apps is recorded, with how long you were away.',
-  'Use one screen. Vetter records how many screens are connected, and when your window is resized or made small enough to leave room beside it.',
+  'Use one screen. Praxa records how many screens are connected, and when your window is resized or made small enough to leave room beside it.',
   'Copying, cutting and pasting are recorded. Pasting in text from outside the test counts heavily against you.',
   'Activity is recorded: when you stop moving the mouse and typing, for how long, and how your answers are typed in.',
   'Work alone. No help from other people, and no AI assistants, code generators or web searches.',
@@ -133,9 +133,9 @@ export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose, on
       {/* Exam header */}
       <header className="shrink-0 bg-white border-b border-slate-200">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-3">
-          <span className="w-8 h-8 rounded-md tier-solid tier-solid-silver flex items-center justify-center text-sm font-pixel shrink-0">V</span>
+          <span className="w-8 h-8 rounded-md tier-solid tier-solid-silver flex items-center justify-center text-sm font-pixel shrink-0">P</span>
           <div className="min-w-0">
-            <div className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Vetter assessment</div>
+            <div className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Praxa assessment</div>
             <div className="text-sm font-bold text-slate-900 truncate">{test.title}</div>
           </div>
           <div className="ml-auto hidden sm:block text-right">

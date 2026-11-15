@@ -63,7 +63,7 @@ service cloud.firestore {
           || (request.resource.data.status == 'pending-approval' && request.resource.data.companyId == emailDomain()
             && exists(/databases/$(database)/documents/companies/$(emailDomain()))
             && getAfter(/databases/$(database)/documents/companies/$(emailDomain())/members/$(uid())).data.status == 'pending-approval')
-          // No work email: waiting for the Vetter team
+          // No work email: waiting for the Praxa team
           || (request.resource.data.status == 'pending-review' && request.resource.data.companyId == 'review-' + uid()
             && companyAfter('review-' + uid()).ownerUid == uid())
         ))
@@ -85,7 +85,7 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Jobs are public. A company posts and edits its own; the Vetter team any. Applying adds one to the count
+    // Jobs are public. A company posts and edits its own; the Praxa team any. Applying adds one to the count
     match /jobs/{jobId} {
       allow read: if true;
       allow create: if isAdmin() || worksAt(request.resource.data.businessId);
@@ -138,9 +138,9 @@ service cloud.firestore {
         || (verified() && resource.data.email == request.auth.token.email.lower()));
     }
 
-    // Where a candidate is in a company's hiring for one job (stage, rating, notes). Only that company and the Vetter
+    // Where a candidate is in a company's hiring for one job (stage, rating, notes). Only that company and the Praxa
     // team can see or change it; the candidate never sees it
-    // Tests still being written: only their company and the Vetter team see them; '' is the Vetter library's
+    // Tests still being written: only their company and the Praxa team see them; '' is the Praxa library's
     match /testDrafts/{draftId} {
       allow read: if signedIn() && (isAdmin() || worksAt(resource.data.businessId));
       allow create, update: if (isAdmin() || worksAt(request.resource.data.businessId))
@@ -150,7 +150,7 @@ service cloud.firestore {
     }
 
     // What a candidate answered on a test taken for a company (src/lib/submissions.ts): the candidate, that company and
-    // the Vetter team can read it; nobody else, as the answers would give the test away. Written once, by the candidate
+    // the Praxa team can read it; nobody else, as the answers would give the test away. Written once, by the candidate
     match /submissions/{submissionId} {
       allow read: if signedIn() && (isAdmin() || worksAt(resource.data.businessId) || resource.data.candidateId == uid());
       allow create: if signedIn() && request.resource.data.candidateId == uid()
@@ -180,7 +180,7 @@ service cloud.firestore {
       allow delete: if isAdmin() || worksAt(resource.data.businessId) || invitedPerson(resource.data);
     }
 
-    // Work given to someone on a company's team, and how they got on: only the company, that person and the Vetter
+    // Work given to someone on a company's team, and how they got on: only the company, that person and the Praxa
     // team see it. Only people who joined the team can be given work; they record starting and finishing it
     function teamMemberDoc(memberId) { return get(/databases/$(database)/documents/teamMembers/$(memberId)).data; }
     match /assignments/{assignmentId} {
@@ -200,7 +200,7 @@ service cloud.firestore {
       allow delete: if isAdmin() || worksAt(resource.data.businessId);
     }
 
-    // A company's own tries at tests, seen only by its team and the Vetter team
+    // A company's own tries at tests, seen only by its team and the Praxa team
     match /trials/{trialId} {
       allow read: if signedIn() && (isAdmin() || worksAt(resource.data.businessId));
       allow create: if (isAdmin() || worksAt(request.resource.data.businessId))
@@ -223,7 +223,7 @@ service cloud.firestore {
       allow delete: if isAdmin() || worksAt(resource.data.businessId);
     }
 
-    // Career switch course sign-ups: anyone can leave their details (signed in or not), only the Vetter team reads
+    // Career switch course sign-ups: anyone can leave their details (signed in or not), only the Praxa team reads
     // them. See src/lib/courseSignups.ts
     match /courseSignups/{signupId} {
       allow read, update, delete: if isAdmin();
@@ -250,9 +250,9 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Tests made in the app: a company's own, or the Vetter team's. Anyone can open a test page
+    // Tests made in the app: a company's own, or the Praxa team's. Anyone can open a test page
     // A company's test in the public library (publicStatus): the company may ask (pending) or take it back, and only
-    // the Vetter team approves or turns it down. Any change a company makes to an approved test takes it out of
+    // the Praxa team approves or turns it down. Any change a company makes to an approved test takes it out of
     // 'approved', so nothing reaches other companies and candidates without being checked
     function publicAskOnly() {
       let now = request.resource.data.get('publicStatus', null);
@@ -269,8 +269,8 @@ service cloud.firestore {
       allow delete: if isAdmin() || worksAt(resource.data.businessId);
     }
 
-    // Vetter's environment library (src/lib/environments.ts): one simulation per app, which grows with every test that
-    // uses the app. Every simulation built is a submission the Vetter team reviews; only the Vetter team puts one in the
+    // Praxa's environment library (src/lib/environments.ts): one simulation per app, which grows with every test that
+    // uses the app. Every simulation built is a submission the Praxa team reviews; only the Praxa team puts one in the
     // library (a new app, or an app's next version). Company accounts read the library to build on it, and count a use
     function staff() {
       return isAdmin() || (signedIn() && exists(/databases/$(database)/documents/users/$(uid()))
@@ -288,7 +288,7 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     // Waiting for review, and the history of what was approved: sent as oneself, pending; read by the sender and the
-    // Vetter team; decided by the Vetter team
+    // Praxa team; decided by the Praxa team
     match /environmentSubmissions/{subId} {
       allow read: if isAdmin() || (staff() && resource.data.createdBy == uid());
       allow create: if staff() && request.resource.data.createdBy == uid() && request.resource.data.status == 'pending'
@@ -337,8 +337,8 @@ service cloud.firestore {
       // told it's joining an existing one
       allow read: if resource.data.status == 'active' || signedIn();
 
-      // The plan is set by the Vetter team only, never by the company that pays for it
-      // The Vetter team can also create one, to repair a sign-up whose company record went missing
+      // The plan is set by the Praxa team only, never by the company that pays for it
+      // The Praxa team can also create one, to repair a sign-up whose company record went missing
       allow create: if isAdmin() || (signedIn() && verified() && request.resource.data.ownerUid == uid() && !('plan' in request.resource.data) && (
         // A company's id is its email domain, claimed only by a verified address at that domain
         (companyId == emailDomain() && !(emailDomain() in freeDomains())

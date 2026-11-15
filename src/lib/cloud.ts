@@ -21,8 +21,8 @@ import { Company } from './accounts';
 import { initialsAvatar } from '../data/seedCandidates';
 
 /**
- * Everything people create on Vetter, kept in Firestore once accounts are on: jobs (with who they were sent to),
- * company-made tests, applications, candidates' public profiles, the feed, and notifications. Vetter's own test
+ * Everything people create on Praxa, kept in Firestore once accounts are on: jobs (with who they were sent to),
+ * company-made tests, applications, candidates' public profiles, the feed, and notifications. Praxa's own test
  * library stays in the code. firestore.rules decides who can read and change each.
  *
  * The app changes its data the same way with or without accounts; with them, each change is compared with what
@@ -55,7 +55,7 @@ interface EmailInvite {
 
 export interface CloudData {
   jobs: JobPosting[];
-  // Tests made in the app; also edits the Vetter team made to library tests
+  // Tests made in the app; also edits the Praxa team made to library tests
   tests: AssessmentTest[];
   profiles: User[];
   businesses: Business[];
@@ -134,7 +134,7 @@ export function useCloudData(viewer: Viewer | null, enabled: boolean, onError: (
     watch('comments', collection(d, 'comments'));
     watch('kudos', collection(d, 'kudos'));
     if (viewer) {
-      // What's theirs to see: everything for the Vetter team, a company's own jobs, or a candidate's own
+      // What's theirs to see: everything for the Praxa team, a company's own jobs, or a candidate's own
       const mine = (field: 'candidateId' | 'businessId'): QueryConstraint[] =>
         viewer.role === 'admin' ? [] : viewer.role === 'recruiter' ? (viewer.companyId ? [where('businessId', '==', viewer.companyId)] : [where(field, '==', '-')]) : [where(field, '==', viewer.uid)];
       watch('applications', collection(d, 'applications'), ...mine('candidateId'));

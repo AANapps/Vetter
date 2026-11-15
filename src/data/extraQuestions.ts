@@ -2,7 +2,7 @@ import { Question } from '../types';
 import { choice, match, multi, order, written } from './questionKit';
 
 /**
- * Questions that top Vetter's hands-on tests up to ten: the fundamentals behind the tasks, and real problems the
+ * Questions that top Praxa's hands-on tests up to ten: the fundamentals behind the tasks, and real problems the
  * candidate has to think through. Keyed by test family (a test's familyId, or its id); every level of a family draws
  * from the same list, in order, for as many as it needs.
  */

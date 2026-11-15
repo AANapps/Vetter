@@ -23,11 +23,11 @@ const PLANS: Plan[] = [
   {
     id: 'free',
     name: 'Free',
-    tagline: 'Try Vetter on a real role',
+    tagline: 'Try Praxa on a real role',
     price: { monthly: 0, annual: 0 },
     unit: 'forever',
     cta: 'Start free',
-    highlights: ['1 active job', 'Up to 25 candidates', 'Vetter’s library of tests', 'Ranked leaderboard'],
+    highlights: ['1 active job', 'Up to 25 candidates', 'Praxa’s library of tests', 'Ranked leaderboard'],
   },
   {
     id: 'per-job',
@@ -69,14 +69,14 @@ const COMPARISON: { group: string; rows: { label: string; cells: [Cell, Cell, Ce
     rows: [
       { label: 'Active jobs', cells: ['1', '1 per purchase', 'Up to 5', 'Unlimited'] },
       { label: 'Candidates per job', cells: ['25', 'Unlimited', 'Unlimited', 'Unlimited'] },
-      { label: 'Job listed on Vetter and Google Jobs', cells: [true, true, true, true] },
+      { label: 'Job listed on Praxa and Google Jobs', cells: [true, true, true, true] },
       { label: 'Invite candidates by email or link', cells: [true, true, true, true] },
     ],
   },
   {
     group: 'Tests',
     rows: [
-      { label: 'Vetter’s library of tests', cells: [true, true, true, true] },
+      { label: 'Praxa’s library of tests', cells: [true, true, true, true] },
       { label: 'AI-written tests for your role', cells: [false, true, true, true] },
       { label: '15-minute job simulations', cells: [false, true, true, true] },
       { label: 'AI marking with partial credit', cells: [false, true, true, true] },
@@ -89,7 +89,7 @@ const COMPARISON: { group: string; rows: { label: string; cells: [Cell, Cell, Ce
       { label: 'Ranked leaderboard per job', cells: [true, true, true, true] },
       { label: 'Answer-by-answer review', cells: [true, true, true, true] },
       { label: 'CSV export', cells: [false, false, true, true] },
-      { label: 'Search Vetter’s pool of tested candidates', cells: [false, false, true, true] },
+      { label: 'Search Praxa’s pool of tested candidates', cells: [false, false, true, true] },
     ],
   },
   {
@@ -105,7 +105,7 @@ const COMPARISON: { group: string; rows: { label: string; cells: [Cell, Cell, Ce
 const FAQS = [
   {
     q: 'Do candidates pay anything?',
-    a: 'No. Vetter is free for candidates, always. They keep their verified scores and can use them for other jobs.',
+    a: 'No. Praxa is free for candidates, always. They keep their verified scores and can use them for other jobs.',
   },
   {
     q: 'What counts as an active job?',
@@ -217,7 +217,7 @@ export const PricingSection: React.FC<{ onChoosePlan: (planId: string) => void }
         <div className="flex-1">
           <h2 className="text-lg font-bold">Enterprise</h2>
           <p className="mt-1 text-sm text-slate-300">
-            Tests written for your roles by the Vetter team, single sign-on, ATS integration and invoicing. Priced for your hiring volume.
+            Tests written for your roles by the Praxa team, single sign-on, ATS integration and invoicing. Priced for your hiring volume.
           </p>
         </div>
         <button

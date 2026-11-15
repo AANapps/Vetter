@@ -17,7 +17,7 @@ interface RecruiterPortalProps {
   section: BusinessSection;
   onOpenTest: (testId: string) => void;
   recruiter: User;
-  // The company being managed; without one, this is the Vetter team managing every company's jobs
+  // The company being managed; without one, this is the Praxa team managing every company's jobs
   business?: Business;
   businesses: Business[];
   jobs: JobPosting[];
@@ -27,7 +27,7 @@ interface RecruiterPortalProps {
   onUpdateTest: (test: AssessmentTest) => void;
   // Deletes a saved test and takes it off every job
   onDeleteTest: (testId: string) => void;
-  // Vetter's AI writes a test from a description, or from a first message filled in for it
+  // Praxa's AI writes a test from a description, or from a first message filled in for it
   onGenerateTest: (seed?: string) => void;
   // Tests still being written, newest first
   drafts: TestDraft[];
@@ -38,7 +38,7 @@ interface RecruiterPortalProps {
   onEditDraftByHand: (draft: TestDraft) => void;
   // Opens one of the company's saved tests where it's edited: the test chat if made with AI, the builder if by hand
   onEditOwnTest: (testId: string) => void;
-  // The Vetter team in the company view: which company it's seeing the page as
+  // The Praxa team in the company view: which company it's seeing the page as
   companyPicker?: { onPick: (businessId: string) => void };
   // One of the company's saved tests opened in the test chat to change by asking, however it was made
   onEditWithAI: (testId: string) => void;
@@ -46,7 +46,7 @@ interface RecruiterPortalProps {
   onEditByHand: (testId: string) => void;
   // The company's leads pipeline, shown first in the Candidates tab
   leads?: React.ReactNode;
-  // Every candidate on Vetter, to browse (src/components/BrowseCandidates.tsx)
+  // Every candidate on Praxa, to browse (src/components/BrowseCandidates.tsx)
   browse?: React.ReactNode;
 }
 
@@ -78,12 +78,12 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   leads,
   browse,
 }) => {
-  // A business only manages its own jobs and its own tests; the Vetter team sees every company's jobs
-  const isVetter = !business;
-  const jobs = isVetter ? allJobs : allJobs.filter((j) => j.businessId === business.id);
-  const companyTests = isVetter ? [] : tests.filter((t) => t.type === 'custom' && t.businessId === business.id && t.purpose !== 'training');
-  // For the Vetter team: every company's own tests, company by company, the busiest first
-  const byCompany = isVetter
+  // A business only manages its own jobs and its own tests; the Praxa team sees every company's jobs
+  const isPraxa = !business;
+  const jobs = isPraxa ? allJobs : allJobs.filter((j) => j.businessId === business.id);
+  const companyTests = isPraxa ? [] : tests.filter((t) => t.type === 'custom' && t.businessId === business.id && t.purpose !== 'training');
+  // For the Praxa team: every company's own tests, company by company, the busiest first
+  const byCompany = isPraxa
     ? [
         ...tests
           .filter((t) => t.type === 'custom' && t.businessId && t.purpose !== 'training')
@@ -92,19 +92,19 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
         .map(([id, own]) => ({ id, name: businesses.find((b) => b.id === id)?.name ?? own[0].companyName ?? 'A company', tests: [...own].sort((a, b) => madeAt(b) - madeAt(a)) }))
         .sort((a, b) => b.tests.length - a.tests.length || a.name.localeCompare(b.name))
     : [];
-  // The public library: Vetter's tests and other companies' approved ones (a company's own are in companyTests)
-  // (for the Vetter team, companies' tests are listed on their own, so the library is Vetter's alone)
-  // A company sees its own sector's tests only (picked at sign-up); the Vetter team sees every sector
-  const sector = isVetter ? undefined : companySector(business);
-  const vetterTests = tests.filter((t) => isPublic(t) && isMainVersion(t) && (isVetter ? t.type !== 'custom' : t.businessId !== business.id) && inCompanySector(sector)(t));
+  // The public library: Praxa's tests and other companies' approved ones (a company's own are in companyTests)
+  // (for the Praxa team, companies' tests are listed on their own, so the library is Praxa's alone)
+  // A company sees its own sector's tests only (picked at sign-up); the Praxa team sees every sector
+  const sector = isPraxa ? undefined : companySector(business);
+  const vetterTests = tests.filter((t) => isPublic(t) && isMainVersion(t) && (isPraxa ? t.type !== 'custom' : t.businessId !== business.id) && inCompanySector(sector)(t));
   const roleGroups = industriesFor(sector);
-  // For the Vetter team, Your tests starts with the library tests it made in the app (with the AI or by hand), newest
+  // For the Praxa team, Your tests starts with the library tests it made in the app (with the AI or by hand), newest
   // first, then every company's own
-  const madeHere = isVetter ? tests.filter((t) => t.type !== 'custom' && isEditable(t) && t.purpose !== 'training').sort((a, b) => madeAt(b) - madeAt(a)) : [];
-  const yourGroups = [...(madeHere.length ? [{ id: 'vetter', name: 'Made by the Vetter team (in the library)', tests: madeHere }] : []), ...byCompany];
+  const madeHere = isPraxa ? tests.filter((t) => t.type !== 'custom' && isEditable(t) && t.purpose !== 'training').sort((a, b) => madeAt(b) - madeAt(a)) : [];
+  const yourGroups = [...(madeHere.length ? [{ id: 'vetter', name: 'Made by the Praxa team (in the library)', tests: madeHere }] : []), ...byCompany];
 
   const [selectedJobId, setSelectedJobId] = useState<string>(jobs[0]?.id || '');
-  // The Tests page: one list of the company's tests and Vetter's, browsed by industry and role (as candidates browse
+  // The Tests page: one list of the company's tests and Praxa's, browsed by industry and role (as candidates browse
   // them), narrowed by source and a search
   const [testQuery, setTestQuery] = useState('');
   const [testSource, setTestSource] = useState<'all' | 'yours' | 'vetter' | 'on-jobs'>('all');
@@ -112,7 +112,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   const usedByOf = (t: AssessmentTest) => jobs.filter((j) => j.testIds.includes(t.id));
   const allTests = [...companyTests, ...vetterTests];
   const sourceTabs = (
-    isVetter
+    isPraxa
       ? [
           ['all', 'All'],
           ['yours', 'Your tests'],
@@ -127,8 +127,8 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   ) as [typeof testSource, string][];
   const inSource = (t: AssessmentTest, src: typeof testSource) =>
     src === 'all' || (src === 'yours' ? t.type === 'custom' : src === 'vetter' ? vetterTests.includes(t) : usedByOf(t).length > 0);
-  // For the Vetter team, Your tests is every company's own tests, listed company by company
-  const countFor = (src: typeof testSource) => (isVetter && src === 'yours' ? yourGroups.reduce((n, c) => n + c.tests.length, 0) : allTests.filter((t) => inSource(t, src)).length);
+  // For the Praxa team, Your tests is every company's own tests, listed company by company
+  const countFor = (src: typeof testSource) => (isPraxa && src === 'yours' ? yourGroups.reduce((n, c) => n + c.tests.length, 0) : allTests.filter((t) => inSource(t, src)).length);
   // A test's roles: its own, or for a company's test (which has none) the roles the library's tests of its category
   // are for, so it's filed beside them
   const rolesByCategory = new Map<string, TestRole[]>();
@@ -160,7 +160,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
         { heading: 'Other', tests: shownTests.filter((t) => !roleGroups.some((g) => inField(t, g.roles))) },
       ].filter((sec) => sec.tests.length > 0)
     : [{ heading: null, tests: shownTests }];
-  // The Candidates tab: the leads pipeline, or everyone on Vetter ranked for a job
+  // The Candidates tab: the leads pipeline, or everyone on Praxa ranked for a job
   const [candidatesView, setCandidatesView] = useState<'leads' | 'browse' | 'ranked'>(leads ? 'leads' : browse ? 'browse' : 'ranked');
   const showRanked = section === 'candidates' && (candidatesView === 'ranked' || (candidatesView === 'leads' && !leads) || (candidatesView === 'browse' && !browse));
   const selectedJob = jobs.find((j) => j.id === selectedJobId) || jobs[0];
@@ -173,7 +173,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
     else onCreateTest(test);
     setBuilding(null);
     setSavedMessage(
-      `"${test.title}" saved. ${isVetter ? 'Every candidate can take it from the Tests page.' : 'Add it to any of your jobs from the job.'}`
+      `"${test.title}" saved. ${isPraxa ? 'Every candidate can take it from the Tests page.' : 'Add it to any of your jobs from the job.'}`
     );
     setTimeout(() => setSavedMessage(null), 5000);
   };
@@ -202,13 +202,13 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
           <div className="w-14 h-14 rounded-2xl overflow-hidden border border-slate-200 shrink-0 bg-slate-100 shadow-xs">
             <Pic
               src={business ? business.logo : recruiter.avatarUrl}
-              alt={business ? business.name : 'Vetter'}
+              alt={business ? business.name : 'Praxa'}
               referrerPolicy="no-referrer"
               className="w-full h-full object-cover"
             />
           </div>
           <div className="space-y-1 min-w-0">
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight truncate">{business ? business.name : 'Vetter Talent Team'}</h1>
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight truncate">{business ? business.name : 'Praxa Talent Team'}</h1>
             <p className="text-xs text-slate-700 font-medium truncate">
               {recruiter.name} &middot; {recruiter.title}
             </p>
@@ -224,7 +224,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
             ['Open jobs', jobs.filter((j) => j.status === 'active').length, 'text-slate-900'],
             ['Total applicants', jobs.reduce((acc, j) => acc + j.applicantCount, 0), 'text-indigo-600'],
             [business ? 'Your tests' : 'Companies', business ? companyTests.length : businesses.length, 'text-emerald-600'],
-            ['Candidates on Vetter', allCandidates.length, 'text-indigo-700'],
+            ['Candidates on Praxa', allCandidates.length, 'text-indigo-700'],
           ] as const
         ).map(([label, value, colour]) => (
           <div key={label} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex flex-col justify-center min-w-0">
@@ -276,7 +276,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
             >
               {jobs.map((j) => (
                 <option key={j.id} value={j.id}>
-                  {isVetter ? `${j.companyName}: ${j.title}` : j.title}
+                  {isPraxa ? `${j.companyName}: ${j.title}` : j.title}
                 </option>
               ))}
             </select>
@@ -285,16 +285,16 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
         </div>
       )}
 
-      {/* Tests: the company's own and Vetter's library in one list */}
+      {/* Tests: the company's own and Praxa's library in one list */}
       {section === 'tests' && (
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
             <div className="space-y-1">
               <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Tests</h1>
               <p className="text-sm text-slate-500 max-w-xl">
-                {isVetter
-                  ? 'The Vetter library. Tests you write join it for every candidate.'
-                  : `Tests ${business.name} wrote and Vetter's library, together. Add any of them to a job from the job.`}
+                {isPraxa
+                  ? 'The Praxa library. Tests you write join it for every candidate.'
+                  : `Tests ${business.name} wrote and Praxa's library, together. Add any of them to a job from the job.`}
               </p>
             </div>
             <div className="flex flex-wrap gap-2 self-start">
@@ -314,7 +314,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
             </div>
           </div>
 
-          {/* The Vetter team in the company view sees the page as one company, picked here */}
+          {/* The Praxa team in the company view sees the page as one company, picked here */}
           {companyPicker && business && (
             <label className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
               <span className="font-semibold">Viewing as</span>
@@ -332,8 +332,8 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
             </label>
           )}
 
-          {/* The company's own tests first, each ready to change by asking Vetter or by hand */}
-          {!isVetter && (
+          {/* The company's own tests first, each ready to change by asking Praxa or by hand */}
+          {!isPraxa && (
             <section aria-labelledby="your-tests" className="space-y-3">
               <h2 id="your-tests" className="text-lg font-bold text-slate-900">
                 Your tests <span className="font-normal text-slate-400 tabular-nums">{companyTests.length}</span>
@@ -379,8 +379,8 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
           <dl className="grid grid-cols-2 md:grid-cols-4 gap-px bg-slate-200 rounded-xl overflow-hidden border border-slate-200">
             {[
               { label: 'Tests', value: allTests.length },
-              { label: isVetter ? 'Written in the builder' : 'Written by you', value: isVetter ? vetterTests.filter(isEditable).length : companyTests.length },
-              { label: isVetter ? 'On a job' : 'On your jobs', value: allTests.filter((t) => usedByOf(t).length > 0).length },
+              { label: isPraxa ? 'Written in the builder' : 'Written by you', value: isPraxa ? vetterTests.filter(isEditable).length : companyTests.length },
+              { label: isPraxa ? 'On a job' : 'On your jobs', value: allTests.filter((t) => usedByOf(t).length > 0).length },
               { label: 'Drafts', value: drafts.length },
             ].map((st) => (
               <div key={st.label} className="bg-white px-5 py-4">
@@ -395,7 +395,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
             <div className="space-y-3">
               <div>
                 <h2 className="text-sm font-bold text-slate-900">Drafts</h2>
-                <p className="text-xs text-slate-500">Only {business ? 'your company' : 'the Vetter team'} can see these. Candidates can't take them until they're saved.</p>
+                <p className="text-xs text-slate-500">Only {business ? 'your company' : 'the Praxa team'} can see these. Candidates can't take them until they're saved.</p>
               </div>
               <ul className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {drafts.map((d) => (
@@ -403,7 +403,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                     key={d.id}
                     draft={d}
                     job={allJobs.find((j) => j.id === d.jobId)}
-                    showCompany={isVetter}
+                    showCompany={isPraxa}
                     onContinue={d.messages?.length ? () => onContinueDraft(d) : undefined}
                     onEdit={() => onEditDraftByHand(d)}
                     onDelete={() => window.confirm(`Delete the draft "${d.test.title}"? This can't be undone.`) && onDeleteDraft(d.id)}
@@ -413,11 +413,11 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
             </div>
           )}
 
-          <EnvironmentLibrary isVetter={isVetter} />
+          <EnvironmentLibrary isPraxa={isPraxa} />
 
           <div className="pt-2">
-            <h2 className="text-lg font-bold text-slate-900">{isVetter ? "Vetter's library" : 'All tests'}</h2>
-            <p className="text-xs text-slate-500">{isVetter ? 'The tests every candidate can take.' : "Yours and Vetter's library together, to add to any job."}</p>
+            <h2 className="text-lg font-bold text-slate-900">{isPraxa ? "Praxa's library" : 'All tests'}</h2>
+            <p className="text-xs text-slate-500">{isPraxa ? 'The tests every candidate can take.' : "Yours and Praxa's library together, to add to any job."}</p>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-[15rem_minmax(0,1fr)] gap-6 items-start">
           {/* Browse by industry and role, as candidates do */}
@@ -501,9 +501,9 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
             </select>
           </div>
 
-          {isVetter && testSource === 'yours' ? (
+          {isPraxa && testSource === 'yours' ? (
             <div className="space-y-2">
-              <p className="text-xs text-slate-500">Tests made here, newest first: the Vetter team's own (saved to the library), then each company's for its jobs.</p>
+              <p className="text-xs text-slate-500">Tests made here, newest first: the Praxa team's own (saved to the library), then each company's for its jobs.</p>
               {yourGroups.length === 0 ? (
                 <p className="bg-white border border-dashed border-slate-300 rounded-xl px-5 py-6 text-center text-sm text-slate-500">No tests made here yet.</p>
               ) : (
@@ -579,7 +579,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                       ]
                     : []),
                   ...inSection.map((t) => {
-                    const own = t.type === 'custom' && !isVetter && t.businessId === business.id;
+                    const own = t.type === 'custom' && !isPraxa && t.businessId === business.id;
                     return (
                       <TestRow
                         key={`${heading ?? ''}-${t.id}`}
@@ -588,10 +588,10 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                         usedBy={usedByOf(t)}
                         ranked={getTestStats(t, allCandidates).candidatesRanked}
                         onOpen={() => onOpenTest(t.id)}
-                        // The Vetter team edits any library test; Enhance with AI is in the builder for one made by hand
-                        onEdit={own || isVetter ? () => editTest(t) : undefined}
-                        // The Vetter team can delete library tests written in the builder; the built-in ones stay
-                        onDelete={own ? () => deleteTest(t) : isVetter && isEditable(t) ? () => deleteTest(t) : undefined}
+                        // The Praxa team edits any library test; Enhance with AI is in the builder for one made by hand
+                        onEdit={own || isPraxa ? () => editTest(t) : undefined}
+                        // The Praxa team can delete library tests written in the builder; the built-in ones stay
+                        onDelete={own ? () => deleteTest(t) : isPraxa && isEditable(t) ? () => deleteTest(t) : undefined}
                       />
                     );
                   }),

@@ -6,7 +6,7 @@ import { auth, firebaseEnabled } from './firebase';
 /**
  * Runs a whole program in any language against a task's test cases: each case's input on standard input, what it
  * prints compared with the expected output. JavaScript runs in a worker in the browser, Python in Pyodide (Python
- * compiled for the browser, loaded the first time it's needed), and every other language on Vetter's code runner
+ * compiled for the browser, loaded the first time it's needed), and every other language on Praxa's code runner
  * (server/runCode.ts). A program that runs too long is stopped.
  */
 
@@ -169,7 +169,7 @@ function runPython(code: string, input: string): Promise<Omit<ProgramRun, 'ms'>>
   });
 }
 
-// --- Every other language: Vetter's code runner ---
+// --- Every other language: Praxa's code runner ---
 
 async function runOnServer(language: Language, code: string, inputs: string[]): Promise<Omit<ProgramRun, 'ms'>[]> {
   const user = firebaseEnabled ? auth().currentUser : null;
@@ -184,13 +184,13 @@ async function runOnServer(language: Language, code: string, inputs: string[]): 
     if (!res.ok || !body.runs) {
       const error =
         body.error === 'not-configured'
-          ? `${language.label} can't be run on Vetter yet: its code runner isn't set up. Tell the company that set this test.`
+          ? `${language.label} can't be run on Praxa yet: its code runner isn't set up. Tell the company that set this test.`
           : body.error || `Couldn't run ${language.label} just now. Try again in a moment.`;
       return inputs.map(() => ({ stdout: '', stderr: '', error }));
     }
     return body.runs;
   } catch {
-    return inputs.map(() => ({ stdout: '', stderr: '', error: `Couldn't reach Vetter's code runner. Check your connection and try again.` }));
+    return inputs.map(() => ({ stdout: '', stderr: '', error: `Couldn't reach Praxa's code runner. Check your connection and try again.` }));
   }
 }
 

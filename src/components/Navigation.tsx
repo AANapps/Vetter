@@ -48,7 +48,7 @@ export const NAV_TABS: Record<'candidate' | 'recruiter', { id: AppTab; label: st
 const VIEWS: { role: UserRole; label: string }[] = [
   { role: 'candidate', label: 'candidate view' },
   { role: 'recruiter', label: 'business view' },
-  { role: 'admin', label: 'Vetter team view' },
+  { role: 'admin', label: 'Praxa team view' },
 ];
 
 export interface NavNotification {
@@ -66,7 +66,7 @@ interface NavigationProps {
   // Who's looking isn't known yet: just the logo, so the wrong menu never flashes up
   pending?: boolean;
   onRoleChange: (role: UserRole) => void;
-  // With accounts: sign in and out, and the view switcher only for the Vetter team. Without, the demo's view switcher
+  // With accounts: sign in and out, and the view switcher only for the Praxa team. Without, the demo's view switcher
   accounts?: {
     signedIn: boolean;
     email?: string;
@@ -85,15 +85,15 @@ interface NavigationProps {
   visitor?: { onSignIn: () => void; onJoin: () => void };
   // The search box, rendered in the bar (and full width on phones)
   renderSearch: (mobile: { onClose: () => void } | null) => React.ReactNode;
-  // Companies: start a fresh chat with Vetter on the home page
+  // Companies: start a fresh chat with Praxa on the home page
   onNewChat?: () => void;
 }
 
-// The V badge with the rest of the name after it: [V]etter.
+// The P badge with the rest of the name after it: [P]raxa.
 const Wordmark: React.FC<{ onClick: () => void }> = ({ onClick }) => (
-  <button onClick={onClick} aria-label="Vetter home" className="group flex items-center shrink-0 font-pixel">
-    <span className="w-9 h-9 rounded-md bg-indigo-900 group-hover:bg-indigo-950 text-white flex items-center justify-center text-base transition-colors">V</span>
-    <span className="text-lg text-indigo-950 ml-0.5">etter<PixelDot /></span>
+  <button onClick={onClick} aria-label="Praxa home" className="group flex items-center shrink-0 font-pixel">
+    <span className="w-9 h-9 rounded-md bg-indigo-900 group-hover:bg-indigo-950 text-white flex items-center justify-center text-base transition-colors">P</span>
+    <span className="text-lg text-indigo-950 ml-0.5">raxa<PixelDot /></span>
   </button>
 );
 
@@ -130,7 +130,7 @@ export const Navigation: React.FC<NavigationProps> = ({
     return () => document.removeEventListener('mousedown', onClick);
   }, []);
 
-  // The account menu: who's signed in, guides, the admin page and view switcher for the Vetter team, sign out
+  // The account menu: who's signed in, guides, the admin page and view switcher for the Praxa team, sign out
   const meMenu = () => (
     <>
       <div className="flex items-center gap-3">
@@ -165,7 +165,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                 </button>
                 <ThemeToggle />
                 {accounts?.email && <div className="text-[11px] text-slate-500 truncate -mt-1">{accounts.email}</div>}
-                {/* The Vetter team's admin page */}
+                {/* The Praxa team's admin page */}
                 {accounts?.canSwitchViews && (
                   <a
                     role="menuitem"
@@ -176,7 +176,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                     <span>Admin panel</span>
                   </a>
                 )}
-                {/* The demo's views, and with accounts the Vetter team's */}
+                {/* The demo's views, and with accounts the Praxa team's */}
                 {(!accounts || accounts.canSwitchViews) && VIEWS.filter((v) => v.role !== activeRole).map((v) => (
                   <button
                     key={v.role}
@@ -207,7 +207,7 @@ export const Navigation: React.FC<NavigationProps> = ({
     </>
   );
 
-  // Companies and the Vetter team: laid out like a chat app, with the menu down the right
+  // Companies and the Praxa team: laid out like a chat app, with the menu down the right
   if (!pending && !visitor && activeRole !== 'candidate')
     return (
       <StaffNav
@@ -377,7 +377,7 @@ export const Navigation: React.FC<NavigationProps> = ({
   );
 };
 
-// Signed out, Vetter is a website: the name, what's on it, and signing in or joining
+// Signed out, Praxa is a website: the name, what's on it, and signing in or joining
 const VisitorHeader: React.FC<{ currentTab: AppTab; onTabChange: (tab: AppTab) => void; onSignIn: () => void; onJoin: () => void }> = ({
   currentTab,
   onTabChange,
@@ -406,9 +406,9 @@ const VisitorHeader: React.FC<{ currentTab: AppTab; onTabChange: (tab: AppTab) =
       }`}
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-2">
-        <button onClick={() => onTabChange('home')} aria-label="Vetter home" className="flex items-center gap-2 mr-4">
-          <span className="w-8 h-8 rounded-md bg-indigo-900 text-white font-pixel flex items-center justify-center text-sm">V</span>
-          <span className="font-pixel text-lg text-indigo-950">Vetter<PixelDot /></span>
+        <button onClick={() => onTabChange('home')} aria-label="Praxa home" className="flex items-center gap-2 mr-4">
+          <span className="w-8 h-8 rounded-md bg-indigo-900 text-white font-pixel flex items-center justify-center text-sm">P</span>
+          <span className="font-pixel text-lg text-indigo-950">Praxa<PixelDot /></span>
         </button>
         <nav className="hidden md:flex items-center gap-1">
           {links.map((l) => (
@@ -450,7 +450,7 @@ const VisitorHeader: React.FC<{ currentTab: AppTab; onTabChange: (tab: AppTab) =
   );
 };
 
-// Companies' and the Vetter team's menu, like a chat app's: a panel down the left of the window with a new chat,
+// Companies' and the Praxa team's menu, like a chat app's: a panel down the left of the window with a new chat,
 // search, the pages and the account. On phones and tablets it slides in from the left from a slim top bar
 const StaffNav: React.FC<{
   tabs: { id: AppTab; label: string; icon: TabIcon }[];

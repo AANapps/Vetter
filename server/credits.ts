@@ -1,13 +1,13 @@
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 
 /**
- * Companies pay for Vetter's AI with credit they buy in advance. The balance lives in Stripe, as the credit on the
+ * Companies pay for Praxa's AI with credit they buy in advance. The balance lives in Stripe, as the credit on the
  * company's Stripe customer (one per company, found by its companyId), so only the server can change it: there's no
  * Firebase admin key to write it anywhere else, and the browser must never be trusted with it.
  *
  * - Who's asking: the browser sends the person's Firebase ID token; it's checked against Google's keys here, and their
  *   user record is read from Firestore with that same token (so Firestore's rules decide what it says).
- * - Each billed request runs only with credit left, and is charged what it really cost Vetter in Claude usage, times
+ * - Each billed request runs only with credit left, and is charged what it really cost Praxa in Claude usage, times
  *   CREDIT_MARKUP, in pence (server/meter.ts adds it up).
  * - Topping up is a Stripe Checkout payment, opened in a new tab so the chat stays where it was. Paid sessions are
  *   credited when the tab comes back, and again whenever the balance is looked at, in case it never did; each session
@@ -32,7 +32,7 @@ export const billingOn = (env: Env) => !!env.STRIPE_SECRET_KEY;
 
 export type Caller =
   | { kind: 'company'; uid: string; companyId: string }
-  // The Vetter team isn't charged
+  // The Praxa team isn't charged
   | { kind: 'admin'; uid: string }
   | { kind: 'none'; reason: string };
 
@@ -42,8 +42,8 @@ const keys = createRemoteJWKSet(new URL('https://www.googleapis.com/service_acco
 export async function whoIsAsking(authorization: string | undefined, env: Env): Promise<Caller> {
   const token = authorization?.match(/^Bearer (.+)$/)?.[1];
   const project = projectOf(env);
-  if (!token) return { kind: 'none', reason: 'Sign in with your company account to use Vetter’s AI.' };
-  if (!project) return { kind: 'none', reason: 'Vetter’s sign-in isn’t set up on this server.' };
+  if (!token) return { kind: 'none', reason: 'Sign in with your company account to use Praxa’s AI.' };
+  if (!project) return { kind: 'none', reason: 'Praxa’s sign-in isn’t set up on this server.' };
   let uid: string;
   try {
     const { payload } = await jwtVerify(token, keys, { issuer: `https://securetoken.google.com/${project}`, audience: project });
@@ -59,7 +59,7 @@ export async function whoIsAsking(authorization: string | undefined, env: Env): 
   const field = (name: string) => fields[name]?.stringValue ?? '';
   if (field('role') === 'admin') return { kind: 'admin', uid };
   if (field('role') === 'recruiter' && field('status') === 'active' && field('companyId')) return { kind: 'company', uid, companyId: field('companyId') };
-  return { kind: 'none', reason: 'Vetter’s AI is for company accounts. Finish setting up your company first.' };
+  return { kind: 'none', reason: 'Praxa’s AI is for company accounts. Finish setting up your company first.' };
 }
 
 // --- Stripe ---
@@ -116,7 +116,7 @@ type Session = {
 async function creditSession(env: Env, session: Session): Promise<boolean> {
   const intent = typeof session.payment_intent === 'object' ? session.payment_intent : null;
   if (session.payment_status !== 'paid' || session.metadata?.vetterCredit !== 'true' || !intent || intent.metadata?.credited === 'true') return false;
-  await stripe(env, 'POST', `/customers/${session.customer}/balance_transactions`, { amount: -session.amount_total, currency: 'gbp', description: 'Vetter AI credit' }, `vetter-topup-${session.id}`);
+  await stripe(env, 'POST', `/customers/${session.customer}/balance_transactions`, { amount: -session.amount_total, currency: 'gbp', description: 'Praxa AI credit' }, `vetter-topup-${session.id}`);
   await stripe(env, 'POST', `/payment_intents/${intent.id}`, { 'metadata[credited]': 'true' });
   return true;
 }
@@ -130,7 +130,7 @@ export async function balanceFor(env: Env, companyId: string): Promise<number> {
 
 export const hasEnough = (pence: number) => pence >= MIN_PENCE;
 
-// What a request cost Vetter, as the company is charged for it
+// What a request cost Praxa, as the company is charged for it
 export const penceFor = (usd: number, env: Env) => Math.ceil(usd * USD_TO_GBP * Math.max(1, Number(env.CREDIT_MARKUP) || 2) * 100);
 
 // What each billed request is, as the company reads it in its usage
@@ -149,7 +149,7 @@ export async function charge(env: Env, companyId: string, pence: number, step: s
   await stripe(env, 'POST', `/customers/${customer.id}/balance_transactions`, {
     amount: pence,
     currency: 'gbp',
-    description: `Vetter AI: ${STEP_NAMES[step] ?? step}${purpose ? ` (${purpose})` : ''}`.slice(0, 350),
+    description: `Praxa AI: ${STEP_NAMES[step] ?? step}${purpose ? ` (${purpose})` : ''}`.slice(0, 350),
     'metadata[step]': step,
     'metadata[for]': purpose.slice(0, 200),
   });
@@ -170,7 +170,7 @@ export async function usageFor(env: Env, companyId: string): Promise<UsageEntry[
   return list.data.map((t) => ({
     amount: t.amount,
     at: new Date(t.created * 1000).toISOString(),
-    step: t.amount < 0 ? 'Credit bought' : STEP_NAMES[t.metadata?.step ?? ''] ?? 'Vetter AI',
+    step: t.amount < 0 ? 'Credit bought' : STEP_NAMES[t.metadata?.step ?? ''] ?? 'Praxa AI',
     for: t.metadata?.for ?? '',
   }));
 }
@@ -185,7 +185,7 @@ export async function startTopUp(env: Env, companyId: string, pence: number, ori
     'line_items[0][quantity]': 1,
     'line_items[0][price_data][currency]': 'gbp',
     'line_items[0][price_data][unit_amount]': pence,
-    'line_items[0][price_data][product_data][name]': `Vetter AI credit (£${(pence / 100).toFixed(2)})`,
+    'line_items[0][price_data][product_data][name]': `Praxa AI credit (£${(pence / 100).toFixed(2)})`,
     'metadata[vetterCredit]': 'true',
     'metadata[companyId]': companyId,
     'payment_intent_data[metadata][companyId]': companyId,

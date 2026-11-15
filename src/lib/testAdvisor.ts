@@ -70,17 +70,17 @@ export interface AdvisorTurn {
   roadmap?: { step: string; detail: string }[];
   existing?: Suggestion[];
   custom?: CustomIdea[];
-  // Candidates on Vetter who suit the role, when the company asked to see some, each with why
+  // Candidates on Praxa who suit the role, when the company asked to see some, each with why
   people?: SuggestedPerson[];
   // What the chat took the company to want: people, a test, both, or it couldn't tell and asked
   intent?: AdvisorIntent;
   // Quick answers to a question the reply asks
   options?: string[];
-  // For a test: what Vetter's AI would write it from
+  // For a test: what Praxa's AI would write it from
   brief?: string;
   // Set when the reply is a failure rather than advice
   error?: boolean;
-  // Written by Vetter itself on coming back from the AI creator: what was just made (saved, or kept as a draft)
+  // Written by Praxa itself on coming back from the AI creator: what was just made (saved, or kept as a draft)
   created?: {
     title: string;
     kind: TestKind;
@@ -94,14 +94,14 @@ export interface AdvisorTurn {
     // A change to a test already made in this chat
     updated?: boolean;
   };
-  // Every question Vetter plans to write, listed for the company to change before pressing Build
+  // Every question Praxa plans to write, listed for the company to change before pressing Build
   plan?: TestPlan;
   // Planning failed before there was a plan: what to try again with
   retryPlan?: { brief: string; kind: TestKind };
   // It failed because the company's AI credit ran out
   needsCredit?: boolean;
   // The second step, once the kind is picked: what it should focus on, from the ideas worth building or typed in
-  // (written by Vetter itself)
+  // (written by Praxa itself)
   askFocus?: { brief: string; kind: TestKind; ideas: CustomIdea[] };
 }
 
@@ -187,7 +187,7 @@ export async function askAdvisor(turns: AdvisorTurn[], tests: AssessmentTest[], 
     });
     body = await res.json().catch(() => ({}));
   } catch {
-    return { role: 'assistant', text: "Couldn't reach Vetter. Check your connection and try again.", error: true };
+    return { role: 'assistant', text: "Couldn't reach Praxa. Check your connection and try again.", error: true };
   }
 
   // No AI here (or no endpoint at all): the library tests that share the most words with what they asked for
@@ -199,8 +199,8 @@ export async function askAdvisor(turns: AdvisorTurn[], tests: AssessmentTest[], 
       return {
         role: 'assistant',
         text: people.length
-          ? "Vetter's AI isn't switched on here, so these are the candidates whose titles and verified skills match the words you used."
-          : "Vetter's AI isn't switched on here, and no candidate's title or verified skills match those words. Try naming the skills or the role.",
+          ? "Praxa's AI isn't switched on here, so these are the candidates whose titles and verified skills match the words you used."
+          : "Praxa's AI isn't switched on here, and no candidate's title or verified skills match those words. Try naming the skills or the role.",
         intent: 'candidates',
         people,
       };
@@ -209,8 +209,8 @@ export async function askAdvisor(turns: AdvisorTurn[], tests: AssessmentTest[], 
     return {
       role: 'assistant',
       text: existing.length
-        ? "Vetter's AI isn't switched on here, so these are the library tests that match the words you used. Use one as it is, or edit a copy to make it your own."
-        : "Vetter's AI isn't switched on here, and no library test matches those words. Try naming the skills or tools, or create a test yourself.",
+        ? "Praxa's AI isn't switched on here, so these are the library tests that match the words you used. Use one as it is, or edit a copy to make it your own."
+        : "Praxa's AI isn't switched on here, and no library test matches those words. Try naming the skills or tools, or create a test yourself.",
       existing,
     };
   }

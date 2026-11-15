@@ -40,7 +40,7 @@
   --color-slate-400: #8a94a3;
   --color-slate-500: #5c6777;
 
-  /* The Vetter logo's pixel lettering */
+  /* The Praxa logo's pixel lettering */
   --font-pixel: 'Silkscreen', ui-monospace, monospace;
 
   /* Geist: a crisp, even sans for the whole site, with Geist Mono for figures and code */
@@ -64,9 +64,9 @@
 }
 
 /* The company home's chat: a faint colour wash behind frosted panels, and a multicolour border on the message box that
-   brightens when typing and turns while Vetter is thinking. Idle, nothing moves: a moving wash under blurred glass, a
+   brightens when typing and turns while Praxa is thinking. Idle, nothing moves: a moving wash under blurred glass, a
    turning border with a blurred glow, and a spinning mark on every reply were redrawn every frame and ran graphics hot,
-   more so the longer the chat got. Now only what shows Vetter is working moves, and only while it is */
+   more so the longer the chat got. Now only what shows Praxa is working moves, and only while it is */
 @property --ai-angle {
   syntax: '<angle>';
   initial-value: 0deg;
@@ -374,7 +374,7 @@ button:is(
    carry on to the page and send the browser back a page, losing the candidate's place */
 html, body { overscroll-behavior-x: none; }
 
-/* Vetter's flashing pixel: the full stop after the wordmark, and after the V on the square badges */
+/* Praxa's flashing pixel: the full stop after the wordmark, and after the V on the square badges */
 @keyframes pixel-blink {
   0%, 55% { opacity: 1; }
   56%, 100% { opacity: 0; }

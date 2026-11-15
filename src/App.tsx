@@ -82,15 +82,15 @@ const BUSINESS_SECTIONS: Partial<Record<AppTab, BusinessSection>> = {
   'business-candidates': 'candidates',
 };
 
-// Vetter's own talent team, who post and fill jobs on companies' behalf
-const VETTER_TEAM: User = {
+// Praxa's own talent team, who post and fill jobs on companies' behalf
+const PRAXA_TEAM: User = {
   ...INITIAL_RECRUITER,
   id: 'vetter-team',
-  name: 'Vetter Talent Team',
+  name: 'Praxa Talent Team',
   email: 'talent@vetter.dev',
   role: 'admin',
-  avatarUrl: initialsAvatar('Vetter Team'),
-  title: 'Talent Partner, Vetter',
+  avatarUrl: initialsAvatar('Praxa Team'),
+  title: 'Talent Partner, Praxa',
   businessId: undefined,
 };
 
@@ -131,7 +131,7 @@ const jobIdFromUrl = () => {
   return jobIdFromPath(window.location.pathname) ?? idFromHash('jobs');
 };
 
-const SITE_TITLE = 'Vetter - Skills-Based Hiring';
+const SITE_TITLE = 'Praxa - Skills-Based Hiring';
 
 // A company's link to a test carries ?ref=<business id>, like an affiliate link
 const refFromHash = () => new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('ref');
@@ -224,7 +224,7 @@ export default function App() {
   const [localOthers, setOtherCandidates] = useState<User[]>(initialData.otherCandidates);
   const candidateRef = useRef(candidate);
   candidateRef.current = candidate;
-  // Accounts, when Firebase is set up: who's signed in decides what they see. Without it, Vetter is a demo with a view switcher
+  // Accounts, when Firebase is set up: who's signed in decides what they see. Without it, Praxa is a demo with a view switcher
   const { loading: accountLoading, user, account, company } = useAccount();
   const [authDialog, setAuthDialog] = useState<{ mode: AuthMode; reason?: string; role?: 'candidate' | 'recruiter' } | null>(null);
   const isVisitor = firebaseEnabled && !user;
@@ -272,7 +272,7 @@ export default function App() {
   const reportCloudError = (err: unknown) => showToast(`Couldn't save or load: ${accountError(err)}`);
   const cloud = useCloudData(viewer, firebaseEnabled && !accountLoading, reportCloudError);
   const jobs = cloud ? cloud.jobs : localJobs;
-  // Vetter's library is in the code; the Vetter team's edits to it and tests made in the app come from Firebase
+  // Praxa's library is in the code; the Praxa team's edits to it and tests made in the app come from Firebase
   const tests = cloud
     ? [...STANDARD_ASSESSMENTS.map((t) => cloud.tests.find((c) => c.id === t.id) ?? t), ...cloud.tests.filter((c) => !STANDARD_ASSESSMENTS.some((t) => t.id === c.id))]
     : localTests;
@@ -426,13 +426,13 @@ export default function App() {
     document.title = job
       ? jobPageTitle(job)
       : course
-        ? `${course.title} | Vetter Learn`
+        ? `${course.title} | Praxa Learn`
         : guide
-          ? `${guide.title} | Vetter Guides`
+          ? `${guide.title} | Praxa Guides`
           : currentTab === 'guides'
-            ? 'How-to guides | Vetter'
+            ? 'How-to guides | Praxa'
             : currentTab === 'ranked'
-            ? 'Leaderboards | Vetter'
+            ? 'Leaderboards | Praxa'
             : SITE_TITLE;
     if (job && /^#\/(jobs|exams)\//.test(window.location.hash)) replacePage(jobPath(job));
   }, [jobPageId, coursePageId, guideSlug, currentTab, jobs]);
@@ -469,10 +469,10 @@ export default function App() {
   const [activeTest, setActiveTest] = useState<AssessmentTest | null>(null);
   // Which try at the job's test this is, and the job's limit, when it has one
   const [activeAttempt, setActiveAttempt] = useState<{ number: number; limit?: number } | null>(null);
-  // A company or the Vetter team taking a test themselves, as a candidate would; the score is saved for their team
+  // A company or the Praxa team taking a test themselves, as a candidate would; the score is saved for their team
   const [trialTest, setTrialTest] = useState<{ test: AssessmentTest; jobId?: string } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  // Asking Vetter's AI for tests, for a job or on their own; and the builder opened on what it wrote
+  // Asking Praxa's AI for tests, for a job or on their own; and the builder opened on what it wrote
   // seed: a first message ready to send, e.g. to rebuild a library test in depth
   // autoSend: the seed is sent as the chat opens, so building starts at once
   // editTestId: a saved test reopened in the chat, to change it by asking
@@ -497,7 +497,7 @@ export default function App() {
   };
   // draft: what the builder starts from; none for a blank test written by hand
   const [draftBuilder, setDraftBuilder] = useState<{ draft?: AssessmentTest; isCopy?: boolean; jobId?: string; alsoAdd: string[]; record?: TestDraft } | null>(null);
-  // The company home's chat with Vetter, kept while moving between pages
+  // The company home's chat with Praxa, kept while moving between pages
   const [advisorTurns, setAdvisorTurns] = useState<AdvisorTurn[]>([]);
   // The test the home chat is building or changing, and something to start the chat with from elsewhere
   const [homeBuild, setHomeBuild] = useState<HomeBuild | null>(null);
@@ -518,7 +518,7 @@ export default function App() {
   const [profilePersonId, setProfilePersonId] = useState<string | null>(null);
   const [companiesQuery, setCompaniesQuery] = useState('');
 
-  // The Vetter team in the company view picks a real company to see it as (the demo company isn't one on the live
+  // The Praxa team in the company view picks a real company to see it as (the demo company isn't one on the live
   // site), kept on this device
   const adminAsCompany = firebaseEnabled && account?.role === 'admin';
   const [adminCompanyId, setAdminCompanyIdState] = useState(() => {
@@ -570,11 +570,11 @@ export default function App() {
       // Private windows can refuse storage; the chat then lasts for this visit
     }
   }, [advisorTurns, homeChatKey]);
-  // Tests written by AI come with a paid plan; the Vetter team always has them. Everything else is free
+  // Tests written by AI come with a paid plan; the Praxa team always has them. Everything else is free
   // For now every company gets AI test creation, whatever its plan; set to false to put it back behind paid plans
   const AI_TESTS_FOR_ALL = true;
   const aiAllowed = AI_TESTS_FOR_ALL || activeRole === 'admin' || hasAiTests(recruiterBusiness);
-  // A company's own test made with Vetter's AI is edited in the test chat (asking, editing by hand, the full builder);
+  // A company's own test made with Praxa's AI is edited in the test chat (asking, editing by hand, the full builder);
   // one made by hand is edited in the builder, and enhanced with AI to move it to the chat. Without AI tests on the
   // plan, everything is by hand
   const editOwnTest = (testId: string, jobId?: string) => {
@@ -592,7 +592,7 @@ export default function App() {
   // Tests are made and changed in the home chat: this starts it with a message (and the job the test is for)
   const startInChat = (text: string, jobId?: string) => {
     if (!aiAllowed) return setPlansOpen(true);
-    if (homeBuild?.working) return showToast('Vetter is still planning a test in the chat. Wait for it, or press Stop there.');
+    if (homeBuild?.working) return showToast('Praxa is still planning a test in the chat. Wait for it, or press Stop there.');
     setHomeSeed({ text, ...(jobId && { jobId }) });
     goToTab('business-home');
   };
@@ -603,11 +603,11 @@ export default function App() {
     builtInCreator.current = null;
     setGenerator(g);
   };
-  // The home chat as the creator is told it: what the company said and picked, in order, and what Vetter asked
+  // The home chat as the creator is told it: what the company said and picked, in order, and what Praxa asked
   const homeChatSummary = (turns: AdvisorTurn[]) =>
     turns
       .slice(-16)
-      .map((t) => (t.role === 'user' ? `Company: ${t.text}` : `Vetter: ${t.text}${t.brief ? `\n(The role: ${t.brief})` : ''}`))
+      .map((t) => (t.role === 'user' ? `Company: ${t.text}` : `Praxa: ${t.text}${t.brief ? `\n(The role: ${t.brief})` : ''}`))
       .join('\n')
       .slice(-5000);
   // Back in the home chat after the creator: one short message saying what was made and where it is, then simply asking
@@ -649,7 +649,7 @@ export default function App() {
   // Until it's known who's looking and the app is on their side, the menu shows only the logo, so a page load never
   // flashes the signed-out, candidate or business menu before the right one
   const [roleSettledFor, setRoleSettledFor] = useState<string | null>(null);
-  // A signed-in account sees its own side of Vetter; the Vetter team keeps the view switcher
+  // A signed-in account sees its own side of Praxa; the Praxa team keeps the view switcher
   // Once it's known who's looking, the address is checked against their side: another side's page sends them to their own
   useEffect(() => {
     if (firebaseEnabled && accountLoading) return;
@@ -761,7 +761,7 @@ export default function App() {
     jobIds.slice(1).forEach((id) => notifyInvited(id, [candidate.id]));
   }, [isCandidateAccount, cloud?.emailedJobIds.join(), cloud?.jobs.length]);
 
-  // Before a signed-in person can use Vetter: verifying their email, and for companies, being let in
+  // Before a signed-in person can use Praxa: verifying their email, and for companies, being let in
   const accountGate =
     firebaseEnabled &&
     (accountLoading ||
@@ -863,7 +863,7 @@ export default function App() {
     window.scrollTo(0, 0);
   };
 
-  // Sending a job's tests to people on Vetter emails them at their login address, puts the job on their Home and notifies them
+  // Sending a job's tests to people on Praxa emails them at their login address, puts the job on their Home and notifies them
   const handleInviteToJob = (jobId: string, candidateIds: string[]) => {
     const emailOf = (id: string) => allCandidates.find((c) => c.id === id)?.email || undefined;
     setJobs((prev) =>
@@ -882,7 +882,7 @@ export default function App() {
     notifyInvited(jobId, candidateIds);
   };
 
-  // Emailing the link: people with a Vetter account are tracked from now, the rest once they sign up
+  // Emailing the link: people with a Praxa account are tracked from now, the rest once they sign up
   const handleEmailJob = (jobId: string, emails: string[]) => {
     const job = jobs.find((j) => j.id === jobId);
     if (!job) return;
@@ -942,7 +942,7 @@ export default function App() {
       following: prev.following.includes(id) ? prev.following.filter((f) => f !== id) : [...prev.following, id],
     }));
 
-  // Switch between the candidate, business and Vetter team views
+  // Switch between the candidate, business and Praxa team views
   // A page the new side has stays open, so signing in or refreshing keeps your place; otherwise its first page
   const handleRoleChange = (nextRole: UserRole) => {
     setActiveRole(nextRole);
@@ -952,8 +952,8 @@ export default function App() {
     if (onPage && SIDE_TABS[sideOf(nextRole)].includes(here)) syncPagesFromUrl();
     else goToTab(NAV_TABS[nextRole === 'candidate' ? 'candidate' : 'recruiter'][0].id, true);
   };
-  // The business and Vetter team views share the same pages
-  const staffUser = activeRole === 'admin' ? VETTER_TEAM : recruiter;
+  // The business and Praxa team views share the same pages
+  const staffUser = activeRole === 'admin' ? PRAXA_TEAM : recruiter;
 
   const handleResetData = () => {
     clearData();
@@ -1055,8 +1055,8 @@ export default function App() {
     // The runner stays open on the result (saved already); closing it clears these
   };
 
-  // Whose trials these are: the company's, or the Vetter team's
-  const trialOwner = activeRole === 'admin' ? VETTER_TEAM.id : recruiterBusiness?.id;
+  // Whose trials these are: the company's, or the Praxa team's
+  const trialOwner = activeRole === 'admin' ? PRAXA_TEAM.id : recruiterBusiness?.id;
   const ourTrials = trialOwner ? trials.filter((t) => t.businessId === trialOwner) : [];
   // The team's tries as a candidate's results, so a job seen as a candidate shows the team's scores on its tests
   const trialUser: User = {
@@ -1106,8 +1106,8 @@ export default function App() {
     else setTeam((prev) => [...prev.filter((m) => m.id !== id), member]);
     showToast(
       'email' in invitee
-        ? `Invited ${invitee.email}. They'll see it on their Vetter home and in their notifications once they sign in with that address.`
-        : `Invited ${member.name}. They'll see it on their Vetter home and in their notifications.`
+        ? `Invited ${invitee.email}. They'll see it on their Praxa home and in their notifications once they sign in with that address.`
+        : `Invited ${member.name}. They'll see it on their Praxa home and in their notifications.`
     );
   };
   const assignWork = (members: TeamMember[], test: AssessmentTest, dueDate?: string, note?: string) => {
@@ -1234,7 +1234,7 @@ export default function App() {
   };
 
   // A test's content changed: its place in the public library stays with it, except that a company's change to an
-  // approved test sends it back for the Vetter team to approve again (firestore.rules insists on it)
+  // approved test sends it back for the Praxa team to approve again (firestore.rules insists on it)
   const handleUpdateTest = (test: AssessmentTest) => {
     const before = tests.find((t) => t.id === test.id);
     const recheck = before?.publicStatus === 'approved' && activeRole !== 'admin';
@@ -1245,18 +1245,18 @@ export default function App() {
       publicNote: before?.publicNote,
     };
     setTests((prev) => prev.map((t) => (t.id === test.id ? kept : t)));
-    if (recheck) showToast(`"${test.title}" was changed, so it's waiting for Vetter to approve it again before it's public.`);
+    if (recheck) showToast(`"${test.title}" was changed, so it's waiting for Praxa to approve it again before it's public.`);
   };
 
   // The public library: a company offers its test (filed under the roles the library's tests of its category are
-  // for, as its own has none), takes it back, and the Vetter team decides
+  // for, as its own has none), takes it back, and the Praxa team decides
   const setPublic = (testId: string, change: (t: AssessmentTest) => AssessmentTest) => setTests((prev) => prev.map((t) => (t.id === testId ? change(t) : t)));
   const askToPublish = (testId: string) => {
     const test = tests.find((t) => t.id === testId);
     if (!test) return;
     const roles = test.roles?.length ? test.roles : [...new Set(tests.filter((t) => t.type === 'standard' && t.category === test.category).flatMap((t) => t.roles ?? []))];
     setPublic(testId, (t) => ({ ...t, roles, publicStatus: 'pending', publicAskedAt: new Date().toISOString(), publicNote: undefined }));
-    showToast(`"${test.title}" is waiting for Vetter to approve it. Once approved, other companies can use it and candidates can take it.`);
+    showToast(`"${test.title}" is waiting for Praxa to approve it. Once approved, other companies can use it and candidates can take it.`);
   };
   const withdrawPublic = (testId: string) => {
     setPublic(testId, (t) => ({ ...t, publicStatus: undefined, publicAskedAt: undefined, publicNote: undefined }));
@@ -1265,7 +1265,7 @@ export default function App() {
   const decidePublic = (testId: string, approve: boolean, note?: string) =>
     setPublic(testId, (t) => ({ ...t, publicStatus: approve ? 'approved' : 'rejected', publicNote: approve ? undefined : note?.trim() || undefined }));
 
-  // Who a new test belongs to: the job's company, or the company signed in, or the Vetter library
+  // Who a new test belongs to: the job's company, or the company signed in, or the Praxa library
   const testOwnerFor = (jobId?: string) => {
     const job = jobId ? jobs.find((j) => j.id === jobId) : undefined;
     if (job) return businesses.find((b) => b.id === job.businessId);
@@ -1308,7 +1308,7 @@ export default function App() {
   const deleteTestDraft = (id?: string) => {
     if (id && testDraftsRef.current.some((d) => d.id === id)) setTestDrafts((prev) => prev.filter((d) => d.id !== id));
   };
-  // A company's drafts; the Vetter team sees every one
+  // A company's drafts; the Praxa team sees every one
   // Training drafts live with the training, not the tests
   const isTrainingDraft = (d: TestDraft) => d.kind === 'training' || d.test.purpose === 'training';
   const visibleDrafts = (activeRole === 'admin' ? testDrafts : testDrafts.filter((d) => d.businessId === recruiterBusiness?.id)).filter((d) => !isTrainingDraft(d));
@@ -1333,7 +1333,7 @@ export default function App() {
   const detailPage = testPageTest;
   // The company home: a chat that fills the window (src/components/BusinessHome.tsx)
   const chatHome = !detailPage && activeRole !== 'candidate' && currentTab === 'business-home';
-  // Companies and the Vetter team get the chat-app layout: the menu down the left (Navigation's StaffNav)
+  // Companies and the Praxa team get the chat-app layout: the menu down the left (Navigation's StaffNav)
   const staffLayout = !navPending && !isVisitor && activeRole !== 'candidate';
   const candidateNotifications = notifications
     .filter((n) => n.userId === candidate.id)
@@ -1381,10 +1381,10 @@ export default function App() {
   const candidatePagePerson = activeRole !== 'candidate' && candidatePageId ? allCandidates.find((c) => c.id === candidatePageId) : undefined;
   // A candidate's page is titled after them; runs after the title effect above, so it wins while the page is open
   useEffect(() => {
-    if (candidatePagePerson) document.title = `${candidatePagePerson.name} | Vetter`;
+    if (candidatePagePerson) document.title = `${candidatePagePerson.name} | Praxa`;
   }, [candidatePagePerson?.id, currentTab]);
   const businessSection = BUSINESS_SECTIONS[currentTab];
-  // A company's leads across its own jobs; the Vetter team's across every company's
+  // A company's leads across its own jobs; the Praxa team's across every company's
   const leadsBusiness = activeRole === 'admin' ? undefined : recruiterBusiness;
   const leadsJobs = leadsBusiness ? jobs.filter((j) => j.businessId === leadsBusiness.id) : jobs;
   const leadRows = activeRole === 'candidate' ? [] : buildLeadRows(leadsJobs, allCandidates, leads, Object.fromEntries(tests.map((t) => [t.id, t.title])));
@@ -1510,7 +1510,7 @@ export default function App() {
               }
               onSend={activeRole === 'candidate' ? undefined : () => setEditingTests({ addTestIds: [testPageTest.id] })}
               onCustomize={
-                // Any test in the library, Vetter's or another company's approved one, can start a test of their own
+                // Any test in the library, Praxa's or another company's approved one, can start a test of their own
                 activeRole === 'recruiter' &&
                 recruiterBusiness &&
                 (testPageTest.type === 'standard' || (testPageTest.publicStatus === 'approved' && testPageTest.businessId !== recruiterBusiness.id))
@@ -1518,7 +1518,7 @@ export default function App() {
                   : undefined
               }
               {...((activeRole === 'admin' || account?.role === 'admin') && testPageTest.type !== 'custom' && {
-                // Any library test, for the Vetter team (in either view): back to the AI chat if made with AI, else the builder
+                // Any library test, for the Praxa team (in either view): back to the AI chat if made with AI, else the builder
                 onEdit: () => (madeWithAI(testPageTest) ? enhanceTest(testPageTest.id) : setDraftBuilder({ draft: testPageTest, alsoAdd: [] })),
               })}
               {...(activeRole === 'recruiter' && recruiterBusiness && testPageTest.type === 'custom' && testPageTest.businessId === recruiterBusiness.id && {
@@ -1630,7 +1630,7 @@ export default function App() {
                   allCandidates={allCandidates}
                   businesses={businesses}
                   following={social.following}
-                  onToggleFollow={(id) => requireAccount('Join Vetter to follow people and companies.', () => toggleFollow(id))}
+                  onToggleFollow={(id) => requireAccount('Join Praxa to follow people and companies.', () => toggleFollow(id))}
                 />
               </div>
               <DiscoverFeed
@@ -1643,7 +1643,7 @@ export default function App() {
                 onSocialChange={setSocial}
                 onOpenTest={openTestPage}
                 onOpenJob={openJobPage}
-                onJoin={isVisitor ? () => setAuthDialog({ mode: 'sign-up', reason: 'Join Vetter to post, comment and follow people.' }) : undefined}
+                onJoin={isVisitor ? () => setAuthDialog({ mode: 'sign-up', reason: 'Join Praxa to post, comment and follow people.' }) : undefined}
                 onOpenField={(field) => {
                   setTestField(field);
                   goToTab('tests');
@@ -1674,7 +1674,7 @@ export default function App() {
               aiAllowed={aiAllowed}
               planName={
                 activeRole === 'admin'
-                  ? 'Vetter team'
+                  ? 'Praxa team'
                   : hasAiTests(recruiterBusiness)
                   ? `${recruiterBusiness!.plan!.replace('-', ' ').replace(/^./, (c) => c.toUpperCase())} plan`
                   : 'Free plan'
@@ -1749,7 +1749,7 @@ export default function App() {
               onEditCopy={(test) => setDraftBuilder({ draft: test, isCopy: true, alsoAdd: [] })}
               onBuildWithAI={(brief, kind) =>
                 // Everything is settled in the chat by now (the role, the kind, what to focus on), so building starts at
-                // once, and Vetter is told what was said so it doesn't ask again
+                // once, and Praxa is told what was said so it doesn't ask again
                 openGenerator({ ...(brief && { seed: brief, autoSend: true }), ...(kind && { kind }), fromHome: true, background: homeChatSummary(advisorTurns) })
               }
               onCreateOwn={() => setDraftBuilder({ alsoAdd: [] })}
@@ -1926,7 +1926,7 @@ export default function App() {
 
         {!chatHome && <footer className="border-t border-slate-200 bg-white py-6 px-6 text-xs text-slate-500">
           <div className="max-w-7xl mx-auto flex flex-wrap items-center gap-2">
-            <span className="font-bold text-slate-900 tracking-tight">VETTER<PixelDot /></span>
+            <span className="font-bold text-slate-900 tracking-tight">PRAXA<PixelDot /></span>
             <span>&middot; Skills-based hiring</span>
             <CurrencyPicker className="ml-auto" />
             {!firebaseEnabled && (
@@ -2079,7 +2079,7 @@ export default function App() {
           onEnhance={(() => {
             const saved = tests.find((t) => t.id === draftBuilder.draft?.id);
             const companys = saved?.type === 'custom' && !!saved.businessId && saved.businessId === recruiterBusiness?.id;
-            // The Vetter team's own library tests, made in the app, too
+            // The Praxa team's own library tests, made in the app, too
             const vetters = (activeRole === 'admin' || account?.role === 'admin') && !!saved && saved.type !== 'custom';
             if (!saved || draftBuilder.isCopy || !(companys || vetters)) return undefined;
             return (test: AssessmentTest) => {

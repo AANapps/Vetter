@@ -1,11 +1,11 @@
-# Vetter to-do list
+# Praxa to-do list
 
 Kept up to date as work is asked for and finished. Newest items at the bottom of each section.
 
 ## To do
 
 - **Skills games, one at a time.** Build the skills games (attention to detail, verbal reasoning, numerical reasoning, logical reasoning, memory, multitasking) one by one, each tried and agreed before the next. The first six made together were removed on 2026-11-12. The library already supports them: category `Aptitude`, shown in every sector under "Skills games" (role "Any role"), and suggested by `/api/suggest-tests` when a job needs those abilities. The removed code is in git history (commit 9271ef1, `src/data/skillsGames.ts`) to start from.
-- **Sector library tests.** The Vetter team makes the app-simulation tests for roles outside tech (trades, healthcare, hospitality, retail) and puts them in the library.
+- **Sector library tests.** The Praxa team makes the app-simulation tests for roles outside tech (trades, healthcare, hospitality, retail) and puts them in the library.
 - **Block AI app simulations on the server** for companies outside tech (today only the app hides them).
 - **Stop button: cancel on the server too.** Stop cancels the chat's requests in the browser, but a step already running on the server still finishes (and may be charged).
 - **Credit meter.** Decide whether to show "x% used", put it on every page, and warn or block before a build that would run out the credit. Billing needs `STRIPE_SECRET_KEY` to go live.
@@ -33,4 +33,4 @@ Kept up to date as work is asked for and finished. Newest items at the bottom of
 - 2026-11-13: Back to a separate AI test builder: the home chat plans the questions, Build in AI test builder opens the pop-up (renamed, builder layout) which builds that plan, previews, edits and saves; Edit with AI opens it too.
 - 2026-11-13: A design pass at high effort before each simulation page is written, describing the real product's look in detail. (A shared UI kit was tried the same day and dropped from the prompts: pages came out generic. It stays loaded only for pages built with it.) Every page defaults to a modern font, and the AI must use a modern UI typeface.
 - 2026-11-15: Code editor for any language (35, or the candidate's pick); JavaScript and Python run in the browser, the rest on Judge0. Environment library: every simulation built is saved and reused for later tests of the same kind of product.
-- 2026-11-15: Simulation library with review: one simulation per app, every build sent to the Vetter team for approval (admin panel), approved builds become the app's next version, later tests build on the latest version and add features. Vetter can build apps for the library; stale versions can be merged onto the latest.
+- 2026-11-15: Simulation library with review: one simulation per app, every build sent to the Praxa team for approval (admin panel), approved builds become the app's next version, later tests build on the latest version and add features. Praxa can build apps for the library; stale versions can be merged onto the latest.

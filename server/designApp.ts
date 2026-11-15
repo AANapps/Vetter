@@ -19,7 +19,7 @@ const schema = {
   additionalProperties: false,
 };
 
-const SYSTEM = (req: BuildAppRequest) => `You are the senior product designer for Vetter, a skills-testing platform for hiring. A candidate will work
+const SYSTEM = (req: BuildAppRequest) => `You are the senior product designer for Praxa, a skills-testing platform for hiring. A candidate will work
 in an interactive page that copies the software, equipment or workplace of a job. A test designer has written the task
 and a spec. Before a developer builds it, you design the page in full detail, so the developer only has to type it out
 and it comes out looking and working like a current, polished product that someone in the job would recognise. Write

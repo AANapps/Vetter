@@ -15,7 +15,7 @@ import { ROLE_TRACK_MODULES } from './roleTracks';
 import { EXTRA_MIX } from './extraMix';
 
 /**
- * Vetter's module tests. From each module's bank (see kit.ts) come four tests, Beginner to Senior, each asking every
+ * Praxa's module tests. From each module's bank (see kit.ts) come four tests, Beginner to Senior, each asking every
  * level up to its own.
  */
 export const MODULES: ModuleSkeleton[] = [

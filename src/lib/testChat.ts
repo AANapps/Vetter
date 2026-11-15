@@ -8,7 +8,7 @@ import { EnvironmentSubmission, loadEnvironmentPage, loadEnvironments, loadSubmi
 import { categoriesFor, companySector, rolesFor } from './sectors';
 import { ALL_ROLES, RawQuestion, Suggestion, assembleFromBank, checkQuestion, libraryFor, linkTasks, matchExisting } from './testGeneration';
 
-// Building a test by talking to Vetter (server/testChat.ts does the AI side). Each turn sends the conversation and the
+// Building a test by talking to Praxa (server/testChat.ts does the AI side). Each turn sends the conversation and the
 // draft; what comes back is checked here like any AI-written test: new questions are run and broken ones left out.
 
 export interface ChatMessage {
@@ -39,19 +39,19 @@ export interface ChatContext {
   job?: string;
   // The job's title, to name a test put together without the AI
   jobTitle?: string;
-  // The level the test is named at: the highest the company ticked, or none for Vetter to pick
+  // The level the test is named at: the highest the company ticked, or none for Praxa to pick
   level?: TestDifficulty;
   // Every level ticked; several means questions pitched across them
   levels: TestDifficulty[];
   wantExisting: boolean;
   tests: AssessmentTest[];
   business?: Business;
-  // The question types the company picked; Vetter uses only these, or any when none are
+  // The question types the company picked; Praxa uses only these, or any when none are
   styles: QuestionType[];
   // How many questions the company wants, counting sub-questions: exactly one number, or a range when it ticked several
   questionCount?: number;
   questionRange?: [number, number];
-  // The timer the company picked, or none for Vetter to size it
+  // The timer the company picked, or none for Praxa to size it
   timeLimit?: number | 'none';
   // The app task open beside the chat, which "this" and "the app" mean
   viewing?: { id: string; label: string; app: string };
@@ -125,7 +125,7 @@ export const pageModeOf = (ctx: ChatContext): PageMode => ({
   sector: ctx.business?.sector,
 });
 
-// What Vetter is doing right now, told to the company as it happens (each call is a real step starting). The major
+// What Praxa is doing right now, told to the company as it happens (each call is a real step starting). The major
 // steps come along as a checklist when it changes; a call without one leaves the last checklist as it was
 export interface BuildStep {
   id: string;
@@ -182,7 +182,7 @@ type BuiltPage = {
 };
 type LibraryBase = { id: string; name: string; html: string; features: string[]; version: number };
 
-// The app this page copies, from Vetter's environment library, to build on: its latest approved version. A quick model
+// The app this page copies, from Praxa's environment library, to build on: its latest approved version. A quick model
 // works out which app the page copies and finds it there. Null when the app isn't in the library (or it can't be read)
 // Off for now (2026-11-15): every simulation is built from scratch. Building on a saved app rewrote the whole app and
 // ran past the model's output limit once the app grew; it needs the builder to send only its changes first
@@ -211,7 +211,7 @@ async function libraryBase(item: RawQuestion, mode: PageMode): Promise<LibraryBa
   }
 }
 
-// Who a simulation is built for, and whether the build waits until it's been sent for review (the Vetter team's own
+// Who a simulation is built for, and whether the build waits until it's been sent for review (the Praxa team's own
 // builds do, so the review queue shows it straight away)
 interface PageOwner {
   owner?: string;
@@ -237,7 +237,7 @@ async function buildAppPage(item: RawQuestion, research?: string, mode: PageMode
   try {
     // The app's simulation in the library is built on, keeping every feature it has and adding what this task needs;
     // an app that isn't there yet is designed from nothing first
-    if (BUILD_ON_LIBRARY) step("looking for this app in Vetter's environment library…");
+    if (BUILD_ON_LIBRARY) step("looking for this app in Praxa's environment library…");
     base = await libraryBase(item, mode);
     let page: BuiltPage | null = null;
     if (base) {
@@ -278,7 +278,7 @@ async function buildAppPage(item: RawQuestion, research?: string, mode: PageMode
     }
     const saving = remember(final, catalog, base, mode, who.owner);
     if (who.awaitSave) {
-      step('sending it to the Vetter team for review…');
+      step('sending it to the Praxa team for review…');
       await saving;
     }
     return final;
@@ -287,9 +287,9 @@ async function buildAppPage(item: RawQuestion, research?: string, mode: PageMode
   }
 }
 
-// A page that loads is sent to the Vetter team for review: a new app for the library, or the next version of the app it
+// A page that loads is sent to the Praxa team for review: a new app for the library, or the next version of the app it
 // was built on, with the features it added. Never holds up the test
-async function remember(page: RawQuestion, catalog: BuiltPage['catalog'], base: LibraryBase | null, mode: PageMode, owner = 'Vetter'): Promise<void> {
+async function remember(page: RawQuestion, catalog: BuiltPage['catalog'], base: LibraryBase | null, mode: PageMode, owner = 'Praxa'): Promise<void> {
   if (base) void markEnvironmentUsed(base.id);
   if (!page.appHtml || !catalog?.app?.trim()) return;
   const probe = await probeApp(page.appHtml, checksOf(page));
@@ -318,21 +318,21 @@ async function remember(page: RawQuestion, catalog: BuiltPage['catalog'], base: 
 }
 
 /**
- * The Vetter team builds an app for the library from the admin panel: the app and the features it should have. Built
+ * The Praxa team builds an app for the library from the admin panel: the app and the features it should have. Built
  * on the library's copy when the app is there already (so it gains those features), otherwise designed from nothing,
  * then sent for review like any other. Returns an error to show, or null once it's waiting for review
  */
 export async function buildLibrarySimulation(app: string, wants: string, progress: (stage: string) => void): Promise<string | null> {
   const brief = `A working copy of ${app}, as people in the job use it day to day: its real layout, navigation and look. It must include, fully working: ${wants.trim() || 'its main screens and everyday features'}. Fill it with realistic sample records for every screen. The state object records what the user creates and changes.`;
   const item: RawQuestion = { type: 'app', title: app, prompt: `Explore ${app} and use its features.`, appHtml: brief, testCases: [], points: 1, timeLimitMinutes: 10 } as RawQuestion;
-  const built = await buildAppPage(item, undefined, {}, progress, { owner: 'Vetter', awaitSave: true });
+  const built = await buildAppPage(item, undefined, {}, progress, { owner: 'Praxa', awaitSave: true });
   return built.appHtml && built.appHtml !== brief ? null : "The simulation couldn't be built. Try again, or describe it differently.";
 }
 
 /**
  * Two versions of an app built on the same library version: once one is approved, the other would lose its features if
  * approved as it is. This copies its added features onto the library's latest version, and the submission becomes that
- * merged page, built on the latest version, for the Vetter team to try again before approving
+ * merged page, built on the latest version, for the Praxa team to try again before approving
  */
 export async function mergeSubmission(sub: EnvironmentSubmission, progress: (stage: string) => void): Promise<string | null> {
   const env = (await loadEnvironments()).find((e) => e.id === sub.envId);
@@ -374,7 +374,7 @@ async function editAppPage(question: Question, change: string, taskPrompt: strin
   const checks = question.testCases.map(({ description, input, expectedOutput }) => ({ description, input, expectedOutput }));
   const prompt = taskPrompt?.trim() || question.prompt;
   try {
-    // The app's library copy, so the features this change adds go to the Vetter team as its next version
+    // The app's library copy, so the features this change adds go to the Praxa team as its next version
     const base = await libraryBase({ type: 'app', title: question.title, prompt, appHtml: change } as RawQuestion, mode).catch(() => null);
     step('rewriting the page with your change…');
     const res = await aiFetch('/api/build-app', { title: question.title, prompt, brief: change, testCases: checks, research, ...mode, quick: true, edit: { html: question.appHtml ?? '', change }, ...(base && { libraryFeatures: base.features }) });
@@ -465,7 +465,7 @@ async function buildDraft(raw: RawTest, previous: AssessmentTest | undefined, ct
       if (!isSpec(item)) return checkQuestion(item);
       const i = pages.indexOf(item);
       const step = tracker.step(i);
-      const ready = await buildAppPage(item, research, pageModeOf(ctx), step, { owner: ctx.business?.name || 'Vetter' });
+      const ready = await buildAppPage(item, research, pageModeOf(ctx), step, { owner: ctx.business?.name || 'Praxa' });
       step('checking its tasks start unfinished, so they can be marked…');
       const checked = await checkQuestion(ready);
       tracker.done(i);
@@ -511,10 +511,10 @@ async function buildDraft(raw: RawTest, previous: AssessmentTest | undefined, ct
   };
 }
 
-const NOT_CONFIGURED = "Vetter's AI isn't available on this site: it runs on Vetter's own server (npm run dev or npm start) with an ANTHROPIC_API_KEY.";
+const NOT_CONFIGURED = "Praxa's AI isn't available on this site: it runs on Praxa's own server (npm run dev or npm start) with an ANTHROPIC_API_KEY.";
 
-// One turn: the company's message in, Vetter's reply and the draft's new version out
-// Posts to one of Vetter's AI endpoints; a failure comes back as the reason, 'not-configured' when there's no AI
+// One turn: the company's message in, Praxa's reply and the draft's new version out
+// Posts to one of Praxa's AI endpoints; a failure comes back as the reason, 'not-configured' when there's no AI
 async function post(path: string, payload: unknown): Promise<{ body: Record<string, any>; failure?: string }> {
   try {
     const res = await aiFetch(path, payload);
@@ -525,7 +525,7 @@ async function post(path: string, payload: unknown): Promise<{ body: Record<stri
     if (!res.ok) return { body, failure: body.error === 'not-configured' || res.status === 404 ? 'not-configured' : body.error || `The AI request failed (${res.status}).` };
     return { body };
   } catch {
-    return { body: {}, failure: "Couldn't reach Vetter's AI. Check your connection and try again." };
+    return { body: {}, failure: "Couldn't reach Praxa's AI. Check your connection and try again." };
   }
 }
 
@@ -578,7 +578,7 @@ export interface TestPlan extends Record<string, any> {
 }
 export type { PlanItem };
 
-// The plan step: asks Vetter for the plan (researching the job first when it can have simulations), and keeps only items
+// The plan step: asks Praxa for the plan (researching the job first when it can have simulations), and keeps only items
 // in the allowed styles, each with its own ref
 async function fetchPlan(ctx: ChatContext, request: Record<string, unknown>) {
   const planned = await post('/api/plan-test', request);
@@ -725,7 +725,7 @@ function chatRequest(state: ChatState, messages: ChatMessage[], ctx: ChatContext
   };
 }
 
-// The first half of a new test: Vetter plans it from the conversation and lists every question for the company to
+// The first half of a new test: Praxa plans it from the conversation and lists every question for the company to
 // look over, and each message after that changes the plan, until the company presses Build (buildPlan). Nothing is
 // written yet
 export async function proposePlan(
@@ -771,17 +771,17 @@ export async function buildPlan(state: ChatState, plan: TestPlan, ctx: ChatConte
   const built = await writePlan(plan, state.research, messages, ctx, request, progress, list);
   const note = built.dropped
     ? built.test
-      ? `${built.dropped} ${built.dropped === 1 ? 'question' : 'questions'} failed Vetter's checks and ${built.dropped === 1 ? 'was' : 'were'} left out.`
-      : "None of the questions passed Vetter's checks, so nothing was made. Try Build again."
+      ? `${built.dropped} ${built.dropped === 1 ? 'question' : 'questions'} failed Praxa's checks and ${built.dropped === 1 ? 'was' : 'were'} left out.`
+      : "None of the questions passed Praxa's checks, so nothing was made. Try Build again."
     : undefined;
   return {
     ...state,
-    messages: [...messages, { role: 'assistant', text: built.test ? 'Built.' : "Vetter couldn't build that. Try again.", ...(note && { note }), ...(!built.test && { failed: true }) }],
+    messages: [...messages, { role: 'assistant', text: built.test ? 'Built.' : "Praxa couldn't build that. Try again.", ...(note && { note }), ...(!built.test && { failed: true }) }],
     draft: built.test,
   };
 }
 
-// One turn: the company's message in, Vetter's reply and the draft's new version out. A first draft (or a rewrite of
+// One turn: the company's message in, Praxa's reply and the draft's new version out. A first draft (or a rewrite of
 // most of it) is planned and written in stages; other changes are made in one go
 export async function sendChat(state: ChatState, text: string, ctx: ChatContext, progress: Progress = () => {}): Promise<ChatState> {
   const messages: ChatMessage[] = [...state.messages, { role: 'user', text }];
@@ -803,7 +803,7 @@ export async function sendChat(state: ChatState, text: string, ctx: ChatContext,
     list = checklist(progress, [read]);
     list.start('read', 'Reading your message and working out the changes…');
     ({ body, failure } = await post('/api/test-chat', request));
-    // Vetter judged the change too big to make in one go: plan and write the test afresh
+    // Praxa judged the change too big to make in one go: plan and write the test afresh
     if (!failure && body.lookUp === 'REPLAN') {
       list = undefined;
       const out = await planAndWrite(state, messages, ctx, request, progress, [read]);
@@ -814,14 +814,14 @@ export async function sendChat(state: ChatState, text: string, ctx: ChatContext,
   }
 
   if (failure) {
-    // Without the AI, the first turn still gets a start from Vetter's own tests and questions
+    // Without the AI, the first turn still gets a start from Praxa's own tests and questions
     if (failure === 'not-configured' && !state.draft) {
       const brief = [ctx.job, ...messages.filter((m) => m.role === 'user').map((m) => m.text)].filter(Boolean).join('\n\n');
       const draft = assembleFromBank({ prompt: brief, wantNewTest: true, wantExisting: ctx.wantExisting, questionCount: ctx.questionCount ?? ctx.questionRange?.[1] ?? 10, styles: ctx.styles.length ? ctx.styles : QUESTION_TYPES, level: ctx.level ?? 'Junior', title: ctx.jobTitle }, library, ctx.tests, ctx.business);
       const existing = ctx.wantExisting ? matchExisting(brief, library) : [];
       const reply = draft
-        ? `I can't write new questions here, so I've put a draft together from the best-fitting questions in Vetter's tests. ${NOT_CONFIGURED} You can still edit every question in the builder.`
-        : `${NOT_CONFIGURED} Vetter's own question bank doesn't cover this yet either, so write the test in the builder for now.`;
+        ? `I can't write new questions here, so I've put a draft together from the best-fitting questions in Praxa's tests. ${NOT_CONFIGURED} You can still edit every question in the builder.`
+        : `${NOT_CONFIGURED} Praxa's own question bank doesn't cover this yet either, so write the test in the builder for now.`;
       return { ...state, messages: [...messages, { role: 'assistant', text: reply }], draft, existing };
     }
     const reply = failure === 'not-configured' ? `${NOT_CONFIGURED} Open the draft in the builder to change it by hand.` : failure;
@@ -852,7 +852,7 @@ export async function sendChat(state: ChatState, text: string, ctx: ChatContext,
   if (staged || body.test) {
     const built = staged ?? (await buildDraft(body.test, state.draft, ctx, body.research ?? state.research, progress, list));
     if (built.test) draft = built.test;
-    if (built.dropped) note = built.test ? `${built.dropped} ${built.dropped === 1 ? 'question' : 'questions'} failed Vetter's checks and ${built.dropped === 1 ? 'was' : 'were'} left out.` : "None of the new questions passed Vetter's checks, so the draft wasn't changed. Try asking again.";
+    if (built.dropped) note = built.test ? `${built.dropped} ${built.dropped === 1 ? 'question' : 'questions'} failed Praxa's checks and ${built.dropped === 1 ? 'was' : 'were'} left out.` : "None of the new questions passed Praxa's checks, so the draft wasn't changed. Try asking again.";
   }
   // Changes to app pages in the draft, made in place by the page builder, side by side
   const edits = appEditsOn(draft);
@@ -863,14 +863,14 @@ export async function sendChat(state: ChatState, text: string, ctx: ChatContext,
     const tracker = pageTracker(targets.map((q) => q.title), progress);
     const changed = await Promise.all(
       edits.map(async (e, i) => {
-        const out = await editAppPage(targets[i], e.change, e.taskPrompt, research, pageModeOf(ctx), tracker.step(i), { owner: ctx.business?.name || 'Vetter' });
+        const out = await editAppPage(targets[i], e.change, e.taskPrompt, research, pageModeOf(ctx), tracker.step(i), { owner: ctx.business?.name || 'Praxa' });
         tracker.done(i);
         return out;
       })
     );
     const failed = changed.filter((q) => !q).length;
     draft = withChangedQuestions(draft, changed.filter((q): q is Question => !!q));
-    if (failed) note = [note, `${failed === 1 ? "One app change didn't" : `${failed} app changes didn't`} pass Vetter's checks, so ${failed === 1 ? 'that app was' : 'those apps were'} left as ${failed === 1 ? 'it was' : 'they were'}. Try asking again.`].filter(Boolean).join(' ');
+    if (failed) note = [note, `${failed === 1 ? "One app change didn't" : `${failed} app changes didn't`} pass Praxa's checks, so ${failed === 1 ? 'that app was' : 'those apps were'} left as ${failed === 1 ? 'it was' : 'they were'}. Try asking again.`].filter(Boolean).join(' ');
   }
   list?.finish();
   return {

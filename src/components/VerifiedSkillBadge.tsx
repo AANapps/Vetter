@@ -157,7 +157,7 @@ export const VerifiedSkillBadge: React.FC<VerifiedSkillBadgeProps> = ({
             </div>
             <h4 className="text-sm font-bold text-slate-900 mt-1 truncate group-hover:underline">{skill.skillName}</h4>
             <p className="text-[11px] text-slate-500">
-              Vetter &middot; {skill.percentile}th percentile
+              Praxa &middot; {skill.percentile}th percentile
             </p>
           </div>
           <div className={`text-3xl font-bold font-mono tabular-nums ${tier.badgeTextColor}`}>
@@ -180,7 +180,7 @@ export const VerifiedSkillBadge: React.FC<VerifiedSkillBadgeProps> = ({
             <h3 className="text-sm font-bold text-slate-900 leading-snug">{skill.skillName}</h3>
             <p className="text-xs text-slate-600 flex items-center gap-1 mt-0.5">
               <BadgeCheck className="w-3.5 h-3.5 text-indigo-600" />
-              Verified by Vetter
+              Verified by Praxa
             </p>
             <p className="text-[11px] text-slate-500 mt-0.5">Issued {formatDate(skill.verifiedAt)}</p>
           </div>
@@ -268,7 +268,7 @@ const CertificateModal: React.FC<CertificateModalProps> = ({ skill, tier, onClos
             <h3 className="text-lg font-bold text-slate-900 mt-2">{skill.skillName}</h3>
             <p className="text-xs text-slate-600 flex items-center gap-1 mt-0.5">
               <BadgeCheck className="w-3.5 h-3.5 text-indigo-600" />
-              Verified by Vetter &middot; Issued {formatDate(skill.verifiedAt)}
+              Verified by Praxa &middot; Issued {formatDate(skill.verifiedAt)}
             </p>
           </div>
         </div>

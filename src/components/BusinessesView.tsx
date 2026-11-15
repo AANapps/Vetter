@@ -40,7 +40,7 @@ export const BusinessesView: React.FC<BusinessesViewProps> = ({
         <div>
           <h1 className="text-xl font-bold text-slate-900 tracking-tight">Companies</h1>
           <p className="text-xs text-slate-500 mt-1">
-            Companies hiring on Vetter, their open jobs, and the tests attached to them.
+            Companies hiring on Praxa, their open jobs, and the tests attached to them.
           </p>
         </div>
 

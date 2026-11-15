@@ -7,7 +7,7 @@ import { unfinishedStarts } from '../lib/results';
 import { IntegrityBadge } from './IntegrityBadge';
 
 /**
- * Vetter's two halves side by side, for one applicant on one of the company's jobs: how they did on the company's job
+ * Praxa's two halves side by side, for one applicant on one of the company's jobs: how they did on the company's job
  * simulation, then what their profile has already proven that the job needs (verified skills and where they rank),
  * then the gaps: what the job needs that nothing has verified, including skills they claim but haven't proven.
  */

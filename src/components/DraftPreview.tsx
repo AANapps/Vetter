@@ -13,7 +13,7 @@ import { SpreadsheetWindow } from './SpreadsheetWindow';
 
 const styleLabel = (q: Question) => QUESTION_STYLES.find((s) => s.type === q.type)?.label ?? q.type;
 
-// Styles a company can add by hand; hands-on tasks are only written by Vetter
+// Styles a company can add by hand; hands-on tasks are only written by Praxa
 const ADDABLE: QuestionType[] = ['choice', 'multi', 'text', 'written', 'order', 'match', 'case'];
 
 // The draft with its totals worked out again after a change
@@ -37,9 +37,9 @@ export const draftProblems = (test?: AssessmentTest) => (test ? test.questions.f
 interface DraftPreviewProps {
   test: AssessmentTest;
   onChange: (test: AssessmentTest) => void;
-  // While Vetter is changing the draft, hand edits would be lost, so they wait
+  // While Praxa is changing the draft, hand edits would be lost, so they wait
   locked: boolean;
-  // Glows briefly when Vetter changes the draft
+  // Glows briefly when Praxa changes the draft
   flash: boolean;
   // Opens the draft in the manual test builder; without it the link isn't shown
   onOpenBuilder?: () => void;
@@ -81,7 +81,7 @@ export const DraftPreview: React.FC<DraftPreviewProps> = ({ test, onChange, lock
     onViewing?.(shown, shownLabel);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shown?.id, shownLabel]);
-  // Back to preview while Vetter works, so nothing half-edited is replaced under the company
+  // Back to preview while Praxa works, so nothing half-edited is replaced under the company
   useEffect(() => {
     if (locked) setMode('preview');
   }, [locked]);
@@ -119,7 +119,7 @@ export const DraftPreview: React.FC<DraftPreviewProps> = ({ test, onChange, lock
     return (
       <div className="h-full flex flex-col items-center justify-center gap-3 text-center p-8">
         <p className="text-sm font-semibold text-slate-700">The draft has no questions left</p>
-        <p className="text-xs text-slate-500">Ask Vetter for some in the chat, or add one yourself.</p>
+        <p className="text-xs text-slate-500">Ask Praxa for some in the chat, or add one yourself.</p>
         <AddMenu onAdd={add} disabled={locked} />
       </div>
     );
@@ -222,7 +222,7 @@ export const DraftPreview: React.FC<DraftPreviewProps> = ({ test, onChange, lock
               role="tab"
               aria-selected={mode === m}
               disabled={m === 'edit' && locked}
-              title={m === 'edit' && locked ? 'You can edit once Vetter has finished' : undefined}
+              title={m === 'edit' && locked ? 'You can edit once Praxa has finished' : undefined}
               onClick={() => setMode(m)}
               className={`px-2.5 py-1 rounded-md flex items-center gap-1 disabled:opacity-40 ${mode === m ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
             >
@@ -273,7 +273,7 @@ export const DraftPreview: React.FC<DraftPreviewProps> = ({ test, onChange, lock
                 )}
                 <QuestionEditor question={q} onChange={(change) => update(q.id, change)} share={Math.round((q.weight / totalPoints) * 100)} />
                 {isWorkspaceType(q.type) && (
-                  <p className="text-[11px] text-slate-500">The {styleLabel(q).toLowerCase()} itself is built by Vetter. Ask in the chat to change what's in it.</p>
+                  <p className="text-[11px] text-slate-500">The {styleLabel(q).toLowerCase()} itself is built by Praxa. Ask in the chat to change what's in it.</p>
                 )}
               </section>
             ))}

@@ -1,6 +1,6 @@
 import { runnerImport } from 'vite';
 // Run with `npm run test:rules`: checks firestore.rules against the Firebase emulators, acting out candidates,
-// company owners, colleagues, outsiders and the Vetter team
+// company owners, colleagues, outsiders and the Praxa team
 const root = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const env = { VITE_FIREBASE_API_KEY: 'demo-key', VITE_FIREBASE_AUTH_DOMAIN: 'demo-vetter.firebaseapp.com', VITE_FIREBASE_PROJECT_ID: 'demo-vetter', VITE_FIREBASE_APP_ID: 'demo-app', VITE_FIREBASE_EMULATORS: 'true' };
 const define = Object.fromEntries(Object.entries(env).map(([k, v]) => [`import.meta.env.${k}`, JSON.stringify(v)]));
@@ -83,7 +83,7 @@ await check('cannot approve her own test for the public library', () => setDoc(d
 await check('cannot mark it turned down either', () => setDoc(doc(db, 'tests', 'test-custom-1'), { ...acmeTest, publicStatus: 'rejected' }), false);
 await check('asks for it to join the public library', () => setDoc(doc(db, 'tests', 'test-custom-1'), { ...acmeTest, publicStatus: 'pending' }), true);
 await check('Alice cannot post a job for another company', () => C.syncJobs([], [{ ...job, id: 'job-x', businessId: 'rival.io' }], noop), false);
-await check('Alice cannot make a Vetter library test', () => setDoc(doc(db, 'tests', 'test-vetter-1'), { id: 'test-vetter-1', type: 'standard', title: 'x' }), false);
+await check('Alice cannot make a Praxa library test', () => setDoc(doc(db, 'tests', 'test-vetter-1'), { id: 'test-vetter-1', type: 'standard', title: 'x' }), false);
 await check('Alice sends the job to Cara and tells her', async () => {
   await C.syncJobs([job], [{ ...job, invitations: [{ candidateId: cara, invitedAt: '2026-10-28', via: 'invite' }] }], noop);
   await C.syncNotifications([], [{ id: 'note-1', userId: cara, kind: 'job-invite', jobId: 'job-1', createdAt: new Date().toISOString(), read: false }], noop);
@@ -142,7 +142,7 @@ const draft = { id: 'draft-1', businessId: 'acme.io', test: { id: 'draft-1', tit
 await check('saves a test draft', () => setDoc(doc(db, 'testDrafts', draft.id), draft), true);
 await check('sees her drafts', () => getDocs(query(collection(db, 'testDrafts'), where('businessId', '==', 'acme.io'))), true);
 await check('cannot move a draft to another company', () => setDoc(doc(db, 'testDrafts', draft.id), { ...draft, businessId: 'evil.com' }), false);
-await check('cannot save a draft for the Vetter library', () => setDoc(doc(db, 'testDrafts', 'draft-2'), { ...draft, id: 'draft-2', businessId: '' }), false);
+await check('cannot save a draft for the Praxa library', () => setDoc(doc(db, 'testDrafts', 'draft-2'), { ...draft, id: 'draft-2', businessId: '' }), false);
 await check('cannot give kudos as Cara', () => setDoc(doc(db, 'kudos', `x__${cara}`), { itemId: 'x', uid: cara }), false);
 await check('cannot delete Cara\'s post', () => deleteDoc(doc(db, 'posts', 'post-1')), false);
 await check('cannot read Cara\'s notifications', () => getDocs(query(collection(db, 'notifications'), where('userId', '==', cara))), false);
@@ -206,7 +206,7 @@ await check('cannot sign up with a bad email', () => addDoc(collection(db, 'cour
 await check('cannot claim to be someone signed in', () => addDoc(collection(db, 'courseSignups'), { ...signup, uid: 'someone', createdAt: serverTimestamp() }), false);
 await check('cannot read sign-ups', () => getDocs(collection(db, 'courseSignups')), false);
 
-console.log('Vetter team');
+console.log('Praxa team');
 // Admins are made by hand in the Firebase console; here, through the emulator's rule-free access
 await fetch(`http://127.0.0.1:8080/v1/projects/${PROJECT}/databases/(default)/documents/users/${cara}?updateMask.fieldPaths=role`, {
   method: 'PATCH', headers: { Authorization: 'Bearer owner', 'Content-Type': 'application/json' }, body: JSON.stringify({ fields: { role: { stringValue: 'admin' } } }),
@@ -257,7 +257,7 @@ await check('a colleague cannot read someone else\'s submission', () => getDoc(d
 await check('nor its page', () => getDoc(doc(db, 'submissionPages', 'sub-1')), false);
 await A.signOut();
 await A.signIn('cara@gmail.com', 'password123');
-await check('the Vetter team reads every submission', () => getDocs(collection(db, 'environmentSubmissions')), true);
+await check('the Praxa team reads every submission', () => getDocs(collection(db, 'environmentSubmissions')), true);
 await check('and its page', () => getDoc(doc(db, 'submissionPages', 'sub-1')), true);
 await check('approves it into the library', async () => {
   const b = writeBatch(db);

@@ -19,20 +19,20 @@ interface TestPageProps {
   candidates: User[];
   jobs: JobPosting[];
   viewerRole: UserRole;
-  // The company looking, who can try their own tests as well as Vetter's
+  // The company looking, who can try their own tests as well as Praxa's
   viewerBusinessId?: string;
   currentCandidateId?: string;
   // The company whose link the candidate came from
   referredByCompany?: Business;
-  // Companies and the Vetter team add the test to one of their jobs, then send it from there
+  // Companies and the Praxa team add the test to one of their jobs, then send it from there
   onSend?: () => void;
-  // Companies take a copy of a Vetter module test to add their own questions to its areas and levels
+  // Companies take a copy of a Praxa module test to add their own questions to its areas and levels
   onCustomize?: () => void;
   // The company's own test: opens in the builder
   onEdit?: () => void;
   // The company's own test: opens in the test chat, to change by asking
   onEditWithAI?: () => void;
-  // The company's own test: offered to the public library (the Vetter team approves it first), or taken back out
+  // The company's own test: offered to the public library (the Praxa team approves it first), or taken back out
   onAskToPublish?: () => void;
   onWithdrawPublic?: () => void;
   onStartTest: (test: AssessmentTest) => void;
@@ -71,7 +71,7 @@ export const TestPage: React.FC<TestPageProps> = ({
   const retakeFrom = viewerRole === 'candidate' && you && isPublic(test) ? nextAttemptAt(you, test.id) : null;
   const usedByJobs = jobs.filter((j) => j.testIds.includes(test.id) && j.status === 'active');
   // Candidates take company tests through the jobs they're attached to, or the company's own link
-  // Companies try Vetter's tests and their own (the Vetter team any test) as practice runs that aren't saved
+  // Companies try Praxa's tests and their own (the Praxa team any test) as practice runs that aren't saved
   const canStart =
     viewerRole === 'candidate'
       ? isPublic(test) || referredByCompany?.id === test.businessId
@@ -99,11 +99,11 @@ export const TestPage: React.FC<TestPageProps> = ({
               <span className="text-slate-300">&middot;</span>
               <span className="text-slate-500">{levelName(test.difficulty)}</span>
               <span className="text-slate-300">&middot;</span>
-              <span className="text-slate-500">{test.type === 'standard' ? 'Made by Vetter' : `Made by ${test.companyName}`}</span>
+              <span className="text-slate-500">{test.type === 'standard' ? 'Made by Praxa' : `Made by ${test.companyName}`}</span>
               {test.type === 'standard' && <DemandBadge demand={demandFor(test)} />}
               {jobsUsing(test, tests, jobs) > 0 && (
                 <span className="text-slate-500 normal-case tracking-normal font-sans">
-                  &middot; used by {jobsUsing(test, tests, jobs)} open {jobsUsing(test, tests, jobs) === 1 ? 'job' : 'jobs'} on Vetter
+                  &middot; used by {jobsUsing(test, tests, jobs)} open {jobsUsing(test, tests, jobs) === 1 ? 'job' : 'jobs'} on Praxa
                 </span>
               )}
             </div>
@@ -147,7 +147,7 @@ export const TestPage: React.FC<TestPageProps> = ({
           {onEditWithAI && (
             <button
               onClick={onEditWithAI}
-              title="Change this test by telling Vetter what to change"
+              title="Change this test by telling Praxa what to change"
               className="px-4 py-2.5 text-xs font-semibold text-indigo-700 bg-white border border-indigo-200 hover:border-indigo-400 rounded-lg transition-colors flex items-center gap-2 shrink-0 self-start"
             >
               <Sparkles className="w-3.5 h-3.5" />
@@ -360,12 +360,12 @@ const PublicLibraryCard: React.FC<{ test: AssessmentTest; onAsk: () => void; onW
       </h2>
       <p className="text-slate-600 leading-relaxed">
         {status === 'approved'
-          ? 'Public: other companies can add it to their jobs and any candidate can take it, credited to you. Changing it sends it back to Vetter to approve again.'
+          ? 'Public: other companies can add it to their jobs and any candidate can take it, credited to you. Changing it sends it back to Praxa to approve again.'
           : status === 'pending'
-          ? 'Waiting for Vetter to check it. Once approved, other companies can use it and candidates can take it.'
+          ? 'Waiting for Praxa to check it. Once approved, other companies can use it and candidates can take it.'
           : status === 'rejected'
-          ? 'Vetter didn\'t approve it for the public library.'
-          : 'Only your company can use it. Share it and, once Vetter has checked it, other companies can add it to their jobs and any candidate can take it.'}
+          ? 'Praxa didn\'t approve it for the public library.'
+          : 'Only your company can use it. Share it and, once Praxa has checked it, other companies can add it to their jobs and any candidate can take it.'}
       </p>
       {status === 'rejected' && test.publicNote && <p className="p-2.5 rounded-lg bg-indigo-50 text-slate-800">{test.publicNote}</p>}
       {status === 'approved' || status === 'pending' ? (

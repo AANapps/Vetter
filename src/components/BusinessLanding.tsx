@@ -36,7 +36,7 @@ const AI_DOES = [
   {
     icon: Sparkles,
     title: 'Writes the test',
-    text: 'Paste a job description. Vetter’s AI plans the skills the hire needs, then writes the questions and a job simulation, new for each role.',
+    text: 'Paste a job description. Praxa’s AI plans the skills the hire needs, then writes the questions and a job simulation, new for each role.',
   },
   {
     icon: ClipboardCheck,
@@ -54,12 +54,12 @@ const STEPS = [
   {
     icon: Briefcase,
     title: 'Post a job',
-    text: 'Describe the role. Vetter lists it on your page and on Google Jobs, and you can invite people by email or link.',
+    text: 'Describe the role. Praxa lists it on your page and on Google Jobs, and you can invite people by email or link.',
   },
   {
     icon: ClipboardCheck,
     title: 'Send tests that fit',
-    text: 'Pick from Vetter’s library, or have AI write a test and a 15-minute job simulation from your job description.',
+    text: 'Pick from Praxa’s library, or have AI write a test and a 15-minute job simulation from your job description.',
   },
   {
     icon: Trophy,
@@ -117,11 +117,11 @@ const FAQ = [
   },
   {
     q: 'Can we use our own questions?',
-    a: 'Yes. Build a test by hand question by question, have Vetter’s AI write one from your job description, or mix your tests with ready-made ones from the library.',
+    a: 'Yes. Build a test by hand question by question, have Praxa’s AI write one from your job description, or mix your tests with ready-made ones from the library.',
   },
   {
     q: 'How do you stop cheating?',
-    a: 'Vetter records what the browser can see during a test (tab and window switches, pasting from elsewhere, a second screen and more) and turns it into a label from green to red on every application. Highly suspicious applications are set aside automatically. AI-written tests are new for each role, so answers are hard to share.',
+    a: 'Praxa records what the browser can see during a test (tab and window switches, pasting from elsewhere, a second screen and more) and turns it into a label from green to red on every application. Highly suspicious applications are set aside automatically. AI-written tests are new for each role, so answers are hard to share.',
   },
   {
     q: 'Does it replace interviews?',
@@ -133,11 +133,11 @@ const FAQ = [
   },
   {
     q: 'Do candidates pay?',
-    a: 'Never. Vetter is free for candidates, and they keep their verified scores to use for other jobs.',
+    a: 'Never. Praxa is free for candidates, and they keep their verified scores to use for other jobs.',
   },
   {
     q: 'What does it cost?',
-    a: 'Your first job is free, with no card. After that, pay per job or by the month; AI test writing uses prepaid credit, and Vetter shows the cost before it writes. See the plans below.',
+    a: 'Your first job is free, with no card. After that, pay per job or by the month; AI test writing uses prepaid credit, and Praxa shows the cost before it writes. See the plans below.',
   },
   {
     q: 'How long does it take to set up?',
@@ -148,7 +148,7 @@ const FAQ = [
 // Guides shown on the landing page
 const FEATURED_GUIDES = ['get-started', 'create-a-test-from-a-job-description', 'anti-cheat-integrity-label', 'review-candidates-and-shortlist'];
 
-// What companies see before signing up: what Vetter does for hiring, how it works, and the plans
+// What companies see before signing up: what Praxa does for hiring, how it works, and the plans
 export const BusinessLanding: React.FC<{ top?: React.ReactNode; onJoin: (reason?: string) => void; onOpenGuide: (slug: string | null) => void }> = ({
   top,
   onJoin,
@@ -197,7 +197,7 @@ export const BusinessLanding: React.FC<{ top?: React.ReactNode; onJoin: (reason?
             </h1>
             <Reveal delay={0.45}>
               <p className="mt-6 text-lg text-slate-600 max-w-xl mx-auto lg:mx-0">
-                Paste a job description. Vetter’s AI writes a test and a 15-minute job simulation for it, marks every answer, and ranks
+                Paste a job description. Praxa’s AI writes a test and a 15-minute job simulation for it, marks every answer, and ranks
                 everyone by what they can actually do.
               </p>
               <div className="mt-8 flex flex-col sm:flex-row justify-center lg:justify-start gap-3">
@@ -238,7 +238,7 @@ export const BusinessLanding: React.FC<{ top?: React.ReactNode; onJoin: (reason?
           {[
             { figure: `${money(5000, 'GBP', { compact: true })}–${money(15000, 'GBP', { compact: true })}`, label: 'a typical agency fee per hire' },
             { figure: `${money(100)}–${money(400)}`, label: 'a typical job ad, with no screening' },
-            { figure: `From ${money(0)}`, label: 'a job on Vetter, with every candidate tested by AI' },
+            { figure: `From ${money(0)}`, label: 'a job on Praxa, with every candidate tested by AI' },
           ].map((s, i) => (
             <div key={s.label} className="bg-white px-6 py-8 text-center">
               <div className={`text-4xl font-semibold tracking-tighter tabular-nums ${i === 2 ? 'ai-text' : 'text-slate-900'}`}>{s.figure}</div>
@@ -334,7 +334,7 @@ export const BusinessLanding: React.FC<{ top?: React.ReactNode; onJoin: (reason?
         </ol>
       </section>
 
-      {/* Why Vetter */}
+      {/* Why Praxa */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-20">
         <div className="grid gap-4 sm:grid-cols-2">
           {FEATURES.map((f, i) => {
@@ -431,7 +431,7 @@ export const BusinessLanding: React.FC<{ top?: React.ReactNode; onJoin: (reason?
             <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-400">Anti-cheat</p>
             <h2 className="mt-2 text-3xl sm:text-5xl font-semibold tracking-tighter leading-[1.02]">Hard to game, and you can see why</h2>
             <p className="mt-3 text-slate-300">
-              While a candidate is in a test, Vetter records what the browser can see. It weighs everything into one label on the application,
+              While a candidate is in a test, Praxa records what the browser can see. It weighs everything into one label on the application,
               and a timeline shows which question was on screen when each thing happened.
             </p>
             <div className="mt-6 flex flex-wrap gap-2">
@@ -481,8 +481,8 @@ export const BusinessLanding: React.FC<{ top?: React.ReactNode; onJoin: (reason?
             role. Most come at four levels, each covering the ones below it.
           </p>
           <p className="mt-3 text-slate-600">
-            Need something specific? Paste your job description and Vetter writes a test for it. Share your best tests in the public library once
-            the Vetter team approves them.
+            Need something specific? Paste your job description and Praxa writes a test for it. Share your best tests in the public library once
+            the Praxa team approves them.
           </p>
         </Reveal>
         <Reveal className="grid gap-3 sm:grid-cols-2">
@@ -559,7 +559,7 @@ export const BusinessLanding: React.FC<{ top?: React.ReactNode; onJoin: (reason?
             Bring <span className="ai-text">one open role</span>
           </h2>
           <p className="mt-4 text-slate-300 max-w-xl mx-auto">
-            Paste its job description, see the test Vetter would set, and send it to your applicants. Your first job is free.
+            Paste its job description, see the test Praxa would set, and send it to your applicants. Your first job is free.
           </p>
           <button
             onClick={startFree}

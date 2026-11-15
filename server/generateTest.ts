@@ -16,7 +16,7 @@ export interface GenerateRequest {
   questionCount: number;
   styles: string[];
   level: string;
-  // The tests already on Vetter the company could use, and roles a library test can be filed under
+  // The tests already on Praxa the company could use, and roles a library test can be filed under
   library: { id: string; title: string; category: string; difficulty: string; skills: string[]; roles: string[]; description: string }[];
   roles: string[];
   categories: string[];
@@ -215,8 +215,8 @@ export const APP_PAGE_RULES = `  For every kind, appHtml is ONE self-contained H
     parent, status, open, close and so on). Plain ES2020, no modules or libraries.
   • Keep everything the candidate can change in ONE plain JSON object; for hands-on work, include the steps taken in order
     (e.g. steps: ["power_off", "heat_screen", ...]), what is attached or removed, and any damage done. On load, start from
-    window.vetterSaved when it isn't null (the candidate coming back to the task), otherwise from the starting state. Call
-    vetter.save(state) once on load and again after every change. Never show which values are checked or what they should be.
+    window.praxaSaved when it isn't null (the candidate coming back to the task), otherwise from the starting state. Call
+    praxa.save(state) once on load and again after every change. Never show which values are checked or what they should be.
   • VERY CLEAR TO USE: a simple game anyone understands in seconds, without help. A one-line "How it works" bar says how
     to interact (e.g. "Drag parts onto the board. Click two terminals to connect them. Click a dial to turn it.").
     Every part, port, terminal, control and tool is labelled with its real name. Draggable things look grabbable (a
@@ -227,7 +227,7 @@ export const APP_PAGE_RULES = `  For every kind, appHtml is ONE self-contained H
     leader line to it when it can't sit next to it), never across another part. Draw all labels last, after every
     shape, so nothing covers them, and give each a halo (paint-order:stroke with a 3px stroke in
     the background colour). Keep every label inside the viewBox with a margin, no two labels touching, and at least 12px
-    tall as drawn. Leave room for the labels when you lay the drawing out; Vetter checks for hidden and cut-off labels.
+    tall as drawn. Leave room for the labels when you lay the drawing out; Praxa checks for hidden and cut-off labels.
   • NOTHING IS A MYSTERY SHAPE: every tool, instrument, part, item and person drawn has its real name as visible text
     beside or under it at all times (not only on hover), e.g. "Mouth mirror", "Probe", "Two-pole voltage tester". Draw
     each one as its classic, instantly recognisable outline (the shape anyone in the job would know at a glance) with
@@ -347,7 +347,7 @@ know; leave out anything a good candidate would look at and think "that's not my
 - DESK WORK: hands-on tasks are in the software the job uses (sheet, database, code, an app copying its product).
 
 SKILLS GAMES: games for general abilities (attention to detail, verbal, numerical and logical reasoning, memory,
-multitasking) are made by the Vetter team for the library and suggested when the company posts the job. Don't build a
+multitasking) are made by the Praxa team for the library and suggested when the company posts the job. Don't build a
 game for those abilities here unless the company asks for one by name; test the job's own skills instead.
 
 QUESTION QUALITY: write questions that really test the candidate: a strong one finds them demanding and a weak one can't
@@ -528,7 +528,7 @@ questions about it; they're answered beside it, so they may rely on what it show
 and every question that isn't a case or task has ref "". A kept case or task's ref is its id.`;
 
 function instructions(req: GenerateRequest): string {
-  return `You help companies on Vetter, a skills-based hiring platform, choose and write tests for a job.
+  return `You help companies on Praxa, a skills-based hiring platform, choose and write tests for a job.
 
 ${req.wantExisting ? `Pick up to 4 tests from the LIBRARY that genuinely fit the job, best first, each with a one-sentence reason a hiring manager would find useful. Only use ids from the library. Return an empty list if none fit.` : 'Return an empty "existing" list.'}
 
@@ -677,9 +677,9 @@ export function apiFailure(name: string, err: unknown): { status: number; json: 
   if (err instanceof Anthropic.AuthenticationError) return { status: 503, json: { error: 'The Anthropic API key was rejected. Check ANTHROPIC_API_KEY.' } };
   if (err instanceof Anthropic.RateLimitError) return { status: 429, json: { error: 'Too many requests to Claude right now. Try again in a minute.' } };
   if (err instanceof Anthropic.APIError) console.error(`[${name}] ${err.message}`);
-  // Vetter's own account has run out of credit: logged above for the Vetter team; companies get a plain 'busy' message
+  // Praxa's own account has run out of credit: logged above for the Praxa team; companies get a plain 'busy' message
   if (err instanceof Anthropic.APIError && /credit balance/i.test(err.message))
-    return { status: 503, json: { error: "Vetter's AI is busy right now. Nothing is lost: try again in a little while." } };
+    return { status: 503, json: { error: "Praxa's AI is busy right now. Nothing is lost: try again in a little while." } };
   if (err instanceof Anthropic.APIError) return { status: 502, json: { error: `Claude returned an error (${err.status}).` } };
   return { status: 502, json: { error: err instanceof Error ? err.message : 'The AI request failed.' } };
 }

@@ -8,11 +8,11 @@ import { QuestionEditor, inputClass, labelClass } from './QuestionEditors';
 import { TestRunner } from './TestRunner';
 
 interface TestBuilderProps {
-  // A company writes tests for its own jobs; without one, the Vetter team writes tests for the public library
+  // A company writes tests for its own jobs; without one, the Praxa team writes tests for the public library
   business?: Business;
   // The test being edited, or undefined for a new one
   initial?: AssessmentTest;
-  // A new test to start from, such as one Vetter's AI wrote; saved as a new test
+  // A new test to start from, such as one Praxa's AI wrote; saved as a new test
   draft?: AssessmentTest;
   // The draft is a copy of an existing test, not something the AI wrote
   isCopy?: boolean;
@@ -20,7 +20,7 @@ interface TestBuilderProps {
   // Keeps the test as a draft, unfinished questions and all, to come back to
   onSaveDraft?: (test: AssessmentTest) => void | Promise<unknown>;
   onCancel: () => void;
-  // A saved test made by hand: takes it, as it now stands, to the test chat to improve with Vetter's AI
+  // A saved test made by hand: takes it, as it now stands, to the test chat to improve with Praxa's AI
   onEnhance?: (test: AssessmentTest) => void;
 }
 
@@ -31,7 +31,7 @@ type Selection = 'details' | number;
 
 // Writing a test: its details, then questions in any mix of styles, tried out as a candidate before saving
 export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, draft, isCopy, onSave, onSaveDraft, onCancel, onEnhance }) => {
-  const isVetter = !business;
+  const isPraxa = !business;
   const source = initial ?? draft;
   const [title, setTitle] = useState(source?.title ?? '');
   const [description, setDescription] = useState(source?.description ?? '');
@@ -49,7 +49,7 @@ export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, dra
     const ids = new Map(qs.map((q, i) => [q.id, `${q.id}-c${stamp}-${i}`]));
     return qs.map((q) => ({ ...q, id: ids.get(q.id)!, ...(q.taskId && { taskId: ids.get(q.taskId) ?? q.taskId }) }));
   });
-  // A copy of a Vetter module test keeps its core areas; every question, Vetter's or the company's, sits in one at a level
+  // A copy of a Praxa module test keeps its core areas; every question, Praxa's or the company's, sits in one at a level
   const aspects = source?.aspects;
   const [selected, setSelected] = useState<Selection>('details');
   const [picking, setPicking] = useState(false);
@@ -62,7 +62,7 @@ export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, dra
   const detailProblems = [
     ...(!title.trim() ? ['Give the test a title'] : []),
     ...(questions.length === 0 ? ['Add at least one question'] : []),
-    ...(isVetter && roles.length === 0 ? ['Pick at least one role it suits'] : []),
+    ...(isPraxa && roles.length === 0 ? ['Pick at least one role it suits'] : []),
   ];
   const problemsByQuestion = questions.map(questionProblems);
   const problemCount = detailProblems.length + problemsByQuestion.reduce((n, p) => n + p.length, 0);
@@ -99,13 +99,13 @@ export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, dra
     return {
       // A saved test opened here (from Edit or the test chat) keeps its id, so saving changes it rather than adding a
       // second one; a copy or a new draft is a new test
-      id: initial?.id ?? (draft?.id && !isCopy ? draft.id : `test-${isVetter ? 'vetter' : 'custom'}-${Date.now()}`),
+      id: initial?.id ?? (draft?.id && !isCopy ? draft.id : `test-${isPraxa ? 'vetter' : 'custom'}-${Date.now()}`),
       title: title.trim(),
       category,
       difficulty,
-      type: isVetter ? 'standard' : 'custom',
+      type: isPraxa ? 'standard' : 'custom',
       ...(business && { businessId: business.id, companyName: business.name }),
-      description: description.trim() || (business ? `Test written by ${business.name} for its own hiring.` : `A Vetter test of ${category.toLowerCase()} skills.`),
+      description: description.trim() || (business ? `Test written by ${business.name} for its own hiring.` : `A Praxa test of ${category.toLowerCase()} skills.`),
       estimatedMinutes: Math.max(1, minutes),
       // A timer set in the chat stays
       ...(source?.timeLimit !== undefined && { timeLimit: source.timeLimit }),
@@ -115,7 +115,7 @@ export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, dra
       totalQuestions: tidy.length,
       questions: tidy.map((q) => ({ ...q, weight: Math.round((q.weight / total) * 100) })),
       skillsTested: skillsTested.length ? skillsTested : [category],
-      ...(isVetter && { roles }),
+      ...(isPraxa && { roles }),
       ...(aspects && { aspects }),
       // A simulation's scenario and the hire's blueprint go with the questions, into a copy or a change alike
       ...(source?.scenario && { scenario: source.scenario }),
@@ -153,7 +153,7 @@ export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, dra
           <div className="min-w-0">
             <h1 className="text-sm font-bold truncate">{initial ? `Edit ${initial.title}` : draft ? (isCopy ? `New test from the ${draft.title} template` : 'Review the AI draft') : 'New test'}</h1>
             <p className="text-[11px] text-slate-500 truncate">
-              {business ? `For ${business.name}'s jobs` : 'For the Vetter test library, open to every candidate'} &middot; {questions.length}{' '}
+              {business ? `For ${business.name}'s jobs` : 'For the Praxa test library, open to every candidate'} &middot; {questions.length}{' '}
               {questions.length === 1 ? 'question' : 'questions'} &middot; ~{minutes} min
             </p>
           </div>
@@ -173,7 +173,7 @@ export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, dra
           {onEnhance && (
             <button
               onClick={() => onEnhance({ ...build(), title: title.trim() || 'Untitled test', questions, totalQuestions: questions.length })}
-              title="Improve this test by asking Vetter; your changes here go with it"
+              title="Improve this test by asking Praxa; your changes here go with it"
               className="px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 hover:border-indigo-400 rounded-lg flex items-center gap-1.5"
             >
               <Sparkles className="w-3.5 h-3.5" />
@@ -329,7 +329,7 @@ export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, dra
                   </label>
                   <input id="tb-skills" value={skills} onChange={(e) => setSkills(e.target.value)} placeholder="e.g. Reconciliation, Accruals, Excel" className={inputClass} />
                 </div>
-                {isVetter && (
+                {isPraxa && (
                   <fieldset>
                     <legend className={labelClass}>Roles it suits</legend>
                     <p className="text-[11px] text-slate-500 mb-2">Candidates find it under these roles and their fields on the Tests page.</p>

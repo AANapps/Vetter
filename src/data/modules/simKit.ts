@@ -1,9 +1,9 @@
 import { Question } from '../../types';
 
 /**
- * Low-level simulations for Vetter's own tests: small working windows the candidate operates, built from data rather
+ * Low-level simulations for Praxa's own tests: small working windows the candidate operates, built from data rather
  * than written page by page. Each runs as an app task (see lib/appSimulation.ts): it keeps its state in one object,
- * saves it with vetter.save, and is marked on that state.
+ * saves it with praxa.save, and is marked on that state.
  *
  * - queueApp: a list of records (alerts, emails, sign-ins, use cases, claims) to open, read and act on, with an
  *   optional search over logs and a findings form. State: { records: { id: { field: value } }, answers: {…}, searches: [] }
@@ -29,7 +29,7 @@ export interface QueueRecord {
 
 const json = (v: unknown) => JSON.stringify(v).replace(/</g, '\\u003c');
 
-// Shared look: Vetter's greys and navy, a crisp sans and a mono for data
+// Shared look: Praxa's greys and navy, a crisp sans and a mono for data
 const STYLE = `<style>
 *{box-sizing:border-box}body{margin:0;font:13px/1.45 'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;color:#0f172a;background:#f6f7f9}
 header{display:flex;align-items:center;gap:10px;padding:10px 14px;background:#111833;color:#fff}
@@ -107,9 +107,9 @@ ${cfg.answers ? `<div class="card"><h3>${cfg.answersTitle ?? 'Findings'}</h3><di
 </div>`;
   const script = `${FIELDS_JS}
 var RECS=${json(cfg.records)},RF=${json(cfg.recordFields)},AF=${json(cfg.answers ?? [])},LINES=${json(cfg.search?.lines ?? [])};
-var S=window.vetterSaved||{records:{},answers:{},searches:[]};S.records=S.records||{};S.answers=S.answers||{};S.searches=S.searches||[];
+var S=window.praxaSaved||{records:{},answers:{},searches:[]};S.records=S.records||{};S.answers=S.answers||{};S.searches=S.searches||[];
 var cur=null;
-function save(){window.vetter.save(S);rows();}
+function save(){window.praxa.save(S);rows();}
 function done(id){var r=S.records[id];return r&&RF.every(function(f){return f.type==='check'||(r[f.key]!=null&&r[f.key]!=='')});}
 function rows(){document.getElementById('rows').innerHTML=RECS.map(function(r){return '<tr class="row'+(r.id===cur?' on':'')+'" data-id="'+r.id+'">'+r.cells.map(function(c){return '<td>'+esc(c)+'</td>'}).join('')+'<td class="'+(done(r.id)?'done':'')+'"></td></tr>'}).join('');
   Array.prototype.forEach.call(document.querySelectorAll('tr.row'),function(tr){tr.onclick=function(){open(tr.getAttribute('data-id'))}});}
@@ -119,9 +119,9 @@ if(AF.length) fields(document.getElementById('af'),AF,S.answers,save);
 var q=document.getElementById('q');
 if(q){var run=function(){var t=q.value.trim().toLowerCase();var hits=t?LINES.filter(function(l){return l.toLowerCase().indexOf(t)>=0}):LINES;
   document.getElementById('cnt').textContent=hits.length+' of '+LINES.length+' lines';document.getElementById('res').textContent=hits.join('\\n');
-  if(t&&S.searches.indexOf(t)<0){S.searches.push(t);window.vetter.save(S);}};
+  if(t&&S.searches.indexOf(t)<0){S.searches.push(t);window.praxa.save(S);}};
   document.getElementById('go').onclick=run;q.addEventListener('keydown',function(e){if(e.key==='Enter')run()});run();}
-rows();window.vetter.save(S);`;
+rows();window.praxa.save(S);`;
   return page(cfg.title, cfg.subtitle, body, script);
 }
 
@@ -142,7 +142,7 @@ export function terminalApp(cfg: {
 <div class="card"><h3>${cfg.answersTitle ?? 'Your findings'}</h3><div class="form" id="af"></div><div class="pad muted">Type <b>help</b> in the terminal to see the commands.</div></div></div>`;
   const script = `${FIELDS_JS}
 var START=${json(cfg.world)},AF=${json(cfg.answers ?? [])},PL=${json(cfg.promptLabel)};
-var S=window.vetterSaved||{world:JSON.parse(JSON.stringify(START)),history:[],answers:{}};S.answers=S.answers||{};S.history=S.history||[];
+var S=window.praxaSaved||{world:JSON.parse(JSON.stringify(START)),history:[],answers:{}};S.answers=S.answers||{};S.history=S.history||[];
 function run(cmd,args,world){${cfg.run}}
 var out=document.getElementById('out'),inp=document.getElementById('cmd');
 function line(t,cls){var d=document.createElement('div');if(cls)d.className=cls;d.textContent=t;out.appendChild(d);}
@@ -154,10 +154,10 @@ inp.addEventListener('keydown',function(e){if(e.key!=='Enter')return;var c=inp.v
   var b=S.world&&S.world.head||'';line(PL.replace('{branch}',b)+' '+c,'in');
   var parts=c.match(/"[^"]*"|'[^']*'|\\S+/g)||[];parts=parts.map(function(p){return p.replace(/^["']|["']$/g,'')});
   var o;try{o=c==='clear'?(out.innerHTML='',''):run(parts[0],parts.slice(1),S.world);}catch(err){o='error: '+err.message;}
-  if(o)line(o);S.history.push({c:c,o:o||'',b:b});window.vetter.save(S);prompt();document.getElementById('t').scrollTop=1e9;});
+  if(o)line(o);S.history.push({c:c,o:o||'',b:b});window.praxa.save(S);prompt();document.getElementById('t').scrollTop=1e9;});
 document.getElementById('t').onclick=function(){inp.focus()};
-if(AF.length)fields(document.getElementById('af'),AF,S.answers,function(){window.vetter.save(S)});
-window.vetter.save(S);`;
+if(AF.length)fields(document.getElementById('af'),AF,S.answers,function(){window.praxa.save(S)});
+window.praxa.save(S);`;
   return page(cfg.title, cfg.subtitle, body, script);
 }
 
@@ -178,16 +178,16 @@ export function labApp(cfg: {
 <div class="card"><h3>Results</h3><div id="k" class="kpi"></div><div id="tb"></div><div class="pad muted" id="hint">Change the settings and press Run.</div></div></div>`;
   const script = `${FIELDS_JS}
 var PF=${json(cfg.params)},AF=${json(cfg.answers ?? [])},DEF=${json(cfg.defaults)};
-var S=window.vetterSaved||{params:JSON.parse(JSON.stringify(DEF)),results:{},runs:0,answers:{}};S.answers=S.answers||{};
+var S=window.praxaSaved||{params:JSON.parse(JSON.stringify(DEF)),results:{},runs:0,answers:{}};S.answers=S.answers||{};
 function compute(p){${cfg.compute}}
 function show(r){document.getElementById('k').innerHTML=(r.kpis||[]).map(function(k){return '<div><span class="muted">'+esc(k[0])+'</span><b>'+esc(k[1])+'</b></div>'}).join('');
   document.getElementById('tb').innerHTML=r.table?'<table><thead><tr>'+r.table.head.map(function(h){return '<th style="top:0">'+esc(h)+'</th>'}).join('')+'</tr></thead><tbody>'+r.table.rows.map(function(row){return '<tr>'+row.map(function(c){return '<td>'+esc(c)+'</td>'}).join('')+'</tr>'}).join('')+'</tbody></table>':'';
   document.getElementById('hint').textContent=r.note||'';}
-fields(document.getElementById('pf'),PF,S.params,function(){window.vetter.save(S)});
-if(AF.length)fields(document.getElementById('af'),AF,S.answers,function(){window.vetter.save(S)});
-document.getElementById('run').onclick=function(){var r=compute(S.params);S.results=r.results||{};S.runs=(S.runs||0)+1;show(r);window.vetter.save(S);};
+fields(document.getElementById('pf'),PF,S.params,function(){window.praxa.save(S)});
+if(AF.length)fields(document.getElementById('af'),AF,S.answers,function(){window.praxa.save(S)});
+document.getElementById('run').onclick=function(){var r=compute(S.params);S.results=r.results||{};S.runs=(S.runs||0)+1;show(r);window.praxa.save(S);};
 if(S.runs)show(compute(S.params));
-window.vetter.save(S);`;
+window.praxa.save(S);`;
   return page(cfg.title, cfg.subtitle, body, script);
 }
 

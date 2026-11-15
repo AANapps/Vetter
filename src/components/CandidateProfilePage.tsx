@@ -15,7 +15,7 @@ interface CandidateProfilePageProps {
   tests: AssessmentTest[];
   candidates: User[];
   businesses: Business[];
-  // The company looking; without one, the Vetter team, who see every company's results
+  // The company looking; without one, the Praxa team, who see every company's results
   business?: Business;
   // The viewer's jobs, to show which of them the candidate is on
   jobs: JobPosting[];
@@ -39,7 +39,7 @@ const Heading: React.FC<{ children: React.ReactNode; aside?: React.ReactNode }> 
   </div>
 );
 
-// A candidate's profile as a company sees it, on a page of its own: a digital CV. Who they are, then what Vetter has
+// A candidate's profile as a company sees it, on a page of its own: a digital CV. Who they are, then what Praxa has
 // verified they can do, then every test the company may see, with how they stand on the company's own jobs beside it
 export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
   person,
@@ -204,15 +204,15 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
             </section>
           )}
 
-          {/* What Vetter has verified, strongest first: one line each, with the score as a bar */}
+          {/* What Praxa has verified, strongest first: one line each, with the score as a bar */}
           <section className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
             <div className="px-6 pt-6">
-              <Heading aside={skills.length > 0 && <span className="inline-flex items-center gap-1 text-[11px] text-slate-500"><BadgeCheck className="w-3.5 h-3.5 text-indigo-600" />Verified by Vetter</span>}>
+              <Heading aside={skills.length > 0 && <span className="inline-flex items-center gap-1 text-[11px] text-slate-500"><BadgeCheck className="w-3.5 h-3.5 text-indigo-600" />Verified by Praxa</span>}>
                 Verified skills
               </Heading>
             </div>
             {skills.length === 0 ? (
-              <p className="px-6 pb-6 text-sm text-slate-500">No verified skills yet. A score of 75 or more on a Vetter test verifies the skill.</p>
+              <p className="px-6 pb-6 text-sm text-slate-500">No verified skills yet. A score of 75 or more on a Praxa test verifies the skill.</p>
             ) : (
               <ul className="divide-y divide-slate-100">
                 {skills.map((s) => {
@@ -303,7 +303,7 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
           <section className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3">
             <Heading>Integrity</Heading>
             <IntegrityBadge sittings={sittings} size="md" />
-            <p className="text-[11px] text-slate-500 leading-relaxed">What Vetter's monitor saw while they took your jobs' tests: leaving the window, pasting and the like.</p>
+            <p className="text-[11px] text-slate-500 leading-relaxed">What Praxa's monitor saw while they took your jobs' tests: leaving the window, pasting and the like.</p>
           </section>
         </aside>
       </div>

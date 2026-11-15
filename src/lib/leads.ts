@@ -28,7 +28,7 @@ export const SOURCE_LABELS: Record<LeadSource, string> = {
   applied: 'Applied',
   link: 'Job link',
   email: 'Emailed',
-  invite: 'Sent on Vetter',
+  invite: 'Sent on Praxa',
 };
 
 export type LeadTestStatus = JobTestProgress['status'] | 'no-tests';

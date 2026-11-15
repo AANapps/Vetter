@@ -3,8 +3,8 @@ import { Question } from '../types';
 
 /**
  * App simulations: a working copy of a real product's interface (a BI tool, a CRM, an ad platform), written by the AI
- * as one HTML page. It runs in a sandboxed iframe with no network and no access to Vetter, keeps its state in an
- * object, and hands that object to Vetter with vetter.save(state) whenever it changes. The candidate's answer is that
+ * as one HTML page. It runs in a sandboxed iframe with no network and no access to Praxa, keeps its state in an
+ * object, and hands that object to Praxa with praxa.save(state) whenever it changes. The candidate's answer is that
  * state as JSON; each check reads one value from it.
  */
 
@@ -12,7 +12,7 @@ import { Question } from '../types';
 const CSP =
   "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src data: blob:; form-action 'none'";
 
-// Run only when Vetter tries a new app out of sight: once it has settled, click every visible control that isn't greyed
+// Run only when Praxa tries a new app out of sight: once it has settled, click every visible control that isn't greyed
 // out, one at a time, and report the ones that changed nothing on the page and saved nothing. Native checkboxes, radios,
 // selects and text fields are left out, since the browser makes those work on its own
 const AUDIT = `<script>
@@ -142,7 +142,7 @@ const AUDIT = `<script>
 })();
 </script>`;
 
-// What the page starts with: the work to resume, a save that reports to Vetter, and errors reported too
+// What the page starts with: the work to resume, a save that reports to Praxa, and errors reported too
 function bootstrap(saved: unknown) {
   const json = JSON.stringify(saved ?? null).replace(/</g, '\\u003c');
   return `<meta http-equiv="Content-Security-Policy" content="${CSP}">
@@ -163,8 +163,11 @@ html, body { overflow: auto !important; overscroll-behavior: none !important; }
 <script>
 window.vetterSaved = ${json};
 window.vetter = { saved: window.vetterSaved, save: function (state) { parent.postMessage({ source: 'vetter-app', state: JSON.parse(JSON.stringify(state)) }, '*'); } };
+// The same hook under Praxa's name; pages written before the rename call vetter.save, and both keep working
+window.praxaSaved = window.vetterSaved;
+window.praxa = window.vetter;
 window.addEventListener('error', function (e) { parent.postMessage({ source: 'vetter-app', error: String(e.message || e) }, '*'); });
-// A link never takes the frame away from the page: in a frame made from text, even href="#" would load Vetter itself.
+// A link never takes the frame away from the page: in a frame made from text, even href="#" would load Praxa itself.
 // In-page links still move the #fragment, and download links still download
 document.addEventListener('click', function (e) {
   var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
@@ -256,7 +259,7 @@ const callouts = (tips: { ref: string; text: string }[]) => `<style>
 })();
 </script>`;
 
-// The page to load: Vetter's head first, so the policy covers everything the AI wrote. audit adds the control check;
+// The page to load: Praxa's head first, so the policy covers everything the AI wrote. audit adds the control check;
 // tips adds the pop-ups pinned to the page
 export function appDocument(html: string, saved?: unknown, audit = false, tips?: { ref: string; text: string }[]): string {
   const head = bootstrap(saved) + (audit ? AUDIT : '') + (tips?.length ? callouts(tips) : '');

@@ -125,14 +125,14 @@ export function seoPages(siteUrl: string, firebase?: { projectId: string; apiKey
               (open ? `${seo.jsonLdScript(seo.jobPostingJsonLd(job, siteUrl, businessOf(job)))}\n` : '') +
               `${crumbs([{ name: 'Jobs', path: '/jobs/' }, { name: job.title, path: seo.jobPath(job) }])}\n`,
             body:
-              `<nav><a href="/">Vetter</a> &rsaquo; <a href="/jobs/">Jobs</a></nav><main><article>` +
+              `<nav><a href="/">Praxa</a> &rsaquo; <a href="/jobs/">Jobs</a></nav><main><article>` +
               `<h1>${esc(job.title)}</h1><p class="seo-company">${esc(job.companyName)}${job.department ? ` &middot; ${esc(job.department)}` : ''}</p>` +
               `<p>${facts.join(' &middot; ')}</p>` +
               `<p>Posted ${esc(job.postedDate)}${job.closingDate ? ` &middot; Closes ${esc(job.closingDate)}` : ''}${job.startDate ? ` &middot; Starts ${esc(job.startDate)}` : ''}</p>` +
               (open ? '' : '<p><strong>This job is no longer taking applications.</strong></p>') +
               seo.jobDescriptionHtml(job) +
-              (open ? `<p><a class="seo-apply" href="${seo.jobPath(job)}">Apply on Vetter</a></p>` : '') +
-              `</article>${others.length ? `<aside><h2>More jobs on Vetter</h2><ul>${others.map(jobCard).join('')}</ul></aside>` : ''}</main>`,
+              (open ? `<p><a class="seo-apply" href="${seo.jobPath(job)}">Apply on Praxa</a></p>` : '') +
+              `</article>${others.length ? `<aside><h2>More jobs on Praxa</h2><ul>${others.map(jobCard).join('')}</ul></aside>` : ''}</main>`,
           })
         );
       }
@@ -141,12 +141,12 @@ export function seoPages(siteUrl: string, firebase?: { projectId: string; apiKey
         'jobs/index.html',
         page({
           path: '/jobs/',
-          title: `${listable.length} tech jobs hiring now: apply with a verified skills test | Vetter`,
-          description: `Browse ${listable.length} open engineering, data and analyst jobs at ${[...new Set(listable.map((j) => j.companyName))].join(', ')}. Prove your skills with one test and apply on Vetter.`,
+          title: `${listable.length} tech jobs hiring now: apply with a verified skills test | Praxa`,
+          description: `Browse ${listable.length} open engineering, data and analyst jobs at ${[...new Set(listable.map((j) => j.companyName))].join(', ')}. Prove your skills with one test and apply on Praxa.`,
           head: crumbs([{ name: 'Jobs', path: '/jobs/' }]),
           body:
-            `<nav><a href="/">Vetter</a> &rsaquo; Jobs</nav><main><h1>Jobs on Vetter</h1>` +
-            `<p>Every job on Vetter is filled on skill: take the job's test, and your verified score goes straight to the company.</p>` +
+            `<nav><a href="/">Praxa</a> &rsaquo; Jobs</nav><main><h1>Jobs on Praxa</h1>` +
+            `<p>Every job on Praxa is filled on skill: take the job's test, and your verified score goes straight to the company.</p>` +
             `<ul>${listable.map(jobCard).join('')}</ul></main>`,
         })
       );
@@ -158,7 +158,7 @@ export function seoPages(siteUrl: string, firebase?: { projectId: string; apiKey
           `guides/${g.slug}/index.html`,
           page({
             path: guidePath(g),
-            title: `${g.title} | Vetter Guides`,
+            title: `${g.title} | Praxa Guides`,
             description: g.summary,
             head:
               `${seo.jsonLdScript({
@@ -170,7 +170,7 @@ export function seoPages(siteUrl: string, firebase?: { projectId: string; apiKey
                 step: g.steps.map((st, i) => ({ '@type': 'HowToStep', position: i + 1, name: st.title, text: st.text })),
               })}\n` + `${crumbs([{ name: 'Guides', path: '/guides/' }, { name: g.title, path: guidePath(g) }])}\n`,
             body:
-              `<nav><a href="/">Vetter</a> &rsaquo; <a href="/guides/">Guides</a></nav><main><article>` +
+              `<nav><a href="/">Praxa</a> &rsaquo; <a href="/guides/">Guides</a></nav><main><article>` +
               `<h1>${esc(g.title)}</h1><p>${esc(g.summary)}</p><ol>` +
               g.steps.map((st) => `<li><strong>${esc(st.title)}.</strong> ${esc(st.text)}</li>`).join('') +
               `</ol>${g.tips ? `<h2>Tips</h2><ul>${g.tips.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}</article></main>`,
@@ -181,11 +181,11 @@ export function seoPages(siteUrl: string, firebase?: { projectId: string; apiKey
         'guides/index.html',
         page({
           path: '/guides/',
-          title: 'How-to guides | Vetter',
-          description: 'Step-by-step guides to hiring on skills with Vetter: build tests, invite candidates, read results and anti-cheat, and take tests as a candidate.',
+          title: 'How-to guides | Praxa',
+          description: 'Step-by-step guides to hiring on skills with Praxa: build tests, invite candidates, read results and anti-cheat, and take tests as a candidate.',
           head: crumbs([{ name: 'Guides', path: '/guides/' }]),
           body:
-            `<nav><a href="/">Vetter</a> &rsaquo; Guides</nav><main><h1>How to use Vetter</h1>` +
+            `<nav><a href="/">Praxa</a> &rsaquo; Guides</nav><main><h1>How to use Praxa</h1>` +
             GUIDE_AUDIENCES.map(
               (a) =>
                 `<h2>${esc(a.label)}</h2><ul>` +
@@ -204,8 +204,8 @@ export function seoPages(siteUrl: string, firebase?: { projectId: string; apiKey
         template.replace(
           '</head>',
           `<link rel="canonical" href="${siteUrl}/" />\n<meta property="og:url" content="${siteUrl}/" />\n` +
-            `${seo.jsonLdScript({ '@context': 'https://schema.org', '@type': 'WebSite', name: 'Vetter', url: `${siteUrl}/` })}\n` +
-            `${seo.jsonLdScript({ '@context': 'https://schema.org', '@type': 'Organization', name: 'Vetter', url: `${siteUrl}/` })}\n</head>`
+            `${seo.jsonLdScript({ '@context': 'https://schema.org', '@type': 'WebSite', name: 'Praxa', url: `${siteUrl}/` })}\n` +
+            `${seo.jsonLdScript({ '@context': 'https://schema.org', '@type': 'Organization', name: 'Praxa', url: `${siteUrl}/` })}\n</head>`
         )
       );
 
@@ -229,7 +229,7 @@ export function seoPages(siteUrl: string, firebase?: { projectId: string; apiKey
       // https://llmstxt.org: a plain summary AI assistants can read in one go
       await write(
         'llms.txt',
-        `# Vetter\n\n> Skills-based hiring: candidates take standardised skills tests, and companies hire on verified scores instead of CVs.\n\n` +
+        `# Praxa\n\n> Skills-based hiring: candidates take standardised skills tests, and companies hire on verified scores instead of CVs.\n\n` +
           `## Open jobs\n\n` +
           listable
             .map((j) => `- [${j.title} at ${j.companyName}](${siteUrl}${seo.jobPath(j)}): ${j.location}, ${j.workType}, ${j.employmentType ?? ''}, ${j.salaryRange}. ${j.description}`)

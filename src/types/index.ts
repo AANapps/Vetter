@@ -25,7 +25,7 @@ export type SkillCategory =
   | 'Trades'
   | 'Hospitality'
   | 'Retail'
-  // Vetter's skills games: general abilities, for every sector
+  // Praxa's skills games: general abilities, for every sector
   | 'Aptitude';
 
 // The jobs a test is relevant to; grouped by industry on the Tests page
@@ -110,9 +110,9 @@ export interface User {
   activeProfileId?: string;
   // The profile each application was sent with, by job id
   applicationProfiles?: Record<string, string>;
-  // What they've done, in their own words: jobs, most recent first. Skills aren't typed in; Vetter's tests verify them
+  // What they've done, in their own words: jobs, most recent first. Skills aren't typed in; Praxa's tests verify them
   experience?: WorkExperience[];
-  // Skills they list themselves, in their own words; shown as their claim until a Vetter test verifies them
+  // Skills they list themselves, in their own words; shown as their claim until a Praxa test verifies them
   skills?: string[];
   // Where to see more of them: LinkedIn, GitHub, a portfolio
   links?: ProfileLink[];
@@ -149,8 +149,8 @@ export interface TestReferral {
   at: string; // ISO date
 }
 
-// Every test a candidate completes, Vetter-made or company-made
-// A company (or the Vetter team) taking a test themselves to see it as a candidate would. Saved for their team,
+// Every test a candidate completes, Praxa-made or company-made
+// A company (or the Praxa team) taking a test themselves to see it as a candidate would. Saved for their team,
 // never on a leaderboard or among a job's candidates
 export interface TrialResult {
   id: string;
@@ -341,14 +341,14 @@ export interface TestAspect {
 
 export type TestDifficulty = 'Beginner' | 'Junior' | 'Professional' | 'Senior';
 
-// In the public library, for every company to use and every candidate to take: Vetter's own tests, and companies'
-// tests the Vetter team approved
+// In the public library, for every company to use and every candidate to take: Praxa's own tests, and companies'
+// tests the Praxa team approved
 // Training is never in the library: it's a company's own, for its team
 export const isPublic = (test: Pick<AssessmentTest, 'type' | 'publicStatus'> & { purpose?: 'training' }) =>
   test.purpose !== 'training' && (test.type === 'standard' || test.publicStatus === 'approved');
 export const isTraining = (test: { purpose?: 'training' }) => test.purpose === 'training';
 
-// Whether a test is changed by asking Vetter (made in the test chat) or by hand. Tests saved before this was recorded
+// Whether a test is changed by asking Praxa (made in the test chat) or by hand. Tests saved before this was recorded
 // are told apart by what only the chat leaves: a blueprint (which the builder used to drop on saving), or question ids
 // from the chat's id maker, q-<time>-<5 characters>; the builder's have 4
 const CHAT_QUESTION_ID = /^q-[a-z0-9]+-[a-z0-9]{5}$/;
@@ -370,7 +370,7 @@ export interface AssessmentTest {
   title: string;
   category: SkillCategory;
   difficulty: TestDifficulty;
-  // 'standard' tests are made by Vetter; 'custom' tests are made by a company for its own jobs
+  // 'standard' tests are made by Praxa; 'custom' tests are made by a company for its own jobs
   type: 'standard' | 'custom';
   // Versions of one test at different levels share a familyId: the id of its main version
   familyId?: string;
@@ -381,9 +381,9 @@ export interface AssessmentTest {
   // The timer the company set: minutes for the whole test, or 'none' for no time limit. Without it the timer is
   // estimatedMinutes, what the questions add up to
   timeLimit?: number | 'none';
-  // Written (or since enhanced) in the test chat with Vetter's AI, or in the builder by hand
+  // Written (or since enhanced) in the test chat with Praxa's AI, or in the builder by hand
   madeWith?: 'ai' | 'hand';
-  // A company's test offered to everyone: the company asks (pending), the Vetter team approves it or turns it down
+  // A company's test offered to everyone: the company asks (pending), the Praxa team approves it or turns it down
   // (with why). Approved, it's in every company's library and on the candidates' Tests page. Changing it sends it back
   // for approval
   publicStatus?: 'pending' | 'approved' | 'rejected';
@@ -454,7 +454,7 @@ export interface Business {
   techStack: string[];
   // The sector it hires in, picked at sign-up (src/lib/sectors.ts); its jobs start in it
   sector?: SectorId;
-  // The plan it pays for; unset or 'free' has no AI test creation. Only the Vetter team sets it
+  // The plan it pays for; unset or 'free' has no AI test creation. Only the Praxa team sets it
   plan?: BusinessPlan;
 }
 
@@ -478,7 +478,7 @@ export interface JobPosting {
   companyName: string;
   companyLogo: string;
   businessId?: string;
-  // Who wrote the listing: the company itself, or the Vetter team on its behalf
+  // Who wrote the listing: the company itself, or the Praxa team on its behalf
   postedBy?: 'company' | 'vetter';
   location: string;
   workType: 'Remote' | 'Hybrid' | 'On-site';
@@ -499,7 +499,7 @@ export interface JobPosting {
   niceToHave?: string[];
   benefits?: string[];
   requirements: JobRequirement[];
-  // The job's tests, in order (Vetter-made or the company's own). Each is an ordinary test: a score on it counts here
+  // The job's tests, in order (Praxa-made or the company's own). Each is an ordinary test: a score on it counts here
   // however it was taken
   testIds: string[];
   // Average score across the job's tests needed to pass
@@ -508,7 +508,7 @@ export interface JobPosting {
   maxAttempts?: number;
   // Candidates must pass the tests before they can apply
   testsRequired: boolean;
-  // Everyone the job's tests have been sent to, and addresses emailed that have no Vetter account yet
+  // Everyone the job's tests have been sent to, and addresses emailed that have no Praxa account yet
   invitations: JobInvitation[];
   invitedEmails?: string[];
   applicantCount: number;
@@ -552,7 +552,7 @@ export interface FeedPost {
   authorId: string;
   text: string;
   createdAt: string; // ISO timestamp
-  sharedTestId?: string; // A Vetter test the author is sharing their result on
+  sharedTestId?: string; // A Praxa test the author is sharing their result on
 }
 
 export interface FeedComment {
@@ -575,14 +575,14 @@ export interface SocialState {
 export interface JobInvitation {
   candidateId: string;
   invitedAt: string; // ISO date
-  // How they got it: from the job's link or page, emailed it, or picked from Vetter's candidates
+  // How they got it: from the job's link or page, emailed it, or picked from Praxa's candidates
   via?: 'link' | 'email' | 'invite';
   // When they first opened the job, and first started one of its tests
   openedAt?: string; // ISO timestamp
   startedAt?: string; // ISO timestamp
   // Every time they began one of the job's tests; one with no finishedAt was left without submitting
   attempts?: JobTestAttempt[];
-  // The login address the invitation was emailed to, for people picked from Vetter's candidates
+  // The login address the invitation was emailed to, for people picked from Praxa's candidates
   emailedTo?: string;
 }
 
@@ -608,14 +608,14 @@ export type LeadStage = 'invited' | 'applied' | 'screening' | 'interview' | 'off
 export type ArchiveReason = 'Not a fit' | 'Below pass mark' | 'Suspected cheating' | 'Withdrew' | 'No response' | 'Hired elsewhere' | 'Role filled' | 'Other';
 
 // What the company has recorded about one candidate for one job; anyone without one is at their starting stage
-// A test still being written: kept only for its company (and the Vetter team) until it's saved as a test
+// A test still being written: kept only for its company (and the Praxa team) until it's saved as a test
 // What the AI writes: a skills test of separate questions, a job simulation (a working day at the company, with its
 // people, emails and tools), or a training simulation that teaches the team an app or a way of working
 // A skills test, a gamified test (every kind of question mixed with simulations), one standalone simulation marked on
 // the tasks it sets, or training for a company's own people
 export type TestKind = 'test' | 'simulation' | 'standalone' | 'training';
 
-// Someone a company asked to join its team on Vetter, by their account (picked from candidates) or by email. Once they
+// Someone a company asked to join its team on Praxa, by their account (picked from candidates) or by email. Once they
 // accept, the company can assign them tests, job simulations and training. Kept in teamMembers/<businessId>__<key>,
 // where key is their uid, or their email for someone invited by address
 export interface TeamMember {
@@ -658,23 +658,23 @@ export interface TestDraft {
   // What the company had already settled in the home chat before this build, so the creator doesn't ask again
   background?: string;
   kind?: TestKind;
-  // The company it's for; '' for the Vetter library
+  // The company it's for; '' for the Praxa library
   businessId: string;
   // The job it was being written for, if any
   jobId?: string;
   // When it holds unsaved changes to a test already saved, that test's id; saving it updates that test
   editsTestId?: string;
   test: AssessmentTest;
-  // The conversation with Vetter's AI it came from, to carry on where it left off; none if written by hand
+  // The conversation with Praxa's AI it came from, to carry on where it left off; none if written by hand
   messages?: { role: 'user' | 'assistant'; text: string; note?: string }[];
   // Library tests the AI suggested alongside it, and why
   existing?: { testId: string; reason: string }[];
   research?: string;
   researchedFor?: string;
   // The question types the company allowed, how many questions it asked for and the levels it picked; none of one means
-  // Vetter decides. questionCount and difficulty are the single picks drafts saved before several could be ticked
+  // Praxa decides. questionCount and difficulty are the single picks drafts saved before several could be ticked
   styles?: QuestionType[];
-  // The timer picked; none means Vetter decides
+  // The timer picked; none means Praxa decides
   timeLimit?: number | 'none';
   questionCounts?: number[];
   difficulties?: TestDifficulty[];

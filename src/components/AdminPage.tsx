@@ -11,7 +11,7 @@ import { Pulse } from './Pulse';
 import { SimulationLibraryAdmin } from './SimulationLibraryAdmin';
 
 /**
- * /admin: the Vetter team's own page. Signed out, it's a sign-in screen; the panel only shows for an account whose
+ * /admin: the Praxa team's own page. Signed out, it's a sign-in screen; the panel only shows for an account whose
  * users/{uid} record has role "admin" and status "active" (firestore.rules enforces the same on every read and write).
  * Anyone else is told they're not an admin, and nothing more.
  */
@@ -22,7 +22,7 @@ const Shell: React.FC<{ children: React.ReactNode; onSignOut?: () => void; email
       <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
         <a href="/" className="font-bold text-slate-900 flex items-center gap-2">
           <ShieldCheck className="w-5 h-5 text-indigo-600" />
-          Vetter admin
+          Praxa admin
         </a>
         {onSignOut && (
           <div className="flex items-center gap-3 min-w-0">
@@ -59,7 +59,7 @@ const SignInForm: React.FC = () => {
     <div className="max-w-sm mx-auto bg-white border border-slate-200 rounded-2xl p-6 space-y-4">
       <div>
         <h1 className="text-lg font-bold">Sign in to the admin panel</h1>
-        <p className="text-sm text-slate-600 mt-1">For the Vetter team only.</p>
+        <p className="text-sm text-slate-600 mt-1">For the Praxa team only.</p>
       </div>
       <button
         type="button"
@@ -367,7 +367,7 @@ export const AdminPage: React.FC = () => {
   const { loading, user, account } = useAccount();
 
   useEffect(() => {
-    document.title = 'Vetter admin';
+    document.title = 'Praxa admin';
     const meta = document.createElement('meta');
     meta.name = 'robots';
     meta.content = 'noindex';
@@ -409,7 +409,7 @@ export const AdminPage: React.FC = () => {
               <p className="text-sm text-slate-600">Signed in as {account.name || user.email}.</p>
             </div>
             <a href="/" className="text-sm font-semibold text-indigo-700 hover:underline flex items-center gap-1">
-              Open the Vetter team view
+              Open the Praxa team view
               <ArrowRight className="w-4 h-4" />
             </a>
           </div>

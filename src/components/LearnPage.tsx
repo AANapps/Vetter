@@ -49,7 +49,7 @@ const TRACKS: Record<
     label: 'Career switch',
     title: 'Switch to a career you want',
     intro:
-      "Bootcamps and courses for changing careers, whatever you do now: AI, sales, law, accounting, data, software, design and more. Most end in a Vetter test, so you finish with a verified score companies hire on, and you don't need the experience on your CV. Sign up for one and we'll contact you to talk it through.",
+      "Bootcamps and courses for changing careers, whatever you do now: AI, sales, law, accounting, data, software, design and more. Most end in a Praxa test, so you finish with a verified score companies hire on, and you don't need the experience on your CV. Sign up for one and we'll contact you to talk it through.",
     audience: 'career-switchers',
   },
   upskill: {
@@ -203,7 +203,7 @@ export const LearnPage: React.FC<LearnPageProps> = ({ track, progress, onOpenCou
             <div>
               <h3 className="font-bold text-slate-900">No experience in the field? That's the point.</h3>
               <p className="mt-1 text-sm text-slate-600">
-                Companies on Vetter hire on test scores, not job history. Finish a course, take its tests, and your verified scores go with every
+                Companies on Praxa hire on test scores, not job history. Finish a course, take its tests, and your verified scores go with every
                 application.
               </p>
             </div>
@@ -218,7 +218,7 @@ export const LearnPage: React.FC<LearnPageProps> = ({ track, progress, onOpenCou
               </p>
             </div>
             <button onClick={onTrainTeam} className="shrink-0 inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white text-slate-900 text-sm font-semibold hover:bg-slate-100">
-              Vetter for business <ArrowRight className="w-4 h-4" />
+              Praxa for business <ArrowRight className="w-4 h-4" />
             </button>
           </section>
         )}

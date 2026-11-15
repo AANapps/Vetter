@@ -14,7 +14,7 @@ export default async function handler(req: Request, res: ServerResponse) {
   const { status, json } = await route(req.body, process.env, {
     authorization: req.headers.authorization,
     origin: req.headers.origin,
-    purpose: purposeOf(req.headers['x-vetter-for']),
+    purpose: purposeOf(req.headers['x-praxa-for']),
   });
   send(res, status, json);
 }

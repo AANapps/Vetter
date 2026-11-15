@@ -5,7 +5,7 @@ Draft, October 2026. Competitor figures are rough and need checking against curr
 ## What a test costs us to make
 
 AI test creation calls Claude once per new test: about 3,000 tokens in and 4,000–9,000 out. Suggesting
-existing tests from the library is free (Vetter matches them itself).
+existing tests from the library is free (Praxa matches them itself).
 
 | Model | Price per 1M tokens (in / out) | Per test | Per 100 tests | Per 1,000 tests |
 |---|---|---|---|---|
@@ -41,7 +41,7 @@ These are the plans on the pricing page (`src/components/PricingSection.tsx`), o
 | Per job | £79 per job | 1 job for 30 days, unlimited candidates, AI-written tests and simulations, AI marking |
 | Growth | £149/month, or £1,490/year | Up to 5 active jobs, 3 seats, CSV export, search the candidate pool |
 | Scale | £349/month, or £3,490/year | Unlimited jobs and seats, your branding on tests, priority support |
-| Enterprise | Custom | Tests written by the Vetter team, SSO, ATS integration, invoicing |
+| Enterprise | Custom | Tests written by the Praxa team, SSO, ATS integration, invoicing |
 
 Annual billing is two months free. Watch how many jobs a typical employer posts: if most post 4 or more, consider
 £199 for Growth; if few free employers reach 25 candidates, lower that limit.
@@ -85,7 +85,7 @@ on, every company pays from credit, Growth and Scale included. The free plan als
 - The subscription still feels like it includes AI, most companies never pay extra, and heavy users pay for what they use.
 
 **Limits:**
-- Plans aren't paid online yet (the Vetter team switches them on), so the allowance would follow whatever plan is set on
+- Plans aren't paid online yet (the Praxa team switches them on), so the allowance would follow whatever plan is set on
   the company.
 - The amounts above are suggestions; set them from real usage in the Stripe dashboard.
 - The server would read the company's plan from its company record on each request, alongside the sign-in check it
@@ -93,7 +93,7 @@ on, every company pays from credit, Growth and Scale included. The free plan als
 
 Not built yet.
 
-## When Vetter asks a company to buy credit (November 2026)
+## When Praxa asks a company to buy credit (November 2026)
 
 Every check runs off one number: the credit on the company's Stripe customer.
 
@@ -133,6 +133,6 @@ Recommended first: 1 and the banner from 2. Not built yet.
 - Price on hiring value, not AI cost: at £49 a job the AI is about 0.01% of the price. Real costs are
   hosting, support and acquiring customers.
 - Position below an agency fee and close to a job ad: "one test replaces CV screening".
-- Don't charge per test created; it discourages the feature that sets Vetter apart. Charge per job or per
+- Don't charge per test created; it discourages the feature that sets Praxa apart. Charge per job or per
   month, and cap candidates if needed.
 - Keep it free for candidates. The pool of tested candidates is what employers pay for.

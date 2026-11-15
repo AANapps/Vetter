@@ -1,7 +1,7 @@
 import { AssessmentTest, Question, TestDifficulty } from '../types';
 
 /**
- * The other levels of each Vetter test. A test's main version keeps its id and level;
+ * The other levels of each Praxa test. A test's main version keeps its id and level;
  * each version here gets "<main id>-<level>" and links back through familyId.
  */
 

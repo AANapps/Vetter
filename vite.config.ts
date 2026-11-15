@@ -37,7 +37,7 @@ export default defineConfig(({mode}) => {
                 const {status, json} = await handle(body, env, {
                   authorization: req.headers.authorization,
                   origin: req.headers.origin,
-                  purpose: purposeOf(req.headers['x-vetter-for']),
+                  purpose: purposeOf(req.headers['x-praxa-for']),
                 });
                 res.statusCode = status;
                 res.setHeader('Content-Type', 'application/json');

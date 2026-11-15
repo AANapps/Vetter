@@ -35,7 +35,7 @@ const COLS = {
   compact: 'grid-cols-[1.75rem_minmax(0,1fr)_3.5rem]',
 };
 
-// Vetter's leaderboard as a table: rank, candidate, score (with a thin bar) and, in full, time and date. Short boards
+// Praxa's leaderboard as a table: rank, candidate, score (with a thin bar) and, in full, time and date. Short boards
 // are padded out so they never look empty: the next place is open for the viewer to take, the rest not yet ranked
 export const LeaderboardTable: React.FC<LeaderboardTableProps> = ({
   entries,

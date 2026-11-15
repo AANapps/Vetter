@@ -1,7 +1,7 @@
 import { AssessmentTest, TestResult, User, VerifiedSkill, isPublic } from '../types';
 import { levelForScore } from '../data/seedCandidates';
 
-// Records a finished attempt. Only Vetter-made tests become verified skills; company tests are scored for their own jobs
+// Records a finished attempt. Only Praxa-made tests become verified skills; company tests are scored for their own jobs
 export function addTestResult(user: User, test: AssessmentTest, result: TestResult): User {
   const testResults = [...user.testResults, result];
   if (!isPublic(test)) return { ...user, testResults };

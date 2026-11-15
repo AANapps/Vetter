@@ -3,7 +3,7 @@ import { meter } from './meter.js';
 import { PRICES, apiFailure } from './generateTest.js';
 
 /**
- * When a company posts a job, reads the job description and picks the tests from Vetter's library (and the company's
+ * When a company posts a job, reads the job description and picks the tests from Praxa's library (and the company's
  * own) that fit it, each with a reason. The job form then asks the company whether to include them. It only reads and
  * picks, so it's quick, and free like the home chat.
  */
@@ -28,7 +28,7 @@ const schema = {
   additionalProperties: false,
 };
 
-const instructions = `You help a company that is posting a job on Vetter, a skills-testing platform for hiring. Read the job and pick
+const instructions = `You help a company that is posting a job on Praxa, a skills-testing platform for hiring. Read the job and pick
 the tests from THE LIBRARY that candidates for it should take: up to four, best first, by their exact id. Only pick a
 test that checks work this job really does day to day; a good candidate must look at it and think "yes, that's my job".
 First decide whether the job is desk work (done at a computer) or hands-on work (trades, clinical, dental and care,

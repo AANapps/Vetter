@@ -31,7 +31,7 @@ const Chips: React.FC<{ items: string[]; tone?: 'new' | 'plain'; max?: number }>
 );
 
 /**
- * The Vetter team's simulation library: every simulation built (for companies' tests and by the Vetter team) waits
+ * The Praxa team's simulation library: every simulation built (for companies' tests and by the Praxa team) waits
  * here to be tried and approved before it joins the library or becomes an app's next version. The team can also build
  * an app for the library, look through the library, and take an app out of it.
  */
@@ -185,7 +185,7 @@ export const SimulationLibraryAdmin: React.FC = () => {
         </h3>
       </div>
       <p className="text-xs text-slate-500">
-        One simulation per app. Every simulation Vetter builds, for a company's test or here, waits for you to try it. Approve a new app to add it to the library,
+        One simulation per app. Every simulation Praxa builds, for a company's test or here, waits for you to try it. Approve a new app to add it to the library,
         or new features to make them the app's next version. Every later test of that app is built on the latest version and adds to it.
       </p>
 

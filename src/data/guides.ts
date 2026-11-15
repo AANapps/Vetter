@@ -1,5 +1,5 @@
 /**
- * How-to guides: short, step-by-step pages on using Vetter, for companies and for candidates. Plain data, so the
+ * How-to guides: short, step-by-step pages on using Praxa, for companies and for candidates. Plain data, so the
  * build can also write each one as a static page for search engines (see seoPages.ts).
  */
 
@@ -26,15 +26,15 @@ export const GUIDE_AUDIENCES: { id: GuideAudience; label: string; intro: string 
 export const GUIDES: Guide[] = [
   {
     slug: 'get-started',
-    title: 'Get started with Vetter',
-    summary: 'Create a company account, tell Vetter about the role, and have your first test ready in minutes.',
+    title: 'Get started with Praxa',
+    summary: 'Create a company account, tell Praxa about the role, and have your first test ready in minutes.',
     audience: 'companies',
     minutes: 3,
     steps: [
-      { title: 'Create a company account', text: 'On Vetter’s home page, choose Hiring, then Join free. Sign up with your work email. No card is needed, and your first job is free.' },
-      { title: 'Tell Vetter what you’re hiring for', text: 'Your home page is a chat. Type the job title or paste the job description, and Vetter suggests how to test the role: which skills matter, at what level, and which tests cover them.' },
-      { title: 'Pick tests', text: 'Tick the ready-made tests from Vetter’s library that fit, add an AI-written test for anything they don’t cover, or both. Vetter then shows you a test plan to check.' },
-      { title: 'Post the job', text: 'Once the tests are ready, Vetter offers to post a job with them attached. Every applicant takes the tests, and you see them ranked by score.' },
+      { title: 'Create a company account', text: 'On Praxa’s home page, choose Hiring, then Join free. Sign up with your work email. No card is needed, and your first job is free.' },
+      { title: 'Tell Praxa what you’re hiring for', text: 'Your home page is a chat. Type the job title or paste the job description, and Praxa suggests how to test the role: which skills matter, at what level, and which tests cover them.' },
+      { title: 'Pick tests', text: 'Tick the ready-made tests from Praxa’s library that fit, add an AI-written test for anything they don’t cover, or both. Praxa then shows you a test plan to check.' },
+      { title: 'Post the job', text: 'Once the tests are ready, Praxa offers to post a job with them attached. Every applicant takes the tests, and you see them ranked by score.' },
     ],
     tips: ['Start with one real role you’re hiring for now. It’s the quickest way to see whether the results match your own judgement.'],
     next: ['create-a-test-from-a-job-description', 'post-a-job-and-invite-candidates'],
@@ -42,14 +42,14 @@ export const GUIDES: Guide[] = [
   {
     slug: 'create-a-test-from-a-job-description',
     title: 'Create a test from a job description',
-    summary: 'Paste a job description and Vetter’s AI writes a test and a hands-on job simulation built around it.',
+    summary: 'Paste a job description and Praxa’s AI writes a test and a hands-on job simulation built around it.',
     audience: 'companies',
     minutes: 4,
     steps: [
       { title: 'Paste the job description into the chat', text: 'On your home page, paste the description or describe the role in a few lines. The more you say about the day-to-day work, the closer the test gets to it.' },
-      { title: 'Choose the shape of the test', text: 'Tick the question types you want (multiple choice, written answers, coding, SQL, spreadsheet tasks, case studies, app simulations and more), how many questions, and the level. Leave anything unticked and Vetter decides.' },
-      { title: 'Check the plan', text: 'Vetter shows a blueprint first: what a good hire needs and which questions test each part. Change anything before it writes.' },
-      { title: 'Let Vetter write it', text: 'The test is written section by section and appears beside the chat as it goes. A typical AI test is about ten questions and 15 to 20 minutes long.' },
+      { title: 'Choose the shape of the test', text: 'Tick the question types you want (multiple choice, written answers, coding, SQL, spreadsheet tasks, case studies, app simulations and more), how many questions, and the level. Leave anything unticked and Praxa decides.' },
+      { title: 'Check the plan', text: 'Praxa shows a blueprint first: what a good hire needs and which questions test each part. Change anything before it writes.' },
+      { title: 'Let Praxa write it', text: 'The test is written section by section and appears beside the chat as it goes. A typical AI test is about ten questions and 15 to 20 minutes long.' },
       { title: 'Save it', text: 'Save the test to your Tests page, or keep it as a draft and come back to it later.' },
     ],
     tips: [
@@ -60,12 +60,12 @@ export const GUIDES: Guide[] = [
   },
   {
     slug: 'pick-tests-from-the-library',
-    title: 'Pick tests from Vetter’s library',
+    title: 'Pick tests from Praxa’s library',
     summary: 'Browse ready-made tests by industry and role, at four levels, and use them for free.',
     audience: 'companies',
     minutes: 2,
     steps: [
-      { title: 'Open your Tests page', text: 'Your own tests and Vetter’s library are in one list. Browse by industry and role, as candidates do, or search.' },
+      { title: 'Open your Tests page', text: 'Your own tests and Praxa’s library are in one list. Browse by industry and role, as candidates do, or search.' },
       { title: 'Choose the level', text: 'Most library tests come at four levels, and each level covers everything in the ones below it. Pick the level the job needs, not the highest one.' },
       { title: 'Open a test to see it', text: 'Every test has its own page with what it covers, how long it takes and how people have scored on it.' },
       { title: 'Add it to a job', text: 'Add the test to a job from the job’s page (Add tests), or tick it in the home chat when you plan a role.' },
@@ -76,12 +76,12 @@ export const GUIDES: Guide[] = [
   {
     slug: 'edit-a-test',
     title: 'Edit a test',
-    summary: 'Change a test by asking Vetter, or edit a hand-made test yourself, question by question.',
+    summary: 'Change a test by asking Praxa, or edit a hand-made test yourself, question by question.',
     audience: 'companies',
     minutes: 3,
     steps: [
       { title: 'Open the test from your Tests page', text: 'Your own tests open in the test chat, with the test beside it.' },
-      { title: 'Ask for what you want', text: 'Type the change: “make it harder”, “make it shorter”, “rewrite the weakest question”, “add a question on pivot tables”. Vetter changes the test and you see it update.' },
+      { title: 'Ask for what you want', text: 'Type the change: “make it harder”, “make it shorter”, “rewrite the weakest question”, “add a question on pivot tables”. Praxa changes the test and you see it update.' },
       { title: 'Set the time limit', text: 'Ask for a time limit, or for no limit at all. Candidates are told the limit before they start.' },
       { title: 'Change app simulations too', text: 'Open an app simulation beside the chat and say what to change, such as a missing button or a different data set.' },
       { title: 'Hand-made tests', text: 'A test you built yourself is edited by hand in the builder. Use Enhance with AI to move it to the test chat if you’d rather ask for changes.' },
@@ -111,10 +111,10 @@ export const GUIDES: Guide[] = [
     steps: [
       { title: 'Create the job', text: 'From Jobs, add a job, or let the home chat post one for you. Add the title, location, salary and description.' },
       { title: 'Attach the tests', text: 'Choose Add tests on the job. Set a pass mark, whether every test is required, and how many attempts a candidate gets.' },
-      { title: 'Share it', text: 'Your job is listed on your company page and Vetter’s job board, and given its own page that Google Jobs can list. Use Copy link to post it anywhere, or Email it to invite people directly.' },
+      { title: 'Share it', text: 'Your job is listed on your company page and Praxa’s job board, and given its own page that Google Jobs can list. Use Copy link to post it anywhere, or Email it to invite people directly.' },
       { title: 'Watch applications arrive', text: 'Every applicant takes the job’s tests before their application reaches you, so you only ever review people with a score.' },
     ],
-    tips: ['Candidates use Vetter free, so nobody drops out at a paywall before showing what they can do.'],
+    tips: ['Candidates use Praxa free, so nobody drops out at a paywall before showing what they can do.'],
     next: ['review-candidates-and-shortlist', 'anti-cheat-integrity-label'],
   },
   {
@@ -135,11 +135,11 @@ export const GUIDES: Guide[] = [
   {
     slug: 'anti-cheat-integrity-label',
     title: 'How anti-cheat and the integrity label work',
-    summary: 'What Vetter watches for during a test, how the label is worked out, and how to read it.',
+    summary: 'What Praxa watches for during a test, how the label is worked out, and how to read it.',
     audience: 'companies',
     minutes: 4,
     steps: [
-      { title: 'What’s recorded', text: 'While a candidate is in a test, Vetter records switching tab, switching to another window or app, time away from the test, resizing or narrowing the window to make room for something beside it, copying, pasting text from outside the test, right-clicking, screenshot keys and a change in connected screens.' },
+      { title: 'What’s recorded', text: 'While a candidate is in a test, Praxa records switching tab, switching to another window or app, time away from the test, resizing or narrowing the window to make room for something beside it, copying, pasting text from outside the test, right-clicking, screenshot keys and a change in connected screens.' },
       { title: 'What isn’t counted against them', text: 'Pasting something they copied inside the test, such as moving cells around a spreadsheet, is recorded but not treated as suspicious.' },
       { title: 'The label', text: 'Everything is weighed into one label: Clean, Low, Some, Suspicious or Highly suspicious. Where a candidate took several tests, the worst one counts as well as the total.' },
       { title: 'Read the detail', text: 'Open the label to see every count and a timeline showing which question was on screen when each thing happened.' },
@@ -154,12 +154,12 @@ export const GUIDES: Guide[] = [
   {
     slug: 'share-a-test-in-the-public-library',
     title: 'Share a test in the public library',
-    summary: 'Offer one of your tests to every company and candidate on Vetter, once the Vetter team approves it.',
+    summary: 'Offer one of your tests to every company and candidate on Praxa, once the Praxa team approves it.',
     audience: 'companies',
     minutes: 2,
     steps: [
       { title: 'Open the test’s page', text: 'From your Tests page, open the test you want to share.' },
-      { title: 'Ask to share it', text: 'Choose Share in the public library. The Vetter team checks it for quality and fairness.' },
+      { title: 'Ask to share it', text: 'Choose Share in the public library. The Praxa team checks it for quality and fairness.' },
       { title: 'Once approved', text: 'The test appears in the library for other companies to use and candidates to practise on, and says which company it came from.' },
       { title: 'If it isn’t approved', text: 'The test page says so. Change the test and choose Ask again.' },
     ],
@@ -171,14 +171,14 @@ export const GUIDES: Guide[] = [
     audience: 'companies',
     minutes: 2,
     steps: [
-      { title: 'See the cost first', text: 'Before Vetter writes or changes a test, the chat shows roughly what it will cost. Library tests are free.' },
+      { title: 'See the cost first', text: 'Before Praxa writes or changes a test, the chat shows roughly what it will cost. Library tests are free.' },
       { title: 'Top up', text: 'When credit runs low, choose Top up and pay by card. Credit is added straight away.' },
       { title: 'Track usage', text: 'Your credit page lists what each test and change cost, so you can see where it went.' },
     ],
   },
   {
     slug: 'take-a-test',
-    title: 'Take a test on Vetter',
+    title: 'Take a test on Praxa',
     summary: 'What happens before, during and after a test, and how to give yourself the best chance.',
     audience: 'candidates',
     minutes: 3,

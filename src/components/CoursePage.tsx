@@ -94,7 +94,7 @@ export const CoursePage: React.FC<CoursePageProps> = ({
               </div>
             </div>
 
-            {/* Price and sign-up: no checkout, the Vetter team contacts each person */}
+            {/* Price and sign-up: no checkout, the Praxa team contacts each person */}
             <div className="rounded-2xl bg-white text-slate-900 p-6 shadow-xl">
               <p className="text-3xl font-extrabold tracking-tight">{coursePriceLabel(course, money)}</p>
               <p className="mt-1 text-xs text-slate-500">Sign up and we'll contact you about start dates and payment.</p>
@@ -190,7 +190,7 @@ export const CoursePage: React.FC<CoursePageProps> = ({
             <section>
               <h2 className="text-xl font-bold text-slate-900">Get verified</h2>
               <p className="mt-1 text-sm text-slate-600">
-                Finish with these Vetter tests. Your scores go on your profile and with your applications, and companies on Vetter hire on them.
+                Finish with these Praxa tests. Your scores go on your profile and with your applications, and companies on Praxa hire on them.
               </p>
               <ul className="mt-4 space-y-2">
                 {courseTests.map((t, i) => {

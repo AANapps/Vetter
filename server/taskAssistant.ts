@@ -7,7 +7,7 @@ import { meter } from './meter.js';
  * and a weakness, such as an assumption it makes unless the candidate gives it the right context, so the test shows
  * whether they prompt well and check what comes back.
  *
- * Candidates call this during a test, so it's Vetter's cost (like marking), kept small: a quick model, short replies,
+ * Candidates call this during a test, so it's Praxa's cost (like marking), kept small: a quick model, short replies,
  * and caps on the conversation's length and every part of it, so it can't be used as a free general-purpose chatbot.
  */
 

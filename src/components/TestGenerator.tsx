@@ -14,9 +14,9 @@ import { CreditsDialog } from './CreditsDialog';
 import { CreditMeter, EXAMPLE_CREDIT } from './CreditMeter';
 
 interface TestGeneratorProps {
-  // The job the tests are for; without one, Vetter only writes a test
+  // The job the tests are for; without one, Praxa only writes a test
   job?: JobPosting;
-  // Who the new test belongs to: a company, or the Vetter library when undefined
+  // Who the new test belongs to: a company, or the Praxa library when undefined
   business?: Business;
   tests: AssessmentTest[];
   onOpenTest: (testId: string) => void;
@@ -24,7 +24,7 @@ interface TestGeneratorProps {
   // Saves the new test, told which kind it is; returns its id
   onSaveTest: (test: AssessmentTest, kind: TestKind) => string;
   onAddToJob: (jobId: string, testIds: string[]) => void;
-  // A saved test to change by asking Vetter: the chat starts from it, and saving updates it in place
+  // A saved test to change by asking Praxa: the chat starts from it, and saving updates it in place
   editing?: AssessmentTest;
   // Saves the changed test over the one being edited
   onUpdateTest: (test: AssessmentTest) => void;
@@ -38,9 +38,9 @@ interface TestGeneratorProps {
   resume?: TestDraft;
   // A first message, filled in ready to send or change
   seed?: string;
-  // Sends the first message straight away, so Vetter starts building as the chat opens
+  // Sends the first message straight away, so Praxa starts building as the chat opens
   autoSend?: boolean;
-  // What the company already settled in the home chat (its messages and picks), passed to Vetter so it isn't asked again
+  // What the company already settled in the home chat (its messages and picks), passed to Praxa so it isn't asked again
   background?: string;
   // A skills test or a job simulation; new ones are job simulations
   kind?: TestKind;
@@ -65,7 +65,7 @@ const countOf = (test: AssessmentTest) => test.questions.filter((q) => q.type !=
 const PICKABLE: QuestionType[] = ['choice', 'multi', 'text', 'written', 'order', 'match', 'email', 'assistant', 'case', 'sheet', 'database', 'app', 'code', 'sql'];
 const PICKABLE_STYLES = PICKABLE.map((type) => QUESTION_STYLES.find((s) => s.type === type)!).filter(Boolean);
 
-// Build a test by talking to Vetter: describe the job, get a draft, then ask for changes until it's right
+// Build a test by talking to Praxa: describe the job, get a draft, then ask for changes until it's right
 export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tests, onOpenTest, onSaveTest, onAddToJob, editing, onUpdateTest, onEditDraft, onSaveDraft, resume, seed, autoSend, background: backgroundGiven, kind: kindAsked, plan, planChat, onClose }) => {
   const background = backgroundGiven ?? resume?.background;
   // The saved test being changed, opened from its job or from a draft of changes to it
@@ -119,7 +119,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
   const [draftId] = useState(() => resume?.id ?? `draft-${Date.now()}`);
   const [input, setInput] = useState(seed ?? '');
   const [working, setWorking] = useState(false);
-  // What Vetter is doing right now, as it reports it
+  // What Praxa is doing right now, as it reports it
   const [stage, setStage] = useState('');
   // The build's major steps, ticked off as it goes
   const [steps, setSteps] = useState<BuildStep[]>([]);
@@ -129,12 +129,12 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
   // On phones the chat and the draft share the screen as tabs
   const [pane, setPane] = useState<'chat' | 'draft'>('chat');
   const [flash, setFlash] = useState(false);
-  // The question types Vetter may use, how many questions and the levels, each ticked in its own list; whatever's left
-  // unticked Vetter decides (a saved test being changed starts from what it has)
+  // The question types Praxa may use, how many questions and the levels, each ticked in its own list; whatever's left
+  // unticked Praxa decides (a saved test being changed starts from what it has)
   const [styles, setStyles] = useState<QuestionType[]>(() =>
     resume?.styles?.length ? resume.styles : original ? PICKABLE.filter((t) => original.questions.some((q) => q.type === t)) : []
   );
-  // How many questions: a number typed or stepped, or empty for Vetter to decide (drafts from when several could be
+  // How many questions: a number typed or stepped, or empty for Praxa to decide (drafts from when several could be
   // ticked keep a single pick)
   const [questionCount, setQuestionCount] = useState<number | undefined>(
     () => resume?.questionCount ?? (resume?.questionCounts?.length === 1 ? resume.questionCounts[0] : undefined) ?? (resume ? undefined : original ? countOf(original) : undefined)
@@ -156,7 +156,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
   // The levels in order; the highest names the test
   const pickedLevels = TEST_DIFFICULTIES.filter((d) => levels.includes(d));
   const difficulty = pickedLevels[pickedLevels.length - 1];
-  // The timer: minutes, no limit, or undefined for Vetter to size it from the questions
+  // The timer: minutes, no limit, or undefined for Praxa to size it from the questions
   const [timeLimit, setTimeLimitState] = useState<number | 'none' | undefined>(() => resume?.timeLimit ?? resume?.test.timeLimit ?? original?.timeLimit);
   // A timer is the test's own setting, not something to write: it's put on the draft straight away
   const setTimeLimit = (limit: number | 'none' | undefined) => {
@@ -187,12 +187,12 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
 
   const draft = chat.draft;
   const started = chat.messages.some((m) => m.role === 'user');
-  // Outside tech, app simulations come from Vetter's library rather than the company's AI
+  // Outside tech, app simulations come from Praxa's library rather than the company's AI
   const pickable = aiSimulationsFor(business) ? PICKABLE : PICKABLE.filter((t) => t !== 'app');
   const pickableStyles = PICKABLE_STYLES.filter((s) => pickable.includes(s.type));
   const toggleStyle = (type: QuestionType) => setStyles((prev) => (prev.includes(type) ? prev.filter((t) => t !== type) : PICKABLE.filter((t) => t === type || prev.includes(t))));
   const toggle = <T,>(set: React.Dispatch<React.SetStateAction<T[]>>, value: T) => set((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]));
-  // The types Vetter may use: any, when none are ticked
+  // The types Praxa may use: any, when none are ticked
   const allowed = styles.length ? styles.filter((t) => pickable.includes(t)) : pickable;
   // Questions in the draft of a type since turned off
   const offTypes = styles.length ? [...new Set((draft?.questions ?? []).filter((q) => !styles.includes(q.type)).map((q) => q.type))] : [];
@@ -346,7 +346,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
     }
     const reply = next?.messages[next.messages.length - 1];
     if (!next?.draft) {
-      setChat((c) => ({ ...c, messages: [...c.messages, { role: 'assistant', text: [reply?.text, reply?.note].filter(Boolean).join(' ') || "Vetter couldn't build that.", failed: true }] }));
+      setChat((c) => ({ ...c, messages: [...c.messages, { role: 'assistant', text: [reply?.text, reply?.note].filter(Boolean).join(' ') || "Praxa couldn't build that.", failed: true }] }));
       setWorking(false);
       return;
     }
@@ -412,7 +412,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
       ]
     : [];
 
-  // The company's own edits to the draft, made beside the chat; Vetter sees them on the next message
+  // The company's own edits to the draft, made beside the chat; Praxa sees them on the next message
   const editDraft = (test: AssessmentTest) => setChat((c) => ({ ...c, draft: test }));
   const unfinished = draft && keepNew ? draftProblems(draft) : 0;
   const addCount = chosen.length + (draft && keepNew ? 1 : 0);
@@ -447,12 +447,12 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
         <button onClick={() => setMinimised(false)} className="min-w-0 flex-1 text-left" title="Open">
           <span className="block text-[10px] font-semibold uppercase tracking-wider text-indigo-700">AI test builder</span>
           <span className="block text-sm font-semibold text-slate-900 truncate">{tabTitle}</span>
-          <span className="block text-xs text-slate-500 truncate">{working ? stage || 'Vetter is building it…' : draft ? 'Ready to look over and save' : 'Waiting for you'}</span>
+          <span className="block text-xs text-slate-500 truncate">{working ? stage || 'Praxa is building it…' : draft ? 'Ready to look over and save' : 'Waiting for you'}</span>
         </button>
         <button onClick={() => setMinimised(false)} aria-label="Open" title="Open" className="p-1.5 text-slate-500 hover:text-indigo-700 rounded-md hover:bg-slate-50">
           <Maximize2 className="w-4 h-4" />
         </button>
-        <button onClick={close} disabled={working} aria-label="Close" title={working ? 'Wait for Vetter to finish first' : 'Close'} className="p-1.5 text-slate-400 hover:text-slate-700 rounded-md hover:bg-slate-50 disabled:opacity-40">
+        <button onClick={close} disabled={working} aria-label="Close" title={working ? 'Wait for Praxa to finish first' : 'Close'} className="p-1.5 text-slate-400 hover:text-slate-700 rounded-md hover:bg-slate-50 disabled:opacity-40">
           <X className="w-4 h-4" />
         </button>
       </div>
@@ -474,7 +474,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
               </div>
               <p className="text-xs text-slate-500 truncate">
                 {draft?.title || original?.title || plan?.title || 'New test'}
-                {job ? ` · ${job.title}` : business ? ` · ${business.name}` : ' · Vetter test library'}
+                {job ? ` · ${job.title}` : business ? ` · ${business.name}` : ' · Praxa test library'}
               </p>
             </div>
           </div>
@@ -522,13 +522,13 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
           </div>
         </div>
 
-        {/* What Vetter may write, each a list to tick; whatever's left unticked Vetter decides. Locked while it works */}
+        {/* What Praxa may write, each a list to tick; whatever's left unticked Praxa decides. Locked while it works */}
         <div className="px-4 sm:px-5 py-2 border-b border-slate-200 bg-slate-50/80 flex flex-wrap items-center gap-2" aria-busy={working}>
           {kind !== 'standalone' && (
           <>
           <Dropdown label={<>Question types: <Summary text={styles.length ? summarise(styles.map((t) => PICKABLE_STYLES.find((s) => s.type === t)?.label ?? t)) : undefined} /></>} width="w-72" disabled={working}>
             {() => (
-              <PickList legend="Question types Vetter may use" picked={styles.length} onClear={() => setStyles([])}>
+              <PickList legend="Question types Praxa may use" picked={styles.length} onClear={() => setStyles([])}>
                 {pickableStyles.map((s) => (
                   <PickRow key={s.type} on={styles.includes(s.type)} title={s.hint} onChange={() => toggleStyle(s.type)}>
                     {s.label}
@@ -537,7 +537,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
               </PickList>
             )}
           </Dropdown>
-          {/* How many questions: typed, or stepped with the arrows (or the arrow keys); empty, Vetter decides */}
+          {/* How many questions: typed, or stepped with the arrows (or the arrow keys); empty, Praxa decides */}
           <div className={`flex items-center gap-1.5 text-xs font-semibold text-slate-700 ${working ? 'opacity-40' : ''}`}>
             <label htmlFor="question-count">Questions:</label>
             <div className="flex items-stretch rounded-lg bg-white ring-1 ring-slate-300 hover:ring-indigo-400 focus-within:ring-2 focus-within:ring-indigo-500 overflow-hidden">
@@ -546,7 +546,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                 type="text"
                 inputMode="numeric"
                 value={questionCount ?? ''}
-                placeholder="Vetter decides"
+                placeholder="Praxa decides"
                 disabled={working}
                 onChange={(e) => {
                   const digits = e.target.value.replace(/\D/g, '').slice(0, 2);
@@ -562,7 +562,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                 className="w-28 px-2 py-1 text-xs font-semibold text-slate-900 placeholder:font-normal placeholder:text-slate-500 bg-transparent focus:outline-none tabular-nums"
               />
               <span id="question-count-hint" className="sr-only">
-                From {MIN_COUNT} to {MAX_COUNT}. Leave it empty for Vetter to decide.
+                From {MIN_COUNT} to {MAX_COUNT}. Leave it empty for Praxa to decide.
               </span>
               <div className="flex flex-col border-l border-slate-200">
                 <button type="button" onClick={() => stepCount(1)} disabled={working || questionCount === MAX_COUNT} aria-label="One more question" className="px-1.5 flex-1 text-slate-500 hover:bg-slate-50 hover:text-indigo-700 disabled:opacity-30">
@@ -574,7 +574,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
               </div>
             </div>
             {questionCount !== undefined && (
-              <button type="button" onClick={() => setQuestionCount(undefined)} disabled={working} aria-label="Clear: let Vetter decide" title="Let Vetter decide" className="text-slate-400 hover:text-slate-700">
+              <button type="button" onClick={() => setQuestionCount(undefined)} disabled={working} aria-label="Clear: let Praxa decide" title="Let Praxa decide" className="text-slate-400 hover:text-slate-700">
                 <X className="w-3.5 h-3.5" />
               </button>
             )}
@@ -583,7 +583,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
           )}
           <Dropdown label={<>Time limit: <Summary text={timeLimit === 'none' ? 'None' : timeLimit ? `${timeLimit} min` : undefined} /></>} width="w-56" disabled={working}>
             {(close) => (
-              <PickList legend="Time limit" picked={timeLimit === undefined ? 0 : 1} onClear={() => (setTimeLimit(undefined), close())} note="Vetter decides: the time the questions add up to.">
+              <PickList legend="Time limit" picked={timeLimit === undefined ? 0 : 1} onClear={() => (setTimeLimit(undefined), close())} note="Praxa decides: the time the questions add up to.">
                 {timerOptions.map((n) => (
                   <PickRow key={n} type="radio" on={timeLimit === n} onChange={() => (setTimeLimit(n), close())}>
                     {n < 60 || n % 60 ? `${n} minutes` : `${n / 60} ${n === 60 ? 'hour' : 'hours'}`}
@@ -728,12 +728,12 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                       send(input);
                     }
                   }}
-                  aria-label="Message Vetter"
+                  aria-label="Message Praxa"
                   placeholder={focus ? `Ask for a change to ${focus.app}, e.g. "add a refunds screen"` : draft ? 'Ask for a change, e.g. "make question 2 harder"' : job ? 'What matters most in this hire?' : 'Describe the role or the test you want'}
                   className="flex-1 resize-none px-2 py-1.5 text-sm leading-relaxed text-slate-900 bg-transparent focus:outline-none"
                 />
                 {working ? (
-                  <button type="button" onClick={stop} aria-label="Stop" title="Stop Vetter making any more" className="p-2 rounded-lg bg-slate-800 text-white hover:bg-slate-900">
+                  <button type="button" onClick={stop} aria-label="Stop" title="Stop Praxa making any more" className="p-2 rounded-lg bg-slate-800 text-white hover:bg-slate-900">
                     <Square className="w-5 h-5 fill-current" />
                   </button>
                 ) : (
@@ -752,7 +752,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
               detail={draft ? `${countOf(draft)} ${countOf(draft) === 1 ? 'question' : 'questions'} · about ${minutesOf(draft)} min` : working ? 'Building…' : 'Appears here as candidates will see it'}
             />
             <div className="relative flex-1 min-h-0">
-            {/* While Vetter works on a draft already there, the building card sits over it, the draft blurred behind */}
+            {/* While Praxa works on a draft already there, the building card sits over it, the draft blurred behind */}
             {working && draft && (
               <div className="absolute inset-0 z-10 p-4 flex items-center justify-center build-veil">
                 <BuildingCard title={buildingTitle} stage={stage} steps={steps} />
@@ -805,7 +805,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                   <div className="h-full flex flex-col items-center justify-center text-center gap-2 py-12">
                     <p className="text-base font-semibold text-slate-700">Your test appears here, as candidates will see it</p>
                     <p className="text-sm text-slate-500 max-w-sm">
-                      Every question Vetter writes is checked before it shows: coding answers and SQL queries are run, app simulations are tried out, and anything that fails is left out.
+                      Every question Praxa writes is checked before it shows: coding answers and SQL queries are run, app simulations are tried out, and anything that fails is left out.
                       You can edit any question yourself as you go.
                     </p>
                   </div>
@@ -823,18 +823,18 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
   );
 };
 
-// A pill to pick a question type, a number or a level; greyed out and unclickable while Vetter is working
-// What's ticked in a list, or that Vetter decides
-const Summary: React.FC<{ text?: string }> = ({ text }) => <span className={text ? 'text-slate-900' : 'font-normal text-slate-500'}>{text ?? 'Vetter decides'}</span>;
+// A pill to pick a question type, a number or a level; greyed out and unclickable while Praxa is working
+// What's ticked in a list, or that Praxa decides
+const Summary: React.FC<{ text?: string }> = ({ text }) => <span className={text ? 'text-slate-900' : 'font-normal text-slate-500'}>{text ?? 'Praxa decides'}</span>;
 const summarise = (labels: string[]) => (labels.length <= 2 ? labels.join(', ') : `${labels[0]} + ${labels.length - 1} more`);
 
-// A list of options to tick, with a way back to letting Vetter decide
+// A list of options to tick, with a way back to letting Praxa decide
 const PickList: React.FC<{ legend: string; picked: number; onClear: () => void; note?: string; children: React.ReactNode }> = ({ legend, picked, onClear, note, children }) => (
   <fieldset className="p-1.5 max-h-80 overflow-y-auto">
     <legend className="sr-only">{legend}</legend>
     <button type="button" onClick={onClear} className={`w-full text-left px-2.5 py-1.5 rounded-lg text-sm flex items-center gap-2 hover:bg-slate-100 ${picked ? 'text-slate-600' : 'font-semibold text-indigo-700'}`}>
       <span className={`w-4 h-4 rounded-full border flex items-center justify-center ${picked ? 'border-slate-300' : 'border-indigo-600 bg-indigo-600 text-white'}`}>{!picked && <Check className="w-3 h-3" />}</span>
-      Let Vetter decide
+      Let Praxa decide
     </button>
     <div className="my-1 border-t border-slate-100" />
     {children}
@@ -849,7 +849,7 @@ const PickRow: React.FC<{ on: boolean; title?: string; type?: 'checkbox' | 'radi
   </label>
 );
 
-// Tests from Vetter's library that suit the job, ticked to add alongside the new one
+// Tests from Praxa's library that suit the job, ticked to add alongside the new one
 const LibraryPicks: React.FC<{
   job: JobPosting;
   existing: ChatState['existing'];
@@ -862,7 +862,7 @@ const LibraryPicks: React.FC<{
   <div className="max-h-[60vh] overflow-y-auto">
     <h3 className="px-4 pt-3 pb-1 text-sm font-bold text-slate-900 flex items-center gap-1.5">
       <Library className="w-4 h-4 text-indigo-600" />
-      Also from Vetter's library
+      Also from Praxa's library
     </h3>
     <ul className="divide-y divide-slate-100">
       {setKeepNew && (
@@ -908,7 +908,7 @@ const PanelHeader: React.FC<{ title: string; detail?: string }> = ({ title, deta
   </div>
 );
 
-// Vetter in the chat: a V where the avatar goes, pulsing while it works
+// Praxa in the chat: a V where the avatar goes, pulsing while it works
 const VAvatar: React.FC<{ pulse?: boolean }> = ({ pulse }) => (
   <span
     aria-hidden="true"
@@ -918,7 +918,7 @@ const VAvatar: React.FC<{ pulse?: boolean }> = ({ pulse }) => (
   </span>
 );
 
-// What Vetter is doing right now, only ever the step it's really on (sent as each one starts), with how long it's been
+// What Praxa is doing right now, only ever the step it's really on (sent as each one starts), with how long it's been
 // going, since a thorough test takes a few minutes
 const WorkingStep: React.FC<{ stage: string }> = ({ stage }) => {
   const [seconds, setSeconds] = useState(0);

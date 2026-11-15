@@ -10,7 +10,7 @@ import { aiFetch } from '../lib/aiRequest';
 import { Suggestion, matchExisting } from '../lib/testGeneration';
 
 interface JobFormProps {
-  // The companies the job can be posted for: a company posts for itself, the Vetter team for any company
+  // The companies the job can be posted for: a company posts for itself, the Praxa team for any company
   businesses: Business[];
   postedBy: NonNullable<JobPosting['postedBy']>;
   tests: AssessmentTest[];
@@ -23,7 +23,7 @@ interface JobFormProps {
 const inputClass =
   'w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100';
 
-// The one job form, used by companies and by the Vetter team
+// The one job form, used by companies and by the Praxa team
 export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, onSave, onCancel, initialTestIds = [] }) => {
   const [businessId, setBusinessId] = useState(businesses[0]?.id ?? '');
   const business = businesses.find((b) => b.id === businessId) ?? businesses[0];
@@ -34,7 +34,7 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
   // Starts in the company's sector; a job can be listed under another
   const [pickedSector, setSector] = useState<SectorId | ''>('');
   const sector = pickedSector || business?.sector || '';
-  // Each Vetter test once, in the job's sector only; its level is chosen when it's ticked
+  // Each Praxa test once, in the job's sector only; its level is chosen when it's ticked
   const vetterTests = tests.filter((t) => isPublic(t) && isMainVersion(t) && t.businessId !== business?.id && inCompanySector(sector)(t));
   // Every field the job board filters on is asked for here, so new jobs filter like the seeded ones
   const [location, setLocation] = useState(CITIES[business?.headquarters ?? ''] ? business!.headquarters : 'San Francisco, CA');
@@ -71,7 +71,7 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
   const updatePick = (testId: string, change: Partial<Pick>) => {
     setPicked((prev) => ({ ...prev, [testId]: { ...prev[testId], ...change } }));
   };
-  // Posting first asks Vetter's AI which tests fit the job description, and the company says whether to include them.
+  // Posting first asks Praxa's AI which tests fit the job description, and the company says whether to include them.
   // Asked once per title and description, so posting again after answering doesn't ask again
   const [suggested, setSuggested] = useState<Suggestion[] | null>(null);
   const [include, setInclude] = useState<string[]>([]);
@@ -204,7 +204,7 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
                   </option>
                 ))}
               </select>
-              <p className="text-[11px] text-slate-500 mt-1">The job is listed under this company, marked as posted by Vetter.</p>
+              <p className="text-[11px] text-slate-500 mt-1">The job is listed under this company, marked as posted by Praxa.</p>
             </div>
           )}
 
@@ -326,7 +326,7 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
 
             {[
               { label: businesses.length === 1 ? 'Your tests' : `${business?.name}'s tests`, list: companyTests },
-              { label: 'Vetter tests', list: vetterTests },
+              { label: 'Praxa tests', list: vetterTests },
             ]
               .filter((g) => g.list.length > 0)
               .map((group) => (
@@ -414,12 +414,12 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
           </fieldset>
 
           {suggested ? (
-            // Vetter's suggestions from the job description: the company decides whether they go on the job
+            // Praxa's suggestions from the job description: the company decides whether they go on the job
             <div className="p-3 border border-indigo-200 bg-indigo-50 rounded-xl space-y-2.5" role="dialog" aria-label="Suggested tests">
               <div className="flex items-start gap-2">
                 <Sparkles className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
                 <p className="text-xs text-slate-800">
-                  <span className="font-semibold">Vetter read your job description and suggests {suggested.length === 1 ? 'this test' : 'these tests'}.</span>{' '}
+                  <span className="font-semibold">Praxa read your job description and suggests {suggested.length === 1 ? 'this test' : 'these tests'}.</span>{' '}
                   Do you want to include {suggested.length === 1 ? 'it' : 'them'}?
                 </p>
               </div>

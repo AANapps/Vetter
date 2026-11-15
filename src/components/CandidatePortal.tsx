@@ -195,12 +195,12 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
     setTimeout(() => setAppliedNotification(null), 3500);
   };
 
-  // Vetter-made tests are open to everyone; company tests are taken through the jobs they're attached to
+  // Praxa-made tests are open to everyone; company tests are taken through the jobs they're attached to
   // Each test is listed once; its levels are picked on the card
-  const allVetterVersions = tests.filter((t) => isPublic(t));
-  const vetterTests = allVetterVersions.filter((t) => isMainVersion(t) && (sector === 'all' || testInSector(sector)(t)));
+  const allPraxaVersions = tests.filter((t) => isPublic(t));
+  const vetterTests = allPraxaVersions.filter((t) => isMainVersion(t) && (sector === 'all' || testInSector(sector)(t)));
   const roleGroups = ROLE_GROUPS.filter((g) => industryInSector(sector)(g.industry));
-  const testDifficulties = TEST_DIFFICULTIES.filter((d) => allVetterVersions.some((t) => t.difficulty === d));
+  const testDifficulties = TEST_DIFFICULTIES.filter((d) => allPraxaVersions.some((t) => t.difficulty === d));
   const filteredTests = vetterTests.filter((t) => {
     const versions = levelsOf(t, tests);
     if (testField && !t.roles?.some((r) => testField.roles.includes(r))) return false;
@@ -443,7 +443,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-base font-bold text-slate-900">Experience</h2>
-            <p className="text-xs text-slate-500">Your jobs, how you'd like to work and where to see more. Companies see this on your profile; verified skills come from Vetter's tests.</p>
+            <p className="text-xs text-slate-500">Your jobs, how you'd like to work and where to see more. Companies see this on your profile; verified skills come from Praxa's tests.</p>
           </div>
           <button
             onClick={() => setEditingExperience(true)}
@@ -468,7 +468,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
         <div>
           <h2 className="text-base font-bold text-slate-900">Skills</h2>
           <p className="text-xs text-slate-500">
-            List what you can do. Companies see these on your profile as your own claim; ones a Vetter test has verified get a tick.
+            List what you can do. Companies see these on your profile as your own claim; ones a Praxa test has verified get a tick.
           </p>
         </div>
         <SkillList skills={candidate.skills ?? []} verified={candidate.verifiedSkills.map((v) => v.skillName)} onChange={onUpdateSkills} />
@@ -540,12 +540,12 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
             </div>
           </div>
 
-          {/* Every test taken, Vetter's and companies' */}
+          {/* Every test taken, Praxa's and companies' */}
           <div className="space-y-3">
             <div>
               <h2 className="text-base font-bold text-slate-900">Your tests</h2>
               <p className="text-xs text-slate-500">
-                Everything you've taken, every attempt. Others see your Vetter tests; results on a company's test go to that company only. You can hide a test from your public profile, but companies still see it.
+                Everything you've taken, every attempt. Others see your Praxa tests; results on a company's test go to that company only. You can hide a test from your public profile, but companies still see it.
               </p>
             </div>
             <TestHistory
@@ -841,7 +841,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
         </div>
       )}
 
-      {/* SECTION 3: VETTER TESTS */}
+      {/* SECTION 3: PRAXA TESTS */}
       {view === 'tests' && (
         <div className="grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)] gap-6 items-start">
           {/* Browse by industry and role */}
@@ -1001,7 +1001,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
             <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-slate-500">
               <DemandBadge demand={{ level: 'high', reason: 'Fastest-growing roles', source: 'LinkedIn Jobs on the Rise 2026' }} />
               <DemandBadge demand={{ level: 'rising', reason: 'Growing fast', source: 'WEF and US BLS' }} />
-              <span>Hiring demand for the roles each test is for, from {DEMAND_SOURCES}. The briefcase counts open jobs on Vetter using the test.</span>
+              <span>Hiring demand for the roles each test is for, from {DEMAND_SOURCES}. The briefcase counts open jobs on Praxa using the test.</span>
             </p>
           </div>
 
@@ -1064,7 +1064,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                         { Icon: ListChecks, value: t.totalQuestions, label: `${t.totalQuestions} tasks` },
                         { Icon: Users, value: stats.candidatesRanked, label: `${stats.candidatesRanked} ranked, average ${stats.averageScore}` },
                         ...(jobsUsing(main, tests, jobs) > 0
-                          ? [{ Icon: Briefcase, value: jobsUsing(main, tests, jobs), label: `Used by ${jobsUsing(main, tests, jobs)} open ${jobsUsing(main, tests, jobs) === 1 ? 'job' : 'jobs'} on Vetter` }]
+                          ? [{ Icon: Briefcase, value: jobsUsing(main, tests, jobs), label: `Used by ${jobsUsing(main, tests, jobs)} open ${jobsUsing(main, tests, jobs) === 1 ? 'job' : 'jobs'} on Praxa` }]
                           : []),
                         bestScore !== undefined
                           ? { Icon: Trophy, value: bestScore, label: `Your best: ${bestScore}/100` }

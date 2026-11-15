@@ -26,11 +26,11 @@ const specModel = (env: Env) => env.SPEC_MODEL || 'claude-opus-5-5';
 export interface RequestMeta {
   authorization?: string;
   origin?: string;
-  // The test a request is for (the X-Vetter-For header), named in the company's usage
+  // The test a request is for (the X-Praxa-For header), named in the company's usage
   purpose?: string;
 }
 
-// The X-Vetter-For header as sent (URI-encoded, so any title fits in a header)
+// The X-Praxa-For header as sent (URI-encoded, so any title fits in a header)
 export const purposeOf = (header: string | string[] | undefined) => {
   try {
     return decodeURIComponent(String(Array.isArray(header) ? header[0] : header ?? '')).replace(/\s+/g, ' ').trim().slice(0, 120);
@@ -40,7 +40,7 @@ export const purposeOf = (header: string | string[] | undefined) => {
 };
 type Handler = (body: unknown, env: Env, meta?: RequestMeta) => Promise<{ status: number; json: unknown }>;
 
-const BUSY = "Vetter's AI is busy right now. Nothing is lost: try again in a little while.";
+const BUSY = "Praxa's AI is busy right now. Nothing is lost: try again in a little while.";
 
 // Failures are logged with their reason, so a request that didn't work can be traced
 const logged =
@@ -52,7 +52,7 @@ const logged =
   };
 
 // Writing tests is paid for from the company's credit (server/credits.ts): it needs some left to start, and is charged
-// what it really cost once it's done. The Vetter team isn't charged; with no Stripe key set up, nobody is
+// what it really cost once it's done. The Praxa team isn't charged; with no Stripe key set up, nobody is
 const billed =
   (name: string, handler: Handler): Handler =>
   async (body, env, meta) => {
@@ -114,7 +114,7 @@ export const API_ROUTES: Record<string, Handler> = {
   // Each interactive page is designed first at high effort (its own request, so the thinking gets its own time limit),
   // then built from that design. DESIGN_MODEL sets another model
   '/api/design-app': logged('design-app', billed('design-app', (body, env) => designApp(body, env.ANTHROPIC_API_KEY, env.DESIGN_MODEL || testModel(env)))),
-  // A saved simulation from Vetter's environment library to build a new page on, when one is the same kind of product;
+  // A saved simulation from Praxa's environment library to build a new page on, when one is the same kind of product;
   // a quick model reading short summaries
   '/api/match-environment': logged('match-environment', billed('match-environment', (body, env) => matchEnvironment(body, env.ANTHROPIC_API_KEY, env.MATCH_MODEL || 'claude-haiku-5-5'))),
   // Each interactive page of a test, built in its own request so a long test fits the host's time limit
@@ -124,10 +124,10 @@ export const API_ROUTES: Record<string, Handler> = {
   '/api/test-advisor': logged('test-advisor', (body, env) => testAdvisor(body, env.ANTHROPIC_API_KEY, env.ADVISOR_MODEL || 'claude-sonnet-5-5')),
   // The library tests that fit a job being posted, from its description; free, like the home chat
   '/api/suggest-tests': logged('suggest-tests', (body, env) => suggestTests(body, env.ANTHROPIC_API_KEY, env.ADVISOR_MODEL || 'claude-sonnet-5-5')),
-  // The assistant candidates work with in an AI-assisted task: Vetter's cost, like marking, on a quick model by default
+  // The assistant candidates work with in an AI-assisted task: Praxa's cost, like marking, on a quick model by default
   '/api/task-assistant': logged('task-assistant', (body, env) => taskAssistant(body, env.ANTHROPIC_API_KEY, env.ASSISTANT_MODEL || 'claude-haiku-5-5')),
   // Programs in languages the browser can't run (Java, C#, C++, Go...), on Judge0; signed-in people only, rate-limited
   '/api/run-code': logged('run-code', (body, env, meta) => runCode(body, env, meta?.authorization)),
-  // Marking a candidate's answers is Vetter's cost, not the company's credit
+  // Marking a candidate's answers is Praxa's cost, not the company's credit
   '/api/grade-answers': logged('grade-answers', (body, env) => gradeAnswers(body, env.ANTHROPIC_API_KEY, env.GRADING_MODEL || testModel(env))),
 };

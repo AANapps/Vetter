@@ -27,7 +27,7 @@ interface VisitorHomeProps {
 // The switch at the top of the home page between its two sides: a glass pill whose dark thumb slides between them
 const AudienceSwitch: React.FC<{ audience: HomeAudience; onChange: (a: HomeAudience) => void }> = ({ audience, onChange }) => (
   <div className="pt-8 sm:pt-10 flex justify-center px-4 relative z-10">
-    <div role="tablist" aria-label="Who Vetter is for" className="ai-chip !p-1 !gap-0 text-sm font-medium">
+    <div role="tablist" aria-label="Who Praxa is for" className="ai-chip !p-1 !gap-0 text-sm font-medium">
       {(
         [
           ['candidates', 'Looking for work'],
@@ -53,7 +53,7 @@ const STEPS = [
   { icon: ClipboardCheck, title: 'Take a free test', text: 'Short tests and job simulations, 10 to 25 minutes, in the skills jobs actually ask for.' },
   { icon: Sparkles, title: 'AI marks every answer', text: 'Code and SQL are run and checked; written answers are marked by AI with partial credit and feedback. Typos don’t cost marks.' },
   { icon: BadgeCheck, title: 'Get a verified score', text: 'Your score and rank go on your profile, so you never have to prove the same skill twice.' },
-  { icon: Briefcase, title: 'Apply with it', text: 'Companies on Vetter hire on test results. Your score goes with every application.' },
+  { icon: Briefcase, title: 'Apply with it', text: 'Companies on Praxa hire on test results. Your score goes with every application.' },
 ];
 
 // The four steps beside a line that draws itself as you scroll down them
@@ -93,7 +93,7 @@ const HowItWorks: React.FC = () => {
 };
 
 // What a signed-out visitor sees first, tailored to who they are: for people looking for work, how it works, what a
-// test asks and real tests and jobs; for companies hiring, everything about hiring on Vetter, with the plans
+// test asks and real tests and jobs; for companies hiring, everything about hiring on Praxa, with the plans
 export const VisitorHome: React.FC<VisitorHomeProps> = ({ audience, onAudienceChange, tests, jobs, onOpenTest, onOpenJob, onGoTo, onJoin, onOpenGuide }) => {
   const { ref: heroRef, y: heroY } = useParallax(-60);
   if (audience === 'business') {
@@ -104,7 +104,7 @@ export const VisitorHome: React.FC<VisitorHomeProps> = ({ audience, onAudienceCh
       </div>
     );
   }
-  // Vetter's own tests, one per family (not every level of each)
+  // Praxa's own tests, one per family (not every level of each)
   const popularTests = tests.filter((t) => isPublic(t) && (!t.familyId || t.familyId === t.id)).slice(0, 6);
   const latestJobs = [...jobs].sort((a, b) => b.postedDate.localeCompare(a.postedDate)).slice(0, 4);
 
@@ -121,7 +121,7 @@ export const VisitorHome: React.FC<VisitorHomeProps> = ({ audience, onAudienceCh
         </div>
         <AudienceSwitch audience={audience} onChange={onAudienceChange} />
 
-        {/* Hero: what Vetter is for people looking for work, beside the AI marking a written answer */}
+        {/* Hero: what Praxa is for people looking for work, beside the AI marking a written answer */}
         <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-12 sm:pt-16 pb-20 grid gap-12 lg:grid-cols-[1.15fr_1fr] items-center">
           <div className="text-center lg:text-left">
             <Reveal y={10}>
@@ -229,7 +229,7 @@ export const VisitorHome: React.FC<VisitorHomeProps> = ({ audience, onAudienceCh
         <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-24">
           <Reveal className="flex items-end justify-between gap-4">
             <div>
-              <h2 className="text-3xl sm:text-4xl font-semibold tracking-tighter text-slate-900">Hiring on Vetter</h2>
+              <h2 className="text-3xl sm:text-4xl font-semibold tracking-tighter text-slate-900">Hiring on Praxa</h2>
               <p className="mt-2 text-slate-600">Jobs where your test score counts.</p>
             </div>
             <button onClick={() => onGoTo('jobs')} className="group shrink-0 inline-flex items-center gap-1 text-sm font-medium text-slate-900">
@@ -272,7 +272,7 @@ export const VisitorHome: React.FC<VisitorHomeProps> = ({ audience, onAudienceCh
             </h2>
             <p className="mt-4 text-slate-300 max-w-xl mx-auto">Join free, take your first test in minutes, and get seen by companies hiring on skill.</p>
             <button onClick={() => onJoin()} className="group mt-8 inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white text-slate-900 text-sm font-medium">
-              Join Vetter free <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
+              Join Praxa free <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
             </button>
           </div>
         </Reveal>

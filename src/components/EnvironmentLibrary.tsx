@@ -13,18 +13,18 @@ const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
 };
 
 const STATUS: Record<string, { label: string; tone: string }> = {
-  pending: { label: 'Waiting for Vetter to review', tone: 'bg-amber-50 text-amber-800 border-amber-200' },
+  pending: { label: 'Waiting for Praxa to review', tone: 'bg-amber-50 text-amber-800 border-amber-200' },
   approved: { label: 'In the library', tone: 'bg-emerald-50 text-emerald-800 border-emerald-200' },
   rejected: { label: 'Not added', tone: 'bg-slate-100 text-slate-600 border-slate-200' },
 };
 
 /**
- * The environments tests are worked in: Vetter's built-in ones, and the library of app simulations, one per app, that
+ * The environments tests are worked in: Praxa's built-in ones, and the library of app simulations, one per app, that
  * every test using the app builds on and adds to. A company sees the apps in the library and what its own tests sent
- * for review; the Vetter team reviews and runs the library here too.
+ * for review; the Praxa team reviews and runs the library here too.
  */
-export const EnvironmentLibrary: React.FC<{ isVetter: boolean }> = ({ isVetter }) => {
-  const { environments, submissions, loading } = useLibrary(isVetter ? false : 'mine');
+export const EnvironmentLibrary: React.FC<{ isPraxa: boolean }> = ({ isPraxa }) => {
+  const { environments, submissions, loading } = useLibrary(isPraxa ? false : 'mine');
 
   return (
     <section className="space-y-4" aria-labelledby="environments-heading">
@@ -34,8 +34,8 @@ export const EnvironmentLibrary: React.FC<{ isVetter: boolean }> = ({ isVetter }
           Environments
         </h2>
         <p className="text-xs text-slate-500 max-w-2xl">
-          Where candidates do the work. Vetter keeps one simulation of each app. A test that uses an app is built on it and adds the features it needs, and once
-          Vetter has checked them they're part of the app for every test after.
+          Where candidates do the work. Praxa keeps one simulation of each app. A test that uses an app is built on it and adds the features it needs, and once
+          Praxa has checked them they're part of the app for every test after.
         </p>
       </div>
 
@@ -59,7 +59,7 @@ export const EnvironmentLibrary: React.FC<{ isVetter: boolean }> = ({ isVetter }
         })}
       </ul>
 
-      {isVetter ? (
+      {isPraxa ? (
         <SimulationLibraryAdmin />
       ) : (
         <>
@@ -71,7 +71,7 @@ export const EnvironmentLibrary: React.FC<{ isVetter: boolean }> = ({ isVetter }
               <p className="text-xs text-slate-500">Loading…</p>
             ) : environments.length === 0 ? (
               <p className="bg-white border border-dashed border-slate-300 rounded-xl px-5 py-6 text-center text-sm text-slate-500">
-                None yet. The first time a test needs an app (Meta Ads Manager, Salesforce, a till), Vetter builds it, checks it and keeps it here.
+                None yet. The first time a test needs an app (Meta Ads Manager, Salesforce, a till), Praxa builds it, checks it and keeps it here.
               </p>
             ) : (
               <ul className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">

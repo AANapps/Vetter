@@ -21,7 +21,7 @@ interface BusinessHomeProps {
   // How many tests the company has written, and drafts it's still writing
   ownTestCount: number;
   draftCount: number;
-  // AI test creation comes with a paid plan (the Vetter team always has it); the advice here doesn't need one
+  // AI test creation comes with a paid plan (the Praxa team always has it); the advice here doesn't need one
   aiAllowed: boolean;
   planName: string;
   // The conversation, kept by the app so it survives moving between pages
@@ -50,7 +50,7 @@ interface BusinessHomeProps {
   onSeePlans: () => void;
   onOpenTest: (testId: string) => void;
   onGoTo: (tab: 'business-jobs' | 'business-tests' | 'business-candidates') => void;
-  // Everyone on Vetter, for the chat to suggest when the company asks to see candidates
+  // Everyone on Praxa, for the chat to suggest when the company asks to see candidates
   candidates: User[];
   // A candidate's profile in a pop-up over the chat
   renderProfile: (personId: string, onClose: () => void) => React.ReactNode;
@@ -58,14 +58,14 @@ interface BusinessHomeProps {
   onInvite: (jobId: string, candidateId: string) => void;
 }
 
-// Outside tech the AI writes every kind of question but app simulations (those come from Vetter's library)
+// Outside tech the AI writes every kind of question but app simulations (those come from Praxa's library)
 const NO_APP_STYLES: QuestionType[] = ['choice', 'multi', 'text', 'written', 'order', 'match', 'email', 'assistant', 'case', 'sheet', 'database', 'code', 'sql'];
 
 // The chat so far as the test writer is told it, so it doesn't ask again what the company already said
 const chatSummary = (turns: AdvisorTurn[]) =>
   turns
     .slice(-16)
-    .map((t) => (t.role === 'user' ? `Company: ${t.text}` : `Vetter: ${t.text}${t.brief ? `\n(The role: ${t.brief})` : ''}`))
+    .map((t) => (t.role === 'user' ? `Company: ${t.text}` : `Praxa: ${t.text}${t.brief ? `\n(The role: ${t.brief})` : ''}`))
     .join('\n')
     .slice(-5000);
 
@@ -77,7 +77,7 @@ const STARTERS = [
   'Train my support team on Zendesk',
 ];
 
-// A company's home: a chat with Vetter about who they're hiring, which answers with a roadmap, the library tests that
+// A company's home: a chat with Praxa about who they're hiring, which answers with a roadmap, the library tests that
 // fit and custom pieces worth building. The menu sits on the left
 export const BusinessHome: React.FC<BusinessHomeProps> = ({
   business,
@@ -149,18 +149,18 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
     wantExisting: false,
     tests,
     business,
-    // Outside tech, app simulations come from Vetter's library, so the AI writes every other kind of question
+    // Outside tech, app simulations come from Praxa's library, so the AI writes every other kind of question
     styles: aiSimulationsFor(business) ? [] : NO_APP_STYLES,
     background: chatSummary(turns),
   });
-  // Before anything is written, Vetter plans the test and lists every question in the chat; each message after that
+  // Before anything is written, Praxa plans the test and lists every question in the chat; each message after that
   // changes the plan, until the company presses Build
   const runPlan = async (text: string, kind: TestKind, base: ChatState, current?: TestPlan) => {
     const signal = startAiRun().signal;
     onBuild({ chat: base, kind, planning: true, plan: current, working: true, stage: '' });
     const out = await proposePlan(base, text, testContext(kind), current, (stage) => {
       if (!signal.aborted) onBuild((b) => b && { ...b, stage });
-    }).catch(() => ({ state: base, plan: undefined, failure: "Couldn't reach Vetter's AI. Check your connection and try again." }));
+    }).catch(() => ({ state: base, plan: undefined, failure: "Couldn't reach Praxa's AI. Check your connection and try again." }));
     if (signal.aborted) {
       onBuild(current ? { chat: base, kind, planning: true, plan: current, working: false } : null);
       onTurns((prev) => [...prev, { role: 'assistant', text: current ? 'Stopped. The plan is as it was.' : 'Stopped. Nothing was planned.' }]);
@@ -213,7 +213,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
     onTurns((prev) => [...prev, reply]);
     setThinking(false);
     inputRef.current?.focus();
-    // Once the chat knows what to make, Vetter plans it straight away and lists every question
+    // Once the chat knows what to make, Praxa plans it straight away and lists every question
     if (aiAllowed && !reply.error && reply.brief && (reply.intent === 'test' || reply.intent === 'both' || reply.intent === 'training'))
       runPlan(reply.intent === 'training' ? reply.brief : buildBrief(reply), reply.intent === 'training' ? 'training' : 'simulation', { messages: [], existing: [] });
   };
@@ -265,12 +265,12 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
             <div className="pt-10 sm:pt-20 space-y-6 text-center">
               <div className="space-y-2">
                 <span className="mx-auto w-fit flex items-center font-pixel">
-                  <span className="ai-mark-still w-11 h-11 rounded-2xl text-white text-lg flex items-center justify-center shadow-lg shadow-indigo-200">V</span>
-                  <span className="text-2xl text-indigo-950 ml-1">etter<PixelDot /></span>
+                  <span className="ai-mark-still w-11 h-11 rounded-2xl text-white text-lg flex items-center justify-center shadow-lg shadow-indigo-200">P</span>
+                  <span className="text-2xl text-indigo-950 ml-1">raxa<PixelDot /></span>
                 </span>
                 <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">Who are you hiring?</h1>
                 <p className="text-sm text-slate-500 max-w-md mx-auto">
-                  Describe the role, or paste the job description. Vetter asks what it needs to know, then builds the test right here: you see
+                  Describe the role, or paste the job description. Praxa asks what it needs to know, then builds the test right here: you see
                   what's in it, open it with See test, and ask for any change.
                 </p>
               </div>
@@ -333,7 +333,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
           )}
           {build?.working && (
             <div className="flex gap-3">
-              <span className="ai-mark w-7 h-7 shrink-0 rounded-lg text-white text-xs font-pixel flex items-center justify-center">V</span>
+              <span className="ai-mark w-7 h-7 shrink-0 rounded-lg text-white text-xs font-pixel flex items-center justify-center">P</span>
               <div className="ai-glass min-w-0 flex-1 p-4 rounded-2xl rounded-tl-md border border-white/80 shadow-sm space-y-1">
                 <p className="text-sm font-semibold text-slate-900 flex items-center gap-2">
                   <Loader2 className="w-4 h-4 text-indigo-600 animate-spin" />
@@ -345,8 +345,8 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
           )}
           {thinking && (
             <div className="flex items-center gap-2 text-sm text-slate-500">
-              <span className="ai-mark w-7 h-7 rounded-lg text-white text-xs font-pixel flex items-center justify-center">V</span>
-              <span className="ai-shimmer font-medium">Looking through Vetter…</span>
+              <span className="ai-mark w-7 h-7 rounded-lg text-white text-xs font-pixel flex items-center justify-center">P</span>
+              <span className="ai-shimmer font-medium">Looking through Praxa…</span>
             </div>
           )}
           <div ref={endRef} />
@@ -426,11 +426,11 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
               }}
               rows={1}
               placeholder={build?.planning ? 'Ask for a change, e.g. "swap question 4 for a SQL task"' : turns.length ? 'Answer, or ask a follow-up, e.g. make it more senior' : 'Describe the role, or paste the job description'}
-              aria-label="Message Vetter"
+              aria-label="Message Praxa"
               className="flex-1 resize-none max-h-40 px-2 py-1.5 text-sm bg-transparent focus:outline-none"
             />
             {build?.working ? (
-              <button type="button" onClick={stop} aria-label="Stop" title="Stop Vetter making any more" className="w-9 h-9 shrink-0 rounded-xl bg-slate-800 hover:bg-slate-900 text-white flex items-center justify-center">
+              <button type="button" onClick={stop} aria-label="Stop" title="Stop Praxa making any more" className="w-9 h-9 shrink-0 rounded-xl bg-slate-800 hover:bg-slate-900 text-white flex items-center justify-center">
                 <Square className="w-3.5 h-3.5 fill-current" />
               </button>
             ) : (
@@ -491,7 +491,7 @@ const AdvisorReply: React.FC<{
   onEditWithAI: (testId: string) => void;
 }> = ({ turn, onEditWithAI, aiAllowed, picked, onTogglePick, onPickAll, onEditCopy, onBuildWithAI, onSeePlans, onOpenTest, onPreview, onTopUp, canBuild, onBuild, onOpenLibrary, candidates, onViewPerson, jobs, onInvite, onQuickReply }) => (
   <div className="flex gap-3">
-    <span className="ai-mark-still w-7 h-7 shrink-0 rounded-lg text-white text-xs font-pixel flex items-center justify-center">V</span>
+    <span className="ai-mark-still w-7 h-7 shrink-0 rounded-lg text-white text-xs font-pixel flex items-center justify-center">P</span>
     <div className="ai-glass min-w-0 flex-1 space-y-4 p-4 sm:p-5 rounded-2xl rounded-tl-md border border-white/80 shadow-sm">
       <p className={`text-sm leading-relaxed whitespace-pre-wrap ${turn.error ? 'text-slate-800' : 'text-slate-800'}`}>{turn.text}</p>
 
@@ -694,7 +694,7 @@ const AdvisorReply: React.FC<{
         </div>
       )}
 
-      {/* Last, the job simulation Vetter suggests and what it will contain; Vetter then plans every question in it */}
+      {/* Last, the job simulation Praxa suggests and what it will contain; Praxa then plans every question in it */}
       {turn.brief && (turn.intent === 'test' || turn.intent === 'both') && (
         <div className="p-4 bg-white border border-indigo-200 rounded-xl space-y-3 shadow-sm shadow-indigo-100/60">
           <div>
@@ -715,7 +715,7 @@ const AdvisorReply: React.FC<{
               ))}
             </ul>
           )}
-          {/* With AI tests on the plan, Vetter plans every question next, under this reply */}
+          {/* With AI tests on the plan, Praxa plans every question next, under this reply */}
           {!aiAllowed && (
             <button onClick={onSeePlans} className="px-4 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg inline-flex items-center gap-1.5">
               <Lock className="w-4 h-4" />
@@ -729,7 +729,7 @@ const AdvisorReply: React.FC<{
   </div>
 );
 
-// The plan Vetter will build from, before anything is written: what the hire needs, then every question, case and task
+// The plan Praxa will build from, before anything is written: what the hire needs, then every question, case and task
 // in the order the candidate meets them, each with its type and what it tests. Messages change it; Build writes it
 const PlanCard: React.FC<{ plan: TestPlan; canBuild: boolean; onBuild: () => void }> = ({ plan, canBuild, onBuild }) => {
   const label = (type: string) => QUESTION_STYLES.find((s) => s.type === type)?.label ?? type;

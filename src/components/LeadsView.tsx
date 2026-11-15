@@ -152,7 +152,7 @@ const Field: React.FC<{ label: string; children: React.ReactNode }> = ({ label, 
 );
 
 // A company's hiring pipeline: every candidate for its jobs by stage, as a board or a table, with filters for almost
-// everything Vetter knows about them. On a job's page it shows only that job's
+// everything Praxa knows about them. On a job's page it shows only that job's
 export const LeadsView: React.FC<LeadsViewProps> = ({ rows, jobs, fixedJob, onUpdateLead, onOpenPerson, onOpenJobLeads }) => {
   const [filters, setFilters] = useState<LeadFilters>(emptyLeadFilters);
   const [sort, setSort] = useState<LeadSort>('activity');

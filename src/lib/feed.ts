@@ -20,7 +20,7 @@ export type FeedItem =
 export type FeedFilter = 'all' | 'following' | 'result' | 'job' | 'post';
 
 /**
- * Everything worth seeing on Vetter, newest first. Only passing scores on Vetter-made tests
+ * Everything worth seeing on Praxa, newest first. Only passing scores on Praxa-made tests
  * are shown: company tests are private to that company, and nobody's failed attempt is broadcast.
  */
 export function buildFeed(
@@ -139,7 +139,7 @@ export function trendingTests(candidates: User[], tests: AssessmentTest[], limit
     .slice(0, limit);
 }
 
-// Strongest candidates the viewer doesn't follow yet, by their best Vetter score
+// Strongest candidates the viewer doesn't follow yet, by their best Praxa score
 export function suggestedPeople(candidates: User[], viewerId: string, following: string[], limit = 4) {
   return candidates
     .filter((c) => c.id !== viewerId && !following.includes(c.id))

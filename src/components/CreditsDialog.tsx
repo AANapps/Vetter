@@ -105,7 +105,7 @@ export const CreditsDialog: React.FC<CreditsDialogProps> = ({ credit, onUpdated,
           ) : (
             <>
               <p className="text-sm text-slate-600">
-                Writing and changing tests with Vetter's AI uses credit: a full test with interactive tasks is usually around £1 to £3, a change a few pence to 50p. Credit doesn't expire.
+                Writing and changing tests with Praxa's AI uses credit: a full test with interactive tasks is usually around £1 to £3, a change a few pence to 50p. Credit doesn't expire.
               </p>
               <div className="grid grid-cols-3 gap-2">
                 {packs.map((p) => (

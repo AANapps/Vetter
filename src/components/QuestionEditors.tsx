@@ -350,7 +350,7 @@ const RubricEditor: React.FC<EditorProps> = ({ question: q, onChange }) => {
     <div className="space-y-4">
       <fieldset className="space-y-2">
         <legend className={labelClass}>Marking points</legend>
-        <p className="text-[11px] text-slate-500 -mt-1">Each one specific thing a strong answer does or says. Vetter's AI marks the answer against them, whatever the wording.</p>
+        <p className="text-[11px] text-slate-500 -mt-1">Each one specific thing a strong answer does or says. Praxa's AI marks the answer against them, whatever the wording.</p>
         {points.map((p, i) => (
           <div key={i} className="flex items-center gap-2">
             <input
@@ -488,7 +488,7 @@ const CodeEditor: React.FC<EditorProps> = ({ question: q, onChange }) => {
           ))}
         </select>
         {solutionLanguage?.runtime === 'server' && (
-          <p className="text-[11px] text-slate-500 mt-1">{solutionLanguage.label} runs on Vetter's code runner. JavaScript and Python run in the candidate's browser.</p>
+          <p className="text-[11px] text-slate-500 mt-1">{solutionLanguage.label} runs on Praxa's code runner. JavaScript and Python run in the candidate's browser.</p>
         )}
       </div>
 

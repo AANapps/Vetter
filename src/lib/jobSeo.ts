@@ -31,7 +31,7 @@ export const isJobsIndexPath = (pathname: string) => /^\/jobs\/?$/.test(pathname
 export const isListable = (job: JobPosting, today = new Date().toISOString().split('T')[0]) =>
   job.status === 'active' && (!job.closingDate || job.closingDate >= today);
 
-export const jobPageTitle = (job: JobPosting) => `${job.title} job at ${job.companyName} in ${job.location} | Vetter`;
+export const jobPageTitle = (job: JobPosting) => `${job.title} job at ${job.companyName} in ${job.location} | Praxa`;
 
 export function jobMetaDescription(job: JobPosting): string {
   const facts = [job.employmentType, job.workType, job.salaryRange].filter(Boolean).join(', ');
@@ -82,7 +82,7 @@ export function jobDescriptionHtml(job: JobPosting): string {
   const skills = job.requirements.map((r) => `${r.skillName} (${r.importance}, score ${r.minScore}+)`);
   const count = job.testIds.length;
   const test = count
-    ? `<h2>How to apply</h2><p>Apply on Vetter${job.testsRequired ? ' by taking' : '. You can also take'} the job's ${count === 1 ? 'skills test' : `${count} skills tests`} (pass mark ${job.testPassingScore}/100). Your verified scores go straight to ${escapeHtml(job.companyName)}.</p>`
+    ? `<h2>How to apply</h2><p>Apply on Praxa${job.testsRequired ? ' by taking' : '. You can also take'} the job's ${count === 1 ? 'skills test' : `${count} skills tests`} (pass mark ${job.testPassingScore}/100). Your verified scores go straight to ${escapeHtml(job.companyName)}.</p>`
     : '';
   return [
     `<p>${escapeHtml(job.description)}</p>`,

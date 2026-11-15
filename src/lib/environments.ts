@@ -5,18 +5,18 @@ import { auth, db, firebaseEnabled } from './firebase';
 import { LANGUAGES } from './languages';
 
 /**
- * Vetter's environment library: the places candidates work in during a test.
+ * Praxa's environment library: the places candidates work in during a test.
  *
  * - Built in: the spreadsheet, database workbench, SQL editor, code editor, inbox and AI assistant.
  * - Saved simulations, one per app (Meta Ads Manager, Salesforce, a till): a working copy of the app that grows. Every
- *   simulation Vetter builds, for a company's test or by the Vetter team, is sent to the Vetter team for review as a
+ *   simulation Praxa builds, for a company's test or by the Praxa team, is sent to the Praxa team for review as a
  *   submission. Approved, a new app joins the library; a page built on an app already there becomes that app's next
  *   version, with the features it added. When a later test needs the same app, the page builder starts from its latest
  *   version and adds what that test needs on top, so each app gains features with every test.
  *
  * Firestore: environments (each app's latest approved version, small enough to list), environmentPages (its page),
  * environmentSubmissions (everything waiting for review, and the history of what was approved) and submissionPages.
- * Only the Vetter team approves or changes the library. Without accounts (the demo) it's kept in this browser.
+ * Only the Praxa team approves or changes the library. Without accounts (the demo) it's kept in this browser.
  */
 
 export interface BuiltInEnvironment {
@@ -65,7 +65,7 @@ export interface SavedEnvironment {
 
 export type SubmissionStatus = 'pending' | 'approved' | 'rejected';
 
-// A simulation waiting for the Vetter team: a new app, or a new version of one in the library
+// A simulation waiting for the Praxa team: a new app, or a new version of one in the library
 export interface EnvironmentSubmission {
   id: string;
   // The library app it was built on, and that app's version then; unset for a new app
@@ -79,7 +79,7 @@ export interface EnvironmentSubmission {
   // What it adds to the version it was built on (everything, for a new app)
   added: string[];
   builtFor: string;
-  // Who it was built for: a company's name, or Vetter
+  // Who it was built for: a company's name, or Praxa
   owner: string;
   sector?: string;
   game?: 'gamified' | 'standalone';
@@ -176,7 +176,7 @@ async function readPage(collectionName: 'environmentPages' | 'submissionPages', 
 export const loadEnvironmentPage = (id: string) => readPage('environmentPages', id);
 export const loadSubmissionPage = (id: string) => readPage('submissionPages', id);
 
-// Submissions, newest first: all of them for the Vetter team, otherwise the ones this person sent
+// Submissions, newest first: all of them for the Praxa team, otherwise the ones this person sent
 export async function loadSubmissions(all: boolean): Promise<EnvironmentSubmission[]> {
   let list: EnvironmentSubmission[];
   if (!firebaseEnabled) list = local().subs;
@@ -201,7 +201,7 @@ const unique = (list: string[]) => {
 
 export type NewSubmission = Omit<EnvironmentSubmission, 'id' | 'createdAt' | 'createdBy' | 'status' | 'reviewedAt' | 'note' | 'version'>;
 
-// A newly built simulation, sent to the Vetter team for review. Never holds up the test it was built for: a failure is
+// A newly built simulation, sent to the Praxa team for review. Never holds up the test it was built for: a failure is
 // only logged
 export async function submitEnvironment(entry: NewSubmission, page: EnvironmentPage): Promise<void> {
   if (!entry.app.trim() || !page.html.trim()) return;
@@ -226,7 +226,7 @@ export async function submitEnvironment(entry: NewSubmission, page: EnvironmentP
   }
 }
 
-// The Vetter team approves a submission: a new app joins the library, or the app it was built on moves to its next
+// The Praxa team approves a submission: a new app joins the library, or the app it was built on moves to its next
 // version (its page replaced, its features added to). Returns the library app's id
 export async function approveSubmission(sub: EnvironmentSubmission, page: EnvironmentPage): Promise<string> {
   const at = now();
@@ -297,7 +297,7 @@ export async function markEnvironmentUsed(id: string): Promise<void> {
   }
 }
 
-// The Vetter team takes an app out of the library (its submissions stay, as history)
+// The Praxa team takes an app out of the library (its submissions stay, as history)
 export async function deleteEnvironment(id: string): Promise<void> {
   if (!firebaseEnabled) {
     const data = local();

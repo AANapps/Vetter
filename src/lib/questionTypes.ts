@@ -179,7 +179,7 @@ export function gradeAnswer(q: Question, answer: string): number {
     case 'written':
       return roughWrittenMark(q, answer);
     case 'assistant': {
-      // A first mark on the work handed in only; Vetter's AI marks the work and the conversation properly
+      // A first mark on the work handed in only; Praxa's AI marks the work and the conversation properly
       const { final } = assistantAnswer(answer);
       return final.trim() ? Math.round((roughWrittenMark(q, final) * ASSISTANT_RESULT_SHARE) / 100) : 0;
     }
@@ -192,7 +192,7 @@ export function gradeAnswer(q: Question, answer: string): number {
   }
 }
 
-// A first mark for a written answer, from how many of the rubric's points it touches on; Vetter's AI then marks it
+// A first mark for a written answer, from how many of the rubric's points it touches on; Praxa's AI then marks it
 // properly (src/lib/aiMarking.ts) and its mark replaces this one. Capped, since matching words isn't judging
 const stem = (w: string) => w.slice(0, 5);
 const WORDS = /[a-z0-9]{5,}/g;

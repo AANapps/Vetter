@@ -4,7 +4,7 @@ import { LeadRow } from '../lib/leads';
 import { LeadChange, LeadsView } from './LeadsView';
 
 interface LeadsPageProps {
-  // The company signed in; without one, the Vetter team sees every company's leads
+  // The company signed in; without one, the Praxa team sees every company's leads
   business?: Business;
   jobs: JobPosting[];
   rows: LeadRow[];

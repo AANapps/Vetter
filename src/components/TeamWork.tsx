@@ -95,7 +95,7 @@ export const TeamWork: React.FC<TeamWorkProps> = ({ invitations, memberships, as
             <Building2 className="w-5 h-5" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-sm font-bold text-slate-900">{m.companyName} invited you to join its team on Vetter</div>
+            <div className="text-sm font-bold text-slate-900">{m.companyName} invited you to join its team on Praxa</div>
             <p className="text-xs text-slate-600 mt-0.5">
               They'll be able to send you training, job simulations and tests, and see how you get on with those. Nothing else on your profile changes, and
               those results aren't public.

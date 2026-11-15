@@ -1,6 +1,6 @@
 /**
- * Vetter Learn: courses and bootcamps for job seekers and for employees whose companies are training them.
- * Every course ends in one or more Vetter tests, so finishing it gets you a verified score rather than a certificate
+ * Praxa Learn: courses and bootcamps for job seekers and for employees whose companies are training them.
+ * Every course ends in one or more Praxa tests, so finishing it gets you a verified score rather than a certificate
  * nobody checks.
  */
 
@@ -30,7 +30,7 @@ export interface Course {
   format: CourseFormat;
   level: 'Beginner' | 'Intermediate' | 'Advanced';
   weeks: number;
-  // Price in US dollars. Courses are sold by sign-up: the Vetter team contacts each person, there's no checkout
+  // Price in US dollars. Courses are sold by sign-up: the Praxa team contacts each person, there's no checkout
   price: number;
   hoursPerWeek: number;
   audiences: CourseAudience[];
@@ -39,9 +39,9 @@ export interface Course {
   // Who it's for, in a sentence each
   forWho: string[];
   modules: CourseModule[];
-  // The Vetter tests that prove you learned it, in the order to take them
+  // The Praxa tests that prove you learned it, in the order to take them
   testIds: string[];
-  // Jobs on Vetter whose titles contain any of these are suggested at the end
+  // Jobs on Praxa whose titles contain any of these are suggested at the end
   jobKeywords: string[];
 }
 
@@ -59,7 +59,7 @@ export const COURSES: Course[] = [
     title: 'Data Analysis Bootcamp',
     tagline: 'From spreadsheets to SQL to dashboards, in twelve weeks.',
     description:
-      'A full bootcamp for becoming a data analyst. You clean messy data, write SQL against real databases, build models in spreadsheets, and turn the answers into dashboards and short write-ups a manager can act on. Every module ends in hands-on work, and the bootcamp finishes with the same job simulation companies on Vetter send their candidates.',
+      'A full bootcamp for becoming a data analyst. You clean messy data, write SQL against real databases, build models in spreadsheets, and turn the answers into dashboards and short write-ups a manager can act on. Every module ends in hands-on work, and the bootcamp finishes with the same job simulation companies on Praxa send their candidates.',
     category: 'Data',
     format: 'Bootcamp',
     level: 'Beginner',

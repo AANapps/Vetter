@@ -85,7 +85,7 @@ export const levelForScore = (score: number): VerifiedSkill['level'] =>
 
 const isoDate = (d: Date) => d.toISOString().split('T')[0];
 
-// Verified skills mirror each candidate's best score on every Vetter-made test they've taken
+// Verified skills mirror each candidate's best score on every Praxa-made test they've taken
 export function deriveVerifiedSkills(results: TestResult[], tests: AssessmentTest[]): VerifiedSkill[] {
   return tests
     .filter((t) => t.type === 'standard')

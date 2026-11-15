@@ -22,7 +22,7 @@ export const PlansDialog: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         </div>
         {chosen && (
           <p className="mx-6 mt-4 p-3 bg-indigo-50 border border-indigo-200 rounded-lg text-xs text-indigo-950">
-            Online payment isn&rsquo;t open yet. Ask the Vetter team to switch on the {chosen} plan for your company, and AI test creation unlocks
+            Online payment isn&rsquo;t open yet. Ask the Praxa team to switch on the {chosen} plan for your company, and AI test creation unlocks
             straight away.
           </p>
         )}

@@ -4,7 +4,7 @@ import { BadgeCheck, Plus, X } from 'lucide-react';
 const MAX_SKILLS = 40;
 const MAX_LENGTH = 40;
 
-// Whether a skill they listed has been verified by one of Vetter's tests (matched by name, ignoring case)
+// Whether a skill they listed has been verified by one of Praxa's tests (matched by name, ignoring case)
 const verifiedBy = (skill: string, verified: string[]) => {
   const a = skill.toLowerCase();
   return verified.some((v) => {
@@ -38,7 +38,7 @@ export const SkillList: React.FC<{ skills: string[]; verified?: string[]; onChan
                 className={`inline-flex items-center gap-1.5 pl-3 ${onChange ? 'pr-1.5' : 'pr-3'} py-1 rounded-full border text-sm ${
                   checked ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-slate-50 border-slate-200 text-slate-700'
                 }`}
-                title={checked ? 'Verified by a Vetter test' : 'Listed by them; not yet verified by a test'}
+                title={checked ? 'Verified by a Praxa test' : 'Listed by them; not yet verified by a test'}
               >
                 {checked && <BadgeCheck className="w-3.5 h-3.5" />}
                 {s}

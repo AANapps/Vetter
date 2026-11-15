@@ -18,7 +18,7 @@ export interface BuildAppRequest {
   testCases: { description: string; input: string; expectedOutput: string }[];
   // Notes on the software or device it copies, when there are any
   research?: string;
-  // A repair: the page as built, and what went wrong when Vetter clicked through it
+  // A repair: the page as built, and what went wrong when Praxa clicked through it
   fix?: { html: string; problems: string[] };
   // A change the company asked for: the page as it is, and what to change
   edit?: { html: string; change: string };
@@ -33,14 +33,14 @@ export interface BuildAppRequest {
   quick?: boolean;
   // The page worked out in detail by the designer (server/designApp.ts), to type out
   design?: string;
-  // A page from Vetter's environment library (an earlier test's simulation of the same kind of product), to build on
+  // A page from Praxa's environment library (an earlier test's simulation of the same kind of product), to build on
   // instead of starting from nothing: its shell, look and code are kept, its data and task-specific parts replaced
   base?: { html: string; name: string; features?: string[] };
-  // The Vetter team merging two versions of a library app: another version built on an older one, whose added features
+  // The Praxa team merging two versions of a library app: another version built on an older one, whose added features
   // are copied onto the base (the latest version)
   merge?: { html: string; features: string[] };
   // A change to a page whose app is in the library: the library version's features, so the ones the change adds can be
-  // listed for the Vetter team
+  // listed for the Praxa team
   libraryFeatures?: string[];
 }
 
@@ -70,7 +70,7 @@ const schema = {
         additionalProperties: false,
       },
     },
-    // How Vetter's environment library lists the page, so later tests can build on it
+    // How Praxa's environment library lists the page, so later tests can build on it
     catalog: {
       type: 'object',
       properties: {
@@ -97,7 +97,7 @@ badges and dialogs. Only the product's name and logo are changed. Someone who us
 home at a glance. Style every element yourself (no browser defaults anywhere). Spend the page's size on the screens the
 task needs looking exactly right, not on extra screens: a plain, generic or dated-looking page is a failure.`;
 
-const SYSTEM = (research: string, training: boolean, game?: BuildAppRequest['game'], sector?: string) => `You build the interactive pages candidates work in on Vetter, a skills-testing platform for hiring. A test
+const SYSTEM = (research: string, training: boolean, game?: BuildAppRequest['game'], sector?: string) => `You build the interactive pages candidates work in on Praxa, a skills-testing platform for hiring. A test
 designer has written the task and a spec for the page. Build exactly that page, so a candidate who can really do the job
 succeeds and one who can't is found out.
 ${APP_PAGE_RULES}${game ? GAME_PAGE_RULES : ''}${sectorSimulationRules(sector)}${LOOK}${
@@ -123,7 +123,7 @@ is and what it's for ("New refunds start here: pick the order first, then the re
     ? 'This is training for the company\'s own people: the tips may guide them step by step through the task.'
     : 'This is a hiring test: tips show where things are and what they do, never which choice is right, the values to enter or the answer to any check.'
 }
-LIBRARY ENTRY: Vetter keeps one simulation per app in its library, and each later test of the same app builds on it and
+LIBRARY ENTRY: Praxa keeps one simulation per app in its library, and each later test of the same app builds on it and
 adds features. Return catalog: app, the specific app or device it copies as people call it ("Meta Ads Manager",
 "Salesforce Sales Cloud", "Square POS", "iPhone 15"), or "Generic <kind>" when no product is named; name, a short title
 ("Meta Ads Manager: campaigns, ad sets and ads"); product, the kind in a few generic words ("ads manager", "CRM");
@@ -159,7 +159,7 @@ export async function buildApp(body: unknown, apiKey: string | undefined, model:
               `THE PLANNED CHECKS:\n${JSON.stringify((req.testCases ?? []).slice(0, req.game === 'standalone' ? 15 : 8))}`,
               ...(req.base?.html && !req.fix?.html && !req.edit?.html
                 ? [
-                    `A PAGE FROM VETTER'S ENVIRONMENT LIBRARY ("${String(req.base.name ?? '').slice(0, 120)}"), the latest version of the same app:\n${String(req.base.html).slice(0, MAX_PAGE)}`,
+                    `A PAGE FROM PRAXA'S ENVIRONMENT LIBRARY ("${String(req.base.name ?? '').slice(0, 120)}"), the latest version of the same app:\n${String(req.base.html).slice(0, MAX_PAGE)}`,
                     req.merge?.html
                       ? `ITS FEATURES: ${(req.base.features ?? []).slice(0, 80).join('; ')}. Keep every one of them working.`
                       : `${req.base.features?.length ? `ITS FEATURES, all of which must still work: ${req.base.features.slice(0, 80).join('; ')}.\n` : ''}This is the shared simulation of this app, which grows with every test. Build this task's page ON it: keep its shell, stylesheet, look, components and working code, and keep EVERY screen, feature and control it has working (they belong to the app even where this task doesn't use them; never remove or stub one). Replace every record, name, figure, message and setting with the data this spec needs, adding records for the screens this task doesn't use so they still look real: nothing from the earlier test may remain (it belonged to another company), and the state starts as this spec says. Then ADD the screens, features and behaviour this spec needs that it doesn't have yet, in the app's own style, fully working. Set the data-ref tips for this task. The page may be up to 90KB; keep the code compact. Return the whole page.`,
@@ -173,13 +173,13 @@ export async function buildApp(body: unknown, apiKey: string | undefined, model:
                 : []),
               ...(req.design && !req.base?.html && !req.fix?.html && !req.edit?.html
                 ? [
-                    `THE PAGE DESIGN, worked out in detail by Vetter's product designer: build exactly this, with its look, layout, screens, data, state and controls (where it and the spec disagree, the spec wins):\n${String(req.design).slice(0, MAX_TEXT * 3)}`,
+                    `THE PAGE DESIGN, worked out in detail by Praxa's product designer: build exactly this, with its look, layout, screens, data, state and controls (where it and the spec disagree, the spec wins):\n${String(req.design).slice(0, MAX_TEXT * 3)}`,
                   ]
                 : []),
               ...(req.fix?.html
                 ? [
                     `THE PAGE AS YOU BUILT IT:\n${String(req.fix.html).slice(0, MAX_PAGE)}`,
-                    `PROBLEMS FOUND WHEN VETTER TRIED IT OUT:\n${(req.fix.problems ?? []).slice(0, 30).map((p) => `- ${String(p).slice(0, 200)}`).join('\n')}`,
+                    `PROBLEMS FOUND WHEN PRAXA TRIED IT OUT:\n${(req.fix.problems ?? []).slice(0, 30).map((p) => `- ${String(p).slice(0, 200)}`).join('\n')}`,
                     'Return the whole page again, keeping its data-ref tips, with every problem fixed. For a label hidden, cut off or overlapping: move it into clear space beside or under what it names (with a leader line if needed), draw it after the shapes so it sits on top, give it a halo, and keep it inside the drawing, so every letter can be read. For a control: make each control named above do what its label says in this kind of product, or grey it out (disabled, reduced opacity, cursor:not-allowed, a "Not available in this test" title) when it is outside the task. Fix any errors. Keep everything that already works, the data and the state paths the checks read.',
                   ]
                 : []),
