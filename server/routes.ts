@@ -9,6 +9,8 @@ import { checkSpec } from './checkSpec.js';
 import { testAdvisor } from './testAdvisor.js';
 import { suggestTests } from './suggestTests.js';
 import { taskAssistant } from './taskAssistant.js';
+import { runCode } from './runCode.js';
+import { matchEnvironment } from './matchEnvironment.js';
 import { metered } from './meter.js';
 import { PACKS, balanceFor, billingOn, charge, confirmTopUp, hasEnough, penceFor, startTopUp, usageFor, whoIsAsking } from './credits.js';
 
@@ -112,6 +114,9 @@ export const API_ROUTES: Record<string, Handler> = {
   // Each interactive page is designed first at high effort (its own request, so the thinking gets its own time limit),
   // then built from that design. DESIGN_MODEL sets another model
   '/api/design-app': logged('design-app', billed('design-app', (body, env) => designApp(body, env.ANTHROPIC_API_KEY, env.DESIGN_MODEL || testModel(env)))),
+  // A saved simulation from Vetter's environment library to build a new page on, when one is the same kind of product;
+  // a quick model reading short summaries
+  '/api/match-environment': logged('match-environment', billed('match-environment', (body, env) => matchEnvironment(body, env.ANTHROPIC_API_KEY, env.MATCH_MODEL || 'claude-haiku-5-5'))),
   // Each interactive page of a test, built in its own request so a long test fits the host's time limit
   '/api/build-app': logged('build-app', billed('build-app', (body, env) => buildApp(body, env.ANTHROPIC_API_KEY, testModel(env)))),
   // The company home's chat recommends tests and plans; it writes nothing, so a quicker model is enough by default
@@ -121,6 +126,8 @@ export const API_ROUTES: Record<string, Handler> = {
   '/api/suggest-tests': logged('suggest-tests', (body, env) => suggestTests(body, env.ANTHROPIC_API_KEY, env.ADVISOR_MODEL || 'claude-sonnet-5-5')),
   // The assistant candidates work with in an AI-assisted task: Vetter's cost, like marking, on a quick model by default
   '/api/task-assistant': logged('task-assistant', (body, env) => taskAssistant(body, env.ANTHROPIC_API_KEY, env.ASSISTANT_MODEL || 'claude-haiku-5-5')),
+  // Programs in languages the browser can't run (Java, C#, C++, Go...), on Judge0; signed-in people only, rate-limited
+  '/api/run-code': logged('run-code', (body, env, meta) => runCode(body, env, meta?.authorization)),
   // Marking a candidate's answers is Vetter's cost, not the company's credit
   '/api/grade-answers': logged('grade-answers', (body, env) => gradeAnswers(body, env.ANTHROPIC_API_KEY, env.GRADING_MODEL || testModel(env))),
 };

@@ -295,6 +295,10 @@ export interface Question {
   pairs?: { left: string; right: string }[];
   // Written answers: the points a strong answer makes, each worth an equal share (the model answer is in solutionCode)
   rubric?: string[];
+  // Coding: the language the program is written in (an id from src/lib/languages.ts), or 'any' for the candidate to
+  // pick. With a language, each test case's input is the program's standard input and its expected output what it
+  // should print. Without one, the older kind: a JavaScript function called solution, given each case's arguments
+  language?: string;
   // Hidden code run after the candidate's, whose check(input) function grades each test case.
   // Lets a task grade code that isn't a pure function, such as tests the candidate writes.
   harness?: string;

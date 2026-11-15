@@ -61,6 +61,28 @@ pay for writing and changing tests with credit they buy in advance. Without it, 
 - Keep the Anthropic account topped up (turn on auto-reload in the Anthropic Console): companies' credit pays you,
   but every request still runs on Vetter's own Anthropic balance.
 
+### Coding tasks in any language
+
+Coding tasks can be set in 35 languages, or left open for the candidate to pick theirs. Each test case's input goes to
+the program on standard input, and what it prints is compared with the expected output. JavaScript and Python run in
+the candidate's browser (Python through Pyodide) and need nothing set up. Every other language (Java, C#, C++, Go,
+Rust, PHP, Ruby, TypeScript...) runs on [Judge0](https://judge0.com), which needs one of:
+
+- `JUDGE0_KEY` alone: a RapidAPI key for Judge0 CE (subscribe to "Judge0 CE" on rapidapi.com; there's a free tier).
+- `JUDGE0_URL` (and `JUDGE0_KEY` as its auth token if it has one): your own Judge0 server.
+
+Without either, those languages show "can't be run on Vetter yet", and the AI test writer can't check its own answers
+in them. Only signed-in people can run code, at most 60 runs a minute each.
+
+### The environment library
+
+Every app simulation Vetter builds (a CRM, a help desk, a till) is saved to the environment library (Tests >
+Environments) once it works. When a later test needs the same kind of product, a quick model (`MATCH_MODEL`, default
+Haiku) picks the saved one, and the page builder builds on it: its shell, look and code are kept, and its data and
+task-specific parts replaced. That skips the design pass. The library also lists the built-in environments
+(spreadsheet, database, SQL, code, inbox, AI assistant). Saved pages are in Firestore (`environments`,
+`environmentPages`); deploy `firestore.rules` for them.
+
 ## Putting it online (with AI test creation)
 
 The site needs a host that runs `server.js`; static hosts (GitHub Pages, Netlify, AI Studio's preview) can't run

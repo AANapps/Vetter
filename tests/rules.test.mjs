@@ -5,7 +5,7 @@ const root = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const env = { VITE_FIREBASE_API_KEY: 'demo-key', VITE_FIREBASE_AUTH_DOMAIN: 'demo-vetter.firebaseapp.com', VITE_FIREBASE_PROJECT_ID: 'demo-vetter', VITE_FIREBASE_APP_ID: 'demo-app', VITE_FIREBASE_EMULATORS: 'true' };
 const define = Object.fromEntries(Object.entries(env).map(([k, v]) => [`import.meta.env.${k}`, JSON.stringify(v)]));
 const { A, F, P, C } = (await runnerImport(`${root}/tests/rulesEntry.ts`, { configFile: false, root, define, logLevel: 'silent' })).module;
-const { doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, collection, collectionGroup, query, where, increment, addDoc, serverTimestamp } = (await runnerImport('firebase/firestore', { configFile: false, root, logLevel: 'silent' })).module;
+const { doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, collection, collectionGroup, query, where, increment, addDoc, serverTimestamp, writeBatch } = (await runnerImport('firebase/firestore', { configFile: false, root, logLevel: 'silent' })).module;
 const PROJECT = 'demo-vetter';
 let pass = 0, fail = 0;
 const check = async (name, fn, shouldWork) => {
@@ -232,6 +232,35 @@ console.log('    Alice, with her test public:');
 await check('cannot change it and keep it approved', () => updateDoc(doc(db, 'tests', 'test-custom-1'), { title: 'Changed quietly' }), false);
 await check('changes it, which sends it back for approval', () => updateDoc(doc(db, 'tests', 'test-custom-1'), { title: 'Changed', publicStatus: 'pending' }), true);
 await check('takes it out of the public library', () => setDoc(doc(db, 'tests', 'test-custom-1'), { ...acmeTest, title: 'Changed' }), true);
+await A.signOut();
+
+console.log('Environment library');
+const envMeta = (uid) => ({ name: 'Sales CRM', product: 'CRM', summary: 'Pipeline and contacts', builtFor: 'Close the deal', createdAt: '2026-11-15T00:00:00Z', createdBy: uid, uses: 0 });
+const saveEnv = (id, uid, meta = envMeta(uid)) => {
+  const b = writeBatch(db);
+  b.set(doc(db, 'environments', id), meta);
+  b.set(doc(db, 'environmentPages', id), { html: '<p>CRM</p>', callouts: [] });
+  return b.commit();
+};
+await A.signIn('alice@acme.io', 'password123');
+await check('a company saves a simulation it built', () => saveEnv('env-1', alice), true);
+await check('cannot save one as someone else', () => saveEnv('env-2', bob), false);
+await check('cannot save one already counted as used', () => saveEnv('env-3', alice, { ...envMeta(alice), uses: 5 }), false);
+await check('cannot add a page under someone else\'s entry', () => setDoc(doc(db, 'environmentPages', 'env-x'), { html: '<p>x</p>' }), false);
+await A.signOut();
+await A.signIn('bob@acme.io', 'password123');
+await check('another company account reads the library', () => getDocs(collection(db, 'environments')), true);
+await check('and reads a page to build on', () => getDoc(doc(db, 'environmentPages', 'env-1')), true);
+await check('counts one use when building on it', () => updateDoc(doc(db, 'environments', 'env-1'), { uses: increment(1) }), true);
+await check('cannot rename it', () => updateDoc(doc(db, 'environments', 'env-1'), { name: 'Mine now' }), false);
+await check('cannot change its page', () => updateDoc(doc(db, 'environmentPages', 'env-1'), { html: '<p>changed</p>' }), false);
+await check('cannot delete someone else\'s', () => deleteDoc(doc(db, 'environments', 'env-1')), false);
+await A.signOut();
+await A.signIn('eve@evil.com', 'password123');
+await check('an account not approved at a company cannot read it', () => getDoc(doc(db, 'environmentPages', 'env-1')), false);
+await A.signOut();
+await A.signIn('alice@acme.io', 'password123');
+await check('whoever saved it deletes it, page first', async () => { await deleteDoc(doc(db, 'environmentPages', 'env-1')); await deleteDoc(doc(db, 'environments', 'env-1')); }, true);
 await A.signOut();
 
 console.log(`\n${pass} passed, ${fail} failed`);

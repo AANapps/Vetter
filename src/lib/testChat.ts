@@ -4,6 +4,7 @@ import { MOCK_DATABASE } from './sqlEngine';
 import { probeApp } from './appSimulation';
 import { isGroupType, orderedQuestions } from './questionTypes';
 import { aiFetch } from './aiRequest';
+import { loadEnvironmentPage, loadEnvironments, markEnvironmentUsed, saveEnvironment } from './environments';
 import { categoriesFor, companySector, rolesFor } from './sectors';
 import { ALL_ROLES, RawQuestion, Suggestion, assembleFromBank, checkQuestion, libraryFor, linkTasks, matchExisting } from './testGeneration';
 
@@ -173,36 +174,116 @@ async function designAppPage(item: RawQuestion, research: string | undefined, mo
   }
 }
 
+type BuiltPage = { appHtml?: string; testCases?: RawQuestion['testCases']; callouts?: AppCallout[]; catalog?: { name?: string; product?: string; summary?: string } };
+
+// A saved simulation from Vetter's environment library to build this page on: one copying the same kind of product, as
+// a quick model judges from the library's summaries. Null when the library has none that fits (or can't be read)
+async function libraryBase(item: RawQuestion, mode: PageMode): Promise<{ id: string; name: string; html: string } | null> {
+  try {
+    // A game-like page is built differently from a desk app, so each is only built on its own kind
+    const saved = (await loadEnvironments()).filter((e) => (e.game ?? '') === (mode.game ?? ''));
+    if (!saved.length) return null;
+    const res = await aiFetch('/api/match-environment', {
+      title: item.title,
+      prompt: item.prompt,
+      brief: item.appHtml,
+      environments: saved.slice(0, 60).map(({ id, name, product, summary }) => ({ id, name, product, summary })),
+    });
+    if (!res.ok) return null;
+    const { id } = (await res.json()) as { id?: string };
+    const match = id ? saved.find((e) => e.id === id) : undefined;
+    if (!match) return null;
+    const page = await loadEnvironmentPage(match.id);
+    return page?.html ? { id: match.id, name: match.name, html: page.html } : null;
+  } catch {
+    return null;
+  }
+}
+
 async function buildAppPage(item: RawQuestion, research?: string, mode: PageMode = {}, step: Progress = () => {}): Promise<RawQuestion> {
   let design: string | undefined;
+  let base: { id: string; name: string; html: string } | null = null;
   const request = (fix?: { html: string; problems: string[] }, quick?: boolean) =>
-    aiFetch('/api/build-app', { title: item.title, prompt: item.prompt, brief: item.appHtml, testCases: item.testCases ?? [], research, ...mode, ...(design && { design }), ...(quick && { quick }), ...(fix && { fix }) }).then(async (res) => (res.ok ? ((await res.json()) as { appHtml?: string; testCases?: RawQuestion['testCases']; callouts?: AppCallout[] }) : null));
+    aiFetch('/api/build-app', {
+      title: item.title,
+      prompt: item.prompt,
+      brief: item.appHtml,
+      testCases: item.testCases ?? [],
+      research,
+      ...mode,
+      ...(design && { design }),
+      ...(base && !fix && { base: { html: base.html, name: base.name } }),
+      ...(quick && { quick }),
+      ...(fix && { fix }),
+    }).then(async (res) => (res.ok ? ((await res.json()) as BuiltPage) : null));
   try {
-    // A game page is built with more thought; if that doesn't come back (it can run out of time), once more at the usual effort
-    step('designing it: the look, layout, screens and data…');
-    design = await designAppPage(item, research, mode);
-    step('writing the page from the design…');
-    let page = await request().catch(() => null);
-    if (!page && mode.game) {
-      step("the first try didn't come back in time, so writing it again more quickly…");
-      page = await request(undefined, true);
+    // A saved simulation of the same kind of product is built on, keeping its shell, look and code; otherwise the page
+    // is designed from nothing first
+    step("looking in Vetter's environment library for one to build on…");
+    base = await libraryBase(item, mode);
+    let page: BuiltPage | null = null;
+    if (base) {
+      step(`building on “${base.name}” from the environment library, with this task's data…`);
+      page = await request().catch(() => null);
+      if (!page?.appHtml) {
+        step("that didn't come back, so designing a new page instead…");
+        base = null;
+      }
+    }
+    if (!page?.appHtml) {
+      // A game page is built with more thought; if that doesn't come back (it can run out of time), once more at the usual effort
+      step('designing it: the look, layout, screens and data…');
+      design = await designAppPage(item, research, mode);
+      step('writing the page from the design…');
+      page = await request().catch(() => null);
+      if (!page && mode.game) {
+        step("the first try didn't come back in time, so writing it again more quickly…");
+        page = await request(undefined, true);
+      }
     }
     if (!page?.appHtml) return item;
+    const catalog = page.catalog;
     const built: RawQuestion = { ...item, appHtml: page.appHtml, testCases: page.testCases?.length ? page.testCases : item.testCases, callouts: page.callouts ?? [] };
+    let final = built;
     step('clicking every control to see it works…');
     const problems = await appProblems(built);
-    if (!problems.length) return built;
-    step(`fixing ${problems.length === 1 ? 'a problem' : `${problems.length} problems`} found clicking through it…`);
-    const fixed = await request({ html: built.appHtml!, problems }).catch(() => null);
-    if (!fixed?.appHtml) return built;
-    const repaired: RawQuestion = { ...built, appHtml: fixed.appHtml, testCases: fixed.testCases?.length ? fixed.testCases : built.testCases, callouts: fixed.callouts?.length ? fixed.callouts : built.callouts };
-    // The repair is kept unless it made things worse: it must still load
-    step('loading the fixed page to make sure it still works…');
-    const after = await probeApp(repaired.appHtml!, checksOf(repaired));
-    return after.state ? repaired : built;
+    if (problems.length) {
+      step(`fixing ${problems.length === 1 ? 'a problem' : `${problems.length} problems`} found clicking through it…`);
+      const fixed = await request({ html: built.appHtml!, problems }).catch(() => null);
+      if (fixed?.appHtml) {
+        const repaired: RawQuestion = { ...built, appHtml: fixed.appHtml, testCases: fixed.testCases?.length ? fixed.testCases : built.testCases, callouts: fixed.callouts?.length ? fixed.callouts : built.callouts };
+        // The repair is kept unless it made things worse: it must still load
+        step('loading the fixed page to make sure it still works…');
+        const after = await probeApp(repaired.appHtml!, checksOf(repaired));
+        if (after.state) final = repaired;
+      }
+    }
+    remember(final, catalog, base?.id, mode);
+    return final;
   } catch {
     return item;
   }
+}
+
+// A page that loads is kept in the environment library: a new one saved for later tests to build on, or the saved one
+// it was built on counted as used again. Never holds up the build
+function remember(page: RawQuestion, catalog: BuiltPage['catalog'], baseId: string | undefined, mode: PageMode) {
+  if (baseId) return void markEnvironmentUsed(baseId);
+  if (!page.appHtml || !catalog?.name?.trim()) return;
+  void probeApp(page.appHtml, checksOf(page)).then((probe) => {
+    if (!probe.state) return;
+    return saveEnvironment(
+      {
+        name: catalog.name!.trim().slice(0, 100),
+        product: String(catalog.product ?? '').trim().slice(0, 60) || 'Simulation',
+        summary: String(catalog.summary ?? '').trim().slice(0, 600),
+        builtFor: String(page.title ?? '').trim().slice(0, 140),
+        ...(mode.sector && { sector: mode.sector }),
+        ...(mode.game && { game: mode.game }),
+      },
+      { html: page.appHtml!, callouts: page.callouts ?? [] }
+    );
+  });
 }
 
 // An app page changed as the company asked: the builder gets the page as it is and the change, and the result is

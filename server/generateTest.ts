@@ -471,6 +471,16 @@ export const ASSISTANT_RULES = `
   model work. timeLimitMinutes 8 to 15. points as for a hands-on task. At most 2 in a test.`;
 
 // The two styles that give a test depth: a case to read with questions on it, and a written answer marked on its points
+// Coding tasks: a whole program in the language the job uses, marked on what it prints for each test case's input
+export const CODE_RULE = `- code: a program in the language the job uses. contextData is its id, one of: javascript, typescript,
+  python, java, csharp, cpp, c, go, rust, php, ruby, kotlin, swift, scala, dart, r, bash, perl, lua, haskell, elixir,
+  fsharp, vbnet, objectivec, clojure, groovy, ocaml, erlang, fortran, pascal, cobol, d, prolog, octave, assembly; or
+  "any" when the job doesn't fix a language (the candidate picks theirs). The program reads the test case's input from
+  standard input and prints the answer. starterCode is a short skeleton in that language that reads the input (empty for
+  "any"). solutionCode is a correct, complete reference program in that language (in Python for "any"). 3 to 5
+  testCases: input is the exact standard input (lines of plain text, e.g. "5\\n3 1 4 1 5"), expectedOutput the exact
+  output it prints. Say in the prompt what the input looks like line by line and what to print.`;
+
 export const DEPTH_STYLE_RULES = `
 - written: an extended answer of 80 to 250 words, for judgement, diagnosis, explaining a decision, a plan, or the actual
   reply to a customer or colleague. solutionCode: a model answer a strong candidate would write. acceptedAnswers holds
@@ -519,7 +529,7 @@ Style rules (testCases is an empty list for choice, multi, text, order and match
 - text: a short factual answer (a word, number or short phrase); acceptedAnswers lists every acceptable wording.
 - order: 4 to 6 items listed in the RIGHT order (candidates see them shuffled).
 - match: 3 to 5 pairs; each left prompt with its right answer, all distinct.
-- code: JavaScript. starterCode defines "function solution(...)". solutionCode is a correct reference implementation. 3 to 5 testCases; input is a JSON array of the arguments, e.g. "[[3,1,2]]" calls solution([3,1,2]); expectedOutput is the JSON result.
+${CODE_RULE}
 - sql: query only these tables: ${req.tables.map((t) => `${t.name}(${t.columns.join(', ')})`).join('; ')}. List the tables used in "tables". solutionCode is a correct SQLite query; starterCode is a comment and "SELECT ".${DEPTH_STYLE_RULES}${req.styles.includes('email') ? EMAIL_RULES : ''}${req.styles.includes('assistant') ? ASSISTANT_RULES : ''}${req.styles.includes('app') ? APP_RULES : ''}
 timeLimitMinutes is realistic for the question (2 to 4 for answer styles, as the scenario takes reading, 5 to 10 for code and sql, 6 to 12 for app), and across the test they add up to 25 to 35. points reflect importance; a task counts for more than a question about it.${req.styles.includes('app') ? TASK_RULES : ''}
 category must be one of: ${req.categories.join(', ')}, the one for the job itself: Trades for electrical, plumbing, building, mechanical and other trade work; Healthcare for clinical, dental and care work; Hospitality and Retail for that work (never a tech or office category for these jobs). passingScore between 60 and 80. roles: pick from ${req.roles.join(', ')}.

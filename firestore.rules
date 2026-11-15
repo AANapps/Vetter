@@ -269,6 +269,28 @@ service cloud.firestore {
       allow delete: if isAdmin() || worksAt(resource.data.businessId);
     }
 
+    // Vetter's environment library: every simulation page built for a test, kept for later tests to build on
+    // (src/lib/environments.ts). Company accounts and the Vetter team read it; whoever builds a page saves it as
+    // themselves; anyone who builds on one counts one more use; the one who saved it, or the Vetter team, deletes it
+    function staff() {
+      return isAdmin() || (signedIn() && exists(/databases/$(database)/documents/users/$(uid()))
+        && userDoc(uid()).data.role == 'recruiter' && userDoc(uid()).data.status == 'active');
+    }
+    match /environments/{envId} {
+      allow read: if staff();
+      allow create: if staff() && request.resource.data.createdBy == uid() && request.resource.data.uses == 0
+        && request.resource.data.name is string && request.resource.data.name.size() <= 100;
+      allow update: if isAdmin()
+        || (staff() && changed().hasOnly(['uses']) && request.resource.data.uses == resource.data.uses + 1);
+      allow delete: if isAdmin() || (signedIn() && resource.data.createdBy == uid());
+    }
+    match /environmentPages/{envId} {
+      allow read: if staff();
+      allow create: if staff() && getAfter(/databases/$(database)/documents/environments/$(envId)).data.createdBy == uid();
+      allow update: if isAdmin();
+      allow delete: if isAdmin() || (signedIn() && get(/databases/$(database)/documents/environments/$(envId)).data.createdBy == uid());
+    }
+
     // The feed: anyone can read it; people write, comment and give kudos as themselves
     match /posts/{postId} {
       allow read: if true;

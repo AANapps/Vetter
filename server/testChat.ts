@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { meter } from './meter.js';
-import { APP_KINDS, APP_TASK_RULES, DEPTH_STYLE_RULES, EMAIL_RULES, ASSISTANT_RULES, GAMIFIED_TEST_RULES, QUALITY_RULES, SKILLS_TEST_RULES, STANDALONE_RULES, TRAINING_RULES, SimulationCompany, sectorSimulationRules, simulationRules, TASK_RULES, WORKSPACE_RULES, MAX_PROMPT, PRICES, apiFailure, questionSchema, researchSoftware } from './generateTest.js';
+import { CODE_RULE, APP_KINDS, APP_TASK_RULES, DEPTH_STYLE_RULES, EMAIL_RULES, ASSISTANT_RULES, GAMIFIED_TEST_RULES, QUALITY_RULES, SKILLS_TEST_RULES, STANDALONE_RULES, TRAINING_RULES, SimulationCompany, sectorSimulationRules, simulationRules, TASK_RULES, WORKSPACE_RULES, MAX_PROMPT, PRICES, apiFailure, questionSchema, researchSoftware } from './generateTest.js';
 
 /**
  * Building a test by talking to Vetter: the company says what it wants, Vetter writes a draft, and every message after
@@ -171,7 +171,7 @@ Style rules (testCases is an empty list for choice, multi, text, order and match
 - text: a short factual answer (a word, number or short phrase); acceptedAnswers lists every acceptable wording.
 - order: 4 to 6 items listed in the RIGHT order (candidates see them shuffled).
 - match: 3 to 5 pairs; each left prompt with its right answer, all distinct.
-- code: JavaScript. starterCode defines "function solution(...)". solutionCode is a correct reference implementation. 3 to 5 testCases; input is a JSON array of the arguments, e.g. "[[3,1,2]]" calls solution([3,1,2]); expectedOutput is the JSON result.
+${CODE_RULE}
 - sql: query only these tables: ${req.tables.map((t) => `${t.name}(${t.columns.join(', ')})`).join('; ')}. List the tables used in "tables". solutionCode is a correct SQLite query; starterCode is a comment and "SELECT ".${DEPTH_STYLE_RULES}${EMAIL_RULES}${ASSISTANT_RULES}${WORKSPACE_RULES}${APP_KINDS}
   In this conversation appHtml is NOT the page: a separate page builder writes each page from the spec you put in appHtml,
   then the page is tried out. appHtml holds the complete spec for the builder, in plain text, 250 to 600 words: which kind it is and what it copies or shows; the layout

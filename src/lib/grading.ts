@@ -5,6 +5,8 @@ import { checkSheet, parseWorkbook } from './spreadsheet';
 import { checkAppState } from './appSimulation';
 import { runJavaScriptCode, CodeExecutionResult } from './codeEngine';
 import { gradeAnswer, isAnswerType } from './questionTypes';
+import { answerLanguage, unpackAnswer } from './languages';
+import { runProgramTests } from './codeRunner';
 
 export type TestCaseOutcome = CodeExecutionResult['testCaseResults'][number];
 
@@ -161,6 +163,11 @@ export async function runQuestion(q: Question, code: string): Promise<QuestionRu
   if (q.type === 'app') return gradeAppQuestion(q, code);
   if (isAnswerType(q.type)) return gradeAnswerQuestion(q, code);
   if (q.type === 'schema') return { type: 'code', ...(await runSchemaChecks(code, q.testCases)) };
+  // A program in any language, run on each case's input; on a task open to any language, in the one the candidate picked
+  if (q.language) {
+    const { language, code: program } = unpackAnswer(code);
+    return { type: 'code', ...(await runProgramTests(answerLanguage(q.language, language), program, q.testCases)) };
+  }
   // A harness grades through its own check(), run after the candidate's code so it can call their solution
   if (q.harness) return { type: 'code', ...runJavaScriptCode(`${code}\n${q.harness}`, q.testCases, 'check') };
   return { type: 'code', ...runJavaScriptCode(code, q.testCases) };

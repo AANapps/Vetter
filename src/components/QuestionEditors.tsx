@@ -3,6 +3,9 @@ import { ArrowDown, ArrowUp, Check, Play, Plus, X } from 'lucide-react';
 import { Question } from '../types';
 import { MOCK_DATABASE, SqlExecutionResult, executeSqlQuery } from '../lib/sqlEngine';
 import { CodeExecutionResult, runJavaScriptCode } from '../lib/codeEngine';
+import { runProgramTests } from '../lib/codeRunner';
+import { ANY_LANGUAGE, LANGUAGES, languageById } from '../lib/languages';
+import { CodeField } from './CodeField';
 import { QUESTION_STYLES } from '../lib/questionTypes';
 import { contactText, messageText, parseAddress, parseContact, parseMessage } from '../lib/emailTasks';
 
@@ -430,36 +433,86 @@ const MatchEditor: React.FC<EditorProps> = ({ question: q, onChange }) => {
   );
 };
 
-// Coding: the starter code, test cases as arguments and expected results, and a reference solution to check them with
+// Coding: the language (or the classic JavaScript function), the starter code, test cases, and a reference solution to
+// check them with. In a language, each case is the program's standard input and what it should print
 const CodeEditor: React.FC<EditorProps> = ({ question: q, onChange }) => {
   const [check, setCheck] = useState<CodeExecutionResult | null>(null);
+  const [running, setRunning] = useState(false);
   const cases = q.testCases;
+  const program = !!q.language;
+  // The solution of a task open to any language is in Python
+  const solutionLanguage = q.language ? languageById(q.language === ANY_LANGUAGE ? 'python' : q.language) ?? LANGUAGES[0] : undefined;
   const setCase = (i: number, change: Partial<Question['testCases'][number]>) => {
     onChange({ testCases: withItem(cases, i, { ...cases[i], ...change }) });
     setCheck(null);
   };
-  const runSolution = () => setCheck(runJavaScriptCode(q.solutionCode ?? '', cases));
-  const fillExpected = () => {
-    const result = runJavaScriptCode(q.solutionCode ?? '', cases);
-    onChange({ testCases: cases.map((tc, i) => ({ ...tc, expectedOutput: result.testCaseResults[i]?.actual ?? tc.expectedOutput })) });
+  const runSolution = async () => {
+    if (!solutionLanguage) return runJavaScriptCode(q.solutionCode ?? '', cases);
+    setRunning(true);
+    try {
+      return await runProgramTests(solutionLanguage, q.solutionCode ?? '', cases);
+    } finally {
+      setRunning(false);
+    }
+  };
+  const fillExpected = async () => {
+    const result = await runSolution();
+    onChange({ testCases: cases.map((tc, i) => ({ ...tc, expectedOutput: result.testCaseResults[i]?.error ? tc.expectedOutput : result.testCaseResults[i]?.actual ?? tc.expectedOutput })) });
+    setCheck(null);
+  };
+  // Changing the language starts the starter code from its template when nothing of the old one was written
+  const setLanguage = (id: string) => {
+    const before = q.language ? languageById(q.language)?.starter ?? '' : '';
+    const next = id ? languageById(id) : undefined;
+    const fresh = !q.starterCode.trim() || q.starterCode === before;
+    onChange({
+      language: id || undefined,
+      ...(fresh && { starterCode: id === ANY_LANGUAGE ? '' : next ? next.starter : 'function solution(input) {\n  \n}\n' }),
+    });
     setCheck(null);
   };
 
   return (
     <div className="space-y-5">
       <div>
-        <label htmlFor={`${q.id}-starter`} className={labelClass}>
-          Starter code
+        <label htmlFor={`${q.id}-language`} className={labelClass}>
+          Language
         </label>
-        <p className="text-[11px] text-slate-500 mb-1.5">Candidates write a JavaScript function called solution. Its arguments come from each test case.</p>
-        <textarea id={`${q.id}-starter`} rows={6} spellCheck={false} value={q.starterCode} onChange={(e) => onChange({ starterCode: e.target.value })} className={codeClass} />
+        <select id={`${q.id}-language`} value={q.language ?? ''} onChange={(e) => setLanguage(e.target.value)} className={`${inputClass} max-w-xs`}>
+          <option value="">JavaScript function (classic)</option>
+          <option value={ANY_LANGUAGE}>Any language: the candidate picks</option>
+          {LANGUAGES.map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.label}
+            </option>
+          ))}
+        </select>
+        {solutionLanguage?.runtime === 'server' && (
+          <p className="text-[11px] text-slate-500 mt-1">{solutionLanguage.label} runs on Vetter's code runner. JavaScript and Python run in the candidate's browser.</p>
+        )}
       </div>
+
+      {q.language !== ANY_LANGUAGE && (
+        <div>
+          <div className={labelClass}>Starter code</div>
+          <p className="text-[11px] text-slate-500 mb-1.5">
+            {program ? 'A program that reads the input from standard input and prints the answer.' : 'Candidates write a JavaScript function called solution. Its arguments come from each test case.'}
+          </p>
+          <CodeField value={q.starterCode} onChange={(v) => onChange({ starterCode: v })} language={solutionLanguage?.editor ?? 'JavaScript'} ariaLabel="Starter code" className="h-40 rounded-lg" />
+        </div>
+      )}
 
       <div className="space-y-2">
         <div className={labelClass}>Test cases</div>
         <p className="text-[11px] text-slate-500 -mt-1">
-          Arguments as a JSON list, e.g. <code className="font-mono">[[3, 1, 2]]</code> calls solution([3, 1, 2]). The expected result is JSON too. Tick hidden for
-          cases candidates shouldn't see before submitting.
+          {program ? (
+            <>The input is what the program reads on standard input, one line per line. The expected output is exactly what it should print. Tick hidden for cases candidates shouldn't see before submitting.</>
+          ) : (
+            <>
+              Arguments as a JSON list, e.g. <code className="font-mono">[[3, 1, 2]]</code> calls solution([3, 1, 2]). The expected result is JSON too. Tick hidden for
+              cases candidates shouldn't see before submitting.
+            </>
+          )}
         </p>
         {cases.map((tc, i) => (
           <div key={tc.id} className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
@@ -478,47 +531,54 @@ const CodeEditor: React.FC<EditorProps> = ({ question: q, onChange }) => {
               <RemoveButton label={`Remove test case ${i + 1}`} onClick={() => onChange({ testCases: cases.filter((_, x) => x !== i) })} disabled={cases.length <= 1} />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <input value={tc.input} onChange={(e) => setCase(i, { input: e.target.value })} aria-label={`Test case ${i + 1}: arguments`} placeholder="Arguments, e.g. [[3, 1, 2]]" className={`${inputClass} font-mono text-xs`} />
-              <input
-                value={tc.expectedOutput}
-                onChange={(e) => setCase(i, { expectedOutput: e.target.value })}
-                aria-label={`Test case ${i + 1}: expected result`}
-                placeholder="Expected result, e.g. [1, 2, 3]"
-                className={`${inputClass} font-mono text-xs`}
-              />
+              {program ? (
+                <>
+                  <textarea rows={3} spellCheck={false} value={tc.input} onChange={(e) => setCase(i, { input: e.target.value })} aria-label={`Test case ${i + 1}: input`} placeholder={'Input, e.g.\n5\n3 1 4 1 5'} className={`${inputClass} font-mono text-xs`} />
+                  <textarea rows={3} spellCheck={false} value={tc.expectedOutput} onChange={(e) => setCase(i, { expectedOutput: e.target.value })} aria-label={`Test case ${i + 1}: expected output`} placeholder="Expected output, e.g. 14" className={`${inputClass} font-mono text-xs`} />
+                </>
+              ) : (
+                <>
+                  <input value={tc.input} onChange={(e) => setCase(i, { input: e.target.value })} aria-label={`Test case ${i + 1}: arguments`} placeholder="Arguments, e.g. [[3, 1, 2]]" className={`${inputClass} font-mono text-xs`} />
+                  <input
+                    value={tc.expectedOutput}
+                    onChange={(e) => setCase(i, { expectedOutput: e.target.value })}
+                    aria-label={`Test case ${i + 1}: expected result`}
+                    placeholder="Expected result, e.g. [1, 2, 3]"
+                    className={`${inputClass} font-mono text-xs`}
+                  />
+                </>
+              )}
             </div>
             {check?.testCaseResults[i] && (
-              <p className={`text-[11px] font-mono ${check.testCaseResults[i].passed ? 'text-emerald-700' : 'text-rose-700'}`}>
-                {check.testCaseResults[i].passed ? 'Solution passes' : `Solution gives ${check.testCaseResults[i].actual || check.testCaseResults[i].error}`}
+              <p className={`text-[11px] font-mono whitespace-pre-wrap ${check.testCaseResults[i].passed ? 'text-emerald-700' : 'text-rose-700'}`}>
+                {check.testCaseResults[i].passed ? 'Solution passes' : `Solution gives ${check.testCaseResults[i].error || check.testCaseResults[i].actual}`}
               </p>
             )}
           </div>
         ))}
-        <AddButton label="Add test case" onClick={() => onChange({ testCases: [...cases, { id: `tc-${Date.now().toString(36)}`, description: '', input: '[]', expectedOutput: '' }] })} />
+        <AddButton label="Add test case" onClick={() => onChange({ testCases: [...cases, { id: `tc-${Date.now().toString(36)}`, description: '', input: program ? '' : '[]', expectedOutput: '' }] })} />
       </div>
 
       <div>
-        <label htmlFor={`${q.id}-solution`} className={labelClass}>
-          Reference solution <span className="font-normal text-slate-400">(optional, never shown to candidates)</span>
-        </label>
-        <textarea
-          id={`${q.id}-solution`}
-          rows={6}
-          spellCheck={false}
+        <div className={labelClass}>
+          Reference solution{q.language === ANY_LANGUAGE ? ' in Python' : ''} <span className="font-normal text-slate-400">(optional, never shown to candidates)</span>
+        </div>
+        <CodeField
           value={q.solutionCode ?? ''}
-          onChange={(e) => {
-            onChange({ solutionCode: e.target.value });
+          onChange={(v) => {
+            onChange({ solutionCode: v });
             setCheck(null);
           }}
-          placeholder="function solution(input) { ... }"
-          className={codeClass}
+          language={solutionLanguage?.editor ?? 'JavaScript'}
+          ariaLabel="Reference solution"
+          className="h-40 rounded-lg"
         />
         <div className="flex flex-wrap gap-2 mt-2">
-          <button type="button" onClick={runSolution} disabled={!q.solutionCode?.trim()} className="px-3 py-1.5 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-700 disabled:opacity-40 rounded-lg flex items-center gap-1.5">
+          <button type="button" onClick={async () => setCheck(await runSolution())} disabled={!q.solutionCode?.trim() || running} className="px-3 py-1.5 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-700 disabled:opacity-40 rounded-lg flex items-center gap-1.5">
             <Play className="w-3 h-3 fill-current" />
-            Check test cases
+            {running ? 'Running…' : 'Check test cases'}
           </button>
-          <button type="button" onClick={fillExpected} disabled={!q.solutionCode?.trim()} className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:border-indigo-400 disabled:opacity-40 rounded-lg">
+          <button type="button" onClick={fillExpected} disabled={!q.solutionCode?.trim() || running} className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:border-indigo-400 disabled:opacity-40 rounded-lg">
             Fill expected results from solution
           </button>
           {check && (

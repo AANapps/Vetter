@@ -33,6 +33,9 @@ export interface BuildAppRequest {
   quick?: boolean;
   // The page worked out in detail by the designer (server/designApp.ts), to type out
   design?: string;
+  // A page from Vetter's environment library (an earlier test's simulation of the same kind of product), to build on
+  // instead of starting from nothing: its shell, look and code are kept, its data and task-specific parts replaced
+  base?: { html: string; name: string };
 }
 
 const MAX_TEXT = 8000;
@@ -61,8 +64,15 @@ const schema = {
         additionalProperties: false,
       },
     },
+    // How Vetter's environment library lists the page, so later tests can build on it
+    catalog: {
+      type: 'object',
+      properties: { name: { type: 'string' }, product: { type: 'string' }, summary: { type: 'string' } },
+      required: ['name', 'product', 'summary'],
+      additionalProperties: false,
+    },
   },
-  required: ['appHtml', 'testCases', 'callouts'],
+  required: ['appHtml', 'testCases', 'callouts', 'catalog'],
   additionalProperties: false,
 };
 
@@ -100,6 +110,10 @@ is and what it's for ("New refunds start here: pick the order first, then the re
     ? 'This is training for the company\'s own people: the tips may guide them step by step through the task.'
     : 'This is a hiring test: tips show where things are and what they do, never which choice is right, the values to enter or the answer to any check.'
 }
+LIBRARY ENTRY: Vetter keeps every page in its environment library for later tests to build on. Return catalog: name, a
+short title for the environment ("Sales CRM: pipeline, contacts and deals"); product, the kind of software or equipment it
+copies in a few generic words ("CRM", "help desk", "point of sale", "smartphone"), never a brand; summary, 2 to 3
+sentences on its shell, screens and components (not this task's data, company or answers).
 ${research ? `\nRESEARCH on the job and what the page copies (keep every term, step and value true to it):\n${research.slice(0, MAX_TEXT * 2)}` : ''}`;
 
 export async function buildApp(body: unknown, apiKey: string | undefined, model: string): Promise<{ status: number; json: unknown }> {
@@ -127,7 +141,13 @@ export async function buildApp(body: unknown, apiKey: string | undefined, model:
               `THE TASK AS THE CANDIDATE READS IT:\n${String(req.prompt ?? '').slice(0, MAX_TEXT)}`,
               `THE PAGE SPEC:\n${req.brief.slice(0, req.game === 'standalone' ? MAX_TEXT * 2 : MAX_TEXT)}`,
               `THE PLANNED CHECKS:\n${JSON.stringify((req.testCases ?? []).slice(0, req.game === 'standalone' ? 15 : 8))}`,
-              ...(req.design && !req.fix?.html && !req.edit?.html
+              ...(req.base?.html && !req.fix?.html && !req.edit?.html
+                ? [
+                    `A PAGE FROM VETTER'S ENVIRONMENT LIBRARY ("${String(req.base.name ?? '').slice(0, 120)}"), built for an earlier test and copying the same kind of product:\n${String(req.base.html).slice(0, MAX_PAGE)}`,
+                    "Build this task's page ON that one: keep its shell, stylesheet, look, components and working code wherever they carry over, so it stays the same environment. Replace every record, name, figure, message and setting with the data this spec needs: nothing from the earlier test may remain (it belonged to another company), and its state starts as this spec says. Add, change or remove screens, controls and behaviour so the page does exactly what this spec and its checks need, all fully working, and set its data-ref tips for this task. Return the whole page.",
+                  ]
+                : []),
+              ...(req.design && !req.base?.html && !req.fix?.html && !req.edit?.html
                 ? [
                     `THE PAGE DESIGN, worked out in detail by Vetter's product designer: build exactly this, with its look, layout, screens, data, state and controls (where it and the spec disagree, the spec wins):\n${String(req.design).slice(0, MAX_TEXT * 3)}`,
                   ]

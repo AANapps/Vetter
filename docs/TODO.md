@@ -14,6 +14,10 @@ Kept up to date as work is asked for and finished. Newest items at the bottom of
 
 - **Opus for simulations.** Use Opus 5.5 for the design pass now, and for page writing once builds run in the background (Opus can pass the 300s limit). Fable 5.2 is the most capable but twice Opus's price and slower.
 
+- **Turn on the code runner.** Set `JUDGE0_KEY` (RapidAPI Judge0 CE) or `JUDGE0_URL` on Vercel so coding tasks in languages other than JavaScript and Python can run. Decide RapidAPI (pay per run) or a self-hosted Judge0 server.
+- **Deploy the Firestore rules** for the environment library (`environments`, `environmentPages`): `firebase deploy --only firestore:rules`. Until then saving to the library fails quietly and every simulation is designed from scratch.
+- **Environment library privacy.** A saved simulation holds the data of the test it was made for (the hiring company's scenario). Other companies can't open it in the library, but their builds read it to build on (the AI is told to replace all of it). Decide whether that's fine or whether pages should be cleaned of company data when saved.
+
 ## Done
 
 - 2026-11-12: Tests fit the job (no spreadsheets for trades/clinical), drawings labelled.
@@ -25,3 +29,4 @@ Kept up to date as work is asked for and finished. Newest items at the bottom of
 - 2026-11-13: Home chat lists the whole plan (every question, its type and what it tests) before building; messages change the plan, Build writes it with the building animation and checklist, and Preview opens the finished test in a pop-up.
 - 2026-11-13: Back to a separate AI test builder: the home chat plans the questions, Build in AI test builder opens the pop-up (renamed, builder layout) which builds that plan, previews, edits and saves; Edit with AI opens it too.
 - 2026-11-13: A design pass at high effort before each simulation page is written, describing the real product's look in detail. (A shared UI kit was tried the same day and dropped from the prompts: pages came out generic. It stays loaded only for pages built with it.) Every page defaults to a modern font, and the AI must use a modern UI typeface.
+- 2026-11-15: Code editor for any language (35, or the candidate's pick); JavaScript and Python run in the browser, the rest on Judge0. Environment library: every simulation built is saved and reused for later tests of the same kind of product.

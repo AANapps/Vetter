@@ -1,5 +1,6 @@
 import { AssessmentTest, Question } from '../types';
 import { QuestionRunResult } from './grading';
+import { codeAnswer, languageById } from './languages';
 import { ASSISTANT_RESULT_SHARE, assistantAnswer, emailAnswer, emailMark } from './questionTypes';
 
 // A second marking by Vetter's AI for code, SQL and short answers that the automatic checks didn't give full marks.
@@ -45,7 +46,13 @@ function describe(q: Question, run: QuestionRunResult): { reference: string; aut
     .join('\n');
   const failedToRun = run.type === 'sql' && !run.success ? `Query failed: ${run.errorMessage}\n` : '';
   return {
-    reference: [q.solutionCode ? `Reference solution:\n${q.solutionCode}` : '', q.contextData ? `Context: ${q.contextData}` : ''].filter(Boolean).join('\n\n'),
+    reference: [
+      q.language ? `A program in ${q.language === 'any' ? 'any language the candidate picks' : languageById(q.language)?.label ?? q.language}, reading each test case's input on standard input and printing the answer.` : '',
+      q.solutionCode ? `Reference solution${q.language === 'any' ? ' (in Python)' : ''}:\n${q.solutionCode}` : '',
+      q.contextData ? `Context: ${q.contextData}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n\n'),
     autoResult: `${failedToRun}${cases || 'No checks ran.'}`,
   };
 }
@@ -66,7 +73,8 @@ export const assistantText = (answer: string) => {
 export async function aiMarks(test: AssessmentTest, codes: Record<string, string>, perQuestion: Record<string, number>, runs: Record<string, QuestionRunResult>) {
   const items = test.questions
     .filter((q) => MARKED_BY_AI.includes(q.type) && perQuestion[q.id] < 100 && runs[q.id])
-    .map((q) => ({ q, answer: codes[q.id] ?? '' }))
+    // Code is read as written (on a task open to any language, with the language picked), blank if left as it started
+    .map((q) => ({ q, answer: q.type === 'code' && q.language ? codeAnswer(q, codes[q.id] ?? '') : codes[q.id] ?? '' }))
     // Nothing written, or the starter code untouched, has nothing to give credit for
     .filter(({ q, answer }) => answer.trim() !== '' && answer.trim() !== q.starterCode.trim())
     // An email goes to the marker as it was sent; nothing typed in the body is nothing to mark

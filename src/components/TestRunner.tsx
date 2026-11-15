@@ -30,6 +30,8 @@ import { groupQuestions, hasAnswer, isAnswerType, isWorkspaceType } from '../lib
 import { SpreadsheetWindow } from './SpreadsheetWindow';
 import { DatabaseWindow } from './DatabaseWindow';
 import { AppWindow } from './AppWindow';
+import { CodeField } from './CodeField';
+import { ANY_LANGUAGE, LANGUAGES, answerLanguage, languageById, packAnswer, unpackAnswer } from '../lib/languages';
 import { CaseBrief } from './CaseBrief';
 import { AiPanel, AiTurn, FilesPanel, InboxItem, InboxPanel, WorkspaceTabs, WorkspaceView } from './Workspace';
 import { CheatingWarning, TestIntro } from './TestIntro';
@@ -152,7 +154,8 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
   const [userCodes, setUserCodes] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {};
     test.questions.forEach((q) => {
-      initial[q.id] = q.starterCode;
+      // A task open to any language starts in Python, with its template
+      initial[q.id] = q.language === ANY_LANGUAGE ? packAnswer('python', languageById('python')!.starter) : q.starterCode;
     });
     return initial;
   });
@@ -250,6 +253,12 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
   const questionCount = ordered.filter((q) => q.type !== 'case').length;
   const isLastGroup = groupIndex === groups.length - 1;
   const currentCode = userCodes[currentQ.id] || '';
+  // Coding in a language: which one (the task's, or the candidate's pick on a task open to any), and the code itself
+  const anyLanguage = currentQ.language === ANY_LANGUAGE;
+  const codeLanguage = answerLanguage(currentQ.language, anyLanguage ? unpackAnswer(currentCode).language ?? 'python' : undefined);
+  const editorCode = anyLanguage ? unpackAnswer(currentCode).code : currentCode;
+  const editorFile = currentQ.type === 'sql' ? 'sql_workspace.sql' : currentQ.type === 'schema' ? 'schema.sql' : currentQ.language ? codeLanguage.file : 'solution.js';
+  const editorHighlight = currentQ.type === 'sql' || currentQ.type === 'schema' ? 'SQLite' : currentQ.language ? codeLanguage.editor : 'JavaScript';
   // Every sample table the task's schema reference names, from the candidate's own variant of the data when it has one
   const sampleTables = Array.from(currentQ.contextData?.matchAll(/Table:\s*(\w+)/g) ?? [])
     .map((m) => (currentQ.type === 'sql' && currentQ.tables?.find((t) => t.name === m[1])) || MOCK_DATABASE[m[1]])
@@ -349,8 +358,19 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
   const handleResetCode = () => {
     setUserCodes((prev) => ({
       ...prev,
-      [currentQ.id]: currentQ.starterCode,
+      [currentQ.id]: currentQ.language === ANY_LANGUAGE ? packAnswer(codeLanguage.id, codeLanguage.starter) : currentQ.starterCode,
     }));
+    setRunResults(null);
+  };
+
+  // A task open to any language: the candidate's pick, kept with their answer. Changing it starts from that language's
+  // template, after asking if they'd written anything
+  const switchLanguage = (id: string) => {
+    const next = languageById(id);
+    if (!next || next.id === codeLanguage.id) return;
+    const written = editorCode.trim() && editorCode !== codeLanguage.starter;
+    if (written && !window.confirm(`Switch to ${next.label}? Your ${codeLanguage.label} code will be replaced with a ${next.label} starting template.`)) return;
+    handleCodeChange(packAnswer(next.id, next.starter));
     setRunResults(null);
   };
 
@@ -798,7 +818,22 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
           <div className="px-4 py-2 bg-slate-100 border-b border-slate-200 flex items-center justify-between shrink-0">
             <div className="text-xs text-slate-600 font-mono flex items-center gap-2 font-semibold">
               <span className="w-2 h-2 rounded-full bg-indigo-600" />
-              <span>{currentQ.type === 'sql' ? 'sql_workspace.sql' : currentQ.type === 'schema' ? 'schema.sql' : 'solution.js'}</span>
+              <span>{editorFile}</span>
+              {anyLanguage && (
+                <select
+                  value={codeLanguage.id}
+                  onChange={(e) => switchLanguage(e.target.value)}
+                  aria-label="Language"
+                  className="ml-1 px-2 py-1 bg-white border border-slate-300 rounded-md text-xs font-sans font-semibold text-slate-800"
+                >
+                  {LANGUAGES.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.label}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {currentQ.language && !anyLanguage && <span className="ml-1 px-1.5 py-0.5 rounded bg-white border border-slate-200 font-sans text-[11px] text-slate-600">{codeLanguage.label}</span>}
             </div>
 
             <div className="flex items-center gap-2">
@@ -815,19 +850,20 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
                 className="px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 rounded-md transition-colors flex items-center gap-1.5 shadow-xs"
               >
                 <Play className="w-3 h-3 fill-current" />
-                <span>{isRunning ? 'Executing...' : 'Run Query / Code'}</span>
+                <span>{isRunning ? 'Running…' : currentQ.type === 'sql' || currentQ.type === 'schema' ? 'Run query' : 'Run code'}</span>
               </button>
             </div>
           </div>
 
-          {/* Code Editor TextArea (with high-contrast dark code background for syntax clarity) */}
-          <div className="h-64 border-b border-slate-200 relative bg-slate-950">
-            <textarea
-              value={currentCode}
-              onChange={(e) => handleCodeChange(e.target.value)}
-              spellCheck={false}
-              className="w-full h-full p-4 font-mono text-xs text-emerald-400 bg-slate-950 resize-none focus:outline-none focus:ring-1 focus:ring-indigo-500 leading-relaxed"
-              placeholder="Write your solution here..."
+          {/* The code editor: highlighting for the task's language, brackets, indenting and search */}
+          <div className="h-72 border-b border-slate-200 relative bg-[#282c34]">
+            <CodeField
+              key={currentQ.id}
+              value={editorCode}
+              onChange={(v) => handleCodeChange(anyLanguage ? packAnswer(codeLanguage.id, v) : v)}
+              language={editorHighlight}
+              ariaLabel={`${codeLanguage.label} code`}
+              className="h-full"
             />
           </div>
 
@@ -857,7 +893,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
               {!runResults && (
                 <div className="text-slate-400 flex flex-col items-center justify-center h-full text-center p-6">
                   <Play className="w-6 h-6 mb-2 text-indigo-400 opacity-60" />
-                  <p>Click "Run Query / Code" to evaluate your solution against standardized benchmarks.</p>
+                  <p>{currentQ.type === 'sql' || currentQ.type === 'schema' ? 'Click "Run query"' : 'Click "Run code"'} to check your answer against the test cases.{currentQ.language ? ' Your program gets each test case on standard input and should print the answer.' : ''}</p>
                 </div>
               )}
 
@@ -915,9 +951,15 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
 
                   {runResults.type === 'code' && (
                     <div className="space-y-2">
+                      {/* A compile error, crash or time-out: the first one, in full, as the language reported it */}
+                      {runResults.testCaseResults.find((t) => t.error) && (
+                        <pre className="p-2 bg-rose-50 rounded-lg border border-rose-200 text-rose-900 text-[11px] whitespace-pre-wrap break-words max-h-56 overflow-y-auto">
+                          {runResults.testCaseResults.find((t) => t.error)!.error}
+                        </pre>
+                      )}
                       {runResults.logs && runResults.logs.length > 0 && (
                         <div className="p-2 bg-slate-50 rounded-lg border border-slate-200 text-slate-700 text-xs">
-                          <div className="text-slate-400 text-[10px] mb-1 font-semibold">STDOUT:</div>
+                          <div className="text-slate-400 text-[10px] mb-1 font-semibold">{currentQ.language ? 'STDERR:' : 'STDOUT:'}</div>
                           {runResults.logs.map((l: string, i: number) => (
                             <div key={i}>{l}</div>
                           ))}
@@ -943,10 +985,11 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
                         <span>Case {i + 1}: {tc.description}</span>
                         <span className="text-[11px] font-mono">{tc.passed ? 'PASSED' : 'FAILED'}</span>
                       </div>
-                      <div className="text-[11px] space-y-1 text-slate-600 font-mono">
+                      <div className="text-[11px] space-y-1 text-slate-600 font-mono whitespace-pre-wrap break-words">
                         <div>Input: <span className="text-slate-900">{tc.input}</span></div>
                         <div>Expected: <span className="text-emerald-700 font-semibold">{tc.expected}</span></div>
                         <div>Actual: <span className={tc.passed ? 'text-emerald-700 font-semibold' : 'text-rose-700 font-semibold'}>{tc.actual}</span></div>
+                        {tc.error && <div>Error: <span className="text-rose-700">{tc.error}</span></div>}
                       </div>
                     </div>
                   ))}

@@ -4,6 +4,7 @@ import { db, firebaseEnabled } from './firebase';
 import { assistantText } from './aiMarking';
 import { assistantAnswer, matchAnswer, emailAnswer, multiAnswer, orderAnswer, orderedQuestions } from './questionTypes';
 import type { QuestionRunResult } from './grading';
+import { codeAnswer } from './languages';
 
 /**
  * What a candidate actually answered on a test taken for a company, so the company can see the work behind the score
@@ -104,6 +105,7 @@ function readable(q: Question, raw: string): { answer: string; correct?: string 
       };
     }
     case 'code':
+      return { answer: codeAnswer(q, raw) };
     case 'sql':
     case 'schema':
       return { answer: raw === q.starterCode ? '' : raw };

@@ -3,6 +3,8 @@ import { AssessmentTest, Business, JobPosting, Question, QuestionType, SkillCate
 import { SKILL_IDS } from '../data/seedCandidates';
 import { MOCK_DATABASE, executeSqlQuery } from './sqlEngine';
 import { runJavaScriptCode } from './codeEngine';
+import { ANY_LANGUAGE, languageById } from './languages';
+import { runProgramTests, runnerMissing } from './codeRunner';
 import { isMainVersion, levelsOf } from './testLevels';
 import { categoriesFor, companySector, inCompanySector, rolesFor } from './sectors';
 import { ROLE_GROUPS } from './testRoles';
@@ -323,10 +325,27 @@ export async function checkQuestion(raw: RawQuestion): Promise<Question | null> 
   if (type === 'code') {
     q.solutionCode = raw.solutionCode;
     const cases = (raw.testCases ?? []).map((tc, i) => ({ id: uid('tc'), description: tc.description || `Test case ${i + 1}`, input: tc.input, expectedOutput: tc.expectedOutput }));
-    // Keep only the cases the AI's own solution passes; with none left, the question goes
-    const run = runJavaScriptCode(q.solutionCode ?? '', cases);
-    q.testCases = cases.filter((_, i) => run.testCaseResults[i]?.passed);
-    if (q.testCases.length < 2) return null;
+    // A program in a named language (or open to any) comes with its language in contextData; otherwise it's a
+    // JavaScript function called solution
+    const named = String(raw.contextData ?? '').trim().toLowerCase();
+    const language = named === ANY_LANGUAGE ? ANY_LANGUAGE : languageById(named)?.id;
+    if (language) {
+      q.language = language;
+      delete q.contextData;
+      // Open to any language: the reference solution is in Python, and the candidate starts from their language's template
+      const runAs = languageById(language === ANY_LANGUAGE ? 'python' : language)!;
+      q.starterCode = language === ANY_LANGUAGE ? '' : q.starterCode?.trim() ? q.starterCode : runAs.starter;
+      // Keep only the cases the AI's own solution passes. A language Vetter can't run yet (no code runner set up) keeps
+      // its cases as written
+      const run = await runProgramTests(runAs, q.solutionCode ?? '', cases);
+      q.testCases = runnerMissing(run) ? cases : cases.filter((_, i) => run.testCaseResults[i]?.passed);
+      if (q.testCases.length < 2) return null;
+    } else {
+      // Keep only the cases the AI's own solution passes; with none left, the question goes
+      const run = runJavaScriptCode(q.solutionCode ?? '', cases);
+      q.testCases = cases.filter((_, i) => run.testCaseResults[i]?.passed);
+      if (q.testCases.length < 2) return null;
+    }
   }
   if (type === 'sql') {
     const tables = (raw.tables ?? []).filter((t) => MOCK_DATABASE[t]);
