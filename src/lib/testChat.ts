@@ -4,7 +4,7 @@ import { MOCK_DATABASE } from './sqlEngine';
 import { probeApp } from './appSimulation';
 import { isGroupType, orderedQuestions } from './questionTypes';
 import { aiFetch } from './aiRequest';
-import { loadEnvironmentPage, loadEnvironments, markEnvironmentUsed, saveEnvironment } from './environments';
+import { EnvironmentSubmission, loadEnvironmentPage, loadEnvironments, loadSubmissionPage, markEnvironmentUsed, submitEnvironment, updateSubmission } from './environments';
 import { categoriesFor, companySector, rolesFor } from './sectors';
 import { ALL_ROLES, RawQuestion, Suggestion, assembleFromBank, checkQuestion, libraryFor, linkTasks, matchExisting } from './testGeneration';
 
@@ -174,11 +174,22 @@ async function designAppPage(item: RawQuestion, research: string | undefined, mo
   }
 }
 
-type BuiltPage = { appHtml?: string; testCases?: RawQuestion['testCases']; callouts?: AppCallout[]; catalog?: { name?: string; product?: string; summary?: string } };
+type BuiltPage = {
+  appHtml?: string;
+  testCases?: RawQuestion['testCases'];
+  callouts?: AppCallout[];
+  catalog?: { app?: string; name?: string; product?: string; summary?: string; features?: string[]; added?: string[] };
+};
+type LibraryBase = { id: string; name: string; html: string; features: string[]; version: number };
 
-// A saved simulation from Vetter's environment library to build this page on: one copying the same kind of product, as
-// a quick model judges from the library's summaries. Null when the library has none that fits (or can't be read)
-async function libraryBase(item: RawQuestion, mode: PageMode): Promise<{ id: string; name: string; html: string } | null> {
+// The app this page copies, from Vetter's environment library, to build on: its latest approved version. A quick model
+// works out which app the page copies and finds it there. Null when the app isn't in the library (or it can't be read)
+// Off for now (2026-11-15): every simulation is built from scratch. Building on a saved app rewrote the whole app and
+// ran past the model's output limit once the app grew; it needs the builder to send only its changes first
+const BUILD_ON_LIBRARY = false;
+
+async function libraryBase(item: RawQuestion, mode: PageMode): Promise<LibraryBase | null> {
+  if (!BUILD_ON_LIBRARY) return null;
   try {
     // A game-like page is built differently from a desk app, so each is only built on its own kind
     const saved = (await loadEnvironments()).filter((e) => (e.game ?? '') === (mode.game ?? ''));
@@ -187,22 +198,29 @@ async function libraryBase(item: RawQuestion, mode: PageMode): Promise<{ id: str
       title: item.title,
       prompt: item.prompt,
       brief: item.appHtml,
-      environments: saved.slice(0, 60).map(({ id, name, product, summary }) => ({ id, name, product, summary })),
+      environments: saved.slice(0, 60).map(({ id, app, name, product, summary, features }) => ({ id, app, name, product, summary, features })),
     });
     if (!res.ok) return null;
     const { id } = (await res.json()) as { id?: string };
     const match = id ? saved.find((e) => e.id === id) : undefined;
     if (!match) return null;
     const page = await loadEnvironmentPage(match.id);
-    return page?.html ? { id: match.id, name: match.name, html: page.html } : null;
+    return page?.html ? { id: match.id, name: match.name, html: page.html, features: match.features, version: match.version } : null;
   } catch {
     return null;
   }
 }
 
-async function buildAppPage(item: RawQuestion, research?: string, mode: PageMode = {}, step: Progress = () => {}): Promise<RawQuestion> {
+// Who a simulation is built for, and whether the build waits until it's been sent for review (the Vetter team's own
+// builds do, so the review queue shows it straight away)
+interface PageOwner {
+  owner?: string;
+  awaitSave?: boolean;
+}
+
+async function buildAppPage(item: RawQuestion, research?: string, mode: PageMode = {}, step: Progress = () => {}, who: PageOwner = {}): Promise<RawQuestion> {
   let design: string | undefined;
-  let base: { id: string; name: string; html: string } | null = null;
+  let base: LibraryBase | null = null;
   const request = (fix?: { html: string; problems: string[] }, quick?: boolean) =>
     aiFetch('/api/build-app', {
       title: item.title,
@@ -212,18 +230,18 @@ async function buildAppPage(item: RawQuestion, research?: string, mode: PageMode
       research,
       ...mode,
       ...(design && { design }),
-      ...(base && !fix && { base: { html: base.html, name: base.name } }),
+      ...(base && !fix && { base: { html: base.html, name: base.name, features: base.features } }),
       ...(quick && { quick }),
       ...(fix && { fix }),
     }).then(async (res) => (res.ok ? ((await res.json()) as BuiltPage) : null));
   try {
-    // A saved simulation of the same kind of product is built on, keeping its shell, look and code; otherwise the page
-    // is designed from nothing first
-    step("looking in Vetter's environment library for one to build on…");
+    // The app's simulation in the library is built on, keeping every feature it has and adding what this task needs;
+    // an app that isn't there yet is designed from nothing first
+    if (BUILD_ON_LIBRARY) step("looking for this app in Vetter's environment library…");
     base = await libraryBase(item, mode);
     let page: BuiltPage | null = null;
     if (base) {
-      step(`building on “${base.name}” from the environment library, with this task's data…`);
+      step(`building on “${base.name}” (version ${base.version}) from the library, adding what this task needs…`);
       page = await request().catch(() => null);
       if (!page?.appHtml) {
         step("that didn't come back, so designing a new page instead…");
@@ -258,47 +276,114 @@ async function buildAppPage(item: RawQuestion, research?: string, mode: PageMode
         if (after.state) final = repaired;
       }
     }
-    remember(final, catalog, base?.id, mode);
+    const saving = remember(final, catalog, base, mode, who.owner);
+    if (who.awaitSave) {
+      step('sending it to the Vetter team for review…');
+      await saving;
+    }
     return final;
   } catch {
     return item;
   }
 }
 
-// A page that loads is kept in the environment library: a new one saved for later tests to build on, or the saved one
-// it was built on counted as used again. Never holds up the build
-function remember(page: RawQuestion, catalog: BuiltPage['catalog'], baseId: string | undefined, mode: PageMode) {
-  if (baseId) return void markEnvironmentUsed(baseId);
-  if (!page.appHtml || !catalog?.name?.trim()) return;
-  void probeApp(page.appHtml, checksOf(page)).then((probe) => {
-    if (!probe.state) return;
-    return saveEnvironment(
-      {
-        name: catalog.name!.trim().slice(0, 100),
-        product: String(catalog.product ?? '').trim().slice(0, 60) || 'Simulation',
-        summary: String(catalog.summary ?? '').trim().slice(0, 600),
-        builtFor: String(page.title ?? '').trim().slice(0, 140),
-        ...(mode.sector && { sector: mode.sector }),
-        ...(mode.game && { game: mode.game }),
-      },
-      { html: page.appHtml!, callouts: page.callouts ?? [] }
+// A page that loads is sent to the Vetter team for review: a new app for the library, or the next version of the app it
+// was built on, with the features it added. Never holds up the test
+async function remember(page: RawQuestion, catalog: BuiltPage['catalog'], base: LibraryBase | null, mode: PageMode, owner = 'Vetter'): Promise<void> {
+  if (base) void markEnvironmentUsed(base.id);
+  if (!page.appHtml || !catalog?.app?.trim()) return;
+  const probe = await probeApp(page.appHtml, checksOf(page));
+  if (!probe.state) return;
+  const list = (l?: string[]) => (l ?? []).map((f) => String(f).trim().slice(0, 120)).filter(Boolean).slice(0, 80);
+  const features = list(catalog.features);
+  // Built on the library: only what it adds is new. Nothing added, nothing to review
+  const added = base ? list(catalog.added).filter((f) => !base.features.some((b) => b.toLowerCase() === f.toLowerCase())) : features;
+  if (base && !added.length) return;
+  await submitEnvironment(
+    {
+      ...(base && { envId: base.id, baseVersion: base.version }),
+      app: catalog.app.trim().slice(0, 80),
+      name: String(catalog.name ?? catalog.app).trim().slice(0, 100),
+      product: String(catalog.product ?? '').trim().slice(0, 60) || 'Simulation',
+      summary: String(catalog.summary ?? '').trim().slice(0, 600),
+      features,
+      added,
+      builtFor: String(page.title ?? '').trim().slice(0, 140),
+      owner: owner.slice(0, 100),
+      ...(mode.sector && { sector: mode.sector }),
+      ...(mode.game && { game: mode.game }),
+    },
+    { html: page.appHtml, callouts: page.callouts ?? [] }
+  );
+}
+
+/**
+ * The Vetter team builds an app for the library from the admin panel: the app and the features it should have. Built
+ * on the library's copy when the app is there already (so it gains those features), otherwise designed from nothing,
+ * then sent for review like any other. Returns an error to show, or null once it's waiting for review
+ */
+export async function buildLibrarySimulation(app: string, wants: string, progress: (stage: string) => void): Promise<string | null> {
+  const brief = `A working copy of ${app}, as people in the job use it day to day: its real layout, navigation and look. It must include, fully working: ${wants.trim() || 'its main screens and everyday features'}. Fill it with realistic sample records for every screen. The state object records what the user creates and changes.`;
+  const item: RawQuestion = { type: 'app', title: app, prompt: `Explore ${app} and use its features.`, appHtml: brief, testCases: [], points: 1, timeLimitMinutes: 10 } as RawQuestion;
+  const built = await buildAppPage(item, undefined, {}, progress, { owner: 'Vetter', awaitSave: true });
+  return built.appHtml && built.appHtml !== brief ? null : "The simulation couldn't be built. Try again, or describe it differently.";
+}
+
+/**
+ * Two versions of an app built on the same library version: once one is approved, the other would lose its features if
+ * approved as it is. This copies its added features onto the library's latest version, and the submission becomes that
+ * merged page, built on the latest version, for the Vetter team to try again before approving
+ */
+export async function mergeSubmission(sub: EnvironmentSubmission, progress: (stage: string) => void): Promise<string | null> {
+  const env = (await loadEnvironments()).find((e) => e.id === sub.envId);
+  if (!env) return 'The app it was built on is no longer in the library.';
+  progress('Loading both versions…');
+  const [latest, other] = await Promise.all([loadEnvironmentPage(env.id), loadSubmissionPage(sub.id)]);
+  if (!latest?.html || !other?.html) return "Couldn't load both versions.";
+  progress(`Copying ${sub.added.length === 1 ? 'its new feature' : `its ${sub.added.length} new features`} onto version ${env.version}… (a few minutes)`);
+  try {
+    const res = await aiFetch('/api/build-app', {
+      title: env.app,
+      prompt: `Explore ${env.app} and use its features.`,
+      brief: `${env.app}, with every feature it has now plus these: ${sub.added.join('; ')}.`,
+      testCases: [],
+      quick: true,
+      base: { html: latest.html, name: env.name, features: env.features },
+      merge: { html: other.html, features: sub.added },
+    });
+    if (!res.ok) return "The merge didn't come back. Try again.";
+    const page = (await res.json()) as BuiltPage;
+    if (!page.appHtml) return "The merge didn't come back. Try again.";
+    progress('Loading the merged page to check it works…');
+    const probe = await probeApp(page.appHtml, []);
+    if (!probe.state) return `The merged page didn't load${probe.problem ? `: ${probe.problem}` : ''}. Try again.`;
+    await updateSubmission(
+      sub,
+      { baseVersion: env.version, features: page.catalog?.features?.length ? page.catalog.features : [...env.features, ...sub.added] },
+      { html: page.appHtml, callouts: page.callouts ?? latest.callouts ?? [] }
     );
-  });
+    return null;
+  } catch {
+    return "The merge didn't come back. Try again.";
+  }
 }
 
 // An app page changed as the company asked: the builder gets the page as it is and the change, and the result is
 // checked like a new page (it must load and its checks must still fail at the start). Null when it doesn't hold up
-async function editAppPage(question: Question, change: string, taskPrompt: string, research?: string, mode: PageMode = {}, step: Progress = () => {}): Promise<Question | null> {
+async function editAppPage(question: Question, change: string, taskPrompt: string, research?: string, mode: PageMode = {}, step: Progress = () => {}, who: PageOwner = {}): Promise<Question | null> {
   const checks = question.testCases.map(({ description, input, expectedOutput }) => ({ description, input, expectedOutput }));
   const prompt = taskPrompt?.trim() || question.prompt;
   try {
+    // The app's library copy, so the features this change adds go to the Vetter team as its next version
+    const base = await libraryBase({ type: 'app', title: question.title, prompt, appHtml: change } as RawQuestion, mode).catch(() => null);
     step('rewriting the page with your change…');
-    const res = await aiFetch('/api/build-app', { title: question.title, prompt, brief: change, testCases: checks, research, ...mode, quick: true, edit: { html: question.appHtml ?? '', change } });
+    const res = await aiFetch('/api/build-app', { title: question.title, prompt, brief: change, testCases: checks, research, ...mode, quick: true, edit: { html: question.appHtml ?? '', change }, ...(base && { libraryFeatures: base.features }) });
     if (!res.ok) return null;
-    const page = (await res.json()) as { appHtml?: string; testCases?: RawQuestion['testCases']; callouts?: AppCallout[] };
+    const page = (await res.json()) as BuiltPage;
     if (!page.appHtml) return null;
     step('loading the changed page and checking its tasks can still be marked…');
     const checked = await checkQuestion({ type: 'app', title: question.title, prompt, appHtml: page.appHtml, testCases: (page.testCases?.length ? page.testCases : checks) as RawQuestion['testCases'], callouts: page.callouts?.length ? page.callouts : question.callouts, points: question.weight, timeLimitMinutes: question.timeLimitMinutes });
+    if (checked) void remember({ type: 'app', title: question.title, prompt, appHtml: checked.appHtml, testCases: checked.testCases, callouts: checked.callouts } as RawQuestion, page.catalog, base, mode, who.owner);
     // Same question, so the questions about it stay joined to it
     return checked ? { ...question, prompt, appHtml: checked.appHtml, contextData: checked.contextData, starterCode: checked.starterCode, testCases: checked.testCases, callouts: checked.callouts } : null;
   } catch {
@@ -380,7 +465,7 @@ async function buildDraft(raw: RawTest, previous: AssessmentTest | undefined, ct
       if (!isSpec(item)) return checkQuestion(item);
       const i = pages.indexOf(item);
       const step = tracker.step(i);
-      const ready = await buildAppPage(item, research, pageModeOf(ctx), step);
+      const ready = await buildAppPage(item, research, pageModeOf(ctx), step, { owner: ctx.business?.name || 'Vetter' });
       step('checking its tasks start unfinished, so they can be marked…');
       const checked = await checkQuestion(ready);
       tracker.done(i);
@@ -778,7 +863,7 @@ export async function sendChat(state: ChatState, text: string, ctx: ChatContext,
     const tracker = pageTracker(targets.map((q) => q.title), progress);
     const changed = await Promise.all(
       edits.map(async (e, i) => {
-        const out = await editAppPage(targets[i], e.change, e.taskPrompt, research, pageModeOf(ctx), tracker.step(i));
+        const out = await editAppPage(targets[i], e.change, e.taskPrompt, research, pageModeOf(ctx), tracker.step(i), { owner: ctx.business?.name || 'Vetter' });
         tracker.done(i);
         return out;
       })

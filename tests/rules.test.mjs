@@ -235,32 +235,48 @@ await check('takes it out of the public library', () => setDoc(doc(db, 'tests', 
 await A.signOut();
 
 console.log('Environment library');
-const envMeta = (uid) => ({ name: 'Sales CRM', product: 'CRM', summary: 'Pipeline and contacts', builtFor: 'Close the deal', createdAt: '2026-11-15T00:00:00Z', createdBy: uid, uses: 0 });
-const saveEnv = (id, uid, meta = envMeta(uid)) => {
+const envSub = (uid, extra = {}) => ({ app: 'Meta Ads Manager', name: 'Meta Ads', product: 'ads manager', summary: 'Campaigns', features: ['Campaigns'], added: ['Campaigns'], builtFor: 'Launch', owner: 'Acme', createdAt: '2026-11-15T00:00:00Z', createdBy: uid, status: 'pending', ...extra });
+const submit = (id, uid, data = envSub(uid)) => {
   const b = writeBatch(db);
-  b.set(doc(db, 'environments', id), meta);
-  b.set(doc(db, 'environmentPages', id), { html: '<p>CRM</p>', callouts: [] });
+  b.set(doc(db, 'environmentSubmissions', id), data);
+  b.set(doc(db, 'submissionPages', id), { html: '<p>Ads</p>', callouts: [] });
   return b.commit();
 };
+const libApp = { app: 'Meta Ads Manager', name: 'Meta Ads', product: 'ads manager', summary: 'Campaigns', features: ['Campaigns'], version: 1, builtFor: 'Launch', createdAt: '2026-11-15T00:00:00Z', updatedAt: '2026-11-15T00:00:00Z', uses: 0 };
 await A.signIn('alice@acme.io', 'password123');
-await check('a company saves a simulation it built', () => saveEnv('env-1', alice), true);
-await check('cannot save one as someone else', () => saveEnv('env-2', bob), false);
-await check('cannot save one already counted as used', () => saveEnv('env-3', alice, { ...envMeta(alice), uses: 5 }), false);
-await check('cannot add a page under someone else\'s entry', () => setDoc(doc(db, 'environmentPages', 'env-x'), { html: '<p>x</p>' }), false);
+await check('a company sends a simulation it built for review', () => submit('sub-1', alice), true);
+await check('cannot send one as someone else', () => submit('sub-2', bob, envSub(bob)), false);
+await check('cannot send one already approved', () => submit('sub-3', alice, envSub(alice, { status: 'approved' })), false);
+await check('reads back what it sent', () => getDoc(doc(db, 'submissionPages', 'sub-1')), true);
+await check('cannot approve its own', () => updateDoc(doc(db, 'environmentSubmissions', 'sub-1'), { status: 'approved' }), false);
+await check('cannot put an app straight into the library', () => setDoc(doc(db, 'environments', 'env-x'), libApp), false);
+await check('cannot change a library page', () => setDoc(doc(db, 'environmentPages', 'env-x'), { html: 'x' }), false);
+await A.signOut();
+await A.signIn('bob@acme.io', 'password123');
+await check('a colleague cannot read someone else\'s submission', () => getDoc(doc(db, 'environmentSubmissions', 'sub-1')), false);
+await check('nor its page', () => getDoc(doc(db, 'submissionPages', 'sub-1')), false);
+await A.signOut();
+await A.signIn('cara@gmail.com', 'password123');
+await check('the Vetter team reads every submission', () => getDocs(collection(db, 'environmentSubmissions')), true);
+await check('and its page', () => getDoc(doc(db, 'submissionPages', 'sub-1')), true);
+await check('approves it into the library', async () => {
+  const b = writeBatch(db);
+  b.set(doc(db, 'environments', 'env-1'), libApp);
+  b.set(doc(db, 'environmentPages', 'env-1'), { html: '<p>Ads</p>' });
+  b.update(doc(db, 'environmentSubmissions', 'sub-1'), { status: 'approved', envId: 'env-1', version: 1 });
+  await b.commit();
+}, true);
 await A.signOut();
 await A.signIn('bob@acme.io', 'password123');
 await check('another company account reads the library', () => getDocs(collection(db, 'environments')), true);
-await check('and reads a page to build on', () => getDoc(doc(db, 'environmentPages', 'env-1')), true);
+await check('and the app\'s page, to build on', () => getDoc(doc(db, 'environmentPages', 'env-1')), true);
 await check('counts one use when building on it', () => updateDoc(doc(db, 'environments', 'env-1'), { uses: increment(1) }), true);
-await check('cannot rename it', () => updateDoc(doc(db, 'environments', 'env-1'), { name: 'Mine now' }), false);
-await check('cannot change its page', () => updateDoc(doc(db, 'environmentPages', 'env-1'), { html: '<p>changed</p>' }), false);
-await check('cannot delete someone else\'s', () => deleteDoc(doc(db, 'environments', 'env-1')), false);
+await check('cannot change the app\'s features', () => updateDoc(doc(db, 'environments', 'env-1'), { features: [] }), false);
+await check('cannot delete it', () => deleteDoc(doc(db, 'environments', 'env-1')), false);
 await A.signOut();
 await A.signIn('eve@evil.com', 'password123');
-await check('an account not approved at a company cannot read it', () => getDoc(doc(db, 'environmentPages', 'env-1')), false);
-await A.signOut();
-await A.signIn('alice@acme.io', 'password123');
-await check('whoever saved it deletes it, page first', async () => { await deleteDoc(doc(db, 'environmentPages', 'env-1')); await deleteDoc(doc(db, 'environments', 'env-1')); }, true);
+await check('an account not approved at a company cannot read the library', () => getDoc(doc(db, 'environmentPages', 'env-1')), false);
+await check('nor send to it', () => submit('sub-4', eve, envSub(eve)), false);
 await A.signOut();
 
 console.log(`\n${pass} passed, ${fail} failed`);

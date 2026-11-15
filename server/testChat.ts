@@ -174,7 +174,7 @@ Style rules (testCases is an empty list for choice, multi, text, order and match
 ${CODE_RULE}
 - sql: query only these tables: ${req.tables.map((t) => `${t.name}(${t.columns.join(', ')})`).join('; ')}. List the tables used in "tables". solutionCode is a correct SQLite query; starterCode is a comment and "SELECT ".${DEPTH_STYLE_RULES}${EMAIL_RULES}${ASSISTANT_RULES}${WORKSPACE_RULES}${APP_KINDS}
   In this conversation appHtml is NOT the page: a separate page builder writes each page from the spec you put in appHtml,
-  then the page is tried out. appHtml holds the complete spec for the builder, in plain text, 250 to 600 words: which kind it is and what it copies or shows; the layout
+  then the page is tried out. appHtml holds the complete spec for the builder, in plain text, 250 to 600 words: which kind it is and what it copies or shows (the real product, by name, to be copied 1:1); ONLY the screens and controls this task and its questions need, nothing else; the layout
   and screens (or the item drawn and its views); every piece of realistic data or detail it holds, spelled out (names,
   figures, records, messages); every interaction the task needs and what it does, including wrong moves and their
   consequences; and the state object it keeps, with its exact key names and starting values, so the checks below match.

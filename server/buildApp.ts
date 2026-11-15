@@ -35,7 +35,13 @@ export interface BuildAppRequest {
   design?: string;
   // A page from Vetter's environment library (an earlier test's simulation of the same kind of product), to build on
   // instead of starting from nothing: its shell, look and code are kept, its data and task-specific parts replaced
-  base?: { html: string; name: string };
+  base?: { html: string; name: string; features?: string[] };
+  // The Vetter team merging two versions of a library app: another version built on an older one, whose added features
+  // are copied onto the base (the latest version)
+  merge?: { html: string; features: string[] };
+  // A change to a page whose app is in the library: the library version's features, so the ones the change adds can be
+  // listed for the Vetter team
+  libraryFeatures?: string[];
 }
 
 const MAX_TEXT = 8000;
@@ -67,8 +73,15 @@ const schema = {
     // How Vetter's environment library lists the page, so later tests can build on it
     catalog: {
       type: 'object',
-      properties: { name: { type: 'string' }, product: { type: 'string' }, summary: { type: 'string' } },
-      required: ['name', 'product', 'summary'],
+      properties: {
+        app: { type: 'string' },
+        name: { type: 'string' },
+        product: { type: 'string' },
+        summary: { type: 'string' },
+        features: { type: 'array', items: { type: 'string' } },
+        added: { type: 'array', items: { type: 'string' } },
+      },
+      required: ['app', 'name', 'product', 'summary', 'features', 'added'],
       additionalProperties: false,
     },
   },
@@ -77,12 +90,12 @@ const schema = {
 };
 
 const LOOK = `
-THE LOOK: write the page's complete stylesheet yourself, so it looks like the real product it copies (the design's LOOK
-section and the RESEARCH say how): its layout and proportions, colour scheme, typography, density, borders, shadows,
-corner radii, icons and the style of its navigation, buttons, tables, forms, cards, badges and dialogs. Every area is
-clearly separated as in the real product (panel backgrounds, borders, headers, spacing), with a clear type scale and
-hover, focus, selected and empty states. Someone who uses the real product daily must feel at home at a glance. Spend
-the page's size on this as well as the behaviour; a plain or unstyled page is a failure.`;
+THE LOOK: write the page's complete stylesheet yourself, so it is a 1:1 copy of the real product as it looks today (the
+design's LOOK section and the RESEARCH say how): its exact layout and proportions, its real colour scheme, typography,
+density, borders, shadows, corner radii, icon style and the style of its navigation, buttons, tables, forms, cards,
+badges and dialogs. Only the product's name and logo are changed. Someone who uses the real product daily must feel at
+home at a glance. Style every element yourself (no browser defaults anywhere). Spend the page's size on the screens the
+task needs looking exactly right, not on extra screens: a plain, generic or dated-looking page is a failure.`;
 
 const SYSTEM = (research: string, training: boolean, game?: BuildAppRequest['game'], sector?: string) => `You build the interactive pages candidates work in on Vetter, a skills-testing platform for hiring. A test
 designer has written the task and a spec for the page. Build exactly that page, so a candidate who can really do the job
@@ -110,10 +123,13 @@ is and what it's for ("New refunds start here: pick the order first, then the re
     ? 'This is training for the company\'s own people: the tips may guide them step by step through the task.'
     : 'This is a hiring test: tips show where things are and what they do, never which choice is right, the values to enter or the answer to any check.'
 }
-LIBRARY ENTRY: Vetter keeps every page in its environment library for later tests to build on. Return catalog: name, a
-short title for the environment ("Sales CRM: pipeline, contacts and deals"); product, the kind of software or equipment it
-copies in a few generic words ("CRM", "help desk", "point of sale", "smartphone"), never a brand; summary, 2 to 3
-sentences on its shell, screens and components (not this task's data, company or answers).
+LIBRARY ENTRY: Vetter keeps one simulation per app in its library, and each later test of the same app builds on it and
+adds features. Return catalog: app, the specific app or device it copies as people call it ("Meta Ads Manager",
+"Salesforce Sales Cloud", "Square POS", "iPhone 15"), or "Generic <kind>" when no product is named; name, a short title
+("Meta Ads Manager: campaigns, ad sets and ads"); product, the kind in a few generic words ("ads manager", "CRM");
+summary, 2 to 3 sentences on its shell, screens and components (not this task's data, company or answers); features,
+every screen and feature the page has, each a short phrase ("Campaign list with status toggles", "Audience builder");
+added, the features this page adds to the LIBRARY PAGE it was built on (all of features when there was none).
 ${research ? `\nRESEARCH on the job and what the page copies (keep every term, step and value true to it):\n${research.slice(0, MAX_TEXT * 2)}` : ''}`;
 
 export async function buildApp(body: unknown, apiKey: string | undefined, model: string): Promise<{ status: number; json: unknown }> {
@@ -143,8 +159,16 @@ export async function buildApp(body: unknown, apiKey: string | undefined, model:
               `THE PLANNED CHECKS:\n${JSON.stringify((req.testCases ?? []).slice(0, req.game === 'standalone' ? 15 : 8))}`,
               ...(req.base?.html && !req.fix?.html && !req.edit?.html
                 ? [
-                    `A PAGE FROM VETTER'S ENVIRONMENT LIBRARY ("${String(req.base.name ?? '').slice(0, 120)}"), built for an earlier test and copying the same kind of product:\n${String(req.base.html).slice(0, MAX_PAGE)}`,
-                    "Build this task's page ON that one: keep its shell, stylesheet, look, components and working code wherever they carry over, so it stays the same environment. Replace every record, name, figure, message and setting with the data this spec needs: nothing from the earlier test may remain (it belonged to another company), and its state starts as this spec says. Add, change or remove screens, controls and behaviour so the page does exactly what this spec and its checks need, all fully working, and set its data-ref tips for this task. Return the whole page.",
+                    `A PAGE FROM VETTER'S ENVIRONMENT LIBRARY ("${String(req.base.name ?? '').slice(0, 120)}"), the latest version of the same app:\n${String(req.base.html).slice(0, MAX_PAGE)}`,
+                    req.merge?.html
+                      ? `ITS FEATURES: ${(req.base.features ?? []).slice(0, 80).join('; ')}. Keep every one of them working.`
+                      : `${req.base.features?.length ? `ITS FEATURES, all of which must still work: ${req.base.features.slice(0, 80).join('; ')}.\n` : ''}This is the shared simulation of this app, which grows with every test. Build this task's page ON it: keep its shell, stylesheet, look, components and working code, and keep EVERY screen, feature and control it has working (they belong to the app even where this task doesn't use them; never remove or stub one). Replace every record, name, figure, message and setting with the data this spec needs, adding records for the screens this task doesn't use so they still look real: nothing from the earlier test may remain (it belonged to another company), and the state starts as this spec says. Then ADD the screens, features and behaviour this spec needs that it doesn't have yet, in the app's own style, fully working. Set the data-ref tips for this task. The page may be up to 90KB; keep the code compact. Return the whole page.`,
+                  ]
+                : []),
+              ...(req.merge?.html && req.base?.html
+                ? [
+                    `ANOTHER VERSION OF THE SAME APP, built on an older version, with these features added: ${(req.merge.features ?? []).slice(0, 40).join('; ')}\n${String(req.merge.html).slice(0, MAX_PAGE)}`,
+                    'Copy those added features onto the library page above, working as they do in the other version, so the result has every feature of both. Keep the library page\'s data, adding records the new screens need.',
                   ]
                 : []),
               ...(req.design && !req.base?.html && !req.fix?.html && !req.edit?.html
@@ -163,6 +187,9 @@ export async function buildApp(body: unknown, apiKey: string | undefined, model:
                 ? [
                     `THE PAGE AS IT IS NOW:\n${String(req.edit.html).slice(0, MAX_PAGE)}`,
                     `THE CHANGE THE COMPANY ASKED FOR:\n${String(req.edit.change ?? '').slice(0, MAX_TEXT)}`,
+                    ...(req.libraryFeatures?.length
+                      ? [`THE LIBRARY'S VERSION OF THIS APP has these features: ${req.libraryFeatures.slice(0, 80).join('; ')}. In catalog.added, list the features your page has that aren't among them.`]
+                      : []),
                     'Return the whole page again (with its data-ref tips and callouts, updated for the change) with exactly that change made, done properly and working (new screens, controls, data or behaviour all fully functional, as in the real product). Keep everything else as it is: the look, the data the task\'s questions rely on, and the state paths the checks read, unless the change needs them to change; then update the checks to match.',
                   ]
                 : []),

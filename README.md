@@ -76,12 +76,23 @@ in them. Only signed-in people can run code, at most 60 runs a minute each.
 
 ### The environment library
 
-Every app simulation Vetter builds (a CRM, a help desk, a till) is saved to the environment library (Tests >
-Environments) once it works. When a later test needs the same kind of product, a quick model (`MATCH_MODEL`, default
-Haiku) picks the saved one, and the page builder builds on it: its shell, look and code are kept, and its data and
-task-specific parts replaced. That skips the design pass. The library also lists the built-in environments
-(spreadsheet, database, SQL, code, inbox, AI assistant). Saved pages are in Firestore (`environments`,
-`environmentPages`); deploy `firestore.rules` for them.
+Vetter keeps one simulation per app (Meta Ads Manager, Salesforce, a till), and the app grows with every test that
+uses it:
+
+- When a test needs an app simulation, a quick model (`MATCH_MODEL`, default Haiku) works out which app it copies and
+  looks for it in the library. If it's there, the page builder starts from the app's latest approved version. It keeps
+  every feature it has, puts in this test's data, and adds the features this test needs. If not, the page is designed
+  from nothing.
+- Every simulation built (for a company's test, by a company asking for a change, or by the Vetter team) goes to the
+  Vetter team for review: Admin panel > Simulation library > To review, also in the Vetter team view under Tests.
+  Approving a new app adds it to the library. Approving one built on an app makes it that app's next version, with its
+  added features. Nothing reaches the library unreviewed.
+- If two versions are built on the same version, the second shows "Merge onto version N", which copies its features
+  onto the latest version for another try before approving.
+- The Vetter team can build an app for the library from the admin panel (the app's name and the features it should
+  have).
+- Firestore: `environments` and `environmentPages` (each app's latest approved version), `environmentSubmissions` and
+  `submissionPages` (the review queue and history). Deploy `firestore.rules` for them.
 
 ## Putting it online (with AI test creation)
 

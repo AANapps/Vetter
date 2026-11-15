@@ -168,7 +168,7 @@ export const APP_KINDS = `
 `;
 
 // How the page itself is written, whether in the same call or by the page builder (server/buildApp.ts)
-export const APP_PAGE_RULES = `  For every kind, appHtml is ONE self-contained HTML page, under 60KB:
+export const APP_PAGE_RULES = `  For every kind, appHtml is ONE self-contained HTML page, under 45KB (compact code: CSS variables, small helper functions, data as arrays):
   • Its <title> is the product's or item's name alone: the invented name for software, e.g. <title>ClickData</title>, or
     the item worked on, e.g. <title>Phone repair: 6.1" handset</title>. Never a real brand's logo anywhere on the page.
   • Everything inline: no external scripts, stylesheets, images or requests of any kind (Google Fonts are the only exception).
@@ -186,13 +186,27 @@ export const APP_PAGE_RULES = `  For every kind, appHtml is ONE self-contained H
   • Charts never scroll. On a dashboard or report, each chart (SVG or canvas) is drawn to fit its card: width 100%, with
     the card's height set by the layout, and an SVG viewBox so it scales. Only long lists and tables scroll, never a chart.
   • Fill it with realistic made-up data or detail, enough that the task takes real work (6 to 12 minutes).
+  • ONLY WHAT THE TASKS NEED, 1:1 WITH THE REAL PRODUCT. Build just the screens, panels and controls the candidate
+    needs to do this task, each one a faithful copy of how that screen looks and behaves in the real product today
+    (layout, proportions, colours, icons, spacing, wording). Keep the product's real shell (its top bar and side
+    navigation as they look), but the navigation only needs the entries this task uses plus a few of the real ones
+    shown greyed out for context: never build extra screens, settings, reports or dialogs the task doesn't touch, and
+    never fill space with placeholder panels. A small, sharp, true-to-life page beats a big generic one.
   • EVERY CONTROL WORKS. Every visible button, link, tab, menu item, icon button and row action does what its label says
-    in this kind of product: navigation opens its screen, New opens a working form, Save saves and the record appears
-    wherever it should, Delete removes it (after an in-page confirm), sort and filter re-order and narrow, Export makes a
-    download, settings toggles change behaviour. Nothing is decorative and nothing silently does nothing. A feature
-    outside the task's scope is shown greyed out: the disabled attribute (or aria-disabled="true" on non-buttons),
-    reduced opacity, cursor:not-allowed and a title like "Not available in this test". Don't add controls you won't
-    make work or grey out.
+    in this product: navigation opens its screen, New opens a working form, Save saves and the record appears wherever
+    it should, Delete removes it (after an in-page confirm), sort and filter re-order and narrow, Export makes a
+    download. Nothing silently does nothing. The few out-of-scope entries you show are greyed out: the disabled
+    attribute (or aria-disabled="true" on non-buttons), reduced opacity, cursor:not-allowed and a title like "Not
+    available in this test".
+  • A 2026 PRODUCT, NEVER A 1990s WEB PAGE. Every element is styled by your stylesheet: no browser-default buttons,
+    inputs, selects, checkboxes, radios, scrollbars, tables or focus rings anywhere (style them all: flat buttons with
+    6 to 8px radius, inputs with a 1px light border and a soft focus ring, custom checkboxes and toggles, tables with
+    light row dividers and no cell borders or zebra stripes from the 90s). Icons are inline SVG line icons (1.5 to 2px
+    stroke, 16 to 20px, Lucide or the product's own style), never emoji, images of text or letters in boxes. Generous,
+    even spacing on a 4/8px grid, light 1px borders (about #e5e7eb), subtle shadows only on popovers and dialogs,
+    no bevels, outsets, inset borders, heavy gradients, centred page columns, <hr> lines, default blue underlined links
+    or Times-style text. Hover, active, selected, focus and empty states on everything interactive. Badges and status
+    pills for statuses, avatars as initials in circles, numbers right-aligned and tabular.
   • THE LOGIC FLOWS like the real thing: one source of truth for the data, so a change on one screen shows on every
     other (lists, counts, totals, badges, charts, dashboards); statuses move only through valid steps; required fields
     and bad input get inline errors; undo or cancel puts things back; numbers recalculate. A candidate who does the work

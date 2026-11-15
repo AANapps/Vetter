@@ -269,26 +269,36 @@ service cloud.firestore {
       allow delete: if isAdmin() || worksAt(resource.data.businessId);
     }
 
-    // Vetter's environment library: every simulation page built for a test, kept for later tests to build on
-    // (src/lib/environments.ts). Company accounts and the Vetter team read it; whoever builds a page saves it as
-    // themselves; anyone who builds on one counts one more use; the one who saved it, or the Vetter team, deletes it
+    // Vetter's environment library (src/lib/environments.ts): one simulation per app, which grows with every test that
+    // uses the app. Every simulation built is a submission the Vetter team reviews; only the Vetter team puts one in the
+    // library (a new app, or an app's next version). Company accounts read the library to build on it, and count a use
     function staff() {
       return isAdmin() || (signedIn() && exists(/databases/$(database)/documents/users/$(uid()))
         && userDoc(uid()).data.role == 'recruiter' && userDoc(uid()).data.status == 'active');
     }
+    function submissionDoc(id) { return get(/databases/$(database)/documents/environmentSubmissions/$(id)).data; }
     match /environments/{envId} {
       allow read: if staff();
-      allow create: if staff() && request.resource.data.createdBy == uid() && request.resource.data.uses == 0
-        && request.resource.data.name is string && request.resource.data.name.size() <= 100;
+      allow create, delete: if isAdmin();
       allow update: if isAdmin()
         || (staff() && changed().hasOnly(['uses']) && request.resource.data.uses == resource.data.uses + 1);
-      allow delete: if isAdmin() || (signedIn() && resource.data.createdBy == uid());
     }
     match /environmentPages/{envId} {
       allow read: if staff();
-      allow create: if staff() && getAfter(/databases/$(database)/documents/environments/$(envId)).data.createdBy == uid();
-      allow update: if isAdmin();
-      allow delete: if isAdmin() || (signedIn() && get(/databases/$(database)/documents/environments/$(envId)).data.createdBy == uid());
+      allow write: if isAdmin();
+    }
+    // Waiting for review, and the history of what was approved: sent as oneself, pending; read by the sender and the
+    // Vetter team; decided by the Vetter team
+    match /environmentSubmissions/{subId} {
+      allow read: if isAdmin() || (staff() && resource.data.createdBy == uid());
+      allow create: if staff() && request.resource.data.createdBy == uid() && request.resource.data.status == 'pending'
+        && request.resource.data.app is string && request.resource.data.app.size() <= 80;
+      allow update, delete: if isAdmin();
+    }
+    match /submissionPages/{subId} {
+      allow read: if isAdmin() || (staff() && submissionDoc(subId).createdBy == uid());
+      allow create: if staff() && getAfter(/databases/$(database)/documents/environmentSubmissions/$(subId)).data.createdBy == uid();
+      allow update, delete: if isAdmin();
     }
 
     // The feed: anyone can read it; people write, comment and give kudos as themselves

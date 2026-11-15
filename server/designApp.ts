@@ -30,13 +30,14 @@ ${APP_PAGE_RULES}${req.game ? GAME_PAGE_RULES : ''}${sectorSimulationRules(req.s
 
 WRITE THE DESIGN as plain text with these numbered sections, concrete and complete, at most about 1,800 words:
 1. LOOK: how the real product it copies looks, in enough detail for the developer to replicate it closely: the
-   shell (top bar, side menu, panels) and its colours as hex values (in the spirit of the brand, not its exact
-   colours), the typeface (by name, following the MODERN TYPE rule) and type sizes, density, borders, shadows, corner radii, the icon style, and exactly how its
+   shell (top bar, side menu, panels) and its real colours as hex values (1:1 with the product as it looks today;
+   only its name and logo change), the typeface (by name, following the MODERN TYPE rule) and type sizes, density, borders, shadows, corner radii, the icon style, and exactly how its
    navigation, buttons, tables, forms, cards, badges, tabs and dialogs look, including hover, selected and empty
    states. Name what makes it recognisable. Never the real product's name or logo on the page.
 2. LAYOUT: the page's structure as the real product has it (regions, their sizes, how they scroll and how each is
    separated from the next), and for each screen which regions show what. Never a generic template.
-3. SCREENS AND FLOW: every screen, panel, dialog and drawer, how the candidate gets to each, and what each shows.
+3. SCREENS AND FLOW: only the screens, panels, dialogs and drawers the task and its questions need (nothing else), how
+   the candidate gets to each, and what each shows, as the real product shows it.
 4. DATA: every record the task needs with its fields and exact values (the figures, names and dates the checks and the
    task's questions depend on), plus how many realistic filler records of each kind and what they look like.
 5. STATE: the one JSON state object (its shape and starting values), and for each planned check the dotted path it reads

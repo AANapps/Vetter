@@ -90,9 +90,27 @@ const AUDIT = `<script>
     });
     return out.filter(function (p, i) { return out.indexOf(p) === i; }).slice(0, 12);
   }
+  // Styling that makes a page look like a 1990s web page: the browser's own buttons, inputs and blue links, or an old
+  // font. Checked on what's on screen as the page first shows
+  function styleProblems() {
+    var out = [];
+    function visible(el) { var r = el.getBoundingClientRect(); return r.width > 2 && r.height > 2 && shown(el); }
+    var font = (getComputedStyle(document.body).fontFamily || '').split(',')[0].replace(/["']/g, '').trim().toLowerCase();
+    if (/^(times|times new roman|serif|georgia|arial|helvetica|verdana|tahoma|trebuchet ms|comic sans ms)$/.test(font)) out.push('The page uses an old-fashioned font (' + font + '): use a modern UI typeface such as Inter');
+    var btns = Array.prototype.filter.call(document.querySelectorAll('button, input[type=button], input[type=submit]'), visible);
+    var plain = btns.filter(function (b) { var cs = getComputedStyle(b); return cs.borderTopStyle === 'outset' || /^rgb\(2(39|40), 2(39|40), 2(39|40)\)$/.test(cs.backgroundColor) && cs.borderTopWidth === '2px'; });
+    if (plain.length) out.push(plain.length + ' buttons have the browser default look (e.g. "' + (plain[0].textContent || '').trim().slice(0, 30) + '"): style every button like the real product');
+    var fields = Array.prototype.filter.call(document.querySelectorAll('input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]), select, textarea'), visible);
+    var raw = fields.filter(function (f) { return getComputedStyle(f).borderTopStyle === 'inset'; });
+    if (raw.length) out.push(raw.length + ' form fields have the browser default look: style every input, select and text area');
+    var links = Array.prototype.filter.call(document.querySelectorAll('a'), visible).filter(function (a) { return getComputedStyle(a).color === 'rgb(0, 0, 238)'; });
+    if (links.length) out.push(links.length + ' links are the browser default blue: style them as the product does');
+    return out;
+  }
   var labels = [];
   function run() {
     try { labels = labelProblems(); } catch (e) {}
+    try { labels = labels.concat(styleProblems()); } catch (e) {}
     var sel = 'button, a[href], [role="button"], [role="tab"], [role="menuitem"], [role="link"], [onclick], summary';
     var els = Array.prototype.slice.call(document.querySelectorAll(sel)).filter(usable).slice(0, 80);
     var dead = [];
