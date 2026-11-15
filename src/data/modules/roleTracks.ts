@@ -8,6 +8,7 @@ import { ModuleSkeleton, J, tagged } from './kit';
 import { TECH_SIMS } from './simsTech';
 import { AI_SIMS } from './simsAI';
 import { OPS_SIMS } from './simsOps';
+import { SUPPORT_TESTS, SUPPORT_MODULES, SUPPORT_SIM_TEST } from './support';
 
 // Tests for the 2026 role tracks (data analyst, SOC analyst, AI engineer, AI consultant, software developer, data
 // scientist): for each, a fundamentals test per core skill and a final project. Where Praxa already had a test for a
@@ -19,6 +20,8 @@ export const ROLE_TRACK_TESTS: AssessmentTest[] = [
   ...SECURITY_TESTS,
   ...AI_ENGINEERING_TESTS,
   ...AI_STRATEGY_TESTS,
+  ...SUPPORT_TESTS,
+  SUPPORT_SIM_TEST,
 ];
 
 // Every test's hands-on simulation, as its own area from Junior up (kept at Professional and Senior, since nothing harder
@@ -29,7 +32,7 @@ const withSim = (m: ModuleSkeleton): ModuleSkeleton => {
   return sim ? { ...m, aspects: [...m.aspects, sim.aspect], bank: [...m.bank, ...tagged(sim.aspect.id, J, ...sim.questions)] } : m;
 };
 
-export const ROLE_TRACK_MODULES = [...DATA_SCIENCE_MODULES, ...SOFTWARE_DEV_MODULES, ...SECURITY_MODULES, ...AI_ENGINEERING_MODULES, ...AI_STRATEGY_MODULES].map(withSim);
+export const ROLE_TRACK_MODULES = [...DATA_SCIENCE_MODULES, ...SOFTWARE_DEV_MODULES, ...SECURITY_MODULES, ...AI_ENGINEERING_MODULES, ...AI_STRATEGY_MODULES, ...SUPPORT_MODULES].map(withSim);
 
 // Existing tests that already cover one of a role's core skills
 const ROLE_ADDITIONS: Record<string, TestRole[]> = {

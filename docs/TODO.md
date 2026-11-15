@@ -21,6 +21,9 @@ Kept up to date as work is asked for and finished. Newest items at the bottom of
 - **Growing apps and the time limit.** Each test rewrites the whole app page, which grows with every version (allowed up to 90KB). Writing ~90KB takes close to Vercel's 300s limit. Once apps get that big, either build in a background worker or split the app into modules (one per screen) that a test can include or leave out.
 - **Environment library privacy.** A saved simulation holds the data of the test it was made for (the hiring company's scenario). Other companies can't open it in the library, but their builds read it to build on (the AI is told to replace all of it). Decide whether that's fine or whether pages should be cleaned of company data when saved.
 
+- **Customer Support next steps.** Only Triage & SLAs was chosen for now; written replies, complaints and troubleshooting modules are possible later. Then review Data Analyst.
+- **New site address.** Code still defaults to vetter.dev (vite.config.ts, server/credits.ts) until Praxa's domain is known.
+
 ## Done
 
 - 2026-11-12: Tests fit the job (no spreadsheets for trades/clinical), drawings labelled.
@@ -34,3 +37,4 @@ Kept up to date as work is asked for and finished. Newest items at the bottom of
 - 2026-11-13: A design pass at high effort before each simulation page is written, describing the real product's look in detail. (A shared UI kit was tried the same day and dropped from the prompts: pages came out generic. It stays loaded only for pages built with it.) Every page defaults to a modern font, and the AI must use a modern UI typeface.
 - 2026-11-15: Code editor for any language (35, or the candidate's pick); JavaScript and Python run in the browser, the rest on Judge0. Environment library: every simulation built is saved and reused for later tests of the same kind of product.
 - 2026-11-15: Simulation library with review: one simulation per app, every build sent to the Praxa team for approval (admin panel), approved builds become the app's next version, later tests build on the latest version and add features. Praxa can build apps for the library; stale versions can be merged onto the latest.
+- 2026-11-15: Vetter renamed Praxa. Customer Support Agent role: Ticket Triage & SLAs module (Junior, Mid-level, Senior; hands-on help desk queues from Mid-level) and the Bloomvale job simulation, on a hand-built modern help desk (Deskly).

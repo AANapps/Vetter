@@ -25,6 +25,7 @@ export type SkillCategory =
   | 'Trades'
   | 'Hospitality'
   | 'Retail'
+  | 'Customer Support'
   // Praxa's skills games: general abilities, for every sector
   | 'Aptitude';
 
@@ -43,6 +44,7 @@ export type TestRole =
   | 'Accountant'
   | 'Digital Marketer'
   | 'Sales Representative'
+  | 'Customer Support Agent'
   | 'Healthcare Professional'
   | 'Project Manager'
   | 'Software Developer'

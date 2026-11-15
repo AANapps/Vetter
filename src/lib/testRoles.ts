@@ -11,6 +11,7 @@ export const ROLE_GROUPS: { industry: string; roles: TestRole[] }[] = [
   { industry: 'Marketing & Sales', roles: ['Digital Marketer', 'Sales Representative'] },
   { industry: 'Healthcare', roles: ['Healthcare Professional', 'Nurse', 'Dental Nurse', 'Care Worker'] },
   { industry: 'Operations', roles: ['Project Manager'] },
+  { industry: 'Customer Support', roles: ['Customer Support Agent'] },
   { industry: 'Trades', roles: ['Electrician', 'Plumber', 'Mechanic', 'Carpenter'] },
   { industry: 'Hospitality', roles: ['Chef', 'Barista', 'Front of House'] },
   { industry: 'Retail', roles: ['Retail Assistant'] },
@@ -27,6 +28,10 @@ export interface TestSection {
 }
 
 export const ROLE_SECTIONS: Partial<Record<TestRole, TestSection[]>> = {
+  'Customer Support Agent': [
+    { id: 'triage', label: 'Triage & SLAs', blurb: 'Prioritising, routing and answering a ticket queue on time.', testIds: ['test-support-triage-01'] },
+    { id: 'simulations', label: 'Job Simulations', blurb: 'A morning on a real support desk, start to finish.', testIds: ['test-sim-support-01'] },
+  ],
   'Data Analyst': [
     { id: 'excel', label: 'Excel', blurb: 'Lookups, formulas and reports in a real spreadsheet.', testIds: ['test-excel-01', 'test-excel-02'] },
     { id: 'sql', label: 'SQL', blurb: 'Querying, joining and checking data in a database.', testIds: ['test-sql-02', 'test-sql-03', 'test-qasql-01'] },
@@ -108,6 +113,7 @@ export const HOME_FIELDS: (TestField & { blurb: string; icon: FieldIcon })[] = [
   { label: 'Healthcare', roles: ['Healthcare Professional'], blurb: 'Safe, careful patient care', icon: 'health' },
   { label: 'Data Engineering', roles: ['Data Engineer'], blurb: 'Pipelines and warehouses', icon: 'database' },
   { label: 'Sales', roles: ['Sales Representative'], blurb: 'Pipeline, deals and closing', icon: 'handshake' },
+  { label: 'Customer Support', roles: ['Customer Support Agent'], blurb: 'Tickets, targets and happy customers', icon: 'handshake' },
   { label: 'Cloud & DevOps', roles: ['Platform & DevOps'], blurb: 'Systems that stay up', icon: 'cloud' },
   { label: 'Project Management', roles: ['Project Manager'], blurb: 'Plans delivered on time', icon: 'kanban' },
   { label: 'Software Testing', roles: ['QA Engineer'], blurb: 'Finding bugs first', icon: 'bug' },

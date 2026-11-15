@@ -73,6 +73,7 @@ export const SKILL_IDS: Record<AssessmentTest['category'], string> = {
   Trades: 'skill-trades',
   Hospitality: 'skill-hospitality',
   Retail: 'skill-retail',
+  'Customer Support': 'skill-support',
   Aptitude: 'skill-aptitude',
 };
 
