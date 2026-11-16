@@ -9,6 +9,8 @@ import { TECH_SIMS } from './simsTech';
 import { AI_SIMS } from './simsAI';
 import { OPS_SIMS } from './simsOps';
 import { CS_JOB_SIM } from './csJobSim';
+import { SOFTWARE_DEV_MODULE_TESTS } from './softwareDevModules';
+import { SD_JOB_SIM } from './sdJobSim';
 import { SUPPORT_MODULE_TESTS } from './supportModules';
 import { COMBINED_TESTS } from './combined';
 import { DA_MODULE_TESTS } from './daModules';
@@ -21,12 +23,15 @@ import { DATA_FUNDAMENTALS_TEST, DATA_FUNDAMENTALS_MODULE } from './dataFundamen
 
 export const ROLE_TRACK_TESTS: AssessmentTest[] = [
   ...DATA_SCIENCE_TESTS,
-  ...SOFTWARE_DEV_TESTS,
+  // The old final project's id is now the desktop job simulation's
+  ...SOFTWARE_DEV_TESTS.filter((t) => t.id !== SD_JOB_SIM.id),
+  SD_JOB_SIM,
   ...SECURITY_TESTS,
   ...AI_ENGINEERING_TESTS,
   ...AI_STRATEGY_TESTS,
   ...SUPPORT_MODULE_TESTS,
   CS_JOB_SIM,
+  ...SOFTWARE_DEV_MODULE_TESTS,
   DATA_FUNDAMENTALS_TEST,
   ...DA_MODULE_TESTS,
   DA_JOB_SIM,
@@ -40,7 +45,7 @@ const withSim = (m: ModuleSkeleton): ModuleSkeleton => {
   return sim ? { ...m, aspects: [...m.aspects, sim.aspect], bank: [...m.bank, ...tagged(sim.aspect.id, J, ...sim.questions)] } : m;
 };
 
-export const ROLE_TRACK_MODULES = [...DATA_SCIENCE_MODULES, ...SOFTWARE_DEV_MODULES, ...SECURITY_MODULES, ...AI_ENGINEERING_MODULES, ...AI_STRATEGY_MODULES, DATA_FUNDAMENTALS_MODULE].map(withSim);
+export const ROLE_TRACK_MODULES = [...DATA_SCIENCE_MODULES, ...SOFTWARE_DEV_MODULES.filter((m) => m.familyId !== SD_JOB_SIM.id), ...SECURITY_MODULES, ...AI_ENGINEERING_MODULES, ...AI_STRATEGY_MODULES, DATA_FUNDAMENTALS_MODULE].map(withSim);
 
 // Existing tests that already cover one of a role's core skills
 const ROLE_ADDITIONS: Record<string, TestRole[]> = {
@@ -60,6 +65,7 @@ const ROLE_ADDITIONS: Record<string, TestRole[]> = {
 // Roles whose track is only these tests: every other test loses the role (it stays in the library for the roles it
 // keeps). Data Analyst is the core principles, one test per tool and one job simulation
 const ROLE_ONLY: Partial<Record<TestRole, string[]>> = {
+  'Software Developer': [...SOFTWARE_DEV_MODULE_TESTS.map((t) => t.id), 'test-sim-dev-01'],
   'Data Analyst': ['test-dafund-01', ...DA_MODULE_TESTS.map((t) => t.id), DA_JOB_SIM.id, ...COMBINED_TESTS.filter((c) => c.roles.includes('Data Analyst')).map((c) => c.id)],
 };
 

@@ -49,13 +49,11 @@ export const ROLE_SECTIONS: Partial<Record<TestRole, TestSection[]>> = {
     { id: 'project', label: 'Job Simulation', blurb: 'A day as a coffee chain’s analyst on a full desktop: emails, the intranet, files and a spreadsheet.', testIds: ['test-da-sim'] },
   ],
   'Software Developer': [
-    {
-      id: 'fundamentals',
-      label: 'Fundamentals',
-      blurb: 'One test per core skill: the language, debugging, data structures, APIs, testing, Git and code review.',
-      testIds: ['test-prog-01', 'test-debug-01', 'test-dsa-01', 'test-api-01', 'test-be-01', 'test-qatc-01', 'test-git-01', 'test-review-01'],
-    },
-    { id: 'project', label: 'Final Project', blurb: 'Fix a broken feature, test it and review an AI’s patch.', testIds: ['test-sim-dev-01'] },
+    { id: 'javascript', label: 'JavaScript', blurb: 'Arrays, objects, strings and async code in working programs.', testIds: ['test-sd-js'] },
+    { id: 'debugging', label: 'Debugging', blurb: 'Stack traces, root causes, and fixing real bugs in running code.', testIds: ['test-sd-debug'] },
+    { id: 'dsa', label: 'Data Structures & Algorithms', blurb: 'Complexity, the right structure, and classic problems solved in code.', testIds: ['test-sd-dsa'] },
+    { id: 'apis', label: 'APIs & SQL', blurb: 'HTTP and REST, request handlers, and queries on a real database.', testIds: ['test-sd-api'] },
+    { id: 'project', label: 'Job Simulation', blurb: 'A day as a developer on a full desktop.', testIds: ['test-sim-dev-01'] },
   ],
   'Data Scientist': [
     {

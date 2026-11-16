@@ -21,6 +21,8 @@ import {
   RotateCw,
   Send,
   X,
+  Code2,
+  Play,
 } from 'lucide-react';
 import { CaseFile, Question } from '../types';
 import { DeskApp, DeskBlock, DeskEmail, DesktopConfig, DesktopState, SentEmail, filesOf, inboxOf, parseDesktop, repliesFor } from '../lib/desktop';
@@ -30,6 +32,8 @@ import { SpreadsheetWindow } from './SpreadsheetWindow';
 import { DatabaseWindow } from './DatabaseWindow';
 import { AiPanel } from './Workspace';
 import { AppWindow } from './AppWindow';
+import { CodeField } from './CodeField';
+import { DeskProject, TestRun, runDeskTests } from '../lib/deskCode';
 import { LayoutGrid } from 'lucide-react';
 
 /**
@@ -46,6 +50,7 @@ const APPS: Record<DeskApp, { label: string; Icon: React.ComponentType<{ classNa
   sheet: { label: 'Spreadsheet', Icon: FileSpreadsheet, tint: 'bg-green-700' },
   sql: { label: 'Database', Icon: Database, tint: 'bg-indigo-600' },
   ai: { label: 'AI assistant', Icon: Bot, tint: 'bg-violet-600' },
+  code: { label: 'Code', Icon: Code2, tint: 'bg-slate-900' },
 };
 
 const REPLY_DELAY_MS = 2500;
@@ -132,6 +137,8 @@ export const Desktop: React.FC<{ question: Question; answer: string; onChange: (
         return <SpreadsheetWindow value={state.workbook} onChange={(wb) => save({ workbook: wb })} fileName={cfg.workbookName ?? 'Book1.xlsx'} files={files.filter((f) => /\.(csv|txt)$/i.test(f.name))} />;
       case 'sql':
         return <DatabaseWindow value={state.database} onChange={(db) => save({ database: db })} tables={cfg.tables ?? []} databaseName={cfg.databaseName ?? 'Database'} files={files.filter((f) => /\.csv$/i.test(f.name))} />;
+      case 'code':
+        return cfg.project ? <CodeApp project={cfg.project} files={state.code ?? {}} onFiles={(code) => save({ code: { ...(latest.current.code ?? {}), ...code } })} /> : null;
       case 'ai':
         return <AiPanel task={`${cfg.user.role} at ${cfg.company}. ${q.prompt}`.slice(0, 4000)} company={company ?? cfg.company} chat={state.ai} onChat={(ai) => save({ ai })} />;
     }
@@ -563,6 +570,78 @@ const FilesApp: React.FC<{ files: CaseFile[]; focus: string | null }> = ({ files
         ) : (
           <p className="text-xs text-slate-400">Select a file to preview it.</p>
         )}
+      </div>
+    </div>
+  );
+};
+
+// ---------- Code ----------
+
+const CodeApp: React.FC<{ project: DeskProject; files: Record<string, string>; onFiles: (files: Record<string, string>) => void }> = ({ project, files, onFiles }) => {
+  const [open, setOpen] = useState(project.files[0]?.name ?? '');
+  const [run, setRun] = useState<TestRun | null>(null);
+  const [busy, setBusy] = useState(false);
+  const file = project.files.find((f) => f.name === open);
+  const text = (name: string) => files[name] ?? project.files.find((f) => f.name === name)?.content ?? '';
+  const runTests = async () => {
+    setBusy(true);
+    try {
+      setRun(await runDeskTests(project, Object.fromEntries(project.files.map((f) => [f.name, text(f.name)])), 'mine'));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const passed = run?.results.filter((r) => r.pass).length ?? 0;
+  return (
+    <div className="h-full flex text-sm bg-slate-950" data-ref="code">
+      <aside className="w-48 shrink-0 bg-slate-900 text-slate-300 border-r border-slate-800 flex flex-col">
+        <div className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">{project.name}</div>
+        {project.files.map((f) => (
+          <button key={f.name} onClick={() => setOpen(f.name)} className={`text-left px-3 py-1.5 text-xs font-mono flex items-center gap-2 ${open === f.name ? 'bg-slate-800 text-white' : 'hover:bg-slate-800/60'}`}>
+            <FileText className="w-3.5 h-3.5 shrink-0 text-slate-500" />
+            <span className="truncate">{f.name}</span>
+            {files[f.name] !== undefined && files[f.name] !== f.content && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-amber-400" title="Changed" />}
+          </button>
+        ))}
+      </aside>
+      <div className="flex-1 min-w-0 flex flex-col">
+        <div className="h-9 shrink-0 flex items-center gap-2 px-3 bg-slate-900 border-b border-slate-800 text-xs text-slate-400">
+          <span className="font-mono text-slate-200">{open}</span>
+          {file?.readonly && <span className="px-1.5 rounded bg-slate-800 text-[10px]">read only</span>}
+          <button onClick={runTests} disabled={busy} className="ml-auto h-7 px-3 rounded-md bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold flex items-center gap-1.5" data-ref="code-run">
+            <Play className="w-3.5 h-3.5" />
+            {busy ? 'Running…' : `Run tests (${project.testFile})`}
+          </button>
+        </div>
+        <div className="flex-1 min-h-0 overflow-auto">
+          {file && (
+            <CodeField
+              key={open}
+              value={text(open)}
+              onChange={(v) => !file.readonly && onFiles({ [open]: v })}
+              language="JavaScript"
+              ariaLabel={open}
+              className="h-full"
+            />
+          )}
+        </div>
+        <div className="h-40 shrink-0 border-t border-slate-800 bg-slate-900 overflow-y-auto px-3 py-2 font-mono text-[12px]" data-ref="code-results" aria-live="polite">
+          {!run ? (
+            <span className="text-slate-500">Press Run tests to run {project.testFile} against your code.</span>
+          ) : (
+            <>
+              <div className={passed === run.results.length && !run.error ? 'text-emerald-400' : 'text-amber-300'}>
+                {passed} of {run.results.length} tests passed{run.error ? ` · ${run.error}` : ''}
+              </div>
+              {run.results.map((r, i) => (
+                <div key={i} className={r.pass ? 'text-emerald-300' : 'text-rose-300'}>
+                  {r.pass ? '✓' : '✗'} {r.name}
+                  {r.error ? <span className="text-slate-400"> · {r.error}</span> : null}
+                </div>
+              ))}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

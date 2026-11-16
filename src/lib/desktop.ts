@@ -2,6 +2,7 @@ import { CaseFile, DataTable, EmailContact, Question } from '../types';
 import { checkSheet, parseWorkbook } from './spreadsheet';
 import { matchesExpected, parseAppState, readPath } from './appSimulation';
 import { roughWrittenMark } from './questionTypes';
+import type { DeskProject } from './deskCode';
 
 /**
  * A desktop for job simulations: a computer like the candidate's own at work, with a taskbar of apps (Mail, Browser,
@@ -23,10 +24,13 @@ import { roughWrittenMark } from './questionTypes';
  *   firstmail:<address>       the first email sent to that address
  *   mailwith:<address>:<file> the email to that address that carried the file (else the first)
  *   mailcount:<address>       how many emails went to that address
+ *   earned:<rule id>          the email that earned that person's reply
  *   received:<rule id>        whether that person wrote back (the candidate's email earned the reply)
  *   visited:<url>             whether the page was opened
  *   downloaded:<file name>    whether the file was downloaded or saved
  *   app:<app id>:<path>       a path in a custom app's state (e.g. app:deskly:tickets.9001.status)
+ *   test:<check id>           one of Praxa's tests, run on the Code app's files when marked
+ *   filehas:<file>:<pattern>  whether a Code app file contains a pattern (a regular expression)
  *   state:<path>              any other part of the state
  */
 
@@ -69,7 +73,7 @@ export interface DeskPage {
   blocks: DeskBlock[];
 }
 
-export type DeskApp = 'mail' | 'browser' | 'files' | 'sheet' | 'sql' | 'ai';
+export type DeskApp = 'mail' | 'browser' | 'files' | 'sheet' | 'sql' | 'ai' | 'code';
 
 // A job's own software on the desktop (a help desk, a CRM, a till): a hand-built app page that saves its state with
 // praxa.save, kept in the desktop's state under its id and checked with app:<id>:<path>
@@ -98,6 +102,8 @@ export interface DesktopConfig {
   workbookName?: string;
   tables?: DataTable[];
   databaseName?: string;
+  // The Code app's project
+  project?: DeskProject;
 }
 
 export interface SentEmail {
@@ -122,6 +128,8 @@ export interface DesktopState {
   ai: { role: 'user' | 'assistant'; text: string }[];
   // Each custom app's saved state (JSON), by app id
   appStates: Record<string, string>;
+  // The Code app's files as the candidate left them, by name
+  code: Record<string, string>;
 }
 
 export const emptyDesktop = (cfg: DesktopConfig): DesktopState => ({
@@ -134,6 +142,7 @@ export const emptyDesktop = (cfg: DesktopConfig): DesktopState => ({
   database: JSON.stringify({ script: '', changes: [] }),
   ai: [],
   appStates: {},
+  code: {},
 });
 
 export function parseDesktop(json: string, cfg: DesktopConfig): DesktopState {
@@ -218,6 +227,12 @@ export function desktopValue(cfg: DesktopConfig, state: DesktopState, input: str
       const m = to.find((x) => x.attachments.some((a) => a.toLowerCase().includes(name.join(':').toLowerCase()))) ?? to[0];
       return m ? `${m.subject}\n\n${m.body}` : '';
     }
+    case 'earned': {
+      // The email that earned a reply rule's answer
+      const rule = cfg.replies?.find((r) => r.id === rest);
+      const m = rule && state.sent.find((x) => earnsReply(rule, x));
+      return m ? `${m.subject}\n\n${m.body}` : '';
+    }
     case 'mailcount':
       return state.sent.filter((m) => recipients(m).includes(lower(rest))).length;
     case 'received':
@@ -228,6 +243,16 @@ export function desktopValue(cfg: DesktopConfig, state: DesktopState, input: str
       return state.downloads.some((f) => lower(f.name) === lower(rest));
     case 'state':
       return readPath(state, rest);
+    case 'filehas': {
+      // Whether a project file (as the candidate left it) contains a pattern (a regular expression)
+      const [file, ...pattern] = rest.split(':');
+      const text = state.code?.[file] ?? cfg.project?.files.find((f) => f.name === file)?.content ?? '';
+      try {
+        return new RegExp(pattern.join(':'), 'i').test(text);
+      } catch {
+        return false;
+      }
+    }
     case 'app': {
       const [id, ...path] = rest.split(':');
       return readPath(parseAppState(state.appStates?.[id] ?? '') ?? {}, path.join(':'));
@@ -237,12 +262,17 @@ export function desktopValue(cfg: DesktopConfig, state: DesktopState, input: str
   }
 }
 
-// Every check run on the desktop as the candidate left it
-export function checkDesktop(q: Question, answer: string) {
+// Every check run on the desktop as the candidate left it. Checks written test:<id> are Praxa's tests on the Code app's
+// files, run beforehand (testsPassed)
+export function checkDesktop(q: Question, answer: string, testsPassed: Record<string, boolean> = {}) {
   const cfg = q.desktop!;
   const state = parseDesktop(answer, cfg);
   const wb = parseWorkbook(state.workbook);
   return q.testCases.map((tc) => {
+    if (tc.input.startsWith('test:')) {
+      const passed = !!testsPassed[tc.input.slice(5)];
+      return { id: tc.id, description: tc.description, passed, input: tc.input, expected: 'passes', actual: passed ? 'passes' : 'fails', executionMs: 0 };
+    }
     if (tc.input.startsWith('sheet:')) {
       const r = checkSheet(wb, tc.input.slice(6), tc.expectedOutput);
       return { id: tc.id, description: tc.description, passed: r.passed, input: tc.input, expected: tc.expectedOutput, actual: r.actual, executionMs: 0 };

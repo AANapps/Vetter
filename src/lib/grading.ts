@@ -1,4 +1,5 @@
-import { checkDesktop } from './desktop';
+import { checkDesktop, parseDesktop } from './desktop';
+import { runDeskTests } from './deskCode';
 import { AssessmentTest, Question } from '../types';
 import { executeSqlQuery, openTaskDatabase, queryRows, runSchemaChecks, SqlExecutionResult, SqlTable } from './sqlEngine';
 import { parseDatabaseWork } from './databaseWork';
@@ -108,8 +109,16 @@ function gradeAppQuestion(q: Question, answer: string): QuestionRunResult {
 }
 
 // A desktop job simulation: its checks on the emails sent, pages visited, files saved and the workbook, and its writing
-function gradeDesktopQuestion(q: Question, answer: string): QuestionRunResult {
-  const testCaseResults = checkDesktop(q, answer);
+async function gradeDesktopQuestion(q: Question, answer: string): Promise<QuestionRunResult> {
+  // Praxa's tests on the Code app's files, when the desktop has a project and the checks ask for them
+  let testsPassed: Record<string, boolean> = {};
+  const project = q.desktop?.project;
+  if (project && q.testCases.some((tc) => tc.input.startsWith('test:'))) {
+    const state = parseDesktop(answer, q.desktop!);
+    const run = await runDeskTests(project, state.code ?? {}, 'checks').catch(() => ({ results: [] as { name: string; pass: boolean }[] }));
+    testsPassed = Object.fromEntries(run.results.map((r) => [r.name, r.pass]));
+  }
+  const testCaseResults = checkDesktop(q, answer, testsPassed);
   const earned = testCaseResults.reduce((n, r) => n + (r.passed ? 1 : (r.credit ?? 0)), 0);
   return {
     type: 'code',
