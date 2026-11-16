@@ -82,6 +82,9 @@ interface CandidatePortalProps {
   onOpenJob: (jobId: string) => void;
 }
 
+// A job simulation: a whole day of the job, which goes last in a checklist
+const isSimulation = (t: AssessmentTest) => t.id.startsWith('test-sim-') || /simulation/i.test(t.title);
+
 export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   section,
   onNavigate,
@@ -214,6 +217,16 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
 
   // A role with sections (Excel, SQL, Power BI…) shows its tests under a heading for each; any other list is one group
   const testSections = sectionsFor(testField);
+  // The checklist at the top: a role's modules, or for any other role or category each of its tests, job simulations
+  // last. It ignores the taken / not taken filter, so it always shows the whole set
+  const checklist: { id: string; label: string; testIds: string[] }[] | null = testSections
+    ? testSections
+    : testField
+      ? vetterTests
+          .filter((t) => t.roles?.some((r) => testField.roles.includes(r)))
+          .sort((a, b) => Number(isSimulation(a)) - Number(isSimulation(b)))
+          .map((t) => ({ id: t.id, label: t.title, testIds: [t.id] }))
+      : null;
   // A role whose modules are one test each lists the cards in the modules' order, without a heading above each
   const oneTestEach = !!testSections && testSections.every((sec) => sec.testIds.length === 1);
   const testGroups: { id: string | null; label: string | null; blurb: string; tests: AssessmentTest[] }[] = testSections && oneTestEach
@@ -1026,9 +1039,9 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
             </div>
           )}
 
-          {/* A role's modules as a checklist, each ticked once any level of its test has been taken */}
-          {testSections && (() => {
-            const items = testSections.map((sec) => {
+          {/* The modules of the role or category open as a checklist, each ticked once any level of its test has been taken */}
+          {checklist && checklist.length > 0 && (() => {
+            const items = checklist.map((sec) => {
               const secTests = tests.filter((t) => sec.testIds.includes(t.id));
               const best = secTests.flatMap((t) => levelsOf(t, tests)).map((v) => getBestTestScore(candidate, v.id)).filter((n): n is number => n !== undefined);
               return { sec, done: best.length > 0, best: best.length ? Math.max(...best) : undefined };
