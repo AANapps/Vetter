@@ -711,7 +711,7 @@ export const SUPPORT_MODULES: ModuleSkeleton[] = [SUPPORT_TRIAGE_MODULE];
 
 // ---------- The job simulation: a Monday on Bloomvale's support desk ----------
 
-const BLOOMVALE_POLICIES = `# Bloomvale customer support: policies and targets
+export const BLOOMVALE_POLICIES = `# Bloomvale customer support: policies and targets
 
 ## First-reply targets
 - Urgent: 1 hour · High: 4 hours · Normal: 8 business hours · Low: 2 business days
@@ -744,9 +744,9 @@ const BLOOMVALE_POLICIES = `# Bloomvale customer support: policies and targets
 - Use the customer's first name, own the problem (no blaming the courier), give a specific next step and when it
   will happen, and keep it short.`;
 
-const BLOOM_TAGS = ['damaged', 'dead_on_arrival', 'late_delivery', 'refund', 'promo_bug', 'account_security', 'wholesale', 'care_advice', 'subscription'];
+export const BLOOM_TAGS = ['damaged', 'dead_on_arrival', 'late_delivery', 'refund', 'promo_bug', 'account_security', 'wholesale', 'care_advice', 'subscription'];
 
-const BLOOM_TICKETS: HelpdeskTicket[] = [
+export const BLOOM_TICKETS: HelpdeskTicket[] = [
   ticket({
     id: '9001',
     subject: 'Pot smashed in delivery',

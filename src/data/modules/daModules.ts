@@ -4,6 +4,7 @@ import { databaseStarter } from '../../lib/databaseWork';
 import { parseCsv, toCsv } from '../../lib/csv';
 import { EXCEL_SETS, SQL_SETS, PYTHON_SETS, CLEANING_SETS, REPORTING_SETS, METRICS_SETS, IMPORTING_SETS, POWERBI_SETS, TABLEAU_SETS } from './daSets';
 import { simTask } from './simKit';
+import { forField } from './moduleField';
 import { powerBiApp } from './powerbiApp';
 import { tableauApp } from './tableauApp';
 import { round2, seeded, sum, tc } from '../simulationKit';
@@ -1050,4 +1051,7 @@ Q4. Build a view of Profit Ratio by Region (Region on Rows, Profit Ratio on Colu
   TABLEAU_SETS
 );
 
-export const DA_MODULE_TESTS: AssessmentTest[] = [EXCEL_TEST, SQL_TEST, PYTHON_TEST, CLEANING_TEST, REPORTING_TEST, METRICS_TEST, IMPORTING_TEST, POWERBI_TEST, TABLEAU_TEST];
+// Each module is made for data analysis: Excel for Data Analysis, SQL for Data Analysis …
+export const DA_MODULE_TESTS: AssessmentTest[] = [EXCEL_TEST, SQL_TEST, PYTHON_TEST, CLEANING_TEST, REPORTING_TEST, METRICS_TEST, IMPORTING_TEST, POWERBI_TEST, TABLEAU_TEST].map((t) =>
+  forField(t, t.title, 'Data Analysis')
+);

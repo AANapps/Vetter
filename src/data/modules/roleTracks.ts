@@ -8,7 +8,7 @@ import { ModuleSkeleton, J, tagged } from './kit';
 import { TECH_SIMS } from './simsTech';
 import { AI_SIMS } from './simsAI';
 import { OPS_SIMS } from './simsOps';
-import { SUPPORT_SIM_TEST } from './support';
+import { CS_JOB_SIM } from './csJobSim';
 import { SUPPORT_MODULE_TESTS } from './supportModules';
 import { COMBINED_TESTS } from './combined';
 import { DA_MODULE_TESTS } from './daModules';
@@ -26,7 +26,7 @@ export const ROLE_TRACK_TESTS: AssessmentTest[] = [
   ...AI_ENGINEERING_TESTS,
   ...AI_STRATEGY_TESTS,
   ...SUPPORT_MODULE_TESTS,
-  SUPPORT_SIM_TEST,
+  CS_JOB_SIM,
   DATA_FUNDAMENTALS_TEST,
   ...DA_MODULE_TESTS,
   DA_JOB_SIM,

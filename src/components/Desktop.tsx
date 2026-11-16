@@ -29,6 +29,8 @@ import { parseCsv } from '../lib/csv';
 import { SpreadsheetWindow } from './SpreadsheetWindow';
 import { DatabaseWindow } from './DatabaseWindow';
 import { AiPanel } from './Workspace';
+import { AppWindow } from './AppWindow';
+import { LayoutGrid } from 'lucide-react';
 
 /**
  * The desktop a job simulation is worked on: a wallpaper with the computer's apps, each opening in its own window, and
@@ -48,15 +50,21 @@ const APPS: Record<DeskApp, { label: string; Icon: React.ComponentType<{ classNa
 
 const REPLY_DELAY_MS = 2500;
 
-export const Desktop: React.FC<{ question: Question; answer: string; onChange: (answer: string) => void; company?: string }> = ({ question: q, answer, onChange, company }) => {
+// A custom app's look on the desktop and taskbar
+const appInfo = (cfg: DesktopConfig, app: string) =>
+  (APPS as Record<string, (typeof APPS)[DeskApp]>)[app] ?? { label: cfg.customApps?.find((c) => c.id === app)?.label ?? app, Icon: LayoutGrid, tint: 'bg-teal-600' };
+
+export const Desktop: React.FC<{ question: Question; answer: string; onChange: (answer: string) => void; company?: string; startApp?: string }> = ({ question: q, answer, onChange, company, startApp }) => {
   const cfg = q.desktop!;
   const state = useMemo(() => parseDesktop(answer, cfg), [answer, cfg]);
   // The latest state, for replies that arrive after the candidate has done more
   const latest = useRef(state);
   latest.current = state;
   const save = (change: Partial<DesktopState>) => onChange(JSON.stringify({ ...latest.current, ...change }));
-  const [open, setOpen] = useState<DeskApp[]>([]);
-  const [active, setActive] = useState<DeskApp | null>(null);
+  // The day starts in the inbox when there is one
+  const first = startApp ?? (cfg.apps.includes('mail') ? 'mail' : null);
+  const [open, setOpen] = useState<string[]>(first ? [first] : []);
+  const [active, setActive] = useState<string | null>(first);
   const [toast, setToast] = useState<string | null>(null);
   const [focusFile, setFocusFile] = useState<string | null>(null);
   useEffect(() => {
@@ -69,11 +77,11 @@ export const Desktop: React.FC<{ question: Question; answer: string; onChange: (
   const files = filesOf(cfg, state);
   const unread = inbox.filter((m) => !state.read.includes(m.id)).length;
 
-  const launch = (app: DeskApp) => {
+  const launch = (app: string) => {
     setOpen((prev) => (prev.includes(app) ? prev : [...prev, app]));
     setActive(app);
   };
-  const close = (app: DeskApp) => {
+  const close = (app: string) => {
     setOpen((prev) => prev.filter((a) => a !== app));
     if (active === app) setActive(null);
   };
@@ -93,7 +101,17 @@ export const Desktop: React.FC<{ question: Question; answer: string; onChange: (
       }, REPLY_DELAY_MS);
   };
 
-  const appWindow = (app: DeskApp) => {
+  const appWindow = (app: string) => {
+    const custom = cfg.customApps?.find((c) => c.id === app);
+    if (custom)
+      return (
+        <AppWindow
+          value={state.appStates?.[app] ?? ''}
+          onChange={(json) => save({ appStates: { ...(latest.current.appStates ?? {}), [app]: json } })}
+          html={custom.html}
+          appName={custom.label}
+        />
+      );
     switch (app) {
       case 'mail':
         return <MailApp cfg={cfg} state={state} inbox={inbox} files={files} onRead={(id) => !state.read.includes(id) && save({ read: [...state.read, id] })} onSend={sendEmail} onOpenFile={(name) => (setFocusFile(name), launch('files'))} />;
@@ -125,7 +143,7 @@ export const Desktop: React.FC<{ question: Question; answer: string; onChange: (
       <div className="relative flex-1 min-h-0 bg-gradient-to-br from-slate-700 via-slate-800 to-indigo-950">
         <div className="absolute inset-0 p-5 grid grid-flow-col auto-cols-max grid-rows-[repeat(auto-fill,92px)] gap-2 content-start">
           {cfg.apps.map((app) => {
-            const { label, Icon, tint } = APPS[app];
+            const { label, Icon, tint } = appInfo(cfg, app);
             return (
               <button key={app} onDoubleClick={() => launch(app)} onClick={() => launch(app)} className="w-[84px] h-[88px] flex flex-col items-center justify-center gap-1.5 rounded-lg text-white hover:bg-white/10 focus-visible:bg-white/15" data-ref={`icon-${app}`}>
                 <span className={`relative w-11 h-11 rounded-xl ${tint} grid place-items-center shadow-md`}>
@@ -143,17 +161,17 @@ export const Desktop: React.FC<{ question: Question; answer: string; onChange: (
         {open.map((app) => (
           <section
             key={app}
-            aria-label={APPS[app].label}
+            aria-label={appInfo(cfg, app).label}
             className={`absolute inset-2 sm:inset-3 bg-white rounded-lg shadow-2xl flex flex-col overflow-hidden select-text ${active === app ? '' : 'hidden'}`}
           >
             <header className="h-9 shrink-0 flex items-center gap-2 px-3 bg-slate-100 border-b border-slate-200">
-              {React.createElement(APPS[app].Icon, { className: 'w-4 h-4 text-slate-600' })}
-              <span className="text-xs font-semibold text-slate-700">{APPS[app].label}</span>
+              {React.createElement(appInfo(cfg, app).Icon, { className: 'w-4 h-4 text-slate-600' })}
+              <span className="text-xs font-semibold text-slate-700">{appInfo(cfg, app).label}</span>
               <span className="ml-auto flex items-center gap-1">
-                <button onClick={() => setActive(null)} aria-label={`Minimise ${APPS[app].label}`} title="Minimise" className="w-7 h-7 grid place-items-center rounded hover:bg-slate-200 text-slate-600">
+                <button onClick={() => setActive(null)} aria-label={`Minimise ${appInfo(cfg, app).label}`} title="Minimise" className="w-7 h-7 grid place-items-center rounded hover:bg-slate-200 text-slate-600">
                   <Minus className="w-4 h-4" />
                 </button>
-                <button onClick={() => close(app)} aria-label={`Close ${APPS[app].label}`} title="Close" className="w-7 h-7 grid place-items-center rounded hover:bg-rose-500 hover:text-white text-slate-600">
+                <button onClick={() => close(app)} aria-label={`Close ${appInfo(cfg, app).label}`} title="Close" className="w-7 h-7 grid place-items-center rounded hover:bg-rose-500 hover:text-white text-slate-600">
                   <X className="w-4 h-4" />
                 </button>
               </span>
@@ -173,7 +191,7 @@ export const Desktop: React.FC<{ question: Question; answer: string; onChange: (
           {cfg.company[0]}
         </span>
         {cfg.apps.map((app) => {
-          const { label, Icon } = APPS[app];
+          const { label, Icon } = appInfo(cfg, app);
           const isOpen = open.includes(app);
           return (
             <button

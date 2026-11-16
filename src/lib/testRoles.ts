@@ -29,11 +29,11 @@ export interface TestSection {
 
 export const ROLE_SECTIONS: Partial<Record<TestRole, TestSection[]>> = {
   'Customer Support Agent': [
-    { id: 'triage', label: 'Prioritising & Escalation', blurb: 'Ranking a queue by urgency, and what to solve yourself or pass to Tier 2.', testIds: ['test-support-triage-01'] },
-    { id: 'comms', label: 'Customer Communication', blurb: 'Angry customers, explaining fixes simply, and bug reports.', testIds: ['test-cs-comms-01'] },
-    { id: 'refunds', label: 'Policies & Refunds', blurb: 'Which refunds are allowed, processed with the right details.', testIds: ['test-cs-refunds-01'] },
-    { id: 'troubleshooting', label: 'Listening & Troubleshooting', blurb: 'The real problem in a messy message, and a login chat.', testIds: ['test-cs-troubleshoot-01'] },
-    { id: 'simulations', label: 'Job Simulation', blurb: 'A morning on a real support desk, start to finish.', testIds: ['test-sim-support-01'] },
+    { id: 'triage', label: 'Ticket Support', blurb: 'Ranking a queue by urgency, and what to solve yourself or pass to Tier 2.', testIds: ['test-support-triage-01'] },
+    { id: 'comms', label: 'Communication', blurb: 'Angry customers, explaining fixes simply, and bug reports.', testIds: ['test-cs-comms-01'] },
+    { id: 'refunds', label: 'Refunds & Policy', blurb: 'Which refunds are allowed, processed with the right details.', testIds: ['test-cs-refunds-01'] },
+    { id: 'troubleshooting', label: 'Troubleshooting', blurb: 'The real problem in a messy message, and a login chat.', testIds: ['test-cs-troubleshoot-01'] },
+    { id: 'simulations', label: 'Job Simulation', blurb: 'A day on a plant shop’s support desk on a full desktop: email, the help desk, a courier’s site.', testIds: ['test-sim-support-01'] },
   ],
   'Data Analyst': [
     { id: 'fundamentals', label: 'Fundamentals', blurb: 'The core principles: the question, data quality, summarising, conclusions and communicating.', testIds: ['test-dafund-01'] },
@@ -46,7 +46,7 @@ export const ROLE_SECTIONS: Partial<Record<TestRole, TestSection[]>> = {
     { id: 'cleaning', label: 'Data Cleaning', blurb: 'Finding and fixing bad data before it reaches a decision.', testIds: ['test-da-cleaning'] },
     { id: 'reporting', label: 'Dashboards & Reporting', blurb: 'KPIs and reports people can act on.', testIds: ['test-da-reporting'] },
     { id: 'metrics', label: 'Metrics & Statistics', blurb: 'Business metrics, A/B tests and the statistics behind them.', testIds: ['test-da-metrics'] },
-    { id: 'project', label: 'Job Simulation', blurb: 'A morning as a coffee chain’s analyst, from messy data to the board.', testIds: ['test-da-sim'] },
+    { id: 'project', label: 'Job Simulation', blurb: 'A day as a coffee chain’s analyst on a full desktop: emails, the intranet, files and a spreadsheet.', testIds: ['test-da-sim'] },
   ],
   'Software Developer': [
     {

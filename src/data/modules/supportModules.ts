@@ -1,6 +1,7 @@
 import { AssessmentTest, Question, TestScenario } from '../../types';
 import { choice, match, multi, order, short, written } from '../questionKit';
 import { questionSet } from './daSets';
+import { forField } from './moduleField';
 import { HelpdeskConfig, HelpdeskTicket, helpdeskApp } from './helpdeskApp';
 import { QUEUE_P, TALLYHUB_GROUPS, TALLYHUB_KB, TALLYHUB_SLA, TALLYHUB_TAGS } from './support';
 
@@ -924,4 +925,10 @@ Q4. Type a message explaining, simply, how Sam can get in.`,
   ]
 );
 
-export const SUPPORT_MODULE_TESTS: AssessmentTest[] = [TRIAGE_TEST, COMMS_TEST, REFUNDS_TEST, LISTEN_TEST];
+// Each module is made for customer support: Ticket Support for Customer Support …
+export const SUPPORT_MODULE_TESTS: AssessmentTest[] = [
+  forField(TRIAGE_TEST, 'Ticket Support', 'Customer Support'),
+  forField(COMMS_TEST, 'Communication', 'Customer Support'),
+  forField(REFUNDS_TEST, 'Refunds & Policy', 'Customer Support'),
+  forField(LISTEN_TEST, 'Troubleshooting', 'Customer Support'),
+];

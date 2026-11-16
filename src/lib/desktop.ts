@@ -1,6 +1,6 @@
 import { CaseFile, DataTable, EmailContact, Question } from '../types';
 import { checkSheet, parseWorkbook } from './spreadsheet';
-import { matchesExpected, readPath } from './appSimulation';
+import { matchesExpected, parseAppState, readPath } from './appSimulation';
 import { roughWrittenMark } from './questionTypes';
 
 /**
@@ -26,6 +26,7 @@ import { roughWrittenMark } from './questionTypes';
  *   received:<rule id>        whether that person wrote back (the candidate's email earned the reply)
  *   visited:<url>             whether the page was opened
  *   downloaded:<file name>    whether the file was downloaded or saved
+ *   app:<app id>:<path>       a path in a custom app's state (e.g. app:deskly:tickets.9001.status)
  *   state:<path>              any other part of the state
  */
 
@@ -70,12 +71,22 @@ export interface DeskPage {
 
 export type DeskApp = 'mail' | 'browser' | 'files' | 'sheet' | 'sql' | 'ai';
 
+// A job's own software on the desktop (a help desk, a CRM, a till): a hand-built app page that saves its state with
+// praxa.save, kept in the desktop's state under its id and checked with app:<id>:<path>
+export interface DeskCustomApp {
+  id: string;
+  label: string;
+  html: string;
+}
+
 export interface DesktopConfig {
   user: { name: string; email: string; role: string };
   company: string;
   // The time the day starts, as shown on the taskbar clock
   time: string;
-  apps: DeskApp[];
+  // The taskbar's apps, in order: the built-in ones and the ids of custom apps
+  apps: (DeskApp | string)[];
+  customApps?: DeskCustomApp[];
   contacts: EmailContact[];
   inbox: DeskEmail[];
   replies?: DeskReplyRule[];
@@ -109,6 +120,8 @@ export interface DesktopState {
   workbook: string;
   database: string;
   ai: { role: 'user' | 'assistant'; text: string }[];
+  // Each custom app's saved state (JSON), by app id
+  appStates: Record<string, string>;
 }
 
 export const emptyDesktop = (cfg: DesktopConfig): DesktopState => ({
@@ -120,6 +133,7 @@ export const emptyDesktop = (cfg: DesktopConfig): DesktopState => ({
   workbook: cfg.workbook ?? JSON.stringify({ sheets: [{ name: 'Sheet1', cells: {} }] }),
   database: JSON.stringify({ script: '', changes: [] }),
   ai: [],
+  appStates: {},
 });
 
 export function parseDesktop(json: string, cfg: DesktopConfig): DesktopState {
@@ -214,6 +228,10 @@ export function desktopValue(cfg: DesktopConfig, state: DesktopState, input: str
       return state.downloads.some((f) => lower(f.name) === lower(rest));
     case 'state':
       return readPath(state, rest);
+    case 'app': {
+      const [id, ...path] = rest.split(':');
+      return readPath(parseAppState(state.appStates?.[id] ?? '') ?? {}, path.join(':'));
+    }
     default:
       return undefined;
   }

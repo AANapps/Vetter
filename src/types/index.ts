@@ -379,6 +379,9 @@ export const levelName = (level: TestDifficulty | string) => (level === 'Profess
 export interface AssessmentTest {
   id: string;
   title: string;
+  // A module made for one field: its skill and the field (Excel for Data Analysis, Ticket Support for Customer Support).
+  // The same skill can have a version for another field (Excel for Finance), and a module can join other roles' tracks
+  module?: { skill: string; field: string };
   category: SkillCategory;
   difficulty: TestDifficulty;
   // 'standard' tests are made by Praxa; 'custom' tests are made by a company for its own jobs
