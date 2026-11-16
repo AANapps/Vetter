@@ -413,7 +413,8 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
             </div>
           )}
 
-          <EnvironmentLibrary isPraxa={isPraxa} />
+          {/* Environments and the app simulation library are for the Praxa team only, not companies */}
+          {isPraxa && <EnvironmentLibrary isPraxa />}
 
           <div className="pt-2">
             <h2 className="text-lg font-bold text-slate-900">{isPraxa ? "Praxa's library" : 'All tests'}</h2>
