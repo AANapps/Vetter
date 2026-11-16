@@ -1,8 +1,9 @@
 import React, { useId } from 'react';
 
 /**
- * Praxa's brand: a globe and the name set in a rounded geometric sans (Outfit), both in the AI gradient (blue, violet,
- * pink). The globe is also the AI chat's avatar; while the AI works it turns slowly.
+ * Praxa's brand: an abstract neuron in a rounded square (a cell body and its branches, white on the AI gradient: blue,
+ * violet, pink) and the name set in a rounded geometric sans (Outfit) in the same gradient. The mark is also the AI
+ * chat's avatar; while the AI works it pulses.
  */
 
 export const BrandSparkle: React.FC<{ className?: string; busy?: boolean; title?: string }> = ({ className = 'w-6 h-6', busy, title }) => {
@@ -16,19 +17,24 @@ export const BrandSparkle: React.FC<{ className?: string; busy?: boolean; title?
           <stop offset="1" stopColor="#db5a9e" />
         </linearGradient>
       </defs>
-      {/* A globe: its outline, the equator and two lines of latitude, and the meridians curving round it */}
-      <g fill="none" stroke={`url(#bs-${id})`} strokeWidth="1.9" strokeLinecap="round">
-        <circle cx="12" cy="12" r="9.5" />
-        <path d="M2.5 12h19" />
-        <path d="M4 7.2h16M4 16.8h16" strokeWidth="1.5" />
-        <path d="M12 2.5c2.9 2.6 4.4 5.8 4.4 9.5s-1.5 6.9-4.4 9.5" />
-        <path d="M12 2.5C9.1 5.1 7.6 8.3 7.6 12s1.5 6.9 4.4 9.5" />
+      {/* An abstract neuron in a rounded square: a cell body with three short branches and a long one that forks at its end */}
+      <rect x="1" y="1" width="22" height="22" rx="6.5" fill={`url(#bs-${id})`} />
+      <g fill="none" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M10 10C8.6 8 7.2 6.8 5.4 6.1M10 10c.8-2.4 2-4 3.9-5M10 10c-2 .9-3.6 2.3-4.7 4.4M10 10c2.8 1.2 5 3.4 6.2 6.4m0 0 2.6-1m-2.6 1 .8 2.7" />
+      </g>
+      <g fill="#fff">
+        <circle cx="10" cy="10" r="2.6" />
+        <circle cx="5.4" cy="6.1" r="1.25" />
+        <circle cx="13.9" cy="5" r="1.25" />
+        <circle cx="5.3" cy="14.4" r="1.25" />
+        <circle cx="18.8" cy="15.4" r="1.15" />
+        <circle cx="17" cy="19.1" r="1.15" />
       </g>
     </svg>
   );
 };
 
-// The globe and the name: "🌐 Praxa". size: the text size class; the globe follows it
+// The mark and the name. size: the text size class; the mark follows it
 export const BrandWordmark: React.FC<{ size?: 'sm' | 'md' | 'lg'; className?: string; showMark?: boolean }> = ({ size = 'md', className = '', showMark = true }) => {
   const text = size === 'lg' ? 'text-3xl' : size === 'sm' ? 'text-base' : 'text-xl';
   const mark = size === 'lg' ? 'w-8 h-8' : size === 'sm' ? 'w-4 h-4' : 'w-6 h-6';
