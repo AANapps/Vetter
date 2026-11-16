@@ -13,6 +13,7 @@ import { ANALYST_TOOL_MODULES_2 } from './analystTools2';
 import { ANALYST_SKILL_MODULES } from './analystTools3';
 import { ROLE_TRACK_MODULES } from './roleTracks';
 import { EXTRA_MIX } from './extraMix';
+import { testSector } from '../../lib/sectors';
 import { COMBINED_TESTS, CombinedTest } from './combined';
 
 /**
@@ -151,7 +152,7 @@ function combinedLevels(c: CombinedTest, tests: AssessmentTest[], byFamily: Map<
 function modulesOf(tests: AssessmentTest[], byFamily: Map<string, ModuleSkeleton>, built: Set<string>): AssessmentTest[] {
   return tests.flatMap((t) => {
     const familyId = t.familyId ?? t.id;
-    const skeleton = byFamily.get(familyId);
+    let skeleton = byFamily.get(familyId);
     if (!skeleton) return [t];
     if (built.has(familyId)) return [];
     built.add(familyId);
@@ -160,7 +161,10 @@ function modulesOf(tests: AssessmentTest[], byFamily: Map<string, ModuleSkeleton
     const bank = moduleBank(skeleton, family);
     const areas = skeleton.aspects.map((a) => a.name);
     const list = `${areas.slice(0, -1).join(', ')} and ${areas[areas.length - 1]}`;
-    // A module held to one level is one test, under the main version's id
+    // A module held to one level is one test, under the main version's id. Every Tech test is: one Mid-level test of
+    // about 20 minutes, asking in every area, its practical work last (as the Data Analyst modules are)
+    const tech = testSector(main) === 'tech';
+    if (tech && !skeleton.onlyLevel) skeleton = { ...skeleton, onlyLevel: 'Professional', maxMinutes: skeleton.maxMinutes ?? 20 };
     const levels = skeleton.onlyLevel ? [skeleton.onlyLevel] : TEST_DIFFICULTIES;
     return levels.map((tier): AssessmentTest => {
       const isMain = skeleton.onlyLevel ? true : tier === (main.difficulty === 'Beginner' ? 'Junior' : main.difficulty);
