@@ -1,8 +1,8 @@
 import React, { useId } from 'react';
 
 /**
- * Praxa's brand: a four-point sparkle and the name set in a rounded geometric sans (Outfit), both in the AI gradient
- * (blue, violet, pink). The sparkle is also the AI chat's avatar; while the AI works it turns slowly.
+ * Praxa's brand: a globe and the name set in a rounded geometric sans (Outfit), both in the AI gradient (blue, violet,
+ * pink). The globe is also the AI chat's avatar; while the AI works it turns slowly.
  */
 
 export const BrandSparkle: React.FC<{ className?: string; busy?: boolean; title?: string }> = ({ className = 'w-6 h-6', busy, title }) => {
@@ -16,13 +16,19 @@ export const BrandSparkle: React.FC<{ className?: string; busy?: boolean; title?
           <stop offset="1" stopColor="#db5a9e" />
         </linearGradient>
       </defs>
-      {/* Four curved points meeting in the middle */}
-      <path fill={`url(#bs-${id})`} d="M12 1.5c.55 5.6 4.9 9.95 10.5 10.5-5.6.55-9.95 4.9-10.5 10.5C11.45 16.9 7.1 12.55 1.5 12 7.1 11.45 11.45 7.1 12 1.5Z" />
+      {/* A globe: its outline, the equator and two lines of latitude, and the meridians curving round it */}
+      <g fill="none" stroke={`url(#bs-${id})`} strokeWidth="1.9" strokeLinecap="round">
+        <circle cx="12" cy="12" r="9.5" />
+        <path d="M2.5 12h19" />
+        <path d="M4 7.2h16M4 16.8h16" strokeWidth="1.5" />
+        <path d="M12 2.5c2.9 2.6 4.4 5.8 4.4 9.5s-1.5 6.9-4.4 9.5" />
+        <path d="M12 2.5C9.1 5.1 7.6 8.3 7.6 12s1.5 6.9 4.4 9.5" />
+      </g>
     </svg>
   );
 };
 
-// The sparkle and the name: "✦ Praxa". size: the text size class; the sparkle follows it
+// The globe and the name: "🌐 Praxa". size: the text size class; the globe follows it
 export const BrandWordmark: React.FC<{ size?: 'sm' | 'md' | 'lg'; className?: string; showMark?: boolean }> = ({ size = 'md', className = '', showMark = true }) => {
   const text = size === 'lg' ? 'text-3xl' : size === 'sm' ? 'text-base' : 'text-xl';
   const mark = size === 'lg' ? 'w-8 h-8' : size === 'sm' ? 'w-4 h-4' : 'w-6 h-6';
