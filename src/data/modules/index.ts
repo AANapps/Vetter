@@ -115,15 +115,16 @@ function combinedLevels(c: CombinedTest, tests: AssessmentTest[], byFamily: Map<
   }
   if (bank.length === 0) return [];
   const lead = tests.find((t) => t.id === c.sources[0])!;
-  return TEST_DIFFICULTIES.filter((tier) => tier !== 'Beginner').map((tier): AssessmentTest => {
-    const questions = weighByTier(buildLevel(bank, tier, c.maxMinutes));
+  const levels = c.onlyLevel ? [c.onlyLevel] : TEST_DIFFICULTIES;
+  return levels.map((tier): AssessmentTest => {
+    const questions = weighByTier(buildLevel(bank, tier, c.maxMinutes, !!c.onlyLevel));
     // The hands-on task's own source first: its brief is what the task is worked against
     const scenario = [...questions]
       .sort((a, b) => Number(SCENARIO_TYPES.includes(b.type) && b.type !== 'case') - Number(SCENARIO_TYPES.includes(a.type) && a.type !== 'case'))
       .filter((q) => SCENARIO_TYPES.includes(q.type) || q.taskId)
       .map((q) => ownerOf.get(q.id)?.scenario)
       .find(Boolean);
-    const isMain = tier === 'Junior';
+    const isMain = tier === levels[0];
     return {
       id: isMain ? c.id : `${c.id}-${tier.toLowerCase()}`,
       ...(!isMain && { familyId: c.id }),
@@ -156,9 +157,11 @@ function modulesOf(tests: AssessmentTest[], byFamily: Map<string, ModuleSkeleton
     const bank = moduleBank(skeleton, family);
     const areas = skeleton.aspects.map((a) => a.name);
     const list = `${areas.slice(0, -1).join(', ')} and ${areas[areas.length - 1]}`;
-    return TEST_DIFFICULTIES.map((tier): AssessmentTest => {
-      const isMain = tier === (main.difficulty === 'Beginner' ? 'Junior' : main.difficulty);
-      const questions = weighByTier(buildLevel(bank, tier, skeleton.maxMinutes));
+    // A module held to one level is one test, under the main version's id
+    const levels = skeleton.onlyLevel ? [skeleton.onlyLevel] : TEST_DIFFICULTIES;
+    return levels.map((tier): AssessmentTest => {
+      const isMain = skeleton.onlyLevel ? true : tier === (main.difficulty === 'Beginner' ? 'Junior' : main.difficulty);
+      const questions = weighByTier(buildLevel(bank, tier, skeleton.maxMinutes, !!skeleton.onlyLevel));
       // A level without the scenario's tasks doesn't need its brief
       const usesScenario = questions.some((q) => SCENARIO_TYPES.includes(q.type) || q.taskId);
       const { scenario, familyId: _f, ...rest } = main;
@@ -169,7 +172,7 @@ function modulesOf(tests: AssessmentTest[], byFamily: Map<string, ModuleSkeleton
         ...(!isMain && { familyId: main.id }),
         difficulty: tier,
         description: isMain ? main.description : `${TIER_BLURB[tier]}: ${list}.`,
-        passingScore: isMain ? main.passingScore : (skeleton.passingScores?.[tier] ?? DEFAULT_PASS[tier]),
+        passingScore: isMain && !skeleton.onlyLevel ? main.passingScore : (skeleton.passingScores?.[tier] ?? DEFAULT_PASS[tier]),
         aspects: skeleton.aspects,
         questions,
         totalQuestions: questions.filter((q) => q.type !== 'case').length,

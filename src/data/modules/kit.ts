@@ -14,6 +14,8 @@ export interface ModuleSkeleton {
   passingScores?: Partial<Record<TestDifficulty, number>>;
   // Every level held to this many minutes (otherwise Junior ~15, Mid-level 20–25, Senior 30–45)
   maxMinutes?: number;
+  // One test at this level only, covering every area, instead of a test per level
+  onlyLevel?: TestDifficulty;
 }
 
 // Questions in one area at one level

@@ -296,6 +296,8 @@ Don't reply to customers. The service targets are in the views panel and the tea
 
 export const SUPPORT_TRIAGE_MODULE: ModuleSkeleton = {
   familyId: 'test-support-triage-01',
+  maxMinutes: 20,
+  onlyLevel: 'Professional',
   aspects: [
     { id: 'priority', name: 'Priority & Impact', summary: 'Judging how urgent a ticket really is, whatever its tone or plan.' },
     { id: 'sla', name: 'Service Targets', summary: 'First-reply and resolution targets: working them out and meeting them.' },
@@ -871,9 +873,9 @@ export const SUPPORT_SIM_TEST: AssessmentTest = {
   type: 'standard',
   description:
     "A Monday morning on the support desk of an online plant shop. Work the queue in a real help desk (triage, replies, macros, internal notes, escalations), reply to an unhappy subscriber, escalate a checkout fault so engineers can act on it, and apply the refund and security policies under time pressure.",
-  estimatedMinutes: 45,
+  estimatedMinutes: 20,
   passingScore: 70,
-  totalQuestions: 8,
+  totalQuestions: 6,
   skillsTested: ['Ticket Triage', 'Written Communication', 'Escalation', 'Refund Policy', 'Account Security', 'Help Desk'],
   roles: ['Customer Support Agent'],
   scenario: {
@@ -921,7 +923,7 @@ Jo Bennett, your Team Lead: "Follow the policies, keep customers posted, and fla
         ["Mark's ticket is replied to", 'tickets.9005.replied', 'true'],
         ["The café's wholesale enquiry is with the right team", 'tickets.9007.group', 'Sales'],
       ],
-      { minutes: 18, weight: 40 }
+      { minutes: 10, weight: 45 }
     ),
     sup({
       id: 'q-sup-sim-2',
@@ -930,7 +932,7 @@ Jo Bennett, your Team Lead: "Follow the policies, keep customers posted, and fla
       prompt: 'How many customers have reported the SPRING20 problem so far? (A number.)',
       acceptedAnswers: ['3', 'three'],
       taskId: 'q-sup-sim-1',
-      timeLimitMinutes: 2,
+      timeLimitMinutes: 1,
       weight: 4,
     }),
     sup({
@@ -945,7 +947,7 @@ Jo Bennett, your Team Lead: "Follow the policies, keep customers posted, and fla
         "Tell them their old email is julia.morgan@btinternet.com and ask if they can still get into it",
       ],
       correctOption: 0,
-      timeLimitMinutes: 3,
+      timeLimitMinutes: 1,
       weight: 8,
     }),
     sup({
@@ -982,7 +984,7 @@ Jo Bennett, your Team Lead: "Follow the policies, keep customers posted, and fla
       ],
       solutionCode:
         "Hi Mark,\n\nI'm really sorry: a third late box isn't good enough, and you shouldn't have had to chase us. I've checked: BV-20402 has been held at the Exeter depot since Thursday, and it's on today's van, so it should be with you this afternoon. I've added a £5 credit to your account for the wait.\n\nI've also flagged your last three deliveries to my team lead so we can look at what's going wrong on your route. If you'd rather pause or cancel Bloom Club, just reply and I'll sort it straight away, but I hope today's box changes your mind.\n\nBest wishes,\nAlex",
-      timeLimitMinutes: 7,
+      timeLimitMinutes: 3,
       weight: 14,
     }),
     sup({
@@ -999,24 +1001,8 @@ Jo Bennett, your Team Lead: "Follow the policies, keep customers posted, and fla
       ],
       solutionCode:
         'Kit: SPRING20 (20% off, live on Instagram since Saturday) fails at checkout with "Something went wrong, please try again". Reported 3 times this morning: #9003 (iPhone, £52 basket), #9006 (laptop, Chrome), #9008 (Android app), all tagged promo_bug. Steps: add any plant to the basket, enter SPRING20 at checkout, apply. Looks platform-wide. Impact: it\'s our live promotion, so we\'re losing orders. I\'ve told customers we\'re on it. Can you confirm a fix ETA, and whether we can honour the 20% manually (refund the difference) meanwhile?',
-      timeLimitMinutes: 7,
+      timeLimitMinutes: 3,
       weight: 12,
-    }),
-    sup({
-      id: 'q-sup-sim-6',
-      title: "Tom's Refund",
-      type: 'written',
-      prompt: "Tom Ainsley wants a refund for his £145 fiddle leaf fig, delivered last Monday, which has lost every leaf (photo attached). Under the policies, what do you do with the ticket, and what do you tell Tom now? Answer in a few sentences.",
-      rubric: [
-        'Recognises it qualifies (dead on arrival, reported within 14 days, photo provided) and that refund is the customer’s choice',
-        'Recognises it is over £100, so it needs Team Lead approval: assigns to Team Leads with an internal note recommending the refund',
-        'Tells Tom it’s with a team lead for approval and when he will hear, without promising the refund is approved',
-        'Does not ask him to return the plant',
-      ],
-      solutionCode:
-        "It qualifies: dead on arrival, reported within 14 days, with a photo, and Tom can choose a refund. As it's over £100, I'd assign it to Team Leads with an internal note recommending a full £145 refund (photo attached, within policy). To Tom: I'm sorry, no need to send it back, and I've passed his refund to a team lead for approval, so he'll hear from us by the end of today.",
-      timeLimitMinutes: 5,
-      weight: 10,
     }),
     sup({
       id: 'q-sup-sim-7',
@@ -1024,24 +1010,8 @@ Jo Bennett, your Team Lead: "Follow the policies, keep customers posted, and fla
       type: 'text',
       prompt: 'An order had three plants (£24, £18 and £36) plus £4.95 delivery. Six days after delivery the customer reports the £18 plant arrived dead, with a photo, and asks for a refund. The other two are fine. How much do you refund, in pounds? (A number.)',
       acceptedAnswers: ['18', '£18', '18.00', '£18.00'],
-      timeLimitMinutes: 3,
+      timeLimitMinutes: 1,
       weight: 6,
-    }),
-    sup({
-      id: 'q-sup-sim-8',
-      title: 'A Macro for SPRING20',
-      type: 'written',
-      prompt: 'More SPRING20 reports will come in today. Write the macro (a saved reply) the team can send to every customer who reports it until it is fixed. Tier 2 have confirmed the team can honour the 20% by refunding the difference after the order is placed.',
-      rubric: [
-        'Acknowledges the problem and apologises without blaming the customer',
-        'Says it is a known issue being fixed (no invented technical detail or promised fix time)',
-        'Gives the workaround clearly: place the order at full price and the 20% difference will be refunded (and how or when)',
-        'Personal and reusable: a first-name placeholder, short, and a sign-off',
-      ],
-      solutionCode:
-        "Hi {{first_name}},\n\nSorry about that: the SPRING20 code isn't working at checkout at the moment, and our team is fixing it. You don't need to wait: place your order at full price and reply here with your order number, and we'll refund the 20% within one working day.\n\nThanks for your patience,\n{{agent}}",
-      timeLimitMinutes: 5,
-      weight: 8,
     }),
   ],
 };

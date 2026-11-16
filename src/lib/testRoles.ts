@@ -43,7 +43,7 @@ export const ROLE_SECTIONS: Partial<Record<TestRole, TestSection[]>> = {
     { id: 'cleaning', label: 'Data Cleaning', blurb: 'Finding and fixing bad data before it reaches a decision.', testIds: ['test-da-cleaning'] },
     { id: 'reporting', label: 'Dashboards & Reporting', blurb: 'KPIs and reports people can act on.', testIds: ['test-da-reporting'] },
     { id: 'metrics', label: 'Metrics & Statistics', blurb: 'Business metrics, A/B tests and the statistics behind them.', testIds: ['test-da-metrics'] },
-    { id: 'project', label: 'Job Simulation', blurb: 'A morning as a coffee chain’s analyst, from messy data to the board.', testIds: ['test-sim-da-01'] },
+    { id: 'project', label: 'Job Simulation', blurb: 'A morning as a coffee chain’s analyst, from messy data to the board.', testIds: ['test-da-sim'] },
   ],
   'Software Developer': [
     {

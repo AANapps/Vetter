@@ -274,10 +274,11 @@ function asMulti(src: Question[], tier: TestDifficulty): Question {
   };
 }
 
-// A test held to a shorter time than its level's (a 15-minute module at every level) gives each kind less time
-const SHORT_MINUTES: Record<Kind, number> = { choice: 1, drag: 2, multi: 2, written: 3, code: 4, hands: 6, short: 1, case: 1 };
+// A test held to a shorter time than its level's (a 20-minute single-level module) gives each kind less time
+const SHORT_MINUTES: Record<Kind, number> = { choice: 1, drag: 2, multi: 2, written: 3, code: 5, hands: 7, short: 1, case: 1 };
 
-export function buildLevel(bank: Question[], tier: TestDifficulty, maxMinutes?: number): Question[] {
+// everyArea: a one-level test that must cover its whole subject asks something in every area before anything else
+export function buildLevel(bank: Question[], tier: TestDifficulty, maxMinutes?: number, everyArea = false): Question[] {
   const L = tierIndex(tier);
   const max = Math.min(TIER_MINUTES[tier][1], maxMinutes ?? Infinity);
   const squeezed = max < TIER_MINUTES[tier][1];
@@ -346,6 +347,33 @@ export function buildLevel(bank: Question[], tier: TestDifficulty, maxMinutes?: 
     const follow = pool.find((q) => q.taskId === hands.id);
     if (follow) take(follow);
   }
+  // 1b. A test that is the only one on its subject asks a quick question in every area the hands-on work didn't cover,
+  // the level's own first, then a harder or easier one
+  const areas = [...new Set(bank.map((q) => q.aspect ?? ''))];
+  if (everyArea) {
+    const near = (a: Question, b: Question) => Math.abs(tierIndex(a.tier) - L) - Math.abs(tierIndex(b.tier) - L) || (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0);
+    const quickIn = (area: string) => bank.filter((q) => q.aspect === area && free(q) && !isLongQuestion(q) && tierIndex(q.tier) <= L + 1);
+    // First, other kinds than multiple choice (capped at three), keeping those for areas that have nothing else
+    for (const area of areas) {
+      if (areaUse.get(area)) continue;
+      const pick = quickIn(area)
+        .filter((q) => ['short', 'drag', 'multi'].includes(kindOf(q)) && !capped(kindOf(q)))
+        .sort(near)
+        .find(fits);
+      if (pick) take(pick);
+    }
+    // Then multiple choice, or, once those are used up, one turned into a short written answer
+    for (const area of areas) {
+      if (areaUse.get(area)) continue;
+      const choices = quickIn(area).filter((q) => kindOf(q) === 'choice').sort(near);
+      const pick = !capped('choice') ? choices.find(fits) : undefined;
+      if (pick) take(pick);
+      else {
+        const src = choices.find((q) => q.options && q.correctOption !== undefined && fits(asWritten(q)));
+        if (src) used.add(src.id), take(asWritten(src));
+      }
+    }
+  }
   // 2. The core: coding where the skill has it, then written answers
   const codeWanted = [1, 1, 2][L];
   for (let i = 0; i < codeWanted; i++) addOne('code');
@@ -356,7 +384,7 @@ export function buildLevel(bank: Question[], tier: TestDifficulty, maxMinutes?: 
   const rota: Kind[] = ['drag', 'multi', 'choice', 'short', 'written'];
   const asked = () => [...chosen.values()].filter((q) => q.type !== 'case').length;
   let stuck = 0;
-  for (let i = 0; stuck < rota.length && i < 60 && asked() < LEVEL_QUESTIONS; i++) {
+  for (let i = 0; stuck < rota.length && i < 60 && asked() < (everyArea ? Math.max(LEVEL_QUESTIONS, areas.length + 2) : LEVEL_QUESTIONS); i++) {
     if (addOne(rota[i % rota.length])) stuck = 0;
     else stuck++;
   }
