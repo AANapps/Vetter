@@ -51,7 +51,7 @@ const dbTask = (id: string, title: string, database: string, prompt: string, tab
 
 // A Python task: one program answers all four questions. Its input is the question (q1 to q4) on the first line, then
 // the data as CSV, and what it prints for that question is compared with the expected output. Each question runs on two
-// files, so the answer has to be worked out, not typed in
+// files, so the answer has to be worked out, not typed in. The expected output is hidden: printing it is the task
 const pyStarter = (questions: string[]) => `import sys
 import pandas as pd
 
@@ -77,7 +77,7 @@ const pyTask = (
   starterCode: pyStarter(questions),
   solutionCode: solution,
   testCases: questions.flatMap((_, q) =>
-    files.map(([name, csv], f) => ({ id: `tc-${id}-${q + 1}-${f + 1}`, description: `Q${q + 1} · ${name}`, input: `q${q + 1}\n${csv}`, expectedOutput: expected[q](csv) }))
+    files.map(([name, csv], f) => ({ id: `tc-${id}-${q + 1}-${f + 1}`, description: `Q${q + 1} · ${name}`, input: `q${q + 1}\n${csv}`, expectedOutput: expected[q](csv), isHidden: true }))
   ),
   timeLimitMinutes: TASK_MINUTES,
   weight: TASK_WEIGHT,
@@ -465,8 +465,8 @@ Q3. Print one line per month in the file, earliest first, as YYYY-MM,revenue: th
 Q4. Print the percentage of orders that were refunded, to 1 decimal place (e.g. 14.3).`,
       ['delivered orders and their total', 'delivered revenue by region', 'delivered revenue by month', 'percentage of orders refunded'],
       [
-        ['first file', PY_A],
-        ['second file', PY_B],
+        ['right on the first file', PY_A],
+        ['right on the second file', PY_B],
       ],
       [
         (c) => `${delivered(parsePy(c)).length}\n${money(amountOf(delivered(parsePy(c))))}`,
@@ -510,8 +510,8 @@ Q3. Tidy region to the form North, South, East, West, then print the distinct re
 Q4. Print the total amount of delivered orders to 2 decimal places, leaving out missing amounts.`,
       ['orders left after removing duplicates', 'missing amounts', 'tidy distinct regions', 'delivered total without missing amounts'],
       [
-        ['first file', PY_MA],
-        ['second file', PY_MB],
+        ['right on the first file', PY_MA],
+        ['right on the second file', PY_MB],
       ],
       [
         (c) => String(deduped(parsePy(c)).length),

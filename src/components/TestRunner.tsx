@@ -1,4 +1,4 @@
-import { RichText } from './RichText';
+import { RichText, TaskPrompt, splitParts } from './RichText';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { AnswerRecord, answerRecords } from '../lib/submissions';
 import { BackButton } from './BackButton';
@@ -651,8 +651,13 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
               {test.scenario && <CaseBrief scenario={test.scenario} />}
               <div>
                 <div className="text-xs text-slate-500 font-medium mb-1">
-                  {currentQ.type === 'case' ? 'Case study' : 'Task'} &middot; {currentQ.type === 'case' ? followUps.length : currentGroup.questions.length}{' '}
-                  {(currentQ.type === 'case' ? followUps.length : currentGroup.questions.length) === 1 ? 'part' : 'parts'} &middot; Weight: {currentGroup.questions.reduce((n, q) => n + q.weight, 0)}%
+                  {currentQ.type === 'case' ? 'Case study' : 'Task'} &middot;{' '}
+                  {(() => {
+                    // A task in numbered questions counts those (and any questions about it after)
+                    const n = currentQ.type === 'case' ? followUps.length : Math.max(1, splitParts(currentQ.prompt).parts.length) + currentGroup.questions.length - 1;
+                    return `${n} ${n === 1 ? 'question' : 'questions'}`;
+                  })()}{' '}
+                  &middot; Weight: {currentGroup.questions.reduce((n, q) => n + q.weight, 0)}%
                 </div>
                 <h2 className="text-lg font-bold text-slate-900 tracking-tight">
                   {currentQ.type === 'case' ? currentQ.title : `${numberOf(currentQ)}. ${currentQ.title}`}
@@ -661,10 +666,13 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
               {currentQ.type === 'case' ? (
                 <p className="text-sm text-slate-500">Read the material on the left, then answer each question. You can go back to it as often as you like.</p>
               ) : (
-                <RichText text={currentQ.prompt} className="p-4 bg-slate-50 border border-slate-200 rounded-lg text-sm leading-relaxed text-slate-800" />
+                <TaskPrompt text={currentQ.prompt} checks={currentQ.testCases} className="text-sm leading-relaxed text-slate-800" />
               )}
               {currentQ.testCases.length > 0 && (
                 <div className="space-y-2">
+                  {/* A task in numbered questions lists each question's checks under it instead */}
+                  {splitParts(currentQ.prompt).parts.length === 0 && (
+                  <>
                   <div className="text-xs font-bold text-slate-800">What&rsquo;s marked ({currentQ.testCases.length} checks)</div>
                   <ul className="space-y-1.5">
                     {currentQ.testCases.map((tc) => (
@@ -674,6 +682,8 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
                       </li>
                     ))}
                   </ul>
+                  </>
+                  )}
                   <p className="text-[11px] text-slate-500">
                     Marked when you submit, on the {currentQ.type === 'sheet' ? 'workbook' : currentQ.type === 'app' ? 'simulation' : 'database'} as you leave it. Your work is kept if you move to another task.
                   </p>
@@ -735,7 +745,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
               <h2 className="text-xl font-bold text-slate-900 tracking-tight">{currentQ.title}</h2>
             </div>
 
-            <RichText text={currentQ.prompt} className="p-4 bg-slate-50 border border-slate-200 rounded-lg text-[15px] leading-relaxed text-slate-800 font-sans shadow-2xs" />
+            <TaskPrompt text={currentQ.prompt} checks={currentQ.testCases} className="text-[15px] leading-relaxed text-slate-800 font-sans" />
 
             {currentQ.contextData && (
               <div className="space-y-2">
@@ -749,7 +759,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
             )}
 
             {/* Test Cases preview */}
-            {currentQ.testCases.length > 0 && (
+            {currentQ.testCases.length > 0 && splitParts(currentQ.prompt).parts.length === 0 && (
             <div className="space-y-2">
               <div className="text-xs font-bold text-slate-800">Target Assertions ({currentQ.testCases.length})</div>
               <div className="space-y-2">
@@ -757,7 +767,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
                   <div key={tc.id} className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs space-y-1.5 shadow-2xs">
                     <div className="text-slate-900 font-semibold">Test Case {idx + 1}: {tc.description}</div>
                     <div className="font-mono text-slate-500 text-[11px] truncate">
-                      Expected: <span className="text-indigo-700 font-semibold">{tc.expectedOutput}</span>
+                      Expected: <span className="text-indigo-700 font-semibold">{tc.isHidden ? 'hidden' : tc.expectedOutput}</span>
                     </div>
                   </div>
                 ))}
@@ -986,8 +996,13 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
                         <span className="text-[11px] font-mono">{tc.passed ? 'PASSED' : 'FAILED'}</span>
                       </div>
                       <div className="text-[11px] space-y-1 text-slate-600 font-mono whitespace-pre-wrap break-words">
-                        <div>Input: <span className="text-slate-900">{tc.input}</span></div>
-                        <div>Expected: <span className="text-emerald-700 font-semibold">{tc.expected}</span></div>
+                        {/* A hidden case (a data file whose answer is the task) shows only what the program printed */}
+                        {!currentQ.testCases.find((c) => c.id === tc.id)?.isHidden && (
+                          <>
+                            <div>Input: <span className="text-slate-900">{tc.input}</span></div>
+                            <div>Expected: <span className="text-emerald-700 font-semibold">{tc.expected}</span></div>
+                          </>
+                        )}
                         <div>Actual: <span className={tc.passed ? 'text-emerald-700 font-semibold' : 'text-rose-700 font-semibold'}>{tc.actual}</span></div>
                         {tc.error && <div>Error: <span className="text-rose-700">{tc.error}</span></div>}
                       </div>
