@@ -1089,6 +1089,8 @@ export default function App() {
   const ourAssignments = recruiterBusiness ? assignments.filter((a) => a.businessId === recruiterBusiness.id) : [];
   const inviteToTeam = (invitee: { uid: string; name: string } | { email: string }) => {
     if (!recruiterBusiness) return showToast('Your company needs to be set up before you can invite your team.');
+    // An email is kept in lower case, as the invited person's sign-in is looked up (and checked by the rules) that way
+    if ('email' in invitee) invitee = { email: invitee.email.trim().toLowerCase() };
     const key = 'uid' in invitee ? invitee.uid : invitee.email;
     const id = `${recruiterBusiness.id}__${key}`;
     const existing = team.find((m) => m.id === id);
@@ -1469,6 +1471,22 @@ export default function App() {
           {activeRole === 'recruiter' && company && account && company.ownerUid === account.uid && companyBusiness && <TeamRequests company={company} />}
           {activeRole === 'admin' && firebaseEnabled && account?.role === 'admin' && <CompanyReview />}
           {activeRole === 'admin' && !testPageTest && <PublicTestReview tests={tests} onOpen={openTestPage} onDecide={decidePublic} />}
+          {/* A company's invitation and the training and tests it sent: on Home, and on Tests and Learn too, so they're found
+              wherever someone looks for things to do */}
+          {!detailPage && !isVisitor && !hiringHome && activeRole === 'candidate' && ['home', 'tests', 'learn', 'upskill'].includes(currentTab) && !coursePage && !testPageTest && (myTeamInvites.length > 0 || myTeams.length > 0) && (
+            <div className={`max-w-7xl mx-auto px-4 sm:px-6 pt-8 ${currentTab === 'home' ? '-mb-8' : '-mb-4'}`}>
+              <TeamWork
+                invitations={myTeamInvites}
+                memberships={myTeams}
+                assignments={myAssignments}
+                tests={tests}
+                onRespond={respondToTeam}
+                onLeave={(m) => (setTeam((prev) => prev.filter((x) => x.id !== m.id)), showToast(`You've left ${m.companyName}'s team.`))}
+                onStart={(assignment, test) => setAssignmentRun({ assignment, test })}
+                personName={candidate.name}
+              />
+            </div>
+          )}
           {!testPageTest && (currentTab === 'learn' || currentTab === 'upskill') && coursePage && (
             <CoursePage
               course={coursePage}
@@ -1596,20 +1614,6 @@ export default function App() {
               onJoin={(reason) => setAuthDialog({ mode: 'sign-up', role: hiringHome ? 'recruiter' : undefined, reason })}
               onOpenGuide={(slug) => navigateTo(slug ? `/guides/${slug}/` : '/guides/')}
             />
-          )}
-          {!detailPage && !isVisitor && !hiringHome && activeRole === 'candidate' && currentTab === 'home' && (myTeamInvites.length > 0 || myTeams.length > 0) && (
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-8 -mb-8">
-              <TeamWork
-                invitations={myTeamInvites}
-                memberships={myTeams}
-                assignments={myAssignments}
-                tests={tests}
-                onRespond={respondToTeam}
-                onLeave={(m) => (setTeam((prev) => prev.filter((x) => x.id !== m.id)), showToast(`You've left ${m.companyName}'s team.`))}
-                onStart={(assignment, test) => setAssignmentRun({ assignment, test })}
-                personName={candidate.name}
-              />
-            </div>
           )}
           {!detailPage && !isVisitor && !hiringHome && activeRole === 'candidate' && currentTab === 'home' && (
             <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 grid grid-cols-1 lg:grid-cols-[minmax(0,300px)_minmax(0,1fr)_minmax(0,280px)] gap-6 items-start">
