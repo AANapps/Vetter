@@ -393,7 +393,8 @@ export function buildLevel(bank: Question[], tier: TestDifficulty, maxMinutes?: 
   const timedQs = [...chosen.values()].map((q) => ({ ...q, timeLimitMinutes: minutesOf(q) }));
   // Quick questions first, then hands-on work, with written answers and coding at the end. A case study or task
   // moves with its questions, placed by the hardest kind among them
-  const RANK: Record<Kind, number> = { choice: 0, drag: 1, multi: 2, short: 3, case: 3, hands: 4, written: 5, code: 6 };
+  // A one-level test (everyArea) puts its hands-on task last of all
+  const RANK: Record<Kind, number> = { choice: 0, drag: 1, multi: 2, short: 3, case: 3, hands: everyArea ? 7 : 4, written: 5, code: 6 };
   const unitOf = (q: Question) => (q.taskId && chosen.has(q.taskId) ? q.taskId : q.id);
   const unitRank = new Map<string, number>();
   for (const q of timedQs) unitRank.set(unitOf(q), Math.max(unitRank.get(unitOf(q)) ?? 0, RANK[kindOf(q)]));

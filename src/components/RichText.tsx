@@ -5,6 +5,23 @@ import { isNumeric, splitTables } from '../lib/textTables';
 
 // Question text with its column-aligned data drawn as tables, so headers line up with their values in any font
 export const RichText: React.FC<{ text: string; className?: string }> = ({ text, className = '' }) => {
+  // Code fenced with ``` (a formula, a query, a few lines of pandas) is shown as code, the rest as text and tables
+  if (text.includes('```')) {
+    const pieces = text.split(/```[a-z]*\n?([\s\S]*?)```/);
+    return (
+      <div className={`space-y-3 ${className}`}>
+        {pieces.map((piece, i) =>
+          i % 2 ? (
+            <pre key={i} className="m-0 p-3 rounded-lg bg-slate-900 text-slate-100 text-[12.5px] leading-relaxed font-mono overflow-x-auto whitespace-pre">
+              {piece.replace(/\n$/, '')}
+            </pre>
+          ) : piece.trim() ? (
+            <RichText key={i} text={piece.trim()} />
+          ) : null
+        )}
+      </div>
+    );
+  }
   const blocks = splitTables(text);
   return (
     <div className={className}>

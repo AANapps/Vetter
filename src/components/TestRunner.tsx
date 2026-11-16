@@ -245,12 +245,14 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
     (isWorkspaceType(q.type) && (userCodes[q.id] ?? q.starterCode) !== q.starterCode);
   const setAnswer = (id: string, val: string) => setUserCodes((prev) => ({ ...prev, [id]: val }));
   // What a step is called: Task 2, Case 1, or the question's number
+  // A group's kind: a question set (a section's context with questions about it), a case study, or a hands-on task
+  const kindOfGroup = (g: (typeof groups)[number]) => (!g.task ? null : g.task.type === 'case' ? (g.task.section ? 'Section' : 'Case') : 'Task');
   const groupLabel = (idx: number) => {
     const g = groups[idx];
     if (!g.task) return `Question ${numberOf(g.questions[0])}`;
-    const isCase = g.task.type === 'case';
-    const n = groups.slice(0, idx + 1).filter((x) => x.task && (x.task.type === 'case') === isCase).length;
-    return `${isCase ? 'Case' : 'Task'} ${n}`;
+    const k = kindOfGroup(g);
+    const n = groups.slice(0, idx + 1).filter((x) => kindOfGroup(x) === k).length;
+    return `${k} ${n}`;
   };
   const goToGroup = (idx: number) => {
     setGroupIndex(idx);
@@ -518,8 +520,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
             // Answer-style questions count as done once answered; their result stays hidden until submit
             const isCompleted = g.questions.every(isDone);
             // Cases and tasks are numbered separately
-            const isCase = g.task?.type === 'case';
-            const taskNumber = groups.slice(0, idx + 1).filter((x) => x.task && (x.task.type === 'case') === isCase).length;
+
             return (
               <button
                 key={g.questions[0].id}
@@ -533,7 +534,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                <span className="whitespace-nowrap">{g.task ? `${isCase ? 'Case' : 'Task'} ${taskNumber}` : numberOf(g.questions[0])}</span>
+                <span className="whitespace-nowrap">{g.task ? groupLabel(idx) : numberOf(g.questions[0])}</span>
                 {isCompleted && <CheckCircle className={`w-3 h-3 ${groupIndex === idx ? 'text-white' : 'text-emerald-600'}`} />}
               </button>
             );
@@ -659,7 +660,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
               {test.scenario && <CaseBrief scenario={test.scenario} />}
               <div>
                 <div className="text-xs text-slate-500 font-medium mb-1">
-                  {currentQ.type === 'case' ? 'Case study' : 'Task'} &middot;{' '}
+                  {currentQ.type === 'case' ? (currentQ.section ? 'Section' : 'Case study') : 'Task'} &middot;{' '}
                   {(() => {
                     // A task in numbered questions counts those (and any questions about it after)
                     const n = slideCount;
@@ -723,7 +724,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
                   return (
                     <section key={q.id} className="rounded-lg border border-slate-200 bg-white p-4 space-y-3 shadow-2xs" aria-labelledby={`slide-${q.id}`}>
                       {currentQ.type === 'case' && onSlide === 0 && (
-                        <p className="text-sm text-slate-500">Read the material on the left, then answer each question. You can go back to it as often as you like.</p>
+                        <p className="text-sm text-slate-500">{currentQ.section ? 'Use what’s on the left to answer each question.' : 'Read the material on the left, then answer each question. You can go back to it as often as you like.'}</p>
                       )}
                       <div className="flex items-start justify-between gap-2">
                         <h3 id={`slide-${q.id}`} className="flex items-center gap-2 text-sm font-bold text-slate-900">

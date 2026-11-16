@@ -282,6 +282,9 @@ export interface Question {
   type: QuestionType;
   prompt: string;
   contextData?: string; // e.g., table schema or system architecture diagram description
+  // A case that is a question set's context (a formula, a query, a model, a file) rather than a story: shown as a
+  // numbered section of questions about the tool
+  section?: boolean;
   starterCode: string;
   solutionCode?: string;
   // Multiple choice only: the answers to pick from and the index of the right one

@@ -18,6 +18,11 @@ export const ROLE_GROUPS: { industry: string; roles: TestRole[] }[] = [
   { industry: 'Skills games', roles: ['Any role'] },
 ];
 
+// The roles candidates can take tests for right now. Every other role is greyed out in the Tests menu and its tests are
+// hidden until it's ready (the tests stay in the library for companies)
+export const LIVE_ROLES: TestRole[] = ['Data Analyst'];
+export const isLiveRole = (role: TestRole) => LIVE_ROLES.includes(role);
+
 // A role's tests in labelled sections, by tool or skill. The Tests page groups them under these headings, and the
 // left menu lists them under the role. A test in no section is shown last, under "More tests"
 export interface TestSection {

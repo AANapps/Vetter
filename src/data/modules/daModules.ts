@@ -2,21 +2,24 @@ import { AssessmentTest, DataTable, Question, TestScenario } from '../../types';
 import { workbookStarter } from '../../lib/spreadsheet';
 import { databaseStarter } from '../../lib/databaseWork';
 import { parseCsv, toCsv } from '../../lib/csv';
-import { choice, match, multi, order, short, written } from '../questionKit';
+import { EXCEL_SETS, SQL_SETS, PYTHON_SETS, CLEANING_SETS, REPORTING_SETS, METRICS_SETS, IMPORTING_SETS, POWERBI_SETS, TABLEAU_SETS } from './daSets';
+import { simTask } from './simKit';
+import { powerBiApp } from './powerbiApp';
+import { tableauApp } from './tableauApp';
 import { round2, seeded, sum, tc } from '../simulationKit';
 
 /**
  * The Data Analyst modules: one Mid-level test per tool or skill, about 20 minutes. Every question is about the
- * module's own tool or skill. First two practical tasks, each one workbook, database or data file with four numbered
- * questions in it (Q1 to Q4), each question marked on its own checks; then four answer questions of different kinds.
+ * module's own tool or skill. First two question sets (daSets.ts: a piece of the tool in use with four questions of
+ * different kinds about it), then two practical tasks, each one workbook, database, data file or app with four numbered
+ * questions in it (Q1 to Q4), each question marked on its own checks.
  * The data is generated from fixed seeds, so it's the same for every candidate, and every expected answer is worked out
  * here.
  */
 
 const DA = ['Data Analyst'] as AssessmentTest['roles'];
 const TASK_WEIGHT = 30;
-const ANSWER_WEIGHT = 10;
-const TASK_MINUTES = 6;
+const TASK_MINUTES = 5;
 
 // A task's checks, by question: each Q's checks are named after it, so the result shows how each question went
 type Checks = [question: number, description: string, check: string, expected?: string][];
@@ -83,10 +86,10 @@ const pyTask = (
   weight: TASK_WEIGHT,
 });
 
-const answer = (q: Question, minutes: number): Question => ({ ...q, timeLimitMinutes: minutes, weight: ANSWER_WEIGHT });
 
-const moduleTest = (id: string, title: string, description: string, skillsTested: string[], scenario: TestScenario, practical: Question[], answers: Question[]): AssessmentTest => {
-  const questions = [...practical, ...answers];
+// The question sets come first, the practical tasks last
+const moduleTest = (id: string, title: string, description: string, skillsTested: string[], scenario: TestScenario, practical: Question[], sets: Question[]): AssessmentTest => {
+  const questions = [...sets, ...practical];
   return {
     id,
     title,
@@ -99,7 +102,7 @@ const moduleTest = (id: string, title: string, description: string, skillsTested
     passingScore: 70,
     scenario,
     questions,
-    totalQuestions: questions.length,
+    totalQuestions: questions.filter((q) => q.type !== 'case').length,
     estimatedMinutes: 20,
   };
 };
@@ -222,47 +225,7 @@ Q4. Finance has raised the rate: change J1 to 6%, and in J2 total all commission
       ]
     ),
   ],
-  [
-    answer(
-      choice(
-        'xl-a1',
-        'Copying a Formula Down',
-        'D2 contains =B2*$G$1. You copy it down to D5. What does D5 contain?',
-        ['=B5*$G$1', '=B5*$G$4', '=B2*$G$1', '=B5*G4'],
-        0
-      ),
-      1
-    ),
-    answer(
-      match(
-        'xl-a2',
-        'The Right Function',
-        'Match each job to the Excel function built for it.',
-        [
-          ['Find a product’s price by its SKU', 'XLOOKUP'],
-          ['Total revenue for one region and one channel', 'SUMIFS'],
-          ['Show a message instead of an error', 'IFERROR'],
-          ['Count the cells that meet one condition', 'COUNTIF'],
-        ]
-      ),
-      2
-    ),
-    answer(short('xl-a3', 'The Error', 'What does Excel show in a cell whose formula divides by an empty cell? (Type the error exactly.)', ['#DIV/0!', '#div/0!', '#DIV/0']), 1),
-    answer(
-      written(
-        'xl-a4',
-        'The PivotTable Missed April',
-        "A PivotTable built in March on A1:F500 of the Sales sheet doesn't show April's sales, which were pasted below row 500. Why, and how would you set it up so new rows are always included?",
-        [
-          'Explains the pivot’s source range is fixed at A1:F500, so rows below it are left out (and a pivot also needs refreshing)',
-          'Turns the data into an Excel Table (Ctrl+T / Format as Table) and points the pivot at the Table, so the range grows with new rows',
-          'Says to Refresh the PivotTable (or set it to refresh on opening) after new data arrives',
-        ],
-        'Its source is the fixed range A1:F500, so April’s rows below 500 aren’t in it, and a pivot only updates when it’s refreshed. Format the data as a Table (Ctrl+T), change the pivot’s source to the Table so it grows with every row added, and Refresh (or set Refresh data when opening the file).'
-      ),
-      3
-    ),
-  ]
+  EXCEL_SETS
 );
 
 // =====================================================================================================
@@ -361,34 +324,7 @@ CREATE VIEW repeat_customers AS SELECT customer_id, COUNT(*) AS delivered_orders
       ]
     ),
   ],
-  [
-    answer(
-      choice(
-        'sql-a1',
-        'WHERE or HAVING',
-        'You want regions whose total revenue is over £1,000. Where does the condition SUM(amount) > 1000 go?',
-        ['In HAVING, because it filters groups after GROUP BY has totalled them', 'In WHERE, because it filters rows', 'In ORDER BY', 'In the JOIN’s ON clause'],
-        0
-      ),
-      1
-    ),
-    answer(order('sql-a2', 'The Order SQL Runs In', 'Put these clauses in the order the database works through them.', ['FROM and JOIN', 'WHERE', 'GROUP BY', 'HAVING', 'SELECT', 'ORDER BY']), 2),
-    answer(short('sql-a3', 'Counting Blanks', 'The orders table has 10 rows. The discount_code column is NULL in 4 of them. What does SELECT COUNT(discount_code) FROM orders return?', ['6']), 1),
-    answer(
-      written(
-        'sql-a4',
-        'Revenue Doubled',
-        'After joining orders to a customer_addresses table on customer_id, total revenue comes out almost twice what Finance reports. What has happened, how would you confirm it in SQL, and how would you fix the query?',
-        [
-          'Identifies a one-to-many join: customers with several addresses repeat their orders (fan-out)',
-          'Confirms it with SQL, e.g. GROUP BY customer_id HAVING COUNT(*) > 1 on the addresses table, or comparing COUNT(*) before and after the join',
-          'Fixes it by joining to one row per customer (filter to the current/primary address, or aggregate/deduplicate first) or totalling before the join',
-        ],
-        'Some customers have more than one address, so the join repeats each of their orders once per address. SELECT customer_id, COUNT(*) FROM customer_addresses GROUP BY customer_id HAVING COUNT(*) > 1 shows them, and COUNT(*) of orders before and after the join will differ. Join to one address per customer (e.g. WHERE is_primary = 1, or a subquery picking one), or sum revenue from orders first and join afterwards.'
-      ),
-      3
-    ),
-  ]
+  SQL_SETS
 );
 
 // =====================================================================================================
@@ -538,42 +474,7 @@ elif question == 'q4':
 `
     ),
   ],
-  [
-    answer(
-      choice(
-        'py-a1',
-        'loc or iloc',
-        'df has an index of order IDs (1001, 1002, …). What does df.iloc[0] return?',
-        ['The first row, whatever its index label', 'The row whose index label is 0', 'The first column', 'An error, because there is no label 0'],
-        0
-      ),
-      1
-    ),
-    answer(
-      match('py-a2', 'Which Method', 'Match each job to the pandas method for it.', [
-        ['Total revenue per region', 'groupby'],
-        ['Add customer details to each order', 'merge'],
-        ['Regions as rows, months as columns', 'pivot_table'],
-        ['Drop rows with a missing amount', 'dropna'],
-      ]),
-      2
-    ),
-    answer(short('py-a3', 'Distinct Values', "df['region'] holds North, South, North, East, South, North. What does df['region'].nunique() return?", ['3']), 1),
-    answer(
-      written(
-        'py-a4',
-        'More Rows After a Merge',
-        "orders has 5,000 rows. After merged = orders.merge(customers, on='customer_id', how='left'), merged has 5,400 rows. What has happened, how would you find the cause, and how would you stop it happening unnoticed?",
-        [
-          'Identifies duplicate customer_id values in customers, so matching orders are repeated',
-          "Finds them, e.g. customers['customer_id'].duplicated().sum() or value_counts() on the key",
-          "Fixes it (deduplicate customers / pick one row per customer) and guards it, e.g. merge(..., validate='many_to_one') or checking the row count after the merge",
-        ],
-        "Some customer_ids appear more than once in customers, so every order of theirs is repeated. customers['customer_id'].duplicated().sum() (or value_counts()) shows which. Deduplicate customers first, and merge with validate='many_to_one' so pandas raises an error if it happens again, or assert the row count is unchanged."
-      ),
-      3
-    ),
-  ]
+  PYTHON_SETS
 );
 
 // =====================================================================================================
@@ -663,52 +564,7 @@ Q4. In I2, the total of invoices only, leaving credit notes out.`,
       ]
     ),
   ],
-  [
-    answer(
-      choice(
-        'cl-a1',
-        'Missing Emails',
-        '8% of member records have no email address, and the new system needs one for marketing only. What should you do with those records?',
-        ['Keep and import them, flag the missing email, and report how many', 'Delete them so the import is clean', 'Fill the blanks with a placeholder like none@brightwell.com', 'Hold the whole import until every email is found'],
-        0
-      ),
-      1
-    ),
-    answer(
-      order('cl-a2', 'Cleaning Step by Step', 'Put these steps in the order you’d do them.', [
-        'Keep an untouched copy of the raw data',
-        'Profile it: counts, blanks, duplicates, odd values',
-        'Fix the problems, with formulas or rules you can rerun',
-        'Check the result against the raw counts and totals',
-        'Write down what you changed and why',
-      ]),
-      2
-    ),
-    answer(
-      multi(
-        'cl-a3',
-        'Spot the Problems',
-        'A join_date column holds: 03/04/2026, 2026-04-05, 31/12/2025, 12/31/2025, (blank), 2027-01-15. Today is 1 May 2026. Which problems does it have? Tick all that apply.',
-        ['Mixed date formats', 'Both day-first and month-first dates', 'A missing value', 'A date in the future', 'Duplicate rows'],
-        [0, 1, 2, 3]
-      ),
-      2
-    ),
-    answer(
-      written(
-        'cl-a4',
-        'Is It an Outlier or an Error?',
-        'One member’s monthly fee is £3,900; every other fee is between £19 and £65. What would you do before deciding whether to fix, keep or remove it?',
-        [
-          'Checks the source record and context (contract type, corporate or annual plan, a misplaced decimal / missing decimal point such as £39.00)',
-          'Asks the owner of the data (membership or finance team) rather than guessing',
-          "Doesn't delete it silently: corrects a confirmed error, keeps a confirmed real value, and records the decision",
-        ],
-        'I’d look at the record itself (is it an annual or corporate plan, or a typed £39.00 missing its decimal point?), check the payment history, and ask the membership team. If it’s an error I’d correct it at source; if it’s real I’d keep it and label it. Either way I’d log what I changed rather than drop the row quietly.'
-      ),
-      3
-    ),
-  ]
+  CLEANING_SETS
 );
 
 // =====================================================================================================
@@ -789,52 +645,7 @@ Q4. Products sheet, B11: the name of the product with the highest revenue, found
       ]
     ),
   ],
-  [
-    answer(
-      match('rp-a1', 'Pick the Chart', 'Match each thing to show to the chart that suits it.', [
-        ['Monthly revenue over two years', 'Line chart'],
-        ['Revenue by region this month', 'Bar chart'],
-        ['A single KPI against its target', 'Big number with the target and change'],
-        ['How order values are spread', 'Histogram'],
-      ]),
-      2
-    ),
-    answer(
-      choice(
-        'rp-a2',
-        'The Top of the Page',
-        'What should go at the top left of a leadership dashboard?',
-        ['The few KPIs that matter most, each with its target or comparison', 'A table of every metric available', 'Filters and settings', 'The data sources and refresh time'],
-        0
-      ),
-      1
-    ),
-    answer(
-      multi(
-        'rp-a3',
-        'Honest Charts',
-        'Which of these make a chart misleading? Tick all that apply.',
-        ['A bar chart whose axis starts at 95 instead of 0', 'Two lines on different scales with no labels', 'A 3D pie chart with 9 slices', 'Sorting bars from largest to smallest', 'Labelling the axis units'],
-        [0, 1, 2]
-      ),
-      2
-    ),
-    answer(
-      written(
-        'rp-a4',
-        '40 Metrics',
-        'The sales director asks for every one of the team’s 40 metrics on a single dashboard "so nothing is missed". What do you do?',
-        [
-          'Asks what decisions the dashboard is for and who uses it, rather than just building it',
-          'Proposes a small set of headline KPIs on the main page (around 5 to 8), each with a target or comparison',
-          'Keeps the rest available in a detail page, drill-down or appendix rather than dropping them',
-          'Explains why: 40 metrics on one page hides what needs attention',
-        ],
-        'I’d ask what decisions they make from it each week. Then I’d propose a front page with the six or so KPIs that drive those decisions, each with its target and trend, and put the other metrics on a detail tab they can drill into. Forty numbers on one page means nobody sees the one that’s gone red.'
-      ),
-      3
-    ),
-  ]
+  REPORTING_SETS
 );
 
 // =====================================================================================================
@@ -916,47 +727,7 @@ Q4. Unit sheet: B7 customer acquisition cost (spend per new customer), B8 averag
       ]
     ),
   ],
-  [
-    answer(
-      choice(
-        'mt-a1',
-        'What p < 0.05 Means',
-        'A test of a new onboarding flow gives p = 0.03 for the rise in activation. What does that tell you?',
-        [
-          'If the new flow made no difference, a result this big would happen by chance only about 3% of the time',
-          'There is a 97% chance the new flow is better',
-          'The new flow raises activation by 3%',
-          'The result is big enough to matter to the business',
-        ],
-        0
-      ),
-      1
-    ),
-    answer(
-      match('mt-a2', 'Metric and Formula', 'Match each metric to how it’s worked out.', [
-        ['Conversion rate', 'Orders ÷ visitors'],
-        ['Churn rate', 'Customers lost ÷ customers at the start'],
-        ['Average order value', 'Revenue ÷ orders'],
-        ['Customer acquisition cost', 'Marketing spend ÷ new customers'],
-      ]),
-      2
-    ),
-    answer(short('mt-a3', 'Percent or Points', 'Activation rose from 40% to 46%. By what percentage (relative) did it rise? (A number.)', ['15', '15%', '15 percent']), 1),
-    answer(
-      written(
-        'mt-a4',
-        'An Uneven Split',
-        'An A/B test was set to send half of new users to each version. After two weeks, A has 10,000 users and B has 8,600. B’s conversion is higher. What does the split tell you, and what would you do before trusting the result?',
-        [
-          'Recognises a sample ratio mismatch: a 50/50 split this far off is very unlikely by chance, so assignment or tracking is broken',
-          'Says the result can’t be trusted as it stands, since the missing B users may differ (e.g. a browser or device that crashed or wasn’t tracked)',
-          'Investigates the cause (assignment code, tracking, a browser/device/app version where B users are lost) and re-runs or corrects before deciding',
-        ],
-        'That’s a sample ratio mismatch: with a 50/50 split, 10,000 against 8,600 is far beyond chance, so something is losing B users, such as a page that fails on one browser or tracking that doesn’t fire. Those missing users probably aren’t like the rest, so B’s higher conversion can’t be trusted. I’d find where B users drop out, fix it, and re-run the test before deciding.'
-      ),
-      3
-    ),
-  ]
+  METRICS_SETS
 );
 
 // =====================================================================================================
@@ -1050,43 +821,206 @@ CREATE VIEW orders_rejected AS SELECT order_ref FROM orders_raw WHERE NOT (amoun
       ]
     ),
   ],
-  [
-    answer(
-      choice(
-        'im-a1',
-        'Lost Zeros',
-        'Product codes like 00123 turn into 123 when a CSV is opened in a spreadsheet. What’s the right fix?',
-        ['Import the column as text, so the codes are kept exactly', 'Add the zeros back by hand afterwards', 'Format the cells to show five digits', 'Ask the supplier to stop using zeros'],
-        0
-      ),
-      1
-    ),
-    answer(
-      match('im-a2', 'What Went Wrong', 'Match each symptom to its cause.', [
-        ['Café shows as CafÃ©', 'The wrong text encoding'],
-        ['Every row lands in column A', 'The wrong delimiter'],
-        ['04/03 became 3 April, and 25/03 stayed as text', 'Day-first dates read month first'],
-        ['Totals ignore some prices', 'Numbers imported as text'],
-      ]),
-      2
-    ),
-    answer(short('im-a3', 'TSV', 'What character separates the columns in a .tsv file? (One word.)', ['tab', 'a tab', 'tabs', 'tab character', '\\t']), 1),
-    answer(
-      written(
-        'im-a4',
-        'Prove Nothing Was Lost',
-        'You’ve loaded a 48,000-row sales file into the warehouse. Before anyone uses it, how do you show the import is complete and nothing was changed?',
-        [
-          'Compares row counts between the source file and the loaded table (and investigates any difference, e.g. header, blank lines, rejected rows)',
-          'Compares control totals (e.g. sum of amounts, min/max dates, distinct counts of key columns) between source and target',
-          'Checks types and formats survived: no unexpected NULLs, leading zeros, decimals, dates and special characters intact (spot-check rows)',
-          'Records the checks so others can see them (and automates them for the next load)',
-        ],
-        'Count rows in the file and the table; total the amounts and compare; check the date range and the number of distinct customers or SKUs match; look for NULLs where the file had values; and spot-check a few rows with leading zeros, accents and large numbers end to end. I’d keep those checks with the load so they run every time.'
-      ),
-      3
-    ),
-  ]
+  IMPORTING_SETS
 );
 
-export const DA_MODULE_TESTS: AssessmentTest[] = [EXCEL_TEST, SQL_TEST, PYTHON_TEST, CLEANING_TEST, REPORTING_TEST, METRICS_TEST, IMPORTING_TEST];
+// =====================================================================================================
+// Power BI
+// =====================================================================================================
+
+const PB_PRODUCTS = ['P01', 'P02', 'P03', 'P04', 'P05'];
+const PB_RAW = (() => {
+  const rand = seeded(3131);
+  const messy: Record<string, string[]> = { North: ['North', 'north', ' North', 'NORTH '], South: ['South', 'south ', 'SOUTH'], East: ['East', ' east', 'EAST'], West: ['West', 'west', 'West '] };
+  const rows = Array.from({ length: 22 }, (_, i) => {
+    const region = pick(rand, REGIONS);
+    return { OrderID: 9001 + i, Date: `2026-03-${String(1 + Math.floor(rand() * 28)).padStart(2, '0')}`, Region: pick(rand, messy[region]), ProductKey: pick(rand, PB_PRODUCTS), Amount: (20 + Math.floor(rand() * 18000) / 100).toFixed(2) } as Record<string, string | number | null>;
+  });
+  // The web team's test orders, and two empty rows from the export
+  rows.splice(6, 0, { OrderID: 9901, Date: '2026-03-05', Region: 'TEST', ProductKey: 'P01', Amount: null });
+  rows.splice(15, 0, { OrderID: null, Date: null, Region: null, ProductKey: null, Amount: null });
+  rows.splice(19, 0, { OrderID: 9902, Date: '2026-03-12', Region: 'TEST', ProductKey: 'P02', Amount: null });
+  rows.push({ OrderID: null, Date: null, Region: null, ProductKey: null, Amount: null });
+  return rows;
+})();
+const PB_REAL = PB_RAW.filter((r) => r.Region && r.Region !== 'TEST');
+const PB_AMOUNT = round2(sum(PB_REAL.map((r) => Number(r.Amount))));
+
+const PB_SALES = (() => {
+  const rand = seeded(3232);
+  return Array.from({ length: 40 }, (_, i) => {
+    const amount = round2(30 + rand() * 470);
+    return { OrderID: 7001 + i, Date: `2026-0${1 + Math.floor(i / 14)}-${String(1 + Math.floor(rand() * 28)).padStart(2, '0')}`, Region: pick(rand, REGIONS), Channel: rand() < 0.45 ? 'Online' : 'Store', Category: pick(rand, ['Plants', 'Pots', 'Care']), Amount: amount, Cost: round2(amount * (0.45 + rand() * 0.25)) };
+  });
+})();
+const PB_TOTAL = round2(sum(PB_SALES.map((r) => r.Amount)));
+const PB_MARGIN = (PB_TOTAL - sum(PB_SALES.map((r) => r.Cost))) / PB_TOTAL;
+const PB_ONLINE = round2(sum(PB_SALES.filter((r) => r.Channel === 'Online').map((r) => r.Amount)));
+
+const pbTask = (id: string, title: string, prompt: string, html: string, checks: Checks): Question => ({
+  ...simTask(id, title, prompt, 'Lumen BI', html, checks.map(([n, d, path, e]) => [`Q${n} · ${d}`, path, e ?? '']), { minutes: TASK_MINUTES, weight: TASK_WEIGHT }),
+});
+
+const POWERBI_TEST = moduleTest(
+  'test-da-powerbi',
+  'Power BI',
+  'Two question sets (DAX measures; the model and Power Query), then two tasks of four questions each in a working Power BI-style app: shape a raw table in Power Query and relate it in the model, then write DAX measures and build a visual.',
+  ['Power BI', 'DAX', 'Power Query', 'Data Modelling'],
+  {
+    company: 'Fernway',
+    role: 'Data Analyst',
+    brief: `Fernway sells houseplants online and in shops, and reports in Power BI. Each task opens its own Power BI file in the app.`,
+  },
+  [
+    pbTask(
+      'pbi-t1',
+      'Shape and Model the Sales Data',
+      `The Sales query came straight from the web shop's export. Work in Power Query (the funnel on the left), then the Model view.
+
+Q1. Make Amount a Decimal number (select the column, then Data type).
+Q2. Keep only real orders: remove the web team's test orders (Region TEST) and the blank rows.
+Q3. Tidy Region so it reads exactly North, South, East or West (Format: Trim, then Capitalize Each Word).
+Q4. In the Model view, relate Sales to Products on ProductKey and Sales to Date on Date: many to one, single direction.`,
+      powerBiApp({
+        product: 'Lumen BI',
+        file: 'fernway_sales.pbix',
+        kind: 'query',
+        query: { name: 'Sales', columns: ['OrderID', 'Date', 'Region', 'ProductKey', 'Amount'], rows: PB_RAW, types: { OrderID: 'Whole number', Date: 'Text', Region: 'Text', ProductKey: 'Text', Amount: 'Text' } },
+        model: [
+          { name: 'Sales', columns: ['OrderID', 'Date', 'Region', 'ProductKey', 'Amount'] },
+          { name: 'Products', columns: ['ProductKey', 'Product', 'Category'] },
+          { name: 'Date', columns: ['Date', 'Month', 'Year'] },
+        ],
+      }),
+      [
+        [1, 'Amount is a decimal number', 'query.types.Amount', 'Decimal number'],
+        [1, 'Its total is right', 'query.sum.Amount', String(PB_AMOUNT)],
+        [2, 'Only the real orders are left', 'query.rows', String(PB_REAL.length)],
+        [3, 'Regions read North, South, East or West', 'query.values.Region', '["East","North","South","West"]'],
+        [4, 'Sales is related to Products', 'model.rel.Sales[ProductKey]>Products[ProductKey]', 'Many to one, Single'],
+        [4, 'Sales is related to Date', 'model.rel.Sales[Date]>Date[Date]', 'Many to one, Single'],
+      ]
+    ),
+    pbTask(
+      'pbi-t2',
+      'Measures and a Visual',
+      `The Sales table is loaded (Table view shows it). Use New measure and the formula bar: type Name = expression and press Enter.
+
+Q1. A measure named Total Sales: the total of Amount.
+Q2. A measure named Margin %: (total Amount − total Cost) ÷ total Amount, using DIVIDE.
+Q3. A measure named Online Sales: Total Sales for the Online channel only, using CALCULATE.
+Q4. On the report page, a Clustered bar chart of Total Sales by Region.`,
+      powerBiApp({ product: 'Lumen BI', file: 'fernway_report.pbix', kind: 'report', table: { name: 'Sales', columns: ['OrderID', 'Date', 'Region', 'Channel', 'Category', 'Amount', 'Cost'], rows: PB_SALES } }),
+      [
+        [1, 'Total Sales is right', 'measures.Total Sales.value', String(PB_TOTAL)],
+        [1, 'It’s worked out from the data', 'measures.Total Sales.live', 'true'],
+        [2, 'Margin % is right', 'measures.Margin %.value', `${PB_MARGIN}|${PB_MARGIN * 100}`],
+        [2, 'It’s worked out from the data', 'measures.Margin %.live', 'true'],
+        [3, 'Online Sales is right', 'measures.Online Sales.value', String(PB_ONLINE)],
+        [3, 'It uses CALCULATE', 'measures.Online Sales.calc', 'true'],
+        [4, 'The visual is a clustered bar chart', 'visual.type', 'Clustered bar chart'],
+        [4, 'Region is on the axis', 'visual.axis', 'Region'],
+        [4, 'Total Sales is the value', 'visual.values', '["Total Sales"]'],
+      ]
+    ),
+  ],
+  POWERBI_SETS
+);
+
+// =====================================================================================================
+// Tableau
+// =====================================================================================================
+
+const TB_ORDERS = (() => {
+  const rand = seeded(4242);
+  const customers = ['Avery Shaw', 'Blake Moss', 'Casey Lin', 'Drew Patel', 'Ellis Fox', 'Frankie Rao', 'Gray Hughes', 'Harper Cole', 'Indy Ward', 'Jordan Kerr', 'Kit Lowe', 'Logan Price'];
+  return Array.from({ length: 60 }, (_, i) => {
+    const category = pick(rand, ['Technology', 'Furniture', 'Office Supplies']);
+    const sales = round2((category === 'Technology' ? 120 : category === 'Furniture' ? 90 : 15) + rand() * (category === 'Office Supplies' ? 120 : 760));
+    return {
+      'Order ID': `OR-${3001 + i}`,
+      'Order Date': `2025-${String(1 + Math.floor(rand() * 12)).padStart(2, '0')}-${String(1 + Math.floor(rand() * 28)).padStart(2, '0')}`,
+      Region: pick(rand, ['Central', 'East', 'South', 'West']),
+      Category: category,
+      Segment: pick(rand, ['Consumer', 'Corporate', 'Home Office']),
+      Customer: pick(rand, customers),
+      Sales: sales,
+      Profit: round2(sales * (-0.15 + rand() * 0.45)),
+      Quantity: 1 + Math.floor(rand() * 6),
+    };
+  });
+})();
+const TB_DIMS = ['Order ID', 'Order Date', 'Region', 'Category', 'Segment', 'Customer'];
+const tbBy = <K extends keyof (typeof TB_ORDERS)[number]>(rows: typeof TB_ORDERS, key: K) => {
+  const out: Record<string, typeof TB_ORDERS> = {};
+  rows.forEach((r) => (out[String(r[key])] ??= []).push(r));
+  return out;
+};
+const TB_TECH = tbBy(TB_ORDERS.filter((r) => r.Category === 'Technology'), 'Region');
+const TB_TECH_TOTAL = sum(TB_ORDERS.filter((r) => r.Category === 'Technology').map((r) => r.Sales));
+const TB_TECH_TOP = Object.keys(TB_TECH).sort((a, b) => sum(TB_TECH[b].map((r) => r.Sales)) - sum(TB_TECH[a].map((r) => r.Sales)))[0];
+const TB_RATIO = sum(TB_ORDERS.map((r) => r.Profit)) / sum(TB_ORDERS.map((r) => r.Sales));
+const TB_LARGE = TB_ORDERS.filter((r) => r.Sales >= 500).length;
+const TB_CUST = tbBy(TB_ORDERS, 'Customer');
+const TB_CUST_MAX = Math.max(...Object.values(TB_CUST).map((rs) => sum(rs.map((r) => r.Sales))));
+const TB_REG = tbBy(TB_ORDERS, 'Region');
+const TB_RATIO_TOP = Object.keys(TB_REG).sort((a, b) => sum(TB_REG[b].map((r) => r.Profit)) / sum(TB_REG[b].map((r) => r.Sales)) - sum(TB_REG[a].map((r) => r.Profit)) / sum(TB_REG[a].map((r) => r.Sales)))[0];
+
+const tbTask = (id: string, title: string, prompt: string, checks: Checks): Question =>
+  simTask(id, title, prompt, 'Vizly', tableauApp({ product: 'Vizly', workbook: 'superstore_2025.twb', table: { name: 'Orders', columns: Object.keys(TB_ORDERS[0]), rows: TB_ORDERS }, dimensions: TB_DIMS }), checks.map(([n, d, path, e]) => [`Q${n} · ${d}`, path, e ?? '']), { minutes: TASK_MINUTES, weight: TASK_WEIGHT });
+
+const TABLEAU_TEST = moduleTest(
+  'test-da-tableau',
+  'Tableau',
+  'Two question sets (calculations and LODs; views and table calculations), then two tasks of four questions each in a working Tableau-style worksheet: build, filter, sort and label a view with a table calculation, then write calculated fields, an IF and a FIXED LOD, and chart one.',
+  ['Tableau', 'Calculated Fields', 'LOD Expressions', 'Table Calculations'],
+  {
+    company: 'Superstore',
+    role: 'Data Analyst',
+    brief: `Superstore sells office products across four regions. Its 2025 orders are in the Orders data source. Each task opens its own worksheet in the app: drag fields from the Data pane to the shelves (or use the + beside a field), and click a pill for its menu.`,
+  },
+  [
+    tbTask(
+      'tab-t1',
+      'Technology Sales by Region',
+      `Q1. Show sales by region as horizontal bars: Region on Rows, SUM(Sales) on Columns.
+Q2. Filter the view to the Technology category only.
+Q3. Sort the regions from highest to lowest sales, and label each bar with its sales (SUM(Sales) on Label).
+Q4. Show each region's share of Technology sales: a Quick Table Calculation of Percent of Total on SUM(Sales).`,
+      [
+        [1, 'Region is on Rows', 'shelves.rows', '["Region"]'],
+        [1, 'SUM(Sales) is on Columns', 'shelves.columns', '["SUM(Sales)"]'],
+        [2, 'Only Technology is kept', 'shelves.filters.Category', '["Technology"]'],
+        [2, 'The view’s top region is right', 'view.top', TB_TECH_TOP],
+        [3, 'Sorted highest first', 'shelves.sort', 'desc'],
+        [3, 'Bars are labelled with sales', 'shelves.label', 'SUM(Sales)'],
+        [4, 'Percent of Total is applied', 'tableCalc.SUM(Sales)', 'Percent of Total'],
+        [4, 'The top region’s share is right', `view.values.${TB_TECH_TOP}`, String(Math.round((sum(TB_TECH[TB_TECH_TOP].map((r) => r.Sales)) / TB_TECH_TOTAL) * 1e6) / 1e6)],
+      ]
+    ),
+    tbTask(
+      'tab-t2',
+      'Calculated Fields',
+      `Use Create Calculated Field (in the toolbar) for each, named exactly as given.
+
+Q1. Profit Ratio: total profit divided by total sales.
+Q2. Order Size: "Large" when an order's Sales is 500 or more, otherwise "Small".
+Q3. Customer Total: on every order, that customer's total sales across all their orders (a FIXED level of detail expression).
+Q4. Build a view of Profit Ratio by Region (Region on Rows, Profit Ratio on Columns), sorted from highest to lowest.`,
+      [
+        [1, 'Profit Ratio is right', 'calcs.Profit Ratio.value', String(Math.round(TB_RATIO * 1e6) / 1e6)],
+        [1, 'It’s a ratio of totals (an aggregate)', 'calcs.Profit Ratio.kind', 'aggregate'],
+        [2, 'Large orders are counted right', 'calcs.Order Size.counts.Large', String(TB_LARGE)],
+        [2, 'Small orders are counted right', 'calcs.Order Size.counts.Small', String(TB_ORDERS.length - TB_LARGE)],
+        [3, 'The biggest customer total is right', 'calcs.Customer Total.max', String(round2(TB_CUST_MAX))],
+        [3, 'It’s worked out on every row', 'calcs.Customer Total.kind', 'row'],
+        [4, 'Profit Ratio by Region', 'shelves.columns', '["AGG(Profit Ratio)"]'],
+        [4, 'Region is on Rows, highest first', 'shelves.sort', 'desc'],
+        [4, 'The view’s top region is right', 'view.top', TB_RATIO_TOP],
+      ]
+    ),
+  ],
+  TABLEAU_SETS
+);
+
+export const DA_MODULE_TESTS: AssessmentTest[] = [EXCEL_TEST, SQL_TEST, PYTHON_TEST, CLEANING_TEST, REPORTING_TEST, METRICS_TEST, IMPORTING_TEST, POWERBI_TEST, TABLEAU_TEST];

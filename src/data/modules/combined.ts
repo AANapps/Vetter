@@ -35,8 +35,6 @@ const da = (id: string, title: string, description: string, skillsTested: string
 });
 
 export const COMBINED_TESTS: CombinedTest[] = [
-  da('test-da-powerbi', 'Power BI', 'Power Query, data models, DAX and time intelligence, and reports people can trust.', ['Power BI', 'DAX', 'Power Query', 'Data Modelling'], ['test-pbi-01', 'test-pbi-02']),
-  da('test-da-tableau', 'Tableau', 'Calculations, table calculations, LOD expressions, charts and dashboards.', ['Tableau', 'LOD Expressions', 'Table Calculations', 'Dashboards'], ['test-tab-01', 'test-tab-02']),
   // The job simulation keeps its case material: it's the story the day follows
   { ...da('test-da-sim', 'Data Analyst Simulation: Ridgeway Coffee', "A morning as a data analyst at a coffee chain that missed its plan: clean the till export in a working spreadsheet, query the sales database, then explain to the Operations Director what really happened.", ['Excel', 'SQL', 'Data Cleaning', 'Critical Thinking', 'Statistics'], ['test-sim-da-01']), noCases: false },
 ];
