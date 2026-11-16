@@ -89,7 +89,15 @@ const pyTask = (
 
 // The question sets come first, the practical tasks last
 const moduleTest = (id: string, title: string, description: string, skillsTested: string[], scenario: TestScenario, practical: Question[], sets: Question[]): AssessmentTest => {
-  const questions = [...sets, ...practical];
+  // Marks scaled to 100, the heaviest question taking any rounding difference
+  const raw = [...sets, ...practical];
+  const total = raw.reduce((n, q) => n + q.weight, 0) || 1;
+  const questions = raw.map((q) => ({ ...q, weight: Math.round((q.weight / total) * 100) }));
+  const drift = 100 - questions.reduce((n, q) => n + q.weight, 0);
+  if (drift) {
+    const top = questions.reduce((a, b) => (b.weight > a.weight ? b : a));
+    top.weight += drift;
+  }
   return {
     id,
     title,
@@ -115,6 +123,11 @@ const titleCase = (s: string) => s.trim().toLowerCase().replace(/(^|[^a-zà-ÿ�
 // Several cells read as one check: "a / b / c" (a | would mean "either answer" to the marker)
 const joined = (...cells: string[]) => '=' + cells.join('&" / "&');
 const values = (...vs: (string | number)[]) => vs.join(' / ');
+const median = (xs: number[]) => {
+  const s = [...xs].sort((a, b) => a - b);
+  return s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2;
+};
+
 
 // =====================================================================================================
 // Excel
@@ -142,26 +155,40 @@ const XL_ORDERS = (() => {
   rows[8] = { ...rows[8], sku: 'LO-999' };
   return rows;
 })();
+// The till exported two orders twice
+const XL_DUPES = ['LF-7004', 'LF-7015'];
+const XL_EXPORT = XL_ORDERS.flatMap((o) => (XL_DUPES.includes(o.id) ? [o, o] : [o]));
 const xlPrice = (sku: string) => XL_PRODUCTS.find((p) => p[0] === sku)?.[2] ?? 0;
 const xlLine = (o: (typeof XL_ORDERS)[number]) => o.qty * xlPrice(o.sku);
-const xlWeb = (r: string) => sum(XL_ORDERS.filter((o) => o.region === r && o.channel === 'Web').map(xlLine));
-const xlBig = (r: string) => XL_ORDERS.filter((o) => o.region === r && xlLine(o) > 100).length;
+const xlIn = (r: string) => XL_ORDERS.filter((o) => o.region === r);
+const xlWeb = (r: string) => sum(xlIn(r).filter((o) => o.channel === 'Web').map(xlLine));
+const xlBig = (r: string) => xlIn(r).filter((o) => xlLine(o) > 100).length;
+const xlAvg = (r: string) => round2(sum(xlIn(r).map(xlLine)) / xlIn(r).length);
 const XL_LAST = XL_ORDERS.length + 1;
 
 const XL_REPS = (() => {
   const rand = seeded(5152);
   const names = [['  asha', 'PATEL'], ['BEN ', 'cole'], ['chloe', ' wu '], [' Dan', 'REID'], ['ella', 'shaw  '], ['FINN', ' moss'], ['gita ', 'Rao'], ['harry', 'LIM'], [' Isla ', 'kerr'], ['jack', 'BYRNE ']];
-  return names.map(([first, last]) => ({ first, last, sales: Math.round(18000 + rand() * 24000), target: 30000 }));
+  return names.map(([first, last]) => ({ first, last, region: pick(rand, REGIONS) as string, sales: Math.round(18000 + rand() * 24000), target: 30000 }));
 })();
 const XL_REP_SALES = sum(XL_REPS.map((r) => r.sales));
-const XL_BONUSES = XL_REPS.filter((r) => r.sales >= r.target).length;
-const repName = (i: number) => `${titleCase(XL_REPS[i].first)} ${titleCase(XL_REPS[i].last)}`;
+const repName = (r: (typeof XL_REPS)[number]) => `${titleCase(r.first)} ${titleCase(r.last)}`;
+const repCode = (r: (typeof XL_REPS)[number]) => `${r.region.slice(0, 3).toUpperCase()}-${r.last.trim().toUpperCase()}`;
+const repTier = (r: (typeof XL_REPS)[number]) => (r.sales >= r.target && r.sales >= 35000 ? 'Gold' : r.sales >= r.target ? 'Silver' : 'Bronze');
+const XL_TOP = [...XL_REPS].sort((a, b) => b.sales - a.sales);
+const quartile = (xs: number[], q: number) => {
+  const s = [...xs].sort((a, b) => a - b);
+  const pos = (s.length - 1) * (q / 4);
+  const lo = Math.floor(pos);
+  return s[lo] + (s[Math.min(lo + 1, s.length - 1)] - s[lo]) * (pos - lo);
+};
+const XL_SALES_LIST = XL_REPS.map((r) => r.sales);
 
 const EXCEL_TEST = moduleTest(
   'test-da-excel',
   'Excel',
-  'Two spreadsheet tasks of four questions each (lookups, conditional totals and counts, text functions, absolute references and logic), then four questions on how Excel works.',
-  ['Excel', 'XLOOKUP', 'SUMIFS', 'Formulas', 'PivotTables'],
+  'Two question sets (getting data ready: Power Query, data validation, Flash Fill, dynamic arrays; showing and automating: conditional formatting, charts, shortcuts, VBA, dashboards and the data model), then two spreadsheet tasks: removing duplicates, lookups, SUMIFS, COUNTIFS and AVERAGEIF, a PivotTable; then text functions, absolute references, IFS with AND, MEDIAN and QUARTILE, and sorting.',
+  ['Excel', 'XLOOKUP', 'SUMIFS', 'PivotTables', 'Text Functions', 'Power Query'],
   {
     company: 'Larkfield Outdoor',
     role: 'Data Analyst',
@@ -174,57 +201,61 @@ Use formulas wherever a question asks for them, so the sheet still works when th
       'xl-t1',
       'The Orders Report',
       'orders_report.xlsx',
-      `The Orders sheet has this week's orders; the Products sheet lists every product and its price. Answer each question with formulas, filled down to the last order (row ${XL_LAST}).
+      `The Orders sheet is this week's till export; the Products sheet lists every product and its price.
 
-Q1. Column F (Product): the product name for the order's SKU, or the text Not found when the SKU isn't on the Products sheet.
-Q2. Column G (Line Total): Qty × the product's price, or 0 when the SKU isn't found.
-Q3. On the Summary sheet, column B: each region's total Line Total from the Web channel only.
-Q4. On the Summary sheet, column C: each region's number of orders (any channel) with a Line Total over £100.`,
+Q1. The till exported some orders twice (the same Order ID on two identical rows). Remove the duplicates (Remove duplicates), keeping one of each.
+Q2. Column F (Product): the product name for the order's SKU, looked up from the Products sheet with XLOOKUP (or INDEX and MATCH), showing Not found when the SKU isn't there. Fill it down to the last order.
+Q3. Column G (Line Total): Qty × the product's price, or 0 when the SKU isn't found.
+Q4. Summary sheet, with one formula per cell for each region: column B the Web channel's line totals (SUMIFS), column C the number of orders with a line total over £100 (COUNTIFS), column D the average line total (AVERAGEIF).
+Q5. Insert a PivotTable from the Orders sheet: Rows Region, Values Sum of Line Total.`,
       [
-        { name: 'Orders', rows: [['Order ID', 'SKU', 'Qty', 'Region', 'Channel', 'Product', 'Line Total'], ...XL_ORDERS.map((o) => [o.id, o.sku, o.qty, o.region, o.channel])] },
+        { name: 'Orders', rows: [['Order ID', 'SKU', 'Qty', 'Region', 'Channel', 'Product', 'Line Total'], ...XL_EXPORT.map((o) => [o.id, o.sku, o.qty, o.region, o.channel])] },
         { name: 'Products', rows: [['SKU', 'Product', 'Price'], ...XL_PRODUCTS.map((p) => [...p])] },
-        { name: 'Summary', rows: [['Region', 'Web revenue', 'Orders over £100'], ...REGIONS.map((r) => [r])] },
+        { name: 'Summary', rows: [['Region', 'Web revenue', 'Orders over £100', 'Average line total'], ...REGIONS.map((r) => [r])] },
       ],
       [
-        [1, 'Product names are looked up', joined('Orders!F2', `Orders!F${XL_LAST}`), values(XL_PRODUCTS.find((p) => p[0] === XL_ORDERS[0].sku)![1], XL_PRODUCTS.find((p) => p[0] === XL_ORDERS[19].sku)![1])],
-        [1, 'The unknown SKU shows Not found', '=Orders!F10', 'Not found'],
-        [2, 'Line totals are right', `=SUM(Orders!G2:G${XL_LAST})`, String(sum(XL_ORDERS.map(xlLine)))],
-        [2, 'Product and Line Total are formulas to the last row', `=AND(ISFORMULA(Orders!F${XL_LAST}),ISFORMULA(Orders!G${XL_LAST}))`, 'TRUE'],
-        [3, 'Web revenue is right for each region', joined('Summary!B2', 'Summary!B3', 'Summary!B4', 'Summary!B5'), values(...REGIONS.map(xlWeb))],
-        [4, 'Orders over £100 are counted right', joined('Summary!C2', 'Summary!C3', 'Summary!C4', 'Summary!C5'), values(...REGIONS.map(xlBig))],
-        [4, 'The summary is worked out by formula', '=AND(ISFORMULA(Summary!B5),ISFORMULA(Summary!C5))', 'TRUE'],
+        [1, 'Each repeated order appears once', `=COUNTIF(Orders!A:A,"${XL_DUPES[0]}")+COUNTIF(Orders!A:A,"${XL_DUPES[1]}")`, '2'],
+        [1, `No order lost: ${XL_ORDERS.length} remain`, '=COUNTA(Orders!A:A)-1', String(XL_ORDERS.length)],
+        [2, 'Product names are looked up', joined('Orders!F2', `Orders!F${XL_LAST}`), values(XL_PRODUCTS.find((p) => p[0] === XL_ORDERS[0].sku)![1], XL_PRODUCTS.find((p) => p[0] === XL_ORDERS[19].sku)![1])],
+        [2, 'The unknown SKU shows Not found', `=COUNTIF(Orders!F:F,"Not found")&" / "&ISFORMULA(Orders!F${XL_LAST})`, values(1, 'TRUE')],
+        [3, 'Line totals are right, by formula', `=SUM(Orders!G2:G40)&" / "&ISFORMULA(Orders!G${XL_LAST})`, values(sum(XL_ORDERS.map(xlLine)), 'TRUE')],
+        [4, 'Web revenue by region (SUMIFS)', joined('Summary!B2', 'Summary!B3', 'Summary!B4', 'Summary!B5'), values(...REGIONS.map(xlWeb))],
+        [4, 'Orders over £100 by region (COUNTIFS)', joined('Summary!C2', 'Summary!C3', 'Summary!C4', 'Summary!C5'), values(...REGIONS.map(xlBig))],
+        [4, 'Average line total by region (AVERAGEIF)', joined(...REGIONS.map((_, i) => `ROUND(Summary!D${i + 2},2)`)), values(...REGIONS.map(xlAvg))],
+        [4, 'The summary is worked out by formula', '=AND(ISFORMULA(Summary!B5),ISFORMULA(Summary!C5),ISFORMULA(Summary!D5))', 'TRUE'],
+        [5, 'The PivotTable totals each region', joined(...REGIONS.map((r) => `ROUND(VLOOKUP("${r}",Pivot!A:B,2,FALSE),2)`)), values(...REGIONS.map((r) => round2(sum(xlIn(r).map(xlLine)))))],
       ]
     ),
     sheetTask(
       'xl-t2',
-      'Commission',
-      'q1_commission.xlsx',
-      `The Reps sheet has each sales rep's name (typed in by hand), Q1 sales and target. The commission rate is in J1. Use formulas for every rep (rows 2 to 11).
+      'Reps and Commission',
+      'q1_reps.xlsx',
+      `The Reps sheet has each sales rep's name (typed in by hand), region, Q1 sales and target. The Settings sheet holds the commission rate (B1). Use formulas for every rep (rows 2 to 11).
 
-Q1. Column E (Rep): first and last name with no extra spaces, each capitalised (e.g. Asha Patel).
-Q2. Column F (Commission): Sales × the rate in J1, as one formula filled down that keeps pointing at J1.
-Q3. Column G (Bonus): Yes if the rep's sales are at or above their target, otherwise No.
-Q4. Finance has raised the rate: change J1 to 6%, and in J2 total all commission with a formula.`,
+Q1. Column F (Rep): first and last name with no extra spaces, each capitalised (e.g. Asha Patel).
+Q2. Column G (Code): the first three letters of the region in capitals, a hyphen, then the last name in capitals with no spaces (e.g. NOR-PATEL).
+Q3. Column H (Commission): Sales × the rate on the Settings sheet, as one formula filled down that keeps pointing at Settings!B1. Then Finance raises the rate: change Settings!B1 to 6%, and total all commission in Settings!B2.
+Q4. Column I (Tier), with IFS: Gold when sales are at or above target and at least 35,000; Silver when at or above target; Bronze otherwise.
+Q5. Settings sheet: B4 the median sales, and B5 the upper quartile of sales (QUARTILE).
+Q6. Sort the reps by Sales, highest first (Sort Z–A on the Sales column), keeping every rep's row together.`,
       [
-        {
-          name: 'Reps',
-          rows: [
-            ['First', 'Last', 'Sales', 'Target', 'Rep', 'Commission', 'Bonus', null, 'Commission rate', 0.05],
-            ...XL_REPS.map((r, i) => [r.first, r.last, r.sales, r.target, null, null, null, null, i === 0 ? 'Total commission' : null]),
-          ],
-        },
+        { name: 'Reps', rows: [['First', 'Last', 'Region', 'Sales', 'Target', 'Rep', 'Code', 'Commission', 'Tier'], ...XL_REPS.map((r) => [r.first, r.last, r.region, r.sales, r.target])] },
+        { name: 'Settings', rows: [['Commission rate', 0.05], ['Total commission'], [], ['Median sales'], ['Upper quartile sales']] },
       ],
       [
-        [1, 'Names are trimmed and capitalised', joined('Reps!E2', 'Reps!E6', 'Reps!E11'), values(repName(0), repName(4), repName(9))],
-        [1, 'Worked out by formula', '=ISFORMULA(Reps!E11)', 'TRUE'],
-        [2, 'Each commission is Sales × the rate in J1', joined('ROUND(Reps!F2,2)', 'ROUND(Reps!F11,2)'), values(round2(XL_REPS[0].sales * 0.06), round2(XL_REPS[9].sales * 0.06))],
-        [3, 'Bonuses go to the right reps', joined('COUNTIF(Reps!G2:G11,"Yes")', 'COUNTIF(Reps!G2:G11,"No")', 'Reps!G2'), values(XL_BONUSES, 10 - XL_BONUSES, XL_REPS[0].sales >= 30000 ? 'Yes' : 'No')],
-        [3, 'Worked out by formula', '=ISFORMULA(Reps!G11)', 'TRUE'],
-        [4, 'The rate is 6% and the total follows it', '=ROUND(Reps!J2,2)', String(round2(XL_REP_SALES * 0.06))],
-        [4, 'The total is a formula', '=ISFORMULA(Reps!J2)', 'TRUE'],
+        [1, 'Names are trimmed and capitalised', `=COUNTIF(Reps!F:F,"${repName(XL_REPS[0])}")+COUNTIF(Reps!F:F,"${repName(XL_REPS[4])}")+COUNTIF(Reps!F:F,"${repName(XL_REPS[9])}")&" / "&ISFORMULA(Reps!F11)`, values(3, 'TRUE')],
+        [2, 'Codes are right', `=COUNTIF(Reps!G:G,"${repCode(XL_REPS[0])}")+COUNTIF(Reps!G:G,"${repCode(XL_REPS[5])}")+COUNTIF(Reps!G:G,"${repCode(XL_REPS[9])}")&" / "&ISFORMULA(Reps!G11)`, values(3, 'TRUE')],
+        [3, 'The rate is 6% and every commission follows it', '=ROUND(SUM(Reps!H2:H11),2)&" / "&ROUND(Settings!B2,2)', values(round2(XL_REP_SALES * 0.06), round2(XL_REP_SALES * 0.06))],
+        [3, 'Commission and the total are formulas', '=AND(ISFORMULA(Reps!H11),ISFORMULA(Settings!B2))', 'TRUE'],
+        [4, 'Tiers are right', joined('COUNTIF(Reps!I:I,"Gold")', 'COUNTIF(Reps!I:I,"Silver")', 'COUNTIF(Reps!I:I,"Bronze")', 'ISFORMULA(Reps!I11)'), values(...(['Gold', 'Silver', 'Bronze'] as const).map((t) => XL_REPS.filter((r) => repTier(r) === t).length), 'TRUE')],
+        [5, 'Median and upper quartile are right', joined('Settings!B4', 'Settings!B5'), values(median(XL_SALES_LIST), quartile(XL_SALES_LIST, 3))],
+        [5, 'They’re formulas', '=AND(ISFORMULA(Settings!B4),ISFORMULA(Settings!B5))', 'TRUE'],
+        [6, 'Sorted highest sales first', joined('Reps!D2', 'Reps!D3', 'Reps!D11'), values(XL_TOP[0].sales, XL_TOP[1].sales, XL_TOP[9].sales)],
+        [6, 'Each rep kept their own row', joined('Reps!F2', 'Reps!I2'), values(repName(XL_TOP[0]), repTier(XL_TOP[0]))],
       ]
     ),
   ],
+
   EXCEL_SETS
 );
 
@@ -662,10 +693,6 @@ const MT_VALUES = (() => {
   v[7] = 640;
   return v;
 })();
-const median = (xs: number[]) => {
-  const s = [...xs].sort((a, b) => a - b);
-  return s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2;
-};
 const MT_MEAN = sum(MT_VALUES) / MT_VALUES.length;
 const MT_SD = Math.sqrt(sum(MT_VALUES.map((v) => (v - MT_MEAN) ** 2)) / (MT_VALUES.length - 1));
 const MT_UNIT = { spend: 18400, newCustomers: 230, revenue: 96500, activeUsers: 4100 };

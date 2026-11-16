@@ -739,6 +739,24 @@ export class Calc {
         if (ns.length < 2) return err('#DIV/0!');
         return Math.sqrt(ns.reduce((s, n) => s + (n - mean) ** 2, 0) / (ns.length - 1));
       }
+      // Excel's inclusive method: the value at position (n − 1) × k in the sorted list, between neighbours
+      case 'QUARTILE':
+      case 'QUARTILE.INC':
+      case 'PERCENTILE':
+      case 'PERCENTILE.INC': {
+        const ns = this.numbers([arg(0)]);
+        if (isErr(ns)) return ns;
+        const k0 = one(1);
+        if (isErr(k0)) return k0;
+        const k = typeof k0 === 'number' ? k0 : parseNumber(toText(k0));
+        if (k === null || !ns.length) return err('#NUM!');
+        const p = name.startsWith('QUARTILE') ? Math.trunc(k) / 4 : k;
+        if (p < 0 || p > 1) return err('#NUM!');
+        const sorted = [...ns].sort((x, y) => x - y);
+        const pos = (sorted.length - 1) * p;
+        const lo = Math.floor(pos);
+        return sorted[lo] + (sorted[Math.min(lo + 1, sorted.length - 1)] - sorted[lo]) * (pos - lo);
+      }
       case 'COUNTA':
         return all().reduce<number>((n, a) => n + this.values(a).filter((v) => v !== null && v !== '').length, 0);
       case 'COUNTBLANK':

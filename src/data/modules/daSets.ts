@@ -22,74 +22,86 @@ const questionSet = (id: string, title: string, label: string, material: string,
 export const EXCEL_SETS: Question[] = [
   ...questionSet(
     'xl-s1',
-    'Formulas and References',
-    'Price sheet',
-    `A price sheet. The VAT rate is in H1.
+    'Getting Data Ready',
+    'Sales workbook',
+    `A workbook from the regional teams:
 
-     A        B       C     D
-1    SKU      Price   Qty   Total inc VAT
-2    LO-101   159     2     =B2*C2*(1+$H$1)
-3    LO-502   22      5
-4    LO-999           1
-
-G1: VAT rate    H1: 0.2`,
+• The Monthly sheet has one row per product and a column for each month: Product, Jan, Feb, Mar, … Dec
+• The Region column on the Orders sheet is typed by hand: North, north, Nrth, N.
+• Column A of the Customers sheet holds full names (Asha Patel), and column B needs first names only
+• On the Lists sheet, E2 contains =UNIQUE(Orders!B2:B500), and shows #SPILL!`,
     [
-      choice('xl-s1-a', 'Copying Down', 'D2 is copied down to D3. What does D3 contain?', ['=B3*C3*(1+$H$1)', '=B3*C3*(1+$H$2)', '=B2*C2*(1+$H$1)', '=B3*C3*(1+H2)'], 0),
-      short('xl-s1-b', 'The Empty Price', 'D2 is copied to D4, where the price (B4) is empty. What number does D4 show?', ['0', '0.00', '£0', '£0.00']),
-      match('xl-s1-c', 'The Right Function', 'Match each job on this sheet to the Excel function built for it.', [
-        ['Find a SKU’s price from a product list', 'XLOOKUP'],
-        ['Total the Qty for one SKU across many rows', 'SUMIFS'],
-        ['Show a message instead of an error', 'IFERROR'],
-        ['Count the rows with a Qty over 3', 'COUNTIF'],
-      ]),
-      written(
+      choice(
+        'xl-s1-a',
+        'One Row per Month',
+        'To analyse the Monthly sheet you need one row per product per month (Product, Month, Sales). How do you get there in Power Query?',
+        ['Select Product, then Unpivot Other Columns', 'Transpose the whole table', 'Pivot the month columns', 'Add a custom column for each month'],
+        0
+      ),
+      short('xl-s1-b', 'Only Allowed Regions', 'Which Data-tab feature makes the Region cell a dropdown that accepts only North, South, East or West? (Two words.)', ['data validation', 'Data Validation', 'validation']),
+      short('xl-s1-c', 'First Names', 'You type Asha in B2, then use the feature that fills the rest of column B by following your example. What is its keyboard shortcut?', ['ctrl+e', 'ctrl e', 'ctrl-e', 'control+e', 'control e', 'ctrl + e']),
+      choice(
         'xl-s1-d',
-        'Price Missing',
-        'D4 should say Price missing when the price is blank, instead of showing a total. Write the formula for D4 and say why it works.',
-        [
-          'Gives a working formula, e.g. =IF(B4="","Price missing",B4*C4*(1+$H$1)) or with ISBLANK',
-          'Keeps the VAT rate as an absolute reference ($H$1) so it still works when copied',
-          'Explains the test: the IF checks for a blank price first, so the total is only worked out when there is one',
-        ],
-        '=IF(B4="","Price missing",B4*C4*(1+$H$1)). The IF tests whether the price is blank first: if it is, it shows the message; otherwise it works out the total. $H$1 stays fixed, so the formula can be filled down the whole column.'
+        '#SPILL!',
+        'Why does =UNIQUE(Orders!B2:B500) in E2 show #SPILL!?',
+        ['The cells below E2, where the list needs to spill, aren’t empty', 'UNIQUE only works on numbers', 'The range has duplicates', 'UNIQUE needs Ctrl+Shift+Enter'],
+        0
       ),
     ]
   ),
   ...questionSet(
     'xl-s2',
-    'PivotTables and Lookups',
-    'Sales workbook',
-    `The Sales sheet (A1:F500) has Date, Region, Rep, Product, Units and Revenue.
+    'Showing and Automating',
+    'Reporting workbook',
+    `The monthly report workbook:
 
-A PivotTable on the Summary sheet: Rows = Region, Values = Sum of Revenue.
+• Revenue by store is in D2:D500 (formulas)
+• Leadership wants the top 10% of stores to stand out, and a dashboard they can filter by region, built from the Orders table (400,000 rows) and the Stores table
+• A colleague's macro runs before the file is sent out:
 
-On the Orders sheet, column D: =VLOOKUP(B2, Products!A:C, 3, FALSE), which shows #N/A for some SKUs you can see on the Products sheet.`,
+\`\`\`vba
+Sub TidyReport()
+    Range("D2:D500").Value = Range("D2:D500").Value
+    Columns("A:F").AutoFit
+End Sub
+\`\`\``,
     [
       choice(
         'xl-s2-a',
-        'By Month',
-        'You want each region’s revenue split by month. What do you change in the PivotTable?',
-        ['Add Date to Columns and group it by Months', 'Add Date to Values', 'Add a Month column to the Sales sheet by hand, then rebuild the pivot', 'Add Date to Filters and pick each month in turn'],
+        'Top 10%',
+        'How do you make the top 10% of stores stand out, and keep it right as the numbers change?',
+        ['Conditional Formatting → Top/Bottom Rules → Top 10% on D2:D500', 'Sort by revenue and colour the first 50 rows', 'Filter to the highest values and bold them', 'Add a column that says Top for the biggest ones'],
         0
       ),
-      multi(
-        'xl-s2-b',
-        'Why #N/A?',
-        'Which of these could make the VLOOKUP show #N/A for a SKU that is on the Products sheet? Tick all that apply.',
-        ['The SKU on one sheet has a trailing space', 'The SKU is stored as a number on one sheet and as text on the other', 'The SKUs are in column B of the Products sheet, not column A', 'The workbook is set to automatic calculation', 'The last argument is FALSE'],
-        [0, 1, 2]
-      ),
-      short('xl-s2-c', 'The Error', 'A cell on the Summary sheet divides by an empty cell. What does Excel show? (Type the error exactly.)', ['#DIV/0!', '#div/0!', '#DIV/0']),
+      match('xl-s2-b', 'Shortcuts', 'Match each shortcut to what it does.', [
+        ['Ctrl+Shift+L', 'Turns filters on or off for the table'],
+        ['Alt+Enter', 'Starts a new line inside a cell'],
+        ['Ctrl+A', 'Selects the whole data range'],
+        ['Ctrl+Arrow', 'Jumps to the edge of the data'],
+      ]),
+      short('xl-s2-c', 'The Right Chart', 'Which chart type shows whether stores with higher ad spend also have higher revenue? (One word.)', ['scatter', 'scatter chart', 'scatter plot', 'xy scatter', 'xy']),
       written(
         'xl-s2-d',
-        'April Is Missing',
-        'April’s sales were pasted below row 500, and the PivotTable doesn’t show them. Why, and how would you set it up so new rows are always included?',
+        'What the Macro Does',
+        'What does TidyReport do to column D, and what’s the risk of running it?',
         [
-          'Explains the pivot’s source is the fixed range A1:F500, so rows below it are left out (and a pivot only updates when refreshed)',
-          'Turns the data into an Excel Table (Ctrl+T) and points the pivot at the Table, so the range grows with new rows',
-          'Refreshes the PivotTable (or sets it to refresh when the file opens)',
+          'Says it replaces the formulas in D2:D500 with their current values (like Paste Values), and auto-fits columns A to F',
+          'Names the risk: the formulas are gone, so the numbers won’t update and the macro can’t be undone with Ctrl+Z',
+          'Suggests a safeguard, e.g. run it on a copy / save first, or only on the file being sent',
         ],
-        'Its source is the fixed range A1:F500, so the rows pasted below aren’t in it, and a pivot only updates when refreshed. Format the data as a Table (Ctrl+T), change the pivot’s source to the Table so it grows with every row, and Refresh (or set Refresh data when opening the file).'
+        'It overwrites D2:D500 with their own values, so every formula becomes a fixed number, then auto-fits columns A to F. The risk is that the formulas are lost for good: the report won’t update, and a macro can’t be undone with Ctrl+Z. Run it on a saved copy that’s being sent out, never on the working file.'
+      ),
+      written(
+        'xl-s2-e',
+        'The Region Dashboard',
+        'How would you build the dashboard leadership can filter by region from the Orders (400,000 rows) and Stores tables?',
+        [
+          'Loads both tables into the Data Model (Power Pivot) and relates Orders to Stores on the store key, rather than VLOOKUP-ing 400,000 rows',
+          'Builds PivotTables / PivotCharts from the Data Model',
+          'Adds a Region slicer connected to every pivot (Report Connections), so one click filters the whole dashboard',
+          'Mentions refreshing (Refresh All) when new data arrives, and a clear layout with the key numbers first',
+        ],
+        'Add Orders and Stores to the Data Model and relate them on StoreID in Power Pivot, instead of looking up 400,000 rows. Build the PivotTables and PivotCharts from the model, add a Region slicer and connect it to all of them through Report Connections, and lay out the headline numbers first. When new data arrives, Refresh All updates everything.'
       ),
     ]
   ),
