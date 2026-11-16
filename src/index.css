@@ -42,6 +42,7 @@
 
   /* The Praxa logo's pixel lettering */
   --font-pixel: 'Silkscreen', ui-monospace, monospace;
+  --font-brand: 'Outfit', 'Geist', system-ui, sans-serif;
 
   /* Geist: a crisp, even sans for the whole site, with Geist Mono for figures and code */
   --font-sans: 'Geist', 'Source Sans 3', -apple-system, system-ui, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', 'Fira Sans', Ubuntu, Oxygen, 'Oxygen Sans', Cantarell, 'Droid Sans', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Lucida Grande', Helvetica, Arial, sans-serif;
@@ -888,3 +889,13 @@ html.dark .build-veil { background: rgb(11 17 30 / 0.6); }
   .build-phase-1 { opacity: 1; }
   .build-bar { width: 100%; opacity: 0.4; }
 }
+
+/* ---- Praxa's wordmark: a rounded geometric sans in the AI gradient, and the sparkle turning while the AI works ---- */
+.brand-word {
+  font-family: var(--font-brand); font-weight: 600; letter-spacing: -0.025em; line-height: 1;
+  background: linear-gradient(90deg, #3b6fe0, #8b5cf6 55%, #db5a9e); -webkit-background-clip: text; background-clip: text; color: transparent;
+  padding-bottom: 0.08em;
+}
+@keyframes brand-spin { to { transform: rotate(360deg); } }
+.brand-spin { animation: brand-spin 2.4s cubic-bezier(0.45, 0, 0.55, 1) infinite; transform-origin: 50% 50%; }
+@media (prefers-reduced-motion: reduce) { .brand-spin { animation: none; } }

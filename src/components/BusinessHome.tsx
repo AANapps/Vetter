@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { PixelDot } from './PixelDot';
+import { BrandSparkle, BrandWordmark } from './Brand';
 import { ArrowRight, ArrowUp, Check, ChevronDown, Circle, ExternalLink, Eye, Loader2, Lock, Pencil, Plus, Send, Square, Wand2, X } from 'lucide-react';
 import { AssessmentTest, Business, JobPosting, QuestionType, TestKind, User, levelName } from '../types';
 import { Pic } from './Pic';
@@ -264,10 +264,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
           {turns.length === 0 ? (
             <div className="pt-10 sm:pt-20 space-y-6 text-center">
               <div className="space-y-2">
-                <span className="mx-auto w-fit flex items-center font-pixel">
-                  <span className="ai-mark-still w-11 h-11 rounded-2xl text-white text-lg flex items-center justify-center shadow-lg shadow-indigo-200">P</span>
-                  <span className="text-2xl text-indigo-950 ml-1">raxa<PixelDot /></span>
-                </span>
+                <BrandWordmark size="lg" className="mx-auto w-fit" />
                 <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">Who are you hiring?</h1>
                 <p className="text-sm text-slate-500 max-w-md mx-auto">
                   Describe the role, or paste the job description. Praxa asks what it needs to know, then builds the test right here: you see
@@ -333,7 +330,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
           )}
           {build?.working && (
             <div className="flex gap-3">
-              <span className="ai-mark w-7 h-7 shrink-0 rounded-lg text-white text-xs font-pixel flex items-center justify-center">P</span>
+              <BrandSparkle className="w-7 h-7 mt-0.5" busy />
               <div className="ai-glass min-w-0 flex-1 p-4 rounded-2xl rounded-tl-md border border-white/80 shadow-sm space-y-1">
                 <p className="text-sm font-semibold text-slate-900 flex items-center gap-2">
                   <Loader2 className="w-4 h-4 text-indigo-600 animate-spin" />
@@ -345,7 +342,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
           )}
           {thinking && (
             <div className="flex items-center gap-2 text-sm text-slate-500">
-              <span className="ai-mark w-7 h-7 rounded-lg text-white text-xs font-pixel flex items-center justify-center">P</span>
+              <BrandSparkle className="w-7 h-7" busy />
               <span className="ai-shimmer font-medium">Looking through Praxa…</span>
             </div>
           )}
@@ -491,7 +488,7 @@ const AdvisorReply: React.FC<{
   onEditWithAI: (testId: string) => void;
 }> = ({ turn, onEditWithAI, aiAllowed, picked, onTogglePick, onPickAll, onEditCopy, onBuildWithAI, onSeePlans, onOpenTest, onPreview, onTopUp, canBuild, onBuild, onOpenLibrary, candidates, onViewPerson, jobs, onInvite, onQuickReply }) => (
   <div className="flex gap-3">
-    <span className="ai-mark-still w-7 h-7 shrink-0 rounded-lg text-white text-xs font-pixel flex items-center justify-center">P</span>
+    <BrandSparkle className="w-7 h-7 mt-0.5" />
     <div className="ai-glass min-w-0 flex-1 space-y-4 p-4 sm:p-5 rounded-2xl rounded-tl-md border border-white/80 shadow-sm">
       <p className={`text-sm leading-relaxed whitespace-pre-wrap ${turn.error ? 'text-slate-800' : 'text-slate-800'}`}>{turn.text}</p>
 

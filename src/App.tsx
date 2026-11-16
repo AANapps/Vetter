@@ -2,7 +2,7 @@ import type { IntegrityReport } from './lib/integrity';
 import { PublicTestReview } from './components/PublicTestReview';
 import { AnswerRecord, saveSubmission } from './lib/submissions';
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { PixelDot } from './components/PixelDot';
+import { BrandWordmark } from './components/Brand';
 import { CurrencyPicker } from './components/CurrencyPicker';
 import { User, UserRole, Assignment, TeamMember, AssessmentTest, JobPosting, Business, SocialState, AppNotification, JobInvitation, Lead, TestDraft, TestKind, TrialResult, ResultBreakdown, hasAiTests, madeWithAI, isPublic } from './types';
 import { INITIAL_RECRUITER, INITIAL_BUSINESSES, STANDARD_ASSESSMENTS } from './data/mockData';
@@ -1926,7 +1926,7 @@ export default function App() {
 
         {!chatHome && <footer className="border-t border-slate-200 bg-white py-6 px-6 text-xs text-slate-500">
           <div className="max-w-7xl mx-auto flex flex-wrap items-center gap-2">
-            <span className="font-bold text-slate-900 tracking-tight">PRAXA<PixelDot /></span>
+            <BrandWordmark size="sm" />
             <span>&middot; Skills-based hiring</span>
             <CurrencyPicker className="ml-auto" />
             {!firebaseEnabled && (

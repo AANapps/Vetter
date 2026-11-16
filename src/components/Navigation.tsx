@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { PixelDot } from './PixelDot';
+import { BrandWordmark } from './Brand';
 import { ThemeToggle } from './ThemeToggle';
 import { Pic } from './Pic';
 import { UserRole } from '../types';
@@ -89,11 +89,10 @@ interface NavigationProps {
   onNewChat?: () => void;
 }
 
-// The P badge with the rest of the name after it: [P]raxa.
+// The sparkle and the name in the brand's gradient: ✦ Praxa
 const Wordmark: React.FC<{ onClick: () => void }> = ({ onClick }) => (
-  <button onClick={onClick} aria-label="Praxa home" className="group flex items-center shrink-0 font-pixel">
-    <span className="w-9 h-9 rounded-md bg-indigo-900 group-hover:bg-indigo-950 text-white flex items-center justify-center text-base transition-colors">P</span>
-    <span className="text-lg text-indigo-950 ml-0.5">raxa<PixelDot /></span>
+  <button onClick={onClick} aria-label="Praxa home" className="flex items-center shrink-0 hover:opacity-85 transition-opacity">
+    <BrandWordmark />
   </button>
 );
 
@@ -407,8 +406,7 @@ const VisitorHeader: React.FC<{ currentTab: AppTab; onTabChange: (tab: AppTab) =
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-2">
         <button onClick={() => onTabChange('home')} aria-label="Praxa home" className="flex items-center gap-2 mr-4">
-          <span className="w-8 h-8 rounded-md bg-indigo-900 text-white font-pixel flex items-center justify-center text-sm">P</span>
-          <span className="font-pixel text-lg text-indigo-950">Praxa<PixelDot /></span>
+          <BrandWordmark />
         </button>
         <nav className="hidden md:flex items-center gap-1">
           {links.map((l) => (
