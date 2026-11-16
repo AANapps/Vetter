@@ -55,6 +55,13 @@ export const ROLE_SECTIONS: Partial<Record<TestRole, TestSection[]>> = {
     { id: 'apis', label: 'APIs & SQL', blurb: 'HTTP and REST, request handlers, and queries on a real database.', testIds: ['test-sd-api'] },
     { id: 'project', label: 'Job Simulation', blurb: 'A day as a developer on a full desktop.', testIds: ['test-sim-dev-01'] },
   ],
+  'Frontend Engineer': [
+    { id: 'javascript', label: 'JavaScript', blurb: 'Arrays, objects, strings and async code in working programs.', testIds: ['test-sd-js'] },
+    { id: 'debugging', label: 'Debugging', blurb: 'Stack traces, root causes, and fixing real bugs in running code.', testIds: ['test-sd-debug'] },
+    { id: 'dom', label: 'Browser & DOM', blurb: 'Layout, accessibility, performance and form validation.', testIds: ['test-fe-dom'] },
+    { id: 'react', label: 'React', blurb: 'Hooks, state and rendering, a reducer and a product list.', testIds: ['test-fe-react'] },
+    { id: 'project', label: 'Job Simulation', blurb: 'A day on an online shop’s frontend on a full desktop.', testIds: ['test-sim-fe-01'] },
+  ],
   'Data Scientist': [
     {
       id: 'fundamentals',
