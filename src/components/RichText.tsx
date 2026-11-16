@@ -73,9 +73,11 @@ export function splitParts(text: string): { intro: string; parts: { n: number; t
  * A task's instructions: its introduction, then each numbered question in its own card under its own header, with the
  * checks it's marked on (checks named "Q1 · ...") listed under it. A prompt without numbered questions reads as before.
  */
-export const TaskPrompt: React.FC<{ text: string; checks?: TestCase[]; className?: string }> = ({ text, checks = [], className = '' }) => {
-  const { intro, parts } = splitParts(text);
-  if (parts.length === 0) return <RichText text={text} className={`p-4 bg-slate-50 border border-slate-200 rounded-lg ${className}`} />;
+export const TaskPrompt: React.FC<{ text: string; checks?: TestCase[]; className?: string; only?: number }> = ({ text, checks = [], className = '', only }) => {
+  const { intro, parts: all } = splitParts(text);
+  // One question at a time when the task is shown as slides; the introduction stays above each
+  const parts = only === undefined ? all : all.slice(only, only + 1);
+  if (all.length === 0) return <RichText text={text} className={`p-4 bg-slate-50 border border-slate-200 rounded-lg ${className}`} />;
   const checksFor = (n: number) => checks.filter((c) => c.description.startsWith(`Q${n} · `));
   return (
     <div className="space-y-4">
@@ -87,6 +89,7 @@ export const TaskPrompt: React.FC<{ text: string; checks?: TestCase[]; className
             <h3 id={`task-part-${p.n}`} className="flex items-center gap-2 text-sm font-bold text-slate-900">
               <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-50 text-indigo-700 text-xs tabular-nums">{p.n}</span>
               Question {p.n}
+              {only !== undefined && <span className="font-normal text-slate-400">of {all.length}</span>}
             </h3>
             <RichText text={p.text} className={className} />
             {marked.length > 0 && (
