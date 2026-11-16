@@ -35,6 +35,4 @@ const da = (id: string, title: string, description: string, skillsTested: string
 });
 
 export const COMBINED_TESTS: CombinedTest[] = [
-  // The job simulation keeps its case material: it's the story the day follows
-  { ...da('test-da-sim', 'Data Analyst Simulation: Ridgeway Coffee', "A morning as a data analyst at a coffee chain that missed its plan: clean the till export in a working spreadsheet, query the sales database, then explain to the Operations Director what really happened.", ['Excel', 'SQL', 'Data Cleaning', 'Critical Thinking', 'Statistics'], ['test-sim-da-01']), noCases: false },
 ];

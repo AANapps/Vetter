@@ -161,6 +161,7 @@ export const QUESTION_TYPE_LABELS: Record<Question['type'], string> = {
   app: 'App simulation',
   email: 'Email reply',
   assistant: 'AI-assisted task',
+  desktop: 'Desktop job simulation',
 };
 
 // "3 checks" for code tasks; answer-style questions say what's to pick or arrange

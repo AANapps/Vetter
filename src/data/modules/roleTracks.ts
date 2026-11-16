@@ -12,6 +12,7 @@ import { SUPPORT_SIM_TEST } from './support';
 import { SUPPORT_MODULE_TESTS } from './supportModules';
 import { COMBINED_TESTS } from './combined';
 import { DA_MODULE_TESTS } from './daModules';
+import { DA_JOB_SIM } from './daJobSim';
 import { DATA_FUNDAMENTALS_TEST, DATA_FUNDAMENTALS_MODULE } from './dataFundamentals';
 
 // Tests for the 2026 role tracks (data analyst, SOC analyst, AI engineer, AI consultant, software developer, data
@@ -28,6 +29,7 @@ export const ROLE_TRACK_TESTS: AssessmentTest[] = [
   SUPPORT_SIM_TEST,
   DATA_FUNDAMENTALS_TEST,
   ...DA_MODULE_TESTS,
+  DA_JOB_SIM,
 ];
 
 // Every test's hands-on simulation, as its own area from Junior up (kept at Professional and Senior, since nothing harder
@@ -58,7 +60,7 @@ const ROLE_ADDITIONS: Record<string, TestRole[]> = {
 // Roles whose track is only these tests: every other test loses the role (it stays in the library for the roles it
 // keeps). Data Analyst is the core principles, one test per tool and one job simulation
 const ROLE_ONLY: Partial<Record<TestRole, string[]>> = {
-  'Data Analyst': ['test-dafund-01', ...DA_MODULE_TESTS.map((t) => t.id), ...COMBINED_TESTS.filter((c) => c.roles.includes('Data Analyst')).map((c) => c.id)],
+  'Data Analyst': ['test-dafund-01', ...DA_MODULE_TESTS.map((t) => t.id), DA_JOB_SIM.id, ...COMBINED_TESTS.filter((c) => c.roles.includes('Data Analyst')).map((c) => c.id)],
 };
 
 // Every level of a test takes its main version's added roles, and loses a role whose track it isn't in

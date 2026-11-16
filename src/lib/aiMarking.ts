@@ -6,7 +6,7 @@ import { ASSISTANT_RESULT_SHARE, assistantAnswer, emailAnswer, emailMark } from 
 // A second marking by Praxa's AI for code, SQL and short answers that the automatic checks didn't give full marks.
 // It can only raise a score, never lower it, and code that still fails its checks can't reach full marks.
 
-const MARKED_BY_AI: Question['type'][] = ['text', 'written', 'email', 'assistant', 'code', 'sql', 'schema', 'app'];
+const MARKED_BY_AI: Question['type'][] = ['text', 'written', 'email', 'assistant', 'code', 'sql', 'schema', 'app', 'desktop'];
 // An app task goes to the AI only for the writing done in it (its checks with marking points)
 const writingChecks = (q: Question) => q.testCases.filter((tc) => tc.rubric?.length);
 // The most a task can get from the AI while its automatic checks still fail
@@ -19,7 +19,7 @@ export interface AiMark {
 }
 
 function describe(q: Question, run: QuestionRunResult): { reference: string; autoResult: string } {
-  if (q.type === 'app') {
+  if (q.type === 'app' || q.type === 'desktop') {
     const pieces = writingChecks(q).map((tc, i) => `PIECE ${i + 1}: ${tc.description}\nMarking points, each an equal share:\n${(tc.rubric ?? []).map((p, k) => `${k + 1}. ${p}`).join('\n')}`);
     return { reference: pieces.join('\n\n'), autoResult: 'Only the writing is to be marked here; the rest of the task was checked automatically.' };
   }
@@ -86,7 +86,7 @@ export async function aiMarks(test: AssessmentTest, codes: Record<string, string
   };
   const items = test.questions
     .filter((q) => MARKED_BY_AI.includes(q.type) && perQuestion[q.id] < 100 && runs[q.id])
-    .filter((q) => q.type !== 'app' || writingChecks(q).length > 0)
+    .filter((q) => (q.type !== 'app' && q.type !== 'desktop') || writingChecks(q).length > 0)
     // Code is read as written (on a task open to any language, with the language picked), blank if left as it started
     .map((q) => ({ q, answer: q.type === 'code' && q.language ? codeAnswer(q, codes[q.id] ?? '') : codes[q.id] ?? '' }))
     // Nothing written, or the starter code untouched, has nothing to give credit for
@@ -99,7 +99,7 @@ export async function aiMarks(test: AssessmentTest, codes: Record<string, string
       type: q.type,
       title: q.title,
       prompt: q.prompt,
-      answer: q.type === 'email' ? emailText(answer) : q.type === 'assistant' ? assistantText(answer) : q.type === 'app' ? appWriting(q, answer) : answer,
+      answer: q.type === 'email' ? emailText(answer) : q.type === 'assistant' ? assistantText(answer) : q.type === 'app' || q.type === 'desktop' ? appWriting(q, answer) : answer,
       autoScore: perQuestion[q.id],
       ...describe(q, runs[q.id]),
     }));
@@ -124,7 +124,7 @@ export async function aiMarks(test: AssessmentTest, codes: Record<string, string
       const aiScore = q.type === 'text' && m.score >= 80 ? 100 : Math.round(m.score);
       // A written answer is marked by the AI alone: the first mark only matched words, which can be gamed
       // An app task: the AI's mark replaces the rough one for its writing; its other checks stand as they were
-      if (q.type === 'app') {
+      if (q.type === 'app' || q.type === 'desktop') {
         const results = runs[q.id].testCaseResults;
         const writing = writingChecks(q).length;
         const passed = results.filter((r) => r.passed && !q.testCases.find((tc) => tc.id === r.id)?.rubric?.length).length;

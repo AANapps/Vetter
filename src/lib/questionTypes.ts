@@ -6,7 +6,7 @@ export const ANSWER_TYPES: QuestionType[] = ['choice', 'multi', 'text', 'written
 export const isAnswerType = (type: QuestionType) => ANSWER_TYPES.includes(type);
 
 // Worked in an app window (a spreadsheet, a SQL workbench or a simulated product) and marked on what the candidate leaves behind
-export const isWorkspaceType = (type: QuestionType) => type === 'sheet' || type === 'database' || type === 'app';
+export const isWorkspaceType = (type: QuestionType) => type === 'sheet' || type === 'database' || type === 'app' || type === 'desktop';
 // What sub-questions can belong to: a hands-on task, or a case study to read
 export const isGroupType = (type: QuestionType) => isWorkspaceType(type) || type === 'case';
 

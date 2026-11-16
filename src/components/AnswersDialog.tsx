@@ -14,7 +14,7 @@ interface AnswersDialogProps {
 }
 
 const styleOf = (type: AnswerRecord['type']) => QUESTION_STYLES.find((s) => s.type === type)?.label ?? type;
-const isHandsOn = (type: AnswerRecord['type']) => type === 'app' || type === 'sheet' || type === 'database';
+const isHandsOn = (type: AnswerRecord['type']) => type === 'app' || type === 'sheet' || type === 'database' || type === 'desktop';
 const isCode = (type: AnswerRecord['type']) => type === 'code' || type === 'sql' || type === 'schema';
 const when = (iso: string) => new Date(iso).toLocaleString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 const scoreTone = (score: number) => (score === 100 ? 'text-emerald-700' : score > 0 ? 'text-amber-700' : 'text-rose-700');

@@ -1,3 +1,4 @@
+import { checkDesktop } from './desktop';
 import { AssessmentTest, Question } from '../types';
 import { executeSqlQuery, openTaskDatabase, queryRows, runSchemaChecks, SqlExecutionResult, SqlTable } from './sqlEngine';
 import { parseDatabaseWork } from './databaseWork';
@@ -106,6 +107,20 @@ function gradeAppQuestion(q: Question, answer: string): QuestionRunResult {
   };
 }
 
+// A desktop job simulation: its checks on the emails sent, pages visited, files saved and the workbook, and its writing
+function gradeDesktopQuestion(q: Question, answer: string): QuestionRunResult {
+  const testCaseResults = checkDesktop(q, answer);
+  const earned = testCaseResults.reduce((n, r) => n + (r.passed ? 1 : (r.credit ?? 0)), 0);
+  return {
+    type: 'code',
+    allPassed: testCaseResults.every((r) => r.passed),
+    score: testCaseResults.length ? Math.round((earned / testCaseResults.length) * 100) : 0,
+    testCaseResults,
+    logs: [],
+    totalExecutionTimeMs: 0,
+  };
+}
+
 // A database task: the candidate's changes are replayed on a fresh copy, then each check query must return what it
 // returns after the reference solution (or the rows the check states)
 async function gradeDatabaseQuestion(q: Question, answer: string): Promise<QuestionRunResult> {
@@ -162,6 +177,7 @@ export async function runQuestion(q: Question, code: string): Promise<QuestionRu
   if (q.type === 'sheet') return gradeSheetQuestion(q, code);
   if (q.type === 'database') return gradeDatabaseQuestion(q, code);
   if (q.type === 'app') return gradeAppQuestion(q, code);
+  if (q.type === 'desktop') return gradeDesktopQuestion(q, code);
   if (isAnswerType(q.type)) return gradeAnswerQuestion(q, code);
   if (q.type === 'schema') return { type: 'code', ...(await runSchemaChecks(code, q.testCases)) };
   // A program in any language, run on each case's input; on a task open to any language, in the one the candidate picked

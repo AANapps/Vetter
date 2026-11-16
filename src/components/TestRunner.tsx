@@ -1,4 +1,5 @@
 import { RichText, TaskPrompt, splitParts } from './RichText';
+import { Desktop } from './Desktop';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { AnswerRecord, answerRecords } from '../lib/submissions';
 import { BackButton } from './BackButton';
@@ -645,6 +646,8 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
                   fileName={currentQ.contextData || `${currentQ.title}.xlsx`}
                   files={test.scenario?.files}
                 />
+              ) : currentQ.type === 'desktop' ? (
+                <Desktop key={currentQ.id} question={currentQ} answer={currentCode} onChange={handleCodeChange} company={test.scenario?.company ?? test.companyName} />
               ) : currentQ.type === 'database' ? (
                 <DatabaseWindow
                   key={currentQ.id}
@@ -720,7 +723,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
                         </>
                       )}
                       <p className="text-[11px] text-slate-500">
-                        Marked when you submit, on the {currentQ.type === 'sheet' ? 'workbook' : currentQ.type === 'app' ? 'simulation' : 'database'} as you leave it. Your work is kept if you move to another question or task.
+                        Marked when you submit, on the {currentQ.type === 'sheet' ? 'workbook' : currentQ.type === 'app' ? 'simulation' : currentQ.type === 'desktop' ? 'desktop (emails sent, files and workbook)' : 'database'} as you leave it. Your work is kept if you move to another question or task.
                       </p>
                     </div>
                   )}

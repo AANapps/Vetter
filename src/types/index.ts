@@ -1,3 +1,4 @@
+import type { DesktopConfig } from '../lib/desktop';
 import type { IntegrityReport } from '../lib/integrity';
 import type { SectorId } from '../lib/sectors';
 export type UserRole = 'candidate' | 'recruiter' | 'admin';
@@ -195,7 +196,7 @@ export interface ResultBreakdown {
 // multi: tick every right option; text: a short typed answer; order: drag items into sequence; match: drag each answer onto its prompt.
 // sheet and database are worked in a spreadsheet or a database window, and marked on what the candidate leaves behind
 // written: an extended answer marked on its rubric; case: a case study to read, with sub-questions and no answer of its own
-export type QuestionType = 'sql' | 'code' | 'scenario' | 'choice' | 'schema' | 'multi' | 'text' | 'written' | 'order' | 'match' | 'case' | 'sheet' | 'database' | 'app' | 'email' | 'assistant';
+export type QuestionType = 'sql' | 'code' | 'scenario' | 'choice' | 'schema' | 'multi' | 'text' | 'written' | 'order' | 'match' | 'case' | 'sheet' | 'database' | 'app' | 'email' | 'assistant' | 'desktop';
 
 // A table of sample data: the starting tables of a database task
 export interface DataTable {
@@ -288,6 +289,8 @@ export interface Question {
   // A case that is a question set's context (a formula, a query, a model, a file) rather than a story: shown as a
   // numbered section of questions about the tool
   section?: boolean;
+  // A desktop job simulation (src/lib/desktop.ts): the computer's apps, emails, web pages and files
+  desktop?: DesktopConfig;
   starterCode: string;
   solutionCode?: string;
   // Multiple choice only: the answers to pick from and the index of the right one
