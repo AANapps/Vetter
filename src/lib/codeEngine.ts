@@ -12,6 +12,8 @@ export interface CodeExecutionResult {
     actual: string;
     executionMs: number;
     error?: string;
+    // A check marked on a scale rather than pass/fail (writing in an app): its share of a full mark, 0 to 1
+    credit?: number;
   }[];
   logs: string[];
   totalExecutionTimeMs: number;

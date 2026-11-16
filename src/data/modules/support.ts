@@ -23,10 +23,10 @@ export const SUPPORT_TESTS: AssessmentTest[] = [
 
 // ---------- The help desk queues ----------
 
-const TALLYHUB_GROUPS = ['Tier 1 Support', 'Billing', 'Tier 2 Technical', 'Trust & Safety', 'Privacy'];
-const TALLYHUB_TAGS = ['how_to', 'billing', 'double_charge', 'login', 'bug', 'outage', 'bank_feed', 'security', 'phishing', 'data_request', 'feature_request', 'invoices'];
-const TALLYHUB_SLA = ['Urgent: first reply within 1 hour', 'High: within 4 hours', 'Normal: within 8 business hours', 'Low: within 2 business days', 'Business plan: half those times'];
-const TALLYHUB_KB = [
+export const TALLYHUB_GROUPS = ['Tier 1 Support', 'Billing', 'Tier 2 Technical', 'Trust & Safety', 'Privacy'];
+export const TALLYHUB_TAGS = ['how_to', 'billing', 'double_charge', 'login', 'bug', 'outage', 'bank_feed', 'security', 'phishing', 'data_request', 'feature_request', 'invoices'];
+export const TALLYHUB_SLA = ['Urgent: first reply within 1 hour', 'High: within 4 hours', 'Normal: within 8 business hours', 'Low: within 2 business days', 'Business plan: half those times'];
+export const TALLYHUB_KB = [
   {
     title: 'Which team handles what',
     body: 'Tier 1 Support: how-to questions, logins, settings.\nBilling: charges, refunds, invoices from Tallyhub, plan changes.\nTier 2 Technical: anything broken (errors, features not working, sync failures).\nTrust & Safety: hacked or suspicious accounts, phishing, someone seeing data that isn\'t theirs.\nPrivacy: requests to see, export or delete personal data (legal deadline: one month).',
@@ -39,7 +39,7 @@ const TALLYHUB_KB = [
 
 const ticket = (t: HelpdeskTicket) => t;
 
-const QUEUE_P: HelpdeskTicket[] = [
+export const QUEUE_P: HelpdeskTicket[] = [
   ticket({
     id: '2201',
     subject: "Someone else's invoices are showing in my account",
@@ -865,7 +865,7 @@ const BLOOM_APP = helpdeskApp({
 
 const sup = (q: Partial<Question> & Pick<Question, 'id' | 'title' | 'type' | 'prompt'>): Question => ({ starterCode: '', testCases: [], timeLimitMinutes: 4, weight: 8, ...q });
 
-export const SUPPORT_SIM_TEST: AssessmentTest = {
+const BLOOMVALE_SIM: AssessmentTest = {
   id: 'test-sim-support-01',
   title: 'Customer Support Simulation: Bloomvale',
   category: 'Customer Support',
@@ -1016,3 +1016,13 @@ Jo Bennett, your Team Lead: "Follow the policies, keep customers posted, and fla
   ],
 };
 
+// Asked like every Praxa test: the questions first and the hands-on task (with the questions about it) last, marks out of 100
+export const SUPPORT_SIM_TEST: AssessmentTest = (() => {
+  const isTask = (q: Question) => q.type === 'app' || q.taskId === 'q-sup-sim-1';
+  const ordered = [...BLOOMVALE_SIM.questions.filter((q) => !isTask(q)), ...BLOOMVALE_SIM.questions.filter(isTask)];
+  const total = ordered.reduce((n, q) => n + q.weight, 0) || 1;
+  const questions = ordered.map((q) => ({ ...q, weight: Math.round((q.weight / total) * 100) }));
+  const drift = 100 - questions.reduce((n, q) => n + q.weight, 0);
+  if (drift) questions.reduce((a, b) => (b.weight > a.weight ? b : a)).weight += drift;
+  return { ...BLOOMVALE_SIM, questions };
+})();

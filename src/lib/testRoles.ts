@@ -29,8 +29,11 @@ export interface TestSection {
 
 export const ROLE_SECTIONS: Partial<Record<TestRole, TestSection[]>> = {
   'Customer Support Agent': [
-    { id: 'triage', label: 'Triage & SLAs', blurb: 'Prioritising, routing and answering a ticket queue on time.', testIds: ['test-support-triage-01'] },
-    { id: 'simulations', label: 'Job Simulations', blurb: 'A morning on a real support desk, start to finish.', testIds: ['test-sim-support-01'] },
+    { id: 'triage', label: 'Prioritising & Escalation', blurb: 'Ranking a queue by urgency, and what to solve yourself or pass to Tier 2.', testIds: ['test-support-triage-01'] },
+    { id: 'comms', label: 'Customer Communication', blurb: 'Angry customers, explaining fixes simply, and bug reports.', testIds: ['test-cs-comms-01'] },
+    { id: 'refunds', label: 'Policies & Refunds', blurb: 'Which refunds are allowed, processed with the right details.', testIds: ['test-cs-refunds-01'] },
+    { id: 'troubleshooting', label: 'Listening & Troubleshooting', blurb: 'The real problem in a messy message, and a login chat.', testIds: ['test-cs-troubleshoot-01'] },
+    { id: 'simulations', label: 'Job Simulation', blurb: 'A morning on a real support desk, start to finish.', testIds: ['test-sim-support-01'] },
   ],
   'Data Analyst': [
     { id: 'fundamentals', label: 'Fundamentals', blurb: 'The core principles: the question, data quality, summarising, conclusions and communicating.', testIds: ['test-dafund-01'] },

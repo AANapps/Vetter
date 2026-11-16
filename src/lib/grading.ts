@@ -94,11 +94,12 @@ function gradeSheetQuestion(q: Question, answer: string): QuestionRunResult {
 // An app simulation: each check reads one value from the state the candidate left the app in
 function gradeAppQuestion(q: Question, answer: string): QuestionRunResult {
   const testCaseResults = checkAppState(q, answer);
-  const passed = testCaseResults.filter((r) => r.passed).length;
+  // A writing check counts its share of credit; every other check is pass or fail
+  const earned = testCaseResults.reduce((n, r) => n + (r.passed ? 1 : (r.credit ?? 0)), 0);
   return {
     type: 'code',
-    allPassed: passed === testCaseResults.length,
-    score: testCaseResults.length ? Math.round((passed / testCaseResults.length) * 100) : 0,
+    allPassed: testCaseResults.every((r) => r.passed),
+    score: testCaseResults.length ? Math.round((earned / testCaseResults.length) * 100) : 0,
     testCaseResults,
     logs: [],
     totalExecutionTimeMs: 0,

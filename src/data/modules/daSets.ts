@@ -10,7 +10,7 @@ import { caseStudy, choice, match, multi, order, short, written } from '../quest
 export const SUB_WEIGHT = 5;
 const SUB_MINUTES: Partial<Record<Question['type'], number>> = { choice: 1, text: 1, match: 1, order: 1, multi: 1, written: 2 };
 
-const questionSet = (id: string, title: string, label: string, material: string, subs: Question[]): Question[] => [
+export const questionSet = (id: string, title: string, label: string, material: string, subs: Question[]): Question[] => [
   { ...caseStudy(id, title, material, label, 0), section: true },
   ...subs.map((q) => ({ ...q, taskId: id, timeLimitMinutes: SUB_MINUTES[q.type] ?? 1, weight: SUB_WEIGHT })),
 ];

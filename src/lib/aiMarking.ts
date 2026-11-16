@@ -6,7 +6,9 @@ import { ASSISTANT_RESULT_SHARE, assistantAnswer, emailAnswer, emailMark } from 
 // A second marking by Praxa's AI for code, SQL and short answers that the automatic checks didn't give full marks.
 // It can only raise a score, never lower it, and code that still fails its checks can't reach full marks.
 
-const MARKED_BY_AI: Question['type'][] = ['text', 'written', 'email', 'assistant', 'code', 'sql', 'schema'];
+const MARKED_BY_AI: Question['type'][] = ['text', 'written', 'email', 'assistant', 'code', 'sql', 'schema', 'app'];
+// An app task goes to the AI only for the writing done in it (its checks with marking points)
+const writingChecks = (q: Question) => q.testCases.filter((tc) => tc.rubric?.length);
 // The most a task can get from the AI while its automatic checks still fail
 const CAP: Partial<Record<Question['type'], number>> = { code: 90, sql: 90, schema: 90, text: 100, written: 100 };
 const TIMEOUT_MS = 45000;
@@ -17,6 +19,10 @@ export interface AiMark {
 }
 
 function describe(q: Question, run: QuestionRunResult): { reference: string; autoResult: string } {
+  if (q.type === 'app') {
+    const pieces = writingChecks(q).map((tc, i) => `PIECE ${i + 1}: ${tc.description}\nMarking points, each an equal share:\n${(tc.rubric ?? []).map((p, k) => `${k + 1}. ${p}`).join('\n')}`);
+    return { reference: pieces.join('\n\n'), autoResult: 'Only the writing is to be marked here; the rest of the task was checked automatically.' };
+  }
   if (q.type === 'text') return { reference: `Accepted answers: ${(q.acceptedAnswers ?? []).join(' | ')}`, autoResult: "Didn't match an accepted answer exactly." };
   if (q.type === 'assistant') {
     const points = (list: string[]) => list.map((p, i) => `${i + 1}. ${p}`).join('\n');
@@ -71,8 +77,16 @@ export const assistantText = (answer: string) => {
 
 // Marks from the AI for the tasks worth a second look, or an empty result when it isn't available
 export async function aiMarks(test: AssessmentTest, codes: Record<string, string>, perQuestion: Record<string, number>, runs: Record<string, QuestionRunResult>) {
+  // The writing typed in an app task, piece by piece, as the AI reads it
+  const appWriting = (q: Question, answer: string) => {
+    const results = runs[q.id]?.testCaseResults ?? [];
+    return writingChecks(q)
+      .map((tc, i) => `PIECE ${i + 1}: ${tc.description}\n${results.find((r) => r.id === tc.id)?.actual ?? '(nothing written)'}`)
+      .join('\n\n');
+  };
   const items = test.questions
     .filter((q) => MARKED_BY_AI.includes(q.type) && perQuestion[q.id] < 100 && runs[q.id])
+    .filter((q) => q.type !== 'app' || writingChecks(q).length > 0)
     // Code is read as written (on a task open to any language, with the language picked), blank if left as it started
     .map((q) => ({ q, answer: q.type === 'code' && q.language ? codeAnswer(q, codes[q.id] ?? '') : codes[q.id] ?? '' }))
     // Nothing written, or the starter code untouched, has nothing to give credit for
@@ -80,7 +94,15 @@ export async function aiMarks(test: AssessmentTest, codes: Record<string, string
     // An email goes to the marker as it was sent; nothing typed in the body is nothing to mark
     .filter(({ q, answer }) => q.type !== 'email' || emailAnswer(answer).body.trim() !== '')
     .filter(({ q, answer }) => q.type !== 'assistant' || assistantAnswer(answer).final.trim() !== '')
-    .map(({ q, answer }) => ({ id: q.id, type: q.type, title: q.title, prompt: q.prompt, answer: q.type === 'email' ? emailText(answer) : q.type === 'assistant' ? assistantText(answer) : answer, autoScore: perQuestion[q.id], ...describe(q, runs[q.id]) }));
+    .map(({ q, answer }) => ({
+      id: q.id,
+      type: q.type,
+      title: q.title,
+      prompt: q.prompt,
+      answer: q.type === 'email' ? emailText(answer) : q.type === 'assistant' ? assistantText(answer) : q.type === 'app' ? appWriting(q, answer) : answer,
+      autoScore: perQuestion[q.id],
+      ...describe(q, runs[q.id]),
+    }));
   if (items.length === 0) return {};
 
   const controller = new AbortController();
@@ -101,6 +123,15 @@ export async function aiMarks(test: AssessmentTest, codes: Record<string, string
       // A short answer the AI judges right in meaning gets full marks: typos and extra words cost nothing
       const aiScore = q.type === 'text' && m.score >= 80 ? 100 : Math.round(m.score);
       // A written answer is marked by the AI alone: the first mark only matched words, which can be gamed
+      // An app task: the AI's mark replaces the rough one for its writing; its other checks stand as they were
+      if (q.type === 'app') {
+        const results = runs[q.id].testCaseResults;
+        const writing = writingChecks(q).length;
+        const passed = results.filter((r) => r.passed && !q.testCases.find((tc) => tc.id === r.id)?.rubric?.length).length;
+        const ai = Math.max(0, Math.min(100, aiScore)) / 100;
+        result[q.id] = { score: Math.round(((passed + writing * ai) / Math.max(1, results.length)) * 100), feedback: String(m.feedback ?? '').slice(0, 300) };
+        continue;
+      }
       const score = q.type === 'email' ? emailMark(q, emailAnswer(codes[q.id] ?? ''), Math.max(0, Math.min(100, aiScore))) : q.type === 'written' || q.type === 'assistant' ? Math.max(0, Math.min(100, aiScore)) : Math.max(perQuestion[q.id], Math.min(aiScore, CAP[q.type] ?? 90));
       result[q.id] = { score, feedback: String(m.feedback ?? '').slice(0, 300) };
     }

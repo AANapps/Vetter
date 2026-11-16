@@ -8,7 +8,8 @@ import { ModuleSkeleton, J, tagged } from './kit';
 import { TECH_SIMS } from './simsTech';
 import { AI_SIMS } from './simsAI';
 import { OPS_SIMS } from './simsOps';
-import { SUPPORT_TESTS, SUPPORT_MODULES, SUPPORT_SIM_TEST } from './support';
+import { SUPPORT_SIM_TEST } from './support';
+import { SUPPORT_MODULE_TESTS } from './supportModules';
 import { COMBINED_TESTS } from './combined';
 import { DA_MODULE_TESTS } from './daModules';
 import { DATA_FUNDAMENTALS_TEST, DATA_FUNDAMENTALS_MODULE } from './dataFundamentals';
@@ -23,7 +24,7 @@ export const ROLE_TRACK_TESTS: AssessmentTest[] = [
   ...SECURITY_TESTS,
   ...AI_ENGINEERING_TESTS,
   ...AI_STRATEGY_TESTS,
-  ...SUPPORT_TESTS,
+  ...SUPPORT_MODULE_TESTS,
   SUPPORT_SIM_TEST,
   DATA_FUNDAMENTALS_TEST,
   ...DA_MODULE_TESTS,
@@ -37,7 +38,7 @@ const withSim = (m: ModuleSkeleton): ModuleSkeleton => {
   return sim ? { ...m, aspects: [...m.aspects, sim.aspect], bank: [...m.bank, ...tagged(sim.aspect.id, J, ...sim.questions)] } : m;
 };
 
-export const ROLE_TRACK_MODULES = [...DATA_SCIENCE_MODULES, ...SOFTWARE_DEV_MODULES, ...SECURITY_MODULES, ...AI_ENGINEERING_MODULES, ...AI_STRATEGY_MODULES, ...SUPPORT_MODULES, DATA_FUNDAMENTALS_MODULE].map(withSim);
+export const ROLE_TRACK_MODULES = [...DATA_SCIENCE_MODULES, ...SOFTWARE_DEV_MODULES, ...SECURITY_MODULES, ...AI_ENGINEERING_MODULES, ...AI_STRATEGY_MODULES, DATA_FUNDAMENTALS_MODULE].map(withSim);
 
 // Existing tests that already cover one of a role's core skills
 const ROLE_ADDITIONS: Record<string, TestRole[]> = {

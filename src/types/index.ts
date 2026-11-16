@@ -274,6 +274,9 @@ export interface TestCase {
   input: string;
   expectedOutput: string;
   isHidden?: boolean;
+  // A check on writing done inside a simulated app (a reply, a note, a bug report): the text at the input path is marked
+  // against these points by Praxa's AI, with a rough first mark from matching words until then
+  rubric?: string[];
 }
 
 export interface Question {

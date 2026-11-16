@@ -247,12 +247,19 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
   // What a step is called: Task 2, Case 1, or the question's number
   // A group's kind: a question set (a section's context with questions about it), a case study, or a hands-on task
   const kindOfGroup = (g: (typeof groups)[number]) => (!g.task ? null : g.task.type === 'case' ? (g.task.section ? 'Section' : 'Case') : 'Task');
+  // Every step is numbered in test order: part 1, 2, 3…, and the questions inside a part 1.1, 1.2…
   const groupLabel = (idx: number) => {
     const g = groups[idx];
-    if (!g.task) return `Question ${numberOf(g.questions[0])}`;
     const k = kindOfGroup(g);
-    const n = groups.slice(0, idx + 1).filter((x) => kindOfGroup(x) === k).length;
-    return `${k} ${n}`;
+    return `${idx + 1} · ${k === 'Section' ? 'Question set' : k === 'Case' ? 'Case study' : k === 'Task' ? 'Task' : 'Question'}`;
+  };
+  const partNo = groupIndex + 1;
+  // How the first question of a part is numbered: 3.1 for a part of several questions, 3 for a single question
+  const firstOf = (idx: number) => {
+    const g = groups[idx];
+    if (!g) return '';
+    const parts = g.task && g.task.type !== 'case' ? Math.max(1, splitParts(g.task.prompt).parts.length) : g.task ? 0 : 1;
+    return parts + (g.task ? g.questions.length - 1 : 0) > 1 ? `${idx + 1}.1` : `${idx + 1}`;
   };
   const goToGroup = (idx: number) => {
     setGroupIndex(idx);
@@ -534,7 +541,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                <span className="whitespace-nowrap">{g.task ? groupLabel(idx) : numberOf(g.questions[0])}</span>
+                <span className="whitespace-nowrap">{groupLabel(idx)}</span>
                 {isCompleted && <CheckCircle className={`w-3 h-3 ${groupIndex === idx ? 'text-white' : 'text-emerald-600'}`} />}
               </button>
             );
@@ -669,7 +676,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
                   &middot; Weight: {currentGroup.questions.reduce((n, q) => n + q.weight, 0)}%
                 </div>
                 <h2 className="text-lg font-bold text-slate-900 tracking-tight">
-                  {currentQ.type === 'case' ? currentQ.title : `${numberOf(currentQ)}. ${currentQ.title}`}
+                  {`${partNo}. ${currentQ.title}`}
                 </h2>
               </div>
               {/* One question per slide: jump to any, or use Next below once done */}
@@ -682,12 +689,12 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
                         key={i}
                         onClick={() => setSlide(i)}
                         aria-current={i === onSlide ? 'step' : undefined}
-                        aria-label={`Question ${i + 1}${fq && isDone(fq) ? ', answered' : ''}`}
-                        className={`w-8 h-8 rounded-full text-xs font-semibold tabular-nums transition-colors ${
+                        aria-label={`Question ${partNo}.${i + 1}${fq && isDone(fq) ? ', answered' : ''}`}
+                        className={`min-w-[2.75rem] h-8 px-2 rounded-full text-xs font-semibold tabular-nums transition-colors ${
                           i === onSlide ? 'bg-indigo-600 text-white' : fq && isDone(fq) ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                         }`}
                       >
-                        {i + 1}
+                        {partNo}.{i + 1}
                       </button>
                     );
                   })}
@@ -695,7 +702,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
               )}
               {onSlide < promptSlides ? (
                 <>
-                  <TaskPrompt text={currentQ.prompt} checks={currentQ.testCases} only={taskParts.length ? onSlide : undefined} className="text-sm leading-relaxed text-slate-800" />
+                  <TaskPrompt text={currentQ.prompt} checks={currentQ.testCases} only={taskParts.length ? onSlide : undefined} prefix={partNo} className="text-sm leading-relaxed text-slate-800" />
                   {currentQ.testCases.length > 0 && (
                     <div className="space-y-2">
                       {/* A task in numbered questions lists each question's checks under it instead */}
@@ -728,11 +735,10 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
                       )}
                       <div className="flex items-start justify-between gap-2">
                         <h3 id={`slide-${q.id}`} className="flex items-center gap-2 text-sm font-bold text-slate-900">
-                          <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-50 text-indigo-700 text-xs tabular-nums">{onSlide + 1}</span>
-                          {q.title}
-                          <span className="font-normal text-slate-400">
-                            {onSlide + 1} of {slideCount}
+                          <span className="inline-flex items-center justify-center min-w-[2.25rem] h-6 px-1.5 rounded-full bg-indigo-50 text-indigo-700 text-xs tabular-nums">
+                            {partNo}.{onSlide + 1}
                           </span>
+                          {q.title}
                         </h3>
                         {isDone(q) && <CheckCircle className="w-3.5 h-3.5 mt-1 shrink-0 text-emerald-600" />}
                       </div>
@@ -751,7 +757,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
               {test.scenario && <CaseBrief scenario={test.scenario} />}
               <div className="space-y-3">
                 <div className="text-xs font-semibold uppercase tracking-wider text-indigo-700">
-                  Question {numberOf(currentQ)} of {questionCount}
+                  Question {partNo} of {groups.length}
                   <span className="text-slate-400 font-medium normal-case tracking-normal"> &middot; {currentQ.weight}% of the score</span>
                 </div>
                 <h2 className="text-2xl font-bold text-slate-900 tracking-tight">{currentQ.title}</h2>
@@ -775,7 +781,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
             {test.scenario && <CaseBrief scenario={test.scenario} />}
             <div>
               <div className="text-xs font-semibold uppercase tracking-wider text-indigo-700 mb-1.5">
-                Question {numberOf(currentQ)} of {questionCount}
+                Question {partNo} of {groups.length}
                 <span className="text-slate-400 font-medium normal-case tracking-normal"> &middot; {currentQ.weight}% of the score</span>
               </div>
               <h2 className="text-xl font-bold text-slate-900 tracking-tight">{currentQ.title}</h2>
@@ -788,15 +794,15 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
                     key={i}
                     onClick={() => setSlide(i)}
                     aria-current={i === onSlide ? 'step' : undefined}
-                    aria-label={`Question ${i + 1}`}
-                    className={`w-8 h-8 rounded-full text-xs font-semibold tabular-nums transition-colors ${i === onSlide ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                    aria-label={`Question ${partNo}.${i + 1}`}
+                    className={`min-w-[2.75rem] h-8 px-2 rounded-full text-xs font-semibold tabular-nums transition-colors ${i === onSlide ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
                   >
-                    {i + 1}
+                    {partNo}.{i + 1}
                   </button>
                 ))}
               </nav>
             )}
-            <TaskPrompt text={currentQ.prompt} checks={currentQ.testCases} only={taskParts.length ? onSlide : undefined} className="text-[15px] leading-relaxed text-slate-800 font-sans" />
+            <TaskPrompt text={currentQ.prompt} checks={currentQ.testCases} only={taskParts.length ? onSlide : undefined} prefix={partNo} className="text-[15px] leading-relaxed text-slate-800 font-sans" />
 
             {currentQ.contextData && (
               <div className="space-y-2">
@@ -1080,7 +1086,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
         <div className="flex-1 min-w-0 max-w-md mx-auto text-center space-y-1.5">
           <div className="text-sm font-semibold text-slate-900">
             {groupLabel(groupIndex)}
-            {slideCount > 1 && <span className="font-normal text-slate-700"> &middot; Question {onSlide + 1} of {slideCount}</span>}
+            {slideCount > 1 && <span className="font-normal text-slate-700"> &middot; Question {partNo}.{onSlide + 1}</span>}
             <span className="font-normal text-slate-500">
               {' '}
               &middot; {answeredCount} of {questionCount} answered
@@ -1095,7 +1101,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
             onClick={() => setSlide(onSlide + 1)}
             className="px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg flex items-center gap-1.5 shadow-xs"
           >
-            Next: Question {onSlide + 2}
+            Next: {partNo}.{onSlide + 2}
             <ArrowRight className="w-4 h-4" />
           </button>
         ) : isLastGroup ? (
@@ -1112,7 +1118,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
             onClick={() => goToGroup(groupIndex + 1)}
             className="px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg flex items-center gap-1.5 shadow-xs"
           >
-            Next: {groupLabel(groupIndex + 1)}
+            Next: {firstOf(groupIndex + 1)}
             <ArrowRight className="w-4 h-4" />
           </button>
         )}

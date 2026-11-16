@@ -1,3 +1,4 @@
+import { roughWrittenMark } from './questionTypes';
 import { APP_KIT_CSS } from '../../server/appKit';
 import { Question } from '../types';
 
@@ -327,6 +328,12 @@ export function checkAppState(q: Question, answer: string) {
   const state = parseAppState(answer) ?? {};
   return q.testCases.map((tc) => {
     const actual = readPath(state, tc.input);
+    // Writing done in the app: a rough first mark from its marking points, until Praxa's AI marks it
+    if (tc.rubric?.length) {
+      const text = typeof actual === 'string' ? actual : '';
+      const credit = roughWrittenMark({ rubric: tc.rubric } as Question, text) / 100;
+      return { id: tc.id, description: tc.description, passed: false, credit, input: tc.input, expected: tc.rubric.join(' · '), actual: text || '(nothing written)', executionMs: 0 };
+    }
     return { id: tc.id, description: tc.description, passed: matchesExpected(actual, tc.expectedOutput), input: tc.input, expected: tc.expectedOutput, actual: shown(actual), executionMs: 0 };
   });
 }
