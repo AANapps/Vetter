@@ -72,6 +72,8 @@ export interface AdvisorTurn {
   custom?: CustomIdea[];
   // Candidates on Praxa who suit the role, when the company asked to see some, each with why
   people?: SuggestedPerson[];
+  // Live, tutor-led training from Praxa's catalogue that matches what the company asked for (ids in TRAINING)
+  training?: string[];
   // What the chat took the company to want: people, a test, both, or it couldn't tell and asked
   intent?: AdvisorIntent;
   // Quick answers to a question the reply asks

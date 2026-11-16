@@ -259,6 +259,18 @@ service cloud.firestore {
       return now == null || now == 'pending'
         || (now == 'rejected' && resource != null && resource.data.get('publicStatus', null) == 'rejected');
     }
+    // Live, tutor-led training a company books: the company and the Praxa team read it; the company asks for it and can
+    // cancel its request; the Praxa team confirms it, sets the tutor and dates, and marks it done
+    match /trainingBookings/{bookingId} {
+      allow read: if signedIn() && (isAdmin() || worksAt(resource.data.businessId));
+      allow create: if signedIn() && worksAt(request.resource.data.businessId) && request.resource.data.id == bookingId
+        && request.resource.data.status == 'requested' && !('tutor' in request.resource.data) && !('schedule' in request.resource.data);
+      allow update: if isAdmin()
+        || (worksAt(resource.data.businessId) && resource.data.status == 'requested' && changed().hasOnly(['status'])
+          && request.resource.data.status == 'cancelled');
+      allow delete: if isAdmin();
+    }
+
     // What the Praxa team has hidden from the library (categories, roles, tests): everyone reads it, only admins change it
     match /settings/{settingId} {
       allow read: if true;

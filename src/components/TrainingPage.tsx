@@ -47,10 +47,10 @@ export const TrainingPage: React.FC<TrainingPageProps> = ({
   const nameOf = (m?: TeamMember) => (m ? candidates.find((c) => c.id === m.uid)?.name ?? m.name : 'Left the team');
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8">
+    <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Training</h1>
+          <h2 className="text-lg font-bold text-slate-900">Practice simulations of your own apps</h2>
           <p className="text-sm text-slate-500 mt-1 max-w-2xl">
             Simulations that teach your team the apps and work they do at {business.name}: guided tasks, no timer, and the worked answers at the end.
             Everyone who passes gets a certificate.

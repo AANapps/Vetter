@@ -1,3 +1,5 @@
+import { useCurrency } from '../lib/currency';
+import { TRAINING, asksForTraining, searchTraining } from '../data/trainingCatalogue';
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { BrandSparkle, BrandWordmark } from './Brand';
@@ -50,6 +52,8 @@ interface BusinessHomeProps {
   onSeePlans: () => void;
   onOpenTest: (testId: string) => void;
   onGoTo: (tab: 'business-jobs' | 'business-tests' | 'business-candidates') => void;
+  // Opens an item of the live training catalogue on the Training page, to read and book
+  onOpenTraining?: (id: string) => void;
   // Everyone on Praxa, for the chat to suggest when the company asks to see candidates
   candidates: User[];
   // A candidate's profile in a pop-up over the chat
@@ -96,6 +100,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
   onSeePlans,
   onOpenTest,
   onGoTo,
+  onOpenTraining,
   candidates,
   renderProfile,
   onInvite,
@@ -204,6 +209,21 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
     if (build?.planning) {
       onTurns((prev) => [...prev, { role: 'user', text: t }]);
       runPlan(t, build.kind, build.chat, build.plan);
+      return;
+    }
+    // Asking for training (not to build it): Praxa's live, tutor-led catalogue answers straight away, without AI
+    const found = asksForTraining(t) && !/\b(create|build|make|write|generate|design)\b/i.test(t) ? searchTraining(t, 4) : [];
+    if (found.length) {
+      onTurns((prev) => [
+        ...prev,
+        { role: 'user', text: t },
+        {
+          role: 'assistant',
+          text: `Here's live training taught by a Praxa tutor that fits. Open one to see the sessions, the price per person and to book it for your team${found.some((f) => f.kind === 'Bootcamp') ? '; bootcamps run from Junior to Mid-level to Advanced' : ''}.`,
+          training: found.map((f) => f.id),
+          options: ['Show me bootcamps', 'Show me short mini modules', 'Create custom training with AI'],
+        },
+      ]);
       return;
     }
     const next: AdvisorTurn[] = [...turns, { role: 'user', text: t }];
@@ -319,6 +339,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
                   canBuild={!!turn.plan && !!build?.planning && build.plan === turn.plan && !working}
                   onBuild={buildIt}
                   onOpenLibrary={() => onGoTo('business-tests')}
+                  onOpenTraining={onOpenTraining}
                   candidates={candidates}
                   onViewPerson={setViewing}
                   jobs={jobs}
@@ -486,7 +507,8 @@ const AdvisorReply: React.FC<{
   // Set on the latest reply only: a quick answer sends it as the company's next message
   onQuickReply?: (text: string) => void;
   onEditWithAI: (testId: string) => void;
-}> = ({ turn, onEditWithAI, aiAllowed, picked, onTogglePick, onPickAll, onEditCopy, onBuildWithAI, onSeePlans, onOpenTest, onPreview, onTopUp, canBuild, onBuild, onOpenLibrary, candidates, onViewPerson, jobs, onInvite, onQuickReply }) => (
+  onOpenTraining?: (id: string) => void;
+}> = ({ turn, onOpenTraining, onEditWithAI, aiAllowed, picked, onTogglePick, onPickAll, onEditCopy, onBuildWithAI, onSeePlans, onOpenTest, onPreview, onTopUp, canBuild, onBuild, onOpenLibrary, candidates, onViewPerson, jobs, onInvite, onQuickReply }) => (
   <div className="flex gap-3">
     <BrandSparkle className="w-7 h-7 mt-0.5" />
     <div className="ai-glass min-w-0 flex-1 space-y-4 p-4 sm:p-5 rounded-2xl rounded-tl-md border border-white/80 shadow-sm">
@@ -603,6 +625,30 @@ const AdvisorReply: React.FC<{
             )}
           </div>
         </div>
+      )}
+
+      {!!turn.training?.length && (
+        <ul className="grid sm:grid-cols-2 gap-2">
+          {turn.training.map((id) => TRAINING.find((x) => x.id === id)).filter(Boolean).map((item) => (
+            <li key={item!.id}>
+              <button
+                onClick={() => onOpenTraining?.(item!.id)}
+                className="w-full h-full text-left p-3 bg-white/80 border border-slate-200 rounded-xl hover:border-indigo-300 hover:shadow-sm transition flex flex-col gap-1"
+              >
+                <span className="flex items-center gap-2 text-[11px] font-semibold">
+                  <span className={item!.kind === 'Bootcamp' ? 'text-indigo-700' : 'text-teal-700'}>{item!.kind}</span>
+                  <span className="text-slate-500">{item!.level}</span>
+                </span>
+                <span className="text-sm font-semibold text-slate-900 leading-snug">{item!.title}</span>
+                <span className="text-xs text-slate-500">{item!.duration} · live tutor</span>
+                <span className="mt-auto pt-1 flex items-center justify-between text-xs">
+                  <TrainingPrice price={item!.price} />
+                  <span className="font-semibold text-indigo-700">View and book →</span>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
       )}
 
       {!!turn.people?.length && (
@@ -1044,5 +1090,14 @@ const PersonRow: React.FC<{
         </div>
       )}
     </li>
+  );
+};
+
+const TrainingPrice: React.FC<{ price: number }> = ({ price }) => {
+  const { money } = useCurrency();
+  return (
+    <span className="font-semibold text-slate-900">
+      {money(price)} <span className="font-normal text-slate-500">per person</span>
+    </span>
   );
 };

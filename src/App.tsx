@@ -1,3 +1,4 @@
+import { TrainingCatalogue } from './components/TrainingCatalogue';
 import type { IntegrityReport } from './lib/integrity';
 import { PublicTestReview } from './components/PublicTestReview';
 import { AnswerRecord, saveSubmission } from './lib/submissions';
@@ -377,6 +378,8 @@ export default function App() {
   const [coursePageId, setCoursePageId] = useState<string | null>(() => courseIdFromPath(window.location.pathname));
   // The home page's hiring side, at /#/business (and older #/pricing links): for companies, where candidates see theirs
   const [hiringHome, setHiringHome] = useState(isHiringHash);
+  // A training item to open on the company's Training page (from the AI chat)
+  const [trainingFocus, setTrainingFocus] = useState<string | null>(null);
   // Each guide has its own page at /guides/<slug>/
   const [guideSlug, setGuideSlug] = useState<string | null>(() => guideSlugFromPath(window.location.pathname));
   const syncPagesFromUrl = () => {
@@ -1761,12 +1764,22 @@ export default function App() {
               onSeePlans={() => setPlansOpen(true)}
               onOpenTest={openTestPage}
               onGoTo={goToTab}
+              onOpenTraining={(id) => (setTrainingFocus(id), goToTab('business-training'))}
             />
           )}
 
           {!detailPage && activeRole !== 'candidate' && currentTab === 'business-training' && (
             <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
               {recruiterBusiness ? (
+                <div className="space-y-12">
+                <TrainingCatalogue
+                  business={recruiterBusiness}
+                  team={ourTeam.filter((m) => m.status === 'active')}
+                  nameOf={(m) => otherCandidates.find((c) => c.id === m.uid)?.name ?? m.name}
+                  focusId={trainingFocus}
+                  onFocusUsed={() => setTrainingFocus(null)}
+                />
+                <div className="pt-8 border-t border-slate-200">
                 <TrainingPage
                   business={recruiterBusiness}
                   training={tests.filter((t) => t.purpose === 'training' && t.businessId === recruiterBusiness.id)}
@@ -1783,6 +1796,8 @@ export default function App() {
                   onAssign={assignWork}
                   onGoToTeam={() => goToTab('business-team')}
                 />
+                </div>
+                </div>
               ) : (
                 <p className="text-sm text-slate-500">Training belongs to a company. Switch to a company's view to make and send training.</p>
               )}
