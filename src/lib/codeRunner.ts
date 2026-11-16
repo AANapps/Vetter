@@ -117,6 +117,8 @@ const ready = loadPyodide({ indexURL: '${PYODIDE}' });
 self.onmessage = async (e) => {
   const { id, code, input } = e.data;
   const py = await ready;
+  // pandas, numpy and the like load the first time a program imports them
+  try { await py.loadPackagesFromImports(code); } catch (x) { /* a package Pyodide doesn't have fails at import, below */ }
   const out = [];
   const err = [];
   let given = false;
@@ -140,27 +142,31 @@ self.onmessage = async (e) => {
   self.postMessage({ id, stdout: out.join('\\n'), stderr: err.join('\\n'), error });
 };`;
 
-let python: { worker: Worker; loaded: boolean } | null = null;
+let python: { worker: Worker; loaded: boolean; packages: Set<string> } | null = null;
 let nextId = 0;
 
 function runPython(code: string, input: string): Promise<Omit<ProgramRun, 'ms'>> {
   if (!python) {
     const url = URL.createObjectURL(new Blob([PY_WORKER], { type: 'text/javascript' }));
-    python = { worker: new Worker(url), loaded: false };
+    python = { worker: new Worker(url), loaded: false, packages: new Set() };
   }
   const current = python;
   const id = ++nextId;
-  const limit = current.loaded ? TIME_LIMIT_MS : PYTHON_FIRST_LOAD_MS;
+  // Loading Python, or a package such as pandas the first time, takes longer than a run
+  const wanted = [...code.matchAll(/^\s*(?:import|from)\s+(pandas|numpy|scipy|matplotlib)\b/gm)].map((m) => m[1]);
+  const fresh = !current.loaded || wanted.some((p) => !current.packages.has(p));
+  const limit = fresh ? PYTHON_FIRST_LOAD_MS : TIME_LIMIT_MS;
   return new Promise((resolve) => {
     const timer = setTimeout(() => {
       current.worker.terminate();
       if (python === current) python = null;
-      resolve({ stdout: '', stderr: '', error: current.loaded ? `Stopped: it ran for more than ${limit / 1000} seconds` : "Python couldn't be loaded. Check your connection and run it again." });
+      resolve({ stdout: '', stderr: '', error: !fresh ? `Stopped: it ran for more than ${limit / 1000} seconds` : "Python couldn't be loaded. Check your connection and run it again." });
     }, limit);
     const onMessage = (e: MessageEvent) => {
       if (e.data?.id !== id) return;
       clearTimeout(timer);
       current.loaded = true;
+      wanted.forEach((p) => current.packages.add(p));
       current.worker.removeEventListener('message', onMessage);
       resolve({ stdout: e.data.stdout, stderr: e.data.stderr, error: e.data.error });
     };

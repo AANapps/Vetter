@@ -107,8 +107,11 @@ function combinedLevels(c: CombinedTest, tests: AssessmentTest[], byFamily: Map<
       rename.set(a.id, id);
       if (!aspects.some((x) => x.id === id)) aspects.push({ ...a, id });
     }
-    for (const q of moduleBank(skeleton, family)) {
+    const own = moduleBank(skeleton, family);
+    const cases = new Set(own.filter((q) => q.type === 'case').map((q) => q.id));
+    for (const q of own) {
       if (ownerOf.has(q.id)) continue;
+      if (c.noCases && (cases.has(q.id) || (q.taskId && cases.has(q.taskId)))) continue;
       ownerOf.set(q.id, main);
       bank.push({ ...q, aspect: rename.get(q.aspect ?? '') ?? q.aspect });
     }
