@@ -3,7 +3,8 @@ import { backOr } from '../lib/back';
 import { Pic } from './Pic';
 import { User, AssessmentTest, JobPosting, CandidateJobMatch, Business, TestRole, TEST_DIFFICULTIES, JobProfile, isPublic, levelName } from '../types';
 import { activeProfileOf, asProfile, profilesOf } from '../lib/jobProfiles';
-import { ROLE_GROUPS, ROLE_SECTIONS, TestField, isLiveRole, sectionsFor } from '../lib/testRoles';
+import { ROLE_GROUPS, ROLE_SECTIONS, TestField, sectionsFor } from '../lib/testRoles';
+import { roleHidden, testHidden, useLibraryVisibility } from '../lib/libraryVisibility';
 import { SectorId, industryInSector, jobInSector, sectorLabel, testInSector } from '../lib/sectors';
 import { isMainVersion, levelsOf } from '../lib/testLevels';
 import { LevelPicker } from './LevelPicker';
@@ -202,9 +203,10 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   // Praxa-made tests are open to everyone; company tests are taken through the jobs they're attached to
   // Each test is listed once; its levels are picked on the card
   const allPraxaVersions = tests.filter((t) => isPublic(t));
-  // Only the roles that are live have their tests shown; the rest are hidden for now
-  const vetterTests = allPraxaVersions.filter((t) => isMainVersion(t) && (sector === 'all' || testInSector(sector)(t)) && !!t.roles?.some(isLiveRole));
-  const roleGroups = ROLE_GROUPS.filter((g) => industryInSector(sector)(g.industry));
+  // What the Praxa team has hidden (categories, roles, tests) isn't listed
+  const visibility = useLibraryVisibility();
+  const vetterTests = allPraxaVersions.filter((t) => isMainVersion(t) && (sector === 'all' || testInSector(sector)(t)) && !testHidden(visibility, t));
+  const roleGroups = ROLE_GROUPS.filter((g) => industryInSector(sector)(g.industry) && g.roles.some((r) => !roleHidden(visibility, r)));
   const testDifficulties = TEST_DIFFICULTIES.filter((d) => allPraxaVersions.some((t) => t.difficulty === d));
   const filteredTests = vetterTests.filter((t) => {
     const versions = levelsOf(t, tests);
@@ -888,28 +890,15 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                 <button
                   onClick={() => onTestFieldChange({ label: group.industry, roles: group.roles })}
                   aria-pressed={testField?.label === group.industry}
-                  disabled={!group.roles.some(isLiveRole)}
-                  title={group.roles.some(isLiveRole) ? undefined : 'Coming soon'}
-                  className={`block w-full text-left text-[10px] font-mono uppercase tracking-wider font-semibold px-2 enabled:hover:text-indigo-700 disabled:cursor-not-allowed ${
-                    !group.roles.some(isLiveRole) ? 'text-slate-300' : testField?.label === group.industry ? 'text-indigo-700' : 'text-slate-400'
+                  className={`block w-full text-left text-[10px] font-mono uppercase tracking-wider font-semibold px-2 hover:text-indigo-700 ${
+                    testField?.label === group.industry ? 'text-indigo-700' : 'text-slate-400'
                   }`}
                 >
                   {group.industry}
                 </button>
                 {group.roles.map((role) => {
-                  // A role that isn't live yet is greyed out and can't be opened
-                  if (!isLiveRole(role))
-                    return (
-                      <div
-                        key={role}
-                        aria-disabled="true"
-                        title="Coming soon"
-                        className="w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded-md text-xs text-slate-300 cursor-not-allowed select-none"
-                      >
-                        <span>{role}</span>
-                        <span className="text-[10px] font-medium">Soon</span>
-                      </div>
-                    );
+                  // A role the Praxa team has hidden isn't listed
+                  if (roleHidden(visibility, role)) return null;
                   const button = (
                     <RoleButton
                       key={role}

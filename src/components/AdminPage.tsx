@@ -9,6 +9,7 @@ import { CourseSignup, listCourseSignups } from '../lib/courseSignups';
 import { GoogleMark } from './AuthDialog';
 import { Pulse } from './Pulse';
 import { SimulationLibraryAdmin } from './SimulationLibraryAdmin';
+import { LibraryVisibilityAdmin } from './LibraryVisibilityAdmin';
 
 /**
  * /admin: the Praxa team's own page. Signed out, it's a sign-in screen; the panel only shows for an account whose
@@ -419,6 +420,7 @@ export const AdminPage: React.FC = () => {
             <TestsQueue />
             <SimulationLibraryAdmin />
           </div>
+          <LibraryVisibilityAdmin />
           <CourseSignups />
         </div>
       )}

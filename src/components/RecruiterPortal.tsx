@@ -9,6 +9,7 @@ import { JobCandidates } from './JobCandidates';
 import { CheckCircle2, FileText, Pencil, Plus, Search, Sparkles, Trash2 } from 'lucide-react';
 import { TestBuilder } from './TestBuilder';
 import { EnvironmentLibrary } from './EnvironmentLibrary';
+import { roleHidden, testHidden, useLibraryVisibility } from '../lib/libraryVisibility';
 
 // Jobs have their own page (BusinessJobs); this is the company's tests and the candidates ranked for each job
 export type BusinessSection = 'tests' | 'candidates';
@@ -96,8 +97,14 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   // (for the Praxa team, companies' tests are listed on their own, so the library is Praxa's alone)
   // A company sees its own sector's tests only (picked at sign-up); the Praxa team sees every sector
   const sector = isPraxa ? undefined : companySector(business);
-  const vetterTests = tests.filter((t) => isPublic(t) && isMainVersion(t) && (isPraxa ? t.type !== 'custom' : t.businessId !== business.id) && inCompanySector(sector)(t));
-  const roleGroups = industriesFor(sector);
+  // A company doesn't see what the Praxa team has hidden from the library; the Praxa team sees everything
+  const visibility = useLibraryVisibility();
+  const vetterTests = tests.filter(
+    (t) => isPublic(t) && isMainVersion(t) && (isPraxa ? t.type !== 'custom' : t.businessId !== business.id) && inCompanySector(sector)(t) && (isPraxa || !testHidden(visibility, t))
+  );
+  const roleGroups = industriesFor(sector)
+    .map((g) => (isPraxa ? g : { ...g, roles: g.roles.filter((r) => !roleHidden(visibility, r)) }))
+    .filter((g) => g.roles.length > 0);
   // For the Praxa team, Your tests starts with the library tests it made in the app (with the AI or by hand), newest
   // first, then every company's own
   const madeHere = isPraxa ? tests.filter((t) => t.type !== 'custom' && isEditable(t) && t.purpose !== 'training').sort((a, b) => madeAt(b) - madeAt(a)) : [];

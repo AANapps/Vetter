@@ -259,6 +259,11 @@ service cloud.firestore {
       return now == null || now == 'pending'
         || (now == 'rejected' && resource != null && resource.data.get('publicStatus', null) == 'rejected');
     }
+    // What the Praxa team has hidden from the library (categories, roles, tests): everyone reads it, only admins change it
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
     match /tests/{testId} {
       allow read: if true;
       allow create: if isAdmin() || (request.resource.data.type == 'custom' && worksAt(request.resource.data.businessId)
