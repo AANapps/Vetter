@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { AssessmentTest, isPublic } from '../types';
 import { HOME_FIELDS, TestField } from '../lib/testRoles';
+import { FOCUS_SECTOR, roleInSector } from '../lib/sectors';
 import { isMainVersion } from '../lib/testLevels';
 
 // On Home in place of trending tests: fields of work drifting past; picking one opens the Tests page on its tests.
@@ -74,7 +75,8 @@ export const FieldSlider: React.FC<{ tests: AssessmentTest[]; onOpenField: (fiel
     glide.current = { from, to: from + by, start: performance.now() };
   };
   const mains = tests.filter((t) => isPublic(t) && isMainVersion(t));
-  const fields = HOME_FIELDS.map((f) => ({
+  // Only the fields in the sector Praxa is focused on, when it is
+  const fields = HOME_FIELDS.filter((f) => !FOCUS_SECTOR || f.roles.some(roleInSector(FOCUS_SECTOR))).map((f) => ({
     ...f,
     count: mains.filter((t) => t.roles?.some((r) => f.roles.includes(r))).length,
   })).filter((f) => f.count > 0);

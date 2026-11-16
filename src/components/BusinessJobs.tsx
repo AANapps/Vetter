@@ -5,7 +5,7 @@ import { backOr } from '../lib/back';
 import { AssessmentTest, Business, JobPosting, TrialResult, User } from '../types';
 import { JobDetailsModal } from './JobDetails';
 import { SectorSelect } from './SectorPicker';
-import { SectorId, jobSector, sectorLabel as sectorName } from '../lib/sectors';
+import { FOCUS_SECTOR, SectorId, jobSector, sectorLabel as sectorName } from '../lib/sectors';
 import { TIERS, tiersOf } from '../lib/tiers';
 import { calculateCandidateJobMatch } from '../lib/matchingAlgorithm';
 import {
@@ -219,7 +219,7 @@ const JobList: React.FC<BusinessJobsProps> = ({
           <p className="text-sm text-slate-500 max-w-xl">
             Each job has its tests. Send them to candidates, and every score lands on the job as it comes in.
           </p>
-          {business && (
+          {business && !FOCUS_SECTOR && (
             <div className="pt-1 flex items-center gap-2 text-xs text-slate-600">
               <label htmlFor="company-sector" className="font-semibold">
                 Your sector
@@ -515,6 +515,7 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
           <span>&middot; {job.salaryRange}</span>
           {job.closingDate && <span>&middot; closes {formatDay(job.closingDate)}</span>}
           <span>&middot; {job.applicantCount} applicants</span>
+{!FOCUS_SECTOR && (
           <span className="flex items-center gap-1.5">
             &middot;
             <label htmlFor={`job-sector-${job.id}`}>Listed under</label>
@@ -525,6 +526,7 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
               className="px-1.5 py-0.5 bg-white border border-slate-300 rounded-md text-xs font-medium text-slate-800"
             />
           </span>
+          )}
         </p>
         <p className="text-sm text-slate-600 max-w-2xl">{job.description}</p>
       </div>

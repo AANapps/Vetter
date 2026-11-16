@@ -750,7 +750,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
 
           {activeJobs.length === 0 && sector !== 'all' && (
             <div className="bg-white border border-slate-200 rounded-xl p-8 text-center text-xs text-slate-500 shadow-xs">
-              No open jobs in {sectorLabel(sector)} yet. Pick another sector at the top to see more.
+              No open jobs in {sectorLabel(sector)} yet.
             </div>
           )}
 
@@ -1040,7 +1040,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
 
           {filteredTests.length === 0 && (
             <div className="bg-white border border-slate-200 rounded-xl p-8 text-center text-xs text-slate-500 shadow-xs">
-              {vetterTests.length === 0 ? `No tests in ${sectorLabel(sector)} yet. Pick another sector at the top to see more.` : 'No tests match these filters.'}
+              {vetterTests.length === 0 ? `No tests in ${sectorLabel(sector)} yet.` : 'No tests match these filters.'}
             </div>
           )}
 

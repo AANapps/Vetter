@@ -1,3 +1,4 @@
+import { FOCUS_SECTOR } from '../lib/sectors';
 import { SectorSelect } from './SectorPicker';
 import type { SectorId } from '../lib/sectors';
 import React, { useEffect, useState } from 'react';
@@ -29,7 +30,7 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ initialMode, reason, ini
   const [companyName, setCompanyName] = useState('');
   const [website, setWebsite] = useState('');
   const [noWorkEmail, setNoWorkEmail] = useState(false);
-  const [sector, setSector] = useState<SectorId | ''>('');
+  const [sector, setSector] = useState<SectorId | ''>(FOCUS_SECTOR ?? '');
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -235,13 +236,15 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ initialMode, reason, ini
                   <p className="text-[11px] text-slate-800 mt-1">Your email domain doesn't match this website. Check both; it helps candidates trust your jobs.</p>
                 )}
               </div>
-              <div>
+              {!FOCUS_SECTOR && (
+<div>
                 <label htmlFor="auth-sector" className="block text-xs font-semibold text-slate-700 mb-1">
                   Sector you hire in
                 </label>
                 <SectorSelect id="auth-sector" required value={sector} onChange={setSector} className={inputClass} />
                 <p className="text-[11px] text-slate-500 mt-1">Your jobs are listed under it for candidates. You can change it later, and for each job.</p>
               </div>
+)}
               {freeEmail && (
                 <label className="flex items-start gap-2 text-xs text-slate-700 cursor-pointer">
                   <input type="checkbox" checked={noWorkEmail} onChange={(e) => setNoWorkEmail(e.target.checked)} className="mt-0.5 accent-indigo-600" />

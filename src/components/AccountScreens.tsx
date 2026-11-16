@@ -1,3 +1,4 @@
+import { FOCUS_SECTOR } from '../lib/sectors';
 import { SectorSelect } from './SectorPicker';
 import type { SectorId } from '../lib/sectors';
 import React, { useEffect, useState } from 'react';
@@ -139,7 +140,7 @@ const FinishGoogleSignUp: React.FC<{ user: FirebaseUser }> = ({ user }) => {
   const [name, setName] = useState(user.displayName ?? '');
   const [companyName, setCompanyName] = useState('');
   const [website, setWebsite] = useState('');
-  const [sector, setSector] = useState<SectorId | ''>('');
+  const [sector, setSector] = useState<SectorId | ''>(FOCUS_SECTOR ?? '');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const free = isFreeEmail(user.email ?? '');
@@ -206,13 +207,15 @@ const FinishGoogleSignUp: React.FC<{ user: FirebaseUser }> = ({ user }) => {
             </label>
             <input id="g-website" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="yourcompany.com" className={inputClass} />
           </div>
-          <div>
+          {!FOCUS_SECTOR && (
+<div>
                 <label htmlFor="g-sector" className="block text-xs font-semibold text-slate-700 mb-1">
                   Sector you hire in
                 </label>
                 <SectorSelect id="g-sector" required value={sector} onChange={setSector} className={inputClass} />
                 <p className="text-[11px] text-slate-500 mt-1">Your jobs are listed under it for candidates. You can change it later, and for each job.</p>
               </div>
+)}
           {free && (
             <p className="text-[11px] text-slate-800">
               {user.email} is a personal address, so Praxa's team will check your company before you can post jobs. To skip that, sign in with your work

@@ -4,7 +4,7 @@ import { CITIES } from '../lib/geo';
 import { EMPLOYMENT_TYPES, EXPERIENCE_LEVELS, formatSalaryRange } from '../lib/jobFilters';
 import { Loader2, Plus, Sparkles } from 'lucide-react';
 import { SectorSelect } from './SectorPicker';
-import { SectorId, inCompanySector } from '../lib/sectors';
+import { FOCUS_SECTOR, SectorId, inCompanySector } from '../lib/sectors';
 import { isMainVersion, levelsOf, versionTitle } from '../lib/testLevels';
 import { aiFetch } from '../lib/aiRequest';
 import { Suggestion, matchExisting } from '../lib/testGeneration';
@@ -33,7 +33,7 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
   const [department, setDepartment] = useState('Core Engineering');
   // Starts in the company's sector; a job can be listed under another
   const [pickedSector, setSector] = useState<SectorId | ''>('');
-  const sector = pickedSector || business?.sector || '';
+  const sector = FOCUS_SECTOR || pickedSector || business?.sector || '';
   // Each Praxa test once, in the job's sector only; its level is chosen when it's ticked
   const vetterTests = tests.filter((t) => isPublic(t) && isMainVersion(t) && t.businessId !== business?.id && inCompanySector(sector)(t));
   // Every field the job board filters on is asked for here, so new jobs filter like the seeded ones
@@ -220,11 +220,13 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
             />
           </div>
 
+{!FOCUS_SECTOR && (
           <div>
             <label htmlFor="job-sector" className="block text-xs font-semibold text-slate-700 mb-1">Sector</label>
             <SectorSelect id="job-sector" required value={sector} onChange={setSector} className={`${inputClass} font-medium`} />
             <p className="text-[11px] text-slate-500 mt-1">Candidates browsing this sector see the job.</p>
           </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div>

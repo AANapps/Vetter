@@ -68,7 +68,7 @@ import { PlansDialog } from './components/PlansDialog';
 import { AdvisorTurn, HomeBuild, testOutline } from './lib/testAdvisor';
 import type { ChatState, TestPlan as AgreedPlan } from './lib/testChat';
 import { jobBrief } from './lib/testGeneration';
-import { SectorId, jobInSector, loadSector, roleInSector, saveSector, sectorLabel, testInSector } from './lib/sectors';
+import { FOCUS_SECTOR, SectorId, jobInSector, loadSector, roleInSector, saveSector, sectorLabel, testInSector } from './lib/sectors';
 import { SectorBar } from './components/SectorPicker';
 
 const CANDIDATE_SECTIONS: Partial<Record<AppTab, CandidateSection>> = {
@@ -1373,6 +1373,7 @@ export default function App() {
   const candidateSection = CANDIDATE_SECTIONS[currentTab];
   // The sector picker sits on the pages a candidate browses: Home's feed, Tests, Jobs, Ranked and Career switch
   const showSectorBar =
+    !FOCUS_SECTOR &&
     activeRole === 'candidate' &&
     !detailPage &&
     !jobPageId &&

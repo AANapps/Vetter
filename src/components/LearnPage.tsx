@@ -192,7 +192,7 @@ export const LearnPage: React.FC<LearnPageProps> = ({ track, progress, onOpenCou
           </div>
           {shown.length === 0 && (
             <p className="mt-4 bg-white border border-slate-200 rounded-xl p-8 text-center text-xs text-slate-500">
-              No courses in {sectorLabel(sector)} yet. Pick another sector at the top to see more.
+              No courses in {sectorLabel(sector)} yet.
             </p>
           )}
         </section>
