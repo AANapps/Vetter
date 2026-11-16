@@ -13,6 +13,7 @@ import { ANALYST_TOOL_MODULES_2 } from './analystTools2';
 import { ANALYST_SKILL_MODULES } from './analystTools3';
 import { ROLE_TRACK_MODULES } from './roleTracks';
 import { EXTRA_MIX } from './extraMix';
+import { COMBINED_TESTS, CombinedTest } from './combined';
 
 /**
  * Praxa's module tests. From each module's bank (see kit.ts) come four tests, Beginner to Senior, each asking every
@@ -84,6 +85,66 @@ const SCENARIO_TYPES: Question['type'][] = ['sheet', 'database', 'app', 'case'];
 export function withModules(tests: AssessmentTest[]): AssessmentTest[] {
   const byFamily = new Map(MODULES.map((m) => [m.familyId, m]));
   const built = new Set<string>();
+  return [...modulesOf(tests, byFamily, built), ...COMBINED_TESTS.flatMap((c) => combinedLevels(c, tests, byFamily))];
+}
+
+// A combined test's levels: its sources' areas and questions pooled (an area id two sources share with different names
+// is kept apart), each level built to the combined test's time. A level takes the brief of the source whose scenario
+// task it asks
+function combinedLevels(c: CombinedTest, tests: AssessmentTest[], byFamily: Map<string, ModuleSkeleton>): AssessmentTest[] {
+  const aspects: ModuleSkeleton['aspects'] = [];
+  const bank: Question[] = [];
+  const ownerOf = new Map<string, AssessmentTest>();
+  for (const src of c.sources) {
+    const skeleton = byFamily.get(src);
+    const main = tests.find((t) => t.id === src);
+    if (!skeleton || !main) continue;
+    const family = tests.filter((x) => (x.familyId ?? x.id) === src);
+    const rename = new Map<string, string>();
+    for (const a of skeleton.aspects) {
+      const same = aspects.find((x) => x.id === a.id);
+      const id = !same || same.name === a.name ? a.id : `${src}:${a.id}`;
+      rename.set(a.id, id);
+      if (!aspects.some((x) => x.id === id)) aspects.push({ ...a, id });
+    }
+    for (const q of moduleBank(skeleton, family)) {
+      if (ownerOf.has(q.id)) continue;
+      ownerOf.set(q.id, main);
+      bank.push({ ...q, aspect: rename.get(q.aspect ?? '') ?? q.aspect });
+    }
+  }
+  if (bank.length === 0) return [];
+  const lead = tests.find((t) => t.id === c.sources[0])!;
+  return TEST_DIFFICULTIES.filter((tier) => tier !== 'Beginner').map((tier): AssessmentTest => {
+    const questions = weighByTier(buildLevel(bank, tier, c.maxMinutes));
+    // The hands-on task's own source first: its brief is what the task is worked against
+    const scenario = [...questions]
+      .sort((a, b) => Number(SCENARIO_TYPES.includes(b.type) && b.type !== 'case') - Number(SCENARIO_TYPES.includes(a.type) && a.type !== 'case'))
+      .filter((q) => SCENARIO_TYPES.includes(q.type) || q.taskId)
+      .map((q) => ownerOf.get(q.id)?.scenario)
+      .find(Boolean);
+    const isMain = tier === 'Junior';
+    return {
+      id: isMain ? c.id : `${c.id}-${tier.toLowerCase()}`,
+      ...(!isMain && { familyId: c.id }),
+      title: c.title,
+      description: c.description,
+      skillsTested: c.skillsTested,
+      roles: c.roles,
+      type: 'standard',
+      category: lead.category,
+      difficulty: tier,
+      passingScore: DEFAULT_PASS[tier],
+      ...(scenario && { scenario }),
+      aspects,
+      questions,
+      totalQuestions: questions.filter((q) => q.type !== 'case').length,
+      estimatedMinutes: Math.min(c.maxMinutes, Math.max(5, Math.ceil(questions.reduce((n, q) => n + q.timeLimitMinutes, 0) / 5) * 5)),
+    };
+  });
+}
+
+function modulesOf(tests: AssessmentTest[], byFamily: Map<string, ModuleSkeleton>, built: Set<string>): AssessmentTest[] {
   return tests.flatMap((t) => {
     const familyId = t.familyId ?? t.id;
     const skeleton = byFamily.get(familyId);
@@ -97,7 +158,7 @@ export function withModules(tests: AssessmentTest[]): AssessmentTest[] {
     const list = `${areas.slice(0, -1).join(', ')} and ${areas[areas.length - 1]}`;
     return TEST_DIFFICULTIES.map((tier): AssessmentTest => {
       const isMain = tier === (main.difficulty === 'Beginner' ? 'Junior' : main.difficulty);
-      const questions = weighByTier(buildLevel(bank, tier));
+      const questions = weighByTier(buildLevel(bank, tier, skeleton.maxMinutes));
       // A level without the scenario's tasks doesn't need its brief
       const usesScenario = questions.some((q) => SCENARIO_TYPES.includes(q.type) || q.taskId);
       const { scenario, familyId: _f, ...rest } = main;
@@ -112,7 +173,7 @@ export function withModules(tests: AssessmentTest[]): AssessmentTest[] {
         aspects: skeleton.aspects,
         questions,
         totalQuestions: questions.filter((q) => q.type !== 'case').length,
-        estimatedMinutes: Math.min(TIER_MINUTES[tier][1], Math.max(5, Math.ceil(questions.reduce((n, q) => n + q.timeLimitMinutes, 0) / 5) * 5)),
+        estimatedMinutes: Math.min(TIER_MINUTES[tier][1], skeleton.maxMinutes ?? Infinity, Math.max(5, Math.ceil(questions.reduce((n, q) => n + q.timeLimitMinutes, 0) / 5) * 5)),
       };
     });
   });

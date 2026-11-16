@@ -34,6 +34,15 @@ export const ROLE_SECTIONS: Partial<Record<TestRole, TestSection[]>> = {
   ],
   'Data Analyst': [
     { id: 'fundamentals', label: 'Fundamentals', blurb: 'The core principles: the question, data quality, summarising, conclusions and communicating.', testIds: ['test-dafund-01'] },
+    { id: 'excel', label: 'Excel', blurb: 'Formulas, lookups, PivotTables and models in a real spreadsheet.', testIds: ['test-da-excel'] },
+    { id: 'sql', label: 'SQL', blurb: 'Querying, joining and checking data in a database.', testIds: ['test-da-sql'] },
+    { id: 'power-bi', label: 'Power BI', blurb: 'Power Query, data models, DAX and reports.', testIds: ['test-da-powerbi'] },
+    { id: 'tableau', label: 'Tableau', blurb: 'Calculations, LODs, charts and dashboards.', testIds: ['test-da-tableau'] },
+    { id: 'python', label: 'Python', blurb: 'pandas for loading, cleaning and aggregating data.', testIds: ['test-da-python'] },
+    { id: 'importing', label: 'Data Importing', blurb: 'Getting messy files and sources in without losing a row.', testIds: ['test-da-importing'] },
+    { id: 'cleaning', label: 'Data Cleaning', blurb: 'Finding and fixing bad data before it reaches a decision.', testIds: ['test-da-cleaning'] },
+    { id: 'reporting', label: 'Dashboards & Reporting', blurb: 'KPIs and reports people can act on.', testIds: ['test-da-reporting'] },
+    { id: 'metrics', label: 'Metrics & Statistics', blurb: 'Business metrics, A/B tests and the statistics behind them.', testIds: ['test-da-metrics'] },
     { id: 'project', label: 'Job Simulation', blurb: 'A morning as a coffee chain’s analyst, from messy data to the board.', testIds: ['test-sim-da-01'] },
   ],
   'Software Developer': [

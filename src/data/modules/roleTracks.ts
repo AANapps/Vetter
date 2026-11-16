@@ -9,6 +9,7 @@ import { TECH_SIMS } from './simsTech';
 import { AI_SIMS } from './simsAI';
 import { OPS_SIMS } from './simsOps';
 import { SUPPORT_TESTS, SUPPORT_MODULES, SUPPORT_SIM_TEST } from './support';
+import { COMBINED_TESTS } from './combined';
 import { DATA_FUNDAMENTALS_TEST, DATA_FUNDAMENTALS_MODULE } from './dataFundamentals';
 
 // Tests for the 2026 role tracks (data analyst, SOC analyst, AI engineer, AI consultant, software developer, data
@@ -52,9 +53,9 @@ const ROLE_ADDITIONS: Record<string, TestRole[]> = {
 };
 
 // Roles whose track is only these tests: every other test loses the role (it stays in the library for the roles it
-// keeps). Data Analyst is the core principles and one job simulation
+// keeps). Data Analyst is the core principles, one test per tool and one job simulation
 const ROLE_ONLY: Partial<Record<TestRole, string[]>> = {
-  'Data Analyst': ['test-dafund-01', 'test-sim-da-01'],
+  'Data Analyst': ['test-dafund-01', ...COMBINED_TESTS.filter((c) => c.roles.includes('Data Analyst')).map((c) => c.id), 'test-sim-da-01'],
 };
 
 // Every level of a test takes its main version's added roles, and loses a role whose track it isn't in

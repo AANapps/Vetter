@@ -12,6 +12,8 @@ export interface ModuleSkeleton {
   // Questions written for the skeleton, tagged with tagged()
   bank: Question[];
   passingScores?: Partial<Record<TestDifficulty, number>>;
+  // Every level held to this many minutes (otherwise Junior ~15, Mid-level 20–25, Senior 30–45)
+  maxMinutes?: number;
 }
 
 // Questions in one area at one level

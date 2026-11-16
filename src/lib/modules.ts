@@ -274,9 +274,13 @@ function asMulti(src: Question[], tier: TestDifficulty): Question {
   };
 }
 
-export function buildLevel(bank: Question[], tier: TestDifficulty): Question[] {
+// A test held to a shorter time than its level's (a 15-minute module at every level) gives each kind less time
+const SHORT_MINUTES: Record<Kind, number> = { choice: 1, drag: 2, multi: 2, written: 3, code: 4, hands: 6, short: 1, case: 1 };
+
+export function buildLevel(bank: Question[], tier: TestDifficulty, maxMinutes?: number): Question[] {
   const L = tierIndex(tier);
-  const [min, max] = TIER_MINUTES[tier];
+  const max = Math.min(TIER_MINUTES[tier][1], maxMinutes ?? Infinity);
+  const squeezed = max < TIER_MINUTES[tier][1];
   const order = new Map(bank.map((q, i) => [q.id, i]));
   // The level's own questions and those below it; the level above only when a kind can't be found otherwise
   const pool = bank.filter((q) => tierIndex(q.tier) <= L + 1);
@@ -287,7 +291,7 @@ export function buildLevel(bank: Question[], tier: TestDifficulty): Question[] {
   const used = new Set<string>();
   const areaUse = new Map<string, number>();
   const kindCount = new Map<Kind, number>();
-  const minutesOf = (q: Question) => KIND_MINUTES[kindOf(q)][L];
+  const minutesOf = (q: Question) => (squeezed ? Math.min(KIND_MINUTES[kindOf(q)][L], SHORT_MINUTES[kindOf(q)]) : KIND_MINUTES[kindOf(q)][L]);
   const total = () => [...chosen.values()].reduce((n, q) => n + minutesOf(q), 0);
   const fits = (q: Question) => {
     const task = q.taskId ? byId.get(q.taskId) : undefined;

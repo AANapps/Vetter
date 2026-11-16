@@ -182,6 +182,7 @@ export const DATA_FUNDAMENTALS_MODULE: ModuleSkeleton = {
     { id: 'sim', name: 'Hands-on: Real Data', summary: 'Cleaning and analysing an export in a working spreadsheet.' },
   ],
   tags: {},
+  maxMinutes: 15,
   bank: [
     // ----- The Question & the Metric -----
     ...tagged(

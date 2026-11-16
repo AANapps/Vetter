@@ -31,6 +31,7 @@ import {
   Users,
   Trophy,
   Target,
+  Circle,
 } from 'lucide-react';
 import { VerifiedSkillBadge, TierLegend, getBadgeTier } from './VerifiedSkillBadge';
 import { JobApplicationModal } from './JobApplicationModal';
@@ -213,7 +214,19 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
 
   // A role with sections (Excel, SQL, Power BI…) shows its tests under a heading for each; any other list is one group
   const testSections = sectionsFor(testField);
-  const testGroups: { id: string | null; label: string | null; blurb: string; tests: AssessmentTest[] }[] = testSections
+  // A role whose modules are one test each lists the cards in the modules' order, without a heading above each
+  const oneTestEach = !!testSections && testSections.every((sec) => sec.testIds.length === 1);
+  const testGroups: { id: string | null; label: string | null; blurb: string; tests: AssessmentTest[] }[] = testSections && oneTestEach
+    ? [
+        { id: null, label: null, blurb: '', tests: testSections.flatMap((sec) => filteredTests.filter((t) => t.id === sec.testIds[0])) },
+        {
+          id: 'more',
+          label: 'More tests',
+          blurb: 'Other tests for this role.',
+          tests: filteredTests.filter((t) => !testSections.some((sec) => sec.testIds.includes(t.id))),
+        },
+      ].filter((g) => g.tests.length > 0)
+    : testSections
     ? [
         ...testSections.map((sec) => ({ id: sec.id, label: sec.label, blurb: sec.blurb, tests: filteredTests.filter((t) => sec.testIds.includes(t.id)) })),
         {
@@ -257,7 +270,9 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   };
   useEffect(() => {
     if (!pendingSection) return;
-    const el = document.getElementById(`test-section-${pendingSection}`);
+    // A module that is one test has no section heading: its card is the place to go
+    const card = testSections?.find((sec) => sec.id === pendingSection)?.testIds;
+    const el = document.getElementById(`test-section-${pendingSection}`) ?? (card?.length === 1 ? document.getElementById(`test-card-${card[0]}`) : null);
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     // Not there yet while the role's page is opening; once it's open and the section still isn't (filtered out), give up
     if (el || testSections) setPendingSection(null);
@@ -1011,6 +1026,49 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
             </div>
           )}
 
+          {/* A role's modules as a checklist, each ticked once any level of its test has been taken */}
+          {testSections && (() => {
+            const items = testSections.map((sec) => {
+              const secTests = tests.filter((t) => sec.testIds.includes(t.id));
+              const best = secTests.flatMap((t) => levelsOf(t, tests)).map((v) => getBestTestScore(candidate, v.id)).filter((n): n is number => n !== undefined);
+              return { sec, done: best.length > 0, best: best.length ? Math.max(...best) : undefined };
+            });
+            const doneCount = items.filter((i) => i.done).length;
+            return (
+              <section aria-labelledby="module-checklist" className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
+                <div className="flex items-baseline justify-between gap-3">
+                  <h2 id="module-checklist" className="text-sm font-bold text-slate-900">Your modules</h2>
+                  <span className="text-xs text-slate-500 tabular-nums">
+                    {doneCount} of {items.length} done
+                  </span>
+                </div>
+                <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden" aria-hidden="true">
+                  <div className="h-full bg-indigo-600 rounded-full transition-all" style={{ width: `${(doneCount / Math.max(1, items.length)) * 100}%` }} />
+                </div>
+                <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-1.5">
+                  {items.map(({ sec, done, best }) => (
+                    <li key={sec.id}>
+                      <button
+                        onClick={() =>
+                          (document.getElementById(`test-section-${sec.id}`) ?? document.getElementById(`test-card-${sec.testIds[0]}`))?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                        }
+                        className="w-full flex items-center gap-2 text-left text-xs py-1 rounded hover:text-indigo-700"
+                      >
+                        {done ? (
+                          <CheckCircle2 aria-label="Done" className="w-4 h-4 shrink-0 text-emerald-600" />
+                        ) : (
+                          <Circle aria-label="Not done yet" className="w-4 h-4 shrink-0 text-slate-300" />
+                        )}
+                        <span className={`truncate ${done ? 'text-slate-900 font-medium' : 'text-slate-600'}`}>{sec.label}</span>
+                        {best !== undefined && <span className="ml-auto font-mono text-[11px] text-slate-400 tabular-nums">{best}</span>}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            );
+          })()}
+
           {testGroups.map((group, gi) => (
           <section
             key={group.id ?? 'all'}
@@ -1026,7 +1084,8 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
               <p className="text-xs text-slate-500">{group.blurb}</p>
             </div>
           )}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* A role's modules list one test card to a row; any other list fills two columns */}
+          <div className={`grid grid-cols-1 gap-4 ${testSections ? '' : 'md:grid-cols-2'}`}>
             {group.tests.map((main) => {
               const versions = levelsOf(main, tests);
               // The level shown: the one picked on this card, else the first matching the difficulty filter
@@ -1042,7 +1101,8 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                 // screen readers) with the level switch beside the play button; skills and the rest are on the test's page
                 <div
                   key={main.id}
-                  className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col gap-3 hover:border-indigo-300 transition-colors"
+                  id={`test-card-${main.id}`}
+                  className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col gap-3 hover:border-indigo-300 transition-colors scroll-mt-24"
                 >
                   <div className="min-w-0">
                     <div className="flex items-center justify-between gap-2">
