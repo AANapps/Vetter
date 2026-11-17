@@ -4,15 +4,16 @@ import { Certification, Education, ProfileLink, WorkExperience } from '../types'
 import { duration, linkLabel, monthLabel, safeUrl, sortExperience } from '../lib/experience';
 
 // Someone's jobs as a CV timeline: role and company, the dates and how long, and a line on what they did
-export const ExperienceList: React.FC<{ items: WorkExperience[] }> = ({ items }) => (
+// stacked: dates under the role rather than beside it, for a narrow column
+export const ExperienceList: React.FC<{ items: WorkExperience[]; stacked?: boolean }> = ({ items, stacked }) => (
   <ol className="relative space-y-5 before:absolute before:left-[5px] before:top-2 before:bottom-2 before:w-px before:bg-slate-200">
     {sortExperience(items).map((j) => (
       <li key={j.id} className="relative pl-6">
         <span className={`absolute left-0 top-1.5 w-[11px] h-[11px] rounded-full ring-4 ring-white ${j.end ? 'bg-slate-300' : 'bg-indigo-600'}`} aria-hidden />
-        <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-x-4 gap-y-0.5">
+        <div className={`flex flex-col gap-x-4 gap-y-0.5 ${stacked ? '' : 'sm:flex-row sm:items-baseline sm:justify-between'}`}>
           <div className="min-w-0">
             <div className="text-sm font-semibold text-slate-900">{j.role}</div>
-            <div className="text-xs text-slate-600">{j.company}</div>
+            <div className="text-xs font-medium text-slate-600">{j.company}</div>
           </div>
           <div className="shrink-0 text-[11px] text-slate-500 tabular-nums">
             {monthLabel(j.start)} – {monthLabel(j.end)} <span className="text-slate-400">&middot; {duration(j.start, j.end)}</span>
@@ -49,14 +50,14 @@ export const ProfileLinks: React.FC<{ links: ProfileLink[] }> = ({ links }) => (
 );
 
 // Their education, most recent first: the place, what they studied and when, with the grade
-export const EducationList: React.FC<{ items: Education[] }> = ({ items }) => (
+export const EducationList: React.FC<{ items: Education[]; stacked?: boolean }> = ({ items, stacked }) => (
   <ul className="space-y-4">
     {items.map((e) => (
       <li key={e.id} className="flex gap-3">
         <span className="w-8 h-8 shrink-0 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center" aria-hidden>
           <GraduationCap className="w-4 h-4" />
         </span>
-        <div className="min-w-0 flex-1 flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-x-4 gap-y-0.5">
+        <div className={`min-w-0 flex-1 flex flex-col gap-x-4 gap-y-0.5 ${stacked ? '' : 'sm:flex-row sm:items-baseline sm:justify-between'}`}>
           <div className="min-w-0">
             <div className="text-sm font-semibold text-slate-900">{e.school}</div>
             {(e.qualification || e.subject) && <div className="text-xs text-slate-600">{[e.qualification, e.subject].filter(Boolean).join(', ')}</div>}

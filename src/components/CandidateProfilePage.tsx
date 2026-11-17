@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, Briefcase, Check, ChevronDown, ExternalLink, GraduationCap, Link2, MapPin, X } from 'lucide-react';
+import { ArrowLeft, Award, Briefcase, Check, ChevronDown, ExternalLink, GraduationCap, Link2, MapPin, X } from 'lucide-react';
 import { AssessmentTest, Business, JobPosting, User, isPublic } from '../types';
 import { getLeaderboard } from '../lib/leaderboard';
 import { unfinishedStarts } from '../lib/results';
@@ -32,13 +32,14 @@ interface CandidateProfilePageProps {
 
 // How good they are at a verified skill, from their score on the test: green strong, amber good, grey still developing
 const SKILL_BANDS = [
-  { min: 88, label: 'Strong', range: '88+', card: 'bg-emerald-50 border-emerald-200 hover:border-emerald-400', text: 'text-emerald-700', dot: 'bg-emerald-500' },
-  { min: 75, label: 'Good', range: '75–87', card: 'bg-amber-50 border-amber-200 hover:border-amber-400', text: 'text-amber-700', dot: 'bg-amber-500' },
-  { min: 0, label: 'Developing', range: 'under 75', card: 'bg-slate-50 border-slate-200 hover:border-slate-400', text: 'text-slate-600', dot: 'bg-slate-400' },
+  { min: 88, label: 'Strong', range: '88+', card: 'bg-emerald-50 border-emerald-200 hover:border-emerald-400', text: 'text-emerald-700', solid: 'bg-emerald-500', chip: 'bg-emerald-100 text-emerald-800', pill: 'bg-emerald-50 border-emerald-200 text-emerald-900 hover:border-emerald-400' },
+  { min: 75, label: 'Good', range: '75–87', card: 'bg-amber-50 border-amber-200 hover:border-amber-400', text: 'text-amber-700', solid: 'bg-amber-500', chip: 'bg-amber-100 text-amber-800', pill: 'bg-amber-50 border-amber-200 text-amber-900 hover:border-amber-400' },
+  { min: 0, label: 'Developing', range: 'under 75', card: 'bg-slate-100 border-slate-200 hover:border-slate-400', text: 'text-slate-600', solid: 'bg-slate-400', chip: 'bg-slate-200 text-slate-700', pill: 'bg-slate-100 border-slate-200 text-slate-800 hover:border-slate-400' },
 ];
 const skillBand = (score: number) => SKILL_BANDS.find((b) => score >= b.min)!;
-const UNFINISHED = { label: 'Left unfinished', card: 'bg-white border-dashed border-slate-300 hover:border-slate-400', text: 'text-slate-400' };
+const UNFINISHED = { label: 'Unfinished', card: 'bg-white border-dashed border-slate-300 hover:border-slate-400', text: 'text-slate-300', solid: 'bg-slate-200', chip: 'bg-slate-100 text-slate-500' };
 const HISTORY_SHOWN = 3;
+const sameText = (a = '', b = '') => a.trim().toLowerCase() === b.trim().toLowerCase();
 const formatDay = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
 // A small label above each section, as on a printed CV
@@ -77,9 +78,6 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
   const profile = person.jobProfiles?.find((p) => p.id === (sentWith ?? person.activeProfileId));
   const title = profile?.title || person.title;
   const bio = profile?.bio || person.bio;
-  const skills = [...person.verifiedSkills].sort((a, b) => b.score - a.score);
-  const testsTaken = new Set(person.testResults.map((r) => r.testId)).size;
-  const best = skills[0];
   const rows = leadRows.filter((r) => r.candidate.id === person.id);
   const [allHistory, setAllHistory] = useState(false);
   const jobsHeld = sortExperience(person.experience ?? []);
@@ -97,15 +95,25 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
       return [{ test, best: attempts.length ? Math.max(...attempts.map((r) => r.score)) : null, attempts: attempts.length, unfinished, rank: entry?.rank, of: board.length, last }];
     })
     .sort((a, b) => (b.best ?? -1) - (a.best ?? -1));
+  const current = jobsHeld.find((j) => !j.end);
+  const scored = libraryCards.filter((c) => c.best !== null);
+  // Their three best Praxa tests at 75 or more, shown at the top
+  const strongest = scored.filter((c) => c.best! >= 75).slice(0, 3);
+  const passed = scored.filter((c) => c.best! >= c.test.passingScore).length;
+  const average = scored.length ? Math.round(scored.reduce((n, c) => n + c.best!, 0) / scored.length) : null;
+  const topRank = scored.filter((c) => c.rank).sort((a, b) => a.rank! / a.of - b.rank! / b.of)[0];
+  const figures = [
+    { label: 'Praxa tests passed', value: scored.length ? `${passed} of ${scored.length}` : '—', note: scored.length ? 'at each test’s pass mark' : 'None taken yet' },
+    { label: 'Average score', value: average ?? '—', note: average !== null ? skillBand(average).label : undefined },
+    { label: 'Best score', value: scored[0]?.best ?? '—', note: scored[0]?.test.title },
+    { label: 'Best ranking', value: topRank ? `#${topRank.rank}` : '—', note: topRank ? `of ${topRank.of} on ${topRank.test.title}` : undefined },
+  ];
 
   const facts = [
     person.location && { icon: MapPin, text: person.location },
     person.yearsExperience > 0 && { icon: Briefcase, text: `${person.yearsExperience} ${person.yearsExperience === 1 ? 'year' : 'years'} experience` },
     person.workPreference && { icon: Check, text: person.workPreference },
-    (person.university || person.studySubject) && {
-      icon: GraduationCap,
-      text: [person.studySubject, person.university].filter(Boolean).join(', '),
-    },
+    person.careerStage && { icon: GraduationCap, text: person.careerStage },
   ].filter(Boolean) as { icon: typeof MapPin; text: string }[];
 
   const copyLink = async () => {
@@ -153,98 +161,132 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
     <>
       {topBar}
 
-      {/* The top of the CV: photo, name, headline and the facts that matter, then the four numbers */}
+      {/* The top of the profile: who they are and what they do now, their summary, what they're strongest at on Praxa
+          and the four figures a hiring manager wants first */}
       <header className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
-        <div className="h-20 sm:h-24 bg-[radial-gradient(120%_140%_at_0%_0%,#e0e7ff_0%,#f5f3ff_45%,#ffffff_100%)]" aria-hidden />
-        <div className="px-6 sm:px-8 pb-6 -mt-10 sm:-mt-12">
-          <div className="flex flex-col sm:flex-row sm:items-end gap-4">
-            <Pic
-              src={person.avatarUrl}
-              alt=""
-              referrerPolicy="no-referrer"
-              className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover bg-slate-100 ring-4 ring-white shadow-sm shrink-0"
-            />
-            <div className="min-w-0 flex-1 space-y-1 sm:pb-1">
+        <div className="h-16 sm:h-20 bg-[linear-gradient(110deg,#e0e7ff_0%,#ede9fe_45%,#fce7f3_100%)]" aria-hidden />
+        <div className="px-5 sm:px-8 pb-6">
+          <div className="flex flex-col sm:flex-row sm:items-start gap-4 sm:gap-5">
+            <Pic src={person.avatarUrl} alt="" referrerPolicy="no-referrer" className="-mt-10 w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover bg-slate-100 ring-4 ring-white shadow-sm shrink-0" />
+            <div className="min-w-0 flex-1 sm:pt-3">
               <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">{person.name}</h1>
-              {title && <p className="text-sm sm:text-base text-slate-600">{title}</p>}
+              {title && (
+                <p className="text-base text-slate-700">
+                  {title}
+                  {current && sameText(current.role, title) && <span className="text-slate-500"> at <span className="font-medium text-slate-700">{current.company}</span></span>}
+                </p>
+              )}
+              {current && !sameText(current.role, title) && (
+                <p className="text-sm text-slate-500">
+                  Now {current.role} at <span className="font-medium text-slate-700">{current.company}</span>
+                </p>
+              )}
             </div>
-            {person.careerStage && (
-              <span className="self-start sm:self-end sm:mb-2 px-2.5 py-1 rounded-full bg-slate-900 text-white text-[11px] font-semibold">{person.careerStage}</span>
+            {!!person.links?.length && (
+              <div className="sm:pt-4">
+                <ProfileLinks links={person.links} />
+              </div>
             )}
           </div>
+
           {facts.length > 0 && (
-            <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-slate-600">
+            <ul className="mt-4 flex flex-wrap gap-2">
               {facts.map(({ icon: Icon, text }) => (
-                <li key={text} className="inline-flex items-center gap-1.5">
-                  <Icon className="w-3.5 h-3.5 text-slate-400" />
+                <li key={text} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-xs font-medium text-slate-700">
+                  <Icon className="w-3.5 h-3.5 text-slate-500" />
                   {text}
                 </li>
               ))}
             </ul>
           )}
+
           {bio && (
-            <div className="mt-4 max-w-3xl">
-              <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400 mb-1">Professional summary</h2>
-              <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{bio}</p>
-            </div>
+            <section className="mt-5 max-w-3xl">
+              <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400 mb-1.5">Professional summary</h2>
+              <p className="text-[15px] text-slate-800 leading-7 whitespace-pre-line">{bio}</p>
+            </section>
           )}
-          {!!person.links?.length && (
-            <div className="mt-4">
-              <ProfileLinks links={person.links} />
-            </div>
+
+          {strongest.length > 0 && (
+            <section className="mt-5">
+              <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400 mb-2">Strongest on Praxa</h2>
+              <ul className="flex flex-wrap gap-2">
+                {strongest.map((c) => {
+                  const band = skillBand(c.best!);
+                  return (
+                    <li key={c.test.id}>
+                      <button onClick={() => onOpenTest(c.test.id)} className={`inline-flex items-center gap-2 pl-3 pr-1.5 py-1 rounded-full border text-xs font-semibold ${band.pill}`}>
+                        {c.test.title}
+                        <span className={`px-1.5 py-0.5 rounded-full font-mono tabular-nums text-white ${band.solid}`}>{c.best}</span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
           )}
         </div>
-        <dl className="grid grid-cols-2 sm:grid-cols-4 border-t border-slate-100 divide-x divide-slate-100 [&>div:nth-child(n+3)]:border-t sm:[&>div:nth-child(n+3)]:border-t-0 [&>div]:border-slate-100">
-          {[
-            ['Verified skills', skills.length],
-            ['Tests taken', testsTaken],
-            ['Best score', best ? best.score : '—'],
-            ['Top percentile', best ? `${Math.max(...skills.map((s) => s.percentile))}th` : '—'],
-          ].map(([label, value]) => (
-            <div key={label} className="px-6 py-4">
-              <dt className="text-[11px] text-slate-500">{label}</dt>
-              <dd className="text-xl font-bold font-mono tabular-nums text-slate-900">{value}</dd>
+
+        {/* The figures: how many Praxa tests they've passed, their average, their best, and their best place on a board */}
+        <dl className="grid grid-cols-2 lg:grid-cols-4 border-t border-slate-100 bg-slate-50/60">
+          {figures.map((f, i) => (
+            <div key={f.label} className={`px-5 sm:px-6 py-4 border-slate-100 ${i % 2 ? 'border-l' : ''} ${i >= 2 ? 'border-t lg:border-t-0' : ''} ${i === 2 ? 'lg:border-l' : ''}`}>
+              <dt className="text-[11px] font-medium text-slate-500">{f.label}</dt>
+              <dd className="mt-0.5 text-2xl font-bold tabular-nums text-slate-900">{f.value}</dd>
+              {f.note && <dd className="text-[11px] text-slate-500 truncate">{f.note}</dd>}
             </div>
           ))}
         </dl>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_20rem] gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_22rem] gap-6 items-start">
         <div className="space-y-6 min-w-0">
           {/* First, what concerns the company looking: the tests it sent them and the jobs of its they applied to */}
           <ApplicantSummary person={person} rows={rows} tests={tests} candidates={candidates} onOpenTest={onOpenTest} onOpenJob={onOpenJob} />
 
           {/* Every Praxa skills test they've taken, as square cards coloured by score */}
-          <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs">
-            <Heading
-              aside={
-                <span className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-slate-500">
-                  {SKILL_BANDS.map((b) => (
-                    <span key={b.label} className="inline-flex items-center gap-1">
-                      <span className={`w-2 h-2 rounded-full ${b.dot}`} />
-                      {b.label} {b.range}
-                    </span>
-                  ))}
-                </span>
-              }
-            >
-              Praxa skills tests
-            </Heading>
+          <section className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-xs">
+            <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
+              <div>
+                <h2 className="text-base font-bold text-slate-900">Praxa skills tests</h2>
+                <p className="text-xs text-slate-500">Hands-on tests, marked by Praxa. Best score on each, strongest first.</p>
+              </div>
+              <ul className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-600">
+                {SKILL_BANDS.map((b) => (
+                  <li key={b.label} className="inline-flex items-center gap-1.5">
+                    <span className={`w-2.5 h-2.5 rounded-full ${b.solid}`} />
+                    {b.label} <span className="text-slate-400">{b.range}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
             {libraryCards.length === 0 ? (
-              <p className="text-sm text-slate-500">No Praxa skills tests taken yet.</p>
+              <p className="text-sm text-slate-500 rounded-xl border border-dashed border-slate-300 p-6 text-center">No Praxa skills tests taken yet.</p>
             ) : (
-              <ul className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
+              <ul className="grid grid-cols-2 sm:grid-cols-3 gap-3 auto-rows-fr">
                 {libraryCards.map((c) => {
                   const band = c.best === null ? UNFINISHED : skillBand(c.best);
                   return (
-                    <li key={c.test.id}>
-                      <button onClick={() => onOpenTest(c.test.id)} className={`w-full aspect-square rounded-2xl border p-3.5 flex flex-col justify-between text-left transition-colors ${band.card}`}>
-                        <span className="text-xs font-semibold text-slate-900 line-clamp-3">{c.test.title}</span>
-                        <span>
-                          <span className={`block font-mono text-3xl font-bold tabular-nums leading-none ${band.text}`}>{c.best ?? '—'}</span>
-                          <span className={`mt-1 block text-[10px] font-semibold ${band.text}`}>{c.best === null ? 'Left unfinished' : band.label}</span>
-                          <span className="block text-[10px] text-slate-500 truncate">
-                            {[c.rank && `#${c.rank} of ${c.of}`, c.attempts > 1 && `${c.attempts} attempts`, c.unfinished > 0 && c.best !== null && `${c.unfinished} left unfinished`].filter(Boolean).join(' · ') || formatDay(c.last)}
+                    <li key={c.test.id} className="flex">
+                      <button
+                        onClick={() => onOpenTest(c.test.id)}
+                        className={`w-full min-h-[12rem] rounded-2xl border p-4 flex flex-col text-left transition-all hover:-translate-y-0.5 hover:shadow-md ${band.card}`}
+                      >
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 truncate">{c.test.category}</span>
+                        <span className="mt-1 text-sm font-semibold leading-snug text-slate-900 line-clamp-3">{c.test.title}</span>
+                        <span className="mt-auto">
+                          <span className={`block text-4xl font-bold tabular-nums leading-none ${band.text}`}>
+                            {c.best ?? '—'}
+                            {c.best !== null && <span className="text-sm font-semibold text-slate-400">/100</span>}
+                          </span>
+                          <span className="mt-2 block h-1.5 rounded-full bg-white/80 overflow-hidden">
+                            <span className={`block h-full rounded-full ${band.solid}`} style={{ width: `${c.best ?? 0}%` }} />
+                          </span>
+                          <span className="mt-2 flex items-center justify-between gap-2 text-[11px]">
+                            <span className={`font-bold ${band.text === 'text-slate-300' ? 'text-slate-400' : band.text}`}>{band.label}</span>
+                            <span className="text-slate-500 truncate">
+                            {[c.rank && `#${c.rank} of ${c.of}`, c.attempts > 1 && `${c.attempts} attempts`, c.unfinished > 0 && `${c.unfinished} unfinished`].filter(Boolean).join(' · ') || formatDay(c.last)}
+                            </span>
                           </span>
                         </span>
                       </button>
@@ -257,11 +299,14 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
 
           {/* Every attempt, company tests included, with dates and integrity: there when the company wants the detail */}
           <details className="bg-white border border-slate-200 rounded-2xl shadow-xs group">
-            <summary className="px-6 py-4 cursor-pointer list-none flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-              Full test record
-              <ChevronDown className="w-4 h-4 transition-transform group-open:rotate-180" />
+            <summary className="px-5 sm:px-6 py-4 cursor-pointer list-none flex items-center justify-between gap-3">
+              <span>
+                <span className="block text-sm font-bold text-slate-900">Full test record</span>
+                <span className="block text-xs text-slate-500">Every attempt with its date and integrity, your own tests included</span>
+              </span>
+              <ChevronDown className="w-4 h-4 text-slate-400 transition-transform group-open:rotate-180" />
             </summary>
-            <div className="px-6 pb-6">
+            <div className="px-5 sm:px-6 pb-6">
               <TestHistory
                 person={person}
                 tests={tests}
@@ -276,17 +321,23 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
           </details>
         </div>
 
-        <aside className="space-y-6 min-w-0 lg:sticky lg:top-6">
+        <aside className="space-y-6 min-w-0">
           {/* Their work history as a timeline: the latest few, expandable to all of it */}
           <section className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
-            <Heading aside={<span className="text-[10px] text-slate-400">In their own words</span>}>Work experience</Heading>
+            <div className="flex items-baseline justify-between gap-2 mb-4">
+              <h2 className="text-base font-bold text-slate-900 inline-flex items-center gap-2">
+                <Briefcase className="w-4 h-4 text-slate-400" />
+                Work experience
+              </h2>
+              {person.yearsExperience > 0 && <span className="text-xs text-slate-500">{person.yearsExperience} yrs in total</span>}
+            </div>
             {jobsHeld.length === 0 ? (
               <p className="text-xs text-slate-500">None added.</p>
             ) : (
               <>
-                <ExperienceList items={allHistory ? jobsHeld : jobsHeld.slice(0, HISTORY_SHOWN)} />
+                <ExperienceList items={allHistory ? jobsHeld : jobsHeld.slice(0, HISTORY_SHOWN)} stacked />
                 {jobsHeld.length > HISTORY_SHOWN && (
-                  <button onClick={() => setAllHistory((v) => !v)} className="mt-4 w-full text-xs font-semibold text-indigo-700 hover:text-indigo-900 inline-flex items-center justify-center gap-1">
+                  <button onClick={() => setAllHistory((v) => !v)} className="mt-5 w-full py-2 rounded-lg border border-slate-200 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 hover:border-indigo-200 inline-flex items-center justify-center gap-1">
                     {allHistory ? 'Show less' : `Show full history (${jobsHeld.length - HISTORY_SHOWN} more)`}
                     <ChevronDown className={`w-3.5 h-3.5 transition-transform ${allHistory ? 'rotate-180' : ''}`} />
                   </button>
@@ -296,13 +347,25 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
           </section>
 
           <section className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
-            <Heading>Education</Heading>
-            {person.education?.length ? <EducationList items={person.education} /> : <p className="text-xs text-slate-500">None added.</p>}
+            <h2 className="mb-4 text-base font-bold text-slate-900 inline-flex items-center gap-2">
+              <GraduationCap className="w-4 h-4 text-slate-400" />
+              Education
+            </h2>
+            {person.education?.length ? (
+              <EducationList items={person.education} stacked />
+            ) : person.university || person.studySubject ? (
+              <p className="text-sm text-slate-700">{[person.studySubject, person.university].filter(Boolean).join(', ')}</p>
+            ) : (
+              <p className="text-xs text-slate-500">None added.</p>
+            )}
           </section>
 
           {!!person.certifications?.length && (
             <section className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
-              <Heading>Certifications</Heading>
+              <h2 className="mb-4 text-base font-bold text-slate-900 inline-flex items-center gap-2">
+                <Award className="w-4 h-4 text-slate-400" />
+                Certifications
+              </h2>
               <CertificationList items={person.certifications} />
             </section>
           )}
@@ -311,7 +374,7 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
     </>
   );
 
-  if (!popup) return <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6">{body}</div>;
+  if (!popup) return <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-6">{body}</div>;
   return (
     <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-2 sm:p-6 bg-slate-900/50 backdrop-blur-sm" onClick={onBack}>
       <div
@@ -319,7 +382,7 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
         aria-modal="true"
         aria-label={person.name}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-5xl max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-3rem)] overflow-y-auto overscroll-contain bg-slate-50 rounded-2xl shadow-2xl p-4 sm:p-6 space-y-6 animate-[fade-in_150ms_ease-out]"
+        className="w-full max-w-6xl max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-3rem)] overflow-y-auto overscroll-contain bg-slate-50 rounded-2xl shadow-2xl p-4 sm:p-6 space-y-6 animate-[fade-in_150ms_ease-out]"
       >
         {body}
       </div>
