@@ -5,7 +5,6 @@ import { LeadRow, stageInfo } from '../lib/leads';
 import { Pic } from './Pic';
 import { TestHistory } from './TestHistory';
 import { IntegrityBadge } from './IntegrityBadge';
-import { getBadgeTier } from './VerifiedSkillBadge';
 import { CertificationList, EducationList, ExperienceList, ProfileLinks } from './ExperienceList';
 import { ApplicantSummary } from './ApplicantSummary';
 
@@ -28,7 +27,14 @@ interface CandidateProfilePageProps {
   onOpenPage?: () => void;
 }
 
-const formatDay = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+// How good they are at a verified skill, from their score on the test: green strong, amber good, grey still developing
+const SKILL_BANDS = [
+  { min: 88, label: 'Strong', range: '88+', card: 'bg-emerald-50 border-emerald-200 hover:border-emerald-400', text: 'text-emerald-700', dot: 'bg-emerald-500' },
+  { min: 75, label: 'Good', range: '75–87', card: 'bg-amber-50 border-amber-200 hover:border-amber-400', text: 'text-amber-700', dot: 'bg-amber-500' },
+  { min: 0, label: 'Developing', range: 'under 75', card: 'bg-slate-50 border-slate-200 hover:border-slate-400', text: 'text-slate-600', dot: 'bg-slate-400' },
+];
+const skillBand = (score: number) => SKILL_BANDS.find((b) => score >= b.min)!;
 
 // A small label above each section, as on a printed CV
 const Heading: React.FC<{ children: React.ReactNode; aside?: React.ReactNode }> = ({ children, aside }) => (
@@ -179,19 +185,16 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_18rem] gap-6 items-start">
         <div className="space-y-6 min-w-0">
-          {/* How they did on the company's job simulations, next to what their profile has proven */}
-          <ApplicantSummary person={person} rows={rows} tests={tests} candidates={candidates} onOpenTest={onOpenTest} onOpenJob={onOpenJob} />
-
           {bio && (
             <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs">
-              <Heading>About</Heading>
+              <Heading>Professional summary</Heading>
               <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{bio}</p>
             </section>
           )}
 
           {!!person.experience?.length && (
             <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs">
-              <Heading aside={<span className="text-[11px] text-slate-400">In their own words</span>}>Experience</Heading>
+              <Heading aside={<span className="text-[11px] text-slate-400">In their own words</span>}>Work history</Heading>
               <ExperienceList items={person.experience} />
             </section>
           )}
@@ -216,6 +219,9 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
             </section>
           )}
 
+          {/* How they did on the company's job simulations, next to what their profile has proven */}
+          <ApplicantSummary person={person} rows={rows} tests={tests} candidates={candidates} onOpenTest={onOpenTest} onOpenJob={onOpenJob} />
+
           <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs">
             <Heading>Test record</Heading>
             <TestHistory
@@ -232,6 +238,43 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
         </div>
 
         <aside className="space-y-6 min-w-0 lg:sticky lg:top-6">
+          {/* Verified skills, strongest first: each a card coloured by how well they scored on the test that proved it */}
+          <section className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
+            <Heading aside={skills.length > 0 && <BadgeCheck className="w-3.5 h-3.5 text-indigo-600" aria-label="Verified by Praxa" />}>Verified skills</Heading>
+            {skills.length === 0 ? (
+              <p className="text-xs text-slate-500">None yet. Skills appear here once they pass a Praxa test.</p>
+            ) : (
+              <>
+                <ul className="space-y-2">
+                  {skills.map((s) => {
+                    const band = skillBand(s.score);
+                    return (
+                      <li key={s.skillId}>
+                        <button onClick={() => onOpenTest(s.testId)} className={`w-full text-left rounded-xl border px-3 py-2.5 flex items-center gap-3 transition-colors ${band.card}`}>
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-xs font-semibold text-slate-900 truncate">{s.skillName}</span>
+                            <span className={`block text-[10px] font-semibold ${band.text}`}>
+                              {band.label} &middot; {s.percentile}th percentile
+                            </span>
+                          </span>
+                          <span className={`font-mono text-base font-bold tabular-nums ${band.text}`}>{s.score}</span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <p className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-slate-500">
+                  {SKILL_BANDS.map((b) => (
+                    <span key={b.label} className="inline-flex items-center gap-1">
+                      <span className={`w-2 h-2 rounded-full ${b.dot}`} />
+                      {b.label} {b.range}
+                    </span>
+                  ))}
+                </p>
+              </>
+            )}
+          </section>
+
           {/* Where they stand on the viewer's own jobs */}
           <section className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
             <Heading>{business ? `With ${business.name}` : 'On jobs'}</Heading>
@@ -272,34 +315,6 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
             )}
           </section>
 
-          {/* What Praxa has verified, strongest first, with the score */}
-          <section className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
-            <div className="px-5 pt-5">
-              <Heading aside={skills.length > 0 && <BadgeCheck className="w-3.5 h-3.5 text-indigo-600" aria-label="Verified by Praxa" />}>Verified skills</Heading>
-            </div>
-            {skills.length === 0 ? (
-              <p className="px-5 pb-5 text-xs text-slate-500">None yet. A score of 75 or more on a Praxa test verifies the skill.</p>
-            ) : (
-              <ul className="divide-y divide-slate-100 pb-1">
-                {skills.map((s) => {
-                  const tier = getBadgeTier(s.score);
-                  return (
-                    <li key={s.skillId}>
-                      <button onClick={() => onOpenTest(s.testId)} className="w-full text-left px-5 py-2.5 flex items-center gap-3 hover:bg-slate-50/70 group">
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-xs font-semibold text-slate-900 truncate group-hover:text-indigo-700">{s.skillName}</span>
-                          <span className="block text-[10px] text-slate-500 truncate">
-                            {s.level} &middot; {s.percentile}th pct &middot; {formatDay(s.verifiedAt)}
-                          </span>
-                        </span>
-                        <span className={`font-mono text-sm font-bold tabular-nums ${tier.badgeTextColor}`}>{s.score}</span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </section>
 
 
           <section className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3">
