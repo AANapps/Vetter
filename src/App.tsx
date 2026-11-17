@@ -794,7 +794,16 @@ export default function App() {
         });
   // Pressing Begin on a library test is an attempt, finished or not
   const recordTestStart = (test: AssessmentTest) =>
-    setCandidate((prev) => ({ ...prev, testStarts: [...(prev.testStarts ?? []), { testId: test.id, startedAt: new Date().toISOString() }] }));
+    setCandidate((prev) => ({ ...prev, testStarts: [...(prev.testStarts ?? []), { testId: test.id, startedAt: new Date().toISOString(), sawAll: false }] }));
+  // They've opened every question of the test they're on: leaving now locks it for the retake gap
+  const recordSawAll = (test: AssessmentTest) =>
+    setCandidate((prev) => {
+      const starts = [...(prev.testStarts ?? [])];
+      const i = starts.map((s) => s.testId).lastIndexOf(test.id);
+      if (i < 0 || starts[i].sawAll) return prev;
+      starts[i] = { ...starts[i], sawAll: true };
+      return { ...prev, testStarts: starts };
+    });
   // Where a score would place them on a library test's board, against everyone else's best
   const rankFor = (testId: string, score: number) => {
     const others = getLeaderboard(testId, allCandidates.filter((c) => c.id !== candidate.id));
@@ -2175,6 +2184,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
           onBegin={activeTestJobId ? () => recordJobTestStart(activeTest, activeTestJobId) : isPublic(activeTest) ? () => recordTestStart(activeTest) : undefined}
           getRankFor={isPublic(activeTest) ? (score) => rankFor(activeTest.id, score) : undefined}
           retakeDays={!activeTestJobId && isPublic(activeTest) ? RETAKE_DAYS : undefined}
+          onSawAll={!activeTestJobId && isPublic(activeTest) ? () => recordSawAll(activeTest) : undefined}
           attempt={activeAttempt ?? undefined}
           onComplete={handleCompleteTest}
           getPercentileFor={(score) => getPercentile(score, activeTest.id, allCandidates, candidate.id)}

@@ -105,7 +105,8 @@ export interface User {
   testReferrals?: TestReferral[];
   // Every time they pressed Begin on a library test. A start with no result after it was left unfinished, and it still
   // counts as an attempt: companies see it, and the next try waits for the retake gap
-  testStarts?: { testId: string; startedAt: string }[];
+  // sawAll: they opened every question; from then on leaving locks the test for the retake gap
+  testStarts?: { testId: string; startedAt: string; sawAll?: boolean }[];
   // Tests they've hidden from their public profile. Other candidates and visitors don't see them; companies still do
   hiddenTestIds?: string[];
   // Profiles for different kinds of work (data, customer service, retail...); the one shown is activeProfileId

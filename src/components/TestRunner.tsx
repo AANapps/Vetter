@@ -118,6 +118,9 @@ interface TestRunnerProps {
   getRankFor?: (score: number) => { rank: number; of: number } | null;
   // A library test: leaving still counts as an attempt, and the next try waits this many days
   retakeDays?: number;
+  // Called once the candidate has opened every question (every slide of every task): from then on, leaving locks the
+  // test for retakeDays
+  onSawAll?: () => void;
   // Training for a company's team: no warnings for leaving the tab, no badge or percentile, and the worked answers at the end
   training?: boolean;
 }
@@ -144,7 +147,7 @@ export const TestRunner: React.FC<TestRunnerProps> = (props) => {
   return <TestRunnerInner {...props} test={own} />;
 };
 
-const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete, getPercentileFor, preview, savedNote, onBegin, attempt, training, getRankFor, retakeDays }) => {
+const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete, getPercentileFor, preview, savedNote, onBegin, attempt, training, getRankFor, retakeDays, onSawAll }) => {
   // Each hands-on task is shown with the questions about it; every other question on its own
   const groups = useMemo(() => groupQuestions(test.questions), [test.questions]);
   const ordered = useMemo(() => groups.flatMap((g) => g.questions), [groups]);
@@ -222,6 +225,31 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
   const promptSlides = currentQ.type === 'case' ? 0 : Math.max(1, taskParts.length);
   const slideCount = Math.max(1, promptSlides + followUps.length);
   const onSlide = Math.min(slide, slideCount - 1);
+  // Every question opened: each slide of each part is counted once it's on screen. Once they've seen them all, quitting
+  // locks a library test for retakeDays, and they're told so straight away
+  const slidesPerGroup = useMemo(
+    () =>
+      groups.map((g) => {
+        const q = g.questions[0];
+        const parts = q.type === 'case' ? 0 : Math.max(1, splitParts(q.prompt).parts.length);
+        return Math.max(1, parts + (g.task ? g.questions.length - 1 : 0));
+      }),
+    [groups]
+  );
+  const seenRef = useRef(new Set<string>());
+  const [sawAll, setSawAll] = useState(false);
+  const [sawAllNotice, setSawAllNotice] = useState(false);
+  useEffect(() => {
+    if (!hasStarted || sawAll) return;
+    seenRef.current.add(`${groupIndex}:${onSlide}`);
+    const total = slidesPerGroup.reduce((n, c) => n + c, 0);
+    if (seenRef.current.size >= total) {
+      setSawAll(true);
+      onSawAll?.();
+      if (retakeDays && !preview && !training) setSawAllNotice(true);
+    }
+  }, [hasStarted, groupIndex, onSlide, slidesPerGroup, sawAll]);
+
   // Cases are read, not answered, so only questions are numbered
   const numberOf = (q: Question) => ordered.filter((x) => x.type !== 'case').indexOf(q) + 1;
   // The workspace around the task: the Inbox (emails waiting at the start, and the threads that are questions), the
@@ -514,9 +542,15 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
       )}
       .
     </>
+  ) : retakeDays && sawAll ? (
+    <>
+      <strong>You&rsquo;ve seen every question, so if you quit now you can&rsquo;t retake this test for another {retakeDays} days.</strong> Your record
+      shows it as left unfinished.
+    </>
   ) : retakeDays ? (
     <>
-      <strong>It still counts as an attempt:</strong> your record shows it as left unfinished, and you can try again in {retakeDays} days.
+      <strong>It&rsquo;s recorded as an attempt</strong> and shows as left unfinished. Once you&rsquo;ve seen every question, quitting means you
+      can&rsquo;t retake it for {retakeDays} days.
     </>
   ) : (
     <>
@@ -606,6 +640,21 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
           </button>
         </div>
       </div>
+
+      {/* Every question seen: from now on, quitting locks the test */}
+      {sawAllNotice && (
+        <div className="px-6 py-2 bg-amber-50 border-b border-amber-200 text-amber-900 text-xs flex items-center justify-between gap-3" role="alert">
+          <div className="flex items-center gap-2">
+            <ShieldAlert className="w-4 h-4 shrink-0 text-amber-600" />
+            <span className="font-medium">
+              You&rsquo;ve now seen every question. If you quit now, you can&rsquo;t retake this test for another {retakeDays} days: finish and submit it.
+            </span>
+          </div>
+          <button onClick={() => setSawAllNotice(false)} className="shrink-0 text-amber-800 hover:text-amber-950 underline font-mono text-[11px]">
+            OK
+          </button>
+        </div>
+      )}
 
       {/* Focus Warning Banner if flagged */}
       {focusWarning && (

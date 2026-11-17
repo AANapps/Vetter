@@ -52,15 +52,17 @@ export function removeTestResults(user: User, testId: string): User {
   };
 }
 
-// ---- Attempts: every start counts, and a library test can be retaken once the gap has passed ----
-export const RETAKE_DAYS = 14;
+// ---- Attempts: every start is recorded; a library test can be retaken once the gap has passed since the last finish, or
+// since a start where they saw every question before leaving. Leaving before seeing them all doesn't lock it ----
+export const RETAKE_DAYS = 7;
 const DAY = 86400000;
 const timeOf = (r: TestResult) => r.completedTime ?? `${r.completedAt}T23:59:59.000Z`;
 
 // When they last started or finished the test
 export function lastAttemptAt(user: User, testId: string): string | undefined {
   const times = [
-    ...(user.testStarts ?? []).filter((s) => s.testId === testId).map((s) => s.startedAt),
+    // Starts saved before sawAll was kept count, as they did then
+    ...(user.testStarts ?? []).filter((s) => s.testId === testId && s.sawAll !== false).map((s) => s.startedAt),
     ...user.testResults.filter((r) => r.testId === testId).map(timeOf),
   ].sort();
   return times.at(-1);

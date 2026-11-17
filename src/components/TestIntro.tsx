@@ -6,6 +6,7 @@ import { AssessmentTest, timerOf, levelName } from '../types';
 import { QUESTION_TYPE_LABELS, describeChecks } from '../lib/testRoles';
 import { groupQuestions, isAnswerType, isWorkspaceType } from '../lib/questionTypes';
 import { CaseBrief } from './CaseBrief';
+import { RETAKE_DAYS } from '../lib/results';
 
 export const INTEGRITY_RULES = [
   'The test runs full screen. Stay in full screen, on this tab, for the whole test: leaving full screen, or switching tabs, windows or apps, is recorded, with how long you were away.',
@@ -15,6 +16,7 @@ export const INTEGRITY_RULES = [
   'Work alone. No help from other people, and no AI assistants, code generators or web searches.',
   'Your data is your own: the numbers in the tasks are different for every candidate, so someone else’s answers won’t fit yours.',
   'Don’t screenshot, copy or share the questions, during or after the test. One attempt at a time, on your own account.',
+  `Starting is recorded as an attempt. On a Praxa test, once you’ve opened every question, quitting without submitting means you can’t retake it for ${RETAKE_DAYS} days.`,
 ];
 
 // Shown before and during every test
