@@ -44,7 +44,6 @@ import { ExperienceDetails, ExperienceEditor } from './ExperienceEditor';
 import { CertificationList, EducationList, ExperienceList, ProfileLinks } from './ExperienceList';
 import { EducationDetails, EducationEditor } from './EducationEditor';
 import { ProfileImportDialog } from './ProfileImportDialog';
-import { SkillList } from './SkillList';
 import { stageOf } from '../lib/audience';
 import { ProfileSidebar } from './ProfileSidebar';
 import { TestHistory } from './TestHistory';
@@ -73,7 +72,6 @@ interface CandidatePortalProps {
   onUpdateEducation: (details: EducationDetails) => void;
   // Everything read from their CV, once they've checked it
   onImportProfile: (change: Partial<User>) => void;
-  onUpdateSkills: (skills: string[]) => void;
   // Takes a test the candidate took off their record
   // Hides a test from their public profile (companies still see it), or shows it again
   onToggleHidden: (testId: string) => void;
@@ -109,7 +107,6 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   onUpdateExperience,
   onUpdateEducation,
   onImportProfile,
-  onUpdateSkills,
   onToggleHidden,
   jobPageId,
   onOpenJob,
@@ -490,7 +487,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
           </span>
           <span className="min-w-0 flex-1">
             <span className="block text-sm font-bold text-slate-900">Fill in your profile from your CV</span>
-            <span className="block text-xs text-slate-600">Add your CV (or paste your LinkedIn) and Praxa fills in your experience, education, certifications and skills for you to check.</span>
+            <span className="block text-xs text-slate-600">Add your CV (or paste your LinkedIn) and Praxa fills in your experience, education and certifications for you to check.</span>
           </span>
           <ChevronRight className="w-5 h-5 text-indigo-400 shrink-0" />
         </button>
@@ -689,13 +686,30 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
       </div>
 
       <div className="space-y-4 min-w-0">
-      {/* The narrow column: their skills and links, then what to do next */}
+      {/* The narrow column: their skills (only ones a test has proven), their details and links, then what to do next */}
       <section className="bg-white border border-slate-200 rounded-xl p-5 space-y-3 shadow-xs">
         <div>
           <h2 className="text-sm font-bold text-slate-900">Skills</h2>
-          <p className="text-[11px] text-slate-500">Your own list. Ones a Praxa test has verified get a tick.</p>
+          <p className="text-[11px] text-slate-500">Proven by Praxa's tests: a score of 75 or more adds the skill here.</p>
         </div>
-        <SkillList skills={candidate.skills ?? []} verified={candidate.verifiedSkills.map((v) => v.skillName)} onChange={onUpdateSkills} />
+        {candidate.verifiedSkills.length === 0 ? (
+          <button onClick={() => onNavigate('tests')} className="w-full p-4 rounded-lg border border-dashed border-slate-300 text-xs text-slate-500 hover:border-indigo-300 hover:text-indigo-700">
+            Take a test to prove your first skill
+          </button>
+        ) : (
+          <ul className="space-y-2">
+            {[...candidate.verifiedSkills]
+              .sort((a, b) => b.score - a.score)
+              .map((s) => (
+                <li key={s.skillId}>
+                  <button onClick={() => onOpenTest(s.testId)} className="w-full flex items-center justify-between gap-2 text-left group">
+                    <span className="min-w-0 truncate text-xs font-semibold text-slate-800 group-hover:text-indigo-700">{s.skillName}</span>
+                    <span className={`shrink-0 font-mono text-xs font-bold tabular-nums ${getBadgeTier(s.score).badgeTextColor}`}>{s.score}</span>
+                  </button>
+                </li>
+              ))}
+          </ul>
+        )}
       </section>
       <section className="bg-white border border-slate-200 rounded-xl p-5 space-y-3 shadow-xs">
         <div className="flex items-center justify-between gap-2">

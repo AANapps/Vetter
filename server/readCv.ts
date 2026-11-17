@@ -5,7 +5,7 @@ import { apiFailure } from './generateTest.js';
 
 /**
  * Reads a candidate's CV (a PDF, or text pasted from a CV or LinkedIn) and pulls out their profile: headline, about,
- * jobs, education, certifications, skills and links, for them to check before it's saved (src/lib/cvImport.ts).
+ * jobs, education, certifications and links (not skills: those come only from Praxa's tests), for them to check before it's saved (src/lib/cvImport.ts).
  * Praxa pays for it, so only signed-in people can use it, a few times an hour each.
  */
 
@@ -48,10 +48,9 @@ const schema = {
       type: 'array',
       items: { type: 'object', properties: { name: str, issuer: str, issued: str, expires: str, url: str }, required: ['name', 'issuer', 'issued', 'expires', 'url'], additionalProperties: false },
     },
-    skills: { type: 'array', items: str },
     links: { type: 'array', items: { type: 'object', properties: { label: str, url: str }, required: ['label', 'url'], additionalProperties: false } },
   },
-  required: ['found', 'title', 'bio', 'location', 'yearsExperience', 'careerStage', 'experience', 'education', 'certifications', 'skills', 'links'],
+  required: ['found', 'title', 'bio', 'location', 'yearsExperience', 'careerStage', 'experience', 'education', 'certifications', 'links'],
   additionalProperties: false,
 };
 
@@ -70,7 +69,6 @@ platform. Take only what the CV says: never invent a job, a date, a grade or a s
   the CV's bullets; keep figures.
 - education: degrees, school qualifications, bootcamps; most recent first; dates YYYY-MM or "".
 - certifications: professional certifications and licences (AWS, CIPD, CompTIA, first aid...), not degrees.
-- skills: up to 15 tools and skills the CV names, short ("SQL", "Excel", "Stakeholder management").
 - links: LinkedIn, GitHub, portfolio and the like, as written.
 Unknown text fields are "". Today is ${today()}.`;
 

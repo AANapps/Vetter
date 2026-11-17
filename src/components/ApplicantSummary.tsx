@@ -43,7 +43,6 @@ export const ApplicantSummary: React.FC<{
             .sort((a, b) => b.score - a.score)
             .slice(0, 5);
           const gaps = needs.filter((n) => !person.verifiedSkills.some((v) => sameSkill(n, v.skillName)));
-          const claimed = (n: string) => (person.skills ?? []).some((s) => sameSkill(s, n));
           const stage = stageInfo(r.stage);
           return (
             <div key={r.id} className="px-6 py-5 space-y-4">
@@ -141,7 +140,7 @@ export const ApplicantSummary: React.FC<{
                     {gaps.map((g) => (
                       <li key={g} className="px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-xs text-amber-800">
                         {g}
-                        {claimed(g) && <span className="text-amber-600"> · says they can</span>}
+                        
                       </li>
                     ))}
                   </ul>

@@ -1610,7 +1610,6 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
                 setCandidate((prev) => ({ ...prev, ...details }));
                 showToast('Experience saved.');
               }}
-              onUpdateSkills={(skills) => setCandidate((prev) => ({ ...prev, skills }))}
               onUpdateEducation={(details) => {
                 setCandidate((prev) => ({ ...prev, ...details }));
                 showToast('Education and certifications saved.');

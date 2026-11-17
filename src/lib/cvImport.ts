@@ -5,9 +5,10 @@ import { safeUrl, sortExperience } from './experience';
 /**
  * Filling a candidate's profile from their CV: the file (a PDF, or text) or pasted text goes to Praxa's AI
  * (server/readCv.ts), and what comes back is tidied into profile fields for the candidate to check before saving.
+ * Skills aren't taken from the CV: a profile's skills are only the ones Praxa's tests have proven.
  */
 
-export type ProfilePatch = Pick<User, 'title' | 'bio' | 'location' | 'yearsExperience' | 'careerStage' | 'experience' | 'education' | 'certifications' | 'skills' | 'links'>;
+export type ProfilePatch = Pick<User, 'title' | 'bio' | 'location' | 'yearsExperience' | 'careerStage' | 'experience' | 'education' | 'certifications' | 'links'>;
 
 const MAX_PDF_BYTES = 3 * 1024 * 1024;
 const ym = (s: unknown) => (/^\d{4}-(0[1-9]|1[0-2])$/.test(String(s ?? '').trim()) ? String(s).trim() : /^\d{4}$/.test(String(s ?? '').trim()) ? `${String(s).trim()}-01` : '');
@@ -60,7 +61,6 @@ function tidy(raw: Record<string, any>): ProfilePatch {
     experience: sortExperience(experience),
     education,
     certifications,
-    skills: [...new Set<string>((raw.skills ?? []).map((s: unknown) => text(s, 40)).filter(Boolean))].slice(0, 15),
     links,
   };
 }
@@ -115,7 +115,6 @@ export function mergeProfile(user: User, patch: ProfilePatch, replace: boolean):
     experience: sortExperience(add(user.experience, patch.experience, (a, b) => same(a.role, b.role) && same(a.company, b.company))),
     education: recentFirst(add(user.education, patch.education, (a, b) => same(a.school, b.school) && same(a.subject, b.subject))),
     certifications: add(user.certifications, patch.certifications, (a, b) => same(a.name, b.name)),
-    skills: add(user.skills, patch.skills, same).slice(0, 30),
     links: add(user.links, patch.links, (a, b) => same(a.url, b.url)).slice(0, 4),
   };
 }

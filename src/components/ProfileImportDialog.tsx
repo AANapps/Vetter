@@ -35,7 +35,6 @@ export const ProfileImportDialog: React.FC<{ candidate: User; onSave: (change: P
     found.experience?.length && `${found.experience.length} ${found.experience.length === 1 ? 'job' : 'jobs'}`,
     found.education?.length && `${found.education.length} in education`,
     found.certifications?.length && `${found.certifications.length} ${found.certifications.length === 1 ? 'certification' : 'certifications'}`,
-    found.skills?.length && `${found.skills.length} skills`,
   ].filter(Boolean);
 
   return (
@@ -49,7 +48,7 @@ export const ProfileImportDialog: React.FC<{ candidate: User; onSave: (change: P
             <Sparkles className="w-5 h-5 text-indigo-600" />
             Fill in your profile from your CV
           </h2>
-          <p className="text-xs text-slate-500">Praxa reads your CV and fills in your experience, education, certifications and skills. You check it before anything is saved.</p>
+          <p className="text-xs text-slate-500">Praxa reads your CV and fills in your experience, education and certifications. You check it before anything is saved.</p>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-5">
@@ -137,18 +136,6 @@ export const ProfileImportDialog: React.FC<{ candidate: User; onSave: (change: P
                 <section className="space-y-2">
                   <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Certifications</h3>
                   <CertificationList items={found.certifications} />
-                </section>
-              )}
-              {!!found.skills?.length && (
-                <section className="space-y-2">
-                  <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Skills</h3>
-                  <ul className="flex flex-wrap gap-1.5">
-                    {found.skills.map((s) => (
-                      <li key={s} className="px-2 py-0.5 text-[11px] font-medium text-slate-700 bg-slate-100 rounded-full">
-                        {s}
-                      </li>
-                    ))}
-                  </ul>
                 </section>
               )}
               {hasProfile && (
