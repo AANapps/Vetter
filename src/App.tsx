@@ -45,7 +45,8 @@ import { CheckCircle2 } from 'lucide-react';
 import { firebaseEnabled } from './lib/firebase';
 import { useAccount } from './lib/useAccount';
 import { loadProfile, saveProfile } from './lib/profiles';
-import { Account, accountError, signOut, updateCompanySector } from './lib/accounts';
+import { Account, accountError, signOut, updateAccountName, updateCompanyInfo, updateCompanySector } from './lib/accounts';
+import { BusinessInfo } from './components/BusinessInfoEditor';
 import { Viewer, apply, syncAssignments, syncTeam, syncJobs, syncLeads, syncNotifications, syncSocial, putTestDraft, putTrial, syncTestDrafts, syncTests, useCloudData } from './lib/cloud';
 import { LeadsPage } from './components/LeadsPage';
 import { LeadChange } from './components/LeadsView';
@@ -278,9 +279,13 @@ export default function App() {
     ? [...STANDARD_ASSESSMENTS.map((t) => cloud.tests.find((c) => c.id === t.id) ?? t), ...cloud.tests.filter((c) => !STANDARD_ASSESSMENTS.some((t) => t.id === c.id))]
     : localTests;
   const cloudBusinesses = cloud ? cloud.businesses : INITIAL_BUSINESSES;
-  const businesses: Business[] = companyBusiness
-    ? [...cloudBusinesses.filter((b) => b.id !== companyBusiness.id), { ...companyBusiness, ...cloudBusinesses.find((b) => b.id === companyBusiness.id) }]
-    : cloudBusinesses;
+  // Company info changed here shows at once, before (or without) the cloud catching up
+  const [businessEdits, setBusinessEdits] = useState<Record<string, BusinessInfo>>({});
+  const businesses: Business[] = (
+    companyBusiness
+      ? [...cloudBusinesses.filter((b) => b.id !== companyBusiness.id), { ...companyBusiness, ...cloudBusinesses.find((b) => b.id === companyBusiness.id) }]
+      : cloudBusinesses
+  ).map((b) => (businessEdits[b.id] ? { ...b, ...businessEdits[b.id] } : b));
   const social = cloud ? cloud.social : localSocial;
   const notifications = cloud ? cloud.notifications : localNotifications;
   const leads = cloud ? cloud.leads : localLeads;
@@ -684,7 +689,8 @@ export default function App() {
   // it has loaded, nothing is saved back (a blank profile mustn't overwrite theirs); saving stays off if it can't load
   const [profileSync, setProfileSync] = useState<{ uid: string; canSave: boolean } | null>(null);
   const candidateAccountUid =
-    firebaseEnabled && user?.emailVerified && account?.role === 'candidate' && account.status === 'active' ? account.uid : null;
+    // The Praxa team have a candidate profile of their own too, for the candidate view
+    firebaseEnabled && user?.emailVerified && (account?.role === 'candidate' || account?.role === 'admin') && account.status === 'active' ? account.uid : null;
   useEffect(() => {
     if (!candidateAccountUid || !account) return;
     let cancelled = false;
@@ -993,6 +999,36 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
   };
   // The business and Praxa team views share the same pages
   const staffUser = activeRole === 'admin' ? PRAXA_TEAM : recruiter;
+
+  // Your own name, from the candidate view: saved on your account, so it follows you everywhere
+  const renameMe = (name: string) => {
+    const next = name.trim();
+    if (!next) return;
+    setCandidate((prev) => ({ ...prev, name: next, avatarUrl: initialsAvatar(next) }));
+    if (firebaseEnabled && account) {
+      updateAccountName(account.uid, next)
+        .then(() => showToast('Name saved.'))
+        .catch(reportCloudError);
+    } else showToast('Name saved.');
+  };
+  // A company's public details: its owner, or the Praxa team for any company
+  const canEditBusiness = (b?: Business) => !!b && (!firebaseEnabled || account?.role === 'admin' || (!!company && company.id === b.id && company.ownerUid === account?.uid));
+  const editBusiness = (businessId: string, info: BusinessInfo) => {
+    setBusinessEdits((prev) => ({ ...prev, [businessId]: info }));
+    if (firebaseEnabled) {
+      updateCompanyInfo(businessId, {
+        name: info.name,
+        website: info.websiteUrl,
+        logo: info.logo,
+        industry: info.industry,
+        headquarters: info.headquarters,
+        companySize: info.companySize,
+        description: info.description,
+      })
+        .then(() => showToast('Company info saved.'))
+        .catch(reportCloudError);
+    } else showToast('Company info saved.');
+  };
 
   const handleResetData = () => {
     clearData();
@@ -1623,6 +1659,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
                 setCandidate((prev) => ({ ...prev, jobProfiles, activeProfileId }))
               }
               onUpdateStudies={(studies) => setCandidate((prev) => ({ ...prev, ...studies }))}
+              onRename={isVisitor ? undefined : renameMe}
               onUpdateExperience={(details) => {
                 setCandidate((prev) => ({ ...prev, ...details }));
                 showToast('Experience saved.');
@@ -1964,6 +2001,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
               onOpenTest={openTestPage}
               recruiter={staffUser}
               business={activeRole === 'admin' ? undefined : recruiterBusiness}
+              onEditBusiness={activeRole !== 'admin' && canEditBusiness(recruiterBusiness) ? (info: BusinessInfo) => editBusiness(recruiterBusiness!.id, info) : undefined}
               businesses={businesses}
               jobs={jobs}
               allCandidates={allCandidates}

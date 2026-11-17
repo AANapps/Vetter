@@ -59,6 +59,8 @@ interface CandidatePortalProps {
   onApplyJob: (jobId: string, profileId: string) => void;
   onUpdateProfiles: (profiles: JobProfile[], activeProfileId: string) => void;
   onUpdateStudies: (studies: Studies) => void;
+  // Changes their name on their account; unset for visitors
+  onRename?: (name: string) => void;
   onUpdateExperience: (details: ExperienceDetails) => void;
   onUpdateEducation: (details: EducationDetails) => void;
   // Everything read from their CV, once they've checked it
@@ -95,6 +97,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   onApplyJob,
   onUpdateProfiles,
   onUpdateStudies,
+  onRename,
   onUpdateExperience,
   onUpdateEducation,
   onImportProfile,
@@ -327,6 +330,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
           onPreviewJob={setOpenJobId}
           onOpenJob={onOpenJob}
           onToggleHidden={onToggleHidden}
+          onRename={onRename}
         />
       )}
 

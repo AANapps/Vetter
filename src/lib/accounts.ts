@@ -272,3 +272,10 @@ export async function decideCompany(company: ReviewCompany, approve: boolean) {
 }
 
 export const renameAccount = (uid: string, name: string) => updateDoc(userRef(uid), { name: name.trim() });
+
+// Your own name, on your account (the rules let anyone change only their name)
+export const updateAccountName = (uid: string, name: string) => updateDoc(userRef(uid), { name: name.trim() });
+
+// A company's public details, changed by its owner or the Praxa team. The plan and status are never touched here
+export type CompanyInfo = Pick<Company, 'name' | 'website'> & { logo: string; industry: string; headquarters: string; companySize: string; description: string };
+export const updateCompanyInfo = (companyId: string, info: CompanyInfo) => updateDoc(companyRef(companyId), { ...info });

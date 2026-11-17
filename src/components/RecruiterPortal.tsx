@@ -1,5 +1,6 @@
 import { isMainVersion } from '../lib/testLevels';
 import { Pic } from './Pic';
+import { BusinessInfo, BusinessInfoEditor } from './BusinessInfoEditor';
 import React, { useState } from 'react';
 import { User, JobPosting, AssessmentTest, Business, TestDraft, TestRole, isPublic, levelName, madeWithAI } from '../types';
 import { ROLE_GROUPS } from '../lib/testRoles';
@@ -41,6 +42,8 @@ interface RecruiterPortalProps {
   onEditOwnTest: (testId: string) => void;
   // The Praxa team in the company view: which company it's seeing the page as
   companyPicker?: { onPick: (businessId: string) => void };
+  // Saves the company's public details; set for its owner and the Praxa team
+  onEditBusiness?: (info: BusinessInfo) => void;
   // One of the company's saved tests opened in the test chat to change by asking, however it was made
   onEditWithAI: (testId: string) => void;
   // One of the company's saved tests opened in the builder, however it was made
@@ -76,6 +79,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   onEditWithAI,
   onEditByHand,
   companyPicker,
+  onEditBusiness,
   leads,
   browse,
 }) => {
@@ -199,8 +203,19 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
     if (window.confirm(`Delete ${t.title}? ${warnings.join(' ')} This can't be undone.`.replace(/\s+/g, ' '))) onDeleteTest(t.id);
   };
 
+  const [editingBusiness, setEditingBusiness] = useState(false);
   return (
     <div className={`${section === 'tests' ? 'px-4 sm:px-6' : 'max-w-7xl mx-auto px-6'} py-8 space-y-8`}>
+      {editingBusiness && business && onEditBusiness && (
+        <BusinessInfoEditor
+          business={business}
+          onClose={() => setEditingBusiness(false)}
+          onSave={(info) => {
+            onEditBusiness(info);
+            setEditingBusiness(false);
+          }}
+        />
+      )}
       {/* Company Header: the Tests page has its own, like Your jobs */}
       {section !== 'tests' && (
       // The company's card, with its numbers as cards beside it: one row on wide screens, two by two under it on phones
@@ -214,8 +229,19 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
               className="w-full h-full object-cover"
             />
           </div>
-          <div className="space-y-1 min-w-0">
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight truncate">{business ? business.name : 'Praxa Talent Team'}</h1>
+          <div className="space-y-1 min-w-0 flex-1">
+            <div className="flex items-center gap-2 min-w-0">
+              <h1 className="text-xl font-bold text-slate-900 tracking-tight truncate">{business ? business.name : 'Praxa Talent Team'}</h1>
+              {business && onEditBusiness && (
+                <button
+                  onClick={() => setEditingBusiness(true)}
+                  className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-slate-200 text-[11px] font-semibold text-slate-600 hover:border-indigo-300 hover:text-indigo-700"
+                >
+                  <Pencil className="w-3 h-3" />
+                  Edit info
+                </button>
+              )}
+            </div>
             <p className="text-xs text-slate-700 font-medium truncate">
               {recruiter.name} &middot; {recruiter.title}
             </p>

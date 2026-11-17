@@ -79,7 +79,8 @@ service cloud.firestore {
     match /profiles/{userId} {
       allow read: if true;
       allow create, update: if signedIn() && uid() == userId && verified()
-        && userDoc(userId).data.role == 'candidate'
+        // Candidates, and the Praxa team's own candidate profile (their candidate view)
+        && userDoc(userId).data.role in ['candidate', 'admin']
         && request.resource.data.id == userId && request.resource.data.role == 'candidate'
         && !request.resource.data.keys().hasAny(['email', 'appliedJobIds', 'applicationProfiles']);
       allow delete: if isAdmin();

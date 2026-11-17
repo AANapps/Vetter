@@ -72,6 +72,8 @@ interface MyProfileProps {
   onPreviewJob: (jobId: string) => void;
   onOpenJob: (jobId: string) => void;
   onToggleHidden: (testId: string) => void;
+  // Saves a new name on their account; unset for visitors
+  onRename?: (name: string) => void;
 }
 
 // The best score on any level of a test
@@ -264,6 +266,7 @@ export const MyProfile: React.FC<MyProfileProps> = (p) => {
   const skills = [...shown.verifiedSkills].sort((a, b) => b.score - a.score);
   const [allSkills, setAllSkills] = useState(false);
   const bestTier = skills[0] ? getBadgeTier(skills[0].score) : undefined;
+  const [naming, setNaming] = useState<string | null>(null);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-6 items-start">
@@ -304,7 +307,41 @@ export const MyProfile: React.FC<MyProfileProps> = (p) => {
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_auto] gap-4">
               <div className="min-w-0 space-y-1.5">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{candidate.name}</h1>
+                  {naming !== null && p.onRename ? (
+                    <form
+                      className="flex items-center gap-2"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        if (naming.trim()) p.onRename!(naming);
+                        setNaming(null);
+                      }}
+                    >
+                      <input
+                        autoFocus
+                        value={naming}
+                        onChange={(e) => setNaming(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Escape' && setNaming(null)}
+                        aria-label="Your name"
+                        maxLength={80}
+                        className="text-xl font-bold text-slate-900 px-2 py-1 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                      <button type="submit" className="px-3 py-1.5 rounded-full bg-indigo-600 text-white text-xs font-semibold">
+                        Save
+                      </button>
+                      <button type="button" onClick={() => setNaming(null)} className="px-3 py-1.5 rounded-full text-xs font-semibold text-slate-600 hover:bg-slate-100">
+                        Cancel
+                      </button>
+                    </form>
+                  ) : (
+                    <>
+                      <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{candidate.name}</h1>
+                      {p.onRename && (
+                        <button onClick={() => setNaming(candidate.name)} aria-label="Change your name" title="Change your name" className="p-1 rounded-full text-slate-400 hover:text-slate-800 hover:bg-slate-100">
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </>
+                  )}
                   {bestTier && bestTier.tierKey !== 'developing' && (
                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[11px] font-semibold ${bestTier.badgeTextColor} border-slate-200 bg-white`}>
                       <Award className="w-3.5 h-3.5" />
