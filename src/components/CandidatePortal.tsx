@@ -1,27 +1,19 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { backOr } from '../lib/back';
 import { Pic } from './Pic';
-import { User, AssessmentTest, JobPosting, CandidateJobMatch, Business, TestRole, TEST_DIFFICULTIES, JobProfile, isPublic, levelName } from '../types';
+import { User, AssessmentTest, JobPosting, CandidateJobMatch, Business, JobProfile } from '../types';
 import { activeProfileOf, asProfile, profilesOf } from '../lib/jobProfiles';
-import { ROLE_GROUPS, ROLE_SECTIONS, TestField, sectionsFor } from '../lib/testRoles';
-import { roleHidden, testHidden, useLibraryVisibility } from '../lib/libraryVisibility';
-import { SectorId, industryInSector, jobInSector, sectorLabel, testInSector } from '../lib/sectors';
-import { isMainVersion, levelsOf } from '../lib/testLevels';
-import { LevelPicker } from './LevelPicker';
-import { rankJobsForCandidate, getBestTestScore, calculateCandidateJobMatch } from '../lib/matchingAlgorithm';
-import { getTestStats } from '../lib/leaderboard';
+import { TestField } from '../lib/testRoles';
+import { SectorId, jobInSector, sectorLabel } from '../lib/sectors';
+import { rankJobsForCandidate, calculateCandidateJobMatch } from '../lib/matchingAlgorithm';
 import {
   CheckCircle2,
-  Briefcase,
-  Play,
   MapPin,
   DollarSign,
   Search,
   Send,
   SlidersHorizontal,
   X,
-  ChevronRight,
-  Circle,
 } from 'lucide-react';
 import { JobApplicationModal } from './JobApplicationModal';
 import { JobDetailsModal, JobPage, JobTests, fitKnown, getJobTests } from './JobDetails';
@@ -31,6 +23,7 @@ import { ExperienceDetails, ExperienceEditor } from './ExperienceEditor';
 import { EducationDetails, EducationEditor } from './EducationEditor';
 import { ProfileImportDialog } from './ProfileImportDialog';
 import { MyProfile } from './MyProfile';
+import { TestsBrowser } from './TestsBrowser';
 import { totalMinutes } from '../lib/jobTests';
 import { useProfileProgress } from '../lib/profileProgress';
 import { JobFilters } from './JobFilters';
@@ -80,7 +73,6 @@ interface CandidatePortalProps {
 }
 
 // A job simulation: a whole day of the job, which goes last in a checklist
-const isSimulation = (t: AssessmentTest) => t.id.startsWith('test-sim-') || /simulation/i.test(t.title);
 
 export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   section,
@@ -111,10 +103,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   visitor,
 }) => {
   // Tests page filters
-  const [difficultyFilter, setDifficultyFilter] = useState<AssessmentTest['difficulty'][]>([]);
   // The level picked on each test card, by the test's main version
-  const [cardLevels, setCardLevels] = useState<Record<string, string>>({});
-  const [testStatusFilter, setTestStatusFilter] = useState<'all' | 'not-taken' | 'taken'>('all');
   const [openJobId, setOpenJobId] = useState<string | null>(null);
   const [appliedNotification, setAppliedNotification] = useState<string | null>(null);
   const [selectedJobForApplication, setSelectedJobForApplication] = useState<JobPosting | null>(null);
@@ -213,103 +202,6 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
     setTimeout(() => setAppliedNotification(null), 3500);
   };
 
-  // Praxa-made tests are open to everyone; company tests are taken through the jobs they're attached to
-  // Each test is listed once; its levels are picked on the card
-  const allPraxaVersions = tests.filter((t) => isPublic(t));
-  // What the Praxa team has hidden (categories, roles, tests) isn't listed
-  const visibility = useLibraryVisibility();
-  const vetterTests = allPraxaVersions.filter((t) => isMainVersion(t) && (sector === 'all' || testInSector(sector)(t)) && !testHidden(visibility, t));
-  const roleGroups = ROLE_GROUPS.filter((g) => industryInSector(sector)(g.industry) && g.roles.some((r) => !roleHidden(visibility, r)));
-  // Only levels with tests in the sector shown, so a level never leads to an empty page
-  const testDifficulties = TEST_DIFFICULTIES.filter((d) => allPraxaVersions.some((t) => t.difficulty === d && (sector === 'all' || testInSector(sector)(t)) && !testHidden(visibility, t)));
-  const filteredTests = vetterTests.filter((t) => {
-    const versions = levelsOf(t, tests);
-    if (testField && !t.roles?.some((r) => testField.roles.includes(r))) return false;
-    if (difficultyFilter.length > 0 && !versions.some((v) => difficultyFilter.includes(v.difficulty))) return false;
-    const taken = versions.some((v) => getBestTestScore(candidate, v.id) !== undefined);
-    if (testStatusFilter === 'taken' && !taken) return false;
-    if (testStatusFilter === 'not-taken' && taken) return false;
-    return true;
-  });
-
-  // Easiest first, so a newcomer sees where to start
-  const easiest = (t: AssessmentTest) => Math.min(...levelsOf(t, tests).map((v) => TEST_DIFFICULTIES.indexOf(v.difficulty)));
-  filteredTests.sort((a, b) => easiest(a) - easiest(b));
-  // A role with sections (Excel, SQL, Power BI…) shows its tests under a heading for each; any other list is one group
-  const testSections = sectionsFor(testField);
-  // The checklist at the top: a role's modules, or for any other role or category each of its tests, job simulations
-  // last. It ignores the taken / not taken filter, so it always shows the whole set
-  const checklist: { id: string; label: string; testIds: string[] }[] | null = testSections
-    ? testSections
-    : testField
-      ? vetterTests
-          .filter((t) => t.roles?.some((r) => testField.roles.includes(r)))
-          .sort((a, b) => Number(isSimulation(a)) - Number(isSimulation(b)))
-          .map((t) => ({ id: t.id, label: t.title, testIds: [t.id] }))
-      : null;
-  // A role whose modules are one test each lists the cards in the modules' order, without a heading above each
-  const oneTestEach = !!testSections && testSections.every((sec) => sec.testIds.length === 1);
-  const testGroups: { id: string | null; label: string | null; blurb: string; tests: AssessmentTest[] }[] = testSections && oneTestEach
-    ? [
-        { id: null, label: null, blurb: '', tests: testSections.flatMap((sec) => filteredTests.filter((t) => t.id === sec.testIds[0])) },
-        {
-          id: 'more',
-          label: 'More tests',
-          blurb: 'Other tests for this role.',
-          tests: filteredTests.filter((t) => !testSections.some((sec) => sec.testIds.includes(t.id))),
-        },
-      ].filter((g) => g.tests.length > 0)
-    : testSections
-    ? [
-        ...testSections.map((sec) => ({ id: sec.id, label: sec.label, blurb: sec.blurb, tests: filteredTests.filter((t) => sec.testIds.includes(t.id)) })),
-        {
-          id: 'more',
-          label: 'More tests',
-          blurb: 'Other tests for this role.',
-          tests: filteredTests.filter((t) => !testSections.some((sec) => sec.testIds.includes(t.id))),
-        },
-      ].filter((g) => g.tests.length > 0)
-    : [{ id: null, label: null, blurb: '', tests: filteredTests }];
-
-  // A role's sections open in a panel to the right of the left menu while the pointer is on the role or the panel
-  const [flyout, setFlyout] = useState<{ role: TestRole; top: number; left: number } | null>(null);
-  const flyoutTimer = useRef<number | undefined>(undefined);
-  const keepFlyout = () => window.clearTimeout(flyoutTimer.current);
-  const openFlyout = (role: TestRole, el: HTMLElement) => {
-    keepFlyout();
-    const row = el.getBoundingClientRect();
-    const menu = (el.closest('aside') ?? el).getBoundingClientRect();
-    const height = (ROLE_SECTIONS[role]?.length ?? 0) * 46 + 56;
-    setFlyout({ role, left: menu.right + 8, top: Math.max(72, Math.min(row.top - 8, window.innerHeight - height - 16)) });
-  };
-  const closeFlyoutSoon = () => {
-    keepFlyout();
-    flyoutTimer.current = window.setTimeout(() => setFlyout(null), 180);
-  };
-  // Its position is worked out on opening, so scrolling closes it
-  useEffect(() => {
-    if (!flyout) return;
-    const close = () => setFlyout(null);
-    window.addEventListener('scroll', close, { passive: true });
-    return () => window.removeEventListener('scroll', close);
-  }, [flyout]);
-
-  // A section picked in the left menu: open its role's tests, then scroll to it once it's on the page
-  const [pendingSection, setPendingSection] = useState<string | null>(null);
-  const jumpToSection = (role: TestRole, sectionId: string) => {
-    if (!(testField && testField.roles.length === 1 && testField.roles[0] === role)) onTestFieldChange({ label: role, roles: [role] });
-    setPendingSection(sectionId);
-    setFlyout(null);
-  };
-  useEffect(() => {
-    if (!pendingSection) return;
-    // A module that is one test has no section heading: its card is the place to go
-    const card = testSections?.find((sec) => sec.id === pendingSection)?.testIds;
-    const el = document.getElementById(`test-section-${pendingSection}`) ?? (card?.length === 1 ? document.getElementById(`test-card-${card[0]}`) : null);
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    // Not there yet while the role's page is opening; once it's open and the section still isn't (filtered out), give up
-    if (el || testSections) setPendingSection(null);
-  }, [pendingSection, testSections]);
 
   return (
     // The profile reads like a LinkedIn profile: an ~804px column beside suggested tests and jobs; the boards use the full width
@@ -592,297 +484,19 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
         </div>
       )}
 
-      {/* SECTION 3: PRAXA TESTS */}
+      {/* Praxa's tests: pick a role, then its tests in order */}
       {view === 'tests' && (
-        <div className="grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)] gap-6 items-start">
-          {/* Browse by industry and role */}
-          <aside className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs space-y-5 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:overscroll-contain [scrollbar-width:thin]">
-            {/* Level first: what a newcomer needs to pick before anything else */}
-            <div className="space-y-2">
-              <h2 className="text-sm font-bold text-slate-900">Level</h2>
-              <div className="flex flex-wrap gap-1.5">
-                {testDifficulties.map((d) => {
-                  const on = difficultyFilter.includes(d);
-                  return (
-                    <button
-                      key={d}
-                      onClick={() => setDifficultyFilter((prev) => (on ? prev.filter((x) => x !== d) : [...prev, d]))}
-                      aria-pressed={on}
-                      className={`px-3 py-1 rounded-full border text-xs font-semibold ${on ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-slate-200 text-slate-700 hover:border-indigo-300'}`}
-                    >
-                      {d === 'Junior' ? 'Beginner' : levelName(d)}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            <div className="space-y-1 pt-4 border-t border-slate-100">
-              <h2 className="text-sm font-bold text-slate-900 mb-2">Role</h2>
-              <RoleButton label="All tests" count={vetterTests.length} active={!testField} onClick={() => onTestFieldChange(null)} />
-              {/* A field picked on Home that isn't a role or industry listed here */}
-              {testField && !ROLE_GROUPS.some((g) => g.industry === testField.label || g.roles.includes(testField.label as TestRole)) && (
-                <RoleButton label={testField.label} count={filteredTests.length} active onClick={() => {}} />
-              )}
-            </div>
-            {roleGroups.filter((group) => group.roles.some((r) => vetterTests.some((t) => t.roles?.includes(r)))).map((group) => (
-              <div key={group.industry} className="space-y-1">
-                <button
-                  onClick={() => onTestFieldChange({ label: group.industry, roles: group.roles })}
-                  aria-pressed={testField?.label === group.industry}
-                  className={`block w-full text-left text-[10px] font-mono uppercase tracking-wider font-semibold px-2 hover:text-indigo-700 ${
-                    testField?.label === group.industry ? 'text-indigo-700' : 'text-slate-400'
-                  }`}
-                >
-                  {group.industry}
-                </button>
-                {group.roles.map((role) => {
-                  // A role the Praxa team has hidden, or with no tests yet, isn't listed
-                  if (roleHidden(visibility, role) || !vetterTests.some((t) => t.roles?.includes(role))) return null;
-                  const button = (
-                    <RoleButton
-                      key={role}
-                      label={role}
-                      count={vetterTests.filter((t) => t.roles?.includes(role)).length}
-                      active={testField?.label === role}
-                      onClick={() => onTestFieldChange({ label: role, roles: [role] })}
-                    />
-                  );
-                  const sections = ROLE_SECTIONS[role];
-                  if (!sections) return button;
-                  // On wide screens its sections open in a panel to the right on hover or focus; on narrow ones, where
-                  // the menu sits above the tests, they're listed under the role while its tests are showing
-                  const open = sectionsFor(testField) === sections;
-                  return (
-                    <div
-                      key={role}
-                      onMouseEnter={(e) => openFlyout(role, e.currentTarget)}
-                      onMouseLeave={closeFlyoutSoon}
-                      onFocus={(e) => openFlyout(role, e.currentTarget)}
-                      className="relative"
-                    >
-                      <div className="flex items-center">
-                        <div className="flex-1 min-w-0">{button}</div>
-                        <ChevronRight
-                          aria-hidden
-                          className={`hidden lg:block w-3.5 h-3.5 shrink-0 ml-0.5 ${flyout?.role === role ? 'text-indigo-600' : 'text-slate-300'}`}
-                        />
-                      </div>
-                      <div className={`${open ? 'block' : 'hidden'} lg:hidden ml-3 mt-0.5 mb-1 pl-2 border-l border-slate-200 space-y-0.5`}>
-                        {sections.map((sec) => (
-                          <button
-                            key={sec.id}
-                            onClick={() => jumpToSection(role, sec.id)}
-                            title={sec.blurb}
-                            className="w-full flex items-center justify-between gap-2 px-2 py-1 rounded text-[11px] text-left text-slate-600 hover:text-indigo-700 hover:bg-slate-50 transition-colors"
-                          >
-                            <span>{sec.label}</span>
-                            <span className="font-mono text-[10px] text-slate-400 tabular-nums">
-                              {vetterTests.filter((t) => sec.testIds.includes(t.id)).length}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
-
-            <div className="pt-4 border-t border-slate-100 space-y-2">
-              <h3 className="text-xs font-bold text-slate-900">Status</h3>
-              {([
-                ['all', 'All'],
-                ['not-taken', 'Not taken yet'],
-                ['taken', 'Taken'],
-              ] as const).map(([value, label]) => (
-                <label key={value} className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="test-status"
-                    checked={testStatusFilter === value}
-                    onChange={() => setTestStatusFilter(value)}
-                    className="accent-indigo-600"
-                  />
-                  <span>{label}</span>
-                </label>
-              ))}
-            </div>
-          </aside>
-
-          {flyout && ROLE_SECTIONS[flyout.role] && (
-            <div
-              role="menu"
-              aria-label={`${flyout.role} sections`}
-              onMouseEnter={keepFlyout}
-              onMouseLeave={closeFlyoutSoon}
-              style={{ top: flyout.top, left: flyout.left }}
-              className="hidden lg:block fixed z-40 w-72 menu-panel p-2"
-            >
-              <div className="px-2 pt-1 pb-2 text-[10px] font-mono uppercase tracking-wider font-semibold text-slate-400">
-                {flyout.role} tests by tool
-              </div>
-              {ROLE_SECTIONS[flyout.role]!.map((sec) => (
-                <button
-                  key={sec.id}
-                  role="menuitem"
-                  onClick={() => jumpToSection(flyout.role, sec.id)}
-                  className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-slate-100 group/sec transition-colors"
-                >
-                  <span className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-semibold text-slate-800 group-hover/sec:text-indigo-700">{sec.label}</span>
-                    <span className="font-mono text-[10px] text-slate-400 tabular-nums">
-                      {vetterTests.filter((t) => sec.testIds.includes(t.id)).length}
-                    </span>
-                  </span>
-                  <span className="block text-[11px] text-slate-500 leading-snug">{sec.blurb}</span>
-                </button>
-              ))}
-            </div>
-          )}
-
-        <div className="space-y-6 min-w-0">
-          <div>
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-              {!testField
-                ? 'Tests'
-                : testField.roles.length === 1 && testField.roles[0] === testField.label
-                ? `Tests for ${testField.label}s`
-                : `${testField.label} tests`}
-            </h1>
-            <p className="text-sm text-slate-500">Pass a test (75 or more) and the skill goes on your profile, verified. Free, and you can retake.</p>
-          </div>
-
-          {filteredTests.length === 0 && (
-            <div className="bg-white border border-slate-200 rounded-xl p-8 text-center text-xs text-slate-500 shadow-xs">
-              {vetterTests.length === 0 ? `No tests in ${sectorLabel(sector)} yet.` : 'No tests match these filters.'}
-            </div>
-          )}
-
-          {/* The modules of the role or category open as a checklist, each ticked once any level of its test has been taken */}
-          {checklist && checklist.length > 0 && (() => {
-            const items = checklist.map((sec) => {
-              const secTests = tests.filter((t) => sec.testIds.includes(t.id));
-              const best = secTests.flatMap((t) => levelsOf(t, tests)).map((v) => getBestTestScore(candidate, v.id)).filter((n): n is number => n !== undefined);
-              return { sec, done: best.length > 0, best: best.length ? Math.max(...best) : undefined };
-            });
-            const doneCount = items.filter((i) => i.done).length;
-            return (
-              <section aria-labelledby="module-checklist" className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
-                <div className="flex items-baseline justify-between gap-3">
-                  <h2 id="module-checklist" className="text-sm font-bold text-slate-900">Your modules</h2>
-                  <span className="text-xs text-slate-500 tabular-nums">
-                    {doneCount} of {items.length} done
-                  </span>
-                </div>
-                <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden" aria-hidden="true">
-                  <div className="h-full bg-indigo-600 rounded-full transition-all" style={{ width: `${(doneCount / Math.max(1, items.length)) * 100}%` }} />
-                </div>
-                <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-1.5">
-                  {items.map(({ sec, done, best }) => (
-                    <li key={sec.id}>
-                      <button
-                        onClick={() =>
-                          (document.getElementById(`test-section-${sec.id}`) ?? document.getElementById(`test-card-${sec.testIds[0]}`))?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                        }
-                        className="w-full flex items-center gap-2 text-left text-xs py-1 rounded hover:text-indigo-700"
-                      >
-                        {done ? (
-                          <CheckCircle2 aria-label="Done" className="w-4 h-4 shrink-0 text-emerald-600" />
-                        ) : (
-                          <Circle aria-label="Not done yet" className="w-4 h-4 shrink-0 text-slate-300" />
-                        )}
-                        <span className={`truncate ${done ? 'text-slate-900 font-medium' : 'text-slate-600'}`}>{sec.label}</span>
-                        {best !== undefined && <span className="ml-auto font-mono text-[11px] text-slate-400 tabular-nums">{best}</span>}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            );
-          })()}
-
-          {testGroups.map((group, gi) => (
-          <section
-            key={group.id ?? 'all'}
-            id={group.id ? `test-section-${group.id}` : undefined}
-            className={`space-y-3 scroll-mt-24 ${group.label && gi > 0 ? 'pt-6 border-t border-slate-200' : ''}`}
-          >
-          {group.label && (
-            <div>
-              <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                {group.label}
-                <span className="font-mono text-[11px] font-normal text-slate-400 tabular-nums">{group.tests.length}</span>
-              </h2>
-              <p className="text-xs text-slate-500">{group.blurb}</p>
-            </div>
-          )}
-          {/* A role's modules list one test card to a row; any other list fills two columns */}
-          <div className={`grid grid-cols-1 gap-4 ${testSections ? '' : 'md:grid-cols-2'}`}>
-            {group.tests.map((main) => {
-              const versions = levelsOf(main, tests);
-              // The level shown: the one picked on this card, else the first matching the difficulty filter
-              const t =
-                versions.find((v) => v.id === cardLevels[main.id]) ??
-                versions.find((v) => difficultyFilter.includes(v.difficulty)) ??
-                main;
-              const bestScore = getBestTestScore(candidate, t.id);
-              const stats = getTestStats(t, allCandidates);
-
-              return (
-                // Short card: the title and a two-line description, then one row of symbols (each named on hover and to
-                // screen readers) with the level switch beside the play button; skills and the rest are on the test's page
-                <div
-                  key={main.id}
-                  id={`test-card-${main.id}`}
-                  className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col gap-3 hover:border-indigo-300 transition-colors scroll-mt-24"
-                >
-                  <div className="min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-[11px] font-mono uppercase tracking-wider text-indigo-700 font-bold truncate">{t.category}</span>
-                    </div>
-                    <h3 className="text-[15px] font-semibold tracking-tight text-slate-900 leading-snug">
-                      <button onClick={() => onOpenTest(t.id)} className="text-left hover:text-indigo-700 transition-colors line-clamp-2">
-                        {t.title}
-                      </button>
-                    </h3>
-                    <p className="mt-1 text-xs text-slate-600 leading-relaxed line-clamp-2">{t.description}</p>
-                  </div>
-
-                  <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-slate-500 tabular-nums">
-                    <span>
-                      {levelName(t.difficulty) === 'Junior' ? 'Beginner' : levelName(t.difficulty)} · {t.estimatedMinutes} min · {t.totalQuestions} {t.totalQuestions === 1 ? 'question' : 'questions'}
-                      {stats.candidatesRanked > 0 && ` · ${stats.candidatesRanked} taken`}
-                    </span>
-                    {bestScore !== undefined && <span className="font-semibold text-slate-900">Your best {bestScore}</span>}
-                    {/* The level sits by the play button: pick it, then start */}
-                    <div className="ml-auto flex items-center gap-2">
-                    {versions.length > 1 && (
-                      <LevelPicker
-                        versions={versions}
-                        selectedId={t.id}
-                        onSelect={(id) => setCardLevels((prev) => ({ ...prev, [main.id]: id }))}
-                        bestScores={Object.fromEntries(versions.map((v) => [v.id, getBestTestScore(candidate, v.id)]))}
-                        compact
-                      />
-                    )}
-                    <button
-                      onClick={() => onStartTest(t)}
-                      title={bestScore !== undefined ? 'Retake' : 'Start test'}
-                      aria-label={`${bestScore !== undefined ? 'Retake' : 'Start'} ${t.title}`}
-                      className="w-8 h-8 shrink-0 rounded-full bg-indigo-600 text-white flex items-center justify-center hover:bg-indigo-700"
-                    >
-                      <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
-                    </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          </section>
-          ))}
-        </div>
-        </div>
+        <TestsBrowser
+          candidate={candidate}
+          allCandidates={allCandidates}
+          tests={tests}
+          jobs={jobs}
+          sector={sector}
+          testField={testField}
+          onTestFieldChange={onTestFieldChange}
+          onOpenTest={onOpenTest}
+          onStartTest={onStartTest}
+        />
       )}
 
       {jobPage && <JobPage {...jobDetailsProps(jobPage)} visitor={visitor} onBack={() => backOr(() => onNavigate('jobs'))} />}
@@ -996,20 +610,3 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   );
 };
 
-const RoleButton: React.FC<{ label: string; count: number; active: boolean; onClick: () => void }> = ({
-  label,
-  count,
-  active,
-  onClick,
-}) => (
-  <button
-    onClick={onClick}
-    aria-pressed={active}
-    className={`w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded-md text-xs text-left transition-colors ${
-      active ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-700 hover:bg-slate-50'
-    }`}
-  >
-    <span>{label}</span>
-    <span className="font-mono text-[11px] text-slate-400 tabular-nums">{count}</span>
-  </button>
-);
