@@ -109,6 +109,8 @@ export interface User {
   testStarts?: { testId: string; startedAt: string; sawAll?: boolean }[];
   // Tests they've hidden from their public profile. Other candidates and visitors don't see them; companies still do
   hiddenTestIds?: string[];
+  // The job they're after, asked at sign-up and changeable on Home and their profile: Home, the feed and Tests start from it
+  targetRole?: TestRole;
   // Profiles for different kinds of work (data, customer service, retail...); the one shown is activeProfileId
   jobProfiles?: JobProfile[];
   activeProfileId?: string;

@@ -1,4 +1,6 @@
-import { FOCUS_SECTOR } from '../lib/sectors';
+import { FOCUS_SECTOR, industryInSector } from '../lib/sectors';
+import { ROLE_GROUPS, ROLE_SECTIONS } from '../lib/testRoles';
+import { rememberSignUpRole } from '../lib/signUpRole';
 import { SectorSelect } from './SectorPicker';
 import type { SectorId } from '../lib/sectors';
 import React, { useEffect, useState } from 'react';
@@ -34,6 +36,8 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ initialMode, reason, ini
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // The job a candidate is after: Home, their feed and the Tests page start from it
+  const [jobWanted, setJobWanted] = useState('');
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -67,6 +71,7 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ initialMode, reason, ini
           password,
           ...(role === 'recruiter' && { company: { name: companyName.trim(), website: website.trim(), noWorkEmail: noWorkEmail || freeEmail, ...(sector && { sector }) } }),
         });
+        if (role === 'candidate' && jobWanted) rememberSignUpRole(jobWanted);
         onClose();
       }
     } catch (err) {
@@ -90,6 +95,7 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ initialMode, reason, ini
           name: name.trim() || user.displayName || user.email!.split('@')[0],
           ...(role === 'recruiter' && { company: { name: companyName.trim(), website: website.trim(), noWorkEmail: isFreeEmail(user.email ?? ''), ...(sector && { sector }) } }),
         });
+        if (role === 'candidate' && jobWanted) rememberSignUpRole(jobWanted);
       }
       onClose();
     } catch (err) {
@@ -168,6 +174,30 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ initialMode, reason, ini
                 Your name
               </label>
               <input id="auth-name" required value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" className={inputClass} />
+            </div>
+          )}
+
+          {mode === 'sign-up' && role === 'candidate' && (
+            <div>
+              <label htmlFor="auth-job" className="block text-xs font-semibold text-slate-700 mb-1">
+                What job are you after?
+              </label>
+              <select id="auth-job" value={jobWanted} onChange={(e) => setJobWanted(e.target.value)} className={inputClass}>
+                <option value="">Not sure yet</option>
+                {ROLE_GROUPS.filter((g) => !FOCUS_SECTOR || industryInSector(FOCUS_SECTOR)(g.industry)).map((g) => {
+                  const roles = g.roles.filter((r) => ROLE_SECTIONS[r]?.length);
+                  return roles.length ? (
+                    <optgroup key={g.industry} label={g.industry}>
+                      {roles.map((r) => (
+                        <option key={r} value={r}>
+                          {r}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ) : null;
+                })}
+              </select>
+              <p className="text-[11px] text-slate-500 mt-1">We'll show you the tests and jobs for it first. You can change it any time.</p>
             </div>
           )}
 

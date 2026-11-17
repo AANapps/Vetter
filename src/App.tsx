@@ -5,7 +5,7 @@ import { AnswerRecord, saveSubmission } from './lib/submissions';
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { BrandWordmark } from './components/Brand';
 import { CurrencyPicker } from './components/CurrencyPicker';
-import { User, UserRole, Assignment, TeamMember, AssessmentTest, JobPosting, Business, SocialState, AppNotification, JobInvitation, Lead, TestDraft, TestKind, TrialResult, ResultBreakdown, hasAiTests, madeWithAI, isPublic } from './types';
+import { User, UserRole, Assignment, TeamMember, AssessmentTest, JobPosting, Business, SocialState, AppNotification, JobInvitation, Lead, TestDraft, TestKind, TestRole, TrialResult, ResultBreakdown, hasAiTests, madeWithAI, isPublic } from './types';
 import { INITIAL_RECRUITER, INITIAL_BUSINESSES, STANDARD_ASSESSMENTS } from './data/mockData';
 import { loadData, saveData, clearData, createSeedData } from './lib/store';
 import { getPercentile } from './lib/leaderboard';
@@ -31,6 +31,7 @@ import { PersonProfileModal } from './components/PersonProfileModal';
 import { backOr, pushPage, replacePage } from './lib/back';
 import { CandidateProfilePage } from './components/CandidateProfilePage';
 import { HomeNudges } from './components/HomeNudges';
+import { takeSignUpRole } from './lib/signUpRole';
 import { WorkPage } from './components/WorkPage';
 import { BrowseCandidates } from './components/BrowseCandidates';
 import { BusinessJobs } from './components/BusinessJobs';
@@ -721,6 +722,24 @@ export default function App() {
     if (!account || candidate.id !== account.uid || candidate.name === account.name) return;
     setCandidate((prev) => ({ ...prev, name: account.name, avatarUrl: initialsAvatar(account.name) }));
   }, [account?.name]);
+
+  // The job they said they're after at sign-up goes on their profile once it's loaded (saving follows), and a job they
+  // pick later on Home or their profile replaces it
+  useEffect(() => {
+    if (activeRole !== 'candidate' || isVisitor) return;
+    if (firebaseEnabled && profileSync?.uid !== candidate.id) return;
+    const role = takeSignUpRole();
+    if (role) setCandidate((prev) => ({ ...prev, targetRole: role }));
+  }, [candidate.id, profileSync?.uid, activeRole, isVisitor]);
+  useEffect(() => {
+    const picked = (e: Event) => {
+      if (roleRef.current !== 'candidate') return;
+      const role = (e as CustomEvent<TestRole>).detail;
+      setCandidate((prev) => (prev.targetRole === role ? prev : { ...prev, targetRole: role }));
+    };
+    window.addEventListener('praxa-path-change', picked);
+    return () => window.removeEventListener('praxa-path-change', picked);
+  }, []);
 
   // Saving to their account, a moment after the last change
   const lastSavedProfile = useRef('');

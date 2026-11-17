@@ -109,9 +109,11 @@ export function useProfileProgress(input: {
     writeStored(storeKey(candidate.id), r);
     window.dispatchEvent(new CustomEvent('praxa-path-change', { detail: r }));
   };
+  // Their own pick on this device, else the job they said they're after (at sign-up), else a guess
+  const chosen = pickedRole ?? candidate.targetRole;
+  const role = chosen && roles.includes(chosen) ? chosen : guessedRole;
   // Whether they've chosen a role themselves, rather than it being guessed
-  const rolePicked = !!pickedRole && roles.includes(pickedRole);
-  const role = pickedRole && roles.includes(pickedRole) ? pickedRole : guessedRole;
+  const rolePicked = !!chosen && roles.includes(chosen);
 
   // Each of the role's modules, with their best score on it
   const path: PathModule[] = (role ? ROLE_SECTIONS[role] ?? [] : [])
