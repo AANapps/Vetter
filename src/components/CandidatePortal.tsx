@@ -8,8 +8,6 @@ import { roleHidden, testHidden, useLibraryVisibility } from '../lib/libraryVisi
 import { SectorId, industryInSector, jobInSector, sectorLabel, testInSector } from '../lib/sectors';
 import { isMainVersion, levelsOf } from '../lib/testLevels';
 import { LevelPicker } from './LevelPicker';
-import { DemandBadge } from './DemandBadge';
-import { DEMAND_SOURCES, demandFor, jobsUsing } from '../lib/demand';
 import { rankJobsForCandidate, getBestTestScore, calculateCandidateJobMatch } from '../lib/matchingAlgorithm';
 import { getTestStats } from '../lib/leaderboard';
 import {
@@ -23,21 +21,18 @@ import {
   SlidersHorizontal,
   X,
   ChevronRight,
-  Clock,
-  ListChecks,
-  Users,
-  Trophy,
-  Target,
   Circle,
 } from 'lucide-react';
 import { JobApplicationModal } from './JobApplicationModal';
-import { JobDetailsModal, JobPage, JobTests, getJobTests } from './JobDetails';
+import { JobDetailsModal, JobPage, JobTests, fitKnown, getJobTests } from './JobDetails';
 import { JobProfileEditor } from './JobProfileEditor';
 import { Studies, StudiesEditor } from './StudiesEditor';
 import { ExperienceDetails, ExperienceEditor } from './ExperienceEditor';
 import { EducationDetails, EducationEditor } from './EducationEditor';
 import { ProfileImportDialog } from './ProfileImportDialog';
 import { MyProfile } from './MyProfile';
+import { totalMinutes } from '../lib/jobTests';
+import { useProfileProgress } from '../lib/profileProgress';
 import { JobFilters } from './JobFilters';
 import { CITIES } from '../lib/geo';
 import { JobFilterState, MAX_RADIUS, countActiveFilters, defaultJobFilters, jobMatchesFilters } from '../lib/jobFilters';
@@ -61,6 +56,8 @@ interface CandidatePortalProps {
   onUpdateStudies: (studies: Studies) => void;
   // Changes their name on their account; unset for visitors
   onRename?: (name: string) => void;
+  // Opens their profile as other people see it
+  onPreviewProfile?: () => void;
   onUpdateExperience: (details: ExperienceDetails) => void;
   onUpdateEducation: (details: EducationDetails) => void;
   // Everything read from their CV, once they've checked it
@@ -100,6 +97,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   onUpdateProfiles,
   onUpdateStudies,
   onRename,
+  onPreviewProfile,
   onUpdateExperience,
   onUpdateEducation,
   onImportProfile,
@@ -136,6 +134,19 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   const profiles = profilesOf(candidate);
   const activeProfile = activeProfileOf(candidate);
   const shown = asProfile(candidate, activeProfile);
+
+  // The role they're working towards (as on their profile): the Tests page opens on it, once a visit
+  const progress = useProfileProgress({ candidate, shown, activeProfile, tests, jobs, sector });
+  const openedOnRole = useRef(false);
+  useEffect(() => {
+    if (section !== 'tests' || jobPageId || openedOnRole.current) return;
+    openedOnRole.current = true;
+    if (!testField && !visitor && progress.role) onTestFieldChange({ label: progress.role, roles: [progress.role] });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [section, jobPageId]);
+  useEffect(() => {
+    if (section !== 'tests') openedOnRole.current = false;
+  }, [section]);
 
   const activeJobs = jobs.filter((j) => j.status === 'active' && (sector === 'all' || jobInSector(sector, tests)(j)));
 
@@ -209,7 +220,8 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   const visibility = useLibraryVisibility();
   const vetterTests = allPraxaVersions.filter((t) => isMainVersion(t) && (sector === 'all' || testInSector(sector)(t)) && !testHidden(visibility, t));
   const roleGroups = ROLE_GROUPS.filter((g) => industryInSector(sector)(g.industry) && g.roles.some((r) => !roleHidden(visibility, r)));
-  const testDifficulties = TEST_DIFFICULTIES.filter((d) => allPraxaVersions.some((t) => t.difficulty === d));
+  // Only levels with tests in the sector shown, so a level never leads to an empty page
+  const testDifficulties = TEST_DIFFICULTIES.filter((d) => allPraxaVersions.some((t) => t.difficulty === d && (sector === 'all' || testInSector(sector)(t)) && !testHidden(visibility, t)));
   const filteredTests = vetterTests.filter((t) => {
     const versions = levelsOf(t, tests);
     if (testField && !t.roles?.some((r) => testField.roles.includes(r))) return false;
@@ -220,6 +232,9 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
     return true;
   });
 
+  // Easiest first, so a newcomer sees where to start
+  const easiest = (t: AssessmentTest) => Math.min(...levelsOf(t, tests).map((v) => TEST_DIFFICULTIES.indexOf(v.difficulty)));
+  filteredTests.sort((a, b) => easiest(a) - easiest(b));
   // A role with sections (Excel, SQL, Power BI…) shows its tests under a heading for each; any other list is one group
   const testSections = sectionsFor(testField);
   // The checklist at the top: a role's modules, or for any other role or category each of its tests, job simulations
@@ -334,6 +349,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
           onOpenJob={onOpenJob}
           onToggleHidden={onToggleHidden}
           onRename={onRename}
+          onPreview={onPreviewProfile}
         />
       )}
 
@@ -514,6 +530,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
 
                       {/* Match Fit Score & Apply CTA */}
                       <div className="flex items-center gap-4 shrink-0 justify-between md:justify-end border-t md:border-t-0 pt-4 md:pt-0 border-slate-200">
+                        {fitKnown(job, candidate) ? (
                         <div className="text-right">
                           <div className="text-[11px] text-slate-500 font-medium">Your Fit</div>
                           <div
@@ -529,6 +546,14 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                           </div>
                           <div className="text-[10px] text-slate-500 font-medium">{match.matchTier}</div>
                         </div>
+                        ) : (
+                          <div className="text-right">
+                            <div className="text-sm font-semibold text-slate-900">
+                              Take {job.testIds.length} {job.testIds.length === 1 ? 'test' : 'tests'}
+                            </div>
+                            <div className="text-[11px] text-slate-500">about {totalMinutes(job, tests)} min, to apply</div>
+                          </div>
+                        )}
 
                         {isApplied ? (
                           <div className="px-4 py-2 text-xs font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-1.5 shadow-2xs">
@@ -572,15 +597,34 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)] gap-6 items-start">
           {/* Browse by industry and role */}
           <aside className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs space-y-5 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:overscroll-contain [scrollbar-width:thin]">
-            <div className="space-y-1">
-              <h2 className="text-sm font-bold text-slate-900 mb-2">Browse by role</h2>
+            {/* Level first: what a newcomer needs to pick before anything else */}
+            <div className="space-y-2">
+              <h2 className="text-sm font-bold text-slate-900">Level</h2>
+              <div className="flex flex-wrap gap-1.5">
+                {testDifficulties.map((d) => {
+                  const on = difficultyFilter.includes(d);
+                  return (
+                    <button
+                      key={d}
+                      onClick={() => setDifficultyFilter((prev) => (on ? prev.filter((x) => x !== d) : [...prev, d]))}
+                      aria-pressed={on}
+                      className={`px-3 py-1 rounded-full border text-xs font-semibold ${on ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-slate-200 text-slate-700 hover:border-indigo-300'}`}
+                    >
+                      {d === 'Junior' ? 'Beginner' : levelName(d)}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="space-y-1 pt-4 border-t border-slate-100">
+              <h2 className="text-sm font-bold text-slate-900 mb-2">Role</h2>
               <RoleButton label="All tests" count={vetterTests.length} active={!testField} onClick={() => onTestFieldChange(null)} />
               {/* A field picked on Home that isn't a role or industry listed here */}
               {testField && !ROLE_GROUPS.some((g) => g.industry === testField.label || g.roles.includes(testField.label as TestRole)) && (
                 <RoleButton label={testField.label} count={filteredTests.length} active onClick={() => {}} />
               )}
             </div>
-            {roleGroups.map((group) => (
+            {roleGroups.filter((group) => group.roles.some((r) => vetterTests.some((t) => t.roles?.includes(r)))).map((group) => (
               <div key={group.industry} className="space-y-1">
                 <button
                   onClick={() => onTestFieldChange({ label: group.industry, roles: group.roles })}
@@ -592,8 +636,8 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                   {group.industry}
                 </button>
                 {group.roles.map((role) => {
-                  // A role the Praxa team has hidden isn't listed
-                  if (roleHidden(visibility, role)) return null;
+                  // A role the Praxa team has hidden, or with no tests yet, isn't listed
+                  if (roleHidden(visibility, role) || !vetterTests.some((t) => t.roles?.includes(role))) return null;
                   const button = (
                     <RoleButton
                       key={role}
@@ -643,23 +687,6 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                 })}
               </div>
             ))}
-
-            <div className="pt-4 border-t border-slate-100 space-y-2">
-              <h3 className="text-xs font-bold text-slate-900">Difficulty</h3>
-              {testDifficulties.map((d) => (
-                <label key={d} className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={difficultyFilter.includes(d)}
-                    onChange={(e) =>
-                      setDifficultyFilter((prev) => (e.target.checked ? [...prev, d] : prev.filter((x) => x !== d)))
-                    }
-                    className="accent-indigo-600"
-                  />
-                  <span>{levelName(d)}</span>
-                </label>
-              ))}
-            </div>
 
             <div className="pt-4 border-t border-slate-100 space-y-2">
               <h3 className="text-xs font-bold text-slate-900">Status</h3>
@@ -722,15 +749,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                 ? `Tests for ${testField.label}s`
                 : `${testField.label} tests`}
             </h1>
-            <p className="text-xs text-slate-500">
-              Take any test, any time, as often as you like. Your best score on each becomes a verified skill on your
-              profile, where companies can see it. Tests that companies write for their own jobs are taken from the Job Board.
-            </p>
-            <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-slate-500">
-              <DemandBadge demand={{ level: 'high', reason: 'Fastest-growing roles', source: 'LinkedIn Jobs on the Rise 2026' }} />
-              <DemandBadge demand={{ level: 'rising', reason: 'Growing fast', source: 'WEF and US BLS' }} />
-              <span>Hiring demand for the roles each test is for, from {DEMAND_SOURCES}. The briefcase counts open jobs on Praxa using the test.</span>
-            </p>
+            <p className="text-sm text-slate-500">Pass a test (75 or more) and the skill goes on your profile, verified. Free, and you can retake.</p>
           </div>
 
           {filteredTests.length === 0 && (
@@ -820,7 +839,6 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                   <div className="min-w-0">
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-[11px] font-mono uppercase tracking-wider text-indigo-700 font-bold truncate">{t.category}</span>
-                      <DemandBadge demand={demandFor(main)} />
                     </div>
                     <h3 className="text-[15px] font-semibold tracking-tight text-slate-900 leading-snug">
                       <button onClick={() => onOpenTest(t.id)} className="text-left hover:text-indigo-700 transition-colors line-clamp-2">
@@ -831,24 +849,11 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
                   </div>
 
                   <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-slate-500 tabular-nums">
-                    {(
-                      [
-                        { Icon: Clock, value: `${t.estimatedMinutes}m`, label: `About ${t.estimatedMinutes} minutes` },
-                        { Icon: ListChecks, value: t.totalQuestions, label: `${t.totalQuestions} tasks` },
-                        { Icon: Users, value: stats.candidatesRanked, label: `${stats.candidatesRanked} ranked, average ${stats.averageScore}` },
-                        ...(jobsUsing(main, tests, jobs) > 0
-                          ? [{ Icon: Briefcase, value: jobsUsing(main, tests, jobs), label: `Used by ${jobsUsing(main, tests, jobs)} open ${jobsUsing(main, tests, jobs) === 1 ? 'job' : 'jobs'} on Praxa` }]
-                          : []),
-                        bestScore !== undefined
-                          ? { Icon: Trophy, value: bestScore, label: `Your best: ${bestScore}/100` }
-                          : { Icon: Target, value: t.passingScore, label: `Passing mark: ${t.passingScore}/100` },
-                      ] as { Icon: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean | 'true' }>; value: string | number; label: string }[]
-                    ).map(({ Icon, value, label }) => (
-                      <span key={label} title={label} aria-label={label} className="inline-flex items-center gap-1">
-                        <Icon aria-hidden="true" className={`w-3.5 h-3.5 ${Icon === Trophy ? 'text-indigo-600' : 'text-slate-400'}`} />
-                        <span className={Icon === Trophy ? 'font-semibold text-slate-900' : ''}>{value}</span>
-                      </span>
-                    ))}
+                    <span>
+                      {levelName(t.difficulty) === 'Junior' ? 'Beginner' : levelName(t.difficulty)} · {t.estimatedMinutes} min · {t.totalQuestions} {t.totalQuestions === 1 ? 'question' : 'questions'}
+                      {stats.candidatesRanked > 0 && ` · ${stats.candidatesRanked} taken`}
+                    </span>
+                    {bestScore !== undefined && <span className="font-semibold text-slate-900">Your best {bestScore}</span>}
                     {/* The level sits by the play button: pick it, then start */}
                     <div className="ml-auto flex items-center gap-2">
                     {versions.length > 1 && (

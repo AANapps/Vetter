@@ -152,7 +152,7 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, jobs, t
       </section>
 
       {/* Their role's path in miniature: a dot for each module */}
-      {progress.role && progress.path.length > 0 && (
+      {progress.role && progress.path.length > 0 && candidate.testResults.length > 0 && (
         <section className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3">
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
@@ -236,13 +236,6 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, jobs, t
         </section>
       )}
 
-      <div className="grid grid-cols-1 gap-3">
-        <button onClick={() => onGoTo('jobs')} className="text-left p-5 bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl space-y-1 transition-colors">
-          <Briefcase className="w-5 h-5 text-indigo-600" />
-          <div className="text-sm font-bold text-slate-900">Find jobs</div>
-          <p className="text-xs text-slate-500">Apply to jobs that hire on test results.</p>
-        </button>
-      </div>
     </div>
   );
 };

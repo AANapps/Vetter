@@ -7,6 +7,7 @@ import { AiMarkingDemo, SkillsMarquee } from './AiDemos';
 import { AssessmentTest, JobPosting, isPublic, levelName } from '../types';
 import { AppTab } from './Navigation';
 import { TestTypeCards } from './TestTypeCards';
+import { ROLE_SECTIONS } from '../lib/testRoles';
 import { BusinessLanding } from './BusinessLanding';
 
 export type HomeAudience = 'candidates' | 'business';
@@ -105,7 +106,13 @@ export const VisitorHome: React.FC<VisitorHomeProps> = ({ audience, onAudienceCh
     );
   }
   // Praxa's own tests, one per family (not every level of each)
-  const popularTests = tests.filter((t) => isPublic(t) && (!t.familyId || t.familyId === t.id)).slice(0, 6);
+  // Good first tests: the first test on each role's path (Fundamentals for a data analyst, JavaScript for a developer),
+  // so a newcomer sees where to start for the job they want. Falls back to Praxa's own tests
+  const starters = Object.entries(ROLE_SECTIONS)
+    .map(([role, secs]) => ({ role, test: tests.find((t) => t.id === secs?.[0]?.testIds[0] && isPublic(t)) }))
+    .filter((x): x is { role: string; test: AssessmentTest } => !!x.test);
+  const popularTests = (starters.length >= 3 ? starters.map((x) => x.test) : tests.filter((t) => isPublic(t) && t.type === 'standard' && (!t.familyId || t.familyId === t.id))).filter((t, i, all) => all.findIndex((x) => x.id === t.id) === i).slice(0, 6);
+  const starterRole = (id: string) => starters.find((x) => x.test.id === id)?.role;
   const latestJobs = [...jobs].sort((a, b) => b.postedDate.localeCompare(a.postedDate)).slice(0, 4);
 
   return (
@@ -192,8 +199,8 @@ export const VisitorHome: React.FC<VisitorHomeProps> = ({ audience, onAudienceCh
         <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-24">
           <Reveal className="flex items-end justify-between gap-4">
             <div>
-              <h2 className="text-3xl sm:text-4xl font-semibold tracking-tighter text-slate-900">Popular tests</h2>
-              <p className="mt-2 text-slate-600">No invite needed. Your best score on each goes on your profile.</p>
+              <h2 className="text-3xl sm:text-4xl font-semibold tracking-tighter text-slate-900">Good first tests</h2>
+              <p className="mt-2 text-slate-600">Where to start for the job you want. About 20 minutes, free; pass and the skill goes on your profile.</p>
             </div>
             <button onClick={() => onGoTo('tests')} className="group shrink-0 inline-flex items-center gap-1 text-sm font-medium text-slate-900">
               All tests <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
@@ -206,7 +213,7 @@ export const VisitorHome: React.FC<VisitorHomeProps> = ({ audience, onAudienceCh
                   onClick={() => onOpenTest(t.id)}
                   className="group w-full h-full rounded-2xl bg-white border border-slate-200 p-6 text-left flex flex-col transition-transform duration-300 hover:-translate-y-1"
                 >
-                  <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-slate-500">{t.category}</span>
+                  <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-slate-500">{starterRole(t.id) ? `For ${starterRole(t.id)}s` : t.category}</span>
                   <span className="mt-2 text-lg font-semibold tracking-tight text-slate-900 line-clamp-2">{t.title}</span>
                   <span className="mt-auto pt-5 flex items-center gap-3 text-xs text-slate-500">
                     <span>{levelName(t.difficulty)}</span>

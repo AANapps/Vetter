@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   ArrowRight,
   Award,
-  BarChart3,
   Briefcase,
   Check,
   CheckCircle2,
@@ -18,7 +17,6 @@ import {
   Plus,
   Sparkles,
   Target,
-  Trophy,
 } from 'lucide-react';
 import { AssessmentTest, Business, CandidateJobMatch, JobPosting, JobProfile, TestRole, User } from '../types';
 import { Pic } from './Pic';
@@ -66,6 +64,8 @@ interface MyProfileProps {
   onToggleHidden: (testId: string) => void;
   // Saves a new name on their account; unset for visitors
   onRename?: (name: string) => void;
+  // Shows their profile as other people see it
+  onPreview?: () => void;
 }
 
 // A ring that fills as the profile does, drawn around the photo
@@ -167,10 +167,15 @@ export const MyProfile: React.FC<MyProfileProps> = (p) => {
               className="absolute inset-0 opacity-20"
               style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.7) 1px, transparent 1px)', backgroundSize: '18px 18px' }}
             />
-            <span className="absolute top-3 right-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/15 backdrop-blur text-[11px] font-semibold text-white">
-              <Eye className="w-3.5 h-3.5" />
-              How companies see you
-            </span>
+            {p.onPreview && (
+              <button
+                onClick={p.onPreview}
+                className="absolute top-3 right-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur text-xs font-semibold text-white"
+              >
+                <Eye className="w-3.5 h-3.5" />
+                Preview as a company
+              </button>
+            )}
           </div>
 
           <div className="px-5 sm:px-8 pb-6">
@@ -319,7 +324,8 @@ export const MyProfile: React.FC<MyProfileProps> = (p) => {
               </button>
             </div>
 
-            {/* Their job profiles: one headline and about for each kind of work */}
+            {/* Their job profiles: one headline and about for each kind of work, shown once they have more than one */}
+            {p.profiles.length > 1 && (
             <div className="mt-5 pt-4 border-t border-slate-100 flex flex-wrap items-center gap-2">
               <span className="text-xs font-semibold text-slate-500 mr-1">Showing as</span>
               {p.profiles.map((pr) => (
@@ -339,6 +345,7 @@ export const MyProfile: React.FC<MyProfileProps> = (p) => {
                 Profile
               </button>
             </div>
+            )}
           </div>
         </Card>
 
@@ -511,32 +518,6 @@ export const MyProfile: React.FC<MyProfileProps> = (p) => {
           </Card>
         )}
 
-        {/* ---------- Analytics: their numbers, private to them ---------- */}
-        <Card className="p-5 sm:p-6">
-          <h2 className="text-lg font-bold text-slate-900">Analytics</h2>
-          <p className="text-xs text-slate-500 inline-flex items-center gap-1">
-            <Eye className="w-3 h-3" />
-            Private to you
-          </p>
-          <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
-            {[
-              { icon: CheckCircle2, value: String(praxaPassed), label: 'Praxa tests passed', sub: praxaPassed ? 'Verified on your profile' : 'Take one to start', onClick: p.onFindTests },
-              { icon: BarChart3, value: skills[0] ? String(skills[0].score) : '–', label: 'Best score', sub: skills[0]?.skillName ?? 'No score yet', onClick: () => skills[0] && p.onOpenTest(skills[0].testId) },
-              { icon: Trophy, value: bestRank ? `#${bestRank.rank}` : '–', label: 'Best ranking', sub: bestRank ? `of ${bestRank.of} on ${bestRank.name}` : 'Pass a test to rank', onClick: () => bestRank && p.onOpenTest(bestRank.testId) },
-              { icon: Target, value: String(strongFits), label: 'Strong job matches', sub: 'Jobs you fit 80%+', onClick: p.onFindJobs },
-            ].map((s) => (
-              <button key={s.label} onClick={s.onClick} className="p-3 rounded-xl hover:bg-slate-50 text-left flex gap-3 transition-colors">
-                <s.icon className="w-5 h-5 text-slate-500 shrink-0 mt-0.5" />
-                <span className="min-w-0">
-                  <span className="block text-xl font-bold font-mono tabular-nums text-slate-900">{s.value}</span>
-                  <span className="block text-xs font-semibold text-slate-800">{s.label}</span>
-                  <span className="block text-[11px] text-slate-500 truncate">{s.sub}</span>
-                </span>
-              </button>
-            ))}
-          </div>
-        </Card>
-
         {/* ---------- About ---------- */}
         <Card className="p-5 sm:p-6">
           <div className="flex items-start justify-between gap-3">
@@ -607,14 +588,6 @@ export const MyProfile: React.FC<MyProfileProps> = (p) => {
             <button onClick={() => setAllSkills((v) => !v)} className="mt-1 w-full pt-3 border-t border-slate-100 text-sm font-semibold text-slate-600 hover:text-slate-900 inline-flex items-center justify-center gap-1">
               {allSkills ? 'Show fewer' : `Show all ${skills.length} skills`}
               <ArrowRight className="w-4 h-4" />
-            </button>
-          )}
-          {skills.length > 0 && nextModule && (
-            <button onClick={() => p.onOpenTest(nextModule.test.id)} className="mt-3 w-full p-3 rounded-xl border border-dashed border-indigo-300 bg-indigo-50/40 hover:bg-indigo-50 text-left flex items-center gap-3">
-              <Plus className="w-5 h-5 text-indigo-600 shrink-0" />
-              <span className="text-xs text-slate-700">
-                <span className="font-semibold text-indigo-700">Add {nextModule.sec.label}</span> to your verified skills · ~{nextModule.test.estimatedMinutes} min
-              </span>
             </button>
           )}
         </Card>
@@ -726,31 +699,6 @@ export const MyProfile: React.FC<MyProfileProps> = (p) => {
 
       {/* ---------- Right column ---------- */}
       <div className="space-y-4 min-w-0 lg:sticky lg:top-20">
-        {/* What's missing, nudged with what it unlocks */}
-        {todo.some((s) => s.test) && (
-          <Card className="p-5 overflow-hidden relative">
-            <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-indigo-100/70" aria-hidden="true" />
-            <div className="relative space-y-3">
-              <Sparkles className="w-6 h-6 text-indigo-600" />
-              <h2 className="text-sm font-bold text-slate-900">
-                {passedAny ? `${strongFits > 0 ? `You fit ${strongFits} ${strongFits === 1 ? 'job' : 'jobs'} well.` : 'Companies hire on proven skills.'} Prove more to rank higher.` : 'Companies can’t see what you can do yet'}
-              </h2>
-              <p className="text-xs text-slate-600">
-                {passedAny
-                  ? 'Each skill you verify raises your fit for every job that needs it, and puts you on its leaderboard.'
-                  : 'Your first passed test puts a verified skill on your profile and you on its leaderboard, where companies look first.'}
-              </p>
-              <button
-                onClick={() => (nextModule ? p.onOpenTest(nextModule.test.id) : p.onFindTests())}
-                className="w-full px-4 py-2 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold inline-flex items-center justify-center gap-1.5"
-              >
-                <Play className="w-3.5 h-3.5 fill-current" />
-                {nextModule ? `Start ${nextModule.sec.label}` : 'Find a test'}
-              </button>
-            </div>
-          </Card>
-        )}
-
         <Card className="p-5 space-y-3">
           <div className="flex items-center justify-between gap-2">
             <h2 className="text-sm font-bold text-slate-900">Details</h2>
@@ -776,7 +724,7 @@ export const MyProfile: React.FC<MyProfileProps> = (p) => {
           {!candidate.links?.length && <p className="text-[11px] text-slate-500">Add LinkedIn, GitHub or a portfolio under Edit.</p>}
         </Card>
 
-        <ProfileSidebar candidate={candidate} tests={tests} jobs={jobs} rankedJobs={p.rankedJobs} onOpenTest={p.onOpenTest} onOpenJob={p.onPreviewJob} />
+        <ProfileSidebar candidate={candidate} tests={path.length ? path.filter((m) => !(m.best !== undefined && m.best >= PASS)).map((m) => m.test) : tests} jobs={jobs} rankedJobs={p.rankedJobs} onOpenTest={p.onOpenTest} onOpenJob={p.onPreviewJob} />
       </div>
     </div>
   );

@@ -517,10 +517,9 @@ const VisitorHeader: React.FC<{ currentTab: AppTab; onTabChange: (tab: AppTab) =
   onJoin,
 }) => {
   const links: { id: AppTab; label: string }[] = [
+    // Only what a newcomer needs; Ranked and Career switch are in the footer
     { id: 'tests', label: 'Tests' },
     { id: 'jobs', label: 'Jobs' },
-    { id: 'ranked', label: 'Ranked' },
-    { id: 'learn', label: 'Career switch' },
     { id: 'guides', label: 'Guides' },
   ];
   // Clear glass over the hero, firming up with an edge once the page scrolls under it

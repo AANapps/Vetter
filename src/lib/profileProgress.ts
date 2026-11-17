@@ -99,11 +99,18 @@ export function useProfileProgress(input: {
   const [pickedRole, setPickedRole] = useState<TestRole | undefined>(() => (readStored(storeKey(candidate.id)) as TestRole) || undefined);
   useEffect(() => {
     setPickedRole((readStored(storeKey(candidate.id)) as TestRole) || undefined);
+    // Picked somewhere else on the page (home's card and its list both use this): follow it
+    const follow = (e: Event) => setPickedRole((e as CustomEvent<TestRole>).detail);
+    window.addEventListener('praxa-path-change', follow);
+    return () => window.removeEventListener('praxa-path-change', follow);
   }, [candidate.id]);
   const setRole = (r: TestRole) => {
     setPickedRole(r);
     writeStored(storeKey(candidate.id), r);
+    window.dispatchEvent(new CustomEvent('praxa-path-change', { detail: r }));
   };
+  // Whether they've chosen a role themselves, rather than it being guessed
+  const rolePicked = !!pickedRole && roles.includes(pickedRole);
   const role = pickedRole && roles.includes(pickedRole) ? pickedRole : guessedRole;
 
   // Each of the role's modules, with their best score on it
@@ -149,5 +156,5 @@ export function useProfileProgress(input: {
     return undefined;
   };
 
-  return { roles, role, setRole, path, passedModules, nextModule, pathPct, passedAny, steps, strength, level, todo, testFor };
+  return { roles, role, rolePicked, setRole, path, passedModules, nextModule, pathPct, passedAny, steps, strength, level, todo, testFor };
 }

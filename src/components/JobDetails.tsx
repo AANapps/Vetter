@@ -7,6 +7,9 @@ import { attemptsAt, jobTestProgress, jobTestsOf } from '../lib/jobTests';
 
 const DAY_MS = 86400000;
 
+// A fit is shown once they've taken one of the job's tests (or it has none): before that it's a guess that only discourages
+export const fitKnown = (job: JobPosting, candidate: User) => job.testIds.length === 0 || jobTestProgress(job, candidate).done > 0;
+
 // "12 Oct 2026"
 const formatDate = (iso: string) =>
   new Date(`${iso}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -72,7 +75,7 @@ export const getJobTests = (job: JobPosting, candidate: User, tests: AssessmentT
   const progress = jobTestProgress(job, candidate);
   return jobTestsOf(job, tests).map((test) => ({
     key: test.id,
-    label: job.testsRequired ? 'Required to apply' : 'For this job',
+    label: job.testsRequired ? 'Required' : 'Optional',
     required: job.testsRequired,
     name: test.title,
     test,
@@ -169,13 +172,7 @@ const TestBlock: React.FC<{ item: JobTest }> = ({ item: t }) => {
   return (
     <li className="flex flex-col gap-3 p-4 bg-white border border-slate-200 rounded-xl">
       <div className="flex items-start justify-between gap-2">
-        <span
-          className={`text-[10px] font-mono uppercase tracking-wider font-semibold ${
-            t.required ? 'text-slate-800' : 'text-slate-500'
-          }`}
-        >
-          {t.label}
-        </span>
+        <span className="text-[11px] font-medium text-slate-500">{t.label}</span>
         <span className={`shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${status.tone}`}>
           {passed && <CheckCircle2 className="w-3 h-3" />}
           {status.text}
@@ -381,9 +378,7 @@ const TestRow: React.FC<{
   return (
     <li className="px-4 py-2.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
       <div className="min-w-0 flex items-baseline gap-2 flex-wrap">
-        <span className={`text-[10px] font-mono uppercase tracking-wider font-bold ${labelTone === 'required' ? 'text-rose-700' : 'text-slate-500'}`}>
-          {label}
-        </span>
+        <span className={`text-[11px] font-medium ${labelTone === 'required' ? 'text-slate-600' : 'text-slate-400'}`}>{label}</span>
         <button onClick={() => onOpenTest(test.id)} className="font-semibold text-slate-900 hover:text-indigo-700 text-left">
           {test.title}
         </button>
@@ -429,7 +424,9 @@ const JobHeader: React.FC<{
   isApplied: boolean;
   onApply?: () => void;
   children?: React.ReactNode;
-}> = ({ job, match, titleAs: Title, isApplied, onApply, children }) => (
+  // The fit only means something once they've taken one of the job's tests
+  showFit?: boolean;
+}> = ({ job, match, titleAs: Title, isApplied, onApply, children, showFit = true }) => (
   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
     <div className="flex items-start gap-4 min-w-0">
       <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-slate-100">
@@ -467,7 +464,7 @@ const JobHeader: React.FC<{
         </div>
       </div>
     </div>
-    {onApply && (
+    {onApply && showFit && (
       <div className="sm:text-right shrink-0">
         <div className="text-[11px] text-slate-500 font-medium">Your Fit</div>
         <div className="text-2xl font-extrabold font-mono tabular-nums text-indigo-600">{match.overallFitPercentage}%</div>
@@ -509,7 +506,7 @@ export const JobDetailsModal: React.FC<JobDetailsProps & { onClose: () => void; 
         className="bg-white rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto shadow-2xl relative text-slate-900"
       >
         <div className="sm:sticky top-0 z-10 bg-white border-b border-slate-200 p-6 pr-14">
-          <JobHeader job={job} match={match} titleAs="h2" isApplied={props.isApplied} onApply={props.onApply}>
+          <JobHeader job={job} match={match} titleAs="h2" isApplied={props.isApplied} onApply={props.onApply} showFit={fitKnown(props.job, props.candidate)}>
             {onOpenPage && (
               <button onClick={onOpenPage} className="text-xs font-semibold text-indigo-700 hover:underline">
                 Open job page &rarr;
@@ -622,7 +619,7 @@ export const JobPage: React.FC<JobDetailsProps & { onBack: () => void; visitor?:
     <ApplySteps {...props} visitor={visitor} />
     <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
       <div className="p-6 border-b border-slate-200">
-        <JobHeader job={props.job} match={props.match} titleAs="h1" isApplied={props.isApplied} onApply={props.onApply} />
+        <JobHeader job={props.job} match={props.match} titleAs="h1" isApplied={props.isApplied} onApply={props.onApply} showFit={fitKnown(props.job, props.candidate)} />
       </div>
       <JobDetails {...props} />
     </div>

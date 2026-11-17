@@ -1703,6 +1703,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
               }
               onUpdateStudies={(studies) => setCandidate((prev) => ({ ...prev, ...studies }))}
               onRename={isVisitor ? undefined : renameMe}
+              onPreviewProfile={allCandidates.some((c) => c.id === candidate.id) ? () => setProfilePersonId(candidate.id) : undefined}
               onUpdateExperience={(details) => {
                 setCandidate((prev) => ({ ...prev, ...details }));
                 showToast('Experience saved.');
@@ -1749,7 +1750,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
             <VisitorHome
               audience={hiringHome ? 'business' : 'candidates'}
               onAudienceChange={(a) => navigateTo(a === 'business' ? '/#/business' : '/')}
-              tests={tests}
+              tests={sectorTests}
               jobs={jobs}
               onOpenTest={openTestPage}
               onOpenJob={openJobPage}
@@ -1761,8 +1762,28 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
               onOpenGuide={(slug) => navigateTo(slug ? `/guides/${slug}/` : '/guides/')}
             />
           )}
+          {/* A candidate's home. What to do next comes first (on phones above everything); someone who hasn't taken a test
+              yet sees only that and their card, with no leaderboards, people or feed until they've started */}
           {!detailPage && !isVisitor && !hiringHome && activeRole === 'candidate' && currentTab === 'home' && (
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 grid grid-cols-1 lg:grid-cols-[minmax(0,300px)_minmax(0,1fr)_minmax(0,280px)] gap-6 items-start">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+              <div className="lg:hidden">
+                <HomeNudges
+                  candidate={candidate}
+                  tests={sectorTests}
+                  jobs={jobs}
+                  sector={sector}
+                  teamInvites={myTeamInvites}
+                  teamWork={myAssignments}
+                  onOpenTest={openTestPage}
+                  onOpenJob={openJobPage}
+                  onGoTo={goToTab}
+                />
+              </div>
+              <div
+                className={`grid grid-cols-1 gap-6 items-start ${
+                  candidate.testResults.length ? 'lg:grid-cols-[minmax(0,300px)_minmax(0,1fr)_minmax(0,280px)]' : 'lg:grid-cols-[minmax(0,300px)_minmax(0,1fr)]'
+                }`}
+              >
               <CandidateHome
                 candidate={candidate}
                 jobs={jobs}
@@ -1775,7 +1796,8 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
                 visitor={isVisitor ? { onJoin: () => setAuthDialog({ mode: 'sign-up' }), onSignIn: () => setAuthDialog({ mode: 'sign-in' }) } : undefined}
                 sector={sector}
               />
-              <div className="space-y-4 lg:col-start-3 lg:row-start-1">
+              {candidate.testResults.length > 0 && (
+              <div className="space-y-4 order-last lg:order-none lg:col-start-3 lg:row-start-1">
                 <TopPerformers tests={sectorTests} allCandidates={allCandidates} onOpenTest={openTestPage} onOpenRanked={() => goToTab('ranked')} />
                 <FollowSuggestions
                   viewer={candidate}
@@ -1785,8 +1807,9 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
                   onToggleFollow={(id) => requireAccount('Join Praxa to follow people and companies.', () => toggleFollow(id))}
                 />
               </div>
+              )}
               <div className="min-w-0 space-y-4">
-              {!isVisitor && (
+                <div className="hidden lg:block">
                 <HomeNudges
                   candidate={candidate}
                   tests={sectorTests}
@@ -1798,7 +1821,8 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
                   onOpenJob={openJobPage}
                   onGoTo={goToTab}
                 />
-              )}
+                </div>
+                {candidate.testResults.length > 0 && (
               <DiscoverFeed
                 candidate={candidate}
                 allCandidates={allCandidates}
@@ -1816,6 +1840,8 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
                   window.scrollTo(0, 0);
                 }}
               />
+                )}
+              </div>
               </div>
             </div>
           )}
@@ -2091,6 +2117,22 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
           <div className="max-w-7xl mx-auto flex flex-wrap items-center gap-2">
             <BrandWordmark size="sm" />
             <span>&middot; Skills-based hiring</span>
+            {/* The pages kept out of a visitor's menu */}
+            {isVisitor && (
+              <nav className="flex items-center gap-4 ml-4" aria-label="More">
+                {(
+                  [
+                    ['ranked', 'Leaderboards'],
+                    ['learn', 'Career switch'],
+                    ['companies', 'Companies'],
+                  ] as const
+                ).map(([tab, label]) => (
+                  <button key={tab} onClick={() => goToTab(tab)} className="hover:text-slate-900">
+                    {label}
+                  </button>
+                ))}
+              </nav>
+            )}
             <CurrencyPicker className="ml-auto" />
             {!firebaseEnabled && (
               <button onClick={handleResetData} className="ml-4 text-slate-400 hover:text-slate-700 transition-colors">

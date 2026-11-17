@@ -108,6 +108,53 @@ export const HomeNudges: React.FC<{
   const first = candidate.name.split(' ')[0];
   const jobCount = invited.length + started.length;
 
+  // Brand new: nothing taken and nothing waiting. One thing to do: pick the job they want, then take its first test
+  if (candidate.testResults.length === 0 && todos.every((t) => t.key === 'next-test')) {
+    const m = progress.nextModule;
+    return (
+      <section className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
+        <div className="px-5 sm:px-6 pt-5 pb-4 bg-gradient-to-br from-indigo-50 via-white to-violet-50 border-b border-slate-100">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-indigo-700">Start here</div>
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight">Welcome, {first}. What job do you want?</h1>
+          <p className="text-sm text-slate-600">Pick one and we'll show you the first test for it. Pass it and the skill goes on your profile for companies to see.</p>
+        </div>
+        <div className="px-5 sm:px-6 py-5 space-y-5">
+          <div className="flex flex-wrap gap-2">
+            {progress.roles.map((r) => (
+              <button
+                key={r}
+                onClick={() => progress.setRole(r)}
+                aria-pressed={progress.role === r && progress.rolePicked}
+                className={`px-3.5 py-1.5 rounded-full border text-sm font-semibold transition-colors ${
+                  progress.role === r && progress.rolePicked ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-slate-300 text-slate-700 hover:border-indigo-400'
+                }`}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+          {m && (
+            <div className={`p-4 rounded-xl flex flex-col sm:flex-row sm:items-center gap-4 ${progress.rolePicked ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-500'}`}>
+              <span className="min-w-0 flex-1">
+                <span className={`block text-[11px] font-semibold uppercase tracking-wide ${progress.rolePicked ? 'text-indigo-300' : 'text-slate-400'}`}>Your first test{progress.rolePicked ? ` for ${progress.role}` : ''}</span>
+                <span className={`block text-base font-bold ${progress.rolePicked ? 'text-white' : 'text-slate-700'}`}>{m.sec.label}</span>
+                <span className="block text-xs opacity-80">About {m.test.estimatedMinutes} min · free · retake any time</span>
+              </span>
+              <button
+                onClick={() => onOpenTest(m.test.id)}
+                disabled={!progress.rolePicked}
+                className={`shrink-0 px-5 py-2.5 rounded-full text-sm font-semibold inline-flex items-center gap-2 ${progress.rolePicked ? 'bg-indigo-600 hover:bg-indigo-500 text-white' : 'bg-slate-200 text-slate-500 cursor-not-allowed'}`}
+              >
+                <Play className="w-4 h-4 fill-current" />
+                {progress.rolePicked ? 'Start' : 'Pick a job first'}
+              </button>
+            </div>
+          )}
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
       <div className="px-5 sm:px-6 pt-5 pb-4 bg-gradient-to-br from-indigo-50 via-white to-violet-50 border-b border-slate-100">
