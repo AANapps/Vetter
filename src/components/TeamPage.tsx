@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { Award, BarChart3, Check, GraduationCap, LayoutGrid, ListTodo, Lock, Mail, Plus, Search, SquareKanban, Trash2, UserPlus, X } from 'lucide-react';
+import { Award, Check, Sparkles, GraduationCap, LayoutGrid, ListTodo, Lock, Mail, Plus, Search, SquareKanban, Trash2, UserPlus, X } from 'lucide-react';
 import { TASK_COLUMNS, byUrgency, dueLabel, isOverdue, shortDate, statusOf } from '../lib/work';
 import { Assignment, AssessmentTest, Business, TeamMember, User, isPublic, levelName } from '../types';
 import { Pic } from './Pic';
+import { PageHeader } from './PageHeader';
 
 /**
  * A company's team on Praxa: the people it asked to join (candidates on Praxa, or anyone by email), and the tests, job
@@ -52,7 +53,7 @@ const STATUS_CHIP: Record<TeamMember['status'], { label: string; cls: string }> 
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-type TeamSection = 'overview' | 'tasks' | 'skills' | 'training' | 'people';
+type TeamSection = 'overview' | 'tests' | 'training' | 'people';
 
 const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
   <section className={`bg-white border border-slate-200 rounded-2xl shadow-xs ${className}`}>{children}</section>
@@ -85,6 +86,7 @@ export const TeamPage: React.FC<TeamPageProps> = ({
   const [assigning, setAssigning] = useState<string[] | null>(null);
   const [openMember, setOpenMember] = useState<string | null>(null);
   const [personFilter, setPersonFilter] = useState<string>('all');
+  const [testsView, setTestsView] = useState<'board' | 'results'>('board');
   const [removing, setRemoving] = useState<string | null>(null);
   const active = team.filter((m) => m.status === 'active');
   const person = (m: TeamMember) => (m.uid ? candidates.find((c) => c.id === m.uid) : undefined);
@@ -125,8 +127,7 @@ export const TeamPage: React.FC<TeamPageProps> = ({
   const teamAvg = doneAll.length ? Math.round(doneAll.reduce((s, a) => s + (a.score ?? 0), 0) / doneAll.length) : undefined;
   const menu: { id: TeamSection; label: string; icon: React.ComponentType<{ className?: string }>; count?: number; alert?: boolean }[] = [
     { id: 'overview', label: 'Overview', icon: LayoutGrid, count: active.length },
-    { id: 'tasks', label: 'Tasks', icon: SquareKanban, count: live.filter((a) => !a.completedAt).length, alert: late.length > 0 },
-    { id: 'skills', label: 'Skills & tests', icon: BarChart3 },
+    { id: 'tests', label: 'Tests', icon: SquareKanban, count: live.filter((a) => !a.completedAt).length, alert: late.length > 0 },
     ...(training ? [{ id: 'training' as const, label: 'Training', icon: GraduationCap }] : []),
     { id: 'people', label: 'People & invites', icon: UserPlus, count: team.filter((m) => m.status === 'invited').length || undefined },
   ];
@@ -178,7 +179,7 @@ export const TeamPage: React.FC<TeamPageProps> = ({
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)] gap-6 items-start">
       {/* Side menu: a strip of pills on phones */}
-      <aside className="lg:sticky lg:top-20 space-y-3">
+      <aside className="lg:sticky lg:top-8 space-y-3">
         <Card className="overflow-hidden hidden lg:block">
           <div className="h-12" style={{ background: 'linear-gradient(120deg, #312e81 0%, #4f46e5 45%, #7c3aed 100%)' }} />
           <div className="px-4 pb-4 -mt-5 space-y-1">
@@ -207,18 +208,18 @@ export const TeamPage: React.FC<TeamPageProps> = ({
             </button>
           ))}
         </nav>
-        <div className="hidden lg:block space-y-2">
+        <div className="hidden lg:flex flex-col gap-2">
           {active.length > 0 && (
-            <button onClick={() => setAssigning(active.map((m) => m.id))} className="w-full px-4 py-2 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold inline-flex items-center justify-center gap-1.5">
+            <button onClick={() => setAssigning(active.map((m) => m.id))} className="w-full h-10 px-4 rounded-full bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold inline-flex items-center justify-center gap-1.5">
               <Plus className="w-4 h-4" />
-              Send work
+              Send a test
             </button>
           )}
           <button
             onClick={() => (aiAllowed ? onCreateTraining() : onSeePlans())}
-            className="create-border w-full px-4 py-2 text-sm font-semibold text-indigo-700 hover:text-indigo-900 rounded-full inline-flex items-center justify-center gap-1.5"
+            className="group w-full h-10 px-4 rounded-full bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 hover:from-indigo-500 hover:via-violet-500 hover:to-fuchsia-500 text-white text-sm font-semibold inline-flex items-center justify-center gap-1.5 shadow-sm shadow-violet-200 transition-all"
           >
-            {aiAllowed ? <GraduationCap className="w-4 h-4" /> : <Lock className="w-3.5 h-3.5" />}
+            {aiAllowed ? <Sparkles className="w-4 h-4 transition-transform group-hover:rotate-12" /> : <Lock className="w-3.5 h-3.5" />}
             Create training with AI
           </button>
         </div>
@@ -228,18 +229,18 @@ export const TeamPage: React.FC<TeamPageProps> = ({
         {/* ---------- Overview: each person, what they're good at and how their work is going ---------- */}
         {section === 'overview' && (
           <>
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Your team</h1>
-                <p className="text-sm text-slate-500 max-w-2xl">What each person is good at, and how the work you send them is going. Results stay between you and them.</p>
-              </div>
-              {active.length > 0 && (
-                <button onClick={() => setAssigning(active.map((m) => m.id))} className="lg:hidden px-4 py-2 rounded-full bg-indigo-600 text-white text-sm font-semibold inline-flex items-center gap-1.5">
-                  <Plus className="w-4 h-4" />
-                  Send work
-                </button>
-              )}
-            </div>
+            <PageHeader
+              title="Your team"
+              sub="What each person is good at, and how the tests you send them are going."
+              action={
+                active.length > 0 && (
+                  <button onClick={() => setAssigning(active.map((m) => m.id))} className="lg:hidden h-10 px-4 rounded-full bg-slate-900 text-white text-sm font-semibold inline-flex items-center gap-1.5">
+                    <Plus className="w-4 h-4" />
+                    Send a test
+                  </button>
+                )
+              }
+            />
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
                 { label: 'On the team', value: active.length, tone: 'text-slate-900' },
@@ -310,7 +311,7 @@ export const TeamPage: React.FC<TeamPageProps> = ({
                           </div>
                           <div className="flex gap-2">
                             <button onClick={() => setAssigning([m.id])} className="flex-1 px-3 py-1.5 rounded-full text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700">
-                              Send work
+                              Send a test
                             </button>
                             <button onClick={() => setOpenMember(m.id)} className="flex-1 px-3 py-1.5 rounded-full text-xs font-semibold text-slate-700 border border-slate-300 hover:bg-slate-50">
                               Tests & skills
@@ -323,41 +324,160 @@ export const TeamPage: React.FC<TeamPageProps> = ({
                 })}
               </ul>
             )}
+            {active.length > 0 && (
+                <Card className="overflow-hidden">
+                <div className="px-5 py-3 border-b border-slate-100 text-sm font-bold text-slate-900">Team skills <span className="font-normal text-slate-400">· proven on Praxa, green 88+, amber 75–87</span></div>
+                {skillColumns.length === 0 ? (
+                  <p className="px-5 py-4 text-sm text-slate-500">No one has proven a skill on Praxa yet.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-left text-[11px] text-slate-500 border-b border-slate-100">
+                          <th className="px-5 py-2 font-semibold sticky left-0 bg-white">Person</th>
+                          {skillColumns.map((k) => (
+                            <th key={k} className="px-2 py-2 font-semibold text-center whitespace-nowrap">
+                              {k}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {active.map((m) => (
+                          <tr key={m.id}>
+                            <td className="px-5 py-2 whitespace-nowrap sticky left-0 bg-white">
+                              <button onClick={() => setOpenMember(m.id)} className="font-semibold text-slate-900 hover:text-indigo-700">
+                                {nameOf(m)}
+                              </button>
+                            </td>
+                            {skillColumns.map((k) => {
+                              const v = person(m)?.verifiedSkills.find((x) => x.skillName === k);
+                              return (
+                                <td key={k} className="px-2 py-2 text-center">
+                                  {v ? (
+                                    <span className={`inline-block min-w-9 px-1.5 py-0.5 rounded-md border text-xs font-bold font-mono tabular-nums ${scoreTone(v.score)}`}>{v.score}</span>
+                                  ) : (
+                                    <span className="text-slate-300">·</span>
+                                  )}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </Card>
+
+            )}
           </>
         )}
 
-        {/* ---------- Tasks: everything sent, as a board ---------- */}
-        {section === 'tasks' && (
+        {/* ---------- Tests: everything sent, by progress or by score ---------- */}
+        {section === 'tests' && (
           <>
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Tasks</h1>
-                <p className="text-sm text-slate-500">Everything you've sent your team and where it's up to.</p>
-              </div>
-              <select
-                value={personFilter}
-                onChange={(e) => setPersonFilter(e.target.value)}
-                className="px-3 py-2 rounded-full border border-slate-200 bg-white text-xs font-semibold text-slate-800"
-                aria-label="Show tasks for"
-              >
-                <option value="all">Everyone</option>
-                {team.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {nameOf(m)}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <PageHeader
+              title="Tests"
+              sub="Everything you've sent your team: where each one is up to, and every score."
+              action={
+                <>
+                  <div className="inline-flex rounded-full border border-slate-200 bg-white p-1 text-xs font-semibold">
+                    {(
+                      [
+                        ['board', 'Progress'],
+                        ['results', 'Scores'],
+                      ] as const
+                    ).map(([id, label]) => (
+                      <button
+                        key={id}
+                        onClick={() => setTestsView(id)}
+                        aria-pressed={testsView === id}
+                        className={`px-3 py-1.5 rounded-full ${testsView === id ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900'}`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  {testsView === 'board' && (
+                    <select
+                      value={personFilter}
+                      onChange={(e) => setPersonFilter(e.target.value)}
+                      className="h-9 px-3 rounded-full border border-slate-200 bg-white text-xs font-semibold text-slate-800"
+                      aria-label="Show tests for"
+                    >
+                      <option value="all">Everyone</option>
+                      {team.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {nameOf(m)}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </>
+              }
+            />
             {live.length === 0 ? (
               <div className="p-8 text-center rounded-2xl border border-dashed border-slate-300 bg-white space-y-3">
                 <SquareKanban className="w-8 h-8 text-slate-300 mx-auto" />
                 <p className="text-sm text-slate-500">Nothing sent yet.</p>
                 {active.length > 0 && (
                   <button onClick={() => setAssigning(active.map((m) => m.id))} className="px-4 py-2 rounded-full bg-indigo-600 text-white text-xs font-semibold">
-                    Send work
+                    Send a test
                   </button>
                 )}
               </div>
+            ) : testsView === 'results' ? (
+                <Card className="overflow-hidden">
+                <div className="px-5 py-3 border-b border-slate-100 text-sm font-bold text-slate-900">Team tests</div>
+                {testColumns.length === 0 ? (
+                  <p className="px-5 py-4 text-sm text-slate-500">You haven't sent the team anything yet.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-left text-[11px] text-slate-500 border-b border-slate-100">
+                          <th className="px-5 py-2 font-semibold sticky left-0 bg-white">Person</th>
+                          {testColumns.map((id) => (
+                            <th key={id} className="px-2 py-2 font-semibold text-center">
+                              <button onClick={() => onOpenTest(id)} className="max-w-32 truncate block mx-auto hover:text-indigo-700" title={testOf(id)?.title}>
+                                {testOf(id)?.title.replace(/:.*$/, '')}
+                              </button>
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {active.map((m) => (
+                          <tr key={m.id}>
+                            <td className="px-5 py-2 whitespace-nowrap sticky left-0 bg-white">
+                              <button onClick={() => setOpenMember(m.id)} className="font-semibold text-slate-900 hover:text-indigo-700">
+                                {nameOf(m)}
+                              </button>
+                            </td>
+                            {testColumns.map((id) => {
+                              const a = live.filter((x) => x.memberId === m.id && x.testId === id).sort(byUrgency)[0];
+                              return (
+                                <td key={id} className="px-2 py-2 text-center">
+                                  {!a ? (
+                                    <span className="text-slate-300">·</span>
+                                  ) : a.completedAt ? (
+                                    <span className={`inline-block min-w-9 px-1.5 py-0.5 rounded-md border text-xs font-bold font-mono tabular-nums ${scoreTone(a.score ?? 0)}`}>{a.score}</span>
+                                  ) : (
+                                    <span className={`text-[11px] font-semibold ${isOverdue(a) ? 'text-rose-600' : a.startedAt ? 'text-amber-600' : 'text-slate-400'}`}>
+                                      {isOverdue(a) ? 'Late' : a.startedAt ? 'Started' : 'To do'}
+                                    </span>
+                                  )}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </Card>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
                 {TASK_COLUMNS.map((col) => {
@@ -378,128 +498,18 @@ export const TeamPage: React.FC<TeamPageProps> = ({
           </>
         )}
 
-        {/* ---------- Skills & tests: who's good at what, and every test's result by person ---------- */}
-        {section === 'skills' && (
+        {/* ---------- Training: the catalogue and the company's own courses ---------- */}
+        {section === 'training' && (
           <>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Skills & tests</h1>
-              <p className="text-sm text-slate-500">Skills each person has proven on Praxa, and how they did on every test you've sent the team.</p>
-            </div>
-            {active.length === 0 ? (
-              <p className="text-sm text-slate-500">No one on the team yet.</p>
-            ) : (
-              <>
-                <Card className="overflow-hidden">
-                  <div className="px-5 py-3 border-b border-slate-100 text-sm font-bold text-slate-900">Proven skills</div>
-                  {skillColumns.length === 0 ? (
-                    <p className="px-5 py-4 text-sm text-slate-500">No one has proven a skill on Praxa yet.</p>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="text-left text-[11px] text-slate-500 border-b border-slate-100">
-                            <th className="px-5 py-2 font-semibold sticky left-0 bg-white">Person</th>
-                            {skillColumns.map((k) => (
-                              <th key={k} className="px-2 py-2 font-semibold text-center whitespace-nowrap">
-                                {k}
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {active.map((m) => (
-                            <tr key={m.id}>
-                              <td className="px-5 py-2 whitespace-nowrap sticky left-0 bg-white">
-                                <button onClick={() => setOpenMember(m.id)} className="font-semibold text-slate-900 hover:text-indigo-700">
-                                  {nameOf(m)}
-                                </button>
-                              </td>
-                              {skillColumns.map((k) => {
-                                const v = person(m)?.verifiedSkills.find((x) => x.skillName === k);
-                                return (
-                                  <td key={k} className="px-2 py-2 text-center">
-                                    {v ? (
-                                      <span className={`inline-block min-w-9 px-1.5 py-0.5 rounded-md border text-xs font-bold font-mono tabular-nums ${scoreTone(v.score)}`}>{v.score}</span>
-                                    ) : (
-                                      <span className="text-slate-300">·</span>
-                                    )}
-                                  </td>
-                                );
-                              })}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </Card>
-
-                <Card className="overflow-hidden">
-                  <div className="px-5 py-3 border-b border-slate-100 text-sm font-bold text-slate-900">Team tests</div>
-                  {testColumns.length === 0 ? (
-                    <p className="px-5 py-4 text-sm text-slate-500">You haven't sent the team anything yet.</p>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="text-left text-[11px] text-slate-500 border-b border-slate-100">
-                            <th className="px-5 py-2 font-semibold sticky left-0 bg-white">Person</th>
-                            {testColumns.map((id) => (
-                              <th key={id} className="px-2 py-2 font-semibold text-center">
-                                <button onClick={() => onOpenTest(id)} className="max-w-32 truncate block mx-auto hover:text-indigo-700" title={testOf(id)?.title}>
-                                  {testOf(id)?.title.replace(/:.*$/, '')}
-                                </button>
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {active.map((m) => (
-                            <tr key={m.id}>
-                              <td className="px-5 py-2 whitespace-nowrap sticky left-0 bg-white">
-                                <button onClick={() => setOpenMember(m.id)} className="font-semibold text-slate-900 hover:text-indigo-700">
-                                  {nameOf(m)}
-                                </button>
-                              </td>
-                              {testColumns.map((id) => {
-                                const a = live.filter((x) => x.memberId === m.id && x.testId === id).sort(byUrgency)[0];
-                                return (
-                                  <td key={id} className="px-2 py-2 text-center">
-                                    {!a ? (
-                                      <span className="text-slate-300">·</span>
-                                    ) : a.completedAt ? (
-                                      <span className={`inline-block min-w-9 px-1.5 py-0.5 rounded-md border text-xs font-bold font-mono tabular-nums ${scoreTone(a.score ?? 0)}`}>{a.score}</span>
-                                    ) : (
-                                      <span className={`text-[11px] font-semibold ${isOverdue(a) ? 'text-rose-600' : a.startedAt ? 'text-amber-600' : 'text-slate-400'}`}>
-                                        {isOverdue(a) ? 'Late' : a.startedAt ? 'Started' : 'To do'}
-                                      </span>
-                                    )}
-                                  </td>
-                                );
-                              })}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </Card>
-                <p className="text-[11px] text-slate-500">Green 88+, amber 75–87, grey under 75.</p>
-              </>
-            )}
+            <PageHeader title="Training" sub="Live training taught by a Praxa tutor, and your own courses to send the team." />
+            {training}
           </>
         )}
-
-        {/* ---------- Training: the catalogue and the company's own courses ---------- */}
-        {section === 'training' && training}
 
         {/* ---------- People & invites ---------- */}
         {section === 'people' && (
           <>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">People & invites</h1>
-              <p className="text-sm text-slate-500">Invite your people to join {business.name} on Praxa, and manage who's on the team.</p>
-            </div>
+            <PageHeader title="People & invites" sub={`Invite your people to join ${business.name} on Praxa, and manage who's on the team.`} />
             <Card className="p-5 space-y-3">
               <h2 className="text-sm font-bold text-slate-900">Invite someone</h2>
               <div className="relative">
@@ -648,7 +658,7 @@ export const TeamPage: React.FC<TeamPageProps> = ({
                       <p className="text-sm text-slate-600">{p?.title || member.email}</p>
                       <div className="mt-3 flex gap-2">
                         <button onClick={() => setAssigning([member.id])} className="px-4 py-2 rounded-full text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700">
-                          Send work
+                          Send a test
                         </button>
                         {p && (
                           <button onClick={() => onViewPerson(p.id)} className="px-4 py-2 rounded-full text-xs font-semibold text-slate-700 border border-slate-300 hover:bg-slate-50">

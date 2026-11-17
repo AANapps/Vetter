@@ -34,7 +34,9 @@ export const TrainingCatalogue: React.FC<{
   // An item to open straight away (from the AI chat)
   focusId?: string | null;
   onFocusUsed?: () => void;
-}> = ({ business, team, nameOf, focusId, onFocusUsed }) => {
+  // Shown inside a page that has its own title (the Team tab): just the tabs, no heading
+  embedded?: boolean;
+}> = ({ business, team, nameOf, focusId, onFocusUsed, embedded }) => {
   const { money } = useCurrency();
   const bookings = useTrainingBookings(business.id);
   const [tab, setTab] = useState<'browse' | 'bookings'>('browse');
@@ -62,10 +64,12 @@ export const TrainingCatalogue: React.FC<{
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">Training</h1>
-          <p className="text-sm text-slate-600 max-w-2xl">Live training for your team, taught by a Praxa tutor: short mini modules on one skill, and job bootcamps from junior to advanced. Online or at your office.</p>
-        </div>
+        {!embedded && (
+          <div>
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Training</h1>
+            <p className="text-sm text-slate-600 max-w-2xl">Live training for your team, taught by a Praxa tutor: short mini modules on one skill, and job bootcamps from junior to advanced. Online or at your office.</p>
+          </div>
+        )}
         <div role="tablist" className="flex gap-1 p-1 bg-slate-100 rounded-lg">
           {(['browse', 'bookings'] as const).map((t) => (
             <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={`px-3 py-1.5 rounded-md text-sm font-semibold ${tab === t ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}>

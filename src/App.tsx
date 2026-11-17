@@ -1483,6 +1483,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
                   nameOf={(m) => otherCandidates.find((c) => c.id === m.uid)?.name ?? m.name}
                   focusId={trainingFocus}
                   onFocusUsed={() => setTrainingFocus(null)}
+                  embedded={currentTab === 'business-team'}
                 />
                 <div className="pt-8 border-t border-slate-200">
                 <TrainingPage

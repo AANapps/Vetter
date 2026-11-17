@@ -21,6 +21,7 @@ import {
 import { Assignment, AssessmentTest, Business, TeamMember } from '../types';
 import { KindChip } from './TeamPage';
 import { Pic } from './Pic';
+import { PageHeader } from './PageHeader';
 import { CertificateDetails, CertificateDialog } from './Certificate';
 import { TASK_COLUMNS, TaskStatus, byUrgency, dueLabel, isOverdue, shortDate, statusOf } from '../lib/work';
 
@@ -199,28 +200,26 @@ export const WorkPage: React.FC<WorkPageProps> = ({ invitations, memberships, as
               </button>
             ))}
           </nav>
-        </aside>
-
-        <main className="min-w-0 space-y-5">
-          {/* Invitations stay on top wherever they are */}
+          {/* Invitations wait here, beside every section, so the page itself never moves */}
           {invitations.length > 0 && section !== 'teams' && (
-            <button onClick={() => setSection('teams')} className="w-full p-4 rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-violet-50 text-left flex items-center gap-3">
+            <button onClick={() => setSection('teams')} className="w-full p-3 rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-violet-50 text-left flex items-center gap-3">
               <Building2 className="w-5 h-5 text-indigo-600 shrink-0" />
-              <span className="flex-1 text-sm text-slate-800">
-                <span className="font-bold">{invitations.map((i) => i.companyName).join(', ')}</span> invited you to {invitations.length === 1 ? 'its team' : 'their teams'}.
+              <span className="flex-1 min-w-0 text-xs text-slate-800">
+                <span className="font-bold">{invitations.map((i) => i.companyName).join(', ')}</span> invited you
               </span>
               <span className="text-xs font-semibold text-indigo-700">Review</span>
             </button>
           )}
+        </aside>
 
+        <main className="min-w-0 space-y-5">
           {/* ---------- My tasks ---------- */}
           {section === 'tasks' && (
             <>
-              <div className="flex flex-wrap items-end justify-between gap-3">
-                <div>
-                  <h1 className="text-2xl font-bold text-slate-900 tracking-tight">My tasks</h1>
-                  <p className="text-sm text-slate-500">Training, job simulations and tests your teams sent you. Only you and that company see the results.</p>
-                </div>
+              <PageHeader
+                title="My tasks"
+                sub="Training, job simulations and tests your teams sent you. Only you and that company see the results."
+                action={
                 <div className="inline-flex rounded-full border border-slate-200 bg-white p-1 text-xs font-semibold">
                   {(
                     [
@@ -239,7 +238,8 @@ export const WorkPage: React.FC<WorkPageProps> = ({ invitations, memberships, as
                     </button>
                   ))}
                 </div>
-              </div>
+                }
+              />
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {[
@@ -337,10 +337,7 @@ export const WorkPage: React.FC<WorkPageProps> = ({ invitations, memberships, as
           {/* ---------- Training ---------- */}
           {section === 'training' && (
             <>
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Training</h1>
-                <p className="text-sm text-slate-500">Courses your teams set you. Untimed; pass it to earn a certificate, and do it again any time.</p>
-              </div>
+              <PageHeader title="Training" sub="Courses your teams set you. Untimed; pass it to earn a certificate, and do it again any time." />
               {assignments.filter(isTraining).length === 0 ? (
                 empty('No training yet. When your team sends you training, it appears here.')
               ) : (
@@ -391,10 +388,7 @@ export const WorkPage: React.FC<WorkPageProps> = ({ invitations, memberships, as
           {/* ---------- Certificates ---------- */}
           {section === 'certificates' && (
             <>
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Certificates</h1>
-                <p className="text-sm text-slate-500">Training you've passed. Open one to see, download or share it.</p>
-              </div>
+              <PageHeader title="Certificates" sub="Training you've passed. Open one to see, download or share it." />
               {certified.length === 0 ? (
                 empty('No certificates yet. Pass a piece of training your team sends you to earn one.')
               ) : (
@@ -426,10 +420,7 @@ export const WorkPage: React.FC<WorkPageProps> = ({ invitations, memberships, as
           {/* ---------- Teams ---------- */}
           {section === 'teams' && (
             <>
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Teams</h1>
-                <p className="text-sm text-slate-500">Companies whose teams you're on, and invitations to join.</p>
-              </div>
+              <PageHeader title="Teams" sub="Companies whose teams you're on, and invitations to join." />
               {invitations.map((m) => (
                 <Card key={m.id} className="p-5 flex flex-col sm:flex-row sm:items-center gap-4 border-indigo-200">
                   <Pic src={logoOf(m.businessId) ?? ''} alt="" className="w-12 h-12 rounded-xl bg-slate-100 shrink-0" />
@@ -506,10 +497,7 @@ export const WorkPage: React.FC<WorkPageProps> = ({ invitations, memberships, as
           {/* ---------- Settings: what a team sees, and leaving it ---------- */}
           {section === 'settings' && (
             <>
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Settings</h1>
-                <p className="text-sm text-slate-500">What your teams can see, and leaving a team.</p>
-              </div>
+              <PageHeader title="Settings" sub="What your teams can see, and leaving a team." />
               <Card className="p-5 flex gap-4">
                 <ShieldCheck className="w-6 h-6 text-emerald-600 shrink-0" />
                 <div className="text-sm text-slate-700 space-y-1">
