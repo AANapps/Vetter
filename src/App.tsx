@@ -1611,6 +1611,14 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
                 showToast('Experience saved.');
               }}
               onUpdateSkills={(skills) => setCandidate((prev) => ({ ...prev, skills }))}
+              onUpdateEducation={(details) => {
+                setCandidate((prev) => ({ ...prev, ...details }));
+                showToast('Education and certifications saved.');
+              }}
+              onImportProfile={(change) => {
+                setCandidate((prev) => ({ ...prev, ...change }));
+                showToast('Your profile is filled in from your CV. Check it and change anything with Edit.');
+              }}
               onToggleHidden={(testId) => {
                 const hidden = (candidate.hiddenTestIds ?? []).includes(testId);
                 setCandidate((prev) => ({

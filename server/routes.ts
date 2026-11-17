@@ -7,6 +7,7 @@ import { planTest } from './planTest.js';
 import { writeQuestions } from './writeQuestions.js';
 import { checkSpec } from './checkSpec.js';
 import { writeJobSim } from './writeJobSim.js';
+import { readCv } from './readCv.js';
 import { testAdvisor } from './testAdvisor.js';
 import { suggestTests } from './suggestTests.js';
 import { taskAssistant } from './taskAssistant.js';
@@ -132,6 +133,8 @@ export const API_ROUTES: Record<string, Handler> = {
   '/api/task-assistant': logged('task-assistant', (body, env) => taskAssistant(body, env.ANTHROPIC_API_KEY, env.ASSISTANT_MODEL || 'claude-haiku-5-5')),
   // Programs in languages the browser can't run (Java, C#, C++, Go...), on Judge0; signed-in people only, rate-limited
   '/api/run-code': logged('run-code', (body, env, meta) => runCode(body, env, meta?.authorization)),
+  // A candidate's CV read into their profile, for them to check: Praxa's cost, signed-in people only, a few an hour
+  '/api/read-cv': logged('read-cv', (body, env, meta) => readCv(body, env, meta?.authorization, env.CV_MODEL || 'claude-haiku-5-5')),
   // Marking a candidate's answers is Praxa's cost, not the company's credit
   '/api/grade-answers': logged('grade-answers', (body, env) => gradeAnswers(body, env.ANTHROPIC_API_KEY, env.GRADING_MODEL || testModel(env))),
 };

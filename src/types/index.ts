@@ -119,6 +119,31 @@ export interface User {
   skills?: string[];
   // Where to see more of them: LinkedIn, GitHub, a portfolio
   links?: ProfileLink[];
+  // Their schooling and qualifications, most recent first, and certifications they hold (in their own words, unlike
+  // Praxa's verified skills)
+  education?: Education[];
+  certifications?: Certification[];
+}
+
+export interface Education {
+  id: string;
+  school: string;
+  // e.g. "BSc", "A levels", "Bootcamp"
+  qualification?: string;
+  subject?: string;
+  start?: string; // YYYY-MM
+  end?: string; // YYYY-MM; unset while still studying
+  grade?: string;
+  summary?: string;
+}
+
+export interface Certification {
+  id: string;
+  name: string;
+  issuer?: string;
+  issued?: string; // YYYY-MM
+  expires?: string; // YYYY-MM
+  url?: string;
 }
 
 export interface WorkExperience {

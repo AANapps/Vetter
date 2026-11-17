@@ -33,6 +33,7 @@ import {
   Trophy,
   Target,
   Circle,
+  Sparkles,
 } from 'lucide-react';
 import { VerifiedSkillBadge, TierLegend, getBadgeTier } from './VerifiedSkillBadge';
 import { JobApplicationModal } from './JobApplicationModal';
@@ -40,7 +41,9 @@ import { JobDetailsModal, JobPage, JobTests, getJobTests } from './JobDetails';
 import { JobProfileEditor } from './JobProfileEditor';
 import { Studies, StudiesEditor } from './StudiesEditor';
 import { ExperienceDetails, ExperienceEditor } from './ExperienceEditor';
-import { ExperienceList, ProfileLinks } from './ExperienceList';
+import { CertificationList, EducationList, ExperienceList, ProfileLinks } from './ExperienceList';
+import { EducationDetails, EducationEditor } from './EducationEditor';
+import { ProfileImportDialog } from './ProfileImportDialog';
 import { SkillList } from './SkillList';
 import { stageOf } from '../lib/audience';
 import { ProfileSidebar } from './ProfileSidebar';
@@ -67,6 +70,9 @@ interface CandidatePortalProps {
   onUpdateProfiles: (profiles: JobProfile[], activeProfileId: string) => void;
   onUpdateStudies: (studies: Studies) => void;
   onUpdateExperience: (details: ExperienceDetails) => void;
+  onUpdateEducation: (details: EducationDetails) => void;
+  // Everything read from their CV, once they've checked it
+  onImportProfile: (change: Partial<User>) => void;
   onUpdateSkills: (skills: string[]) => void;
   // Takes a test the candidate took off their record
   // Hides a test from their public profile (companies still see it), or shows it again
@@ -101,6 +107,8 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   onUpdateProfiles,
   onUpdateStudies,
   onUpdateExperience,
+  onUpdateEducation,
+  onImportProfile,
   onUpdateSkills,
   onToggleHidden,
   jobPageId,
@@ -127,6 +135,8 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   const [editingProfile, setEditingProfile] = useState<{ profile: JobProfile; isNew: boolean } | null>(null);
   const [editingStudies, setEditingStudies] = useState(false);
   const [editingExperience, setEditingExperience] = useState(false);
+  const [editingEducation, setEditingEducation] = useState(false);
+  const [importingCv, setImportingCv] = useState(false);
 
   // The profile page shows one job profile at a time: its headline, about and the skills it features
   const profiles = profilesOf(candidate);
@@ -469,20 +479,46 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
         </div>
       </div>
 
-      {/* Experience: their own account of their work, as on a CV; skills come from the tests below */}
+      {/* Filling the profile in one go from a CV, offered until there's experience on it */}
+      {!candidate.experience?.length && (
+        <button
+          onClick={() => setImportingCv(true)}
+          className="w-full text-left p-5 rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 via-violet-50 to-white hover:border-indigo-400 flex items-center gap-4 shadow-xs"
+        >
+          <span className="w-10 h-10 shrink-0 rounded-xl bg-indigo-600 text-white flex items-center justify-center">
+            <Sparkles className="w-5 h-5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-bold text-slate-900">Fill in your profile from your CV</span>
+            <span className="block text-xs text-slate-600">Add your CV (or paste your LinkedIn) and Praxa fills in your experience, education, certifications and skills for you to check.</span>
+          </span>
+          <ChevronRight className="w-5 h-5 text-indigo-400 shrink-0" />
+        </button>
+      )}
+
+      {/* Experience: their own account of their work as a timeline, as on a CV */}
       <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-base font-bold text-slate-900">Experience</h2>
-            <p className="text-xs text-slate-500">Your jobs, how you'd like to work and where to see more. Companies see this on your profile; verified skills come from Praxa's tests.</p>
+            <p className="text-xs text-slate-500">Your jobs, internships and placements. Companies see this on your profile; verified skills come from Praxa's tests.</p>
           </div>
-          <button
-            onClick={() => setEditingExperience(true)}
-            className="shrink-0 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:border-indigo-300 hover:text-indigo-700 rounded-lg inline-flex items-center gap-1.5"
-          >
-            <Pencil className="w-3.5 h-3.5" />
-            {candidate.experience?.length ? 'Edit' : 'Add experience'}
-          </button>
+          <div className="shrink-0 flex items-center gap-2">
+            <button
+              onClick={() => setImportingCv(true)}
+              className="px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-white border border-indigo-200 hover:border-indigo-400 rounded-lg inline-flex items-center gap-1.5"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              From your CV
+            </button>
+            <button
+              onClick={() => setEditingExperience(true)}
+              className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:border-indigo-300 hover:text-indigo-700 rounded-lg inline-flex items-center gap-1.5"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              {candidate.experience?.length ? 'Edit' : 'Add'}
+            </button>
+          </div>
         </div>
         {candidate.experience?.length ? (
           <ExperienceList items={candidate.experience} />
@@ -491,18 +527,39 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
             Add the jobs, internships or placements you've had
           </button>
         )}
-        {!!candidate.links?.length && <ProfileLinks links={candidate.links} />}
       </section>
 
-      {/* Skills in their own words: a list they add to with + */}
-      <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
-        <div>
-          <h2 className="text-base font-bold text-slate-900">Skills</h2>
-          <p className="text-xs text-slate-500">
-            List what you can do. Companies see these on your profile as your own claim; ones a Praxa test has verified get a tick.
-          </p>
+      {/* Education and certifications, below the experience */}
+      <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-base font-bold text-slate-900">Education and certifications</h2>
+            <p className="text-xs text-slate-500">Where you studied and the certifications you hold.</p>
+          </div>
+          <button
+            onClick={() => setEditingEducation(true)}
+            className="shrink-0 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:border-indigo-300 hover:text-indigo-700 rounded-lg inline-flex items-center gap-1.5"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+            {candidate.education?.length || candidate.certifications?.length ? 'Edit' : 'Add'}
+          </button>
         </div>
-        <SkillList skills={candidate.skills ?? []} verified={candidate.verifiedSkills.map((v) => v.skillName)} onChange={onUpdateSkills} />
+        {candidate.education?.length || candidate.certifications?.length ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-3">
+              <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Education</h3>
+              {candidate.education?.length ? <EducationList items={candidate.education} /> : <p className="text-xs text-slate-500">None added.</p>}
+            </div>
+            <div className="space-y-3">
+              <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Certifications</h3>
+              {candidate.certifications?.length ? <CertificationList items={candidate.certifications} /> : <p className="text-xs text-slate-500">None added.</p>}
+            </div>
+          </div>
+        ) : (
+          <button onClick={() => setEditingEducation(true)} className="w-full p-5 rounded-xl border border-dashed border-slate-300 text-sm text-slate-500 hover:border-indigo-300 hover:text-indigo-700">
+            Add your degree, qualifications or certifications
+          </button>
+        )}
       </section>
 
       {/* SECTION 1: VERIFIED SKILL PASSPORT */}
@@ -631,6 +688,39 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
         </div>
       </div>
 
+      <div className="space-y-4 min-w-0">
+      {/* The narrow column: their skills and links, then what to do next */}
+      <section className="bg-white border border-slate-200 rounded-xl p-5 space-y-3 shadow-xs">
+        <div>
+          <h2 className="text-sm font-bold text-slate-900">Skills</h2>
+          <p className="text-[11px] text-slate-500">Your own list. Ones a Praxa test has verified get a tick.</p>
+        </div>
+        <SkillList skills={candidate.skills ?? []} verified={candidate.verifiedSkills.map((v) => v.skillName)} onChange={onUpdateSkills} />
+      </section>
+      <section className="bg-white border border-slate-200 rounded-xl p-5 space-y-3 shadow-xs">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-sm font-bold text-slate-900">Details</h2>
+          <button onClick={() => setEditingStudies(true)} className="text-[11px] font-semibold text-indigo-700 hover:underline">
+            Edit
+          </button>
+        </div>
+        <dl className="space-y-1.5 text-xs">
+          {[
+            ['Location', candidate.location],
+            ['Works', candidate.workPreference],
+            ['Experience', candidate.yearsExperience ? `${candidate.yearsExperience} ${candidate.yearsExperience === 1 ? 'year' : 'years'}` : ''],
+            ['Stage', stageOf(candidate)],
+          ]
+            .filter(([, v]) => v)
+            .map(([k, v]) => (
+              <div key={k} className="flex justify-between gap-3">
+                <dt className="text-slate-500">{k}</dt>
+                <dd className="font-medium text-slate-900 text-right">{v}</dd>
+              </div>
+            ))}
+        </dl>
+        {candidate.links?.length ? <ProfileLinks links={candidate.links} /> : <p className="text-[11px] text-slate-500">Add LinkedIn, GitHub or a portfolio under Edit.</p>}
+      </section>
       <ProfileSidebar
         candidate={candidate}
         tests={tests}
@@ -639,6 +729,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
         onOpenTest={onOpenTest}
         onOpenJob={setOpenJobId}
       />
+      </div>
       </div>
       )}
 
@@ -1207,6 +1298,28 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
             setEditingExperience(false);
           }}
           onClose={() => setEditingExperience(false)}
+        />
+      )}
+
+      {editingEducation && (
+        <EducationEditor
+          candidate={candidate}
+          onSave={(details) => {
+            onUpdateEducation(details);
+            setEditingEducation(false);
+          }}
+          onClose={() => setEditingEducation(false)}
+        />
+      )}
+
+      {importingCv && (
+        <ProfileImportDialog
+          candidate={candidate}
+          onSave={(change) => {
+            onImportProfile(change);
+            setImportingCv(false);
+          }}
+          onClose={() => setImportingCv(false)}
         />
       )}
 

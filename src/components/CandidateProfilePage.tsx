@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, BadgeCheck, Briefcase, Check, ChevronRight, ExternalLink, GraduationCap, Link2, MapPin, Star, X } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, Briefcase, Check, ExternalLink, GraduationCap, Link2, MapPin, Star, X } from 'lucide-react';
 import { AssessmentTest, Business, JobPosting, User } from '../types';
 import { LeadRow, stageInfo } from '../lib/leads';
 import { Pic } from './Pic';
 import { TestHistory } from './TestHistory';
 import { IntegrityBadge } from './IntegrityBadge';
 import { getBadgeTier } from './VerifiedSkillBadge';
-import { ExperienceList, ProfileLinks } from './ExperienceList';
+import { CertificationList, EducationList, ExperienceList, ProfileLinks } from './ExperienceList';
 import { SkillList } from './SkillList';
 import { ApplicantSummary } from './ApplicantSummary';
 
@@ -197,52 +197,25 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
             </section>
           )}
 
-          {!!person.skills?.length && (
+          {/* Education and certifications, below the experience */}
+          {(!!person.education?.length || !!person.certifications?.length) && (
             <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs">
-              <Heading aside={<span className="text-[11px] text-slate-400">In their own words · ticked ones are verified</span>}>Skills</Heading>
-              <SkillList skills={person.skills} verified={person.verifiedSkills.map((v) => v.skillName)} />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {!!person.education?.length && (
+                  <div>
+                    <Heading>Education</Heading>
+                    <EducationList items={person.education} />
+                  </div>
+                )}
+                {!!person.certifications?.length && (
+                  <div>
+                    <Heading aside={<span className="text-[11px] text-slate-400">In their own words</span>}>Certifications</Heading>
+                    <CertificationList items={person.certifications} />
+                  </div>
+                )}
+              </div>
             </section>
           )}
-
-          {/* What Praxa has verified, strongest first: one line each, with the score as a bar */}
-          <section className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
-            <div className="px-6 pt-6">
-              <Heading aside={skills.length > 0 && <span className="inline-flex items-center gap-1 text-[11px] text-slate-500"><BadgeCheck className="w-3.5 h-3.5 text-indigo-600" />Verified by Praxa</span>}>
-                Verified skills
-              </Heading>
-            </div>
-            {skills.length === 0 ? (
-              <p className="px-6 pb-6 text-sm text-slate-500">No verified skills yet. A score of 75 or more on a Praxa test verifies the skill.</p>
-            ) : (
-              <ul className="divide-y divide-slate-100">
-                {skills.map((s) => {
-                  const tier = getBadgeTier(s.score);
-                  return (
-                    <li key={s.skillId}>
-                      <button
-                        onClick={() => onOpenTest(s.testId)}
-                        className="w-full text-left px-6 py-3.5 grid grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[minmax(0,1fr)_9rem_4.5rem] items-center gap-x-4 gap-y-2 hover:bg-slate-50/70 transition-colors group"
-                      >
-                        <span className="min-w-0">
-                          <span className="block text-sm font-semibold text-slate-900 truncate group-hover:text-indigo-700">{s.skillName}</span>
-                          <span className="block text-[11px] text-slate-500 truncate">
-                            {s.level} &middot; {s.percentile}th percentile &middot; {formatDay(s.verifiedAt)}
-                          </span>
-                        </span>
-                        <span className="hidden sm:block h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                          <span className={`block h-full rounded-full ${tier.barClass}`} style={{ width: `${s.score}%` }} />
-                        </span>
-                        <span className="flex items-center justify-end gap-1">
-                          <span className={`font-mono text-lg font-bold tabular-nums ${tier.badgeTextColor}`}>{s.score}</span>
-                          <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500" />
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </section>
 
           <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs">
             <Heading>Test record</Heading>
@@ -299,6 +272,43 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
               </ul>
             )}
           </section>
+
+          {/* What Praxa has verified, strongest first, with the score */}
+          <section className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
+            <div className="px-5 pt-5">
+              <Heading aside={skills.length > 0 && <BadgeCheck className="w-3.5 h-3.5 text-indigo-600" aria-label="Verified by Praxa" />}>Verified skills</Heading>
+            </div>
+            {skills.length === 0 ? (
+              <p className="px-5 pb-5 text-xs text-slate-500">None yet. A score of 75 or more on a Praxa test verifies the skill.</p>
+            ) : (
+              <ul className="divide-y divide-slate-100 pb-1">
+                {skills.map((s) => {
+                  const tier = getBadgeTier(s.score);
+                  return (
+                    <li key={s.skillId}>
+                      <button onClick={() => onOpenTest(s.testId)} className="w-full text-left px-5 py-2.5 flex items-center gap-3 hover:bg-slate-50/70 group">
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-xs font-semibold text-slate-900 truncate group-hover:text-indigo-700">{s.skillName}</span>
+                          <span className="block text-[10px] text-slate-500 truncate">
+                            {s.level} &middot; {s.percentile}th pct &middot; {formatDay(s.verifiedAt)}
+                          </span>
+                        </span>
+                        <span className={`font-mono text-sm font-bold tabular-nums ${tier.badgeTextColor}`}>{s.score}</span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+
+          {!!person.skills?.length && (
+            <section className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
+              <Heading>Skills</Heading>
+              <SkillList skills={person.skills} verified={person.verifiedSkills.map((v) => v.skillName)} />
+              <p className="mt-2 text-[10px] text-slate-400">In their own words · ticked ones are verified</p>
+            </section>
+          )}
 
           <section className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3">
             <Heading>Integrity</Heading>
