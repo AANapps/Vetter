@@ -107,7 +107,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
         }
       : plan && planChat
       ? {
-          messages: [{ role: 'assistant', text: `Building "${plan.title}" from the plan you agreed: ${plan.items.filter((i) => i.type !== 'case').length} questions. Watch it come together on the right.` }],
+          messages: [{ role: 'assistant', text: plan.items.every((i) => i.type === 'part') ? `Building "${plan.title}" from the plan you agreed: a 40-minute day on the desktop in five timed parts. Watch it come together on the right.` : `Building "${plan.title}" from the plan you agreed: ${plan.items.filter((i) => i.type !== 'case').length} questions. Watch it come together on the right.` }],
           existing: [],
           research: planChat.research,
           researchedFor: planChat.researchedFor,

@@ -13,11 +13,12 @@ import { ChatRequest, backgroundNote, levelPick, styleGuide, stylesNote } from '
 const MAX_TURNS = 24;
 const MAX_TEXT = 4000;
 
-const ITEM_TYPES = ['choice', 'multi', 'text', 'written', 'order', 'match', 'email', 'assistant', 'case', 'code', 'sql', 'sheet', 'database', 'app'];
+const ITEM_TYPES = ['part', 'choice', 'multi', 'text', 'written', 'order', 'match', 'email', 'assistant', 'case', 'code', 'sql', 'sheet', 'database', 'app'];
 
 // The plan's item types are held to the styles the company picked (a case or task needs its own style picked too)
-const schemaFor = (styles?: string[]) => {
-  const allowed = styles?.length ? ITEM_TYPES.filter((t) => styles.includes(t)) : ITEM_TYPES;
+const schemaFor = (styles?: string[], jobSim = false) => {
+  const types = ITEM_TYPES.filter((t) => t !== 'part');
+  const allowed = jobSim ? ['part'] : styles?.length ? types.filter((t) => styles.includes(t)) : types;
   const plan = schema.properties.plan;
   return {
     ...schema,
@@ -146,6 +147,56 @@ ${research ? `RESEARCH on the job and what the simulations copy. Every task, fig
 ${req.library.map((t) => `- ${t.id}: ${t.title} (${t.category}, ${t.difficulty}; skills: ${t.skills.join(', ')}; roles: ${t.roles.join(', ')}). ${t.description}`).join('\n')}`;
 }
 
+// A job simulation is planned as the one shape every Praxa job simulation has (src/data/modules/jobSimKit.ts): a day on
+// the desktop in five timed parts, made for this company and this job. server/writeJobSim.ts writes it out
+function jobSimInstructions(req: ChatRequest, research: string): string {
+  return `You are Praxa's job simulation designer, talking with a company on Praxa, a skills-based hiring platform. You
+are planning one job simulation: a 40-minute working day on a desktop computer (Mail, Files, an AI assistant, and the
+job's own work apps) for someone applying to this job, so whoever does well can really do it and whoever can't is found out.
+
+HOW TO TALK
+- Reply like a sharp, friendly hiring consultant: short, plain British English, no em dashes, no markdown. 1 to 4 sentences.
+- If the conversation is too vague to plan (no idea of the role or what matters), ask up to 2 short questions in reply
+  and leave out "plan". Otherwise plan straight away; don't interrogate.
+- ALREADY SETTLED, when given, is what the company told Praxa before this chat: never ask again about anything it covers.
+- With a plan, say in a sentence or two what the day covers and why, then offer one specific way to sharpen it. The
+  company sees the plan under your reply and presses Build once it's happy, so never say it has been built.
+
+THE PLAN: always exactly these five items, in this order, every one type "part", taskRef "", points 0:
+  ref "briefing", minutes 2: "Briefing" (not marked): who they are, the company, their manager, their tools.
+  ref "core", minutes 12: "Core task": the most important work of THIS job, simple first, then harder.
+  ref "curveball", minutes 6: "Curveball": something changes or goes wrong and they adapt their work.
+  ref "juggling", minutes 10: "Juggling and judgement": two or three demands at once, plus one grey-area decision
+    with no perfect answer, where they decide and give a reason.
+  ref "report", minutes 7: "Report back": summarise the work for the manager or another team.
+(Plus 3 minutes to read and switch apps: 40 in all.)
+title: the item's name above plus a colon and what happens, e.g. "Core task: Q1 sales against target for every store".
+brief: 2 to 4 sentences: exactly what the candidate does, with whom (from the cast), in which app, on what data, and
+what a strong answer shows. Plant one or two issues nobody mentions (duplicate rows, a wrong figure, a missing detail,
+a failing edge case): say in the brief where they are; the report back is marked on naming them.
+
+MADE FOR THIS COMPANY AND THIS JOB
+- The day is set AT the hiring company (company = its name), using what the company told you: its products, customers,
+  sector, location, tools and teams, and the duties, tools and seniority in the job description. Every task is work
+  the job description says this person does, done the way it's really done.
+- setting: 2 to 3 sentences: the candidate's role there, the day (e.g. Monday morning before a board meeting), and the
+  work apps on the desktop: two (three at most) of Spreadsheet, Browser (an intranet, client portal, supplier site or
+  documentation), Database (SQL) and Code (a small JavaScript project with tests), whichever the job really uses. The
+  data is pre-loaded, so the candidate works rather than sets up.
+- people: the cast, 3 to 6 colleagues, each "Name | Role | first.last@domain" (the company's email domain).
+- inbox: [] (the day's emails are written with it).
+- title: "<Role> Job Simulation: A Day at <company>". description: 1 to 2 sentences for the company.
+- blueprint: one line per competency, written "skill | weight | why it matters | how the day proves it".
+- difficulty is one of: ${req.levels.join(', ')}; usually the middle one, or what the job's seniority says. passingScore 70.
+- category and roles: from the job.
+
+software and lookUp: "".
+${req.wantExisting ? `LIBRARY PICKS: "existing" lists up to 4 tests from the LIBRARY that genuinely fit the job alongside the simulation, best first, each with a one-sentence reason. Only ids from the library.` : 'Return an empty "existing" list.'}
+
+${research ? `RESEARCH on how the job is really done. Every task, term, figure and step must match it.\n${research}\n\n` : ''}LIBRARY:
+${req.library.map((t) => `- ${t.id}: ${t.title} (${t.category}, ${t.difficulty}; skills: ${t.skills.join(', ')}). ${t.description}`).join('\n')}`;
+}
+
 // The plan the company is looking over in the chat, when it asks for a change to it before anything is written
 type PlanRequest = ChatRequest & { currentPlan?: Record<string, unknown> };
 
@@ -169,9 +220,9 @@ async function turn(client: Anthropic, model: string, req: PlanRequest, research
     .stream({
       model,
       max_tokens: 32000,
-      output_config: { effort: 'medium', format: { type: 'json_schema', schema: schemaFor(req.styles) } },
+      output_config: { effort: 'medium', format: { type: 'json_schema', schema: schemaFor(req.styles, req.kind === 'simulation') } },
       ...(!model.includes('haiku') && { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' as const }),
-      system: [{ type: 'text', text: instructions(req, research), cache_control: { type: 'ephemeral' } }],
+      system: [{ type: 'text', text: req.kind === 'simulation' ? jobSimInstructions(req, research) : instructions(req, research), cache_control: { type: 'ephemeral' } }],
       messages: conversation(req),
     })
     .finalMessage();
@@ -201,7 +252,7 @@ export async function planTest(body: unknown, apiKey: string | undefined, model:
 
     // A test with app simulations is planned from how the job is really done, researched first, so every task is one
     // the job really involves, done the way it's really done
-    const wantsApps = !req.styles?.length || req.styles.includes('app');
+    const wantsApps = req.kind === 'simulation' || !req.styles?.length || req.styles.includes('app');
     if (wantsApps && !research) {
       const company = req.company ? `The company: ${[req.company.name, req.company.industry, req.company.headquarters].filter(Boolean).join(', ')}` : '';
       const brief = [req.jobTitle ? `The role: ${req.jobTitle}` : '', company, req.job, req.background, ...req.messages.filter((m) => m.role === 'user').map((m) => m.text)].filter(Boolean).join('\n\n');
@@ -212,7 +263,7 @@ export async function planTest(body: unknown, apiKey: string | undefined, model:
     let message = await turn(client, model, req, research);
     if (failed(message)) return failed(message)!;
     let out = parse(message);
-    if (out.lookUp && !sameProduct(out.lookUp, researchedFor)) {
+    if (req.kind !== 'simulation' && out.lookUp && !sameProduct(out.lookUp, researchedFor)) {
       const brief = [`The software: ${out.lookUp}`, req.job, ...req.messages.filter((m) => m.role === 'user').map((m) => m.text)].filter(Boolean).join('\n\n');
       const found = await researchSoftware(client, model, brief).catch((err) => (console.error('[plan-test] research failed', err), ''));
       // Added to the notes on the job, which stay

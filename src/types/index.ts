@@ -397,6 +397,9 @@ export interface AssessmentTest {
   timeLimit?: number | 'none';
   // Written (or since enhanced) in the test chat with Praxa's AI, or in the builder by hand
   madeWith?: 'ai' | 'hand';
+  // A job simulation Praxa's AI wrote (src/lib/jobSimBuild.ts): its own copy of the day, kept so a change asked for in
+  // the chat rewrites the day from it
+  jobSimSource?: string;
   // A company's test offered to everyone: the company asks (pending), the Praxa team approves it or turns it down
   // (with why). Approved, it's in every company's library and on the candidates' Tests page. Changing it sends it back
   // for approval

@@ -137,6 +137,7 @@ export const penceFor = (usd: number, env: Env) => Math.ceil(usd * USD_TO_GBP * 
 export const STEP_NAMES: Record<string, string> = {
   'plan-test': 'Planning the test',
   'write-questions': 'Writing questions',
+  'write-job-sim': 'Writing the job simulation',
   'build-app': 'Building an interactive task',
   'test-chat': 'Changing the test',
   'generate-test': 'Writing a test',

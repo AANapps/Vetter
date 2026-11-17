@@ -6,6 +6,7 @@ import { isGroupType, orderedQuestions } from './questionTypes';
 import { aiFetch } from './aiRequest';
 import { EnvironmentSubmission, loadEnvironmentPage, loadEnvironments, loadSubmissionPage, markEnvironmentUsed, submitEnvironment, updateSubmission } from './environments';
 import { categoriesFor, companySector, rolesFor } from './sectors';
+import { RawJobSim, assembleJobSim, finishJobSim, isJobSimDraft } from './jobSimBuild';
 import { ALL_ROLES, RawQuestion, Suggestion, assembleFromBank, checkQuestion, libraryFor, linkTasks, matchExisting } from './testGeneration';
 
 // Building a test by talking to Praxa (server/testChat.ts does the AI side). Each turn sends the conversation and the
@@ -585,6 +586,7 @@ async function fetchPlan(ctx: ChatContext, request: Record<string, unknown>) {
   if (planned.failure) return { body: planned.body, failure: planned.failure };
   const body = planned.body;
   const plan = body.plan as TestPlan | undefined;
+  if (ctx.kind === 'simulation') return { body, plan: plan && jobSimPlan(plan) };
   // Only items in the picked styles, and no questions about a case or task that's gone
   if (plan?.items?.length) {
     const allowed = plan.items.filter((item) => allowedStyle(ctx, item.type));
@@ -603,6 +605,84 @@ async function fetchPlan(ctx: ChatContext, request: Record<string, unknown>) {
   plan.items = order.map((ref) => plan.items.find((item) => item.ref === ref)!).filter(Boolean);
   return { body, plan };
 }
+
+// A job simulation's plan is always its five timed parts, in order, at their set minutes (src/data/modules/jobSimKit.ts),
+// whatever the planner sent
+const JOB_SIM_PARTS: [string, string, number][] = [
+  ['briefing', 'Briefing', 2],
+  ['core', 'Core task', 12],
+  ['curveball', 'Curveball', 6],
+  ['juggling', 'Juggling and judgement', 10],
+  ['report', 'Report back', 7],
+];
+function jobSimPlan(plan: TestPlan): TestPlan {
+  const items = JOB_SIM_PARTS.map(([ref, title, minutes]) => {
+    const given = plan.items?.find((item) => item.ref === ref) ?? plan.items?.find((item) => String(item.title ?? '').toLowerCase().startsWith(title.toLowerCase()));
+    return { ref, taskRef: '', type: 'part', title: given?.title?.trim() || title, brief: given?.brief ?? '', points: 0, minutes };
+  });
+  return { ...plan, items };
+}
+export const isJobSimPlan = (plan?: TestPlan) => !!plan?.items?.length && plan.items.every((item) => item.type === 'part');
+
+// A job simulation written whole as one desktop day (server/writeJobSim.ts) and checked here (jobSimBuild.ts): a day
+// with problems goes back once with them to fix; checks still broken after that are left out if the day stands without
+// them. A change to a day already written sends the day and the change
+async function writeJobSimDay(
+  request: Record<string, unknown>,
+  ctx: ChatContext,
+  extra: { plan?: TestPlan; research?: string; current?: AssessmentTest; change?: string },
+  list: Checklist
+): Promise<{ test?: AssessmentTest; reply?: string; failure?: string }> {
+  const brief = ((request.messages ?? []) as ChatMessage[]).filter((m) => m.role === 'user').map((m) => m.text).join('\n\n');
+  let current: unknown = undefined;
+  try {
+    current = extra.current?.jobSimSource ? JSON.parse(extra.current.jobSimSource) : undefined;
+  } catch {
+    current = undefined;
+  }
+  const payload = {
+    job: request.job,
+    jobTitle: request.jobTitle,
+    company: request.company,
+    background: request.background,
+    brief,
+    research: extra.research,
+    ...(extra.plan && { plan: extra.plan }),
+    // A day without the AI's own copy (made before it was kept) is sent as the desktop it became
+    ...(extra.current && { current: current ?? { desktop: extra.current.questions[0]?.desktop, checks: extra.current.questions[0]?.testCases.map((tc) => [tc.description, tc.input, tc.rubric ?? tc.expectedOutput]) } }),
+    ...(extra.change && { change: extra.change }),
+  };
+  list.start('write', extra.change ? 'Rewriting the day with your change…' : 'Writing the day: the emails, the pre-loaded data, the pages and how each part is marked…');
+  let out = await post('/api/write-job-sim', payload);
+  if (out.failure) return { failure: out.failure };
+  list.start('check', 'Working out every answer from the data and checking each part can be marked…');
+  let raw = out.body as RawJobSim;
+  let made = assembleJobSim(raw, ctx.business);
+  if (made.problems.length) {
+    list.start('check', `Fixing ${made.problems.length === 1 ? 'one problem' : `${made.problems.length} problems`} Praxa's checks found…`);
+    const fixed = await post('/api/write-job-sim', { ...payload, current: raw, change: undefined, problems: made.problems });
+    if (!fixed.failure) {
+      const again = assembleJobSim(fixed.body as RawJobSim, ctx.business);
+      if (!again.problems.length || !assembleJobSim(raw, ctx.business, true).test) {
+        raw = fixed.body as RawJobSim;
+        made = again;
+      }
+    }
+    if (made.problems.length) made = assembleJobSim(raw, ctx.business, true);
+  }
+  list.finish();
+  if (!made.test) return { failure: "Praxa couldn't make a job simulation that passes its checks. Try Build again." };
+  const plan = extra.plan;
+  const test = finishJobSim(made.test, raw, ctx.business, ctx.level, plan?.difficulty ?? extra.current?.difficulty);
+  return {
+    test: extra.current ? { ...test, title: extra.current.title, difficulty: extra.current.difficulty } : { ...test, ...(plan?.blueprint?.length && { blueprint: blueprintOf(plan.blueprint) }) },
+    reply: String(raw.reply ?? '').trim() || undefined,
+  };
+}
+const JOB_SIM_STEPS: [string, string][] = [
+  ['write', 'Write the day: emails, data, pages and marks'],
+  ['check', 'Work out every answer and check each part is marked'],
+];
 
 // The checklist's steps from the plan on: writing, then the simulations when there are any, then checking
 const writeSteps = (sims: boolean): [string, string][] => [
@@ -689,6 +769,13 @@ async function planAndWrite(state: ChatState, messages: ChatMessage[], ctx: Chat
   if (researching) list.start('plan', 'Planning the test: what this hire needs and the sections…');
   if (!plan) return { body };
   const research: string | undefined = body.research ?? state.research;
+  if (isJobSimPlan(plan)) {
+    list.drop(['write', 'spec', 'build', 'check']);
+    list.add(JOB_SIM_STEPS);
+    const day = await writeJobSimDay(request, ctx, { plan, research }, list);
+    if (day.failure && !day.test) return { failure: day.failure };
+    return { body: { ...body, test: undefined }, built: { test: day.test, dropped: 0 } };
+  }
   const built = await writePlan(plan, research, messages, ctx, request, progress, list);
   return { body: { ...body, test: undefined }, built };
 }
@@ -767,6 +854,15 @@ export async function proposePlan(
 export async function buildPlan(state: ChatState, plan: TestPlan, ctx: ChatContext, progress: Progress = () => {}): Promise<ChatState> {
   const messages: ChatMessage[] = [...state.messages, { role: 'user', text: 'Build it.' }];
   const request = chatRequest(state, messages, ctx);
+  if (isJobSimPlan(plan)) {
+    const list = checklist(progress, [['plan', 'Plan the five parts of the day with you'], ...JOB_SIM_STEPS]);
+    const day = await writeJobSimDay(request, ctx, { plan, research: state.research }, list);
+    return {
+      ...state,
+      messages: [...messages, { role: 'assistant', text: day.test ? 'Built.' : day.failure ?? "Praxa couldn't build that. Try again.", ...(!day.test && { failed: true }) }],
+      draft: day.test,
+    };
+  }
   const list = checklist(progress, [['plan', 'Plan every question with you'], ...writeSteps(plan.items.some((item) => item.type === 'app'))]);
   const built = await writePlan(plan, state.research, messages, ctx, request, progress, list);
   const note = built.dropped
@@ -798,6 +894,13 @@ export async function sendChat(state: ChatState, text: string, ctx: ChatContext,
     ({ failure } = out);
     body = out.body ?? {};
     staged = out.built;
+  } else if (isJobSimDraft(state.draft)) {
+    const day = await writeJobSimDay(request, ctx, { research: state.research, current: state.draft, change: text }, checklist(progress, JOB_SIM_STEPS));
+    if (day.failure) failure = day.failure;
+    else {
+      body = { reply: day.reply ?? 'Changed.' };
+      staged = { test: day.test, dropped: 0 };
+    }
   } else {
     const read: [string, string] = ['read', 'Read your message and work out the changes'];
     list = checklist(progress, [read]);

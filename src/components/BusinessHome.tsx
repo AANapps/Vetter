@@ -781,6 +781,8 @@ const PlanCard: React.FC<{ plan: TestPlan; canBuild: boolean; onBuild: () => voi
   // Cases are read, not answered, so only questions and tasks are numbered
   let n = 0;
   const rows = plan.items.map((item) => ({ item, number: item.type === 'case' ? 0 : ++n }));
+  // A job simulation is one day on the desktop in five timed parts, plus 3 minutes to read and switch apps
+  const day = plan.items.length > 0 && plan.items.every((item) => item.type === 'part');
   return (
     <div className="p-4 bg-white border border-indigo-200 rounded-xl space-y-3 shadow-sm shadow-indigo-100/60">
       <div>
@@ -789,8 +791,8 @@ const PlanCard: React.FC<{ plan: TestPlan; canBuild: boolean; onBuild: () => voi
         {plan.description && <p className="mt-1 text-sm text-slate-600 leading-relaxed">{plan.description}</p>}
         <p className="mt-1 text-xs text-slate-500">
           {plan.difficulty && `${plan.difficulty} · `}
-          {n} {n === 1 ? 'question' : 'questions'}
-          {minutes > 0 && ` · about ${minutes} min`}
+          {day ? `A day on the desktop in ${n} timed parts · ${minutes + 3} min` : `${n} ${n === 1 ? 'question' : 'questions'}`}
+          {!day && minutes > 0 && ` · about ${minutes} min`}
         </p>
         {skills.length > 0 && (
           <ul className="mt-2 flex flex-wrap gap-1.5" aria-label="What it tests">
@@ -807,8 +809,8 @@ const PlanCard: React.FC<{ plan: TestPlan; canBuild: boolean; onBuild: () => voi
           <li key={item.ref} className={`text-sm ${item.taskRef ? 'ml-5 pl-3 border-l-2 border-slate-100' : ''}`}>
             <div className="flex items-baseline gap-2">
               <span className="min-w-0 flex-1">
-                <span className="font-semibold text-slate-900">{number ? `Question ${number}` : 'Case study'}</span>
-                <span className="ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 align-middle">{label(item.type)}</span>
+                <span className="font-semibold text-slate-900">{day ? `Part ${number}` : number ? `Question ${number}` : 'Case study'}</span>
+                {!day && <span className="ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 align-middle">{label(item.type)}</span>}
                 <span className="text-slate-900">: {item.title}</span>
               </span>
               {Number(item.minutes) > 0 && <span className="shrink-0 text-[11px] text-slate-400 tabular-nums">{item.minutes} min</span>}
@@ -824,7 +826,7 @@ const PlanCard: React.FC<{ plan: TestPlan; canBuild: boolean; onBuild: () => voi
             Build in AI test builder
             <ArrowRight className="w-4 h-4" />
           </button>
-          <span className="text-xs text-slate-500">Want something different? Ask below first, e.g. "add an SQL question on joins".</span>
+          <span className="text-xs text-slate-500">Want something different? Ask below first, e.g. {day ? '"make the curveball a client changing the deadline"' : '"add an SQL question on joins"'}.</span>
         </div>
       )}
     </div>

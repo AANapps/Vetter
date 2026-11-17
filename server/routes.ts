@@ -6,6 +6,7 @@ import { designApp } from './designApp.js';
 import { planTest } from './planTest.js';
 import { writeQuestions } from './writeQuestions.js';
 import { checkSpec } from './checkSpec.js';
+import { writeJobSim } from './writeJobSim.js';
 import { testAdvisor } from './testAdvisor.js';
 import { suggestTests } from './suggestTests.js';
 import { taskAssistant } from './taskAssistant.js';
@@ -109,6 +110,9 @@ export const API_ROUTES: Record<string, Handler> = {
   // parallel, then every interactive page built in parallel
   '/api/plan-test': logged('plan-test', billed('plan-test', (body, env) => planTest(body, env.ANTHROPIC_API_KEY, testModel(env)))),
   '/api/write-questions': logged('write-questions', billed('write-questions', (body, env) => writeQuestions(body, env.ANTHROPIC_API_KEY, testModel(env), specModel(env)))),
+  // A job simulation written whole: one 40-minute day on the desktop in five timed parts. JOB_SIM_MODEL sets another
+  // model (it must finish inside the host's five-minute limit)
+  '/api/write-job-sim': logged('write-job-sim', billed('write-job-sim', (body, env) => writeJobSim(body, env.ANTHROPIC_API_KEY, env.JOB_SIM_MODEL || testModel(env)))),
   // Each app simulation's spec checked against how the job is really done, before its page is built
   '/api/check-spec': logged('check-spec', billed('check-spec', (body, env) => checkSpec(body, env.ANTHROPIC_API_KEY, specModel(env)))),
   // Each interactive page is designed first at high effort (its own request, so the thinking gets its own time limit),
