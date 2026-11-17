@@ -8,7 +8,7 @@ import { groupQuestions, isAnswerType, isWorkspaceType } from '../lib/questionTy
 import { CaseBrief } from './CaseBrief';
 
 export const INTEGRITY_RULES = [
-  'Stay on this tab, in this window, for the whole test. Switching tabs, windows or apps is recorded, with how long you were away.',
+  'The test runs full screen. Stay in full screen, on this tab, for the whole test: leaving full screen, or switching tabs, windows or apps, is recorded, with how long you were away.',
   'Use one screen. Praxa records how many screens are connected, and when your window is resized or made small enough to leave room beside it.',
   'Copying, cutting and pasting are recorded. Pasting in text from outside the test counts heavily against you.',
   'Activity is recorded: when you stop moving the mouse and typing, for how long, and how your answers are typed in.',
@@ -418,7 +418,7 @@ export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose, on
           <div key={countdown} className="font-mono text-8xl font-bold tabular-nums animate-in zoom-in-95 fade-in duration-300">
             {countdown}
           </div>
-          <div className="text-xs text-slate-400">Stay on this tab until you submit.</div>
+          <div className="text-xs text-slate-400">Stay in full screen, on this tab, until you submit.</div>
         </div>
       )}
     </div>

@@ -194,7 +194,14 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
   const limitMinutes = timerOf(test);
   const [secondsRemaining, setSecondsRemaining] = useState((limitMinutes ?? 0) * 60);
   // Everything the integrity monitor has seen so far, and the finished report once submitted
-  const [flags, setFlags] = useState({ away: 0, pastes: 0, total: 0 });
+  const [flags, setFlags] = useState({ away: 0, pastes: 0, total: 0, fullscreen: 0 });
+  // The test runs full screen, where the browser can (not on an iPhone, say); leaving it is recorded and the test is
+  // covered until the candidate goes back. Not in a preview or training
+  const wantsFullscreen = !preview && !training && typeof document !== 'undefined' && !!document.fullscreenEnabled;
+  const [outOfFullscreen, setOutOfFullscreen] = useState(false);
+  const enterFullscreen = () => {
+    if (wantsFullscreen && !document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {});
+  };
   const [focusWarning, setFocusWarning] = useState<string | null>(null);
   const monitorRef = useRef<ReturnType<typeof startIntegrityMonitor> | null>(null);
   const integrityRef = useRef<IntegrityReport | undefined>(undefined);
@@ -331,9 +338,10 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
       () => currentQuestionRef.current,
       (e, r) => {
         setFlags({
+          fullscreen: r.fullscreenExits ?? 0,
           away: r.tabSwitches + r.windowSwitches,
           pastes: r.externalPastes,
-          total: r.tabSwitches + r.windowSwitches + r.externalPastes + r.resizes + r.copies + r.cuts + r.screenshotKeys,
+          total: r.tabSwitches + r.windowSwitches + (r.fullscreenExits ?? 0) + r.externalPastes + r.resizes + r.copies + r.cuts + r.screenshotKeys,
         });
         if (e.type === 'tab-hidden' || e.type === 'window-blur') {
           if (!preview && !training) awaySinceRef.current ??= Date.now();
@@ -341,6 +349,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
           setFocusWarning(`You left the test: recorded (${away} ${away === 1 ? 'time' : 'times'})`);
           if (!preview && !training) setLeftTab(true);
         }
+        if (e.type === 'fullscreen-exit') setFocusWarning(`You left full screen: recorded (${r.fullscreenExits ?? 1} ${(r.fullscreenExits ?? 1) === 1 ? 'time' : 'times'})`);
         if (e.type === 'paste-external') setFocusWarning('Pasted text from outside the test: recorded');
         if (e.type === 'screens-changed' && (r.screens ?? 1) > 1) setFocusWarning('A second screen was connected: recorded');
       }
@@ -359,6 +368,21 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
       if (monitorRef.current === monitor) integrityRef.current ??= monitor.stop();
     };
   }, [hasStarted, preview]);
+
+  // Full screen: watched from the start (the browser may have refused it on Begin), and left once the test is done
+  useEffect(() => {
+    if (!hasStarted || !wantsFullscreen) return;
+    const onChange = () => setOutOfFullscreen(!document.fullscreenElement);
+    onChange();
+    document.addEventListener('fullscreenchange', onChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', onChange);
+      if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+    };
+  }, [hasStarted, wantsFullscreen]);
+  useEffect(() => {
+    if (showCompletionModal && document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+  }, [showCompletionModal]);
 
   const formatTime = (secs: number) => {
     const m = Math.floor(secs / 60);
@@ -455,6 +479,8 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
     if (committedRef.current) return;
     committedRef.current = true;
     onBegin?.();
+    // Full screen needs a click to ask for it: this one
+    enterFullscreen();
     // Counting screens needs the candidate's permission in Chrome and Edge, asked now while they've just clicked
     if (!preview) countScreens(true).then((s) => {
       screensRef.current = s;
@@ -1168,11 +1194,39 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
                 awaySinceRef.current = null;
                 setLastAway(null);
                 setLeftTab(false);
+                enterFullscreen();
               }}
               autoFocus
               className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-lg shadow-xs"
             >
               I understand, back to the test
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Out of full screen: recorded, and the test stays covered until they go back */}
+      {wantsFullscreen && outOfFullscreen && hasStarted && !leftTab && !confirmingExit && !isSubmitting && !showCompletionModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md animate-in fade-in" role="alertdialog" aria-modal="true" aria-labelledby="fullscreen-title">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-indigo-50 border border-slate-200 flex items-center justify-center shrink-0">
+                <ShieldAlert className="w-5 h-5 text-indigo-600" />
+              </div>
+              <div className="space-y-1">
+                <h3 id="fullscreen-title" className="text-base font-bold text-slate-900">{flags.fullscreen ? 'You left full screen' : 'This test runs full screen'}</h3>
+                <p className="text-xs text-slate-500">
+                  {flags.fullscreen
+                    ? `Leaving full screen has been recorded (${flags.fullscreen} ${flags.fullscreen === 1 ? 'time' : 'times'}), with how long you were out of it. The company sees it with your result.`
+                    : 'Go full screen to carry on. Leaving full screen during the test is recorded, and the company sees it with your result.'}
+                </p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-700">
+              The clock is still running: {limitMinutes === null ? 'time taken' : 'time left'} <span className="font-mono font-semibold tabular-nums">{formatTime(secondsRemaining)}</span>.
+            </p>
+            <button onClick={enterFullscreen} autoFocus className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-lg shadow-xs">
+              Back to full screen
             </button>
           </div>
         </div>

@@ -38,24 +38,29 @@ export const AppWindow: React.FC<AppWindowProps> = ({ value, onChange, html, app
   }, []);
 
   useEffect(() => {
-    const onChange = () => setFull(document.fullscreenElement === boxRef.current && !!boxRef.current);
+    // The browser's own full screen of this app ended or began; the fallback (inside a full-screen test) stays as it is
+    const onChange = () => setFull((was) => (document.fullscreenElement === boxRef.current && !!boxRef.current) || (was && !!document.fullscreenElement));
     document.addEventListener('fullscreenchange', onChange);
     return () => document.removeEventListener('fullscreenchange', onChange);
   }, []);
 
   // Escape leaves the fallback full screen (the browser handles it for its own)
   useEffect(() => {
-    if (!full || document.fullscreenElement) return;
+    if (!full || (document.fullscreenElement && document.fullscreenElement === boxRef.current)) return;
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setFull(false);
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [full]);
 
   const toggleFull = () => {
-    if (document.fullscreenElement) {
+    if (document.fullscreenElement && document.fullscreenElement === boxRef.current) {
       document.exitFullscreen().catch(() => setFull(false));
     } else if (full) {
       setFull(false);
+    } else if (document.fullscreenElement) {
+      // The test is already full screen (it runs that way): the app fills the screen within it, so closing the app's
+      // full screen never takes the test out of full screen
+      setFull(true);
     } else if (boxRef.current?.requestFullscreen) {
       boxRef.current.requestFullscreen().catch(() => setFull(true));
     } else {

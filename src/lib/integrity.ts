@@ -18,7 +18,8 @@ export type IntegrityEventType =
   | 'screenshot-key'
   | 'screens-changed'
   | 'idle'
-  | 'idle-then-answer';
+  | 'idle-then-answer'
+  | 'fullscreen-exit';
 
 export interface IntegrityEvent {
   // Seconds from the start of the test
@@ -61,6 +62,10 @@ export interface IntegrityReport {
   // A minute or more of stillness followed straight away by a long, clean answer: lots typed with hardly a correction,
   // or a paste from outside. The strongest sign of copying an answer from a phone or another screen
   idleThenAnswer?: number;
+  // Times the candidate left full screen during the test, and the seconds spent out of it. Optional because results
+  // saved before full screen was required don't have them
+  fullscreenExits?: number;
+  secondsOutOfFullscreen?: number;
   // The first events in order, for the timeline
   events: IntegrityEvent[];
 }
@@ -84,6 +89,8 @@ export const emptyIntegrity = (): IntegrityReport => ({
   longestIdle: 0,
   idleStretches: 0,
   idleThenAnswer: 0,
+  fullscreenExits: 0,
+  secondsOutOfFullscreen: 0,
   events: [],
 });
 
@@ -115,6 +122,7 @@ export function suspicionPoints(r: IntegrityReport): { signal: string; points: n
     { signal: 'Pasted from outside the test', points: r.externalPastes * 10 + (r.pastedCharacters >= 200 ? 10 : 0) },
     { signal: 'Switched tabs', points: r.tabSwitches * 8 },
     { signal: 'Switched to another window or app', points: r.windowSwitches * 6 },
+    { signal: 'Left full screen', points: (r.fullscreenExits ?? 0) * 6 + Math.min(10, Math.floor((r.secondsOutOfFullscreen ?? 0) / 30) * 2) },
     { signal: 'Time away from the test', points: Math.min(25, Math.floor(r.secondsAway / 10)) },
     { signal: 'More than one screen', points: r.extendedDisplay || (r.screens ?? 1) > 1 ? 15 : 0 },
     { signal: 'Window sized to leave room beside it', points: Math.min(15, Math.floor(r.secondsSplitScreen / 30) * 3) },
@@ -153,6 +161,8 @@ export function combineReports(reports: IntegrityReport[]): IntegrityReport {
     out.longestIdle = Math.max(out.longestIdle!, r.longestIdle ?? 0);
     out.idleStretches! += r.idleStretches ?? 0;
     out.idleThenAnswer! += r.idleThenAnswer ?? 0;
+    out.fullscreenExits! += r.fullscreenExits ?? 0;
+    out.secondsOutOfFullscreen! += r.secondsOutOfFullscreen ?? 0;
     if (r.screens !== null) out.screens = Math.max(out.screens ?? 0, r.screens);
     if (r.extendedDisplay !== null) out.extendedDisplay = !!out.extendedDisplay || r.extendedDisplay;
   }
@@ -162,6 +172,10 @@ export function combineReports(reports: IntegrityReport[]): IntegrityReport {
     delete out.longestIdle;
     delete out.idleStretches;
     delete out.idleThenAnswer;
+  }
+  if (reports.length > 0 && reports.every((r) => r.fullscreenExits === undefined)) {
+    delete out.fullscreenExits;
+    delete out.secondsOutOfFullscreen;
   }
   return out;
 }
@@ -268,12 +282,35 @@ export function startIntegrityMonitor(currentQuestion: () => string | undefined,
     }
   };
 
-  // Resizes: one per settled change of more than 10% either way
+  // Full screen: the test runs full screen, and every time the candidate leaves it is counted and timed until they go
+  // back. A task's own app opened full screen inside it still counts as full screen
+  let outSince: number | null = null;
+  let fullscreenChangedAt = 0;
+  const onFullscreen = () => {
+    fullscreenChangedAt = Date.now();
+    if (!document.fullscreenElement) {
+      if (outSince !== null) return;
+      outSince = Date.now();
+      report.fullscreenExits = (report.fullscreenExits ?? 0) + 1;
+      log('fullscreen-exit');
+    } else endOut();
+  };
+  const endOut = () => {
+    if (outSince !== null) report.secondsOutOfFullscreen = (report.secondsOutOfFullscreen ?? 0) + Math.round((Date.now() - outSince) / 1000);
+    outSince = null;
+  };
+
+  // Resizes: one per settled change of more than 10% either way. Entering or leaving full screen resizes the window
+  // too; that's counted as leaving full screen, not as a resize
   let size = { w: window.innerWidth, h: window.innerHeight };
   let resizeTimer: ReturnType<typeof setTimeout> | undefined;
   const onResize = () => {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
+      if (Date.now() - fullscreenChangedAt < 2000) {
+        size = { w: window.innerWidth, h: window.innerHeight };
+        return;
+      }
       const w = window.innerWidth;
       const h = window.innerHeight;
       if (Math.abs(w - size.w) / size.w > 0.1 || Math.abs(h - size.h) / size.h > 0.1) {
@@ -363,6 +400,7 @@ export function startIntegrityMonitor(currentQuestion: () => string | undefined,
   document.addEventListener('contextmenu', onContextMenu, true);
   window.addEventListener('keyup', onKey, true);
   window.addEventListener('resize', onResize);
+  document.addEventListener('fullscreenchange', onFullscreen);
   INPUTS.forEach((t) => window.addEventListener(t, onInput, { capture: true, passive: true }));
   window.addEventListener('keydown', onTyping, true);
   document.addEventListener('paste', onPasteWatch, true);
@@ -376,6 +414,8 @@ export function startIntegrityMonitor(currentQuestion: () => string | undefined,
     },
     stop: (): IntegrityReport => {
       cameBack();
+      endOut();
+      document.removeEventListener('fullscreenchange', onFullscreen);
       endIdle(false);
       checkAnswer(true);
       clearInterval(idleTimer);

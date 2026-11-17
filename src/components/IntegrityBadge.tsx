@@ -19,6 +19,7 @@ const EVENT_LABELS: Record<IntegrityEventType, string> = {
   'screens-changed': 'Screens changed',
   idle: 'Still: no mouse or keys',
   'idle-then-answer': 'Still, then a complete answer at once',
+  'fullscreen-exit': 'Left full screen',
 };
 
 const clock = (secs: number) => `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
@@ -131,6 +132,9 @@ const IntegrityDetails: React.FC<{ sittings: IntegritySitting[]; onClose: () => 
               <Metric label="Tab switches" value={r.tabSwitches} warn={r.tabSwitches > 0} />
               <Metric label="Window or app switches" value={r.windowSwitches} warn={r.windowSwitches > 0} />
               <Metric label="Time away" value={duration(r.secondsAway)} warn={r.secondsAway > 0} />
+              {r.fullscreenExits !== undefined && (
+                <Metric label="Left full screen" value={r.fullscreenExits} warn={r.fullscreenExits > 0} note={r.secondsOutOfFullscreen ? `${duration(r.secondsOutOfFullscreen)} out of it` : undefined} />
+              )}
               <Metric label="Screens connected" value={screens} warn={!!multiScreen} note={r.screens === null && r.extendedDisplay === null ? 'Browser couldn’t tell' : undefined} />
               <Metric label="Window resizes" value={r.resizes} warn={r.resizes > 0} />
               <Metric label="Split-screen time" value={duration(r.secondsSplitScreen)} warn={r.secondsSplitScreen > 0} />
