@@ -21,6 +21,8 @@ interface TestPageProps {
   viewerRole: UserRole;
   // The company looking, who can try their own tests as well as Praxa's
   viewerBusinessId?: string;
+  // A company looking: opens a candidate's profile from the leaderboard, with the job their fit is for
+  onOpenPerson?: (candidateId: string, jobId?: string) => void;
   currentCandidateId?: string;
   // The company whose link the candidate came from
   referredByCompany?: Business;
@@ -51,6 +53,7 @@ export const TestPage: React.FC<TestPageProps> = ({
   jobs,
   viewerRole,
   viewerBusinessId,
+  onOpenPerson,
   currentCandidateId,
   referredByCompany,
   onSend,
@@ -226,7 +229,16 @@ export const TestPage: React.FC<TestPageProps> = ({
         </div>
       </div>
 
-      <TestLeaderboard entries={leaderboard} passingScore={test.passingScore} currentCandidateId={currentCandidateId} onTakeTest={canStart && !retakeFrom && viewerRole === 'candidate' ? () => onStartTest(test) : undefined} />
+      <TestLeaderboard
+        entries={leaderboard}
+        passingScore={test.passingScore}
+        currentCandidateId={currentCandidateId}
+        onTakeTest={canStart && !retakeFrom && viewerRole === 'candidate' ? () => onStartTest(test) : undefined}
+        testId={test.id}
+        // A company sees each candidate's fit for its own jobs
+        companyJobs={viewerRole === 'recruiter' && viewerBusinessId ? jobs.filter((j) => j.businessId === viewerBusinessId) : []}
+        onOpenPerson={viewerRole !== 'candidate' ? onOpenPerson : undefined}
+      />
 
       {/* Module tests: the core areas every level covers, and what this level adds */}
       {test.aspects && test.questions.some((q) => q.aspect) && (

@@ -68,6 +68,8 @@ interface BusinessJobsProps {
   onEmail: (jobId: string, emails: string[]) => void;
   onInvite: (jobId: string, candidateIds: string[]) => void;
   onOpenPerson: (personId: string) => void;
+  // A candidate opened from one of the jobs: their profile pops up with why they fit that job
+  onOpenPersonForJob?: (personId: string, jobId: string) => void;
   onOpenTest: (testId: string) => void;
   // Every lead for the jobs shown; a job's page shows its own pipeline
   leadRows: LeadRow[];
@@ -184,6 +186,7 @@ const JobList: React.FC<BusinessJobsProps> = ({
   onEmail,
   onInvite,
   onOpenPerson,
+  onOpenPersonForJob,
 }) => {
   // A company with no jobs yet starts on posting its first
   const [isCreating, setIsCreating] = useState(() => !!business && jobs.length === 0);
@@ -344,7 +347,7 @@ const JobList: React.FC<BusinessJobsProps> = ({
                       <li key={`${job.id}-${row.candidate.id}-${testId}-${result.completedTime ?? result.completedAt}`} className="flex items-start gap-2.5 text-xs">
                         <Pic src={row.candidate.avatarUrl} alt="" referrerPolicy="no-referrer" className="w-7 h-7 rounded-full object-cover bg-slate-100 shrink-0" />
                         <div className="min-w-0 flex-1">
-                          <button onClick={() => onOpenPerson(row.candidate.id)} className="font-semibold text-slate-900 hover:text-indigo-700">
+                          <button onClick={() => (onOpenPersonForJob ? onOpenPersonForJob(row.candidate.id, job.id) : onOpenPerson(row.candidate.id))} className="font-semibold text-slate-900 hover:text-indigo-700">
                             {row.candidate.name}
                           </button>
                           <div className="text-slate-500 truncate">
@@ -443,7 +446,8 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
   onUpdateJobSector,
   onEmail,
   onInvite,
-  onOpenPerson,
+  onOpenPerson: openFullPage,
+  onOpenPersonForJob,
   onOpenTest,
   leadRows,
   onUpdateLead,
@@ -453,6 +457,8 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
   trialUser,
 }) => {
   const [filter, setFilter] = useState<TrackingStatus | 'all'>('all');
+  // A candidate opened from this job pops up with why they fit it; without that, their full page opens
+  const onOpenPerson = (personId: string) => (onOpenPersonForJob ? onOpenPersonForJob(personId, job.id) : openFullPage(personId));
   const [sharing, setSharing] = useState(false);
   // Just posted, or sent here to share: the sharing opens straight away
   useEffect(() => {

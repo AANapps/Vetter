@@ -2,6 +2,10 @@ import React, { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { LeaderboardEntry } from '../lib/leaderboard';
 import { LeaderboardTable } from './LeaderboardTable';
+import { JobPosting } from '../types';
+import { calculateCandidateJobMatch } from '../lib/matchingAlgorithm';
+import { jobForTest } from '../lib/fitReasons';
+import { FitFor } from './FitFor';
 
 export { formatDuration } from './LeaderboardTable';
 
@@ -15,12 +19,18 @@ interface TestLeaderboardProps {
   currentCandidateId?: string;
   // Starts the test, from the open place on the board
   onTakeTest?: () => void;
+  // A company looking: its jobs, to show each candidate's fit for one, and opening a profile from a name (with that job)
+  testId?: string;
+  companyJobs?: JobPosting[];
+  onOpenPerson?: (candidateId: string, jobId?: string) => void;
 }
 
 // A test page's leaderboard: only the top ten are shown. A viewer ranked below them sees their own place underneath, in
 // the same format (e.g. #45), so nobody else's lower scores are on show
-export const TestLeaderboard: React.FC<TestLeaderboardProps> = ({ entries, passingScore, currentCandidateId, onTakeTest }) => {
+export const TestLeaderboard: React.FC<TestLeaderboardProps> = ({ entries, passingScore, currentCandidateId, onTakeTest, testId = '', companyJobs = [], onOpenPerson }) => {
   const [isOpen, setIsOpen] = useState(true);
+  const [pickedJob, setPickedJob] = useState<string | null>(null);
+  const fitJob = companyJobs.find((j) => j.id === pickedJob) ?? jobForTest(companyJobs, testId);
   const visible = entries.slice(0, TOP_COUNT);
   const yourEntry = entries.find((e) => e.candidate.id === currentCandidateId);
 
@@ -41,6 +51,11 @@ export const TestLeaderboard: React.FC<TestLeaderboardProps> = ({ entries, passi
         </div>
         <ChevronDown className={`w-5 h-5 text-slate-400 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
+      {isOpen && fitJob && (
+        <div className="px-5 py-2 border-t border-slate-100 bg-slate-50/60">
+          <FitFor jobs={companyJobs} job={fitJob} onPick={setPickedJob} />
+        </div>
+      )}
 
       {isOpen && (
         <div className="border-t border-slate-100">
@@ -51,6 +66,8 @@ export const TestLeaderboard: React.FC<TestLeaderboardProps> = ({ entries, passi
             slots={SLOTS}
             pinned={yourEntry}
             onClaim={onTakeTest}
+            {...(fitJob && { fitOf: (c) => calculateCandidateJobMatch(c, fitJob).overallFitPercentage })}
+            {...(onOpenPerson && { onOpenPerson: (id) => onOpenPerson(id, fitJob?.id) })}
           />
         </div>
       )}

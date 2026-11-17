@@ -849,6 +849,13 @@ export default function App() {
     if (roleRef.current === 'candidate') return setProfilePersonId(personId);
     navigateTo(`/business/candidates/${encodeURIComponent(personId)}/`);
   };
+  // A company opening a candidate from one of its jobs or a leaderboard: their profile pops up over the page, with why
+  // they fit that job first
+  const [profilePopup, setProfilePopup] = useState<{ personId: string; jobId?: string } | null>(null);
+  const openPersonFor = (personId: string, jobId?: string) => {
+    if (roleRef.current === 'candidate') return setProfilePersonId(personId);
+    setProfilePopup({ personId, jobId });
+  };
   // Back to wherever they opened it from, or to Candidates from a shared link
   const closeCandidatePage = () => backOr(() => navigateTo(TAB_PATHS['business-candidates']));
 
@@ -1542,7 +1549,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
               progress={courseProgress.progress} onOpenCourse={openCoursePage} onTrainTeam={trainTeam} />
           )}
           {currentTab === 'ranked' && !testPageTest && (
-            <RankedPage tests={sectorTests} allCandidates={allCandidates} viewerId={isVisitor ? '' : candidate.id} onOpenTest={openTestPage} />
+            <RankedPage tests={sectorTests} allCandidates={allCandidates} viewerId={isVisitor ? '' : candidate.id} onOpenTest={openTestPage} companyJobs={activeRole === 'recruiter' ? ourJobs : []} onOpenPerson={activeRole !== 'candidate' && !isVisitor ? openPersonFor : undefined} />
           )}
           {currentTab === 'guides' && <GuidesPage slug={guideSlug} onOpen={(slug) => navigateTo(slug ? `/guides/${slug}/` : '/guides/')} />}
           {testPageTest && (
@@ -1553,6 +1560,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
               jobs={jobs}
               viewerRole={activeRole}
               viewerBusinessId={recruiterBusiness?.id}
+              onOpenPerson={openPersonFor}
               currentCandidateId={activeRole === 'candidate' ? candidate.id : undefined}
               referredByCompany={
                 activeRole === 'candidate'
@@ -1917,6 +1925,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
               onEmail={handleEmailJob}
               onInvite={handleInviteToJob}
               onOpenPerson={openPerson}
+              onOpenPersonForJob={openPersonFor}
               onOpenTest={openTestPage}
               leadRows={leadRows}
               onUpdateLead={handleUpdateLead}
@@ -2215,6 +2224,39 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
           getPercentileFor={(score) => getPercentile(score, trialTest.test.id, allCandidates, '')}
         />
       )}
+
+      {/* A candidate opened by a company from a job or a leaderboard: their profile over the page, why they fit first */}
+      {profilePopup && activeRole !== 'candidate' && (() => {
+        const person = allCandidates.find((c) => c.id === profilePopup.personId);
+        if (!person) return null;
+        const close = () => setProfilePopup(null);
+        return (
+          <CandidateProfilePage
+            popup
+            person={person}
+            tests={tests}
+            candidates={allCandidates}
+            businesses={businesses}
+            business={leadsBusiness}
+            jobs={leadsJobs}
+            leadRows={leadRows}
+            fitJobId={profilePopup.jobId}
+            onBack={close}
+            onOpenPage={() => {
+              close();
+              openPerson(person.id);
+            }}
+            onOpenTest={(testId) => {
+              close();
+              openTestPage(testId);
+            }}
+            onOpenJob={(jobId) => {
+              close();
+              openBusinessJob(jobId);
+            }}
+          />
+        );
+      })()}
 
       {profilePerson && (
         <PersonProfileModal

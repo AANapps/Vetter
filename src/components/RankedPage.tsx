@@ -1,6 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { ArrowRight, ChevronLeft, ChevronRight, Search, Trophy, Users } from 'lucide-react';
-import { AssessmentTest, User, isPublic, levelName } from '../types';
+import { AssessmentTest, JobPosting, User, isPublic, levelName } from '../types';
+import { calculateCandidateJobMatch } from '../lib/matchingAlgorithm';
+import { jobForTest } from '../lib/fitReasons';
+import { FitFor } from './FitFor';
 import { getLeaderboard, getTestStats } from '../lib/leaderboard';
 import { isMainVersion } from '../lib/testLevels';
 import { LeaderboardTable } from './LeaderboardTable';
@@ -15,7 +18,10 @@ export const RankedPage: React.FC<{
   allCandidates: User[];
   viewerId: string;
   onOpenTest: (testId: string) => void;
-}> = ({ tests, allCandidates, viewerId, onOpenTest }) => {
+  // A company looking: its jobs, for each candidate's fit, and opening a profile from a name (with that job)
+  companyJobs?: JobPosting[];
+  onOpenPerson?: (candidateId: string, jobId?: string) => void;
+}> = ({ tests, allCandidates, viewerId, onOpenTest, companyJobs = [], onOpenPerson }) => {
   // Every public test, taken or not, most taken first
   const boards: Board[] = useMemo(
     () =>
@@ -101,7 +107,7 @@ export const RankedPage: React.FC<{
 
         <div className="min-w-0">
           {board ? (
-            <TestBoard board={board} allCandidates={allCandidates} viewerId={viewerId} onOpenTest={onOpenTest} onBack={() => pick(null)} />
+            <TestBoard board={board} allCandidates={allCandidates} viewerId={viewerId} onOpenTest={onOpenTest} onBack={() => pick(null)} companyJobs={companyJobs} onOpenPerson={onOpenPerson} />
           ) : ranked.length === 0 ? (
             <p className="text-sm text-slate-600 bg-white border border-slate-200 rounded-xl p-6 text-center">{boards.length === 0 ? 'No tests in this sector yet.' : 'No one has been ranked yet. Take a test to be first.'}</p>
           ) : (
@@ -148,13 +154,17 @@ export const RankedPage: React.FC<{
 };
 
 // One test's whole leaderboard: its figures, then every candidate as a square card
-const TestBoard: React.FC<{ board: Board; allCandidates: User[]; viewerId: string; onOpenTest: (testId: string) => void; onBack: () => void }> = ({
-  board,
-  allCandidates,
-  viewerId,
-  onOpenTest,
-  onBack,
-}) => {
+const TestBoard: React.FC<{
+  board: Board;
+  allCandidates: User[];
+  viewerId: string;
+  onOpenTest: (testId: string) => void;
+  onBack: () => void;
+  companyJobs: JobPosting[];
+  onOpenPerson?: (candidateId: string, jobId?: string) => void;
+}> = ({ board, allCandidates, viewerId, onOpenTest, onBack, companyJobs, onOpenPerson }) => {
+  const [pickedJob, setPickedJob] = useState<string | null>(null);
+  const fitJob = companyJobs.find((j) => j.id === pickedJob) ?? jobForTest(companyJobs, board.test.id);
   const stats = getTestStats(board.test, allCandidates);
   const yours = board.entries.find((e) => e.candidate.id === viewerId);
   return (
@@ -193,7 +203,19 @@ const TestBoard: React.FC<{ board: Board; allCandidates: User[]; viewerId: strin
           </dl>
         )}
       </div>
-      <RankTable key={board.test.id} board={board} viewerId={viewerId} onClaim={() => onOpenTest(board.test.id)} />
+      {fitJob && (
+        <div className="flex justify-end">
+          <FitFor jobs={companyJobs} job={fitJob} onPick={setPickedJob} />
+        </div>
+      )}
+      <RankTable
+        key={board.test.id}
+        board={board}
+        viewerId={viewerId}
+        onClaim={() => onOpenTest(board.test.id)}
+        {...(fitJob && { fitOf: (c: User) => calculateCandidateJobMatch(c, fitJob).overallFitPercentage })}
+        {...(onOpenPerson && { onOpenPerson: (id: string) => onOpenPerson(id, fitJob?.id) })}
+      />
     </div>
   );
 };
@@ -204,7 +226,7 @@ const SLOTS = 5;
 
 // One test's leaderboard as a table: only the top ten. A viewer ranked below them sees their own place underneath, in
 // the same format (e.g. #45)
-const RankTable: React.FC<{ board: Board; viewerId: string; onClaim: () => void }> = ({ board, viewerId, onClaim }) => {
+const RankTable: React.FC<{ board: Board; viewerId: string; onClaim: () => void; fitOf?: (c: User) => number | undefined; onOpenPerson?: (id: string) => void }> = ({ board, viewerId, onClaim, fitOf, onOpenPerson }) => {
   const yours = board.entries.find((e) => e.candidate.id === viewerId);
   return (
     <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
@@ -215,6 +237,8 @@ const RankTable: React.FC<{ board: Board; viewerId: string; onClaim: () => void 
         slots={SLOTS}
         pinned={yours}
         onClaim={onClaim}
+        fitOf={fitOf}
+        onOpenPerson={onOpenPerson}
       />
     </div>
   );

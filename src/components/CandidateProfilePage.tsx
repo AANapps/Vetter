@@ -9,6 +9,8 @@ import { Pic } from './Pic';
 import { TestHistory } from './TestHistory';
 import { CertificationList, EducationList, ExperienceList, ProfileLinks } from './ExperienceList';
 import { ApplicantSummary } from './ApplicantSummary';
+import { FitPanel } from './FitPanel';
+import { fitSummary } from '../lib/fitReasons';
 
 interface CandidateProfilePageProps {
   person: User;
@@ -27,6 +29,8 @@ interface CandidateProfilePageProps {
   // Shown over the page (from the home chat) rather than as a page; it closes with onBack and can open the full page
   popup?: boolean;
   onOpenPage?: () => void;
+  // The job it was opened from (a job's candidates, or a leaderboard's fit): why they fit it shows first
+  fitJobId?: string;
 }
 
 
@@ -65,6 +69,7 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
   onOpenJob,
   popup,
   onOpenPage,
+  fitJobId,
 }) => {
   const [copied, setCopied] = useState(false);
   useEffect(() => {
@@ -96,6 +101,9 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
     })
     .sort((a, b) => (b.best ?? -1) - (a.best ?? -1));
   const current = jobsHeld.find((j) => !j.end);
+  // Why they fit: the job it was opened from, else the first of the company's jobs they're on, else its newest open job
+  const fitJob = business ? jobs.find((j) => j.id === fitJobId) ?? rows[0]?.job ?? jobs.find((j) => j.status === 'active') : undefined;
+  const fit = fitJob ? fitSummary(person, fitJob, tests, candidates) : undefined;
   const scored = libraryCards.filter((c) => c.best !== null);
   // Their three best Praxa tests at 75 or more, shown at the top
   const strongest = scored.filter((c) => c.best! >= 75).slice(0, 3);
@@ -241,7 +249,10 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_22rem] gap-6 items-start">
         <div className="space-y-6 min-w-0">
-          {/* First, what concerns the company looking: the tests it sent them and the jobs of its they applied to */}
+          {/* For the company looking: why they fit its job, in a few lines */}
+          {fit && <FitPanel summary={fit} onOpenJob={onOpenJob} />}
+
+          {/* Then what concerns the company: the tests it sent them and the jobs of its they applied to */}
           <ApplicantSummary person={person} rows={rows} tests={tests} candidates={candidates} onOpenTest={onOpenTest} onOpenJob={onOpenJob} />
 
           {/* Every Praxa skills test they've taken, as square cards coloured by score */}

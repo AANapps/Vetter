@@ -4,6 +4,8 @@ import { LeaderboardEntry } from '../lib/leaderboard';
 import { Pic } from './Pic';
 import { RankDisc } from './RankDisc';
 import { getBadgeTier } from './VerifiedSkillBadge';
+import { fitTone } from '../lib/fitReasons';
+import { User } from '../types';
 
 export const formatDuration = (seconds?: number) => {
   if (seconds === undefined) return '—';
@@ -28,10 +30,15 @@ interface LeaderboardTableProps {
   onClaim?: () => void;
   // Hide the column headings (small cards)
   bare?: boolean;
+  // A company looking: each candidate's fit for its job, as a column, and opening their profile from their name
+  fitOf?: (candidate: User) => number | undefined;
+  onOpenPerson?: (candidateId: string) => void;
 }
 
 const COLS = {
   full: 'grid-cols-[2.25rem_minmax(0,1fr)_5.5rem] sm:grid-cols-[2.25rem_minmax(0,1fr)_7rem_5rem] md:grid-cols-[2.25rem_minmax(0,1fr)_7rem_5rem_5.5rem]',
+  // With the company's fit column, before the score
+  fit: 'grid-cols-[2.25rem_minmax(0,1fr)_3.75rem_5.5rem] sm:grid-cols-[2.25rem_minmax(0,1fr)_4.5rem_7rem_5rem] md:grid-cols-[2.25rem_minmax(0,1fr)_4.5rem_7rem_5rem_5.5rem]',
   compact: 'grid-cols-[1.75rem_minmax(0,1fr)_3.5rem]',
 };
 
@@ -46,9 +53,12 @@ export const LeaderboardTable: React.FC<LeaderboardTableProps> = ({
   variant = 'full',
   onClaim,
   bare,
+  fitOf,
+  onOpenPerson,
 }) => {
   const full = variant === 'full';
-  const cols = COLS[variant];
+  const withFit = full && !!fitOf;
+  const cols = withFit ? COLS.fit : COLS[variant];
   const viewerRanked = !!viewerId && (entries.some((e) => e.candidate.id === viewerId) || pinned?.candidate.id === viewerId);
   const open = Math.max(0, slots - entries.length);
   const nextRank = (entries.at(-1)?.rank ?? 0) + 1;
@@ -68,12 +78,26 @@ export const LeaderboardTable: React.FC<LeaderboardTableProps> = ({
           <Pic src={e.candidate.avatarUrl} alt="" referrerPolicy="no-referrer" className={`${avatar} rounded-full object-cover shrink-0 bg-slate-100 ring-2 ring-white`} />
           <span className="min-w-0">
             <span className={`flex items-center gap-1.5 ${full ? 'text-sm' : 'text-xs'} font-semibold text-slate-900`}>
-              <span className="truncate">{e.candidate.name}</span>
+              {onOpenPerson ? (
+                <button onClick={() => onOpenPerson(e.candidate.id)} className="truncate hover:text-indigo-700 hover:underline text-left">
+                  {e.candidate.name}
+                </button>
+              ) : (
+                <span className="truncate">{e.candidate.name}</span>
+              )}
               {isYou && <span className="shrink-0 px-1.5 py-px rounded-full bg-indigo-600 text-white text-[9px] font-bold uppercase tracking-wider">You</span>}
             </span>
             {full && e.candidate.title && <span className="block text-[11px] text-slate-500 truncate">{e.candidate.title}</span>}
           </span>
         </span>
+        {withFit && (() => {
+          const fit = fitOf!(e.candidate);
+          return (
+            <span className="flex justify-end">
+              {fit === undefined ? <span className="text-xs text-slate-300">—</span> : <span className={`px-2 py-0.5 rounded-full border text-xs font-bold tabular-nums ${fitTone(fit)}`}>{fit}%</span>}
+            </span>
+          );
+        })()}
         <span className="flex flex-col items-end gap-1">
           <span className={`font-mono font-bold tabular-nums leading-none ${full ? 'text-base' : 'text-sm'} ${passed ? 'text-slate-900' : 'text-slate-400'}`}>
             {e.score}
@@ -122,6 +146,7 @@ export const LeaderboardTable: React.FC<LeaderboardTableProps> = ({
           <span className={`${full ? 'text-sm' : 'text-xs'} text-slate-300 truncate`}>Not yet ranked</span>
         )}
       </span>
+      {withFit && <span />}
       <span className={`text-right font-mono ${full ? 'text-base' : 'text-sm'} text-slate-200`}>&mdash;</span>
       {full && <span className="hidden sm:block" />}
       {full && <span className="hidden md:block" />}
@@ -134,6 +159,7 @@ export const LeaderboardTable: React.FC<LeaderboardTableProps> = ({
         <div className={`grid ${cols} gap-3 ${pad} py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400 border-b border-slate-100`}>
           <span className="text-center">#</span>
           <span>Candidate</span>
+          {withFit && <span className="text-right">Fit</span>}
           <span className="text-right">Score</span>
           {full && <span className="hidden sm:block text-right">Time</span>}
           {full && <span className="hidden md:block text-right">Date</span>}
