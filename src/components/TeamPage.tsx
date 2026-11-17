@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { Check, GraduationCap, Lock, Mail, Plus, Search, Trash2, UserPlus, X } from 'lucide-react';
+import { Award, BarChart3, Check, GraduationCap, LayoutGrid, ListTodo, Lock, Mail, Plus, Search, SquareKanban, Trash2, UserPlus, X } from 'lucide-react';
+import { TASK_COLUMNS, byUrgency, dueLabel, isOverdue, shortDate, statusOf } from '../lib/work';
 import { Assignment, AssessmentTest, Business, TeamMember, User, isPublic, levelName } from '../types';
 import { Pic } from './Pic';
 
@@ -48,7 +49,16 @@ const STATUS_CHIP: Record<TeamMember['status'], { label: string; cls: string }> 
 };
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const shortDate = (iso?: string) => (iso ? new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '');
+
+type TeamSection = 'overview' | 'tasks' | 'skills' | 'people';
+
+const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
+  <section className={`bg-white border border-slate-200 rounded-2xl shadow-xs ${className}`}>{children}</section>
+);
+
+// A score's colour, as on profiles: green from 88, amber from 75, grey below
+const scoreTone = (score: number) =>
+  score >= 88 ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : score >= 75 ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-slate-50 text-slate-600 border-slate-200';
 
 export const TeamPage: React.FC<TeamPageProps> = ({
   business,
@@ -67,11 +77,33 @@ export const TeamPage: React.FC<TeamPageProps> = ({
   onOpenTest,
   onViewPerson,
 }) => {
+  const [section, setSection] = useState<TeamSection>(team.length ? 'overview' : 'people');
   const [invite, setInvite] = useState('');
   const [assigning, setAssigning] = useState<string[] | null>(null);
+  const [openMember, setOpenMember] = useState<string | null>(null);
+  const [personFilter, setPersonFilter] = useState<string>('all');
+  const [removing, setRemoving] = useState<string | null>(null);
   const active = team.filter((m) => m.status === 'active');
   const person = (m: TeamMember) => (m.uid ? candidates.find((c) => c.id === m.uid) : undefined);
+  const nameOf = (m: TeamMember) => person(m)?.name ?? m.name;
   const testOf = (id: string) => tests.find((t) => t.id === id);
+  const live = assignments.filter((a) => testOf(a.testId));
+
+  // What each person is good at: their best Praxa-verified skills, and the team work they passed
+  const strengths = (m: TeamMember) => {
+    const p = person(m);
+    const verified = [...(p?.verifiedSkills ?? [])].sort((a, b) => b.score - a.score).map((v) => ({ name: v.skillName, score: v.score, from: 'Praxa' as const, testId: v.testId }));
+    const fromTeam = live
+      .filter((a) => a.memberId === m.id && a.completedAt && (a.score ?? 0) >= (testOf(a.testId)?.passingScore ?? 75))
+      .map((a) => ({ name: testOf(a.testId)!.title.replace(/:.*$/, ''), score: a.score ?? 0, from: 'Team' as const, testId: a.testId }));
+    return [...verified, ...fromTeam].sort((a, b) => b.score - a.score);
+  };
+  const statsOf = (m: TeamMember) => {
+    const theirs = live.filter((a) => a.memberId === m.id);
+    const done = theirs.filter((a) => a.completedAt);
+    const avg = done.length ? Math.round(done.reduce((sum, a) => sum + (a.score ?? 0), 0) / done.length) : undefined;
+    return { theirs, done, avg, late: theirs.filter(isOverdue).length };
+  };
 
   // Typing a name finds people on Praxa to ask; an address invites anyone
   const query = invite.trim().toLowerCase();
@@ -85,201 +117,594 @@ export const TeamPage: React.FC<TeamPageProps> = ({
     setInvite('');
   };
 
+  const late = live.filter(isOverdue);
+  const doneAll = live.filter((a) => a.completedAt);
+  const teamAvg = doneAll.length ? Math.round(doneAll.reduce((s, a) => s + (a.score ?? 0), 0) / doneAll.length) : undefined;
+  const menu: { id: TeamSection; label: string; icon: React.ComponentType<{ className?: string }>; count?: number; alert?: boolean }[] = [
+    { id: 'overview', label: 'Overview', icon: LayoutGrid, count: active.length },
+    { id: 'tasks', label: 'Tasks', icon: SquareKanban, count: live.filter((a) => !a.completedAt).length, alert: late.length > 0 },
+    { id: 'skills', label: 'Skills & tests', icon: BarChart3 },
+    { id: 'people', label: 'People & invites', icon: UserPlus, count: team.filter((m) => m.status === 'invited').length || undefined },
+  ];
+  const member = openMember ? team.find((m) => m.id === openMember) : undefined;
+
+  // The skills matrix: the skills most of the team has proven, by person
+  const skillColumns = (() => {
+    const counts = new Map<string, number>();
+    active.forEach((m) => person(m)?.verifiedSkills.forEach((v) => counts.set(v.skillName, (counts.get(v.skillName) ?? 0) + 1)));
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([k]) => k);
+  })();
+  // The tests matrix: every test sent to the team, by person
+  const testColumns = [...new Set(live.map((a) => a.testId))].slice(0, 10);
+
+  const taskCard = (a: Assignment, withPerson = true) => {
+    const t = testOf(a.testId)!;
+    const m = team.find((x) => x.id === a.memberId);
+    const p = m && person(m);
+    const lateNow = isOverdue(a);
+    return (
+      <li key={a.id} className={`p-3.5 rounded-xl bg-white border shadow-2xs space-y-2 ${lateNow ? 'border-rose-200' : 'border-slate-200'}`}>
+        <div className="flex items-center justify-between gap-2">
+          <KindChip test={t} />
+          <button onClick={() => onUnassign(a)} aria-label="Take back" title="Take back" className="p-0.5 text-slate-300 hover:text-rose-600">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+        <button onClick={() => onOpenTest(t.id)} className="block text-left text-sm font-bold text-slate-900 hover:text-indigo-700 leading-snug">
+          {t.title}
+        </button>
+        <div className="flex items-center justify-between gap-2">
+          {withPerson && (
+            <button onClick={() => m && setOpenMember(m.id)} className="flex items-center gap-1.5 min-w-0 text-xs text-slate-600 hover:text-slate-900">
+              {p ? <Pic src={p.avatarUrl} alt="" className="w-5 h-5 rounded-full" /> : <span className="w-5 h-5 rounded-full bg-slate-100" />}
+              <span className="truncate">{m ? nameOf(m) : 'Left the team'}</span>
+            </button>
+          )}
+          {a.completedAt ? (
+            <span className={`ml-auto px-2 py-0.5 rounded-full border text-[11px] font-bold font-mono tabular-nums ${scoreTone(a.score ?? 0)}`}>{a.score}</span>
+          ) : (
+            dueLabel(a) && <span className={`ml-auto text-[11px] font-semibold ${lateNow ? 'text-rose-600' : 'text-slate-500'}`}>{dueLabel(a)}</span>
+          )}
+        </div>
+        {a.certifiedAt && <span className="inline-block px-1.5 py-px rounded border text-[10px] font-semibold bg-amber-50 text-amber-700 border-amber-200">Certified</span>}
+      </li>
+    );
+  };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Your team</h1>
-          <p className="text-sm text-slate-500 mt-1 max-w-2xl">
-            Invite your people to join {business.name} on Praxa, then send them tests, job simulations and training. What they score stays between you
-            and them: it's never on their profile or a leaderboard.
-          </p>
-        </div>
-        <button
-          onClick={() => (aiAllowed ? onCreateTraining() : onSeePlans())}
-          className="create-border shrink-0 self-start sm:self-auto px-4 py-2 text-sm font-semibold text-indigo-700 hover:text-indigo-900 rounded-lg inline-flex items-center gap-1.5"
-        >
-          {aiAllowed ? <GraduationCap className="w-4 h-4" /> : <Lock className="w-3.5 h-3.5" />}
-          Create training with AI
-        </button>
-      </div>
-
-      {/* Inviting */}
-      <section className="p-4 bg-white border border-slate-200 rounded-xl space-y-3">
-        <h2 className="text-sm font-bold text-slate-900">Invite someone</h2>
-        <div className="relative">
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                value={invite}
-                onChange={(e) => setInvite(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && sendEmail()}
-                placeholder="Their work email, or the name of someone on Praxa"
-                className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
+    <div className="grid grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)] gap-6 items-start">
+      {/* Side menu: a strip of pills on phones */}
+      <aside className="lg:sticky lg:top-20 space-y-3">
+        <Card className="overflow-hidden hidden lg:block">
+          <div className="h-12" style={{ background: 'linear-gradient(120deg, #312e81 0%, #4f46e5 45%, #7c3aed 100%)' }} />
+          <div className="px-4 pb-4 -mt-5 space-y-1">
+            <Pic src={business.logo} alt="" className="w-10 h-10 rounded-xl border-2 border-white bg-slate-100 shadow-xs" />
+            <div className="text-sm font-bold text-slate-900 pt-1 truncate">{business.name} team</div>
+            <div className="text-xs text-slate-500">
+              {active.length} {active.length === 1 ? 'person' : 'people'}
+              {late.length > 0 && <span className="text-rose-600 font-semibold"> · {late.length} late</span>}
             </div>
-            <button
-              onClick={sendEmail}
-              disabled={!EMAIL.test(invite.trim())}
-              className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 rounded-lg inline-flex items-center gap-1.5"
-            >
-              <Mail className="w-4 h-4" />
-              Invite
-            </button>
           </div>
-          {matches.length > 0 && (
-            <ul className="absolute z-10 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden">
-              {matches.map((c) => (
-                <li key={c.id}>
-                  <button
-                    onClick={() => {
-                      onInviteCandidate(c);
-                      setInvite('');
-                    }}
-                    className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-slate-50"
-                  >
-                    <Pic src={c.avatarUrl} alt="" className="w-8 h-8 rounded-full" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-semibold text-slate-900 truncate">{c.name}</span>
-                      <span className="block text-xs text-slate-500 truncate">{c.title || 'On Praxa'}</span>
-                    </span>
-                    <span className="text-xs font-semibold text-indigo-700 inline-flex items-center gap-1">
-                      <UserPlus className="w-3.5 h-3.5" />
-                      Invite to team
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-        <p className="text-xs text-slate-500">They'll see the invitation on Praxa once they sign in with that address, and can accept or decline it.</p>
-      </section>
-
-      {/* The people */}
-      <section className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-bold text-slate-900">
-            People <span className="text-slate-400 font-normal">({team.length})</span>
-          </h2>
+        </Card>
+        <nav aria-label="Team" className="flex lg:flex-col gap-1 overflow-x-auto lg:overflow-visible lg:bg-white lg:border lg:border-slate-200 lg:rounded-2xl lg:p-2 lg:shadow-xs">
+          {menu.map((m) => (
+            <button
+              key={m.id}
+              onClick={() => setSection(m.id)}
+              aria-current={section === m.id ? 'page' : undefined}
+              className={`shrink-0 flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-semibold transition-colors ${
+                section === m.id ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+              }`}
+            >
+              <m.icon className="w-4 h-4" />
+              <span className="flex-1 text-left">{m.label}</span>
+              {m.alert && <span className="w-2 h-2 rounded-full bg-rose-500" />}
+              {!!m.count && <span className="text-[11px] font-mono tabular-nums text-slate-400">{m.count}</span>}
+            </button>
+          ))}
+        </nav>
+        <div className="hidden lg:block space-y-2">
           {active.length > 0 && (
-            <button onClick={() => setAssigning(active.map((m) => m.id))} className="text-sm font-semibold text-indigo-700 hover:text-indigo-900 inline-flex items-center gap-1">
+            <button onClick={() => setAssigning(active.map((m) => m.id))} className="w-full px-4 py-2 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold inline-flex items-center justify-center gap-1.5">
               <Plus className="w-4 h-4" />
-              Send to the whole team
+              Send work
             </button>
           )}
+          <button
+            onClick={() => (aiAllowed ? onCreateTraining() : onSeePlans())}
+            className="create-border w-full px-4 py-2 text-sm font-semibold text-indigo-700 hover:text-indigo-900 rounded-full inline-flex items-center justify-center gap-1.5"
+          >
+            {aiAllowed ? <GraduationCap className="w-4 h-4" /> : <Lock className="w-3.5 h-3.5" />}
+            Create training with AI
+          </button>
         </div>
-        {team.length === 0 ? (
-          <div className="p-6 text-center text-sm text-slate-500 bg-white border border-dashed border-slate-300 rounded-xl">No one yet. Invite your team above.</div>
-        ) : (
-          <ul className="bg-white border border-slate-200 rounded-xl divide-y divide-slate-100">
-            {team.map((m) => {
-              const p = person(m);
-              const theirs = assignments.filter((a) => a.memberId === m.id);
-              const done = theirs.filter((a) => a.completedAt);
-              const avg = done.length ? Math.round(done.reduce((sum, a) => sum + (a.score ?? 0), 0) / done.length) : undefined;
-              const chip = STATUS_CHIP[m.status];
-              return (
-                <li key={m.id} className="p-3 flex flex-col sm:flex-row sm:items-center gap-3">
-                  <button onClick={() => p && onViewPerson(p.id)} disabled={!p} className="flex items-center gap-3 min-w-0 flex-1 text-left">
-                    {p ? (
-                      <Pic src={p.avatarUrl} alt="" className="w-9 h-9 rounded-full shrink-0" />
-                    ) : (
-                      <span className="w-9 h-9 rounded-full shrink-0 bg-slate-100 flex items-center justify-center text-slate-400">
-                        <Mail className="w-4 h-4" />
-                      </span>
-                    )}
-                    <span className="min-w-0">
-                      <span className="block text-sm font-semibold text-slate-900 truncate">{p?.name ?? m.name}</span>
-                      <span className="block text-xs text-slate-500 truncate">{m.email ?? p?.title ?? ''}</span>
-                    </span>
-                  </button>
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <span className={`px-2 py-0.5 rounded-full border text-[11px] font-semibold ${chip.cls}`}>{chip.label}</span>
-                    {m.status === 'active' && (
-                      <span className="text-xs text-slate-500 tabular-nums">
-                        {done.length}/{theirs.length} done{avg !== undefined && ` · avg ${avg}`}
-                      </span>
-                    )}
-                    {m.status === 'active' && (
-                      <button onClick={() => setAssigning([m.id])} className="px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg">
-                        Send work
-                      </button>
-                    )}
-                    <button
-                      onClick={() => window.confirm(`Remove ${p?.name ?? m.name} from your team? Work you sent them is kept.`) && onRemoveMember(m)}
-                      aria-label="Remove from team"
-                      className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
+      </aside>
 
-      {/* What's been sent, and how it's going */}
-      {assignments.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="text-sm font-bold text-slate-900">Sent to your team</h2>
-          <div className="bg-white border border-slate-200 rounded-xl overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-200">
-                  <th className="px-3 py-2 font-semibold">Person</th>
-                  <th className="px-3 py-2 font-semibold">Work</th>
-                  <th className="px-3 py-2 font-semibold">Sent</th>
-                  <th className="px-3 py-2 font-semibold">Status</th>
-                  <th className="px-3 py-2" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {assignments.map((a) => {
-                  const m = team.find((x) => x.id === a.memberId);
-                  const t = testOf(a.testId);
-                  const overdue = !a.completedAt && a.dueDate && a.dueDate < new Date().toISOString().slice(0, 10);
+      <main className="min-w-0 space-y-5">
+        {/* ---------- Overview: each person, what they're good at and how their work is going ---------- */}
+        {section === 'overview' && (
+          <>
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Your team</h1>
+                <p className="text-sm text-slate-500 max-w-2xl">What each person is good at, and how the work you send them is going. Results stay between you and them.</p>
+              </div>
+              {active.length > 0 && (
+                <button onClick={() => setAssigning(active.map((m) => m.id))} className="lg:hidden px-4 py-2 rounded-full bg-indigo-600 text-white text-sm font-semibold inline-flex items-center gap-1.5">
+                  <Plus className="w-4 h-4" />
+                  Send work
+                </button>
+              )}
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                { label: 'On the team', value: active.length, tone: 'text-slate-900' },
+                { label: 'Open tasks', value: live.filter((a) => !a.completedAt).length, tone: 'text-indigo-600' },
+                { label: 'Late', value: late.length, tone: late.length ? 'text-rose-600' : 'text-slate-400' },
+                { label: 'Average score', value: teamAvg ?? '–', tone: 'text-emerald-600' },
+              ].map((s) => (
+                <Card key={s.label} className="p-4">
+                  <div className={`text-2xl font-bold font-mono tabular-nums ${s.tone}`}>{s.value}</div>
+                  <div className="text-xs font-medium text-slate-500">{s.label}</div>
+                </Card>
+              ))}
+            </div>
+            {active.length === 0 ? (
+              <div className="p-8 text-center rounded-2xl border border-dashed border-slate-300 bg-white space-y-3">
+                <UserPlus className="w-8 h-8 text-slate-300 mx-auto" />
+                <p className="text-sm text-slate-500">No one on the team yet.</p>
+                <button onClick={() => setSection('people')} className="px-4 py-2 rounded-full bg-indigo-600 text-white text-xs font-semibold">
+                  Invite your team
+                </button>
+              </div>
+            ) : (
+              <ul className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {active.map((m) => {
+                  const p = person(m);
+                  const st = statsOf(m);
+                  const good = strengths(m);
                   return (
-                    <tr key={a.id}>
-                      <td className="px-3 py-2 whitespace-nowrap text-slate-900">{(m && person(m)?.name) ?? m?.name ?? 'Left the team'}</td>
-                      <td className="px-3 py-2">
-                        <button onClick={() => t && onOpenTest(t.id)} className="text-left font-medium text-slate-900 hover:text-indigo-700">
-                          {t?.title ?? 'A test that was deleted'}
-                        </button>{' '}
-                        {t && <KindChip test={t} />}
-                      </td>
-                      <td className="px-3 py-2 whitespace-nowrap text-slate-500">
-                        {shortDate(a.assignedAt)}
-                        {a.dueDate && <span className={overdue ? 'text-rose-600' : ''}> · due {shortDate(a.dueDate)}</span>}
-                      </td>
-                      <td className="px-3 py-2 whitespace-nowrap">
-                        {a.certifiedAt && <span className="mr-1.5 px-1.5 py-px rounded border text-[10px] font-semibold bg-amber-50 text-amber-700 border-amber-200">Certified</span>}
-                        {a.completedAt ? (
-                          <span className={`font-semibold tabular-nums ${t && (a.score ?? 0) >= t.passingScore ? 'text-emerald-700' : 'text-amber-700'}`}>
-                            {a.score}/100 <span className="font-normal text-slate-400">· {shortDate(a.completedAt)}</span>
-                          </span>
-                        ) : a.startedAt ? (
-                          <span className="text-slate-600">Started</span>
-                        ) : (
-                          <span className="text-slate-400">Not started</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2 text-right">
-                        <button onClick={() => onUnassign(a)} aria-label="Take back" className="p-1 text-slate-400 hover:text-rose-600">
-                          <X className="w-4 h-4" />
-                        </button>
-                      </td>
-                    </tr>
+                    <li key={m.id}>
+                      <Card className="h-full overflow-hidden flex flex-col">
+                        <div className="h-12 bg-gradient-to-r from-indigo-100 via-violet-100 to-sky-100" />
+                        <div className="px-5 pb-5 -mt-7 flex-1 flex flex-col gap-3">
+                          <button onClick={() => setOpenMember(m.id)} className="text-left">
+                            {p ? (
+                              <Pic src={p.avatarUrl} alt="" className="w-14 h-14 rounded-full border-4 border-white bg-slate-100" />
+                            ) : (
+                              <span className="w-14 h-14 rounded-full border-4 border-white bg-slate-100 flex items-center justify-center text-slate-400">
+                                <Mail className="w-5 h-5" />
+                              </span>
+                            )}
+                            <span className="block mt-1 text-base font-bold text-slate-900 hover:underline">{nameOf(m)}</span>
+                            <span className="block text-xs text-slate-500 truncate">{p?.title || m.email || 'On the team'}</span>
+                          </button>
+                          <div>
+                            <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Good at</div>
+                            {good.length === 0 ? (
+                              <p className="text-xs text-slate-400">Nothing proven yet. Send them a test to find out.</p>
+                            ) : (
+                              <div className="flex flex-wrap gap-1.5">
+                                {good.slice(0, 3).map((g) => (
+                                  <span key={`${g.from}-${g.name}`} className={`px-2 py-0.5 rounded-full border text-[11px] font-semibold ${scoreTone(g.score)}`}>
+                                    {g.name} <span className="font-mono">{g.score}</span>
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <div className="mt-auto space-y-1.5">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-slate-600">
+                                {st.done.length}/{st.theirs.length} done{st.avg !== undefined && ` · avg ${st.avg}`}
+                              </span>
+                              {st.late > 0 && <span className="font-semibold text-rose-600">{st.late} late</span>}
+                            </div>
+                            <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                              <div className="h-full bg-emerald-500" style={{ width: `${st.theirs.length ? (st.done.length / st.theirs.length) * 100 : 0}%` }} />
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button onClick={() => setAssigning([m.id])} className="flex-1 px-3 py-1.5 rounded-full text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700">
+                              Send work
+                            </button>
+                            <button onClick={() => setOpenMember(m.id)} className="flex-1 px-3 py-1.5 rounded-full text-xs font-semibold text-slate-700 border border-slate-300 hover:bg-slate-50">
+                              Tests & skills
+                            </button>
+                          </div>
+                        </div>
+                      </Card>
+                    </li>
                   );
                 })}
-              </tbody>
-            </table>
-          </div>
-        </section>
+              </ul>
+            )}
+          </>
+        )}
+
+        {/* ---------- Tasks: everything sent, as a board ---------- */}
+        {section === 'tasks' && (
+          <>
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Tasks</h1>
+                <p className="text-sm text-slate-500">Everything you've sent your team and where it's up to.</p>
+              </div>
+              <select
+                value={personFilter}
+                onChange={(e) => setPersonFilter(e.target.value)}
+                className="px-3 py-2 rounded-full border border-slate-200 bg-white text-xs font-semibold text-slate-800"
+                aria-label="Show tasks for"
+              >
+                <option value="all">Everyone</option>
+                {team.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {nameOf(m)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {live.length === 0 ? (
+              <div className="p-8 text-center rounded-2xl border border-dashed border-slate-300 bg-white space-y-3">
+                <SquareKanban className="w-8 h-8 text-slate-300 mx-auto" />
+                <p className="text-sm text-slate-500">Nothing sent yet.</p>
+                {active.length > 0 && (
+                  <button onClick={() => setAssigning(active.map((m) => m.id))} className="px-4 py-2 rounded-full bg-indigo-600 text-white text-xs font-semibold">
+                    Send work
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+                {TASK_COLUMNS.map((col) => {
+                  const items = live.filter((a) => statusOf(a) === col.id && (personFilter === 'all' || a.memberId === personFilter)).sort(byUrgency);
+                  return (
+                    <div key={col.id} className="rounded-2xl bg-slate-50 border border-slate-200 p-3 space-y-3">
+                      <div className="flex items-center gap-2 px-1">
+                        <span className={`w-2 h-2 rounded-full ${col.dot}`} />
+                        <span className="text-xs font-bold uppercase tracking-wide text-slate-600">{col.label}</span>
+                        <span className="ml-auto text-xs font-mono text-slate-400">{items.length}</span>
+                      </div>
+                      {items.length === 0 ? <p className="px-1 pb-2 text-xs text-slate-400">Nothing here.</p> : <ul className="space-y-2.5">{items.map((a) => taskCard(a))}</ul>}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ---------- Skills & tests: who's good at what, and every test's result by person ---------- */}
+        {section === 'skills' && (
+          <>
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Skills & tests</h1>
+              <p className="text-sm text-slate-500">Skills each person has proven on Praxa, and how they did on every test you've sent the team.</p>
+            </div>
+            {active.length === 0 ? (
+              <p className="text-sm text-slate-500">No one on the team yet.</p>
+            ) : (
+              <>
+                <Card className="overflow-hidden">
+                  <div className="px-5 py-3 border-b border-slate-100 text-sm font-bold text-slate-900">Proven skills</div>
+                  {skillColumns.length === 0 ? (
+                    <p className="px-5 py-4 text-sm text-slate-500">No one has proven a skill on Praxa yet.</p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="text-left text-[11px] text-slate-500 border-b border-slate-100">
+                            <th className="px-5 py-2 font-semibold sticky left-0 bg-white">Person</th>
+                            {skillColumns.map((k) => (
+                              <th key={k} className="px-2 py-2 font-semibold text-center whitespace-nowrap">
+                                {k}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {active.map((m) => (
+                            <tr key={m.id}>
+                              <td className="px-5 py-2 whitespace-nowrap sticky left-0 bg-white">
+                                <button onClick={() => setOpenMember(m.id)} className="font-semibold text-slate-900 hover:text-indigo-700">
+                                  {nameOf(m)}
+                                </button>
+                              </td>
+                              {skillColumns.map((k) => {
+                                const v = person(m)?.verifiedSkills.find((x) => x.skillName === k);
+                                return (
+                                  <td key={k} className="px-2 py-2 text-center">
+                                    {v ? (
+                                      <span className={`inline-block min-w-9 px-1.5 py-0.5 rounded-md border text-xs font-bold font-mono tabular-nums ${scoreTone(v.score)}`}>{v.score}</span>
+                                    ) : (
+                                      <span className="text-slate-300">·</span>
+                                    )}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </Card>
+
+                <Card className="overflow-hidden">
+                  <div className="px-5 py-3 border-b border-slate-100 text-sm font-bold text-slate-900">Team tests</div>
+                  {testColumns.length === 0 ? (
+                    <p className="px-5 py-4 text-sm text-slate-500">You haven't sent the team anything yet.</p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="text-left text-[11px] text-slate-500 border-b border-slate-100">
+                            <th className="px-5 py-2 font-semibold sticky left-0 bg-white">Person</th>
+                            {testColumns.map((id) => (
+                              <th key={id} className="px-2 py-2 font-semibold text-center">
+                                <button onClick={() => onOpenTest(id)} className="max-w-32 truncate block mx-auto hover:text-indigo-700" title={testOf(id)?.title}>
+                                  {testOf(id)?.title.replace(/:.*$/, '')}
+                                </button>
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {active.map((m) => (
+                            <tr key={m.id}>
+                              <td className="px-5 py-2 whitespace-nowrap sticky left-0 bg-white">
+                                <button onClick={() => setOpenMember(m.id)} className="font-semibold text-slate-900 hover:text-indigo-700">
+                                  {nameOf(m)}
+                                </button>
+                              </td>
+                              {testColumns.map((id) => {
+                                const a = live.filter((x) => x.memberId === m.id && x.testId === id).sort(byUrgency)[0];
+                                return (
+                                  <td key={id} className="px-2 py-2 text-center">
+                                    {!a ? (
+                                      <span className="text-slate-300">·</span>
+                                    ) : a.completedAt ? (
+                                      <span className={`inline-block min-w-9 px-1.5 py-0.5 rounded-md border text-xs font-bold font-mono tabular-nums ${scoreTone(a.score ?? 0)}`}>{a.score}</span>
+                                    ) : (
+                                      <span className={`text-[11px] font-semibold ${isOverdue(a) ? 'text-rose-600' : a.startedAt ? 'text-amber-600' : 'text-slate-400'}`}>
+                                        {isOverdue(a) ? 'Late' : a.startedAt ? 'Started' : 'To do'}
+                                      </span>
+                                    )}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </Card>
+                <p className="text-[11px] text-slate-500">Green 88+, amber 75–87, grey under 75.</p>
+              </>
+            )}
+          </>
+        )}
+
+        {/* ---------- People & invites ---------- */}
+        {section === 'people' && (
+          <>
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">People & invites</h1>
+              <p className="text-sm text-slate-500">Invite your people to join {business.name} on Praxa, and manage who's on the team.</p>
+            </div>
+            <Card className="p-5 space-y-3">
+              <h2 className="text-sm font-bold text-slate-900">Invite someone</h2>
+              <div className="relative">
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      value={invite}
+                      onChange={(e) => setInvite(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && sendEmail()}
+                      placeholder="Their work email, or the name of someone on Praxa"
+                      className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <button
+                    onClick={sendEmail}
+                    disabled={!EMAIL.test(invite.trim())}
+                    className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 rounded-full inline-flex items-center gap-1.5"
+                  >
+                    <Mail className="w-4 h-4" />
+                    Invite
+                  </button>
+                </div>
+                {matches.length > 0 && (
+                  <ul className="absolute z-10 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
+                    {matches.map((c) => (
+                      <li key={c.id}>
+                        <button
+                          onClick={() => {
+                            onInviteCandidate(c);
+                            setInvite('');
+                          }}
+                          className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-slate-50"
+                        >
+                          <Pic src={c.avatarUrl} alt="" className="w-8 h-8 rounded-full" />
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-sm font-semibold text-slate-900 truncate">{c.name}</span>
+                            <span className="block text-xs text-slate-500 truncate">{c.title || 'On Praxa'}</span>
+                          </span>
+                          <span className="text-xs font-semibold text-indigo-700 inline-flex items-center gap-1">
+                            <UserPlus className="w-3.5 h-3.5" />
+                            Invite to team
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <p className="text-xs text-slate-500">They'll see the invitation on Praxa once they sign in with that address, and can accept or decline it.</p>
+            </Card>
+
+            <Card className="divide-y divide-slate-100">
+              {team.length === 0 && <p className="p-5 text-sm text-slate-500">No one yet. Invite your team above.</p>}
+              {team.map((m) => {
+                const p = person(m);
+                const chip = STATUS_CHIP[m.status];
+                return (
+                  <div key={m.id} className="p-4 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                      <button onClick={() => (m.status === 'active' ? setOpenMember(m.id) : p && onViewPerson(p.id))} className="flex items-center gap-3 min-w-0 flex-1 text-left">
+                        {p ? (
+                          <Pic src={p.avatarUrl} alt="" className="w-10 h-10 rounded-full shrink-0" />
+                        ) : (
+                          <span className="w-10 h-10 rounded-full shrink-0 bg-slate-100 flex items-center justify-center text-slate-400">
+                            <Mail className="w-4 h-4" />
+                          </span>
+                        )}
+                        <span className="min-w-0">
+                          <span className="block text-sm font-semibold text-slate-900 truncate">{nameOf(m)}</span>
+                          <span className="block text-xs text-slate-500 truncate">
+                            {m.status === 'invited' ? `Invited ${shortDate(m.invitedAt)}` : m.joinedAt ? `Joined ${shortDate(m.joinedAt)}` : m.email ?? p?.title ?? ''}
+                          </span>
+                        </span>
+                      </button>
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2 py-0.5 rounded-full border text-[11px] font-semibold ${chip.cls}`}>{chip.label}</span>
+                        {removing !== m.id && (
+                          <button onClick={() => setRemoving(m.id)} className="px-3 py-1.5 rounded-full text-xs font-semibold text-slate-500 hover:text-rose-700 hover:bg-rose-50 inline-flex items-center gap-1">
+                            <Trash2 className="w-3.5 h-3.5" />
+                            {m.status === 'invited' ? 'Cancel invite' : 'Remove'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    {removing === m.id && (
+                      <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 flex flex-col sm:flex-row sm:items-center gap-3">
+                        <p className="flex-1 text-xs text-rose-900">
+                          {m.status === 'invited' ? `Cancel ${nameOf(m)}'s invitation?` : `Remove ${nameOf(m)} from your team? Work you sent them is kept.`}
+                        </p>
+                        <div className="flex gap-2">
+                          <button onClick={() => setRemoving(null)} className="px-3 py-1.5 rounded-full text-xs font-semibold text-slate-700 bg-white border border-slate-200">
+                            Keep
+                          </button>
+                          <button
+                            onClick={() => {
+                              onRemoveMember(m);
+                              setRemoving(null);
+                            }}
+                            className="px-3 py-1.5 rounded-full text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700"
+                          >
+                            {m.status === 'invited' ? 'Cancel invite' : 'Remove'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </Card>
+          </>
+        )}
+      </main>
+
+      {/* One person: what they're good at, and every test you've sent them */}
+      {member && (
+        <div className="fixed inset-0 z-40 flex justify-end bg-slate-900/40 backdrop-blur-[1px]" onClick={() => setOpenMember(null)}>
+          <aside
+            role="dialog"
+            aria-modal="true"
+            aria-label={nameOf(member)}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md h-full bg-white shadow-2xl overflow-y-auto"
+          >
+            {(() => {
+              const p = person(member);
+              const st = statsOf(member);
+              const good = strengths(member);
+              return (
+                <>
+                  <div className="h-24 relative" style={{ background: 'linear-gradient(120deg, #312e81 0%, #4f46e5 45%, #7c3aed 100%)' }}>
+                    <button onClick={() => setOpenMember(null)} aria-label="Close" className="absolute top-3 right-3 p-1.5 rounded-full bg-white/20 text-white hover:bg-white/30">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="px-6 pb-6 -mt-10 space-y-5">
+                    <div>
+                      {p ? (
+                        <Pic src={p.avatarUrl} alt="" className="w-20 h-20 rounded-full border-4 border-white bg-slate-100" />
+                      ) : (
+                        <span className="w-20 h-20 rounded-full border-4 border-white bg-slate-100 flex items-center justify-center text-slate-400">
+                          <Mail className="w-6 h-6" />
+                        </span>
+                      )}
+                      <h2 className="mt-1 text-xl font-bold text-slate-900">{nameOf(member)}</h2>
+                      <p className="text-sm text-slate-600">{p?.title || member.email}</p>
+                      <div className="mt-3 flex gap-2">
+                        <button onClick={() => setAssigning([member.id])} className="px-4 py-2 rounded-full text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700">
+                          Send work
+                        </button>
+                        {p && (
+                          <button onClick={() => onViewPerson(p.id)} className="px-4 py-2 rounded-full text-xs font-semibold text-slate-700 border border-slate-300 hover:bg-slate-50">
+                            Full profile
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-center p-3 rounded-xl bg-slate-50">
+                      {[
+                        ['Sent', st.theirs.length],
+                        ['Done', st.done.length],
+                        ['Average', st.avg ?? '–'],
+                      ].map(([k, v]) => (
+                        <div key={k}>
+                          <div className="text-lg font-bold font-mono tabular-nums text-slate-900">{v}</div>
+                          <div className="text-[11px] text-slate-500">{k}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="space-y-2">
+                      <h3 className="text-sm font-bold text-slate-900 inline-flex items-center gap-1.5">
+                        <Award className="w-4 h-4 text-indigo-600" />
+                        Good at
+                      </h3>
+                      {good.length === 0 ? (
+                        <p className="text-xs text-slate-500">Nothing proven yet. Send them a test to find out.</p>
+                      ) : (
+                        <ul className="space-y-2">
+                          {good.slice(0, 8).map((g) => (
+                            <li key={`${g.from}-${g.name}`}>
+                              <button onClick={() => onOpenTest(g.testId)} className="w-full flex items-center gap-3 text-left group">
+                                <span className="min-w-0 flex-1">
+                                  <span className="block text-sm font-semibold text-slate-900 group-hover:text-indigo-700 truncate">{g.name}</span>
+                                  <span className="block h-1.5 mt-1 rounded-full bg-slate-100 overflow-hidden">
+                                    <span className={`block h-full rounded-full ${g.score >= 88 ? 'bg-emerald-500' : g.score >= 75 ? 'bg-amber-400' : 'bg-slate-300'}`} style={{ width: `${g.score}%` }} />
+                                  </span>
+                                </span>
+                                <span className="text-[10px] font-semibold text-slate-400 w-10 text-right">{g.from === 'Praxa' ? 'Praxa' : 'Team'}</span>
+                                <span className="font-mono text-sm font-bold tabular-nums text-slate-900 w-8 text-right">{g.score}</span>
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <h3 className="text-sm font-bold text-slate-900 inline-flex items-center gap-1.5">
+                        <ListTodo className="w-4 h-4 text-indigo-600" />
+                        Their tests
+                      </h3>
+                      {st.theirs.length === 0 ? (
+                        <p className="text-xs text-slate-500">You haven't sent them anything yet.</p>
+                      ) : (
+                        <ul className="space-y-2">{[...st.theirs].sort(byUrgency).map((a) => taskCard(a, false))}</ul>
+                      )}
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
+          </aside>
+        </div>
       )}
 
       {assigning && (
@@ -288,7 +713,7 @@ export const TeamPage: React.FC<TeamPageProps> = ({
           initial={assigning}
           tests={tests}
           business={business}
-          nameOf={(m) => person(m)?.name ?? m.name}
+          nameOf={nameOf}
           onClose={() => setAssigning(null)}
           onAssign={(members, test, due, note) => {
             onAssign(members, test, due, note);

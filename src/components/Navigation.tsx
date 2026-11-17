@@ -4,11 +4,12 @@ import { ThemeToggle } from './ThemeToggle';
 import { Pic } from './Pic';
 import { UserRole } from '../types';
 import { ArrowLeftRight,
-  BookOpen, Building2, LogOut, Menu, ShieldCheck, Trophy, X, Bell, Briefcase, ChevronDown, ClipboardCheck, GraduationCap, House, UsersRound, Repeat, Search, Users } from 'lucide-react';
+  BookOpen, Building2, LogOut, Menu, ShieldCheck, Trophy, X, Bell, Briefcase, ChevronDown, ClipboardCheck, GraduationCap, House, UsersRound, Repeat, Search, Users, ListTodo } from 'lucide-react';
 
 export type AppTab =
   | 'home'
   | 'profile'
+  | 'work'
   | 'jobs'
   | 'tests'
   | 'companies'
@@ -31,6 +32,7 @@ export const NAV_TABS: Record<'candidate' | 'recruiter', { id: AppTab; label: st
     { id: 'home', label: 'Home', icon: House },
     { id: 'tests', label: 'Tests', icon: ClipboardCheck },
     { id: 'jobs', label: 'Jobs', icon: Briefcase },
+    { id: 'work', label: 'Work', icon: ListTodo },
     { id: 'ranked', label: 'Ranked', icon: Trophy },
     { id: 'learn', label: 'Career switch', icon: Repeat },
     // Upskill (/upskill/) is hidden for now; its page still works by address

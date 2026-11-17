@@ -31,6 +31,7 @@ import { PersonProfileModal } from './components/PersonProfileModal';
 import { backOr, pushPage, replacePage } from './lib/back';
 import { CandidateProfilePage } from './components/CandidateProfilePage';
 import { HomeNudges } from './components/HomeNudges';
+import { WorkPage } from './components/WorkPage';
 import { BrowseCandidates } from './components/BrowseCandidates';
 import { BusinessJobs } from './components/BusinessJobs';
 import { JobTestsEditor } from './components/JobTestsEditor';
@@ -144,6 +145,7 @@ const refFromHash = () => new URLSearchParams(window.location.hash.split('?')[1]
 const TAB_PATHS: Record<AppTab, string> = {
   home: '/',
   profile: '/profile/',
+  work: '/work/',
   jobs: '/jobs/',
   tests: '/tests/',
   companies: '/companies/',
@@ -173,7 +175,7 @@ const businessCandidateIdFromPath = () => {
 
 // The pages each side has; companies is on both
 const SIDE_TABS: Record<'candidate' | 'staff', AppTab[]> = {
-  candidate: ['home', 'tests', 'jobs', 'ranked', 'learn', 'upskill', 'profile', 'companies', 'guides'],
+  candidate: ['home', 'tests', 'jobs', 'work', 'ranked', 'learn', 'upskill', 'profile', 'companies', 'guides'],
   staff: ['business-home', 'business-jobs', 'business-tests', 'business-candidates', 'business-training', 'business-team', 'companies', 'guides'],
 };
 const sideOf = (role: UserRole) => (role === 'candidate' ? 'candidate' : 'staff');
@@ -1549,18 +1551,41 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
           {activeRole === 'admin' && !testPageTest && <PublicTestReview tests={tests} onOpen={openTestPage} onDecide={decidePublic} />}
           {/* A company's invitation and the training and tests it sent: on Home, and on Tests and Learn too, so they're found
               wherever someone looks for things to do */}
-          {!detailPage && !isVisitor && !hiringHome && activeRole === 'candidate' && ['home', 'tests', 'learn', 'upskill'].includes(currentTab) && !coursePage && !testPageTest && (myTeamInvites.length > 0 || myTeams.length > 0) && (
+          {!detailPage && !isVisitor && !hiringHome && activeRole === 'candidate' && ['home', 'tests', 'learn', 'upskill'].includes(currentTab) && !coursePage && !testPageTest && (myTeamInvites.length > 0 || (currentTab === 'home' && myAssignments.some((a) => !a.completedAt))) && (
             <div className={`max-w-7xl mx-auto px-4 sm:px-6 pt-8 ${currentTab === 'home' ? '-mb-8' : '-mb-4'}`}>
               <TeamWork
                 invitations={myTeamInvites}
-                memberships={myTeams}
-                assignments={myAssignments}
+                memberships={[]}
+                assignments={[]}
                 tests={tests}
                 onRespond={respondToTeam}
                 onLeave={(m) => (setTeam((prev) => prev.filter((x) => x.id !== m.id)), showToast(`You've left ${m.companyName}'s team.`))}
                 onStart={(assignment, test) => setAssignmentRun({ assignment, test })}
                 personName={candidate.name}
               />
+              {/* Work from their teams lives on the Work tab; home just says there's some */}
+              {currentTab === 'home' && myAssignments.some((a) => !a.completedAt) && (
+                <button
+                  onClick={() => goToTab('work')}
+                  className="mb-8 w-full p-4 rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-violet-50 text-left flex items-center gap-3 hover:border-indigo-300"
+                >
+                  <span className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 text-sm font-bold font-mono">
+                    {myAssignments.filter((a) => !a.completedAt).length}
+                  </span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-sm font-bold text-slate-900">
+                      {myAssignments.filter((a) => !a.completedAt).length === 1 ? 'A task' : 'Tasks'} from your team
+                    </span>
+                    <span className="block text-xs text-slate-600 truncate">
+                      {myAssignments.filter((a) => !a.completedAt && a.dueDate && a.dueDate < new Date().toISOString().slice(0, 10)).length > 0
+                        ? `${myAssignments.filter((a) => !a.completedAt && a.dueDate && a.dueDate < new Date().toISOString().slice(0, 10)).length} late · `
+                        : ''}
+                      Open Work to see them
+                    </span>
+                  </span>
+                  <span className="text-xs font-semibold text-indigo-700">Open Work →</span>
+                </button>
+              )}
             </div>
           )}
           {!testPageTest && (currentTab === 'learn' || currentTab === 'upskill') && coursePage && (
@@ -1584,6 +1609,20 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
               track={currentTab === 'upskill' ? 'upskill' : 'switch'}
               sector={sector}
               progress={courseProgress.progress} onOpenCourse={openCoursePage} onTrainTeam={trainTeam} />
+          )}
+          {!detailPage && !testPageTest && activeRole === 'candidate' && currentTab === 'work' && (
+            <WorkPage
+              invitations={myTeamInvites}
+              memberships={myTeams}
+              assignments={myAssignments}
+              tests={tests}
+              businesses={businesses}
+              personName={candidate.name}
+              onRespond={respondToTeam}
+              onLeave={(m) => (setTeam((prev) => prev.filter((x) => x.id !== m.id)), showToast(`You've left ${m.companyName}'s team.`))}
+              onStart={(assignment, test) => setAssignmentRun({ assignment, test })}
+              onFindTests={() => goToTab('tests')}
+            />
           )}
           {currentTab === 'ranked' && !testPageTest && (
             <RankedPage tests={sectorTests} allCandidates={allCandidates} viewerId={isVisitor ? '' : candidate.id} onOpenTest={openTestPage} companyJobs={activeRole === 'recruiter' ? ourJobs : []} onOpenPerson={activeRole !== 'candidate' && !isVisitor ? openPersonFor : undefined} />
