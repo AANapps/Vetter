@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, BadgeCheck, Briefcase, Check, ExternalLink, GraduationCap, Link2, MapPin, Star, X } from 'lucide-react';
-import { AssessmentTest, Business, JobPosting, User } from '../types';
-import { LeadRow, stageInfo } from '../lib/leads';
+import { ArrowLeft, Briefcase, Check, ChevronDown, ExternalLink, GraduationCap, Link2, MapPin, X } from 'lucide-react';
+import { AssessmentTest, Business, JobPosting, User, isPublic } from '../types';
+import { getLeaderboard } from '../lib/leaderboard';
+import { unfinishedStarts } from '../lib/results';
+import { sortExperience } from '../lib/experience';
+import { LeadRow } from '../lib/leads';
 import { Pic } from './Pic';
 import { TestHistory } from './TestHistory';
-import { IntegrityBadge } from './IntegrityBadge';
 import { CertificationList, EducationList, ExperienceList, ProfileLinks } from './ExperienceList';
 import { ApplicantSummary } from './ApplicantSummary';
 
@@ -35,6 +37,9 @@ const SKILL_BANDS = [
   { min: 0, label: 'Developing', range: 'under 75', card: 'bg-slate-50 border-slate-200 hover:border-slate-400', text: 'text-slate-600', dot: 'bg-slate-400' },
 ];
 const skillBand = (score: number) => SKILL_BANDS.find((b) => score >= b.min)!;
+const UNFINISHED = { label: 'Left unfinished', card: 'bg-white border-dashed border-slate-300 hover:border-slate-400', text: 'text-slate-400' };
+const HISTORY_SHOWN = 3;
+const formatDay = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
 // A small label above each section, as on a printed CV
 const Heading: React.FC<{ children: React.ReactNode; aside?: React.ReactNode }> = ({ children, aside }) => (
@@ -76,7 +81,22 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
   const testsTaken = new Set(person.testResults.map((r) => r.testId)).size;
   const best = skills[0];
   const rows = leadRows.filter((r) => r.candidate.id === person.id);
-  const sittings = rows.flatMap((r) => r.integrity);
+  const [allHistory, setAllHistory] = useState(false);
+  const jobsHeld = sortExperience(person.experience ?? []);
+  // Each Praxa library test they've taken (or started and left): best score, attempts, rank, newest first
+  const libraryCards = [...new Set([...person.testResults.map((r) => r.testId), ...(person.testStarts ?? []).map((st) => st.testId)])]
+    .flatMap((testId) => {
+      const test = tests.find((t) => t.id === testId);
+      if (!test || !isPublic(test)) return [];
+      const attempts = person.testResults.filter((r) => r.testId === testId);
+      const unfinished = unfinishedStarts(person, testId);
+      if (!attempts.length && !unfinished) return [];
+      const board = getLeaderboard(testId, candidates);
+      const entry = board.find((e) => e.candidate.id === person.id);
+      const last = [...attempts.map((r) => r.completedTime ?? r.completedAt), ...(person.testStarts ?? []).filter((st) => st.testId === testId).map((st) => st.startedAt)].sort().at(-1)!;
+      return [{ test, best: attempts.length ? Math.max(...attempts.map((r) => r.score)) : null, attempts: attempts.length, unfinished, rank: entry?.rank, of: board.length, last }];
+    })
+    .sort((a, b) => (b.best ?? -1) - (a.best ?? -1));
 
   const facts = [
     person.location && { icon: MapPin, text: person.location },
@@ -162,6 +182,12 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
               ))}
             </ul>
           )}
+          {bio && (
+            <div className="mt-4 max-w-3xl">
+              <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400 mb-1">Professional summary</h2>
+              <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{bio}</p>
+            </div>
+          )}
           {!!person.links?.length && (
             <div className="mt-4">
               <ProfileLinks links={person.links} />
@@ -183,130 +209,44 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
         </dl>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_18rem] gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_20rem] gap-6 items-start">
         <div className="space-y-6 min-w-0">
-          {bio && (
-            <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs">
-              <Heading>Professional summary</Heading>
-              <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{bio}</p>
-            </section>
-          )}
-
-          {!!person.experience?.length && (
-            <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs">
-              <Heading aside={<span className="text-[11px] text-slate-400">In their own words</span>}>Work history</Heading>
-              <ExperienceList items={person.experience} />
-            </section>
-          )}
-
-          {/* Education and certifications, below the experience */}
-          {(!!person.education?.length || !!person.certifications?.length) && (
-            <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {!!person.education?.length && (
-                  <div>
-                    <Heading>Education</Heading>
-                    <EducationList items={person.education} />
-                  </div>
-                )}
-                {!!person.certifications?.length && (
-                  <div>
-                    <Heading aside={<span className="text-[11px] text-slate-400">In their own words</span>}>Certifications</Heading>
-                    <CertificationList items={person.certifications} />
-                  </div>
-                )}
-              </div>
-            </section>
-          )}
-
-          {/* How they did on the company's job simulations, next to what their profile has proven */}
+          {/* First, what concerns the company looking: the tests it sent them and the jobs of its they applied to */}
           <ApplicantSummary person={person} rows={rows} tests={tests} candidates={candidates} onOpenTest={onOpenTest} onOpenJob={onOpenJob} />
 
+          {/* Every Praxa skills test they've taken, as square cards coloured by score */}
           <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs">
-            <Heading>Test record</Heading>
-            <TestHistory
-              person={person}
-              tests={tests}
-              candidates={candidates}
-              businesses={businesses}
-              companyResultsFor={business ? business.id : 'all'}
-              showIntegrity
-              onOpenTest={onOpenTest}
-              emptyText="No tests taken yet."
-            />
-          </section>
-        </div>
-
-        <aside className="space-y-6 min-w-0 lg:sticky lg:top-6">
-          {/* Verified skills, strongest first: each a card coloured by how well they scored on the test that proved it */}
-          <section className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
-            <Heading aside={skills.length > 0 && <BadgeCheck className="w-3.5 h-3.5 text-indigo-600" aria-label="Verified by Praxa" />}>Verified skills</Heading>
-            {skills.length === 0 ? (
-              <p className="text-xs text-slate-500">None yet. Skills appear here once they pass a Praxa test.</p>
-            ) : (
-              <>
-                <ul className="space-y-2">
-                  {skills.map((s) => {
-                    const band = skillBand(s.score);
-                    return (
-                      <li key={s.skillId}>
-                        <button onClick={() => onOpenTest(s.testId)} className={`w-full text-left rounded-xl border px-3 py-2.5 flex items-center gap-3 transition-colors ${band.card}`}>
-                          <span className="min-w-0 flex-1">
-                            <span className="block text-xs font-semibold text-slate-900 truncate">{s.skillName}</span>
-                            <span className={`block text-[10px] font-semibold ${band.text}`}>
-                              {band.label} &middot; {s.percentile}th percentile
-                            </span>
-                          </span>
-                          <span className={`font-mono text-base font-bold tabular-nums ${band.text}`}>{s.score}</span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-                <p className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-slate-500">
+            <Heading
+              aside={
+                <span className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-slate-500">
                   {SKILL_BANDS.map((b) => (
                     <span key={b.label} className="inline-flex items-center gap-1">
                       <span className={`w-2 h-2 rounded-full ${b.dot}`} />
                       {b.label} {b.range}
                     </span>
                   ))}
-                </p>
-              </>
-            )}
-          </section>
-
-          {/* Where they stand on the viewer's own jobs */}
-          <section className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
-            <Heading>{business ? `With ${business.name}` : 'On jobs'}</Heading>
-            {rows.length === 0 ? (
-              <p className="text-xs text-slate-500">Not on any of {business ? 'your' : 'these'} jobs yet.</p>
+                </span>
+              }
+            >
+              Praxa skills tests
+            </Heading>
+            {libraryCards.length === 0 ? (
+              <p className="text-sm text-slate-500">No Praxa skills tests taken yet.</p>
             ) : (
-              <ul className="space-y-3">
-                {rows.map((r) => {
-                  const stage = stageInfo(r.stage);
+              <ul className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
+                {libraryCards.map((c) => {
+                  const band = c.best === null ? UNFINISHED : skillBand(c.best);
                   return (
-                    <li key={r.id}>
-                      <button onClick={() => onOpenJob(r.job.id)} className="w-full text-left rounded-xl border border-slate-100 hover:border-slate-300 p-3 space-y-2 transition-colors">
-                        <div className="flex items-start justify-between gap-2">
-                          <span className="min-w-0">
-                            <span className="block text-sm font-semibold text-slate-900 truncate">{r.job.title}</span>
-                            <span className="block text-[11px] text-slate-500">{r.applied ? 'Applied' : 'Sent tests'}</span>
+                    <li key={c.test.id}>
+                      <button onClick={() => onOpenTest(c.test.id)} className={`w-full aspect-square rounded-2xl border p-3.5 flex flex-col justify-between text-left transition-colors ${band.card}`}>
+                        <span className="text-xs font-semibold text-slate-900 line-clamp-3">{c.test.title}</span>
+                        <span>
+                          <span className={`block font-mono text-3xl font-bold tabular-nums leading-none ${band.text}`}>{c.best ?? '—'}</span>
+                          <span className={`mt-1 block text-[10px] font-semibold ${band.text}`}>{c.best === null ? 'Left unfinished' : band.label}</span>
+                          <span className="block text-[10px] text-slate-500 truncate">
+                            {[c.rank && `#${c.rank} of ${c.of}`, c.attempts > 1 && `${c.attempts} attempts`, c.unfinished > 0 && c.best !== null && `${c.unfinished} left unfinished`].filter(Boolean).join(' · ') || formatDay(c.last)}
                           </span>
-                          <span className={`shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${stage.chip}`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${stage.dot}`} />
-                            {stage.label}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between gap-2 text-[11px] text-slate-500">
-                          <span className="inline-flex gap-px" aria-label={`Rated ${r.lead?.rating ?? 0} of 5`}>
-                            {[1, 2, 3, 4, 5].map((n) => (
-                              <Star key={n} className={`w-3 h-3 ${n <= (r.lead?.rating ?? 0) ? 'fill-amber-400 text-amber-400' : 'text-slate-200'}`} />
-                            ))}
-                          </span>
-                          <span>
-                            Fit <span className="font-mono font-semibold text-slate-800">{r.fit}%</span> &middot; tests {r.progress.done}/{r.progress.total}
-                          </span>
-                        </div>
+                        </span>
                       </button>
                     </li>
                   );
@@ -315,13 +255,57 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
             )}
           </section>
 
+          {/* Every attempt, company tests included, with dates and integrity: there when the company wants the detail */}
+          <details className="bg-white border border-slate-200 rounded-2xl shadow-xs group">
+            <summary className="px-6 py-4 cursor-pointer list-none flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+              Full test record
+              <ChevronDown className="w-4 h-4 transition-transform group-open:rotate-180" />
+            </summary>
+            <div className="px-6 pb-6">
+              <TestHistory
+                person={person}
+                tests={tests}
+                candidates={candidates}
+                businesses={businesses}
+                companyResultsFor={business ? business.id : 'all'}
+                showIntegrity
+                onOpenTest={onOpenTest}
+                emptyText="No tests taken yet."
+              />
+            </div>
+          </details>
+        </div>
 
-
-          <section className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3">
-            <Heading>Integrity</Heading>
-            <IntegrityBadge sittings={sittings} size="md" />
-            <p className="text-[11px] text-slate-500 leading-relaxed">What Praxa's monitor saw while they took your jobs' tests: leaving the window, pasting and the like.</p>
+        <aside className="space-y-6 min-w-0 lg:sticky lg:top-6">
+          {/* Their work history as a timeline: the latest few, expandable to all of it */}
+          <section className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
+            <Heading aside={<span className="text-[10px] text-slate-400">In their own words</span>}>Work experience</Heading>
+            {jobsHeld.length === 0 ? (
+              <p className="text-xs text-slate-500">None added.</p>
+            ) : (
+              <>
+                <ExperienceList items={allHistory ? jobsHeld : jobsHeld.slice(0, HISTORY_SHOWN)} />
+                {jobsHeld.length > HISTORY_SHOWN && (
+                  <button onClick={() => setAllHistory((v) => !v)} className="mt-4 w-full text-xs font-semibold text-indigo-700 hover:text-indigo-900 inline-flex items-center justify-center gap-1">
+                    {allHistory ? 'Show less' : `Show full history (${jobsHeld.length - HISTORY_SHOWN} more)`}
+                    <ChevronDown className={`w-3.5 h-3.5 transition-transform ${allHistory ? 'rotate-180' : ''}`} />
+                  </button>
+                )}
+              </>
+            )}
           </section>
+
+          <section className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
+            <Heading>Education</Heading>
+            {person.education?.length ? <EducationList items={person.education} /> : <p className="text-xs text-slate-500">None added.</p>}
+          </section>
+
+          {!!person.certifications?.length && (
+            <section className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
+              <Heading>Certifications</Heading>
+              <CertificationList items={person.certifications} />
+            </section>
+          )}
         </aside>
       </div>
     </>
