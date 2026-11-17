@@ -38,8 +38,11 @@ export function fitSummary(person: User, job: JobPosting, tests: AssessmentTest[
   else if (job.testIds.length) concerns.push('Hasn’t taken your job simulation yet.');
 
   // Skills the job asks for that Praxa has proven, and the ones still unproven
-  const met = match.breakdown.filter((b) => b.meetsThreshold && b.candidateScore > 0);
-  const missed = match.breakdown.filter((b) => !b.meetsThreshold && b.importance === 'required');
+  // The job's own tests are covered above; these are the skills the company listed beyond them
+  const ownTest = new Set(job.requirements.filter((q) => q.testId && job.testIds.includes(q.testId)).map((q) => q.skillName));
+  const listed = match.breakdown.filter((b) => !ownTest.has(b.skillName));
+  const met = listed.filter((b) => b.meetsThreshold && b.candidateScore > 0);
+  const missed = listed.filter((b) => !b.meetsThreshold && b.importance === 'required');
   if (met.length) reasons.push(`Proven ${list(met.slice(0, 3).map((b) => `${b.skillName} (${b.candidateScore})`))} on Praxa, at or above what you asked for.`);
   if (missed.length) concerns.push(`${list(missed.slice(0, 3).map((b) => b.skillName))} ${missed.length === 1 ? 'isn’t' : 'aren’t'} proven to your minimum yet.`);
 

@@ -9,15 +9,12 @@ import { IntegrityBadge } from './IntegrityBadge';
 /**
  * Praxa's two halves side by side, for one applicant on one of the company's jobs: how they did on the company's job
  * simulation, then what their profile has already proven that the job needs (verified skills and where they rank),
- * then the gaps: what the job needs that nothing has verified, including skills they claim but haven't proven.
+ * then the gaps: required skills the company listed for the job (beyond its tests) that nothing has verified.
  */
 
-// Two skill names that mean the same thing: equal, or one inside the other (ignoring case, for names of 3+ letters)
-export const sameSkill = (a: string, b: string) => {
-  const x = a.trim().toLowerCase();
-  const y = b.trim().toLowerCase();
-  return x === y || (x.length >= 3 && y.length >= 3 && (x.includes(y) || y.includes(x)));
-};
+
+// The same skill, by name (ignoring case and spacing), so a job about SQL doesn't pull in every skill with "SQL" in it
+const sameName = (a: string, b: string) => a.trim().toLowerCase().replace(/\s+/g, ' ') === b.trim().toLowerCase().replace(/\s+/g, ' ');
 
 export const ApplicantSummary: React.FC<{
   person: User;
@@ -36,13 +33,18 @@ export const ApplicantSummary: React.FC<{
       <div className="divide-y divide-slate-100">
         {rows.map((r) => {
           const jobTests = r.job.testIds.map((id) => tests.find((t) => t.id === id)).filter((t): t is AssessmentTest => !!t);
-          // What the job needs: its listed requirements, and what its own tests cover
-          const needs = [...new Set([...r.job.requirements.map((q) => q.skillName), ...jobTests.flatMap((t) => t.skillsTested)].filter(Boolean))].slice(0, 12);
+          // What the job asks for beyond its own tests (those are shown above with their scores): the skills the company
+          // listed itself. A job made in the job form lists only its tests, so usually there are none
+          const extra = r.job.requirements.filter((q) => !(q.testId && r.job.testIds.includes(q.testId)));
+          const needs = [...new Set(extra.map((q) => q.skillName).filter(Boolean))];
+          // Proven on Praxa and relevant: a skill the job lists, or exactly one the job's tests check
+          const relevant = [...needs, ...jobTests.flatMap((t) => t.skillsTested)];
           const proven = person.verifiedSkills
-            .filter((v) => needs.some((n) => sameSkill(n, v.skillName)) || jobTests.some((t) => t.category === v.category))
+            .filter((v) => relevant.some((n) => sameName(n, v.skillName)))
             .sort((a, b) => b.score - a.score)
             .slice(0, 5);
-          const gaps = needs.filter((n) => !person.verifiedSkills.some((v) => sameSkill(n, v.skillName)));
+          // Only the required skills the company listed that nothing has verified
+          const gaps = extra.filter((q) => q.importance === 'required' && !person.verifiedSkills.some((v) => sameName(q.skillName, v.skillName))).map((q) => q.skillName);
           const stage = stageInfo(r.stage);
           return (
             <div key={r.id} className="px-6 py-5 space-y-4">
@@ -105,10 +107,10 @@ export const ApplicantSummary: React.FC<{
               <div className="space-y-2">
                 <h3 className="text-xs font-bold text-slate-800 inline-flex items-center gap-1.5">
                   <BadgeCheck className="w-3.5 h-3.5 text-indigo-600" />
-                  Proven on their profile
+                  Also proven on Praxa
                 </h3>
                 {proven.length === 0 ? (
-                  <p className="text-xs text-slate-500">Nothing on their profile verifies what this job needs yet.</p>
+                  <p className="text-xs text-slate-500">No other Praxa test they've passed covers this job's skills.</p>
                 ) : (
                   <ul className="flex flex-wrap gap-2">
                     {proven.map((v) => {
@@ -134,7 +136,7 @@ export const ApplicantSummary: React.FC<{
                 <div className="space-y-2">
                   <h3 className="text-xs font-bold text-slate-800 inline-flex items-center gap-1.5">
                     <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
-                    Not verified yet
+                    Skills you listed, not verified yet
                   </h3>
                   <ul className="flex flex-wrap gap-2">
                     {gaps.map((g) => (
