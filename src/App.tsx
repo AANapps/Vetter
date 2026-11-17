@@ -30,6 +30,7 @@ import { GlobalSearch } from './components/GlobalSearch';
 import { PersonProfileModal } from './components/PersonProfileModal';
 import { backOr, pushPage, replacePage } from './lib/back';
 import { CandidateProfilePage } from './components/CandidateProfilePage';
+import { HomeNudges } from './components/HomeNudges';
 import { BrowseCandidates } from './components/BrowseCandidates';
 import { BusinessJobs } from './components/BusinessJobs';
 import { JobTestsEditor } from './components/JobTestsEditor';
@@ -1722,6 +1723,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
                 onOpenTest={openTestPage}
                 onGoTo={goToTab}
                 visitor={isVisitor ? { onJoin: () => setAuthDialog({ mode: 'sign-up' }), onSignIn: () => setAuthDialog({ mode: 'sign-in' }) } : undefined}
+                sector={sector}
               />
               <div className="space-y-4 lg:col-start-3 lg:row-start-1">
                 <TopPerformers tests={sectorTests} allCandidates={allCandidates} onOpenTest={openTestPage} onOpenRanked={() => goToTab('ranked')} />
@@ -1733,6 +1735,8 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
                   onToggleFollow={(id) => requireAccount('Join Praxa to follow people and companies.', () => toggleFollow(id))}
                 />
               </div>
+              <div className="min-w-0 space-y-4">
+              {!isVisitor && <HomeNudges candidate={candidate} tests={sectorTests} jobs={sectorJobs} sector={sector} onOpenTest={openTestPage} onGoTo={goToTab} />}
               <DiscoverFeed
                 candidate={candidate}
                 allCandidates={allCandidates}
@@ -1750,6 +1754,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
                   window.scrollTo(0, 0);
                 }}
               />
+              </div>
             </div>
           )}
 

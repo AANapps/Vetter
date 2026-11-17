@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import {
   ArrowRight,
   Award,
@@ -29,12 +29,8 @@ import { ProfileSidebar } from './ProfileSidebar';
 import { stageOf } from '../lib/audience';
 import { sortExperience } from '../lib/experience';
 import { getLeaderboard } from '../lib/leaderboard';
-import { getBestTestScore } from '../lib/matchingAlgorithm';
-import { levelsOf } from '../lib/testLevels';
-import { ROLE_GROUPS, ROLE_SECTIONS } from '../lib/testRoles';
-import { roleHidden, useLibraryVisibility } from '../lib/libraryVisibility';
-import { SectorId, industryInSector } from '../lib/sectors';
-import { jobsUsing } from '../lib/demand';
+import { SectorId } from '../lib/sectors';
+import { PASS, SILVER, StepAction, useProfileProgress } from '../lib/profileProgress';
 
 /**
  * The candidate's own profile, laid out like a LinkedIn profile: a cover and photo, their headline and links, then what
@@ -42,10 +38,6 @@ import { jobsUsing } from '../lib/demand';
  * their verified skills, then their experience, education, tests and applications. Proven skills only ever come from
  * passed tests, so most of the nudges here are tests.
  */
-
-// A score that verifies a skill, and the tiers above it
-const PASS = 75;
-const SILVER = 88;
 
 interface MyProfileProps {
   candidate: User;
@@ -75,29 +67,6 @@ interface MyProfileProps {
   // Saves a new name on their account; unset for visitors
   onRename?: (name: string) => void;
 }
-
-// The best score on any level of a test
-const bestOnAnyLevel = (candidate: User, test: AssessmentTest, tests: AssessmentTest[]) => {
-  const scores = levelsOf(test, tests)
-    .map((v) => getBestTestScore(candidate, v.id))
-    .filter((s): s is number => s !== undefined);
-  return scores.length ? Math.max(...scores) : undefined;
-};
-
-const readStored = (key: string) => {
-  try {
-    return window.localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-};
-const writeStored = (key: string, value: string) => {
-  try {
-    window.localStorage.setItem(key, value);
-  } catch {
-    /* private window: the pick just isn't remembered */
-  }
-};
 
 // A ring that fills as the profile does, drawn around the photo
 const Ring: React.FC<{ value: number; size: number; stroke: number; className?: string }> = ({ value, size, stroke, className }) => {
@@ -140,110 +109,24 @@ const EditButton: React.FC<{ onClick: () => void; label: string }> = ({ onClick,
 
 export const MyProfile: React.FC<MyProfileProps> = (p) => {
   const { candidate, shown, tests, jobs, allCandidates } = p;
-  const visibility = useLibraryVisibility();
-
-  // ---- The role they're working towards: picked here, else guessed from their profile or the tests they've taken
-  const roles = ROLE_GROUPS.filter((g) => industryInSector(p.sector)(g.industry))
-    .flatMap((g) => g.roles)
-    .filter((r) => ROLE_SECTIONS[r]?.length && !roleHidden(visibility, r));
-  const storeKey = `praxa-path-${candidate.id}`;
-  const guessedRole = useMemo<TestRole | undefined>(() => {
-    const text = `${p.activeProfile.name} ${shown.title}`.toLowerCase();
-    const named = roles.find((r) => text.includes(r.toLowerCase()));
-    if (named) return named;
-    const taken = new Set(candidate.testResults.map((r) => r.testId));
-    const byTaken = [...roles]
-      .map((r) => ({ r, n: ROLE_SECTIONS[r]!.filter((s) => s.testIds.some((id) => taken.has(id))).length }))
-      .sort((a, b) => b.n - a.n)[0];
-    return byTaken && byTaken.n > 0 ? byTaken.r : roles[0];
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [p.activeProfile.id, roles.join('|'), candidate.testResults.length]);
-  const [pickedRole, setPickedRole] = useState<TestRole | undefined>(() => (readStored(storeKey) as TestRole) || undefined);
-  useEffect(() => {
-    if (pickedRole) writeStored(storeKey, pickedRole);
-  }, [pickedRole, storeKey]);
-  const role = pickedRole && roles.includes(pickedRole) ? pickedRole : guessedRole;
-
-  // Each of the role's modules, with their best score on it
-  const path = (role ? ROLE_SECTIONS[role] ?? [] : [])
-    .map((sec) => {
-      const test = tests.find((t) => t.id === sec.testIds[0]);
-      if (!test) return null;
-      const best = bestOnAnyLevel(candidate, test, tests);
-      const isSim = /simulation/i.test(sec.label);
-      return { sec, test, best, isSim, wanted: jobsUsing(test, tests, jobs) };
-    })
-    .filter((m): m is NonNullable<typeof m> => !!m);
-  const passedModules = path.filter((m) => m.best !== undefined && m.best >= PASS);
-  // What to do next: a module not started (skills before the job simulation), else one not yet passed
-  const nextModule =
-    path.filter((m) => !m.isSim).find((m) => m.best === undefined) ??
-    path.find((m) => m.best === undefined) ??
-    path.find((m) => m.best !== undefined && m.best < PASS);
-  const pathPct = path.length ? Math.round((passedModules.length / path.length) * 100) : 0;
-
-  // ---- Profile strength: the profile itself counts for a little, proving skills for most of it
-  const passedAny = candidate.verifiedSkills.length > 0;
-  const simDone = path.some((m) => m.isSim && m.best !== undefined && m.best >= PASS) || candidate.testResults.some((r) => /simulation/i.test(tests.find((t) => t.id === r.testId)?.title ?? '') && r.score >= PASS);
-  const steps: { id: string; label: string; hint: string; weight: number; done: boolean; cta: string; action: () => void; test?: boolean }[] = [
-    { id: 'headline', label: 'Write a headline', hint: 'The line under your name, e.g. "Data Analyst · SQL and Power BI".', weight: 5, done: !!shown.title?.trim(), cta: 'Add', action: p.onEditProfile },
-    { id: 'about', label: 'Write your About', hint: 'Two or three sentences on what you do and want next.', weight: 5, done: (shown.bio?.trim().length ?? 0) >= 40, cta: 'Add', action: p.onEditProfile },
-    { id: 'experience', label: 'Add your experience', hint: 'Jobs, internships and placements. Or fill it in from your CV.', weight: 10, done: !!candidate.experience?.length, cta: 'Add', action: p.onEditExperience },
-    { id: 'education', label: 'Add your education', hint: 'Your degree, qualifications or certifications.', weight: 5, done: !!(candidate.education?.length || candidate.certifications?.length), cta: 'Add', action: p.onEditEducation },
-    { id: 'links', label: 'Add a link', hint: 'LinkedIn, GitHub or a portfolio.', weight: 5, done: !!candidate.links?.length, cta: 'Add', action: p.onEditStudies },
-    {
-      id: 'first',
-      label: 'Prove your first skill',
-      hint: `Score ${PASS}+ on any Praxa test and the skill goes on your profile, verified.`,
-      weight: 25,
-      done: passedAny,
-      cta: 'Take a test',
-      action: () => (nextModule ? p.onOpenTest(nextModule.test.id) : p.onFindTests()),
-      test: true,
-    },
-    {
-      id: 'three',
-      label: 'Verify 3 skills',
-      hint: 'Companies shortlist candidates with several proven skills first.',
-      weight: 20,
-      done: candidate.verifiedSkills.length >= 3,
-      cta: 'Next test',
-      action: () => (nextModule ? p.onOpenTest(nextModule.test.id) : p.onFindTests()),
-      test: true,
-    },
-    {
-      id: 'sim',
-      label: 'Pass a job simulation',
-      hint: 'A whole working day on a desktop. The strongest proof you can do the job.',
-      weight: 15,
-      done: simDone,
-      cta: 'See it',
-      action: () => {
-        const sim = path.find((m) => m.isSim);
-        if (sim) p.onOpenTest(sim.test.id);
-        else p.onFindTests();
-      },
-      test: true,
-    },
-    {
-      id: 'silver',
-      label: `Reach Silver (${SILVER}+) on a test`,
-      hint: 'Silver and Gold put you near the top of the test’s leaderboard.',
-      weight: 10,
-      done: candidate.verifiedSkills.some((s) => s.score >= SILVER),
-      cta: 'Retake',
-      action: () => {
-        const close = [...candidate.verifiedSkills].sort((a, b) => b.score - a.score)[0];
-        if (close) p.onOpenTest(close.testId);
-        else p.onFindTests();
-      },
-      test: true,
-    },
-  ];
-  const strength = steps.reduce((sum, s) => sum + (s.done ? s.weight : 0), 0);
-  const level = strength >= 100 ? 'All-Star' : strength >= 70 ? 'Advanced' : strength >= 35 ? 'Intermediate' : 'Beginner';
-  // Tests come first when they're what's missing: they're what companies judge on
-  const todo = steps.filter((s) => !s.done).sort((a, b) => Number(!!b.test) - Number(!!a.test) || b.weight - a.weight);
+  const { roles, role, setRole, path, passedModules, nextModule, pathPct, passedAny, steps, strength, level, todo, testFor } = useProfileProgress({
+    candidate,
+    shown,
+    activeProfile: p.activeProfile,
+    tests,
+    jobs,
+    sector: p.sector,
+  });
+  // What each step's button does here
+  const run = (action: StepAction) => {
+    const testId = testFor(action);
+    if (testId) return p.onOpenTest(testId);
+    if (action === 'profile') return p.onEditProfile();
+    if (action === 'experience') return p.onEditExperience();
+    if (action === 'education') return p.onEditEducation();
+    if (action === 'details') return p.onEditStudies();
+    p.onFindTests();
+  };
   const [showAllSteps, setShowAllSteps] = useState(false);
 
   // ---- Their numbers
@@ -501,7 +384,7 @@ export const MyProfile: React.FC<MyProfileProps> = (p) => {
                   <div className="text-sm font-bold text-slate-900">{todo[0].label}</div>
                   <div className="text-xs text-slate-600">{todo[0].hint}</div>
                 </div>
-                <button onClick={todo[0].action} className="shrink-0 px-4 py-2 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold inline-flex items-center gap-1">
+                <button onClick={() => run(todo[0].action)} className="shrink-0 px-4 py-2 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold inline-flex items-center gap-1">
                   {todo[0].cta}
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
@@ -522,7 +405,7 @@ export const MyProfile: React.FC<MyProfileProps> = (p) => {
                     <span className={`flex-1 text-sm ${s.done ? 'text-slate-400 line-through' : 'text-slate-800 font-medium'}`}>{s.label}</span>
                     <span className="text-[11px] font-mono text-slate-400">+{s.weight}%</span>
                     {!s.done && (
-                      <button onClick={s.action} className="text-xs font-semibold text-indigo-700 hover:underline">
+                      <button onClick={() => run(s.action)} className="text-xs font-semibold text-indigo-700 hover:underline">
                         {s.cta}
                       </button>
                     )}
@@ -553,7 +436,7 @@ export const MyProfile: React.FC<MyProfileProps> = (p) => {
                 Working towards
                 <select
                   value={role}
-                  onChange={(e) => setPickedRole(e.target.value as TestRole)}
+                  onChange={(e) => setRole(e.target.value as TestRole)}
                   className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
                   {roles.map((r) => (

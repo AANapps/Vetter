@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { Pic } from './Pic';
-import { AssessmentTest, Business, JobPosting, User, isPublic, levelName } from '../types';
+import { AssessmentTest, Business, JobPosting, User } from '../types';
+import { SectorId } from '../lib/sectors';
+import { PASS, useProfileProgress } from '../lib/profileProgress';
 import { STATUS_LABELS, invitesFor, totalMinutes } from '../lib/jobTests';
 import { jobIdFromPath } from '../lib/jobSeo';
 import { activeProfileOf } from '../lib/jobProfiles';
-import { isMainVersion } from '../lib/testLevels';
-import { ArrowRight, Briefcase, ClipboardCheck, Link2, MapPin, Play } from 'lucide-react';
+import { ArrowRight, Briefcase, Link2, MapPin, Play } from 'lucide-react';
 
 interface CandidateHomeProps {
   candidate: User;
@@ -18,6 +19,7 @@ interface CandidateHomeProps {
   onGoTo: (tab: 'tests' | 'jobs' | 'profile') => void;
   // Someone not signed in: they see an invitation to join instead of a profile
   visitor?: { onJoin: () => void; onSignIn: () => void };
+  sector: SectorId;
 }
 
 const DAY = 86400000;
@@ -43,17 +45,12 @@ const jobIdFromLink = (text: string) => {
 };
 
 // A candidate's home: the jobs whose tests companies sent them, what's left to do and how they did
-export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, jobs, tests, businesses, onOpenJob, onStartTest, onOpenTest, onGoTo, visitor }) => {
+export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, jobs, tests, businesses, onOpenJob, onStartTest, onOpenTest, onGoTo, visitor, sector }) => {
   const items = visitor ? [] : invitesFor(candidate, jobs);
   const open = items.filter((i) => i.progress.score === undefined);
   const finished = items.filter((i) => i.progress.score !== undefined);
-  // Praxa tests to take next: ones they haven't tried, in their usual categories first
-  const takenIds = new Set(candidate.testResults.map((r) => r.testId));
-  const theirCategories = new Set(candidate.verifiedSkills.map((s) => s.category));
-  const suggested = tests
-    .filter((t) => isPublic(t) && isMainVersion(t) && !takenIds.has(t.id))
-    .sort((a, b) => Number(theirCategories.has(b.category)) - Number(theirCategories.has(a.category)))
-    .slice(0, 3);
+  const profile = activeProfileOf(candidate);
+  const progress = useProfileProgress({ candidate, shown: { title: profile.title ?? '', bio: profile.bio ?? '' }, activeProfile: profile, tests, jobs, sector });
   const bestScore = candidate.testResults.length ? Math.max(...candidate.testResults.map((r) => r.score)) : undefined;
   const [pasted, setPasted] = useState('');
   const [linkError, setLinkError] = useState(false);
@@ -90,29 +87,67 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, jobs, t
         </section>
       ) : (
       <>
-      {/* Who you are at a glance: photo, name, what you do, and your record on Praxa */}
+      {/* Who you are at a glance, LinkedIn-style: cover, photo ringed by profile strength, headline, numbers */}
       <section className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
-        <div className="h-14 bg-indigo-700" />
-        <div className="px-5 pb-5 -mt-8 space-y-3">
-          <button onClick={() => onGoTo('profile')} aria-label="Open your profile" className="block rounded-full">
-            <Pic
-              src={candidate.avatarUrl}
-              alt=""
-              referrerPolicy="no-referrer"
-              className="w-16 h-16 rounded-full object-cover border-4 border-white bg-slate-100 shadow-xs"
-            />
+        <div
+          className="h-16 relative"
+          style={{ background: 'radial-gradient(circle at 85% 80%, rgba(56,189,248,0.45) 0, transparent 45%), linear-gradient(120deg, #312e81 0%, #4f46e5 45%, #7c3aed 100%)' }}
+        />
+        <div className="px-5 pb-5 -mt-10 space-y-3">
+          <button onClick={() => onGoTo('profile')} aria-label="Open your profile" className="relative block w-20 h-20 rounded-full" title={`Profile strength: ${progress.strength}%`}>
+            <svg width="80" height="80" className="absolute inset-0 text-emerald-500" aria-hidden="true">
+              <circle cx="40" cy="40" r="37" fill="none" stroke="white" strokeWidth="6" />
+              <circle cx="40" cy="40" r="37" fill="none" stroke="currentColor" strokeOpacity="0.15" strokeWidth="4" />
+              <circle
+                cx="40"
+                cy="40"
+                r="37"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="4"
+                strokeLinecap="round"
+                strokeDasharray={2 * Math.PI * 37}
+                strokeDashoffset={2 * Math.PI * 37 * (1 - progress.strength / 100)}
+                transform="rotate(-90 40 40)"
+              />
+            </svg>
+            <Pic src={candidate.avatarUrl} alt="" referrerPolicy="no-referrer" className="absolute inset-[6px] w-[68px] h-[68px] rounded-full object-cover bg-slate-100" />
           </button>
           <div className="space-y-0.5">
-            <h1 className="text-lg font-bold text-slate-900 tracking-tight">{candidate.name}</h1>
-            {activeProfileOf(candidate).title && <p className="text-sm text-slate-700">{activeProfileOf(candidate).title}</p>}
+            <button onClick={() => onGoTo('profile')} className="text-lg font-bold text-slate-900 tracking-tight hover:underline text-left">
+              {candidate.name}
+            </button>
+            {activeProfileOf(candidate).title ? (
+              <p className="text-sm text-slate-700 leading-snug">{activeProfileOf(candidate).title}</p>
+            ) : (
+              <button onClick={() => onGoTo('profile')} className="text-sm text-indigo-700 hover:underline">
+                + Add a headline
+              </button>
+            )}
             {candidate.location && (
               <p className="text-xs text-slate-500 flex items-center gap-1">
                 <MapPin className="w-3 h-3" />
                 {candidate.location}
-                {candidate.yearsExperience > 0 && <> &middot; {candidate.yearsExperience} yrs experience</>}
               </p>
             )}
           </div>
+
+          {/* Profile strength, with what to do about it */}
+          <button onClick={() => onGoTo('profile')} className="w-full text-left pt-3 border-t border-slate-100 space-y-1.5 group">
+            <span className="flex items-center justify-between text-xs">
+              <span className="font-semibold text-slate-800">Profile strength: {progress.level}</span>
+              <span className="font-mono font-bold tabular-nums text-emerald-700">{progress.strength}%</span>
+            </span>
+            <span className="block h-1.5 rounded-full bg-slate-100 overflow-hidden">
+              <span className="block h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400" style={{ width: `${progress.strength}%` }} />
+            </span>
+            {progress.todo[0] && (
+              <span className="block text-[11px] text-slate-500 group-hover:text-indigo-700">
+                Next: {progress.todo[0].label.toLowerCase()} <span className="font-semibold">+{progress.todo[0].weight}%</span>
+              </span>
+            )}
+          </button>
+
           <dl className="grid grid-cols-3 gap-2 pt-3 border-t border-slate-100 text-center">
             {[
               { label: 'Verified skills', value: candidate.verifiedSkills.length },
@@ -125,20 +160,49 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, jobs, t
               </div>
             ))}
           </dl>
-          <button
-            onClick={() => onGoTo('profile')}
-            className="w-full py-2 text-xs font-semibold text-indigo-700 border border-indigo-200 hover:bg-indigo-50 rounded-lg transition-colors"
-          >
-            View profile
-          </button>
         </div>
       </section>
 
-      <p className="text-sm text-slate-500 -mt-4">
-        {open.length === 0
-          ? 'Take a test any time to build your profile. Companies see your verified scores.'
-          : `${open.length} ${open.length === 1 ? 'job wants' : 'jobs want'} you to take their tests.`}
-      </p>
+      {/* Their role's path in miniature: a dot for each module */}
+      {progress.role && progress.path.length > 0 && (
+        <section className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Your path</div>
+              <div className="text-sm font-bold text-slate-900 truncate">{progress.role}</div>
+            </div>
+            <span className="text-sm font-bold font-mono tabular-nums text-indigo-700">
+              {progress.passedModules.length}/{progress.path.length}
+            </span>
+          </div>
+          <div className="flex gap-1">
+            {progress.path.map((m) => (
+              <button
+                key={m.sec.id}
+                onClick={() => onOpenTest(m.test.id)}
+                title={`${m.sec.label}: ${m.best === undefined ? 'not started' : m.best}`}
+                className={`h-2 flex-1 rounded-full ${m.best !== undefined && m.best >= PASS ? 'bg-emerald-500' : m.best !== undefined ? 'bg-amber-400' : 'bg-slate-200 hover:bg-indigo-300'}`}
+              />
+            ))}
+          </div>
+          {progress.nextModule && (
+            <button onClick={() => onOpenTest(progress.nextModule!.test.id)} className="w-full p-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-left flex items-center gap-3">
+              <Play className="w-4 h-4 fill-current shrink-0" />
+              <span className="min-w-0 flex-1">
+                <span className="block text-[10px] font-semibold uppercase tracking-wide text-indigo-300">Up next</span>
+                <span className="block text-sm font-semibold truncate">{progress.nextModule.sec.label}</span>
+              </span>
+              <span className="text-[11px] text-slate-300 shrink-0">~{progress.nextModule.test.estimatedMinutes} min</span>
+            </button>
+          )}
+        </section>
+      )}
+
+      {open.length > 0 && (
+        <p className="text-sm font-semibold text-slate-800 -mb-4">
+          {open.length} {open.length === 1 ? 'job wants' : 'jobs want'} you to take their tests
+        </p>
+      )}
       </>
       )}
 
@@ -182,46 +246,6 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, jobs, t
           })}
         </ul>
       )}
-
-      <section className="space-y-3">
-        <div className="flex items-end justify-between gap-3">
-          <div>
-            <h2 className="text-sm font-bold text-slate-900">Take a test</h2>
-            <p className="text-xs text-slate-500">No invite needed. Your best score on each goes on your profile.</p>
-          </div>
-          <button onClick={() => onGoTo('tests')} className="text-xs font-semibold text-indigo-700 hover:underline shrink-0">
-            All tests
-          </button>
-        </div>
-        <ul className="bg-white border border-slate-200 rounded-2xl divide-y divide-slate-100">
-          {suggested.length === 0 && (
-            <li className="px-5 py-4 text-xs text-slate-500">
-              You've taken every test.{' '}
-              <button onClick={() => onGoTo('tests')} className="font-semibold text-indigo-700 hover:underline">
-                Retake one to raise your score
-              </button>
-            </li>
-          )}
-          {suggested.map((t) => (
-            <li key={t.id} className="px-5 py-3.5 flex items-center gap-3">
-              <ClipboardCheck className="w-5 h-5 text-indigo-600 shrink-0" />
-              <button onClick={() => onOpenTest(t.id)} className="min-w-0 flex-1 text-left group">
-                <span className="block text-sm font-semibold text-slate-900 group-hover:text-indigo-700 truncate">{t.title}</span>
-                <span className="block text-xs text-slate-500">
-                  {t.category} &middot; {levelName(t.difficulty)} &middot; ~{t.estimatedMinutes} min
-                </span>
-              </button>
-              <button
-                onClick={() => onStartTest(t)}
-                className="px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg flex items-center gap-1.5 shrink-0"
-              >
-                <Play className="w-3 h-3 fill-current" />
-                Start
-              </button>
-            </li>
-          ))}
-        </ul>
-      </section>
 
       <form onSubmit={openPasted} className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
         <label htmlFor="paste-link" className="flex items-center gap-1.5 text-sm font-bold text-slate-900">
