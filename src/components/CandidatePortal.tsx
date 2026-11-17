@@ -11,9 +11,8 @@ import { LevelPicker } from './LevelPicker';
 import { DemandBadge } from './DemandBadge';
 import { DEMAND_SOURCES, demandFor, jobsUsing } from '../lib/demand';
 import { rankJobsForCandidate, getBestTestScore, calculateCandidateJobMatch } from '../lib/matchingAlgorithm';
-import { getLeaderboard, getTestStats } from '../lib/leaderboard';
+import { getTestStats } from '../lib/leaderboard';
 import {
-  Award,
   CheckCircle2,
   Briefcase,
   Play,
@@ -21,9 +20,6 @@ import {
   DollarSign,
   Search,
   Send,
-  Pencil,
-  Plus,
-  GraduationCap,
   SlidersHorizontal,
   X,
   ChevronRight,
@@ -33,20 +29,15 @@ import {
   Trophy,
   Target,
   Circle,
-  Sparkles,
 } from 'lucide-react';
-import { VerifiedSkillBadge, TierLegend, getBadgeTier } from './VerifiedSkillBadge';
 import { JobApplicationModal } from './JobApplicationModal';
 import { JobDetailsModal, JobPage, JobTests, getJobTests } from './JobDetails';
 import { JobProfileEditor } from './JobProfileEditor';
 import { Studies, StudiesEditor } from './StudiesEditor';
 import { ExperienceDetails, ExperienceEditor } from './ExperienceEditor';
-import { CertificationList, EducationList, ExperienceList, ProfileLinks } from './ExperienceList';
 import { EducationDetails, EducationEditor } from './EducationEditor';
 import { ProfileImportDialog } from './ProfileImportDialog';
-import { stageOf } from '../lib/audience';
-import { ProfileSidebar } from './ProfileSidebar';
-import { TestHistory } from './TestHistory';
+import { MyProfile } from './MyProfile';
 import { JobFilters } from './JobFilters';
 import { CITIES } from '../lib/geo';
 import { JobFilterState, MAX_RADIUS, countActiveFilters, defaultJobFilters, jobMatchesFilters } from '../lib/jobFilters';
@@ -144,8 +135,6 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
 
   // Compute live vector matches
   const rankedJobs: CandidateJobMatch[] = rankJobsForCandidate(candidate, activeJobs);
-  const bestScore = Math.max(...shown.verifiedSkills.map((s) => s.score), 0);
-  const bestTier = shown.verifiedSkills.length ? getBadgeTier(bestScore) : undefined;
 
   // Job board: every active job through the sidebar filters, sorted by newest or best fit
   const activeFilterCount = countActiveFilters(jobFilters, defaultJobFilters(homeCity));
@@ -313,438 +302,32 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
       )}
 
       {view === 'profile' && (
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-6 items-start">
-      <div className="min-w-0 space-y-8">
-
-      {/* Hero: Candidate Profile & Verification Passport Overview */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 space-y-6 shadow-xs">
-        {/* Job profiles: one for each kind of work */}
-        <div className="flex flex-wrap items-center gap-2 pb-5 border-b border-slate-200/80">
-          <span className="text-xs font-bold text-slate-900 mr-1">Job profiles</span>
-          {profiles.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => onUpdateProfiles(profiles, p.id)}
-              aria-pressed={p.id === activeProfile.id}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
-                p.id === activeProfile.id
-                  ? 'bg-indigo-600 border-indigo-600 text-white'
-                  : 'bg-white border-slate-200 text-slate-700 hover:border-indigo-300 hover:text-indigo-700'
-              }`}
-            >
-              {p.name}
-            </button>
-          ))}
-          <button
-            onClick={() =>
-              setEditingProfile({ profile: { id: `profile-${Date.now()}`, name: '', title: '', bio: '', skillIds: [] }, isNew: true })
-            }
-            className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-dashed border-slate-300 text-slate-600 hover:border-indigo-300 hover:text-indigo-700 flex items-center gap-1 transition-colors"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>New profile</span>
-          </button>
-          <button
-            onClick={() => setEditingProfile({ profile: activeProfile, isNew: false })}
-            className="ml-auto text-xs font-semibold text-indigo-700 hover:underline flex items-center gap-1"
-          >
-            <Pencil className="w-3.5 h-3.5" />
-            <span>Edit {activeProfile.name} profile</span>
-          </button>
-        </div>
-
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-start sm:items-center gap-5">
-            <div className="w-16 h-16 rounded-2xl overflow-hidden border border-slate-200 shrink-0 bg-slate-100 shadow-xs">
-              <Pic
-                src={candidate.avatarUrl}
-                alt={candidate.name}
-                referrerPolicy="no-referrer"
-                className="w-full h-full object-cover"
-              />
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-center gap-3">
-                <h1 className="text-xl font-bold text-slate-900 tracking-tight">{candidate.name}</h1>
-                {bestTier && bestTier.tierKey !== 'developing' && (
-                  <span className={`text-xs font-semibold ${bestTier.badgeTextColor}`} title={`Best verified result: ${bestTier.label}`}>
-                    {bestTier.label} verified
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-slate-700 font-medium">{shown.title}</p>
-              <div className="flex items-center gap-2 text-xs text-slate-500">
-                <span className="flex items-center gap-1">
-                  <MapPin className="w-3 h-3 text-slate-400" />
-                  {candidate.location}
-                </span>
-                <span aria-hidden="true">&middot;</span>
-                <span>{candidate.yearsExperience} yrs experience</span>
-                <span aria-hidden="true">&middot;</span>
-                <span className="text-indigo-600 font-semibold">{candidate.workPreference}</span>
-              </div>
-              <button onClick={() => setEditingStudies(true)} className="text-xs text-slate-600 hover:text-indigo-700 flex items-center gap-1">
-                <GraduationCap className="w-3 h-3 text-slate-400" />
-                {stageOf(candidate) === 'Working'
-                  ? candidate.studySubject
-                    ? `Studied ${candidate.studySubject}${candidate.university ? ` at ${candidate.university}` : ''}`
-                    : 'Add your studies'
-                  : `${candidate.studySubject ?? ''} ${stageOf(candidate).toLowerCase()}${candidate.university ? ` at ${candidate.university}` : ''}`.trim()}
-                <span className="text-indigo-600 font-semibold ml-1">Edit</span>
-              </button>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => onNavigate('tests')}
-              className="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors flex items-center gap-2 shadow-xs"
-            >
-              <Play className="w-3.5 h-3.5 fill-current" />
-              <span>Take a Test</span>
-            </button>
-            <button
-              onClick={() => onNavigate('jobs')}
-              className="px-3.5 py-2 text-xs font-semibold text-slate-700 hover:text-indigo-700 bg-white hover:bg-indigo-50/70 border border-slate-200 hover:border-indigo-200 rounded-lg transition-colors flex items-center gap-1.5 shadow-2xs"
-            >
-              <Briefcase className="w-3.5 h-3.5 text-indigo-600" />
-              <span>Browse Jobs</span>
-            </button>
-          </div>
-        </div>
-
-        {shown.bio && <p className="text-sm text-slate-600 leading-relaxed">{shown.bio}</p>}
-
-        {/* Dynamic Verified Skill Badges Showcase in Hero */}
-        <div className="pt-4 border-t border-slate-200/80 space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs gap-2">
-            <span className="text-xs font-bold text-slate-900 tracking-tight flex items-center gap-1.5">
-              <span>Earned Verified Skill Badges</span>
-            </span>
-            <TierLegend />
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2.5">
-            {shown.verifiedSkills.length === 0 && (
-              <p className="text-xs text-slate-500">
-                This profile doesn't show any verified skills yet.{' '}
-                <button
-                  onClick={() => setEditingProfile({ profile: activeProfile, isNew: false })}
-                  className="font-semibold text-indigo-700 hover:underline"
-                >
-                  Choose skills to show
-                </button>
-              </p>
-            )}
-            {shown.verifiedSkills.map((skill) => (
-              <VerifiedSkillBadge
-                key={skill.skillId}
-                skill={skill}
-                variant="compact"
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* Metric Strip */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-slate-200">
-          <div>
-            <div className="text-xs text-slate-500 font-medium">Verified Skills</div>
-            <div className="text-2xl font-bold text-slate-900 font-mono tabular-nums">
-              {shown.verifiedSkills.length}
-            </div>
-          </div>
-          <div>
-            <div className="text-xs text-slate-500 font-medium">Top Benchmark</div>
-            <div className={`text-2xl font-bold font-mono tabular-nums ${bestTier?.badgeTextColor ?? 'text-slate-900'}`}>
-              {bestScore}
-              <span className="text-xs font-normal text-slate-400">/100{bestTier ? ` (${bestTier.colorName})` : ''}</span>
-            </div>
-          </div>
-          <div>
-            <div className="text-xs text-slate-500 font-medium">Global Percentile</div>
-            <div className="text-2xl font-bold text-indigo-600 font-mono tabular-nums">
-              {Math.max(...shown.verifiedSkills.map((s) => s.percentile), 0)}th
-            </div>
-          </div>
-          <div>
-            <div className="text-xs text-slate-500 font-medium">Best Match Fit</div>
-            <div className="text-2xl font-bold text-indigo-700 font-mono tabular-nums">
-              {rankedJobs[0]?.overallFitPercentage || 0}%
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Filling the profile in one go from a CV, offered until there's experience on it */}
-      {!candidate.experience?.length && (
-        <button
-          onClick={() => setImportingCv(true)}
-          className="w-full text-left p-5 rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 via-violet-50 to-white hover:border-indigo-400 flex items-center gap-4 shadow-xs"
-        >
-          <span className="w-10 h-10 shrink-0 rounded-xl bg-indigo-600 text-white flex items-center justify-center">
-            <Sparkles className="w-5 h-5" />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-sm font-bold text-slate-900">Fill in your profile from your CV</span>
-            <span className="block text-xs text-slate-600">Add your CV (or paste your LinkedIn) and Praxa fills in your experience, education and certifications for you to check.</span>
-          </span>
-          <ChevronRight className="w-5 h-5 text-indigo-400 shrink-0" />
-        </button>
-      )}
-
-      {/* Experience: their own account of their work as a timeline, as on a CV */}
-      <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 className="text-base font-bold text-slate-900">Experience</h2>
-            <p className="text-xs text-slate-500">Your jobs, internships and placements. Companies see this on your profile; verified skills come from Praxa's tests.</p>
-          </div>
-          <div className="shrink-0 flex items-center gap-2">
-            <button
-              onClick={() => setImportingCv(true)}
-              className="px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-white border border-indigo-200 hover:border-indigo-400 rounded-lg inline-flex items-center gap-1.5"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              From your CV
-            </button>
-            <button
-              onClick={() => setEditingExperience(true)}
-              className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:border-indigo-300 hover:text-indigo-700 rounded-lg inline-flex items-center gap-1.5"
-            >
-              <Pencil className="w-3.5 h-3.5" />
-              {candidate.experience?.length ? 'Edit' : 'Add'}
-            </button>
-          </div>
-        </div>
-        {candidate.experience?.length ? (
-          <ExperienceList items={candidate.experience} />
-        ) : (
-          <button onClick={() => setEditingExperience(true)} className="w-full p-5 rounded-xl border border-dashed border-slate-300 text-sm text-slate-500 hover:border-indigo-300 hover:text-indigo-700">
-            Add the jobs, internships or placements you've had
-          </button>
-        )}
-      </section>
-
-      {/* Education and certifications, below the experience */}
-      <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-5">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 className="text-base font-bold text-slate-900">Education and certifications</h2>
-            <p className="text-xs text-slate-500">Where you studied and the certifications you hold.</p>
-          </div>
-          <button
-            onClick={() => setEditingEducation(true)}
-            className="shrink-0 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:border-indigo-300 hover:text-indigo-700 rounded-lg inline-flex items-center gap-1.5"
-          >
-            <Pencil className="w-3.5 h-3.5" />
-            {candidate.education?.length || candidate.certifications?.length ? 'Edit' : 'Add'}
-          </button>
-        </div>
-        {candidate.education?.length || candidate.certifications?.length ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-3">
-              <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Education</h3>
-              {candidate.education?.length ? <EducationList items={candidate.education} /> : <p className="text-xs text-slate-500">None added.</p>}
-            </div>
-            <div className="space-y-3">
-              <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Certifications</h3>
-              {candidate.certifications?.length ? <CertificationList items={candidate.certifications} /> : <p className="text-xs text-slate-500">None added.</p>}
-            </div>
-          </div>
-        ) : (
-          <button onClick={() => setEditingEducation(true)} className="w-full p-5 rounded-xl border border-dashed border-slate-300 text-sm text-slate-500 hover:border-indigo-300 hover:text-indigo-700">
-            Add your degree, qualifications or certifications
-          </button>
-        )}
-      </section>
-
-      {/* SECTION 1: VERIFIED SKILL PASSPORT */}
-        <div className="space-y-6">
-          <div className="flex flex-col gap-3">
-            <div>
-              <h2 className="text-base font-bold text-slate-900">Verified Skill Credentials & Badges</h2>
-              <p className="text-xs text-slate-500">
-                Scores from proctored, auto-graded tests. Open any badge to see and share its credential.
-              </p>
-            </div>
-
-            <TierLegend />
-          </div>
-
-          {/* High-Scoring Showcase Banner (Highlights 95+ Gold Master credentials) */}
-          {shown.verifiedSkills.some((s) => s.score >= 95) && (
-            <div className="space-y-2">
-              <div className="text-xs font-semibold text-slate-700">Featured</div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {shown.verifiedSkills
-                  .filter((s) => s.score >= 95)
-                  .map((skill) => (
-                    <VerifiedSkillBadge
-                      key={`showcase-${skill.skillId}`}
-                      skill={skill}
-                      variant="showcase"
-                    />
-                  ))}
-              </div>
-            </div>
-          )}
-
-          {/* Grid of All Verified Skill Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {shown.verifiedSkills.map((skill) => (
-              <VerifiedSkillBadge
-                key={skill.skillId}
-                skill={skill}
-                variant="card"
-                topPerformers={getLeaderboard(skill.testId, allCandidates).slice(0, 3)}
-                currentCandidateId={candidate.id}
-                onViewLeaderboard={() => onOpenTest(skill.testId)}
-              />
-            ))}
-
-            {/* Prompt to take more tests */}
-            <div className="border border-dashed border-slate-300 rounded-xl p-5 flex flex-col items-center justify-center text-center space-y-3 bg-white shadow-2xs">
-              <Award className="w-8 h-8 text-indigo-400" />
-              <div>
-                <h4 className="text-xs font-bold text-slate-900">Unlock Distributed Systems</h4>
-                <p className="text-[11px] text-slate-500 mt-1 max-w-xs">
-                  Score 95+ to earn the Gold Master badge and unlock top-tier engineering requisitions.
-                </p>
-              </div>
-              <button
-                onClick={() => {
-                  const sysTest = tests.find((t) => t.category === 'System Architecture');
-                  if (sysTest) onStartTest(sysTest);
-                  else onNavigate('tests');
-                }}
-                className="px-3.5 py-1.5 text-xs font-semibold text-indigo-700 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors"
-              >
-                Start Architecture Test
-              </button>
-            </div>
-          </div>
-
-          {/* Every test taken, Praxa's and companies' */}
-          <div className="space-y-3">
-            <div>
-              <h2 className="text-base font-bold text-slate-900">Your tests</h2>
-              <p className="text-xs text-slate-500">
-                Everything you've taken, every attempt. Others see your Praxa tests; results on a company's test go to that company only. You can hide a test from your public profile, but companies still see it.
-              </p>
-            </div>
-            <TestHistory
-              person={candidate}
-              tests={tests}
-              candidates={allCandidates}
-              businesses={businesses}
-              companyResultsFor="all"
-              onOpenTest={onOpenTest}
-              onToggleHidden={onToggleHidden}
-              emptyText="You haven't taken a test yet."
-            />
-          </div>
-
-          {/* My Applications */}
-          <div className="space-y-3">
-            <h2 className="text-base font-bold text-slate-900">My Applications</h2>
-            {appliedJobs.length === 0 ? (
-              <p className="text-xs text-slate-500">
-                You haven't applied to any jobs yet.{' '}
-                <button onClick={() => onNavigate('jobs')} className="text-indigo-600 font-semibold hover:underline">
-                  Browse the job board
-                </button>
-              </p>
-            ) : (
-              <div className="bg-white border border-slate-200 rounded-xl divide-y divide-slate-200 shadow-2xs">
-                {appliedJobs.map((job) => (
-                  <div key={job.id} className="p-4 flex flex-wrap items-center justify-between gap-3 text-xs">
-                    <div className="flex items-center gap-3">
-                      <Pic
-                        src={job.companyLogo}
-                        alt={job.companyName}
-                        referrerPolicy="no-referrer"
-                        className="w-8 h-8 rounded-lg object-cover border border-slate-200"
-                      />
-                      <div>
-                        <button onClick={() => onOpenJob(job.id)} className="font-bold text-slate-900 hover:text-indigo-700 transition-colors text-left">
-                          {job.title}
-                        </button>
-                        <div className="text-slate-500">{job.companyName} &middot; {job.location}</div>
-                      </div>
-                    </div>
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                      Applied
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="space-y-4 min-w-0">
-      {/* The narrow column: their skills (only ones a test has proven), their details and links, then what to do next */}
-      <section className="bg-white border border-slate-200 rounded-xl p-5 space-y-3 shadow-xs">
-        <div>
-          <h2 className="text-sm font-bold text-slate-900">Skills</h2>
-          <p className="text-[11px] text-slate-500">Proven by Praxa's tests: a score of 75 or more adds the skill here.</p>
-        </div>
-        {candidate.verifiedSkills.length === 0 ? (
-          <button onClick={() => onNavigate('tests')} className="w-full p-4 rounded-lg border border-dashed border-slate-300 text-xs text-slate-500 hover:border-indigo-300 hover:text-indigo-700">
-            Take a test to prove your first skill
-          </button>
-        ) : (
-          <ul className="space-y-2">
-            {[...candidate.verifiedSkills]
-              .sort((a, b) => b.score - a.score)
-              .map((s) => (
-                <li key={s.skillId}>
-                  <button onClick={() => onOpenTest(s.testId)} className="w-full flex items-center justify-between gap-2 text-left group">
-                    <span className="min-w-0 truncate text-xs font-semibold text-slate-800 group-hover:text-indigo-700">{s.skillName}</span>
-                    <span className={`shrink-0 font-mono text-xs font-bold tabular-nums ${getBadgeTier(s.score).badgeTextColor}`}>{s.score}</span>
-                  </button>
-                </li>
-              ))}
-          </ul>
-        )}
-      </section>
-      <section className="bg-white border border-slate-200 rounded-xl p-5 space-y-3 shadow-xs">
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="text-sm font-bold text-slate-900">Details</h2>
-          <button onClick={() => setEditingStudies(true)} className="text-[11px] font-semibold text-indigo-700 hover:underline">
-            Edit
-          </button>
-        </div>
-        <dl className="space-y-1.5 text-xs">
-          {[
-            ['Location', candidate.location],
-            ['Works', candidate.workPreference],
-            ['Experience', candidate.yearsExperience ? `${candidate.yearsExperience} ${candidate.yearsExperience === 1 ? 'year' : 'years'}` : ''],
-            ['Stage', stageOf(candidate)],
-          ]
-            .filter(([, v]) => v)
-            .map(([k, v]) => (
-              <div key={k} className="flex justify-between gap-3">
-                <dt className="text-slate-500">{k}</dt>
-                <dd className="font-medium text-slate-900 text-right">{v}</dd>
-              </div>
-            ))}
-        </dl>
-        {candidate.links?.length ? <ProfileLinks links={candidate.links} /> : <p className="text-[11px] text-slate-500">Add LinkedIn, GitHub or a portfolio under Edit.</p>}
-      </section>
-      <ProfileSidebar
-        candidate={candidate}
-        tests={tests}
-        jobs={jobs}
-        rankedJobs={rankedJobs}
-        onOpenTest={onOpenTest}
-        onOpenJob={setOpenJobId}
-      />
-      </div>
-      </div>
+        <MyProfile
+          candidate={candidate}
+          shown={shown}
+          profiles={profiles}
+          activeProfile={activeProfile}
+          allCandidates={allCandidates}
+          tests={tests}
+          jobs={jobs}
+          businesses={businesses}
+          rankedJobs={rankedJobs}
+          appliedJobs={appliedJobs}
+          sector={sector}
+          onSwitchProfile={(id) => onUpdateProfiles(profiles, id)}
+          onNewProfile={() => setEditingProfile({ profile: { id: `profile-${Date.now()}`, name: '', title: '', bio: '', skillIds: [] }, isNew: true })}
+          onEditProfile={() => setEditingProfile({ profile: activeProfile, isNew: false })}
+          onEditStudies={() => setEditingStudies(true)}
+          onEditExperience={() => setEditingExperience(true)}
+          onEditEducation={() => setEditingEducation(true)}
+          onImportCv={() => setImportingCv(true)}
+          onFindTests={() => onNavigate('tests')}
+          onFindJobs={() => onNavigate('jobs')}
+          onOpenTest={onOpenTest}
+          onPreviewJob={setOpenJobId}
+          onOpenJob={onOpenJob}
+          onToggleHidden={onToggleHidden}
+        />
       )}
 
       {/* SECTION 2: JOB BOARD */}
