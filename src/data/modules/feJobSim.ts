@@ -1,14 +1,16 @@
-import { AssessmentTest, Question } from '../../types';
 import { DesktopConfig } from '../../lib/desktop';
-import { choice, multi, order, short, written } from '../questionKit';
-import { questionSet } from './daSets';
-import { tc } from '../simulationKit';
+import { jobSimulation } from './jobSimKit';
 
 /**
- * The Frontend Engineer job simulation: a day on Fernway's shop frontend, on the desktop. The product manager reports
- * two product-list bugs, the design spec (in the Browser) gives the checkout's postcode rule and leaves the phone rule
- * to the designer, who answers when asked. The code is in the Code app; Praxa's own tests check the fixes. Two question
- * sets come first. About 40 minutes.
+ * The Frontend Engineer job simulation: a Wednesday on Fernway's shop frontend, in the five timed parts every Praxa
+ * job simulation has (jobSimKit.ts), on the desktop with two environments: the Code app (the shop's product-list and
+ * checkout code; Praxa's own tests check the fixes when marked) and the Browser (the design site).
+ *
+ * Core task: fix the product list's search, then its price filter and sorting, and add a test. Curveball: couriers are
+ * failing on junk postcodes, so the checkout validation planned for next sprint has to go in now, from the spec.
+ * Juggling and judgement: the phone rule isn't in the spec (the designer answers when asked), and Marketing wants the
+ * newsletter box ticked by default. Report back: what changed for the product manager, marked on how it's written and
+ * on whether it flags that the "Under £20" filter's label no longer matches what it does.
  */
 
 const DOMAIN = 'fernway.dev';
@@ -69,14 +71,17 @@ test('a name is required', () => {
 
 const P = `[{ name: 'Monstera Deliciosa', price: 32, inStock: true }, { name: 'Mini Monstera', price: 22, inStock: true }, { name: 'Pothos', price: 100, inStock: true }, { name: 'Snake Plant', price: 20, inStock: false }, { name: 'Peace Lily', price: 9, inStock: true }]`;
 
-const DESKTOP: DesktopConfig = {
+const TOM = `tom.fry@${DOMAIN}`;
+
+const DESKTOP: Omit<DesktopConfig, 'phases'> = {
   user: { name: 'Alex Kim', email: ME, role: 'Frontend Engineer' },
   company: 'Fernway',
   time: 'Wed 09:30',
-  apps: ['mail', 'browser', 'code', 'files', 'ai'],
+  apps: ['mail', 'code', 'browser', 'files', 'ai'],
   contacts: [
     { name: 'Maya Ito', role: 'Product Manager', email: MAYA },
     { name: 'Noor Aziz', role: 'Product Designer', email: NOOR },
+    { name: 'Tom Fry', role: 'Marketing', email: TOM },
     { name: 'Sam Reid', role: 'QA Engineer', email: `sam.reid@${DOMAIN}` },
   ],
   homepage: `${DOCS}/checkout`,
@@ -99,21 +104,40 @@ const DESKTOP: DesktopConfig = {
   inbox: [
     { id: 'm-standup', from: `Calendar <calendar@${DOMAIN}>`, to: [ME], date: 'Wed 08:00', subject: 'Stand-up moved to 10:15', body: 'Today’s stand-up has moved to 10:15.' },
     {
-      id: 'm-noor',
-      from: `Noor Aziz <${NOOR}>`,
-      to: [ME],
-      date: 'Tue 17:40',
-      subject: 'Checkout spec is up',
-      body: `Hi Alex,\n\nThe checkout validation spec is on the design site: ${DOCS}/checkout\n\nThe phone rule isn't final yet, so ask me before you build it.\n\nNoor`,
-    },
-    {
       id: 'm-maya',
       from: `Maya Ito <${MAYA}>`,
       to: [ME],
-      cc: [NOOR],
       date: 'Wed 09:15',
-      subject: 'Product list bugs + checkout',
-      body: `Morning Alex,\n\nTwo bugs from support on the product list:\n• Searching "monstera" finds nothing, though we sell two\n• "Under £20" leaves out plants that cost exactly £20, and sorting by price puts the £100 Pothos before the £20 ones\n\nAnd could you add the checkout validation from Noor's spec (postcode and phone)?\n\nThe code's in fernway-web (Code app). When you're done, email me what changed so I can let support know.\n\nThanks!\nMaya`,
+      subject: 'Product list bugs',
+      body: `Morning Alex,\n\nTwo bugs from support on the product list (filters.js in the Code app):\n• Searching "monstera" finds nothing, though we sell two\n• "Under £20" leaves out plants that cost exactly £20, and sorting by price puts the £100 Pothos before the £20 ones\n\nPlease add a test for sorting by price too.\n\nThanks!\nMaya`,
+    },
+    {
+      id: 'm-maya-checkout',
+      phase: 'curveball',
+      from: `Maya Ito <${MAYA}>`,
+      to: [ME],
+      cc: [NOOR],
+      date: 'Wed 10:02',
+      subject: 'Checkout postcodes: today, not next sprint',
+      body: `Alex, our courier has just bounced 40 parcels: customers are typing junk into the postcode field. The checkout validation we planned for next sprint has to go in today.\n\nNoor's spec is on the design site (${DOCS}/checkout). Please add the postcode rules to checkoutErrors in validation.js first, exactly as specified.\n\nMaya`,
+    },
+    {
+      id: 'm-noor',
+      phase: 'juggling',
+      from: `Noor Aziz <${NOOR}>`,
+      to: [ME],
+      date: 'Wed 10:08',
+      subject: 'Re: Checkout postcodes',
+      body: "Hi Alex, the phone rule isn't in the spec yet: ask me before you build it, and I'll tell you what's agreed.\n\nNoor",
+    },
+    {
+      id: 'm-tom',
+      phase: 'juggling',
+      from: `Tom Fry <${TOM}>`,
+      to: [ME],
+      date: 'Wed 10:10',
+      subject: 'While you’re in the checkout…',
+      body: "Hi Alex! While you're in the checkout, could you make the \"Send me plant care tips and offers\" box ticked by default? It would double our newsletter sign-ups overnight. Tiny change, right?\n\nTom",
     },
   ],
   replies: [
@@ -150,117 +174,56 @@ const DESKTOP: DesktopConfig = {
   ],
 };
 
-const TASK: Question = {
-  id: 'fe-sim-desk',
-  title: 'Wednesday on the Shop Frontend',
-  type: 'desktop',
-  prompt: `It's 9:30 on Wednesday. You're a frontend engineer at Fernway. Your computer has Mail, the Browser (the design site), and the Code app with the shop's product-list and checkout code. Start with your inbox.
+export const FE_JOB_SIM = jobSimulation({
+  testId: 'test-sim-fe-01',
+  questionId: 'fe-sim-desk',
+  role: 'Frontend Engineer',
+  company: 'Fernway',
+  day: 'Wednesday on the Shop Frontend',
+  description:
+    'A working day on an online shop’s frontend, in five timed parts on a full desktop: fix the product list’s search, price filter and sorting and add a test; adapt when checkout validation has to ship today, from the design spec; get the missing rule from the designer and handle Marketing’s request to pre-tick the newsletter box; then explain the changes for support. Praxa’s own tests check the code. 40 minutes.',
+  skillsTested: ['JavaScript', 'Frontend', 'Debugging', 'Testing', 'Written Communication'],
+  roles: ['Frontend Engineer'],
+  category: 'Frontend',
+  scenario: `You're Alex Kim, a frontend engineer at Fernway, an online plant shop. It's Wednesday morning.
 
-Q1. Fix the search and the price filter in filters.js, so they match what support reported.
-Q2. Fix sorting by price.
-Q3. Add the postcode rules to checkoutErrors in validation.js, exactly as the design spec says.
-Q4. Find out the phone rule from the designer, then add it.
-Q5. Add a test to tests.js for sorting by price, and run the tests.
-Q6. Email Maya what changed, so she can tell support.`,
-  starterCode: '',
+Your work computer has Mail, the Code app (the shop's code and tests), the Browser (the design site), Files and an AI assistant.`,
+  briefing: `You're Alex Kim, a frontend engineer at Fernway, an online houseplant shop. It's 9:30 on Wednesday.
+
+Your manager: Maya Ito, Product Manager. You work with Noor Aziz, the product designer.
+Your tools: Mail, the Code app (fernway-web: filters.js, validation.js and tests.js, with Run tests), the Browser (the design site with the specs), Files and an AI assistant.`,
+  briefs: {
+    core: 'Read Maya’s email. In filters.js, fix the search, the price filter and sorting by price. Add a test to tests.js for sorting by price, and run the tests.',
+    curveball: 'Checkout validation has to ship today. Read Maya’s email and add the postcode rules from the design spec to checkoutErrors in validation.js.',
+    juggling: 'Get the phone rule from Noor and build it. Reply to Tom with your decision on his request, and why.',
+    report: 'Email Maya what changed, in plain words support can repeat, and anything she should know.',
+  },
   desktop: DESKTOP,
-  testCases: (
-    [
-      [1, 'Search ignores case', 'test:search-case', 'true'],
-      [1, 'The price limit includes the limit itself', 'test:max-price', 'true'],
-      [2, 'Price sorts as numbers, cheapest first', 'test:price-sort', 'true'],
-      [3, 'Read the design spec', `visited:${DOCS}/checkout`, 'true'],
-      [3, 'Postcode rules and messages as specified', 'test:postcode-rule', 'true'],
-      [4, 'Asked the designer for the phone rule', 'received:noor-phone', 'true'],
-      [4, 'Phone rule and message as agreed', 'test:phone-rule', 'true'],
-      [5, 'A test for sorting by price', "filehas:tests.js:sortProducts\\([^)]*['\"]price['\"]", 'true'],
-      [6, 'Maya got all of it', 'received:maya-fe', 'true'],
-      [6, 'The email to Maya', 'earned:maya-fe', { rubric: ['Explains each fix in plain words: search now ignores capitals, “under £20” includes £20, sorting by price is by value', 'Says the checkout now checks the postcode (and phone, if given) with the spec’s messages', 'Short and easy for support to repeat'] }],
-    ] as [number, string, string, string | { rubric: string[] }][]
-  ).map(([n, d, input, e], i) => ({ ...tc(`tc-fe-sim-${i + 1}`, `Q${n} · ${d}`, input, typeof e === 'string' ? e : ''), ...(typeof e !== 'string' && { rubric: e.rubric }) })),
-  timeLimitMinutes: 30,
-  weight: 70,
-};
-
-const SETS: Question[] = [
-  ...questionSet(
-    'fe-sim-s1',
-    'Reading a Design Spec',
-    'Spec for the basket badge',
-    `Basket badge spec:
-
-• Shows the number of items (the sum of quantities), not lines
-• Hidden when the basket is empty
-• Shows 99+ above 99
-• Announced to screen readers as "Basket, 3 items"`,
-    [
-      short('fe-sim-s1-a', 'The Count', 'The basket has 2 pots on one line and 1 plant on another. What does the badge show?', ['3']),
-      short('fe-sim-s1-b', 'Above 99', 'What does the badge show for 150 items?', ['99+']),
-      choice('fe-sim-s1-c', 'Screen Readers', 'How would you give the badge its spoken label?', ['aria-label="Basket, 3 items" on the basket link (updated with the count)', 'A title attribute on the badge', 'alt text on the number', 'Nothing: the number is enough'], 0),
-      written(
-        'fe-sim-s1-d',
-        'A Gap in the Spec',
-        'The spec doesn’t say what happens while the basket is still loading. What do you do?',
-        ['Notices it’s a gap and asks the designer (or proposes an option) rather than guessing silently', 'Suggests a sensible default (e.g. hide the badge until loaded, no layout shift)', 'Gets the answer written into the spec'],
-        'I’d ask Noor rather than guess, with a suggestion: keep the badge hidden until the basket loads (and reserve its space so nothing jumps), then show the count. Once agreed, I’d ask for it to be added to the spec so everyone builds it the same way.'
-      ),
-    ]
-  ),
-  ...questionSet(
-    'fe-sim-s2',
-    'Reviewing a Pull Request',
-    'PR #418: product card',
-    `\`\`\`jsx
-function ProductCard({ product }) {
-  return (
-    <div onClick={() => addToBasket(product.id)} className="card">
-      <img src={product.image} />
-      <span style={{ color: '#9aa' }}>£{product.price}</span>
-    </div>
-  );
-}
-\`\`\``,
-    [
-      multi('fe-sim-s2-a', 'What to Flag', 'Which problems would you raise? Tick all that apply.', ['A clickable div: not reachable by keyboard; use a button', 'The image has no alt text', 'Light grey price text may fail contrast', 'The price isn’t formatted (e.g. £7.5)', 'The component name is too long'], [0, 1, 2, 3]),
-      choice('fe-sim-s2-b', 'The Button', 'What’s the best fix for the clickable div?', ['A real <button> for the add action', 'Add tabIndex={0} to the div', 'Add role="button" only', 'Wrap the div in a link'], 0),
-      order('fe-sim-s2-c', 'A Kind Review', 'Put a good review comment’s parts in order.', ['What you noticed, on the line', 'Why it matters (who it affects)', 'A suggested fix or example', 'Whether it blocks merging']),
-      written(
-        'fe-sim-s2-d',
-        'One Comment',
-        'Write the review comment for the clickable div.',
-        ['Points to the problem clearly and kindly (keyboard and screen reader users can’t use a div)', 'Suggests the fix (a <button type="button"> with the add action, styled as needed)', 'Says whether it blocks merging and why'],
-        'This div is clickable, but keyboard and screen reader users can’t reach or use it. Could we use a <button type="button" onClick={…}> for “Add to basket” instead (we can keep the card styling)? I’d count this as blocking, since it stops some customers buying.'
-      ),
-    ]
-  ),
-];
-
-export const FE_JOB_SIM: AssessmentTest = (() => {
-  const raw = [...SETS, TASK];
-  const total = raw.reduce((n, q) => n + q.weight, 0) || 1;
-  const questions = raw.map((q) => ({ ...q, weight: Math.round((q.weight / total) * 100) }));
-  const drift = 100 - questions.reduce((n, q) => n + q.weight, 0);
-  if (drift) questions.reduce((a, b) => (b.weight > a.weight ? b : a)).weight += drift;
-  return {
-    id: 'test-sim-fe-01',
-    title: 'Frontend Engineer Job Simulation: A Day at Fernway',
-    description:
-      'A working day on an online shop’s frontend, on a full desktop: fix the product list’s search, price filter and sorting from the product manager’s email, build the checkout validation from the design spec, ask the designer for the rule that isn’t final, add a test, and explain the changes for support. Praxa’s own tests check the code. About 40 minutes.',
-    skillsTested: ['JavaScript', 'Frontend', 'Debugging', 'Testing', 'Written Communication'],
-    roles: ['Frontend Engineer'],
-    type: 'standard',
-    category: 'Frontend',
-    difficulty: 'Professional',
-    passingScore: 70,
-    scenario: {
-      company: 'Fernway',
-      role: 'Frontend Engineer',
-      brief: `You're Alex Kim, a frontend engineer at Fernway, an online plant shop. It's Wednesday morning.
-
-The job simulation runs on your work computer: Mail, the Browser (the design site), the Code app with the shop's code and tests, Files and an AI assistant, all on the taskbar. People reply to your emails.`,
-    },
-    questions,
-    totalQuestions: questions.filter((q) => q.type !== 'case').length,
-    estimatedMinutes: 40,
-  };
-})();
+  checks: [
+    ['core', 'Search ignores case', 'test:search-case', 'true'],
+    ['core', 'The price limit includes the limit itself', 'test:max-price', 'true'],
+    ['core', 'Price sorts as numbers, cheapest first', 'test:price-sort', 'true'],
+    ['core', 'A test for sorting by price', "filehas:tests.js:sortProducts\\([^)]*['\"]price['\"]", 'true'],
+    ['curveball', 'Read the design spec', `visited:${DOCS}/checkout`, 'true'],
+    ['curveball', 'Postcode rules and messages as specified', 'test:postcode-rule', 'true'],
+    ['juggling', 'Asked the designer for the phone rule', 'received:noor-phone', 'true'],
+    ['juggling', 'Phone rule and message as agreed', 'test:phone-rule', 'true'],
+    ['juggling', 'The decision for Tom', `mail:${TOM}`, {
+      rubric: [
+        'Doesn’t pre-tick the box: marketing consent must be an active opt-in (UK GDPR and PECR), and a pre-ticked box isn’t valid consent',
+        'Explains the risk plainly: fines, complaints, and sign-ups that can’t be used',
+        'Offers something that helps him: clearer wording, a better-placed unticked box, or a sign-up prompt after purchase, agreed with Noor and Maya',
+        'Friendly and short',
+      ],
+    }],
+    ['report', 'Maya got all of it', 'received:maya-fe', 'true'],
+    ['report', 'The email to Maya', 'earned:maya-fe', {
+      rubric: [
+        'Explains each fix in plain words: search now ignores capitals, the price filter includes £20, sorting by price is by value',
+        'Says the checkout now checks the postcode (and the phone, if given) with the spec’s messages',
+        'Flags that the filter labelled “Under £20” now includes £20, so the label should change (e.g. “£20 and under”) or be confirmed with Noor',
+        'Short and easy for support to repeat',
+      ],
+    }],
+  ],
+});

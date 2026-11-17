@@ -43,6 +43,21 @@ export interface DeskEmail {
   subject: string;
   body: string;
   attachments?: CaseFile[];
+  // The phase this email lands in (its id), for a curveball or a new demand; without one it's waiting at the start
+  phase?: string;
+}
+
+// A phase of a timed job simulation (see src/data/modules/jobSimKit.ts): Briefing, Core task, Curveball, Juggling
+// and judgement, Report back. Each starts when the one before runs out of time or the candidate moves on, and its
+// emails arrive as it starts. The work stays open throughout, so earlier tasks can still be finished later.
+export interface DeskPhase {
+  id: string;
+  title: string;
+  minutes: number;
+  // The briefing isn't marked
+  scored: boolean;
+  // What's asked now, shown on the desktop as the phase starts (kept short: reading time counts)
+  brief: string;
 }
 
 // Someone who writes back: when the candidate sends an email to this address that matches, the reply arrives
@@ -104,6 +119,8 @@ export interface DesktopConfig {
   databaseName?: string;
   // The Code app's project
   project?: DeskProject;
+  // A timed day in phases; without them the whole day is there from the start
+  phases?: DeskPhase[];
 }
 
 export interface SentEmail {
@@ -130,6 +147,9 @@ export interface DesktopState {
   appStates: Record<string, string>;
   // The Code app's files as the candidate left them, by name
   code: Record<string, string>;
+  // The phase the day has reached (an index into the config's phases) and when it started (ms since 1970)
+  phase?: number;
+  phaseStartedAt?: number;
 }
 
 export const emptyDesktop = (cfg: DesktopConfig): DesktopState => ({
@@ -167,10 +187,15 @@ export function earnsReply(rule: DeskReplyRule, m: SentEmail): boolean {
   return true;
 }
 
-// Every email in the inbox now: the ones waiting at the start, then the replies that have arrived, newest last
+// Every email in the inbox now: the ones waiting at the start, then the rest in the order they landed (replies, and a
+// phase's emails, kept in received as "@<email id>" when the phase starts), newest last
 export function inboxOf(cfg: DesktopConfig, state: DesktopState): (DeskEmail & { reply?: boolean })[] {
-  const replies = state.received
+  const later = state.received
     .map((key) => {
+      if (key.startsWith('@')) {
+        const m = cfg.inbox.find((x) => x.id === key.slice(1));
+        return m && arrived(cfg, state, m) ? m : null;
+      }
       const [ruleId, kind] = key.split('#');
       const rule = cfg.replies?.find((r) => r.id === ruleId);
       if (!rule) return null;
@@ -178,9 +203,24 @@ export function inboxOf(cfg: DesktopConfig, state: DesktopState): (DeskEmail & {
       if (!body) return null;
       return { ...body, id: key, to: body.to ?? [cfg.user.email], date: 'Just now', reply: true };
     })
-    .filter(Boolean) as (DeskEmail & { reply: boolean })[];
-  return [...cfg.inbox, ...replies];
+    .filter(Boolean) as (DeskEmail & { reply?: boolean })[];
+  const landed = new Set(later.map((m) => m.id));
+  // A phase's email that has no arrival kept (an answer saved another way) still shows once its phase is reached
+  return [...cfg.inbox.filter((m) => !landed.has(m.id) && arrived(cfg, state, m)), ...later];
 }
+
+// Whether an email has landed yet: it has no phase, or the day has reached its phase
+export function arrived(cfg: DesktopConfig, state: DesktopState, m: DeskEmail): boolean {
+  if (!m.phase || !cfg.phases?.length) return true;
+  const at = cfg.phases.findIndex((p) => p.id === m.phase);
+  return at < 0 || (state.phase ?? 0) >= at;
+}
+
+// The emails that land when the day reaches a phase
+export const landingIn = (cfg: DesktopConfig, phase: number): DeskEmail[] => {
+  const id = cfg.phases?.[phase]?.id;
+  return id ? cfg.inbox.filter((m) => m.phase === id) : [];
+};
 
 // The replies a newly sent email brings: the person's answer, or their "I need more" once
 export function repliesFor(cfg: DesktopConfig, state: DesktopState, m: SentEmail): string[] {

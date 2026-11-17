@@ -25,7 +25,7 @@ import {
   Play,
 } from 'lucide-react';
 import { CaseFile, Question } from '../types';
-import { DeskApp, DeskBlock, DeskEmail, DesktopConfig, DesktopState, SentEmail, filesOf, inboxOf, parseDesktop, repliesFor } from '../lib/desktop';
+import { DeskApp, DeskBlock, DeskEmail, DeskPhase, DesktopConfig, DesktopState, SentEmail, filesOf, inboxOf, landingIn, parseDesktop, repliesFor } from '../lib/desktop';
 import { parseAddress } from '../lib/emailTasks';
 import { parseCsv } from '../lib/csv';
 import { SpreadsheetWindow } from './SpreadsheetWindow';
@@ -34,7 +34,7 @@ import { AiPanel } from './Workspace';
 import { AppWindow } from './AppWindow';
 import { CodeField } from './CodeField';
 import { DeskProject, TestRun, runDeskTests } from '../lib/deskCode';
-import { LayoutGrid } from 'lucide-react';
+import { LayoutGrid, Check, ChevronDown, ChevronUp, Clock } from 'lucide-react';
 
 /**
  * The desktop a job simulation is worked on: a wallpaper with the computer's apps, each opening in its own window, and
@@ -77,6 +77,32 @@ export const Desktop: React.FC<{ question: Question; answer: string; onChange: (
     const t = setTimeout(() => setToast(null), 3200);
     return () => clearTimeout(t);
   }, [toast]);
+
+  // A timed day: the phase it has reached, its clock, and moving on (when its time runs out, or when the candidate is ready)
+  const phases = cfg.phases ?? [];
+  const phaseAt = Math.min(state.phase ?? 0, Math.max(phases.length - 1, 0));
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!phases.length) return;
+    if (latest.current.phaseStartedAt == null) save({ phase: latest.current.phase ?? 0, phaseStartedAt: Date.now() });
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phases.length]);
+  const advance = (from: number) => {
+    const cur = latest.current;
+    if ((cur.phase ?? 0) !== from || from >= phases.length - 1) return;
+    const next = from + 1;
+    const landing = landingIn(cfg, next);
+    save({ phase: next, phaseStartedAt: Date.now(), received: [...cur.received, ...landing.map((m) => `@${m.id}`).filter((k) => !cur.received.includes(k))] });
+    setToast(landing.length ? `${phases[next].title}: new email from ${parseAddress(landing[0].from).name || 'a colleague'}` : `Now: ${phases[next].title}`);
+  };
+  const phaseLeft = phases.length && state.phaseStartedAt != null ? phases[phaseAt].minutes * 60 - Math.floor((now - state.phaseStartedAt) / 1000) : null;
+  useEffect(() => {
+    if (phaseLeft !== null && phaseLeft <= 0) advance(phaseAt);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phaseLeft !== null && phaseLeft <= 0, phaseAt]);
+  const briefing = phases.length > 0 && phaseAt === 0 && !phases[0].scored;
 
   const inbox = inboxOf(cfg, state);
   const files = filesOf(cfg, state);
@@ -146,8 +172,10 @@ export const Desktop: React.FC<{ question: Question; answer: string; onChange: (
 
   return (
     <div className="h-full flex flex-col rounded-lg overflow-hidden border border-slate-300 shadow-sm select-none" data-ref="desktop">
+      {phases.length > 0 && !briefing && <PhaseBar phases={phases} at={phaseAt} left={phaseLeft} onNext={() => advance(phaseAt)} />}
       {/* The screen: the wallpaper and its icons, with the open app's window over it */}
       <div className="relative flex-1 min-h-0 bg-gradient-to-br from-slate-700 via-slate-800 to-indigo-950">
+        {briefing && <Briefing cfg={cfg} phases={phases} left={phaseLeft} onStart={() => advance(0)} />}
         <div className="absolute inset-0 p-5 grid grid-flow-col auto-cols-max grid-rows-[repeat(auto-fill,92px)] gap-2 content-start">
           {cfg.apps.map((app) => {
             const { label, Icon, tint } = appInfo(cfg, app);
@@ -221,6 +249,90 @@ export const Desktop: React.FC<{ question: Question; answer: string; onChange: (
           {cfg.user.name}
         </span>
       </nav>
+    </div>
+  );
+};
+
+// ---------- The day's phases ----------
+
+const clock = (secs: number | null) => (secs === null ? '' : `${Math.floor(Math.max(secs, 0) / 60)}:${String(Math.max(secs, 0) % 60).padStart(2, '0')}`);
+
+// The briefing, over the desktop: who you are, where, for whom, with which tools, and how the day runs. Not marked
+const Briefing: React.FC<{ cfg: DesktopConfig; phases: DeskPhase[]; left: number | null; onStart: () => void }> = ({ cfg, phases, left, onStart }) => (
+  <div className="absolute inset-0 z-30 bg-slate-900/70 backdrop-blur-sm grid place-items-center p-4 overflow-y-auto select-text" data-ref="briefing">
+    <div className="w-full max-w-xl bg-white rounded-xl shadow-2xl p-6 space-y-4">
+      <div className="flex items-center gap-2">
+        <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">{phases[0].title} · not marked</span>
+        <span className="ml-auto flex items-center gap-1 text-xs font-semibold text-slate-500 tabular-nums">
+          <Clock className="w-3.5 h-3.5" />
+          {clock(left)}
+        </span>
+      </div>
+      <h2 className="text-lg font-bold text-slate-900">
+        {cfg.user.role} at {cfg.company}
+      </h2>
+      <p className="text-sm leading-relaxed text-slate-700 whitespace-pre-line">{phases[0].brief}</p>
+      <ol className="grid gap-1.5 text-xs">
+        {phases.slice(1).map((p, i) => (
+          <li key={p.id} className="flex items-center gap-2 rounded-md bg-slate-50 px-3 py-2">
+            <span className="w-5 h-5 grid place-items-center rounded-full bg-indigo-100 text-indigo-700 font-bold text-[10px]">{i + 2}</span>
+            <span className="font-semibold text-slate-800">{p.title}</span>
+            <span className="ml-auto text-slate-500">{p.minutes} min</span>
+          </li>
+        ))}
+      </ol>
+      <p className="text-xs text-slate-500">New work lands as each part starts. Everything stays open, so you can finish earlier tasks later. Each part moves on by itself when its time is up.</p>
+      <button onClick={onStart} className="w-full h-10 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold flex items-center justify-center gap-2" data-ref="briefing-start">
+        Start the day
+        <ArrowRight className="w-4 h-4" />
+      </button>
+    </div>
+  </div>
+);
+
+// Along the top of the desktop: the day's parts, the one running with its clock, and what it asks for
+const PhaseBar: React.FC<{ phases: DeskPhase[]; at: number; left: number | null; onNext: () => void }> = ({ phases, at, left, onNext }) => {
+  const [shown, setShown] = useState(true);
+  useEffect(() => setShown(true), [at]);
+  const cur = phases[at];
+  const last = at === phases.length - 1;
+  const over = left !== null && left <= 0;
+  return (
+    <div className="shrink-0 bg-white border-b border-slate-200 select-text" data-ref="phase-bar">
+      <div className="flex items-center gap-1.5 px-2 py-1.5 overflow-x-auto">
+        {phases.map((p, i) => (
+          <span
+            key={p.id}
+            aria-current={i === at ? 'step' : undefined}
+            className={`shrink-0 flex items-center gap-1.5 h-7 px-2.5 rounded-full text-[11px] font-semibold ${i === at ? 'bg-indigo-600 text-white' : i < at ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}
+          >
+            {i < at ? <Check className="w-3 h-3" /> : <span>{i + 1}</span>}
+            <span className={i === at ? '' : 'hidden lg:inline'}>{p.title}</span>
+            <span className="opacity-70">{p.minutes}m</span>
+          </span>
+        ))}
+        <span className={`ml-auto shrink-0 flex items-center gap-1 text-xs font-bold tabular-nums ${over ? 'text-rose-600' : left !== null && left <= 60 ? 'text-amber-600' : 'text-slate-700'}`} title="Time left in this part">
+          <Clock className="w-3.5 h-3.5" />
+          {clock(left)}
+        </span>
+        {!last && (
+          <button onClick={onNext} className="shrink-0 h-7 px-3 rounded-md bg-slate-900 hover:bg-slate-700 text-white text-[11px] font-semibold flex items-center gap-1" data-ref="phase-next">
+            Move on to {phases[at + 1].title}
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        )}
+        <button onClick={() => setShown((v) => !v)} aria-expanded={shown} aria-label={shown ? 'Hide the brief' : 'Show the brief'} className="shrink-0 w-7 h-7 grid place-items-center rounded-md hover:bg-slate-100 text-slate-500">
+          {shown ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </button>
+      </div>
+      {shown && (
+        <p className="px-3 pb-2 text-[12.5px] leading-relaxed text-slate-700 whitespace-pre-line" data-ref="phase-brief">
+          <span className="font-semibold text-slate-900">
+            {at + 1}. {cur.title}:{' '}
+          </span>
+          {last && over ? 'Time’s up for this part. Use the few minutes left to check your work, then submit.' : cur.brief}
+        </p>
+      )}
     </div>
   );
 };

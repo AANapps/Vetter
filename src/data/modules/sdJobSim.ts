@@ -1,15 +1,15 @@
-import { AssessmentTest, Question } from '../../types';
 import { DesktopConfig } from '../../lib/desktop';
-import { choice, multi, order, short, written } from '../questionKit';
-import { questionSet } from './daSets';
-import { tc } from '../simulationKit';
+import { jobSimulation } from './jobSimKit';
 
 /**
- * The Software Developer job simulation: a day on Fernway's shop team, worked on the desktop. The product manager's
- * email names three bugs; the details are in the issue tracker in the Browser, with the pricing policy beside them; the
- * code is in the Code app with its tests. The candidate fixes the bugs (Praxa's own tests check them when marked), adds
- * a test, explains the changes to the product manager in plain English, and answers her question about shipping before
- * the deploy freeze. Two question sets come first. About 40 minutes.
+ * The Software Developer job simulation: a Tuesday on Fernway's shop team, in the five timed parts every Praxa job
+ * simulation has (jobSimKit.ts), on the desktop with two environments: the Code app (the basket code and its tests;
+ * Praxa's own tests check the fixes when marked) and the Browser (the issue tracker and the pricing rules).
+ *
+ * Core task: fix the £50 delivery threshold, then the £NaN total from a retired product, and add a boundary test.
+ * Curveball: Finance escalates stacking discount codes and the deploy freeze moves an hour earlier. Juggling and
+ * judgement: QA asks what to test, and Sales wants a 50%-off code slipped in with no ticket. Report back: what changed
+ * for the product manager, marked on how it's written and on whether it flags the customers already overcharged.
  */
 
 const DOMAIN = 'fernway.dev';
@@ -64,14 +64,17 @@ test('a known code takes its percentage off', () => {
 });
 `;
 
-const DESKTOP: DesktopConfig = {
+const BEN = `ben.cole@${DOMAIN}`;
+
+const DESKTOP: Omit<DesktopConfig, 'phases'> = {
   user: { name: 'Jordan Blake', email: ME, role: 'Software Developer' },
   company: 'Fernway',
   time: 'Tue 09:30',
-  apps: ['mail', 'browser', 'code', 'files', 'ai'],
+  apps: ['mail', 'code', 'browser', 'files', 'ai'],
   contacts: [
     { name: 'Maya Ito', role: 'Product Manager', email: MAYA },
     { name: 'Sam Reid', role: 'QA Engineer', email: SAM },
+    { name: 'Ben Cole', role: 'Sales Lead', email: BEN },
     { name: 'Platform team', role: 'Deploys', email: `platform@${DOMAIN}` },
   ],
   homepage: TRACKER,
@@ -90,24 +93,43 @@ const DESKTOP: DesktopConfig = {
     ],
   },
   inbox: [
-    { id: 'm-news', from: `Fernway Weekly <news@${DOMAIN}>`, to: [`team@${DOMAIN}`], date: 'Mon 17:00', subject: 'This week at Fernway', body: 'Spring range photos are in, the Leeds office coffee machine is fixed (finally), and Friday’s demo is at 3pm. Have a good week!' },
     { id: 'm-platform', from: `Platform team <platform@${DOMAIN}>`, to: [`engineering@${DOMAIN}`], date: 'Tue 08:10', subject: 'Deploy freeze at 16:00 today', body: 'Reminder: no deploys after 16:00 today while we move the database. Anything that needs to go out today must be merged and green by 15:30.\n\nPlatform team' },
-    {
-      id: 'm-sam',
-      from: `Sam Reid <${SAM}>`,
-      to: [ME],
-      date: 'Tue 09:05',
-      subject: 'FERN-235 repro',
-      body: 'Hi Jordan, got a repro for FERN-235: a customer had the Calathea Medallion in their basket, and we retired that product on Friday. The basket line is still there but its product comes back as null, and checkout shows £NaN. Details are on the ticket.\n\nSam',
-    },
     {
       id: 'm-maya',
       from: `Maya Ito <${MAYA}>`,
       to: [ME],
       cc: [SAM],
       date: 'Tue 09:20',
-      subject: 'Three basket bugs for today',
-      body: `Morning Jordan,\n\nSupport has three basket bugs this week: FERN-231, FERN-235 and FERN-238. The details are in the tracker (${TRACKER}), and the pricing rules are linked from there.\n\nCould you:\n1. Fix all three in the basket code\n2. Add a test for the delivery threshold so it can't break again\n3. Email me what changed in plain English, so I can brief support\n\nPlatform freeze deploys at 4pm, so it would be great to have it ready before then.\n\nThanks!\nMaya`,
+      subject: 'Two basket bugs for today',
+      body: `Morning Jordan,\n\nSupport has two basket bugs: FERN-231 and FERN-235. The details are in the tracker (${TRACKER}), with the pricing rules linked from there. Sam has a repro for 235 on the ticket.\n\nCould you fix both in basket.js, and add a test for the £50 delivery threshold so it can't break again?\n\nThanks!\nMaya`,
+    },
+    {
+      id: 'm-maya-238',
+      phase: 'curveball',
+      from: `Maya Ito <${MAYA}>`,
+      to: [ME],
+      cc: [`platform@${DOMAIN}`],
+      date: 'Tue 10:05',
+      subject: 'FERN-238 now, and the freeze has moved',
+      body: `Jordan, change of plan. Finance has escalated FERN-238: customers are stacking discount codes and it's costing us money every hour. Please fix it alongside the other two.\n\nAlso, Platform has moved the freeze to 15:00, so everything must be merged and green by 14:30.\n\nMaya`,
+    },
+    {
+      id: 'm-sam',
+      phase: 'juggling',
+      from: `Sam Reid <${SAM}>`,
+      to: [ME],
+      date: 'Tue 10:12',
+      subject: 'What should I test?',
+      body: "Hi Jordan, I've got 20 minutes before the freeze to check your changes on staging. What exactly should I test, and what are the edge cases? A short list is perfect.\n\nSam",
+    },
+    {
+      id: 'm-ben',
+      phase: 'juggling',
+      from: `Ben Cole <${BEN}>`,
+      to: [ME],
+      date: 'Tue 10:14',
+      subject: 'Tiny favour: VIP50',
+      body: "Hey Jordan, our biggest wholesale customer is ordering at 2pm and I promised them 50% off. Could you add a VIP50 code to the basket? It's literally one line in DISCOUNTS. No need for a ticket, I'll square it with Maya later.\n\nCheers, Ben",
     },
   ],
   replies: [
@@ -115,16 +137,8 @@ const DESKTOP: DesktopConfig = {
       id: 'maya-followup',
       to: MAYA,
       mustMention: [['231'], ['235'], ['238']],
-      reply: {
-        from: `Maya Ito <${MAYA}>`,
-        subject: 'Re: basket fixes',
-        body: "Brilliant, thanks Jordan, that's really clear.\n\nTwo things before I go to support: is it safe to ship before the 4pm freeze, and what should support tell customers who were affected? I'm thinking of people charged delivery on exactly £50, and the ones who stacked codes.\n\nMaya",
-      },
-      otherwise: {
-        from: `Maya Ito <${MAYA}>`,
-        subject: 'Re: your email',
-        body: 'Thanks Jordan! Which tickets does this cover? I need to tell support about all three (231, 235 and 238).',
-      },
+      reply: { from: `Maya Ito <${MAYA}>`, subject: 'Re: basket fixes', body: "Brilliant, thanks Jordan, that's really clear. I'll brief support now.\n\nMaya" },
+      otherwise: { from: `Maya Ito <${MAYA}>`, subject: 'Re: your email', body: 'Thanks Jordan! Which tickets does this cover? I need to tell support about all three (231, 235 and 238).' },
     },
   ],
   pages: [
@@ -180,108 +194,61 @@ const DESKTOP: DesktopConfig = {
   ],
 };
 
-const TASK: Question = {
-  id: 'sd-sim-desk',
-  title: 'Tuesday on the Shop Team',
-  type: 'desktop',
-  prompt: `It's 9:30 on Tuesday. You're a developer on Fernway's shop team. Your computer has Mail, the Browser (the issue tracker), and the Code app with the basket code and its tests. Start with your inbox.
+export const SD_JOB_SIM = jobSimulation({
+  testId: 'test-sim-dev-01',
+  questionId: 'sd-sim-desk',
+  role: 'Software Developer',
+  company: 'Fernway',
+  day: 'Tuesday on the Shop Team',
+  description:
+    'A working day on an online shop’s team, in five timed parts on a full desktop: fix real bugs in the basket code from the issue tracker (checked by hidden tests) and add a test; adapt when Finance escalates a third bug and the deploy freeze moves; tell QA what to test and handle a request to slip in an unapproved discount code; then explain the changes to the product manager. 40 minutes.',
+  skillsTested: ['JavaScript', 'Debugging', 'Testing', 'Written Communication', 'Product Sense'],
+  roles: ['Software Developer'],
+  category: 'Software Development',
+  scenario: `You're Jordan Blake, a developer on Fernway's shop team. Fernway sells houseplants online. It's Tuesday morning.
 
-Q1. Fix FERN-231, so delivery follows the pricing rules at the threshold.
-Q2. Fix FERN-235, so a basket with a retired product still has a correct total.
-Q3. Fix FERN-238, so codes no longer stack and the right one applies.
-Q4. Add a test to tests.js for the £50 delivery threshold, and run the tests.
-Q5. Email Maya what changed, in plain English, for support.
-Q6. Answer Maya's follow-up question.`,
-  starterCode: '',
+Your work computer has Mail, the Code app (the basket code and its tests), the Browser (the issue tracker), Files and an AI assistant.`,
+  briefing: `You're Jordan Blake, a developer on the shop team at Fernway, an online houseplant shop. It's 9:30 on Tuesday, and there's a deploy freeze this afternoon.
+
+Your manager: Maya Ito, Product Manager.
+Your tools: Mail, the Code app (fernway-shop: basket.js and tests.js, with Run tests), the Browser (the issue tracker and the pricing rules), Files and an AI assistant.`,
+  briefs: {
+    core: 'Read Maya’s email and the tickets. Fix FERN-231 (delivery at the £50 threshold), then FERN-235 (the £NaN total), and add a test to tests.js for the £50 threshold. Run the tests.',
+    curveball: 'Finance has escalated a third bug, and the freeze has moved. Read Maya’s email and fix FERN-238 without breaking the rest.',
+    juggling: 'Reply to Sam with what to test. Reply to Ben with your decision on his request, and why.',
+    report: 'Email Maya what changed, in plain English for support, whether it’s safe to ship before the freeze, and anything else she should know.',
+  },
   desktop: DESKTOP,
-  testCases: (
-    [
-      [1, 'Free delivery from exactly £50', 'test:delivery-50', 'true'],
-      [1, 'Read the ticket', `visited:${TRACKER}/FERN-231`, 'true'],
-      [2, 'A retired product no longer breaks the total', 'test:deleted-line', 'true'],
-      [3, 'Only the best code applies', 'test:discount-best', 'true'],
-      [3, 'Nothing else broke', 'test:no-regression', 'true'],
-      [4, 'A test for the £50 boundary', 'filehas:tests.js:deliveryCharge\\(\\s*50(\\.0+)?\\s*\\)', 'true'],
-      [5, 'Maya got all three fixes', 'received:maya-followup', 'true'],
-      [5, 'The email to Maya', 'earned:maya-followup', { rubric: ['Covers all three: delivery now free at exactly £50 (FERN-231), retired products are left out instead of £NaN (FERN-235), and only the best single code applies (FERN-238)', 'Plain English that support can repeat, without code or jargon', 'Mentions the test added for the £50 boundary and that the tests pass'] }],
-      [6, 'The answer to Maya’s questions', `mail:${MAYA}`, { rubric: ['Says whether it’s safe to ship before the freeze, based on the tests passing and the changes being small (and gets it merged by 15:30)', 'Suggests what support tells customers charged £4.99 delivery on exactly £50 (refund the £4.99, since 3 March)', 'Handles the code-stackers sensibly (e.g. honour past orders, the fix only affects new ones)'] }],
-    ] as [number, string, string, string | { rubric: string[] }][]
-  ).map(([n, d, input, e], i) => ({ ...tc(`tc-sd-sim-${i + 1}`, `Q${n} · ${d}`, input, typeof e === 'string' ? e : ''), ...(typeof e !== 'string' && { rubric: e.rubric }) })),
-  timeLimitMinutes: 30,
-  weight: 70,
-};
-
-const SETS: Question[] = [
-  ...questionSet(
-    'sd-sim-s1',
-    'Reading a Bug Report',
-    'FERN-229 (closed last week)',
-    `FERN-229: "Basket badge shows the wrong number of items"
-
-Steps: add 2 pots and 1 plant. Expected: the badge says 3. Actual: it says 2.
-
-The fix that was merged:
-\`\`\`js
-- const count = basket.lines.length;
-+ const count = basket.lines.reduce((n, l) => n + l.qty, 0);
-\`\`\``,
-    [
-      choice('sd-sim-s1-a', 'What Was Wrong', 'What was the bug?', ['It counted lines, not items: 2 pots on one line counted as 1', 'It counted items twice', 'The badge didn’t refresh', 'Pots weren’t counted'], 0),
-      short('sd-sim-s1-b', 'The New Count', 'With the fix, what does the badge say for 2 pots (one line) and 1 plant (another line)?', ['3']),
-      multi('sd-sim-s1-c', 'A Good Report', 'What made FERN-229 easy to fix? Tick all that apply.', ['Exact steps to reproduce', 'The expected result', 'The actual result', 'How annoyed the customer was', 'The reporter’s job title'], [0, 1, 2]),
-      order('sd-sim-s1-d', 'Fixing a Bug Well', 'Put these in order.', ['Reproduce it', 'Write a test that fails because of it', 'Fix the code', 'See the test pass with the others', 'Explain the change in the pull request']),
-    ]
-  ),
-  ...questionSet(
-    'sd-sim-s2',
-    'Shipping Safely',
-    'Before the freeze',
-    `It's 15:10. A fix for a checkout bug is ready: 6 lines changed, its new test and all 140 existing tests pass, and one colleague has approved the pull request. The deploy freeze starts at 16:00 and lasts until Thursday. The bug is overcharging some customers £4.99.`,
-    [
-      choice('sd-sim-s2-a', 'Ship or Wait', 'What do you do?', ['Merge and deploy now, watch checkout after the deploy, and be ready to roll back', 'Wait until Thursday to be safe', 'Deploy at 15:59 without telling anyone', 'Ask for three more approvals first'], 0),
-      short('sd-sim-s2-b', 'Undo', 'If the deploy goes wrong, what’s the usual first step? (One word, or two.)', ['rollback', 'roll back', 'revert', 'roll it back']),
-      multi('sd-sim-s2-c', 'After Deploying', 'What should you check after it goes out? Tick all that apply.', ['Checkout errors in the logs or monitoring', 'A real or test order at exactly £50', 'That the old tests still pass', 'The team’s calendar'], [0, 1, 2]),
-      written(
-        'sd-sim-s2-d',
-        'Telling People',
-        'Who do you tell once it’s deployed, and what do you say?',
-        [
-          'Tells the product manager / support that the fix is live, in plain words, with the ticket number',
-          'Says what customers will notice and what to do for those already affected (e.g. refunds)',
-          'Tells the team / QA so it can be checked, and notes how to roll back if needed',
-        ],
-        'I’d post in the team channel and email Maya: "FERN-231 is live: baskets of exactly £50 now get free delivery. Customers charged £4.99 since 3 March can be refunded." I’d ask Sam to check it on the live site, and keep an eye on checkout errors for the next hour, ready to roll back.'
-      ),
-    ]
-  ),
-];
-
-export const SD_JOB_SIM: AssessmentTest = (() => {
-  const raw = [...SETS, TASK];
-  const total = raw.reduce((n, q) => n + q.weight, 0) || 1;
-  const questions = raw.map((q) => ({ ...q, weight: Math.round((q.weight / total) * 100) }));
-  const drift = 100 - questions.reduce((n, q) => n + q.weight, 0);
-  if (drift) questions.reduce((a, b) => (b.weight > a.weight ? b : a)).weight += drift;
-  return {
-    id: 'test-sim-dev-01',
-    title: 'Software Developer Job Simulation: A Day at Fernway',
-    description:
-      'A working day on an online shop’s team, on a full desktop: read the product manager’s email and the issue tracker, fix three real bugs in the basket code (checked by hidden tests), add a test, explain the changes in plain English, and answer the question about shipping before the deploy freeze. About 40 minutes.',
-    skillsTested: ['JavaScript', 'Debugging', 'Testing', 'Written Communication', 'Product Sense'],
-    roles: ['Software Developer'],
-    type: 'standard',
-    category: 'Software Development',
-    difficulty: 'Professional',
-    passingScore: 70,
-    scenario: {
-      company: 'Fernway',
-      role: 'Software Developer',
-      brief: `You're Jordan Blake, a developer on Fernway's shop team. Fernway sells houseplants online. It's Tuesday morning.
-
-The job simulation runs on your work computer: Mail, the Browser (the issue tracker), the Code app with the basket code and its tests, Files and an AI assistant, all on the taskbar. People reply to your emails.`,
-    },
-    questions,
-    totalQuestions: questions.filter((q) => q.type !== 'case').length,
-    estimatedMinutes: 40,
-  };
-})();
+  checks: [
+    ['core', 'Read the ticket', `visited:${TRACKER}/FERN-231`, 'true'],
+    ['core', 'Free delivery from exactly £50', 'test:delivery-50', 'true'],
+    ['core', 'A retired product no longer breaks the total', 'test:deleted-line', 'true'],
+    ['core', 'A test for the £50 boundary', 'filehas:tests.js:deliveryCharge\\(\\s*50(\\.0+)?\\s*\\)', 'true'],
+    ['curveball', 'Only the best code applies', 'test:discount-best', 'true'],
+    ['curveball', 'Nothing else broke', 'test:no-regression', 'true'],
+    ['juggling', 'The test list for Sam', `mail:${SAM}`, {
+      rubric: [
+        'Covers each fix with the case to try: a basket of exactly £50 (and £49.99), a basket with a retired product, two codes together (the bigger one applies)',
+        'Names edge cases: no codes, an unknown code, a basket of only retired products, rounding to the penny',
+        'Short and checkable in 20 minutes',
+      ],
+    }],
+    ['juggling', 'The decision for Ben', `mail:${BEN}`, {
+      rubric: [
+        'Doesn’t add the code on a message alone: a 50% discount is a pricing decision that needs the product manager’s (or Finance’s) approval and a ticket',
+        'Gives the reason: it goes against the pricing rules, it’s unreviewed and untested, it lands just before a freeze, and anyone could use the code',
+        'Offers a way forward: ask Maya to approve it as a ticket, or a safer option for one customer (e.g. a manual discount or an invoice adjustment by Sales/Finance)',
+        'Polite and quick, so Ben can still serve his customer',
+      ],
+    }],
+    ['report', 'Maya got all three fixes', 'received:maya-followup', 'true'],
+    ['report', 'The email to Maya', 'earned:maya-followup', {
+      rubric: [
+        'Covers all three in plain English support can repeat: delivery now free at exactly £50 (FERN-231), retired products are left out instead of £NaN (FERN-235), only the best single code applies (FERN-238)',
+        'Says whether it’s safe to ship before the 15:00 freeze, based on the tests passing, the small change and Sam’s check (merged by 14:30)',
+        'Flags the customers already affected: those charged £4.99 delivery on exactly £50 since 3 March should be refunded, and past stacked-code orders honoured',
+        'Mentions Ben’s VIP50 request and that it needs her decision',
+      ],
+    }],
+  ],
+});
