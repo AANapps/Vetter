@@ -531,10 +531,95 @@ export const JobDetailsModal: React.FC<JobDetailsProps & { onClose: () => void; 
   );
 };
 
+// How to apply, in three steps, at the top of the job's page: an account, the job's tests, then the application. A
+// visitor from a company's link sees step 1 first; someone signed in sees where they're up to and the one thing to do
+const ApplySteps: React.FC<JobDetailsProps & { visitor?: { onJoin: () => void; onSignIn: () => void } }> = ({ job, candidate, tests, isApplied, onApply, onStartJobTest, visitor }) => {
+  const jobTests = getJobTests(job, candidate, tests);
+  if (!onApply) return null;
+  const minutes = jobTests.reduce((sum, t) => sum + (t.test.estimatedMinutes ?? 0), 0);
+  const next = jobTests.find((t) => t.score === undefined && t.attemptsLeft !== 0);
+  const done = jobTests.filter((t) => t.score !== undefined).length;
+  const allTaken = jobTests.length > 0 && done === jobTests.length;
+  // Which step they're on: 1 account, 2 tests, 3 apply, 4 applied
+  const at = visitor ? 1 : jobTests.length && !allTaken ? 2 : isApplied ? 4 : 3;
+  const steps = [
+    { n: 1, title: visitor ? 'Create your free account' : 'Signed in', body: visitor ? 'Takes a minute. You come straight back here.' : `As ${candidate.name}` },
+    {
+      n: 2,
+      title: jobTests.length ? `Take ${jobTests.length === 1 ? 'the test' : `the ${jobTests.length} tests`}` : 'No tests for this job',
+      body: jobTests.length ? `About ${minutes} min${jobTests.length > 1 ? ' in all' : ''} · ${done} of ${jobTests.length} done` : 'Apply straight away',
+    },
+    { n: 3, title: isApplied ? 'Applied' : 'Send your application', body: `${job.companyName} sees your scores${isApplied ? '' : ' once you apply'}` },
+  ];
+  return (
+    <section aria-label="How to apply" className="rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50 via-white to-violet-50 p-5 sm:p-6 space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-bold text-slate-900">How to apply</h2>
+          <p className="text-sm text-slate-600">
+            {job.companyName} hires on what you can do: take {jobTests.length === 1 ? 'its test' : 'its tests'} and your scores go with your application.
+          </p>
+        </div>
+        {/* The one thing to do now */}
+        {at === 1 && visitor && (
+          <div className="flex items-center gap-2 shrink-0">
+            <button onClick={visitor.onJoin} className="px-5 py-2.5 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-sm">
+              Create account
+            </button>
+            <button onClick={visitor.onSignIn} className="px-4 py-2.5 rounded-full text-sm font-semibold text-slate-700 hover:bg-white">
+              Sign in
+            </button>
+          </div>
+        )}
+        {at === 2 && next && (
+          <button onClick={() => onStartJobTest(next.test)} className="shrink-0 px-5 py-2.5 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-sm inline-flex items-center gap-2">
+            <Play className="w-4 h-4 fill-current" />
+            {done === 0 ? 'Start the first test' : 'Start the next test'}
+          </button>
+        )}
+        {at === 3 && (
+          <button onClick={onApply} className="shrink-0 px-5 py-2.5 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-sm inline-flex items-center gap-2">
+            <Send className="w-4 h-4" />
+            Send application
+          </button>
+        )}
+        {at === 4 && (
+          <span className="shrink-0 px-4 py-2 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-semibold inline-flex items-center gap-1.5">
+            <CheckCircle2 className="w-4 h-4" />
+            Application sent
+          </span>
+        )}
+      </div>
+      <ol className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {steps.map((st) => {
+          const complete = at > st.n;
+          const current = at === st.n;
+          return (
+            <li key={st.n} className={`p-3.5 rounded-xl border flex items-start gap-3 ${current ? 'bg-white border-indigo-300 shadow-sm' : complete ? 'bg-white/70 border-emerald-200' : 'bg-white/50 border-slate-200'}`}>
+              <span
+                className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${
+                  complete ? 'bg-emerald-500 text-white' : current ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'
+                }`}
+              >
+                {complete ? <CheckCircle2 className="w-4 h-4" /> : st.n}
+              </span>
+              <span className="min-w-0">
+                <span className={`block text-sm font-bold ${current ? 'text-slate-900' : 'text-slate-700'}`}>{st.title}</span>
+                <span className="block text-xs text-slate-500">{st.body}</span>
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+  );
+};
+
 // The job's own page, linkable at /jobs/<slug>/
-export const JobPage: React.FC<JobDetailsProps & { onBack: () => void }> = ({ onBack, ...props }) => (
+export const JobPage: React.FC<JobDetailsProps & { onBack: () => void; visitor?: { onJoin: () => void; onSignIn: () => void } }> = ({ onBack, visitor, ...props }) => (
   <div className="space-y-6">
     <BackButton onClick={onBack}>Back</BackButton>
+    <ApplySteps {...props} visitor={visitor} />
     <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
       <div className="p-6 border-b border-slate-200">
         <JobHeader job={props.job} match={props.match} titleAs="h1" isApplied={props.isApplied} onApply={props.onApply} />

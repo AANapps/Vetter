@@ -75,6 +75,8 @@ interface CandidatePortalProps {
   sector: SectorId;
   // Checked before an application opens; false when the visitor has to sign in first (and has been asked to)
   canApply?: () => boolean;
+  // Someone not signed in, opening a job from a company's link: the job page asks them to join first
+  visitor?: { onJoin: () => void; onSignIn: () => void };
   // Set when the candidate is on a job's own page (/jobs/<slug>/)
   jobPageId?: string | null;
   onOpenJob: (jobId: string) => void;
@@ -108,6 +110,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   onTestFieldChange,
   sector,
   canApply,
+  visitor,
 }) => {
   // Tests page filters
   const [difficultyFilter, setDifficultyFilter] = useState<AssessmentTest['difficulty'][]>([]);
@@ -877,7 +880,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
         </div>
       )}
 
-      {jobPage && <JobPage {...jobDetailsProps(jobPage)} onBack={() => backOr(() => onNavigate('jobs'))} />}
+      {jobPage && <JobPage {...jobDetailsProps(jobPage)} visitor={visitor} onBack={() => backOr(() => onNavigate('jobs'))} />}
 
       {/* Full job listing pop-up */}
       {openJob && (

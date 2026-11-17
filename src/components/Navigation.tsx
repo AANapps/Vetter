@@ -4,7 +4,7 @@ import { ThemeToggle } from './ThemeToggle';
 import { Pic } from './Pic';
 import { UserRole } from '../types';
 import { ArrowLeftRight,
-  BookOpen, Building2, LogOut, Menu, ShieldCheck, Trophy, X, Bell, Briefcase, ChevronDown, ClipboardCheck, GraduationCap, House, UsersRound, Repeat, Search, Users, ListTodo } from 'lucide-react';
+  BookOpen, Building2, LogOut, Menu, ShieldCheck, Trophy, X, Bell, Briefcase, ChevronDown, ClipboardCheck, GraduationCap, House, UsersRound, Repeat, Search, Users, ListTodo, UserRound, MoreHorizontal } from 'lucide-react';
 
 export type AppTab =
   | 'home'
@@ -28,24 +28,30 @@ type TabIcon = React.ComponentType<{ className?: string }>;
 
 // Companies have jobs, tests and candidates: each job's tests go out to candidates, who take them
 export const NAV_TABS: Record<'candidate' | 'recruiter', { id: AppTab; label: string; icon: TabIcon }[]> = {
+  // Kept to the four things a candidate does: their home, jobs, work from their team, and their profile. The rest is
+  // under More (MORE_TABS)
   candidate: [
     { id: 'home', label: 'Home', icon: House },
-    { id: 'tests', label: 'Tests', icon: ClipboardCheck },
     { id: 'jobs', label: 'Jobs', icon: Briefcase },
     { id: 'work', label: 'Work', icon: ListTodo },
-    { id: 'ranked', label: 'Ranked', icon: Trophy },
-    { id: 'learn', label: 'Career switch', icon: Repeat },
-    // Upskill (/upskill/) is hidden for now; its page still works by address
+    { id: 'profile', label: 'Profile', icon: UserRound },
   ],
+  // The first is the AI chat (Create with AI); then hiring, the team, and tests
   recruiter: [
     { id: 'business-home', label: 'Home', icon: House },
-    { id: 'business-jobs', label: 'Your jobs', icon: Briefcase },
-    { id: 'business-tests', label: 'Tests', icon: ClipboardCheck },
+    { id: 'business-jobs', label: 'Jobs', icon: Briefcase },
     { id: 'business-candidates', label: 'Candidates', icon: Users },
-    { id: 'business-training', label: 'Training', icon: GraduationCap },
     { id: 'business-team', label: 'Team', icon: UsersRound },
+    { id: 'business-tests', label: 'Tests', icon: ClipboardCheck },
   ],
 };
+
+// A candidate's other pages, under More: still a click away, never in the way
+export const MORE_TABS: { id: AppTab; label: string; icon: TabIcon; blurb: string }[] = [
+  { id: 'tests', label: 'Tests', icon: ClipboardCheck, blurb: 'Prove a skill on any Praxa test' },
+  { id: 'ranked', label: 'Ranked', icon: Trophy, blurb: 'Leaderboards for every test' },
+  { id: 'learn', label: 'Career switch', icon: Repeat, blurb: 'Courses to move into a new role' },
+];
 
 const VIEWS: { role: UserRole; label: string }[] = [
   { role: 'candidate', label: 'candidate view' },
@@ -119,6 +125,9 @@ export const Navigation: React.FC<NavigationProps> = ({
   const unread = notifications?.filter((n) => !n.read).length ?? 0;
   const tabs = NAV_TABS[activeRole === 'candidate' ? 'candidate' : 'recruiter'];
   const [isMeOpen, setIsMeOpen] = useState(false);
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLDivElement>(null);
+  const moreBottomRef = useRef<HTMLDivElement>(null);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const meRef = useRef<HTMLDivElement>(null);
 
@@ -126,6 +135,7 @@ export const Navigation: React.FC<NavigationProps> = ({
     const onClick = (e: MouseEvent) => {
       if (!meRef.current?.contains(e.target as Node)) setIsMeOpen(false);
       if (!bellRef.current?.contains(e.target as Node)) setIsBellOpen(false);
+      if (!moreRef.current?.contains(e.target as Node) && !moreBottomRef.current?.contains(e.target as Node)) setIsMoreOpen(false);
     };
     document.addEventListener('mousedown', onClick);
     return () => document.removeEventListener('mousedown', onClick);
@@ -262,6 +272,50 @@ export const Navigation: React.FC<NavigationProps> = ({
     );
   };
 
+  // A candidate's other pages: a small menu, opening down from the top bar or up from the bottom one
+  const moreButton = (placement: 'top' | 'bottom') => {
+    const isActive = MORE_TABS.some((t) => t.id === currentTab);
+    return (
+      <div ref={placement === 'top' ? moreRef : moreBottomRef} className={`relative ${placement === 'bottom' ? 'flex-1 min-w-0' : ''}`}>
+        <button
+          onClick={() => setIsMoreOpen((o) => !o)}
+          aria-expanded={isMoreOpen}
+          aria-haspopup="menu"
+          className={`relative w-full flex flex-col items-center justify-center gap-0.5 transition-colors ${placement === 'top' ? 'h-14 min-w-[4.5rem] px-2' : 'h-14 px-0.5'} ${
+            isActive ? 'text-slate-900' : 'text-slate-500 hover:text-slate-900'
+          }`}
+        >
+          <MoreHorizontal className={`w-5 h-5 ${isActive ? 'text-indigo-600' : ''}`} />
+          <span className={`${placement === 'top' ? 'text-[11px]' : 'text-[10px]'} ${isActive ? 'font-semibold' : 'font-medium'} inline-flex items-center`}>
+            More
+            {placement === 'top' && <ChevronDown className="w-3 h-3" />}
+          </span>
+        </button>
+        {isMoreOpen && (
+          <div role="menu" className={`absolute ${placement === 'top' ? 'right-0 top-full mt-1' : 'right-2 bottom-full mb-2'} w-64 menu-panel z-50 p-1.5`}>
+            {MORE_TABS.map((t) => (
+              <button
+                key={t.id}
+                role="menuitem"
+                onClick={() => {
+                  onTabChange(t.id);
+                  setIsMoreOpen(false);
+                }}
+                className={`w-full flex items-start gap-3 px-3 py-2.5 rounded-lg text-left hover:bg-slate-100 ${currentTab === t.id ? 'bg-slate-100' : ''}`}
+              >
+                <t.icon className="w-4 h-4 mt-0.5 text-indigo-600 shrink-0" />
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold text-slate-900">{t.label}</span>
+                  <span className="block text-xs text-slate-500">{t.blurb}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <>
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200">
@@ -278,7 +332,10 @@ export const Navigation: React.FC<NavigationProps> = ({
             <span>Search</span>
           </button>
 
-          <nav className="hidden md:flex items-center ml-auto">{tabs.map((tab) => tabButton(tab, 'top'))}</nav>
+          <nav className="hidden md:flex items-center ml-auto">
+            {tabs.map((tab) => tabButton(tab, 'top'))}
+            {activeRole === 'candidate' && moreButton('top')}
+          </nav>
 
           {notifications && (
             <div ref={bellRef} className="relative">
@@ -373,6 +430,7 @@ export const Navigation: React.FC<NavigationProps> = ({
       {/* Phones: tabs along the bottom, like the LinkedIn app */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 flex bg-white border-t border-slate-200 pb-[env(safe-area-inset-bottom)]">
         {tabs.map((tab) => tabButton(tab, 'bottom'))}
+        {activeRole === 'candidate' && moreButton('bottom')}
       </nav>
     </>
   );

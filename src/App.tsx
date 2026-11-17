@@ -66,7 +66,6 @@ import { COURSES, courseIdFromPath, coursePath, isLearnIndexPath, isUpskillIndex
 import { useCourseProgress } from './lib/courseProgress';
 import { BusinessHome } from './components/BusinessHome';
 import { TeamPage } from './components/TeamPage';
-import { TeamWork } from './components/TeamWork';
 import { TrainingPage } from './components/TrainingPage';
 import { PlansDialog } from './components/PlansDialog';
 import { AdvisorTurn, HomeBuild, testOutline } from './lib/testAdvisor';
@@ -1475,6 +1474,37 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
     setTimeout(() => document.getElementById('job-leads')?.scrollIntoView({ behavior: 'smooth' }), 50);
   };
 
+  // A company's training (its catalogue and its own courses), shown inside the Team tab
+  const trainingView = recruiterBusiness ? (
+                <div className="space-y-12">
+                <TrainingCatalogue
+                  business={recruiterBusiness}
+                  team={ourTeam.filter((m) => m.status === 'active')}
+                  nameOf={(m) => otherCandidates.find((c) => c.id === m.uid)?.name ?? m.name}
+                  focusId={trainingFocus}
+                  onFocusUsed={() => setTrainingFocus(null)}
+                />
+                <div className="pt-8 border-t border-slate-200">
+                <TrainingPage
+                  business={recruiterBusiness}
+                  training={tests.filter((t) => t.purpose === 'training' && t.businessId === recruiterBusiness.id)}
+                  drafts={trainingDrafts}
+                  team={ourTeam}
+                  assignments={ourAssignments}
+                  candidates={otherCandidates.concat(activeRole === 'recruiter' && !firebaseEnabled ? [candidate] : [])}
+                  aiAllowed={aiAllowed}
+                  onCreate={() => startInChat('I want to create training for my team.')}
+                  onSeePlans={() => setPlansOpen(true)}
+                  onContinueDraft={(d) => openGenerator({ resume: d })}
+                  onTry={(test) => setTrialTest({ test })}
+                  onEdit={(test) => editOwnTest(test.id)}
+                  onAssign={assignWork}
+                  onGoToTeam={() => goToTab('business-team')}
+                />
+                </div>
+                </div>
+  ) : null;
+
   return (
     <div className={`min-h-screen bg-white text-slate-900 flex flex-col font-sans selection:bg-indigo-600 selection:text-white ${staffLayout ? 'lg:pl-64' : ''}`}>
       <Navigation
@@ -1551,43 +1581,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
           {activeRole === 'admin' && !testPageTest && <PublicTestReview tests={tests} onOpen={openTestPage} onDecide={decidePublic} />}
           {/* A company's invitation and the training and tests it sent: on Home, and on Tests and Learn too, so they're found
               wherever someone looks for things to do */}
-          {!detailPage && !isVisitor && !hiringHome && activeRole === 'candidate' && ['home', 'tests', 'learn', 'upskill'].includes(currentTab) && !coursePage && !testPageTest && (myTeamInvites.length > 0 || (currentTab === 'home' && myAssignments.some((a) => !a.completedAt))) && (
-            <div className={`max-w-7xl mx-auto px-4 sm:px-6 pt-8 ${currentTab === 'home' ? '-mb-8' : '-mb-4'}`}>
-              <TeamWork
-                invitations={myTeamInvites}
-                memberships={[]}
-                assignments={[]}
-                tests={tests}
-                onRespond={respondToTeam}
-                onLeave={(m) => (setTeam((prev) => prev.filter((x) => x.id !== m.id)), showToast(`You've left ${m.companyName}'s team.`))}
-                onStart={(assignment, test) => setAssignmentRun({ assignment, test })}
-                personName={candidate.name}
-              />
-              {/* Work from their teams lives on the Work tab; home just says there's some */}
-              {currentTab === 'home' && myAssignments.some((a) => !a.completedAt) && (
-                <button
-                  onClick={() => goToTab('work')}
-                  className="mb-8 w-full p-4 rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-violet-50 text-left flex items-center gap-3 hover:border-indigo-300"
-                >
-                  <span className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 text-sm font-bold font-mono">
-                    {myAssignments.filter((a) => !a.completedAt).length}
-                  </span>
-                  <span className="flex-1 min-w-0">
-                    <span className="block text-sm font-bold text-slate-900">
-                      {myAssignments.filter((a) => !a.completedAt).length === 1 ? 'A task' : 'Tasks'} from your team
-                    </span>
-                    <span className="block text-xs text-slate-600 truncate">
-                      {myAssignments.filter((a) => !a.completedAt && a.dueDate && a.dueDate < new Date().toISOString().slice(0, 10)).length > 0
-                        ? `${myAssignments.filter((a) => !a.completedAt && a.dueDate && a.dueDate < new Date().toISOString().slice(0, 10)).length} late · `
-                        : ''}
-                      Open Work to see them
-                    </span>
-                  </span>
-                  <span className="text-xs font-semibold text-indigo-700">Open Work →</span>
-                </button>
-              )}
-            </div>
-          )}
+          {/* Team invitations and work live on the Work tab; home lists them under What to do next */}
           {!testPageTest && (currentTab === 'learn' || currentTab === 'upskill') && coursePage && (
             <CoursePage
               course={coursePage}
@@ -1729,6 +1723,14 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
                 if (isVisitor) setAuthDialog({ mode: 'sign-up', reason: 'Create a free account to apply. Your verified scores go with your application.' });
                 return !isVisitor;
               }}
+              visitor={
+                isVisitor
+                  ? {
+                      onJoin: () => setAuthDialog({ mode: 'sign-up', reason: 'Create your free account to take this job’s tests. You’ll come straight back to the job.' }),
+                      onSignIn: () => setAuthDialog({ mode: 'sign-in', reason: 'Sign in to take this job’s tests. You’ll come straight back to the job.' }),
+                    }
+                  : undefined
+              }
             />
           )}
 
@@ -1775,7 +1777,19 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
                 />
               </div>
               <div className="min-w-0 space-y-4">
-              {!isVisitor && <HomeNudges candidate={candidate} tests={sectorTests} jobs={sectorJobs} sector={sector} onOpenTest={openTestPage} onGoTo={goToTab} />}
+              {!isVisitor && (
+                <HomeNudges
+                  candidate={candidate}
+                  tests={sectorTests}
+                  jobs={jobs}
+                  sector={sector}
+                  teamInvites={myTeamInvites}
+                  teamWork={myAssignments}
+                  onOpenTest={openTestPage}
+                  onOpenJob={openJobPage}
+                  onGoTo={goToTab}
+                />
+              )}
               <DiscoverFeed
                 candidate={candidate}
                 allCandidates={allCandidates}
@@ -1908,33 +1922,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
           {!detailPage && activeRole !== 'candidate' && currentTab === 'business-training' && (
             <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
               {recruiterBusiness ? (
-                <div className="space-y-12">
-                <TrainingCatalogue
-                  business={recruiterBusiness}
-                  team={ourTeam.filter((m) => m.status === 'active')}
-                  nameOf={(m) => otherCandidates.find((c) => c.id === m.uid)?.name ?? m.name}
-                  focusId={trainingFocus}
-                  onFocusUsed={() => setTrainingFocus(null)}
-                />
-                <div className="pt-8 border-t border-slate-200">
-                <TrainingPage
-                  business={recruiterBusiness}
-                  training={tests.filter((t) => t.purpose === 'training' && t.businessId === recruiterBusiness.id)}
-                  drafts={trainingDrafts}
-                  team={ourTeam}
-                  assignments={ourAssignments}
-                  candidates={otherCandidates.concat(activeRole === 'recruiter' && !firebaseEnabled ? [candidate] : [])}
-                  aiAllowed={aiAllowed}
-                  onCreate={() => startInChat('I want to create training for my team.')}
-                  onSeePlans={() => setPlansOpen(true)}
-                  onContinueDraft={(d) => openGenerator({ resume: d })}
-                  onTry={(test) => setTrialTest({ test })}
-                  onEdit={(test) => editOwnTest(test.id)}
-                  onAssign={assignWork}
-                  onGoToTeam={() => goToTab('business-team')}
-                />
-                </div>
-                </div>
+                trainingView
               ) : (
                 <p className="text-sm text-slate-500">Training belongs to a company. Switch to a company's view to make and send training.</p>
               )}
@@ -1961,6 +1949,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
                   onSeePlans={() => setPlansOpen(true)}
                   onOpenTest={openTestPage}
                   onViewPerson={setProfilePersonId}
+                  training={trainingView}
                 />
               ) : (
                 <p className="text-sm text-slate-500">Teams belong to a company. Switch to a company's view to invite people and send them training.</p>

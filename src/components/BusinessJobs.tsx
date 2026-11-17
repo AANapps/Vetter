@@ -549,6 +549,9 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
         <p className="text-sm text-slate-600 max-w-2xl">{job.description}</p>
       </div>
 
+      {/* Hiring in three steps: tests on the job, the link out to candidates, then who's applied */}
+      <HireSteps job={job} testCount={jobTests.length} onAddTests={() => onEditTests(job.id)} onShare={() => setSharing(true)} />
+
       <section className="bg-white border border-slate-200 rounded-xl p-5 space-y-3">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-sm font-bold text-slate-900">Tests for this job</h2>
@@ -919,6 +922,66 @@ const ShareDialog: React.FC<{
         </div>
       </div>
     </div>
+  );
+};
+
+// The top of a company's job: what hiring takes, and the link to send. Candidates without an account sign up from the
+// job's page and land straight back on it, with its tests
+const HireSteps: React.FC<{ job: JobPosting; testCount: number; onAddTests: () => void; onShare: () => void }> = ({ job, testCount, onAddTests, onShare }) => {
+  const link = jobLink(job);
+  const steps = [
+    { n: 1, title: testCount ? `${testCount} ${testCount === 1 ? 'test' : 'tests'} attached` : 'Attach tests', body: testCount ? 'Candidates take these to apply' : 'Pick what candidates take', done: testCount > 0 },
+    { n: 2, title: 'Send the link', body: 'To anyone: no account needed first', done: job.invitations.length > 0 },
+    { n: 3, title: 'See who applied', body: `${job.applicantCount} so far, with their scores, below`, done: job.applicantCount > 0 },
+  ];
+  return (
+    <section aria-label="Hire for this job" className="rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50 via-white to-violet-50 p-5 sm:p-6 space-y-4">
+      <ol className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {steps.map((st) => (
+          <li key={st.n} className={`p-3.5 rounded-xl border flex items-start gap-3 bg-white ${st.done ? 'border-emerald-200' : 'border-slate-200'}`}>
+            <span className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${st.done ? 'bg-emerald-500 text-white' : 'bg-indigo-600 text-white'}`}>
+              {st.done ? <CheckCircle2 className="w-4 h-4" /> : st.n}
+            </span>
+            <span className="min-w-0">
+              <span className="block text-sm font-bold text-slate-900">{st.title}</span>
+              <span className="block text-xs text-slate-500">{st.body}</span>
+            </span>
+          </li>
+        ))}
+      </ol>
+      {testCount === 0 ? (
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-xl bg-white border border-slate-200">
+          <p className="flex-1 text-sm text-slate-700">Attach at least one test before you send the link, so candidates have something to take.</p>
+          <button onClick={onAddTests} className="px-5 py-2.5 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold inline-flex items-center gap-1.5">
+            <Plus className="w-4 h-4" />
+            Add tests
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <label htmlFor={`hire-link-${job.id}`} className="text-sm font-bold text-slate-900 inline-flex items-center gap-1.5">
+            <Link2 className="w-4 h-4 text-indigo-600" />
+            Send this link to candidates
+          </label>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <input
+              id={`hire-link-${job.id}`}
+              readOnly
+              value={link}
+              onFocus={(e) => e.target.select()}
+              className="flex-1 min-w-0 px-4 py-2.5 bg-white border border-slate-300 rounded-full text-sm font-mono text-slate-700"
+            />
+            <CopyLinkButton job={job} label="Copy link" className="px-5 py-2.5 text-sm text-white bg-indigo-600 hover:bg-indigo-700 rounded-full shrink-0" />
+            <button onClick={onShare} className="px-4 py-2.5 rounded-full text-sm font-semibold text-indigo-700 border border-indigo-200 bg-white hover:bg-indigo-50 shrink-0">
+              Email it or pick people
+            </button>
+          </div>
+          <p className="text-xs text-slate-500">
+            It opens this job. New candidates create an account there and come straight back to the tests; people already on Praxa just sign in.
+          </p>
+        </div>
+      )}
+    </section>
   );
 };
 

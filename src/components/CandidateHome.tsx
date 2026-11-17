@@ -3,10 +3,10 @@ import { Pic } from './Pic';
 import { AssessmentTest, Business, JobPosting, User } from '../types';
 import { SectorId } from '../lib/sectors';
 import { PASS, useProfileProgress } from '../lib/profileProgress';
-import { STATUS_LABELS, invitesFor, totalMinutes } from '../lib/jobTests';
+import { STATUS_LABELS, invitesFor } from '../lib/jobTests';
 import { jobIdFromPath } from '../lib/jobSeo';
 import { activeProfileOf } from '../lib/jobProfiles';
-import { ArrowRight, Briefcase, Link2, MapPin, Play } from 'lucide-react';
+import { Briefcase, Link2, MapPin, Play } from 'lucide-react';
 
 interface CandidateHomeProps {
   candidate: User;
@@ -22,17 +22,6 @@ interface CandidateHomeProps {
   sector: SectorId;
 }
 
-const DAY = 86400000;
-const today = () => new Date().toISOString().split('T')[0];
-
-// When the job stops taking applications
-function closesLabel(closingDate?: string) {
-  if (!closingDate) return 'No closing date';
-  const days = Math.round((new Date(closingDate).getTime() - new Date(today()).getTime()) / DAY);
-  if (days < 0) return 'Closed';
-  if (days === 0) return 'Closes today';
-  return days === 1 ? 'Closes tomorrow' : `Closes in ${days} days`;
-}
 
 // A pasted job link, or just the job's id
 const jobIdFromLink = (text: string) => {
@@ -47,7 +36,6 @@ const jobIdFromLink = (text: string) => {
 // A candidate's home: the jobs whose tests companies sent them, what's left to do and how they did
 export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, jobs, tests, businesses, onOpenJob, onStartTest, onOpenTest, onGoTo, visitor, sector }) => {
   const items = visitor ? [] : invitesFor(candidate, jobs);
-  const open = items.filter((i) => i.progress.score === undefined);
   const finished = items.filter((i) => i.progress.score !== undefined);
   const profile = activeProfileOf(candidate);
   const progress = useProfileProgress({ candidate, shown: { title: profile.title ?? '', bio: profile.bio ?? '' }, activeProfile: profile, tests, jobs, sector });
@@ -198,53 +186,7 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, jobs, t
         </section>
       )}
 
-      {open.length > 0 && (
-        <p className="text-sm font-semibold text-slate-800 -mb-4">
-          {open.length} {open.length === 1 ? 'job wants' : 'jobs want'} you to take their tests
-        </p>
-      )}
       </>
-      )}
-
-      {open.length > 0 && (
-        <ul className="space-y-3">
-          {open.map(({ job, progress }) => {
-            const business = businesses.find((b) => b.id === job.businessId);
-            const due = closesLabel(job.closingDate);
-            return (
-              <li key={job.id}>
-                <button
-                  onClick={() => onOpenJob(job.id)}
-                  className="group w-full text-left bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl p-5 flex items-center gap-4 transition-colors shadow-xs"
-                >
-                  {business && (
-                    <Pic src={business.logo} alt="" referrerPolicy="no-referrer" className="w-12 h-12 rounded-xl object-cover bg-slate-100 shrink-0" />
-                  )}
-                  <div className="min-w-0 flex-1 space-y-1.5">
-                    <div className="text-xs font-semibold text-slate-500">{job.companyName}</div>
-                    <div className="text-base font-bold text-slate-900 group-hover:text-indigo-700">{job.title}</div>
-                    <div className="text-xs text-slate-500">
-                      {progress.total} {progress.total === 1 ? 'test' : 'tests'} &middot; ~{totalMinutes(job, tests)} min &middot;{' '}
-                      <span className={due === 'Closed' ? 'text-rose-700 font-semibold' : ''}>{due}</span>
-                    </div>
-                    <div className="flex items-center gap-2 pt-0.5">
-                      <div className="h-1.5 flex-1 max-w-56 bg-slate-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-indigo-600" style={{ width: `${(progress.done / progress.total) * 100}%` }} />
-                      </div>
-                      <span className="text-[11px] text-slate-500 tabular-nums">
-                        {progress.done}/{progress.total} done
-                      </span>
-                    </div>
-                  </div>
-                  <span className="hidden @md:flex px-4 py-2 text-sm font-semibold text-white bg-indigo-600 group-hover:bg-indigo-700 rounded-lg items-center gap-1.5 shrink-0">
-                    {progress.done === 0 ? 'Start' : 'Continue'}
-                    <ArrowRight className="w-4 h-4" />
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
       )}
 
       <form onSubmit={openPasted} className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">

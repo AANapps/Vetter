@@ -26,6 +26,8 @@ interface TeamPageProps {
   onSeePlans: () => void;
   onOpenTest: (testId: string) => void;
   onViewPerson: (personId: string) => void;
+  // The company's training (catalogue and own courses), shown under Training
+  training?: React.ReactNode;
 }
 
 // What a piece of work is, as the team sees it
@@ -50,7 +52,7 @@ const STATUS_CHIP: Record<TeamMember['status'], { label: string; cls: string }> 
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-type TeamSection = 'overview' | 'tasks' | 'skills' | 'people';
+type TeamSection = 'overview' | 'tasks' | 'skills' | 'training' | 'people';
 
 const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
   <section className={`bg-white border border-slate-200 rounded-2xl shadow-xs ${className}`}>{children}</section>
@@ -76,6 +78,7 @@ export const TeamPage: React.FC<TeamPageProps> = ({
   onSeePlans,
   onOpenTest,
   onViewPerson,
+  training,
 }) => {
   const [section, setSection] = useState<TeamSection>(team.length ? 'overview' : 'people');
   const [invite, setInvite] = useState('');
@@ -124,6 +127,7 @@ export const TeamPage: React.FC<TeamPageProps> = ({
     { id: 'overview', label: 'Overview', icon: LayoutGrid, count: active.length },
     { id: 'tasks', label: 'Tasks', icon: SquareKanban, count: live.filter((a) => !a.completedAt).length, alert: late.length > 0 },
     { id: 'skills', label: 'Skills & tests', icon: BarChart3 },
+    ...(training ? [{ id: 'training' as const, label: 'Training', icon: GraduationCap }] : []),
     { id: 'people', label: 'People & invites', icon: UserPlus, count: team.filter((m) => m.status === 'invited').length || undefined },
   ];
   const member = openMember ? team.find((m) => m.id === openMember) : undefined;
@@ -485,6 +489,9 @@ export const TeamPage: React.FC<TeamPageProps> = ({
             )}
           </>
         )}
+
+        {/* ---------- Training: the catalogue and the company's own courses ---------- */}
+        {section === 'training' && training}
 
         {/* ---------- People & invites ---------- */}
         {section === 'people' && (
