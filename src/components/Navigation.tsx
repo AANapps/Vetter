@@ -28,10 +28,11 @@ type TabIcon = React.ComponentType<{ className?: string }>;
 
 // Companies have jobs, tests and candidates: each job's tests go out to candidates, who take them
 export const NAV_TABS: Record<'candidate' | 'recruiter', { id: AppTab; label: string; icon: TabIcon }[]> = {
-  // Kept to the four things a candidate does: their home, jobs, work from their team, and their profile. The rest is
+  // Kept to the five things a candidate does: their home, tests, jobs, work from their team, and their profile. The rest is
   // under More (MORE_TABS)
   candidate: [
     { id: 'home', label: 'Home', icon: House },
+    { id: 'tests', label: 'Tests', icon: ClipboardCheck },
     { id: 'jobs', label: 'Jobs', icon: Briefcase },
     { id: 'work', label: 'Work', icon: ListTodo },
     { id: 'profile', label: 'Profile', icon: UserRound },
@@ -48,7 +49,6 @@ export const NAV_TABS: Record<'candidate' | 'recruiter', { id: AppTab; label: st
 
 // A candidate's other pages, under More: still a click away, never in the way
 export const MORE_TABS: { id: AppTab; label: string; icon: TabIcon; blurb: string }[] = [
-  { id: 'tests', label: 'Tests', icon: ClipboardCheck, blurb: 'Prove a skill on any Praxa test' },
   { id: 'ranked', label: 'Ranked', icon: Trophy, blurb: 'Leaderboards for every test' },
   { id: 'learn', label: 'Career switch', icon: Repeat, blurb: 'Courses to move into a new role' },
 ];
