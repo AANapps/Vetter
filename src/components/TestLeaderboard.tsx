@@ -17,12 +17,11 @@ interface TestLeaderboardProps {
   onTakeTest?: () => void;
 }
 
-// A test page's leaderboard: the top ten, then all of them on request; the viewer's own place stays in view
+// A test page's leaderboard: only the top ten are shown. A viewer ranked below them sees their own place underneath, in
+// the same format (e.g. #45), so nobody else's lower scores are on show
 export const TestLeaderboard: React.FC<TestLeaderboardProps> = ({ entries, passingScore, currentCandidateId, onTakeTest }) => {
   const [isOpen, setIsOpen] = useState(true);
-  const [showAll, setShowAll] = useState(false);
-
-  const visible = showAll ? entries : entries.slice(0, TOP_COUNT);
+  const visible = entries.slice(0, TOP_COUNT);
   const yourEntry = entries.find((e) => e.candidate.id === currentCandidateId);
 
   return (
@@ -37,7 +36,7 @@ export const TestLeaderboard: React.FC<TestLeaderboardProps> = ({ entries, passi
           <p className="text-xs text-slate-500">
             {entries.length === 0
               ? 'No one is ranked yet. The first place is open.'
-              : `Best score per candidate · ${entries.length} ranked${showAll || entries.length <= TOP_COUNT ? '' : ` · showing top ${TOP_COUNT}`}`}
+              : `Best score per candidate · ${entries.length} ranked${entries.length <= TOP_COUNT ? '' : ` · top ${TOP_COUNT}`}`}
           </p>
         </div>
         <ChevronDown className={`w-5 h-5 text-slate-400 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
@@ -53,16 +52,6 @@ export const TestLeaderboard: React.FC<TestLeaderboardProps> = ({ entries, passi
             pinned={yourEntry}
             onClaim={onTakeTest}
           />
-          {entries.length > TOP_COUNT && (
-            <button
-              onClick={() => setShowAll((s) => !s)}
-              aria-expanded={showAll}
-              className="w-full flex items-center justify-center gap-1.5 px-4 py-3 border-t border-slate-100 text-xs font-semibold text-indigo-700 hover:bg-slate-50 transition-colors"
-            >
-              <span>{showAll ? `Show top ${TOP_COUNT}` : `See all ${entries.length} candidates`}</span>
-              <ChevronDown className={`w-4 h-4 transition-transform ${showAll ? 'rotate-180' : ''}`} />
-            </button>
-          )}
         </div>
       )}
     </section>

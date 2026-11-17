@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ArrowRight, ChevronLeft, ChevronRight, Search, Trophy, Users } from 'lucide-react';
 import { AssessmentTest, User, isPublic, levelName } from '../types';
 import { getLeaderboard, getTestStats } from '../lib/leaderboard';
@@ -198,33 +198,24 @@ const TestBoard: React.FC<{ board: Board; allCandidates: User[]; viewerId: strin
   );
 };
 
-const PAGE = 20;
+const TOP_COUNT = 10;
 // A short board is padded to this many places: the next one open to claim, the rest not yet ranked
 const SLOTS = 5;
 
-// One test's whole leaderboard as a table, twenty at a time; the viewer's own place stays in view
+// One test's leaderboard as a table: only the top ten. A viewer ranked below them sees their own place underneath, in
+// the same format (e.g. #45)
 const RankTable: React.FC<{ board: Board; viewerId: string; onClaim: () => void }> = ({ board, viewerId, onClaim }) => {
-  const [shown, setShown] = useState(PAGE);
-  useEffect(() => setShown(PAGE), [board.test.id]);
   const yours = board.entries.find((e) => e.candidate.id === viewerId);
   return (
     <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
       <LeaderboardTable
-        entries={board.entries.slice(0, shown)}
+        entries={board.entries.slice(0, TOP_COUNT)}
         passingScore={board.test.passingScore}
         viewerId={viewerId}
         slots={SLOTS}
         pinned={yours}
         onClaim={onClaim}
       />
-      {board.entries.length > shown && (
-        <button
-          onClick={() => setShown((n) => n + PAGE)}
-          className="w-full px-4 py-3 border-t border-slate-100 text-xs font-semibold text-indigo-700 hover:bg-slate-50"
-        >
-          Show more ({board.entries.length - shown} left)
-        </button>
-      )}
     </div>
   );
 };
