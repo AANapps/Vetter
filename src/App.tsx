@@ -1507,7 +1507,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
   ) : null;
 
   return (
-    <div className={`min-h-screen bg-white text-slate-900 flex flex-col font-sans selection:bg-indigo-600 selection:text-white ${staffLayout ? 'lg:pl-64' : ''}`}>
+    <div className={`min-h-screen bg-white text-slate-900 flex flex-col font-sans selection:bg-indigo-600 selection:text-white ${staffLayout ? 'lg:pl-16' : ''}`}>
       <Navigation
         currentTab={currentTab}
         onTabChange={(tab) => {

@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { BrandWordmark } from './Brand';
+import { BrandSparkle, BrandWordmark } from './Brand';
 import { ThemeToggle } from './ThemeToggle';
 import { Pic } from './Pic';
 import { UserRole } from '../types';
 import { ArrowLeftRight,
-  BookOpen, Building2, LogOut, Menu, ShieldCheck, Trophy, X, Bell, Briefcase, ChevronDown, ClipboardCheck, GraduationCap, House, UsersRound, Repeat, Search, Users, ListTodo, UserRound, MoreHorizontal } from 'lucide-react';
+  BookOpen, Building2, LogOut, Menu, ShieldCheck, Trophy, X, Bell, Briefcase, ChevronDown, ClipboardCheck, GraduationCap, House, UsersRound, Repeat, Search, Users, ListTodo, UserRound, MoreHorizontal, Sparkles } from 'lucide-react';
 
 export type AppTab =
   | 'home'
@@ -525,9 +525,25 @@ const StaffNav: React.FC<{
   meRef: React.RefObject<HTMLDivElement | null>;
 }> = ({ tabs, currentTab, onTabChange, onNewChat, renderSearch, userAvatar, userName, userTitle, meMenu, isMeOpen, setIsMeOpen, meRef }) => {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // Wide screens: a rail of icons that slides open over the page while the pointer (or keyboard focus) is on it
+  const [railOpen, setRailOpen] = useState(false);
+  const railTimer = useRef<number | undefined>(undefined);
+  const openRail = () => {
+    window.clearTimeout(railTimer.current);
+    railTimer.current = window.setTimeout(() => setRailOpen(true), 120);
+  };
+  const closeRail = () => {
+    window.clearTimeout(railTimer.current);
+    railTimer.current = window.setTimeout(() => {
+      setRailOpen(false);
+      setIsMeOpen(false);
+    }, 200);
+  };
+  useEffect(() => () => window.clearTimeout(railTimer.current), []);
   const go = (tab: AppTab) => {
     onTabChange(tab);
     setDrawerOpen(false);
+    setRailOpen(false);
   };
   // Closes with Escape, and the page behind doesn't scroll while it's open
   useEffect(() => {
@@ -548,7 +564,7 @@ const StaffNav: React.FC<{
     { id: 'companies', label: 'Companies', icon: Building2 },
     { id: 'guides', label: 'How-to guides', icon: BookOpen },
   ];
-  const item = (t: { id: AppTab; label: string; icon: TabIcon }) => {
+  const item = (t: { id: AppTab; label: string; icon: TabIcon }, collapsed = false) => {
     const Icon = t.icon;
     const active = currentTab === t.id;
     return (
@@ -556,62 +572,95 @@ const StaffNav: React.FC<{
         key={t.id}
         onClick={() => go(t.id)}
         aria-current={active ? 'page' : undefined}
-        className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+        aria-label={collapsed ? t.label : undefined}
+        title={collapsed ? t.label : undefined}
+        className={`w-full h-9 flex items-center gap-3 px-3 rounded-lg text-sm transition-colors ${
           active ? 'bg-slate-200/70 text-slate-900 font-semibold' : 'text-slate-600 hover:bg-slate-200/50 hover:text-slate-900'
         }`}
       >
         <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-indigo-600' : 'text-slate-400'}`} />
-        <span className="truncate">{t.label}</span>
+        {!collapsed && <span className="truncate whitespace-nowrap">{t.label}</span>}
       </button>
     );
   };
 
-  const panel = (
+  const panel = (collapsed: boolean) => (
     <div className="h-full flex flex-col bg-slate-50 border-r border-slate-200">
-      <div className="h-14 px-4 flex items-center justify-between gap-2 shrink-0">
-        <Wordmark onClick={() => go(tabs[0].id)} />
+      <div className={`h-14 flex items-center justify-between gap-2 shrink-0 ${collapsed ? 'px-3' : 'px-4'}`}>
+        {collapsed ? (
+          <button onClick={() => go(tabs[0].id)} aria-label="Praxa home" className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-slate-200/60">
+            <BrandSparkle className="w-6 h-6" />
+          </button>
+        ) : (
+          <Wordmark onClick={() => go(tabs[0].id)} />
+        )}
         <button onClick={() => setDrawerOpen(false)} className="lg:hidden p-2 -mr-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-200/60" aria-label="Close menu">
           <X className="w-5 h-5" />
         </button>
       </div>
 
       <div className="px-3 space-y-2 shrink-0">
-        <button
-          onClick={() => {
-            onNewChat?.();
-            go(tabs[0].id);
-          }}
-          className={`create-border w-full flex items-center justify-center px-3 py-2.5 rounded-lg text-sm font-semibold transition-colors hover:text-slate-900 ${
-            currentTab === tabs[0].id ? 'text-slate-900 shadow-xs' : 'text-slate-700'
-          }`}
-        >
-          Create with AI
-        </button>
-        <div className="[&_input]:bg-white">{renderSearch(null)}</div>
+        {collapsed ? (
+          <>
+            <button
+              onClick={() => {
+                onNewChat?.();
+                go(tabs[0].id);
+              }}
+              aria-label="Create with AI"
+              title="Create with AI"
+              className="w-10 h-10 flex items-center justify-center rounded-lg bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-600 text-white shadow-sm"
+            >
+              <Sparkles className="w-4 h-4" />
+            </button>
+            <button onClick={() => setRailOpen(true)} aria-label="Search people and tests" title="Search" className="w-10 h-10 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-200/60 hover:text-slate-900">
+              <Search className="w-4 h-4" />
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              onClick={() => {
+                onNewChat?.();
+                go(tabs[0].id);
+              }}
+              className="w-full h-10 flex items-center justify-center gap-2 px-3 rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 hover:from-indigo-500 hover:via-violet-500 hover:to-fuchsia-500 shadow-sm whitespace-nowrap"
+            >
+              <Sparkles className="w-4 h-4" />
+              Create with AI
+            </button>
+            <div className="[&_input]:bg-white">{renderSearch(null)}</div>
+          </>
+        )}
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5" aria-label="Pages">
-        {pages.map(item)}
-        <div className="pt-4 pb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">More</div>
-        {extra.map(item)}
+      <nav className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-4 space-y-0.5" aria-label="Pages">
+        {pages.map((t) => item(t, collapsed))}
+        {collapsed ? <div className="my-3 mx-2 border-t border-slate-200" /> : <div className="pt-4 pb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">More</div>}
+        {extra.map((t) => item(t, collapsed))}
       </nav>
 
       {/* The account, its menu opening upwards */}
-      <div ref={meRef} className="relative p-3 border-t border-slate-200 shrink-0">
+      <div ref={collapsed ? undefined : meRef} className="relative p-3 border-t border-slate-200 shrink-0">
         <button
-          onClick={() => setIsMeOpen((o) => !o)}
+          onClick={() => (collapsed ? setRailOpen(true) : setIsMeOpen((o) => !o))}
           aria-expanded={isMeOpen}
           aria-haspopup="menu"
-          className="w-full flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-slate-200/50 text-left"
+          aria-label={collapsed ? userName : undefined}
+          className={`w-full flex items-center gap-3 py-2 rounded-lg hover:bg-slate-200/50 text-left ${collapsed ? 'px-1 justify-center' : 'px-2'}`}
         >
           <Pic src={userAvatar} alt="" referrerPolicy="no-referrer" className="w-8 h-8 rounded-full object-cover bg-slate-100 shrink-0" />
-          <span className="min-w-0 flex-1">
-            <span className="block text-sm font-semibold text-slate-900 truncate">{userName}</span>
-            <span className="block text-[11px] text-slate-500 truncate">{userTitle}</span>
-          </span>
-          <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isMeOpen ? '' : 'rotate-180'}`} />
+          {!collapsed && (
+            <>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold text-slate-900 truncate">{userName}</span>
+                <span className="block text-[11px] text-slate-500 truncate">{userTitle}</span>
+              </span>
+              <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isMeOpen ? '' : 'rotate-180'}`} />
+            </>
+          )}
         </button>
-        {isMeOpen && (
+        {isMeOpen && !collapsed && (
           <div role="menu" className="absolute bottom-full right-3 left-3 mb-1 menu-panel p-4 space-y-3 z-50">
             {meMenu()}
           </div>
@@ -623,7 +672,18 @@ const StaffNav: React.FC<{
   return (
     <>
       {/* Wide screens: always there, down the left */}
-      <aside className="hidden lg:block fixed inset-y-0 left-0 w-64 z-40">{panel}</aside>
+      {/* Wide screens: a rail of icons down the left; it slides open to the full menu, over the page, on hover */}
+      <aside
+        onMouseEnter={openRail}
+        onMouseLeave={() => !isMeOpen && closeRail()}
+        onFocus={() => setRailOpen(true)}
+        onBlur={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && !isMeOpen && closeRail()}
+        className={`hidden lg:block fixed inset-y-0 left-0 z-40 overflow-hidden transition-[width,box-shadow] duration-200 ease-out ${
+          railOpen ? 'w-64 shadow-2xl shadow-slate-900/15' : 'w-16'
+        }`}
+      >
+        <div className={railOpen ? 'w-64 h-full' : 'w-16 h-full'}>{panel(!railOpen)}</div>
+      </aside>
 
       {/* Phones and tablets: a slim bar, and the panel slides in from the left */}
       <header className="lg:hidden sticky top-0 z-40 h-14 px-4 flex items-center justify-between gap-3 bg-white/95 backdrop-blur-md border-b border-slate-200">
@@ -647,7 +707,7 @@ const StaffNav: React.FC<{
         <div className="lg:hidden fixed inset-0 z-50">
           <div className="absolute inset-0 bg-slate-900/40 animate-[fade-in_150ms_ease-out]" onClick={() => setDrawerOpen(false)} />
           <div role="dialog" aria-modal="true" aria-label="Menu" className="absolute inset-y-0 left-0 w-72 max-w-[85vw] shadow-2xl animate-[slide-in-left_200ms_ease-out]">
-            {panel}
+            {panel(false)}
           </div>
         </div>
       )}
