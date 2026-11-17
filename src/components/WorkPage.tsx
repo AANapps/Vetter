@@ -3,11 +3,8 @@ import {
   AlertCircle,
   Award,
   Building2,
-  CalendarClock,
   Check,
-  Clock,
   GraduationCap,
-  LayoutGrid,
   ListTodo,
   LogOut,
   Play,
@@ -22,8 +19,9 @@ import { Assignment, AssessmentTest, Business, TeamMember } from '../types';
 import { KindChip } from './TeamPage';
 import { Pic } from './Pic';
 import { PageHeader } from './PageHeader';
+import { WorkBoard } from './WorkBoard';
 import { CertificateDetails, CertificateDialog } from './Certificate';
-import { TASK_COLUMNS, TaskStatus, byUrgency, dueLabel, isOverdue, shortDate, statusOf } from '../lib/work';
+import { byUrgency, dueLabel, isOverdue, shortDate } from '../lib/work';
 
 /**
  * Someone's work from the companies whose teams they're on, like a task manager: the tasks (training, job simulations
@@ -52,15 +50,12 @@ const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ chi
 
 export const WorkPage: React.FC<WorkPageProps> = ({ invitations, memberships, assignments, tests, businesses, personName, onRespond, onLeave, onStart, onFindTests }) => {
   const [section, setSection] = useState<Section>(invitations.length && !memberships.length ? 'teams' : 'tasks');
-  const [view, setView] = useState<'board' | 'list'>('board');
-  const [company, setCompany] = useState<string>('all');
   const [cert, setCert] = useState<CertificateDetails | null>(null);
   const [leaving, setLeaving] = useState<string | null>(null);
 
   const testOf = (a: Assignment) => tests.find((t) => t.id === a.testId);
   const logoOf = (businessId: string) => businesses.find((b) => b.id === businessId)?.logo;
   const isTraining = (a: Assignment) => testOf(a)?.purpose === 'training';
-  const mine = assignments.filter((a) => testOf(a)).filter((a) => company === 'all' || a.businessId === company);
   const open = assignments.filter((a) => !a.completedAt);
   const late = assignments.filter(isOverdue);
   const certified = assignments.filter((a) => a.certifiedAt);
@@ -75,7 +70,7 @@ export const WorkPage: React.FC<WorkPageProps> = ({ invitations, memberships, as
   });
 
   const menu: { id: Section; label: string; icon: React.ComponentType<{ className?: string }>; count?: number; alert?: boolean }[] = [
-    { id: 'tasks', label: 'My tasks', icon: ListTodo, count: open.length, alert: late.length > 0 },
+    { id: 'tasks', label: 'My work', icon: ListTodo, count: open.length, alert: late.length > 0 },
     { id: 'training', label: 'Training', icon: GraduationCap, count: assignments.filter((a) => isTraining(a) && !a.completedAt).length },
     { id: 'certificates', label: 'Certificates', icon: Award, count: certified.length },
     { id: 'teams', label: 'Teams', icon: Users, count: memberships.length, alert: invitations.length > 0 },
@@ -111,39 +106,6 @@ export const WorkPage: React.FC<WorkPageProps> = ({ invitations, memberships, as
     );
   };
 
-  const taskCard = (a: Assignment) => {
-    const t = testOf(a)!;
-    const due = dueLabel(a);
-    const lateNow = isOverdue(a);
-    return (
-      <li key={a.id} className={`p-4 rounded-xl bg-white border shadow-2xs space-y-2.5 ${lateNow ? 'border-rose-200' : 'border-slate-200'}`}>
-        <div className="flex items-center justify-between gap-2">
-          <KindChip test={t} />
-          {a.completedAt ? (
-            <span className={`font-mono text-sm font-bold tabular-nums ${(a.score ?? 0) >= t.passingScore ? 'text-emerald-700' : 'text-amber-700'}`}>{a.score}/100</span>
-          ) : (
-            due && (
-              <span className={`text-[11px] font-semibold inline-flex items-center gap-1 ${lateNow ? 'text-rose-600' : 'text-slate-500'}`}>
-                <CalendarClock className="w-3 h-3" />
-                {due}
-              </span>
-            )
-          )}
-        </div>
-        <div className="text-sm font-bold text-slate-900 leading-snug">{t.title}</div>
-        <div className="flex items-center gap-2 text-[11px] text-slate-500">
-          <Pic src={logoOf(a.businessId) ?? ''} alt="" className="w-4 h-4 rounded" />
-          <span className="truncate">{a.companyName}</span>
-          <span>·</span>
-          <Clock className="w-3 h-3" />~{t.estimatedMinutes} min
-        </div>
-        {a.note && <p className="text-xs text-slate-600 bg-slate-50 rounded-lg px-2.5 py-1.5">“{a.note}”</p>}
-        {a.completedAt && <p className="text-[11px] text-slate-500">Finished {shortDate(a.completedAt)}</p>}
-        <div>{action(a, t, true)}</div>
-      </li>
-    );
-  };
-
   const empty = (text: string, cta?: React.ReactNode) => (
     <div className="p-8 text-center rounded-2xl border border-dashed border-slate-300 bg-white space-y-2">
       <ListTodo className="w-8 h-8 text-slate-300 mx-auto" />
@@ -151,19 +113,6 @@ export const WorkPage: React.FC<WorkPageProps> = ({ invitations, memberships, as
       {cta}
     </div>
   );
-
-  // The list view, grouped by when it's due
-  const groups: { label: string; items: Assignment[] }[] = (() => {
-    const todo = mine.filter((a) => !a.completedAt).sort(byUrgency);
-    const week = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
-    return [
-      { label: 'Late', items: todo.filter(isOverdue) },
-      { label: 'This week', items: todo.filter((a) => !isOverdue(a) && a.dueDate && a.dueDate <= week) },
-      { label: 'Later', items: todo.filter((a) => a.dueDate && a.dueDate > week) },
-      { label: 'No due date', items: todo.filter((a) => !a.dueDate) },
-      { label: 'Done', items: mine.filter((a) => a.completedAt).sort(byUrgency) },
-    ].filter((g) => g.items.length);
-  })();
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
@@ -216,120 +165,22 @@ export const WorkPage: React.FC<WorkPageProps> = ({ invitations, memberships, as
           {/* ---------- My tasks ---------- */}
           {section === 'tasks' && (
             <>
-              <PageHeader
-                title="My tasks"
-                sub="Training, job simulations and tests your teams sent you. Only you and that company see the results."
-                action={
-                <div className="inline-flex rounded-full border border-slate-200 bg-white p-1 text-xs font-semibold">
-                  {(
-                    [
-                      ['board', 'Board', LayoutGrid],
-                      ['list', 'List', ListTodo],
-                    ] as const
-                  ).map(([id, label, Icon]) => (
-                    <button
-                      key={id}
-                      onClick={() => setView(id)}
-                      aria-pressed={view === id}
-                      className={`px-3 py-1.5 rounded-full inline-flex items-center gap-1.5 ${view === id ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900'}`}
-                    >
-                      <Icon className="w-3.5 h-3.5" />
-                      {label}
-                    </button>
-                  ))}
-                </div>
-                }
-              />
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {[
-                  { label: 'To do', value: assignments.filter((a) => statusOf(a) === 'todo').length, tone: 'text-slate-900' },
-                  { label: 'In progress', value: assignments.filter((a) => statusOf(a) === 'doing').length, tone: 'text-amber-600' },
-                  { label: 'Done', value: assignments.filter((a) => statusOf(a) === 'done').length, tone: 'text-emerald-600' },
-                  { label: 'Late', value: late.length, tone: late.length ? 'text-rose-600' : 'text-slate-400' },
-                ].map((s) => (
-                  <Card key={s.label} className="p-4">
-                    <div className={`text-2xl font-bold font-mono tabular-nums ${s.tone}`}>{s.value}</div>
-                    <div className="text-xs font-medium text-slate-500">{s.label}</div>
-                  </Card>
-                ))}
-              </div>
-
-              {memberships.length > 1 && (
-                <div className="flex flex-wrap gap-2">
-                  {[{ id: 'all', name: 'All teams' }, ...memberships.map((m) => ({ id: m.businessId, name: m.companyName }))].map((c) => (
-                    <button
-                      key={c.id}
-                      onClick={() => setCompany(c.id)}
-                      className={`px-3 py-1 rounded-full border text-xs font-semibold ${company === c.id ? 'bg-slate-900 border-slate-900 text-white' : 'bg-white border-slate-300 text-slate-700 hover:border-slate-500'}`}
-                    >
-                      {c.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {memberships.length === 0 ? (
+              <PageHeader title="My work" sub="Training, job simulations and tests your teams sent you. Only you and that company see the results." />
+              {memberships.length === 0 && assignments.length === 0 ? (
                 empty('You’re not on a team yet. When a company invites you to its team, the work it sends you appears here.', (
                   <button onClick={onFindTests} className="px-4 py-2 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold">
                     Take a Praxa test meanwhile
                   </button>
                 ))
-              ) : mine.length === 0 ? (
-                empty('Nothing to do yet. Training and tests your team sends you will appear here.')
-              ) : view === 'board' ? (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
-                  {TASK_COLUMNS.map((col) => {
-                    const items = mine.filter((a) => statusOf(a) === (col.id as TaskStatus)).sort(byUrgency);
-                    return (
-                      <div key={col.id} className="rounded-2xl bg-slate-50 border border-slate-200 p-3 space-y-3">
-                        <div className="flex items-center gap-2 px-1">
-                          <span className={`w-2 h-2 rounded-full ${col.dot}`} />
-                          <span className="text-xs font-bold uppercase tracking-wide text-slate-600">{col.label}</span>
-                          <span className="ml-auto text-xs font-mono text-slate-400">{items.length}</span>
-                        </div>
-                        {items.length === 0 ? <p className="px-1 pb-2 text-xs text-slate-400">Nothing here.</p> : <ul className="space-y-2.5">{items.map(taskCard)}</ul>}
-                      </div>
-                    );
-                  })}
-                </div>
               ) : (
-                <div className="space-y-4">
-                  {groups.map((g) => (
-                    <Card key={g.label} className="overflow-hidden">
-                      <div className={`px-5 py-2.5 border-b border-slate-100 text-xs font-bold uppercase tracking-wide ${g.label === 'Late' ? 'text-rose-600 bg-rose-50/60' : 'text-slate-500 bg-slate-50/60'}`}>
-                        {g.label} · {g.items.length}
-                      </div>
-                      <ul className="divide-y divide-slate-100">
-                        {g.items.map((a) => {
-                          const t = testOf(a)!;
-                          const st = statusOf(a);
-                          return (
-                            <li key={a.id} className="px-5 py-3 flex flex-col sm:flex-row sm:items-center gap-3">
-                              <span
-                                className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${st === 'done' ? 'bg-emerald-500 text-white' : st === 'doing' ? 'border-2 border-amber-400' : 'border-2 border-slate-300'}`}
-                              >
-                                {st === 'done' && <Check className="w-3.5 h-3.5" strokeWidth={3} />}
-                              </span>
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="text-sm font-semibold text-slate-900">{t.title}</span>
-                                  <KindChip test={t} />
-                                </div>
-                                <div className="text-xs text-slate-500">
-                                  {a.companyName} · ~{t.estimatedMinutes} min
-                                  {dueLabel(a) && <span className={isOverdue(a) ? 'text-rose-600 font-semibold' : ''}> · {dueLabel(a)}</span>}
-                                  {a.completedAt && <span className="font-semibold text-slate-700"> · {a.score}/100</span>}
-                                </div>
-                              </div>
-                              {action(a, t, true)}
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </Card>
-                  ))}
-                </div>
+                <WorkBoard
+                  side="person"
+                  whoLabel="From"
+                  defaultView="mine"
+                  rows={assignments.filter((a) => testOf(a)).map((a) => ({ a, test: testOf(a)!, who: a.companyName, whoPic: logoOf(a.businessId), whoId: a.businessId }))}
+                  onOpen={(r) => (r.a.completedAt ? undefined : onStart(r.a, r.test))}
+                  renderAction={(r) => action(r.a, r.test, true)}
+                />
               )}
             </>
           )}
@@ -473,7 +324,6 @@ export const WorkPage: React.FC<WorkPageProps> = ({ invitations, memberships, as
                           <div className="flex gap-2">
                             <button
                               onClick={() => {
-                                setCompany(m.businessId);
                                 setSection('tasks');
                               }}
                               className="flex-1 px-3 py-2 rounded-full text-xs font-semibold text-indigo-700 border border-indigo-200 hover:bg-indigo-50"

@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { Award, Check, Sparkles, GraduationCap, LayoutGrid, ListTodo, Lock, Mail, Plus, Search, SquareKanban, Trash2, UserPlus, X } from 'lucide-react';
-import { TASK_COLUMNS, byUrgency, dueLabel, isOverdue, shortDate, statusOf } from '../lib/work';
+import { byUrgency, dueLabel, isOverdue, shortDate } from '../lib/work';
 import { Assignment, AssessmentTest, Business, TeamMember, User, isPublic, levelName } from '../types';
 import { Pic } from './Pic';
 import { PageHeader } from './PageHeader';
+import { WorkBoard } from './WorkBoard';
 
 /**
  * A company's team on Praxa: the people it asked to join (candidates on Praxa, or anyone by email), and the tests, job
@@ -81,12 +82,10 @@ export const TeamPage: React.FC<TeamPageProps> = ({
   onViewPerson,
   training,
 }) => {
-  const [section, setSection] = useState<TeamSection>(team.length ? 'overview' : 'people');
+  const [section, setSection] = useState<TeamSection>(assignments.length ? 'tests' : team.length ? 'overview' : 'people');
   const [invite, setInvite] = useState('');
   const [assigning, setAssigning] = useState<string[] | null>(null);
   const [openMember, setOpenMember] = useState<string | null>(null);
-  const [personFilter, setPersonFilter] = useState<string>('all');
-  const [testsView, setTestsView] = useState<'board' | 'results'>('board');
   const [removing, setRemoving] = useState<string | null>(null);
   const active = team.filter((m) => m.status === 'active');
   const person = (m: TeamMember) => (m.uid ? candidates.find((c) => c.id === m.uid) : undefined);
@@ -126,8 +125,8 @@ export const TeamPage: React.FC<TeamPageProps> = ({
   const doneAll = live.filter((a) => a.completedAt);
   const teamAvg = doneAll.length ? Math.round(doneAll.reduce((s, a) => s + (a.score ?? 0), 0) / doneAll.length) : undefined;
   const menu: { id: TeamSection; label: string; icon: React.ComponentType<{ className?: string }>; count?: number; alert?: boolean }[] = [
+    { id: 'tests', label: 'Board', icon: SquareKanban, count: live.filter((a) => !a.completedAt).length, alert: late.length > 0 },
     { id: 'overview', label: 'Overview', icon: LayoutGrid, count: active.length },
-    { id: 'tests', label: 'Tests', icon: SquareKanban, count: live.filter((a) => !a.completedAt).length, alert: late.length > 0 },
     ...(training ? [{ id: 'training' as const, label: 'Training', icon: GraduationCap }] : []),
     { id: 'people', label: 'People & invites', icon: UserPlus, count: team.filter((m) => m.status === 'invited').length || undefined },
   ];
@@ -374,127 +373,24 @@ export const TeamPage: React.FC<TeamPageProps> = ({
           </>
         )}
 
-        {/* ---------- Tests: everything sent, by progress or by score ---------- */}
+        {/* ---------- Board: everything sent the team, like a work-management board ---------- */}
         {section === 'tests' && (
           <>
-            <PageHeader
-              title="Tests"
-              sub="Everything you've sent your team: where each one is up to, and every score."
-              action={
-                <>
-                  <div className="inline-flex rounded-full border border-slate-200 bg-white p-1 text-xs font-semibold">
-                    {(
-                      [
-                        ['board', 'Progress'],
-                        ['results', 'Scores'],
-                      ] as const
-                    ).map(([id, label]) => (
-                      <button
-                        key={id}
-                        onClick={() => setTestsView(id)}
-                        aria-pressed={testsView === id}
-                        className={`px-3 py-1.5 rounded-full ${testsView === id ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900'}`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                  {testsView === 'board' && (
-                    <select
-                      value={personFilter}
-                      onChange={(e) => setPersonFilter(e.target.value)}
-                      className="h-9 px-3 rounded-full border border-slate-200 bg-white text-xs font-semibold text-slate-800"
-                      aria-label="Show tests for"
-                    >
-                      <option value="all">Everyone</option>
-                      {team.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {nameOf(m)}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </>
-              }
+            <PageHeader title="Team board" sub="Everything you've sent your team: who it's for, where it's up to, and the score." />
+            <WorkBoard
+              side="company"
+              whoLabel="Person"
+              rows={live.map((a) => {
+                const m = team.find((x) => x.id === a.memberId);
+                const p = m && person(m);
+                return { a, test: testOf(a.testId)!, who: m ? nameOf(m) : 'Left the team', whoPic: p?.avatarUrl, whoId: a.memberId };
+              })}
+              onOpen={(r) => onOpenTest(r.test.id)}
+              onOpenWho={(r) => team.some((m) => m.id === r.whoId) && setOpenMember(r.whoId)}
+              onRemove={onUnassign}
+              newLabel="Send a test"
+              onNew={active.length ? () => setAssigning(active.map((m) => m.id)) : undefined}
             />
-            {live.length === 0 ? (
-              <div className="p-8 text-center rounded-2xl border border-dashed border-slate-300 bg-white space-y-3">
-                <SquareKanban className="w-8 h-8 text-slate-300 mx-auto" />
-                <p className="text-sm text-slate-500">Nothing sent yet.</p>
-                {active.length > 0 && (
-                  <button onClick={() => setAssigning(active.map((m) => m.id))} className="px-4 py-2 rounded-full bg-indigo-600 text-white text-xs font-semibold">
-                    Send a test
-                  </button>
-                )}
-              </div>
-            ) : testsView === 'results' ? (
-                <Card className="overflow-hidden">
-                <div className="px-5 py-3 border-b border-slate-100 text-sm font-bold text-slate-900">Team tests</div>
-                {testColumns.length === 0 ? (
-                  <p className="px-5 py-4 text-sm text-slate-500">You haven't sent the team anything yet.</p>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="text-left text-[11px] text-slate-500 border-b border-slate-100">
-                          <th className="px-5 py-2 font-semibold sticky left-0 bg-white">Person</th>
-                          {testColumns.map((id) => (
-                            <th key={id} className="px-2 py-2 font-semibold text-center">
-                              <button onClick={() => onOpenTest(id)} className="max-w-32 truncate block mx-auto hover:text-indigo-700" title={testOf(id)?.title}>
-                                {testOf(id)?.title.replace(/:.*$/, '')}
-                              </button>
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {active.map((m) => (
-                          <tr key={m.id}>
-                            <td className="px-5 py-2 whitespace-nowrap sticky left-0 bg-white">
-                              <button onClick={() => setOpenMember(m.id)} className="font-semibold text-slate-900 hover:text-indigo-700">
-                                {nameOf(m)}
-                              </button>
-                            </td>
-                            {testColumns.map((id) => {
-                              const a = live.filter((x) => x.memberId === m.id && x.testId === id).sort(byUrgency)[0];
-                              return (
-                                <td key={id} className="px-2 py-2 text-center">
-                                  {!a ? (
-                                    <span className="text-slate-300">·</span>
-                                  ) : a.completedAt ? (
-                                    <span className={`inline-block min-w-9 px-1.5 py-0.5 rounded-md border text-xs font-bold font-mono tabular-nums ${scoreTone(a.score ?? 0)}`}>{a.score}</span>
-                                  ) : (
-                                    <span className={`text-[11px] font-semibold ${isOverdue(a) ? 'text-rose-600' : a.startedAt ? 'text-amber-600' : 'text-slate-400'}`}>
-                                      {isOverdue(a) ? 'Late' : a.startedAt ? 'Started' : 'To do'}
-                                    </span>
-                                  )}
-                                </td>
-                              );
-                            })}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </Card>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
-                {TASK_COLUMNS.map((col) => {
-                  const items = live.filter((a) => statusOf(a) === col.id && (personFilter === 'all' || a.memberId === personFilter)).sort(byUrgency);
-                  return (
-                    <div key={col.id} className="rounded-2xl bg-slate-50 border border-slate-200 p-3 space-y-3">
-                      <div className="flex items-center gap-2 px-1">
-                        <span className={`w-2 h-2 rounded-full ${col.dot}`} />
-                        <span className="text-xs font-bold uppercase tracking-wide text-slate-600">{col.label}</span>
-                        <span className="ml-auto text-xs font-mono text-slate-400">{items.length}</span>
-                      </div>
-                      {items.length === 0 ? <p className="px-1 pb-2 text-xs text-slate-400">Nothing here.</p> : <ul className="space-y-2.5">{items.map((a) => taskCard(a))}</ul>}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
           </>
         )}
 
