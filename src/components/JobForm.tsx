@@ -5,7 +5,7 @@ import { EMPLOYMENT_TYPES, EXPERIENCE_LEVELS, formatSalaryRange } from '../lib/j
 import { Loader2, Plus, Sparkles } from 'lucide-react';
 import { SectorSelect } from './SectorPicker';
 import { FOCUS_SECTOR, SectorId, inCompanySector } from '../lib/sectors';
-import { isMainVersion, levelsOf, versionTitle } from '../lib/testLevels';
+import { isMainVersion, levelsOf, versionTitle, newestFirst } from '../lib/testLevels';
 import { aiFetch } from '../lib/aiRequest';
 import { Suggestion, matchExisting } from '../lib/testGeneration';
 
@@ -18,18 +18,21 @@ interface JobFormProps {
   onCancel: () => void;
   // Tests to start with, already ticked (e.g. from a test plan), by the version to use
   initialTestIds?: string[];
+  // The job's title to start with, e.g. the role a test was made for
+  initialTitle?: string;
 }
 
 const inputClass =
   'w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100';
 
 // The one job form, used by companies and by the Praxa team
-export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, onSave, onCancel, initialTestIds = [] }) => {
+export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, onSave, onCancel, initialTestIds = [], initialTitle = '' }) => {
   const [businessId, setBusinessId] = useState(businesses[0]?.id ?? '');
   const business = businesses.find((b) => b.id === businessId) ?? businesses[0];
-  const companyTests = tests.filter((t) => t.type === 'custom' && t.businessId === business?.id && t.purpose !== 'training');
+  // The company's own tests come first, the newest at the top
+  const companyTests = newestFirst(tests.filter((t) => t.type === 'custom' && t.businessId === business?.id && t.purpose !== 'training'));
 
-  const [title, setTitle] = useState('');
+  const [title, setTitle] = useState(initialTitle);
   const [department, setDepartment] = useState('Core Engineering');
   // Starts in the company's sector; a job can be listed under another
   const [pickedSector, setSector] = useState<SectorId | ''>('');

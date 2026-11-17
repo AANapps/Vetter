@@ -36,6 +36,8 @@ interface BusinessHomeProps {
   onBuildPlan: (plan: TestPlan, chat: ChatState, kind: TestKind, jobId?: string) => void;
   // Opens a saved test in the AI test builder to change by asking
   onEditWithAI: (testId: string) => void;
+  // Sends a saved test to candidates: through the job it's on, or a new job made for it
+  onSendTest: (testId: string) => void;
   // Saves a hand edit made in the preview
   onUpdateTest: (test: AssessmentTest) => void;
   // Something to start the chat with, from elsewhere in the app (e.g. "make a test for this job"), and the job the test
@@ -108,6 +110,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
   onBuild,
   onBuildPlan,
   onEditWithAI,
+  onSendTest,
   onUpdateTest,
   seed,
   onSeedUsed,
@@ -332,6 +335,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
                   onEditCopy={onEditCopy}
                   onBuildWithAI={planFrom}
                   onEditWithAI={onEditWithAI}
+                  onSendTest={onSendTest}
                   onSeePlans={onSeePlans}
                   onOpenTest={onOpenTest}
                   onPreview={setPreviewId}
@@ -507,8 +511,9 @@ const AdvisorReply: React.FC<{
   // Set on the latest reply only: a quick answer sends it as the company's next message
   onQuickReply?: (text: string) => void;
   onEditWithAI: (testId: string) => void;
+  onSendTest: (testId: string) => void;
   onOpenTraining?: (id: string) => void;
-}> = ({ turn, onOpenTraining, onEditWithAI, aiAllowed, picked, onTogglePick, onPickAll, onEditCopy, onBuildWithAI, onSeePlans, onOpenTest, onPreview, onTopUp, canBuild, onBuild, onOpenLibrary, candidates, onViewPerson, jobs, onInvite, onQuickReply }) => (
+}> = ({ turn, onOpenTraining, onEditWithAI, onSendTest, aiAllowed, picked, onTogglePick, onPickAll, onEditCopy, onBuildWithAI, onSeePlans, onOpenTest, onPreview, onTopUp, canBuild, onBuild, onOpenLibrary, candidates, onViewPerson, jobs, onInvite, onQuickReply }) => (
   <div className="flex gap-3">
     <BrandSparkle className="w-7 h-7 mt-0.5" />
     <div className="ai-glass min-w-0 flex-1 space-y-4 p-4 sm:p-5 rounded-2xl rounded-tl-md border border-white/80 shadow-sm">
@@ -605,8 +610,15 @@ const AdvisorReply: React.FC<{
             </ul>
           )}
           <div className="flex flex-wrap items-center gap-2">
+            {/* The next step once it's made: send it to candidates (training goes to the team from the Training page) */}
+            {turn.created.testId && !turn.created.draft && turn.created.kind !== 'training' && (
+              <button onClick={() => onSendTest(turn.created!.testId!)} className="px-3.5 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg inline-flex items-center gap-1.5">
+                <Send className="w-3.5 h-3.5" />
+                Send to candidates
+              </button>
+            )}
             {turn.created.testId && (
-              <button onClick={() => onPreview(turn.created!.testId!)} className="px-3.5 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg inline-flex items-center gap-1.5">
+              <button onClick={() => onPreview(turn.created!.testId!)} className="px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:border-indigo-400 rounded-lg inline-flex items-center gap-1.5">
                 <Eye className="w-3.5 h-3.5" />
                 Preview
               </button>

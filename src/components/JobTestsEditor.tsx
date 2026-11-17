@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { BackButton } from './BackButton';
 import { AssessmentTest, JobPosting, isPublic, levelName } from '../types';
-import { isMainVersion, levelsOf } from '../lib/testLevels';
+import { isMainVersion, levelsOf, newestFirst } from '../lib/testLevels';
 import { ArrowLeft, ArrowRight, Check, Search, X } from 'lucide-react';
 
 interface JobTestsEditorProps {
@@ -51,9 +51,12 @@ export const JobTestsEditor: React.FC<JobTestsEditorProps> = ({ jobs, tests: all
   };
 
   const tq = testQuery.trim().toLowerCase();
-  const choices = tests
+  const matching = tests
     .filter((t) => isMainVersion(t) && (isPublic(t) || t.businessId === job?.businessId))
     .filter((t) => !tq || `${t.title} ${t.category} ${t.companyName ?? ''} ${t.skillsTested.join(' ')}`.toLowerCase().includes(tq));
+  // The company's own tests first, the newest at the top, then Praxa's
+  const own = newestFirst(matching.filter((t) => t.type === 'custom' && t.businessId === job?.businessId && t.purpose !== 'training'));
+  const choices = [...own, ...matching.filter((t) => !own.includes(t))];
   const minutes = pickedTests.reduce((sum, t) => sum + t.estimatedMinutes, 0);
 
   const toggle = (main: AssessmentTest) =>
@@ -121,11 +124,15 @@ export const JobTestsEditor: React.FC<JobTestsEditorProps> = ({ jobs, tests: all
                 </div>
                 <ul className="divide-y divide-slate-100 border border-slate-200 rounded-xl">
                   {choices.length === 0 && <li className="px-4 py-3 text-xs text-slate-500">No tests match.</li>}
-                  {choices.map((t) => {
+                  {choices.map((t, i) => {
                     const pick = picked.find((p) => p.mainId === t.id);
                     const levels = levelsOf(t, tests);
+                    // A heading where the company's own tests start, and where Praxa's start after them
+                    const heading = i === 0 && own.length ? 'Your tests' : i === own.length ? 'Praxa tests' : '';
                     return (
-                      <li key={t.id} className={`px-4 py-3 flex items-center gap-3 ${pick ? 'bg-indigo-50/50' : ''}`}>
+                      <React.Fragment key={t.id}>
+                      {heading && <li className="px-4 py-1.5 bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-500">{heading}</li>}
+                      <li className={`px-4 py-3 flex items-center gap-3 ${pick ? 'bg-indigo-50/50' : ''}`}>
                         <label className="flex items-start gap-3 cursor-pointer flex-1 min-w-0">
                           <input type="checkbox" checked={!!pick} onChange={() => toggle(t)} className="mt-1 accent-indigo-600" />
                           <span className="min-w-0">
@@ -153,6 +160,7 @@ export const JobTestsEditor: React.FC<JobTestsEditorProps> = ({ jobs, tests: all
                           </select>
                         )}
                       </li>
+                      </React.Fragment>
                     );
                   })}
                 </ul>

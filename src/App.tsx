@@ -491,6 +491,10 @@ export default function App() {
   const [planOpen, setPlanOpen] = useState(false);
   // The job being created from the plan, with its tests already ticked
   const [planJobTests, setPlanJobTests] = useState<string[] | null>(null);
+  // A job whose sharing opens as soon as its page shows: one just posted, or the job a test was sent through
+  const [shareJobId, setShareJobId] = useState<string | null>(null);
+  // The job form opened to send a test (not from a test plan, which posting then closes)
+  const [jobForSend, setJobForSend] = useState(false);
   const planToBuilder = useRef(false);
   const markPlanBuilt = (testId: string) => {
     if (planBuilding === null) return;
@@ -842,6 +846,22 @@ export default function App() {
   const openBusinessJob = (jobId: string | null) => {
     navigateTo(jobId ? `/business/jobs/${encodeURIComponent(jobId)}/` : TAB_PATHS['business-jobs']);
     window.scrollTo(0, 0);
+  };
+
+  // The role a test was made for, to title a job posted for it: "Data Analyst" from "Data Analyst Job Simulation: A Day at…"
+const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.exec(test.title)?.[1]?.trim() ?? test.roles?.[0] ?? '' : '');
+
+  // Sending a test to candidates: candidates take tests through a job, so it goes through the job it's already on (its
+  // sharing opens), or a new job is posted with it ticked and its title filled in, and its sharing opens once posted
+  const sendTest = (testId: string) => {
+    const job = ourJobs.find((j) => j.testIds.includes(testId));
+    if (job) {
+      setShareJobId(job.id);
+      openBusinessJob(job.id);
+    } else {
+      setJobForSend(true);
+      setPlanJobTests([testId]);
+    }
   };
 
   const openTestPage = (testId: string) => {
@@ -1530,7 +1550,18 @@ export default function App() {
                   ? businesses.find((b) => b.id === candidate.testReferrals?.filter((r) => r.testId === testPageTest.id).at(-1)?.businessId)
                   : undefined
               }
-              onSend={activeRole === 'candidate' ? undefined : () => setEditingTests({ addTestIds: [testPageTest.id] })}
+              // The company's own test goes straight to candidates (through its job, or a new one); a library test is added to
+              // a job, or a new job is posted with it when there's none yet
+              onSend={
+                activeRole === 'candidate'
+                  ? undefined
+                  : activeRole === 'recruiter' && testPageTest.businessId && testPageTest.businessId === recruiterBusiness?.id
+                  ? () => sendTest(testPageTest.id)
+                  : activeRole === 'recruiter' && !ourJobs.length
+                  ? () => (setJobForSend(true), setPlanJobTests([testPageTest.id]))
+                  : () => setEditingTests({ addTestIds: [testPageTest.id] })
+              }
+              sendLabel={activeRole === 'recruiter' && testPageTest.businessId === recruiterBusiness?.id ? 'Send to candidates' : undefined}
               onCustomize={
                 // Any test in the library, Praxa's or another company's approved one, can start a test of their own
                 activeRole === 'recruiter' &&
@@ -1696,6 +1727,7 @@ export default function App() {
                 openGenerator({ plan, planChat: chat, kind, ...(jobId && { jobId }), fromHome: true, background: homeChatSummary(advisorTurns) })
               }
               onEditWithAI={(testId) => enhanceTest(testId)}
+              onSendTest={sendTest}
               onUpdateTest={(test) => {
                 // A change keeps the saved test's place: its id, owner, level family and kind
                 const before = tests.find((t) => t.id === test.id);
@@ -1840,8 +1872,14 @@ export default function App() {
               tests={tests}
               candidates={allCandidates}
               selectedJobId={selectedJobId}
+              shareJobId={shareJobId}
+              onShareOpened={() => setShareJobId(null)}
               onSelect={openBusinessJob}
-              onCreateJob={handleCreateJob}
+              onCreateJob={(job) => {
+                handleCreateJob(job);
+                // Posted: straight on to sending it
+                setShareJobId(job.id);
+              }}
               onEditTests={(jobId) => setEditingTests({ jobId, addTestIds: [] })}
               onSuggestTests={(jobId) => {
                 const job = jobs.find((j) => j.id === jobId);
@@ -1972,6 +2010,8 @@ export default function App() {
           onSave={(jobId, change) => {
             handleSaveJobTests(jobId, change);
             setEditingTests(null);
+            // Tests added: straight on to sending them
+            setShareJobId(jobId);
             openBusinessJob(jobId);
           }}
           onCancel={() => setEditingTests(null)}
@@ -2006,15 +2046,20 @@ export default function App() {
           postedBy={activeRole === 'admin' ? 'vetter' : 'company'}
           tests={tests}
           initialTestIds={planJobTests}
+          initialTitle={roleOfTest(tests.find((t) => t.id === planJobTests[0]))}
           onSave={(job) => {
             handleCreateJob(job);
+            setShareJobId(job.id);
             setPlanJobTests(null);
-            setTestPlan(null);
-            setPlanOpen(false);
-            showToast(`"${job.title}" is posted with ${job.testIds.length} ${job.testIds.length === 1 ? 'test' : 'tests'}.`);
+            if (!jobForSend) {
+              setTestPlan(null);
+              setPlanOpen(false);
+            }
+            setJobForSend(false);
+            showToast(`"${job.title}" is posted with ${job.testIds.length} ${job.testIds.length === 1 ? 'test' : 'tests'}. Now send it to candidates.`);
             openBusinessJob(job.id);
           }}
-          onCancel={() => setPlanJobTests(null)}
+          onCancel={() => (setPlanJobTests(null), setJobForSend(false))}
         />
       )}
 

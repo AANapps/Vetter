@@ -14,3 +14,8 @@ export const levelsOf = (test: AssessmentTest, tests: AssessmentTest[]) =>
 
 // A version's name wherever the level matters, e.g. on a job's requirements
 export const versionTitle = (test: AssessmentTest) => (test.type === 'standard' ? `${test.title} (${levelName(test.difficulty)})` : test.title);
+
+// A company's own tests, newest first: saved tests carry the time they were made at the end of their id
+// (test-custom-<ms>), so the test just made comes first on every picker
+const madeAt = (t: { id: string }) => Number(/(\d{10,})$/.exec(t.id)?.[1] ?? 0);
+export const newestFirst = <T extends { id: string }>(list: T[]): T[] => [...list].sort((a, b) => madeAt(b) - madeAt(a));

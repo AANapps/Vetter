@@ -49,6 +49,9 @@ interface BusinessJobsProps {
   candidates: User[];
   // The job open, or null for the list
   selectedJobId: string | null;
+  // A job whose sharing opens as soon as it's shown (just posted, or a test sent from elsewhere), then cleared
+  shareJobId?: string | null;
+  onShareOpened?: () => void;
   onSelect: (jobId: string | null) => void;
   onCreateJob: (job: JobPosting) => void;
   onEditTests: (jobId: string) => void;
@@ -427,6 +430,8 @@ const rank = (a: TrackingRow, b: TrackingRow) => {
 
 const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
   job,
+  shareJobId,
+  onShareOpened,
   business,
   tests,
   candidates,
@@ -449,6 +454,13 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
 }) => {
   const [filter, setFilter] = useState<TrackingStatus | 'all'>('all');
   const [sharing, setSharing] = useState(false);
+  // Just posted, or sent here to share: the sharing opens straight away
+  useEffect(() => {
+    if (shareJobId && shareJobId === job.id) {
+      setSharing(true);
+      onShareOpened?.();
+    }
+  }, [shareJobId, job.id]);
   const [asCandidate, setAsCandidate] = useState(false);
   const rows = jobTracking(job, candidates).sort(rank);
   const funnel = jobFunnel(job, rows, candidates);

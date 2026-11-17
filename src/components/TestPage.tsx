@@ -26,6 +26,8 @@ interface TestPageProps {
   referredByCompany?: Business;
   // Companies and the Praxa team add the test to one of their jobs, then send it from there
   onSend?: () => void;
+  // The send button's words: "Send to candidates" on the company's own test
+  sendLabel?: string;
   // Companies take a copy of a Praxa module test to add their own questions to its areas and levels
   onCustomize?: () => void;
   // The company's own test: opens in the builder
@@ -52,6 +54,7 @@ export const TestPage: React.FC<TestPageProps> = ({
   currentCandidateId,
   referredByCompany,
   onSend,
+  sendLabel,
   onCustomize,
   onEdit,
   onEditWithAI,
@@ -140,7 +143,7 @@ export const TestPage: React.FC<TestPageProps> = ({
               className="px-4 py-2.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors flex items-center gap-2 shadow-xs shrink-0 self-start"
             >
               <Link2 className="w-3.5 h-3.5" />
-              <span>Add to a job</span>
+              <span>{sendLabel ?? 'Add to a job'}</span>
             </button>
           )}
 
