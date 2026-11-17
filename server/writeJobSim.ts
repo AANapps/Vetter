@@ -8,7 +8,9 @@ import { MAX_PROMPT, PRICES, SimulationCompany, apiFailure } from './generateTes
  * Briefing 2 min, Core task 12, Curveball 6, Juggling and judgement 10, Report back 7, plus a 3-minute buffer.
  *
  * It's written from the job description, the company and everything the company said, plus the plan agreed in the chat
- * (server/planTest.ts). The browser (src/lib/jobSimBuild.ts) turns it into a test with jobSimulation(), works out every
+ * (server/planTest.ts), in two requests so each stays well inside the host's five-minute limit: first the world (the
+ * cast and everything pre-loaded on the computer, with the issues planted in it), then the script written against it
+ * (the emails, who writes back, each part's brief and how it's marked). The browser (src/lib/jobSimBuild.ts) turns it into a test with jobSimulation(), works out every
  * spreadsheet answer from the data, checks it, and sends it back here once with what's wrong to fix.
  */
 
@@ -26,6 +28,9 @@ export interface JobSimRequest {
   current?: unknown;
   change?: string;
   problems?: string[];
+  // Which half to write: the world, or the script for the world already written
+  stage: 'world' | 'script';
+  world?: unknown;
 }
 
 const MAX_TEXT = 12000;
@@ -123,6 +128,30 @@ export const jobSimSchema = {
   },
   required: ['reply', 'role', 'company', 'domain', 'day', 'description', 'category', 'skillsTested', 'scenario', 'briefing', 'briefs', 'user', 'time', 'apps', 'contacts', 'workbookName', 'sheets', 'databaseName', 'tables', 'homepage', 'pages', 'files', 'project', 'inbox', 'replies', 'checks'],
   additionalProperties: false,
+};
+
+// The two halves of the day, each a schema of its own
+const pick = (keys: string[], extra: Record<string, unknown> = {}) => ({
+  type: 'object',
+  properties: { ...Object.fromEntries(keys.map((k) => [k, (jobSimSchema.properties as Record<string, unknown>)[k]])), ...extra },
+  required: [...keys, ...Object.keys(extra)],
+  additionalProperties: false,
+});
+const WORLD_KEYS = ['role', 'company', 'domain', 'day', 'description', 'category', 'skillsTested', 'scenario', 'briefing', 'user', 'time', 'apps', 'contacts', 'workbookName', 'sheets', 'databaseName', 'tables', 'homepage', 'pages', 'files', 'project'];
+const SCRIPT_KEYS = ['reply', 'briefs', 'inbox', 'replies', 'checks'];
+// planted: for the script's writer, each issue in the data and where it is, and the facts and figures the day turns on
+const STAGE_SCHEMAS = { world: pick(WORLD_KEYS, { planted: strs }), script: pick(SCRIPT_KEYS) };
+
+const STAGE_NOTES = {
+  world: `WRITE NOW: THE WORLD ONLY (the first of two steps; the emails and checks are written next, against what you write
+now). Everything about the company, the cast and what's pre-loaded on the computer (sheets, tables, pages, files,
+project) for the day the plan describes. Build the planted issues into the data, and prepare the curveball (e.g. the
+draft figure is what's in the data; the corrected one comes later by email). planted: one line each for every planted
+issue and exactly where it is (sheet and rows, page, file, function), the curveball's change, the judgement call, and
+the key figures and names the emails and checks will need.`,
+  script: `WRITE NOW: THE SCRIPT ONLY (the second of two steps): reply, briefs, inbox, replies and checks for THE WORLD
+above, used exactly as written: every sheet name, cell, column, page url, file name, project check id, address and
+figure must match it. Every planted issue is handled by a check, and the report back's rubric names them.`,
 };
 
 const RULES = `You write job simulations for Praxa, a skills-based hiring platform. A job simulation is ONE working day on a
@@ -252,21 +281,23 @@ export async function writeJobSim(body: unknown, apiKey: string | undefined, mod
     req.research ? `HOW THE JOB IS REALLY DONE (research; every task, term and figure must match it):\n${req.research.slice(0, MAX_TEXT)}` : '',
     plan,
     req.current ? `THE DAY AS WRITTEN:\n${JSON.stringify(req.current).slice(0, 60000)}` : '',
-    req.change ? `THE COMPANY WANTS THIS CHANGED (send the whole day again with exactly that change, everything else kept):\n${req.change.slice(0, MAX_TEXT)}` : '',
-    req.problems?.length ? `PRAXA'S CHECKS FOUND THESE PROBLEMS. Send the whole day again with every one fixed and everything else kept:\n${req.problems.map((p) => `- ${p}`).join('\n')}` : '',
+    req.change ? `THE COMPANY WANTS THIS CHANGED (write your half again with exactly that change, everything else kept):\n${req.change.slice(0, MAX_TEXT)}` : '',
+    req.problems?.length ? `PRAXA'S CHECKS FOUND THESE PROBLEMS. Write your half again with every one fixed and everything else kept:\n${req.problems.map((p) => `- ${p}`).join('\n')}` : '',
+    req.stage === 'script' && req.world ? `THE WORLD, ALREADY WRITTEN:\n${JSON.stringify(req.world).slice(0, 60000)}` : '',
+    STAGE_NOTES[req.stage === 'script' ? 'script' : 'world'],
   ]
     .filter(Boolean)
     .join('\n\n');
 
+  const stage = req.stage === 'script' ? 'script' : 'world';
   const client = new Anthropic({ apiKey });
   try {
     const message = await client.beta.messages
       .stream({
         model,
-        max_tokens: 48000,
-        // The plan has done the designing; a day carries a lot of content, so it thinks less to stay inside the host's
-        // five-minute limit
-        output_config: { effort: 'low', format: { type: 'json_schema', schema: jobSimSchema } },
+        max_tokens: 32000,
+        // The world is mostly data, written quickly; the script decides how the day is marked, so it thinks more
+        output_config: { effort: stage === 'world' ? 'low' : 'medium', format: { type: 'json_schema', schema: STAGE_SCHEMAS[stage] } },
         ...(!model.includes('haiku') && { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' as const }),
         system: [{ type: 'text', text: RULES, cache_control: { type: 'ephemeral' } }],
         messages: [{ role: 'user', content }],
@@ -275,7 +306,7 @@ export async function writeJobSim(body: unknown, apiKey: string | undefined, mod
     meter(model, message.usage);
     const price = PRICES[model];
     const { input_tokens, output_tokens } = message.usage;
-    if (price) console.log(`[write-job-sim] ${input_tokens} in, ${output_tokens} out: $${((input_tokens * price.input + output_tokens * price.output) / 1e6).toFixed(3)}`);
+    if (price) console.log(`[write-job-sim ${stage}] ${input_tokens} in, ${output_tokens} out: $${((input_tokens * price.input + output_tokens * price.output) / 1e6).toFixed(3)}`);
     if (message.stop_reason === 'refusal') return { status: 422, json: { error: 'Praxa declined to write this. Try describing the job differently.' } };
     if (message.stop_reason === 'max_tokens') return { status: 502, json: { error: 'The job simulation came back incomplete. Try again.' } };
     return { status: 200, json: JSON.parse(message.content.flatMap((b) => (b.type === 'text' ? [b.text] : [])).join('')) };

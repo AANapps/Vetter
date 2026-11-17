@@ -624,9 +624,10 @@ function jobSimPlan(plan: TestPlan): TestPlan {
 }
 export const isJobSimPlan = (plan?: TestPlan) => !!plan?.items?.length && plan.items.every((item) => item.type === 'part');
 
-// A job simulation written whole as one desktop day (server/writeJobSim.ts) and checked here (jobSimBuild.ts): a day
-// with problems goes back once with them to fix; checks still broken after that are left out if the day stands without
-// them. A change to a day already written sends the day and the change
+// A job simulation written as one desktop day (server/writeJobSim.ts) in two requests, each well inside the host's time
+// limit: the world (the cast and everything pre-loaded, with its planted issues), then the script against it (emails,
+// replies, briefs, marks). It's checked here (jobSimBuild.ts); problems go back once to the half they're in. Checks still
+// broken after that are left out if the day stands without them. A change to a day already written rewrites both halves
 async function writeJobSimDay(
   request: Record<string, unknown>,
   ctx: ChatContext,
@@ -634,13 +635,13 @@ async function writeJobSimDay(
   list: Checklist
 ): Promise<{ test?: AssessmentTest; reply?: string; failure?: string }> {
   const brief = ((request.messages ?? []) as ChatMessage[]).filter((m) => m.role === 'user').map((m) => m.text).join('\n\n');
-  let current: unknown = undefined;
+  let current: Record<string, unknown> | undefined;
   try {
     current = extra.current?.jobSimSource ? JSON.parse(extra.current.jobSimSource) : undefined;
   } catch {
     current = undefined;
   }
-  const payload = {
+  const base = {
     job: request.job,
     jobTitle: request.jobTitle,
     company: request.company,
@@ -648,24 +649,49 @@ async function writeJobSimDay(
     brief,
     research: extra.research,
     ...(extra.plan && { plan: extra.plan }),
-    // A day without the AI's own copy (made before it was kept) is sent as the desktop it became
-    ...(extra.current && { current: current ?? { desktop: extra.current.questions[0]?.desktop, checks: extra.current.questions[0]?.testCases.map((tc) => [tc.description, tc.input, tc.rubric ?? tc.expectedOutput]) } }),
     ...(extra.change && { change: extra.change }),
   };
-  list.start('write', extra.change ? 'Rewriting the day with your change…' : 'Writing the day: the emails, the pre-loaded data, the pages and how each part is marked…');
-  let out = await post('/api/write-job-sim', payload);
-  if (out.failure) return { failure: out.failure };
+  // A day without the AI's own copy (made before it was kept) is sent as the desktop it became
+  const before = extra.current && (current ?? { desktop: extra.current.questions[0]?.desktop, checks: extra.current.questions[0]?.testCases.map((tc) => [tc.description, tc.input, tc.rubric ?? tc.expectedOutput]) });
+
+  const writeWorld = async (problems?: string[], was?: unknown) => {
+    const out = await post('/api/write-job-sim', { ...base, stage: 'world', ...((was ?? before) && { current: was ?? before }), ...(problems && { problems, change: undefined }) });
+    return out.failure ? { failure: out.failure } : { world: out.body as Record<string, unknown> };
+  };
+  const writeScript = async (world: Record<string, unknown>, problems?: string[], was?: unknown) => {
+    const out = await post('/api/write-job-sim', { ...base, stage: 'script', world, ...((was ?? before) && { current: was ?? before }), ...(problems && { problems, change: undefined }) });
+    return out.failure ? { failure: out.failure } : { script: out.body as Record<string, unknown> };
+  };
+
+  list.start('world', extra.change ? 'Rewriting the people and the data with your change…' : 'Writing the world: the people, and the data, pages and files already on the computer, with the issues planted in them…');
+  const w = await writeWorld();
+  if (w.failure) return { failure: w.failure };
+  let world = w.world!;
+  list.start('script', 'Writing the day against that data: the emails, who writes back, each part’s brief and how it’s marked…');
+  const sc = await writeScript(world);
+  if (sc.failure) return { failure: sc.failure };
+  let raw = { ...world, ...sc.script } as unknown as RawJobSim;
+
   list.start('check', 'Working out every answer from the data and checking each part can be marked…');
-  let raw = out.body as RawJobSim;
   let made = assembleJobSim(raw, ctx.business);
   if (made.problems.length) {
     list.start('check', `Fixing ${made.problems.length === 1 ? 'one problem' : `${made.problems.length} problems`} Praxa's checks found…`);
-    const fixed = await post('/api/write-job-sim', { ...payload, current: raw, change: undefined, problems: made.problems });
-    if (!fixed.failure) {
-      const again = assembleJobSim(fixed.body as RawJobSim, ctx.business);
-      if (!again.problems.length || !assembleJobSim(raw, ctx.business, true).test) {
-        raw = fixed.body as RawJobSim;
-        made = again;
+    // Problems with the computer itself (no data for an app) are the world's; the rest are the script's
+    const inWorld = made.problems.some((p) => /^(The desktop has no work app|apps has )/.test(p));
+    let fixedWorld = world;
+    if (inWorld) {
+      const again = await writeWorld(made.problems, raw);
+      if (again.world) fixedWorld = again.world;
+    }
+    const again = await writeScript(fixedWorld, made.problems, raw);
+    if (again.script) {
+      const next = { ...fixedWorld, ...again.script } as unknown as RawJobSim;
+      const remade = assembleJobSim(next, ctx.business);
+      // The fix is kept when it passes, or when the first version can't stand even with its broken checks left out
+      if (!remade.problems.length || !assembleJobSim(raw, ctx.business, true).test) {
+        raw = next;
+        world = fixedWorld;
+        made = remade;
       }
     }
     if (made.problems.length) made = assembleJobSim(raw, ctx.business, true);
@@ -680,7 +706,8 @@ async function writeJobSimDay(
   };
 }
 const JOB_SIM_STEPS: [string, string][] = [
-  ['write', 'Write the day: emails, data, pages and marks'],
+  ['world', 'Write the people, data and pages for the day'],
+  ['script', 'Write the emails, briefs and marks against that data'],
   ['check', 'Work out every answer and check each part is marked'],
 ];
 
