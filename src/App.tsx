@@ -1517,6 +1517,14 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
         activeRole={activeRole}
         pending={navPending}
         onNewChat={() => setAdvisorTurns([])}
+        work={
+          activeRole === 'candidate' && !isVisitor
+            ? {
+                open: myAssignments.filter((a) => !a.completedAt).length,
+                late: myAssignments.filter((a) => !a.completedAt && !!a.dueDate && a.dueDate < new Date().toISOString().slice(0, 10)).length,
+              }
+            : undefined
+        }
         onRoleChange={handleRoleChange}
         accounts={
           firebaseEnabled
