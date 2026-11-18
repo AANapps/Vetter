@@ -1,10 +1,11 @@
 import React from 'react';
-import { ArrowRight, Briefcase, Building2, CheckCircle2, ListTodo, Play, Sparkles } from 'lucide-react';
+import { ArrowRight, Briefcase, Building2, CalendarClock, CheckCircle2, Clock, ListTodo, MapPin, Play, Sparkles, Wallet } from 'lucide-react';
+import { Pic } from './Pic';
 import { Assignment, AssessmentTest, JobPosting, TeamMember, User } from '../types';
 import { activeProfileOf } from '../lib/jobProfiles';
 import { SectorId } from '../lib/sectors';
 import { useProfileProgress } from '../lib/profileProgress';
-import { invitesFor, jobTestProgress, totalMinutes } from '../lib/jobTests';
+import { invitesFor, jobTestProgress, jobTestsOf, totalMinutes } from '../lib/jobTests';
 import { isOverdue } from '../lib/work';
 
 /**
@@ -39,7 +40,10 @@ export const HomeNudges: React.FC<{
   onOpenTest: (testId: string) => void;
   onOpenJob: (jobId: string) => void;
   onGoTo: (tab: 'tests' | 'jobs' | 'profile' | 'work') => void;
-}> = ({ candidate, tests, jobs, sector, teamInvites, teamWork, onOpenTest, onOpenJob, onGoTo }) => {
+  // Every test (a job's tests may be outside the sector shown), and starting one of a job's tests from its invitation
+  allTests?: AssessmentTest[];
+  onStartJobTest?: (test: AssessmentTest, jobId: string) => void;
+}> = ({ candidate, tests, jobs, sector, teamInvites, teamWork, onOpenTest, onOpenJob, onGoTo, allTests = tests, onStartJobTest }) => {
   const profile = activeProfileOf(candidate);
   const progress = useProfileProgress({ candidate, shown: { title: profile.title ?? '', bio: profile.bio ?? '' }, activeProfile: profile, tests, jobs, sector });
 
@@ -50,7 +54,7 @@ export const HomeNudges: React.FC<{
     .filter((j) => j.status === 'active' && j.testIds.length && !applied.has(j.id) && !invited.some((i) => i.job.id === j.id))
     .map((job) => ({ job, progress: jobTestProgress(job, candidate) }))
     .filter((i) => i.progress.done > 0 && i.progress.done < i.progress.total);
-  const todos: Todo[] = [...invited, ...started].map(({ job, progress: p }) => ({
+  const todos: Todo[] = started.map(({ job, progress: p }) => ({
     key: `job-${job.id}`,
     icon: Briefcase,
     tone: 'bg-indigo-600 text-white',
@@ -109,7 +113,7 @@ export const HomeNudges: React.FC<{
   const jobCount = invited.length + started.length;
 
   // Brand new: nothing taken and nothing waiting. One thing to do: pick the job they want, then take its first test
-  if (candidate.testResults.length === 0 && todos.every((t) => t.key === 'next-test')) {
+  if (candidate.testResults.length === 0 && invited.length === 0 && todos.every((t) => t.key === 'next-test')) {
     const m = progress.nextModule;
     return (
       <section className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
@@ -169,6 +173,92 @@ export const HomeNudges: React.FC<{
               : 'Nothing waiting. Take a test to build your profile.'}
         </p>
       </div>
+      {/* Jobs a company invited them to: everything they need to decide, and Start on the next test */}
+      {invited.length > 0 && (
+        <div className="px-5 sm:px-6 pt-4 space-y-3">
+          {invited.map(({ job, progress: p }) => {
+            const jobTests = jobTestsOf(job, allTests);
+            const next = jobTests.find((t) => p.scores[t.id] === undefined) ?? jobTests[0];
+            const daysLeft = job.closingDate ? Math.ceil((new Date(job.closingDate).getTime() - Date.now()) / 86400000) : undefined;
+            const minutes = totalMinutes(job, allTests);
+            return (
+              <article key={job.id} className="rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50/80 via-white to-white p-4 sm:p-5 space-y-3">
+                <div className="flex items-start gap-3">
+                  <Pic src={job.companyLogo} alt="" className="w-11 h-11 rounded-xl object-cover bg-white border border-slate-200 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[11px] font-semibold text-indigo-700">{job.companyName} invited you to apply</div>
+                    <h3 className="text-lg font-bold text-slate-900 leading-tight">{job.title}</h3>
+                    <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-600">
+                      {job.salaryRange && (
+                        <span className="inline-flex items-center gap-1">
+                          <Wallet className="w-3.5 h-3.5 text-slate-400" />
+                          {job.salaryRange}
+                        </span>
+                      )}
+                      <span className="inline-flex items-center gap-1">
+                        <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                        {job.location} · {job.workType}
+                        {job.employmentType && ` · ${job.employmentType}`}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                {/* What it asks of them: the tests, how long, and by when */}
+                <div className="rounded-xl bg-white border border-slate-200 p-3 space-y-2">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+                    <span className="font-semibold text-slate-900">
+                      {p.done > 0 ? `${p.done} of ${p.total} tests done` : `${p.total} ${p.total === 1 ? 'test' : 'tests'} to apply`}
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-slate-600">
+                      <Clock className="w-3.5 h-3.5 text-slate-400" />
+                      about {minutes} min in all
+                    </span>
+                    {daysLeft !== undefined && (
+                      <span className={`inline-flex items-center gap-1 ${daysLeft <= 3 ? 'text-rose-600 font-semibold' : 'text-slate-600'}`}>
+                        <CalendarClock className="w-3.5 h-3.5" />
+                        {daysLeft < 0 ? 'Closed' : daysLeft === 0 ? 'Closes today' : `${daysLeft} ${daysLeft === 1 ? 'day' : 'days'} left`}
+                      </span>
+                    )}
+                  </div>
+                  <ol className="flex flex-wrap gap-1.5">
+                    {jobTests.map((t, i) => {
+                      const score = p.scores[t.id];
+                      return (
+                        <li
+                          key={t.id}
+                          className={`px-2 py-1 rounded-lg text-[11px] font-medium border ${
+                            score !== undefined ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : t.id === next?.id ? 'bg-indigo-50 border-indigo-200 text-indigo-800' : 'bg-slate-50 border-slate-200 text-slate-600'
+                          }`}
+                        >
+                          {score !== undefined && <CheckCircle2 className="inline w-3 h-3 mr-1 -mt-0.5" />}
+                          {i + 1}. {t.title} · {t.estimatedMinutes} min
+                        </li>
+                      );
+                    })}
+                  </ol>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {next && (
+                    <button
+                      onClick={() => (onStartJobTest ? onStartJobTest(next, job.id) : onOpenJob(job.id))}
+                      disabled={daysLeft !== undefined && daysLeft < 0}
+                      className="h-10 px-5 rounded-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-semibold inline-flex items-center gap-2"
+                    >
+                      <Play className="w-4 h-4 fill-current" />
+                      {p.done > 0 ? `Continue: ${next.title}` : 'Start the first test'}
+                    </button>
+                  )}
+                  <button onClick={() => onOpenJob(job.id)} className="h-10 px-4 rounded-full border border-slate-300 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 inline-flex items-center gap-1">
+                    See the job
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
+      {(todos.length > 0 || invited.length === 0) && (
       <div className="px-5 sm:px-6 py-4">
         <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-2">What to do next</h2>
         {todos.length === 0 ? (
@@ -205,6 +295,8 @@ export const HomeNudges: React.FC<{
           </ol>
         )}
       </div>
+      )}
+      {todos.length === 0 && invited.length > 0 && <div className="h-4" />}
     </section>
   );
 };

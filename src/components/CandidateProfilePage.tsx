@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, Award, Briefcase, Check, ChevronDown, ExternalLink, GraduationCap, Link2, MapPin, X } from 'lucide-react';
+import { ArrowLeft, Award, Briefcase, Check, ChevronDown, ExternalLink, GraduationCap, Link2, MapPin, X, Send } from 'lucide-react';
 import { AssessmentTest, Business, JobPosting, User, isPublic } from '../types';
 import { getLeaderboard } from '../lib/leaderboard';
 import { unfinishedStarts } from '../lib/results';
@@ -31,6 +31,8 @@ interface CandidateProfilePageProps {
   onOpenPage?: () => void;
   // The job it was opened from (a job's candidates, or a leaderboard's fit): why they fit it shows first
   fitJobId?: string;
+  // Opens Invite to a job for them (companies only)
+  onInviteToJob?: () => void;
 }
 
 
@@ -70,6 +72,7 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
   popup,
   onOpenPage,
   fitJobId,
+  onInviteToJob,
 }) => {
   const [copied, setCopied] = useState(false);
   useEffect(() => {
@@ -190,9 +193,18 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
                 </p>
               )}
             </div>
-            {!!person.links?.length && (
-              <div className="sm:pt-4">
-                <ProfileLinks links={person.links} />
+            {(!!person.links?.length || onInviteToJob) && (
+              <div className="sm:pt-4 flex flex-col sm:items-end gap-2">
+                {onInviteToJob && (
+                  <button
+                    onClick={onInviteToJob}
+                    className="h-9 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold inline-flex items-center gap-1.5"
+                  >
+                    <Send className="w-4 h-4" />
+                    Invite to a job
+                  </button>
+                )}
+                {!!person.links?.length && <ProfileLinks links={person.links} />}
               </div>
             )}
           </div>

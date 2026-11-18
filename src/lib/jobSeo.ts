@@ -28,8 +28,9 @@ export function jobIdFromPath(pathname: string): string | null {
 export const isJobsIndexPath = (pathname: string) => /^\/jobs\/?$/.test(pathname);
 
 // Only open jobs are offered to search engines; Google asks that filled or closed ones are taken down
+// Open, not past its closing date, and public: invite-only jobs are kept out of Google and the jobs index
 export const isListable = (job: JobPosting, today = new Date().toISOString().split('T')[0]) =>
-  job.status === 'active' && (!job.closingDate || job.closingDate >= today);
+  job.status === 'active' && (!job.closingDate || job.closingDate >= today) && job.visibility !== 'invite';
 
 export const jobPageTitle = (job: JobPosting) => `${job.title} job at ${job.companyName} in ${job.location} | Praxa`;
 

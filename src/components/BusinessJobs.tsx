@@ -63,6 +63,8 @@ interface BusinessJobsProps {
   onUpdateJobRequirements: (jobId: string, requirements: JobPosting['requirements']) => void;
   // The sector a job is listed under for candidates
   onUpdateJobSector: (jobId: string, sector: SectorId) => void;
+  // Public on the job board, or invite only
+  onUpdateJobVisibility?: (jobId: string, visibility: 'public' | 'invite') => void;
   // The sector the company hires in, which new jobs start in; only its owner can change it
   onUpdateCompanySector?: (sector: SectorId) => void;
   onEmail: (jobId: string, emails: string[]) => void;
@@ -125,7 +127,7 @@ export const BusinessJobs: React.FC<BusinessJobsProps> = (props) => {
   const [view, setView] = useState<'yours' | 'all'>('yours');
   if (selected) return <JobDetail {...props} job={selected} />;
   if (!business) return <JobList {...props} jobs={jobs} />;
-  const listings = allJobs.filter((j) => j.status === 'active');
+  const listings = allJobs.filter((j) => j.status === 'active' && (j.visibility !== 'invite' || j.businessId === business.id));
   return (
     <>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-8 -mb-2">
@@ -299,6 +301,9 @@ const JobList: React.FC<BusinessJobsProps> = ({
                           {job.status !== 'active' && (
                             <span className="text-[10px] font-semibold uppercase text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">{job.status}</span>
                           )}
+                          {job.visibility === 'invite' && (
+                            <span className="text-[10px] font-semibold uppercase text-violet-700 bg-violet-50 px-1.5 py-0.5 rounded">Invite only</span>
+                          )}
                         </div>
                         <div className="text-xs text-slate-500 mt-0.5">
                           {job.location} &middot; {job.workType} &middot;{' '}
@@ -444,6 +449,7 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
   onEditTest,
   onUpdateJobRequirements,
   onUpdateJobSector,
+  onUpdateJobVisibility,
   onEmail,
   onInvite,
   onOpenPerson: openFullPage,
@@ -533,6 +539,21 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
           <span>&middot; {job.salaryRange}</span>
           {job.closingDate && <span>&middot; closes {formatDay(job.closingDate)}</span>}
           <span>&middot; {job.applicantCount} applicants</span>
+          {onUpdateJobVisibility && (
+            <span className="flex items-center gap-1.5">
+              &middot;
+              <label htmlFor={`job-visibility-${job.id}`}>Who can see it</label>
+              <select
+                id={`job-visibility-${job.id}`}
+                value={job.visibility ?? 'public'}
+                onChange={(e) => onUpdateJobVisibility(job.id, e.target.value as 'public' | 'invite')}
+                className="px-1.5 py-0.5 bg-white border border-slate-300 rounded-md text-xs font-medium text-slate-800"
+              >
+                <option value="public">Everyone (on the job board)</option>
+                <option value="invite">Invite only</option>
+              </select>
+            </span>
+          )}
 {!FOCUS_SECTOR && (
           <span className="flex items-center gap-1.5">
             &middot;

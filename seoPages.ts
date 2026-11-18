@@ -110,6 +110,8 @@ export function seoPages(siteUrl: string, firebase?: { projectId: string; apiKey
         `<li><a href="${seo.jobPath(job)}">${esc(job.title)}</a> at ${esc(job.companyName)}: ${esc(job.location)}, ${esc(job.workType)}, ${esc(job.salaryRange)}</li>`;
 
       for (const job of jobs) {
+        // Invite-only jobs get no page of their own: the app serves their link, for the people sent it
+        if (job.visibility === 'invite') continue;
         const open = seo.isListable(job);
         const others = listable.filter((j) => j.id !== job.id);
         const facts = [job.location, job.workType, job.employmentType, job.salaryRange, job.experienceLevel].filter(Boolean).map((f) => esc(f!));

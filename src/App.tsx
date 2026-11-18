@@ -5,7 +5,7 @@ import { AnswerRecord, saveSubmission } from './lib/submissions';
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { BrandWordmark } from './components/Brand';
 import { CurrencyPicker } from './components/CurrencyPicker';
-import { User, UserRole, Assignment, Project, ProjectTask, TeamMember, AssessmentTest, JobPosting, Business, SocialState, AppNotification, JobInvitation, Lead, TestDraft, TestKind, TestRole, TrialResult, ResultBreakdown, hasAiTests, madeWithAI, isPublic } from './types';
+import { User, UserRole, Assignment, Project, ProjectTask, TeamMember, AssessmentTest, JobPosting, Business, SocialState, AppNotification, JobInvitation, Lead, TestDraft, TestKind, TestRole, TrialResult, ResultBreakdown, hasAiTests, madeWithAI, isPublic, isListed } from './types';
 import { INITIAL_RECRUITER, INITIAL_BUSINESSES, STANDARD_ASSESSMENTS } from './data/mockData';
 import { loadData, saveData, clearData, createSeedData } from './lib/store';
 import { getPercentile } from './lib/leaderboard';
@@ -67,6 +67,7 @@ import { COURSES, courseIdFromPath, coursePath, isLearnIndexPath, isUpskillIndex
 import { useCourseProgress } from './lib/courseProgress';
 import { BusinessHome } from './components/BusinessHome';
 import { TeamPage } from './components/TeamPage';
+import { InviteToJobDialog } from './components/InviteToJobDialog';
 import { TrainingPage } from './components/TrainingPage';
 import { PlansDialog } from './components/PlansDialog';
 import { AdvisorTurn, HomeBuild, testOutline } from './lib/testAdvisor';
@@ -278,7 +279,8 @@ export default function App() {
       : null;
   const reportCloudError = (err: unknown) => showToast(`Couldn't save or load: ${accountError(err)}`);
   const cloud = useCloudData(viewer, firebaseEnabled && !accountLoading, reportCloudError);
-  const jobs = cloud ? cloud.jobs : localJobs;
+  // Every job loaded; what this viewer may see of them is `jobs`, below
+  const allJobs = cloud ? cloud.jobs : localJobs;
   // Praxa's library is in the code; the Praxa team's edits to it and tests made in the app come from Firebase
   const tests = cloud
     ? [...STANDARD_ASSESSMENTS.map((t) => cloud.tests.find((c) => c.id === t.id) ?? t), ...cloud.tests.filter((c) => !STANDARD_ASSESSMENTS.some((t) => t.id === c.id))]
@@ -312,8 +314,8 @@ export default function App() {
   testDraftsRef.current = testDrafts;
   const leadsRef = useRef(leads);
   leadsRef.current = leads;
-  const jobsRef = useRef(jobs);
-  jobsRef.current = jobs;
+  const jobsRef = useRef(allJobs);
+  jobsRef.current = allJobs;
   const testsRef = useRef(tests);
   testsRef.current = tests;
   const socialRef = useRef(social);
@@ -354,8 +356,8 @@ export default function App() {
 
   useEffect(() => {
     if (firebaseEnabled) return;
-    saveData({ candidate, otherCandidates, jobs, tests, social, notifications, leads, testDrafts, trials, team, assignments, projects, projectTasks });
-  }, [candidate, otherCandidates, jobs, tests, social, notifications, leads, testDrafts, trials, team, assignments, projects, projectTasks]);
+    saveData({ candidate, otherCandidates, jobs: allJobs, tests, social, notifications, leads, testDrafts, trials, team, assignments, projects, projectTasks });
+  }, [candidate, otherCandidates, allJobs, tests, social, notifications, leads, testDrafts, trials, team, assignments, projects, projectTasks]);
 
   // Changes one person's invitation to a job's tests, adding it if they don't have one yet
   const updateInvitation = (jobId: string, candidateId: string, change: Partial<JobInvitation>) =>
@@ -443,7 +445,7 @@ export default function App() {
 
   // A job's page is titled after the job, and an old #/jobs/<id> link moves to the job's real address
   useEffect(() => {
-    const job = jobPageId ? jobs.find((j) => j.id === jobPageId) : undefined;
+    const job = jobPageId ? allJobs.find((j) => j.id === jobPageId) : undefined;
     const course = COURSES.find((c) => c.id === coursePageId);
     const guide = guideBySlug(guideSlug);
     document.title = job
@@ -458,7 +460,7 @@ export default function App() {
             ? 'Leaderboards | Praxa'
             : SITE_TITLE;
     if (job && /^#\/(jobs|exams)\//.test(window.location.hash)) replacePage(jobPath(job));
-  }, [jobPageId, coursePageId, guideSlug, currentTab, jobs]);
+  }, [jobPageId, coursePageId, guideSlug, currentTab, allJobs]);
 
   // Following a company's link to a test ties the candidate's results on it back to that company
   useEffect(() => {
@@ -511,6 +513,10 @@ export default function App() {
   const [planOpen, setPlanOpen] = useState(false);
   // The job being created from the plan, with its tests already ticked
   const [planJobTests, setPlanJobTests] = useState<string[] | null>(null);
+  // Invite to a job, from a candidate's profile or the candidates list: whose, and whether a new invite-only job is
+  // being made for them
+  const [inviteFor, setInviteFor] = useState<string | null>(null);
+  const [inviteJobFor, setInviteJobFor] = useState<string | null>(null);
   // A job whose sharing opens as soon as its page shows: one just posted, or the job a test was sent through
   const [shareJobId, setShareJobId] = useState<string | null>(null);
   // The job form opened to send a test (not from a test plan, which posting then closes)
@@ -567,6 +573,15 @@ export default function App() {
   const recruiterBusiness: Business | undefined = adminAsCompany
     ? businesses.find((b) => b.id === adminCompanyId) ?? businesses.find((b) => b.id === recruiter.businessId) ?? businesses[0]
     : businesses.find((b) => b.id === recruiter.businessId);
+  // The jobs this viewer sees. Invite-only jobs are for the company that posted them, the Praxa team, people invited
+  // to them or who applied, and whoever opens one's link (the open job page)
+  const jobs = allJobs.filter(
+    (j) =>
+      isListed(j) ||
+      activeRole === 'admin' ||
+      (activeRole === 'recruiter' && j.businessId === recruiterBusiness?.id) ||
+      (activeRole === 'candidate' && (j.id === jobPageId || j.invitations.some((i) => i.candidateId === candidate.id) || candidate.appliedJobIds.includes(j.id)))
+  );
 
   // The home chat is kept on this device per company, so a reload doesn't lose what was said and picked. Library tests in
   // it are stored by id and looked up again
@@ -1316,7 +1331,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
   // A new job is in its company's sector unless it was given one
   const handleCreateJob = (newJob: JobPosting) => {
     const companySector = businesses.find((b) => b.id === newJob.businessId)?.sector;
-    setJobs((prev) => [{ ...(companySector && { sector: companySector }), ...newJob }, ...prev]);
+    return setJobs((prev) => [{ ...(companySector && { sector: companySector }), ...newJob }, ...prev]);
   };
 
   const handleSaveJobTests = (jobId: string, change: Pick<JobPosting, 'testIds' | 'testPassingScore' | 'testsRequired' | 'maxAttempts'>) => {
@@ -1498,6 +1513,10 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
   // A company's leads across its own jobs; the Praxa team's across every company's
   const leadsBusiness = activeRole === 'admin' ? undefined : recruiterBusiness;
   const leadsJobs = leadsBusiness ? jobs.filter((j) => j.businessId === leadsBusiness.id) : jobs;
+  // A company (or the Praxa team as one) can invite candidates to its jobs
+  const canInviteToJobs = activeRole !== 'candidate' && !!recruiterBusiness;
+  const invitePerson = inviteFor ? allCandidates.find((c) => c.id === inviteFor) : undefined;
+  const inviteJobPerson = inviteJobFor ? allCandidates.find((c) => c.id === inviteJobFor) : undefined;
   const leadRows = activeRole === 'candidate' ? [] : buildLeadRows(leadsJobs, allCandidates, leads, Object.fromEntries(tests.map((t) => [t.id, t.title])));
   const openJobLeads = (jobId: string) => {
     openBusinessJob(jobId);
@@ -1808,6 +1827,8 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
                   onOpenTest={openTestPage}
                   onOpenJob={openJobPage}
                   onGoTo={goToTab}
+                  allTests={tests}
+                  onStartJobTest={startJobTest}
                 />
               </div>
               <div
@@ -1851,6 +1872,8 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
                   onOpenTest={openTestPage}
                   onOpenJob={openJobPage}
                   onGoTo={goToTab}
+                  allTests={tests}
+                  onStartJobTest={startJobTest}
                 />
                 </div>
                 {candidate.testResults.length > 0 && (
@@ -1936,6 +1959,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
                   <CandidateProfilePage
                     popup
                     person={person}
+                    onInviteToJob={canInviteToJobs ? () => setInviteFor(person.id) : undefined}
                     tests={tests}
                     candidates={allCandidates}
                     businesses={businesses}
@@ -2058,6 +2082,10 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
               onEditTest={(jobId, testId) => editOwnTest(testId, jobId)}
               onUpdateJobRequirements={handleUpdateJobRequirements}
               onUpdateJobSector={handleUpdateJobSector}
+              onUpdateJobVisibility={(jobId, visibility) => {
+                setJobs((prev) => prev.map((j) => (j.id === jobId ? { ...j, visibility } : j)));
+                showToast(visibility === 'invite' ? 'Invite only: off the job board. Only people you invite or send the link to can open it.' : 'On the job board for everyone.');
+              }}
               onUpdateCompanySector={
                 // The owner's to change, saved on the company's record
                 activeRole === 'recruiter' && company && account && company.ownerUid === account.uid
@@ -2091,6 +2119,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
             <CandidateProfilePage
               key={candidatePagePerson.id}
               person={candidatePagePerson}
+              onInviteToJob={canInviteToJobs ? () => setInviteFor(candidatePagePerson.id) : undefined}
               tests={tests}
               candidates={allCandidates}
               businesses={businesses}
@@ -2137,7 +2166,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
                 const test = tests.find((t) => t.id === testId);
                 if (test) setDraftBuilder({ draft: test, alsoAdd: [] });
               }}
-              browse={<BrowseCandidates candidates={allCandidates} onOpenPerson={openPerson} />}
+              browse={<BrowseCandidates candidates={allCandidates} onOpenPerson={openPerson} onInvite={canInviteToJobs ? setInviteFor : undefined} />}
               leads={
                 <LeadsPage
                   business={leadsBusiness}
@@ -2225,6 +2254,40 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
             setPlanOpen(false);
           }}
           onBack={() => setPlanOpen(false)}
+        />
+      )}
+
+      {invitePerson && recruiterBusiness && (
+        <InviteToJobDialog
+          person={invitePerson}
+          jobs={jobs.filter((j) => j.businessId === recruiterBusiness.id)}
+          tests={tests}
+          onInvite={(job) => {
+            handleInviteToJob(job.id, [invitePerson.id]);
+            showToast(`Invited ${invitePerson.name} to ${job.title}. They'll see it on their home and in their notifications.`);
+          }}
+          onNewJob={() => {
+            setInviteJobFor(invitePerson.id);
+            setInviteFor(null);
+          }}
+          onClose={() => setInviteFor(null)}
+        />
+      )}
+
+      {inviteJobPerson && recruiterBusiness && (
+        <JobForm
+          businesses={[recruiterBusiness]}
+          postedBy={activeRole === 'admin' ? 'vetter' : 'company'}
+          tests={tests}
+          initialVisibility="invite"
+          initialTitle={inviteJobPerson.targetRole ?? ''}
+          onSave={(job) => {
+            // The job first, then the invitation, which the rules check against the saved job
+            Promise.resolve(handleCreateJob(job)).then(() => handleInviteToJob(job.id, [inviteJobPerson.id]));
+            showToast(`"${job.title}" is posted, invite only, and ${inviteJobPerson.name} is invited.`);
+            setInviteJobFor(null);
+          }}
+          onCancel={() => setInviteJobFor(null)}
         />
       )}
 
@@ -2397,6 +2460,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
           <CandidateProfilePage
             popup
             person={person}
+            onInviteToJob={canInviteToJobs ? () => setInviteFor(person.id) : undefined}
             tests={tests}
             candidates={allCandidates}
             businesses={businesses}

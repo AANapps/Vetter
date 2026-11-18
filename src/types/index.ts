@@ -558,7 +558,13 @@ export interface JobPosting {
   invitedEmails?: string[];
   applicantCount: number;
   status: 'active' | 'paused' | 'filled';
+  // Invite only: left off the job board, search and Google; only people invited (or sent its link) can open it.
+  // Unset is public
+  visibility?: 'public' | 'invite';
 }
+
+// Whether a job is on the job board for everyone
+export const isListed = (job: Pick<JobPosting, 'visibility'>) => job.visibility !== 'invite';
 
 export interface SkillMatchBreakdown {
   skillName: string;

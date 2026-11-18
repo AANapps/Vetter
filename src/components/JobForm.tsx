@@ -19,6 +19,8 @@ interface JobFormProps {
   onCancel: () => void;
   // Tests to start with, already ticked (e.g. from a test plan), by the version to use
   initialTestIds?: string[];
+  // Invite only to start with, e.g. when made to invite one person
+  initialVisibility?: 'public' | 'invite';
   // The job's title to start with, e.g. the role a test was made for
   initialTitle?: string;
 }
@@ -27,7 +29,8 @@ const inputClass =
   'w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100';
 
 // The one job form, used by companies and by the Praxa team
-export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, onSave, onCancel, initialTestIds = [], initialTitle = '' }) => {
+export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, onSave, onCancel, initialTestIds = [], initialTitle = '', initialVisibility = 'public' }) => {
+  const [visibility, setVisibility] = useState<'public' | 'invite'>(initialVisibility);
   const [businessId, setBusinessId] = useState(businesses[0]?.id ?? '');
   const business = businesses.find((b) => b.id === businessId) ?? businesses[0];
   // The company's own tests come first, the newest at the top
@@ -185,6 +188,7 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
       invitations: [],
       applicantCount: 0,
       status: 'active',
+      ...(visibility === 'invite' && { visibility }),
     });
   };
 
@@ -324,6 +328,30 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
               className={inputClass}
             />
           </div>
+
+          {/* Who can find it: everyone on the job board, or only people the company invites */}
+          <fieldset className="space-y-1.5">
+            <legend className="text-xs font-semibold text-slate-700 mb-1">Who can see it</legend>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {(
+                [
+                  { id: 'public', label: 'Everyone', hint: 'On the job board and Google; anyone can take the tests and apply.' },
+                  { id: 'invite', label: 'Invite only', hint: 'Not listed anywhere. Only people you invite or send the link to can open it.' },
+                ] as const
+              ).map((o) => (
+                <label
+                  key={o.id}
+                  className={`p-2.5 rounded-lg border cursor-pointer flex items-start gap-2 ${visibility === o.id ? 'border-indigo-500 bg-indigo-50/60' : 'border-slate-200 hover:border-slate-300'}`}
+                >
+                  <input type="radio" name="job-visibility" checked={visibility === o.id} onChange={() => setVisibility(o.id)} className="mt-0.5 accent-indigo-600" />
+                  <span>
+                    <span className="block text-xs font-semibold text-slate-900">{o.label}</span>
+                    <span className="block text-[11px] text-slate-500">{o.hint}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
 
           {/* The tests this job ranks candidates on */}
           <fieldset className={`p-3 border rounded-xl space-y-3 ${pickError ? 'border-slate-300 bg-indigo-50' : 'border-indigo-200 bg-indigo-50/50'}`}>

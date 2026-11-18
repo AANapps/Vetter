@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ChevronRight, Search } from 'lucide-react';
+import { ChevronRight, Search, Send } from 'lucide-react';
 import { User } from '../types';
 import { Pic } from './Pic';
 import { getBadgeTier } from './VerifiedSkillBadge';
@@ -15,7 +15,7 @@ const ROW_COLS = 'grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(0,1.4fr)_m
 
 // Every candidate on Praxa, for a company to look through: search by name, title or skill,
 // narrow by career stage and how they want to work, and open anyone's profile
-export const BrowseCandidates: React.FC<{ candidates: User[]; onOpenPerson: (personId: string) => void }> = ({ candidates, onOpenPerson }) => {
+export const BrowseCandidates: React.FC<{ candidates: User[]; onOpenPerson: (personId: string) => void; onInvite?: (personId: string) => void }> = ({ candidates, onOpenPerson, onInvite }) => {
   const [q, setQ] = useState('');
   const [stage, setStage] = useState<(typeof STAGES)[number]>('Any');
   const [work, setWork] = useState<(typeof WORK)[number]>('Any');
@@ -102,7 +102,7 @@ export const BrowseCandidates: React.FC<{ candidates: User[]; onOpenPerson: (per
       ) : (
         // A table: one row per candidate, the columns that matter for a first look, best first
         <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
-          <div className={`hidden md:grid ${COLS} gap-4 px-5 py-2.5 bg-slate-50/80 border-b border-slate-200 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400`}>
+          <div className={`hidden md:grid ${COLS} gap-4 px-5 py-2.5 bg-slate-50/80 border-b border-slate-200 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400 ${onInvite ? 'md:mr-24' : ''}`}>
             <span>Candidate</span>
             <span>Location</span>
             <span>Top verified skills</span>
@@ -117,10 +117,10 @@ export const BrowseCandidates: React.FC<{ candidates: User[]; onOpenPerson: (per
               const best = top[0];
               const tests = new Set(c.testResults.map((r) => r.testId)).size;
               return (
-                <li key={c.id}>
+                <li key={c.id} className="flex items-center">
                   <button
                     onClick={() => onOpenPerson(c.id)}
-                    className={`w-full text-left grid ${ROW_COLS} gap-x-4 gap-y-2 items-center px-5 py-3 hover:bg-slate-50/70 transition-colors group`}
+                    className={`flex-1 min-w-0 text-left grid ${ROW_COLS} gap-x-4 gap-y-2 items-center px-5 py-3 hover:bg-slate-50/70 transition-colors group`}
                   >
                     <span className="flex items-center gap-3 min-w-0">
                       <Pic src={c.avatarUrl} alt="" referrerPolicy="no-referrer" className="w-9 h-9 rounded-full object-cover bg-slate-100 shrink-0" />
@@ -164,6 +164,16 @@ export const BrowseCandidates: React.FC<{ candidates: User[]; onOpenPerson: (per
                       </span>
                     )}
                   </button>
+                  {onInvite && (
+                    <button
+                      onClick={() => onInvite(c.id)}
+                      title={`Invite ${c.name} to a job`}
+                      className="shrink-0 w-20 mr-4 h-8 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-indigo-700 hover:border-indigo-300 hover:bg-indigo-50 inline-flex items-center justify-center gap-1"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      Invite
+                    </button>
+                  )}
                 </li>
               );
             })}
