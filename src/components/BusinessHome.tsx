@@ -819,9 +819,9 @@ const AdvisorReply: React.FC<{
 );
 
 // The plan Praxa will build from, before anything is written: what the hire needs, then a checklist of every question,
-// case and task in the order the candidate meets them, each with its type and the prompt it's written from. While it
-// can still be built, the company edits it in place: each prompt, and the software an app task is done in (an app from
-// Praxa's library when one fits, or built new). Messages change it too; Build writes it
+// case and task in the order the candidate meets them, each just its number and title. Opening one shows its type,
+// time, the software it's done in (picked by Praxa: an app from its library when one fits, or built new) and the prompt
+// it's written from, which the company can change while the plan can still be built. Messages change it too
 const PlanCard: React.FC<{ plan: TestPlan; canBuild: boolean; onBuild: () => void; onChange: (plan: TestPlan) => void }> = ({ plan, canBuild, onBuild, onChange }) => {
   const label = (type: string) => QUESTION_STYLES.find((s) => s.type === type)?.label ?? type;
   const minutes = plan.items.reduce((n, item) => n + (Number(item.minutes) || 0), 0);
@@ -831,6 +831,7 @@ const PlanCard: React.FC<{ plan: TestPlan; canBuild: boolean; onBuild: () => voi
   const rows = plan.items.map((item) => ({ item, number: item.type === 'case' ? 0 : ++n }));
   // A job simulation is one day on the desktop in five timed parts, plus 3 minutes to read and switch apps
   const day = plan.items.length > 0 && plan.items.every((item) => item.type === 'part');
+  const [open, setOpen] = useState<string[]>([]);
   const [apps, setApps] = useState<ReusableApp[]>([]);
   useEffect(() => {
     let live = true;
@@ -842,8 +843,10 @@ const PlanCard: React.FC<{ plan: TestPlan; canBuild: boolean; onBuild: () => voi
     };
   }, []);
   const edit = (ref: string, change: Partial<TestPlan['items'][number]>) => onChange({ ...plan, items: plan.items.map((item) => (item.ref === ref ? { ...item, ...change } : item)) });
-  // App tasks always say what they're done in; a job simulation's parts when they're in the job's own software
-  const hasSoftware = (item: TestPlan['items'][number]) => item.type === 'app' || !!item.software?.trim() || !!item.appId?.trim();
+  const softwareOf = (item: TestPlan['items'][number]) => {
+    const app = apps.find((a) => a.id === item.appId);
+    return app ? `${app.name}, from Praxa's app library` : item.software?.trim() ? `${item.software}, built for this test` : item.type === 'app' ? 'Picked when it’s built' : '';
+  };
   return (
     <div className="p-4 bg-white border border-indigo-200 rounded-xl space-y-3 shadow-sm shadow-indigo-100/60">
       <div>
@@ -865,27 +868,42 @@ const PlanCard: React.FC<{ plan: TestPlan; canBuild: boolean; onBuild: () => voi
           </ul>
         )}
       </div>
-      {canBuild && <p className="text-[11px] text-slate-500">Change any prompt or the software below, then build. Praxa writes each question from its prompt.</p>}
-      <ol className="space-y-3 border-t border-slate-100 pt-3">
-        {rows.map(({ item, number }) => (
-          <li key={item.ref} className={`text-sm ${item.taskRef ? 'ml-5 pl-3 border-l-2 border-slate-100' : ''}`}>
-            <div className="flex items-baseline gap-2">
-              <Check className="w-3.5 h-3.5 text-indigo-500 shrink-0 self-center" aria-hidden />
-              <span className="min-w-0 flex-1">
-                <span className="font-semibold text-slate-900">{day ? `Part ${number}` : number ? `Question ${number}` : 'Case study'}</span>
-                {!day && <span className="ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 align-middle">{label(item.type)}</span>}
-                <span className="text-slate-900">: {item.title}</span>
-              </span>
-              {Number(item.minutes) > 0 && <span className="shrink-0 text-[11px] text-slate-400 tabular-nums">{item.minutes} min</span>}
-            </div>
-            {canBuild ? (
-              <PromptBox value={item.brief ?? ''} label={`Prompt for ${day ? `part ${number}` : number ? `question ${number}` : 'the case study'}`} onSave={(brief) => edit(item.ref, { brief })} />
-            ) : (
-              item.brief && <p className="mt-0.5 ml-5.5 text-xs text-slate-500 leading-relaxed">{item.brief}</p>
-            )}
-            {hasSoftware(item) && <SoftwarePick item={item} apps={apps} editable={canBuild} onChange={(c) => edit(item.ref, c)} />}
-          </li>
-        ))}
+      <ol className="border-t border-slate-100 pt-2 divide-y divide-slate-100">
+        {rows.map(({ item, number }) => {
+          const isOpen = open.includes(item.ref);
+          const name = day ? `Part ${number}` : number ? `Question ${number}` : 'Case study';
+          const software = softwareOf(item);
+          return (
+            <li key={item.ref} className={`text-sm ${item.taskRef ? 'ml-5 pl-3 border-l-2 border-slate-100' : ''}`}>
+              <button
+                type="button"
+                aria-expanded={isOpen}
+                onClick={() => setOpen((o) => (isOpen ? o.filter((r) => r !== item.ref) : [...o, item.ref]))}
+                className="w-full py-2 flex items-center gap-2 text-left hover:text-indigo-700"
+              >
+                <ChevronDown className={`w-4 h-4 shrink-0 text-slate-400 transition-transform ${isOpen ? '' : '-rotate-90'}`} aria-hidden />
+                <span className="min-w-0 flex-1 truncate">
+                  <span className="font-semibold text-slate-900">{name}</span>
+                  <span className="text-slate-700">: {item.title}</span>
+                </span>
+              </button>
+              {isOpen && (
+                <div className="pb-3 pl-6 space-y-1.5">
+                  <p className="text-[11px] text-slate-500">
+                    {!day && label(item.type)}
+                    {Number(item.minutes) > 0 && `${!day ? ' · ' : ''}${item.minutes} min`}
+                    {software && ` · ${software}`}
+                  </p>
+                  {canBuild ? (
+                    <PromptBox value={item.brief ?? ''} label={`Prompt for ${name.toLowerCase()}`} onSave={(brief) => edit(item.ref, { brief })} />
+                  ) : (
+                    item.brief && <p className="text-xs text-slate-600 leading-relaxed">{item.brief}</p>
+                  )}
+                </div>
+              )}
+            </li>
+          );
+        })}
       </ol>
       {canBuild && (
         <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-3">
@@ -894,7 +912,7 @@ const PlanCard: React.FC<{ plan: TestPlan; canBuild: boolean; onBuild: () => voi
             Build in AI test builder
             <ArrowRight className="w-4 h-4" />
           </button>
-          <span className="text-xs text-slate-500">Or ask below for bigger changes, e.g. {day ? '"make the curveball a client changing the deadline"' : '"add an SQL question on joins"'}.</span>
+          <span className="text-xs text-slate-500">Open a question to change its prompt, or ask below.</span>
         </div>
       )}
     </div>
@@ -921,58 +939,8 @@ const PromptBox: React.FC<{ value: string; label: string; onSave: (v: string) =>
       rows={2}
       onChange={(e) => setText(e.target.value)}
       onBlur={() => text.trim() !== value.trim() && text.trim() && onSave(text.trim())}
-      className="mt-1 ml-5.5 w-[calc(100%-1.375rem)] resize-none overflow-hidden px-2.5 py-1.5 text-xs text-slate-700 leading-relaxed bg-slate-50 border border-slate-200 hover:border-slate-300 focus:bg-white focus:border-indigo-400 focus:outline-none rounded-lg"
+      className="w-full resize-none overflow-hidden px-2.5 py-1.5 text-xs text-slate-700 leading-relaxed bg-slate-50 border border-slate-200 hover:border-slate-300 focus:bg-white focus:border-indigo-400 focus:outline-none rounded-lg"
     />
-  );
-};
-
-// The software an app task (or a part of the day) is done in: an app from Praxa's library, ready to use, or software
-// Praxa builds for it
-const SoftwarePick: React.FC<{ item: TestPlan['items'][number]; apps: ReusableApp[]; editable: boolean; onChange: (c: { software?: string; appId?: string }) => void }> = ({
-  item,
-  apps,
-  editable,
-  onChange,
-}) => {
-  const app = apps.find((a) => a.id === item.appId);
-  const [name, setName] = useState(item.software ?? '');
-  useEffect(() => setName(item.software ?? ''), [item.software]);
-  if (!editable)
-    return (
-      <p className="mt-1 ml-5.5 text-[11px] text-slate-500 flex items-center gap-1">
-        <Monitor className="w-3 h-3" />
-        {app ? `${app.name}, from Praxa's app library` : item.software ? `${item.software}, built for this test` : 'Software picked when it’s built'}
-      </p>
-    );
-  return (
-    <div className="mt-1.5 ml-5.5 flex flex-wrap items-center gap-2 text-[11px]">
-      <Monitor className="w-3.5 h-3.5 text-slate-400" aria-hidden />
-      <span className="text-slate-600">Software</span>
-      <select
-        aria-label="Software"
-        value={item.appId?.trim() ? item.appId : ''}
-        onChange={(e) => onChange({ appId: e.target.value })}
-        className="h-7 px-2 rounded-lg border border-slate-200 bg-white text-[11px] font-semibold text-slate-800"
-      >
-        {apps.map((a) => (
-          <option key={a.id} value={a.id}>
-            {a.name} ({a.product}), ready
-          </option>
-        ))}
-        <option value="">Build new{item.software ? `: ${item.software}` : ''}</option>
-      </select>
-      {!item.appId?.trim() && (
-        <input
-          aria-label="Software to build"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onBlur={() => name.trim() !== (item.software ?? '').trim() && onChange({ software: name.trim() })}
-          placeholder="e.g. NinjaOne"
-          className="h-7 w-40 px-2 rounded-lg border border-slate-200 bg-white text-[11px]"
-        />
-      )}
-      <span className="text-slate-400">{item.appId?.trim() ? 'Quicker and cheaper: only your data is written' : 'Built to match it (a few minutes more), then kept in Praxa’s library'}</span>
-    </div>
   );
 };
 
