@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import { AssessmentTest, Business, JobPosting, isPublic, levelName } from '../types';
 import { CITIES } from '../lib/geo';
 import { EMPLOYMENT_TYPES, EXPERIENCE_LEVELS, formatSalaryRange } from '../lib/jobFilters';
-import { Loader2, Plus, Search, Sparkles, X } from 'lucide-react';
+import { Loader2, Plus, Sparkles, X } from 'lucide-react';
 import { SectorSelect } from './SectorPicker';
 import { FOCUS_SECTOR, SectorId, inCompanySector } from '../lib/sectors';
 import { isMainVersion, levelsOf, versionTitle, newestFirst } from '../lib/testLevels';
 import { aiFetch } from '../lib/aiRequest';
+import { TestPickerDialog, fieldOf } from './TestPickerDialog';
 import { Suggestion, matchExisting } from '../lib/testGeneration';
 
 interface JobFormProps {
@@ -59,12 +60,9 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
     )
   );
   const [pickError, setPickError] = useState(false);
-  // Searching the tests: by name, field, skill or role. Ticked tests always stay in the list
-  const [testQuery, setTestQuery] = useState('');
-  const testTerms = testQuery.trim().toLowerCase().split(/\s+/).filter(Boolean);
-  const matchesQuery = (t: AssessmentTest) =>
-    !!picked[t.id] ||
-    testTerms.every((w) => `${t.title} ${t.category} ${t.skillsTested.join(' ')} ${(t.roles ?? []).join(' ')}`.toLowerCase().includes(w));
+  // The tests are picked in a pop-up (TestPickerDialog); the form lists the ones on the job, in library order
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const chosenTests = [...companyTests, ...vetterTests].filter((t) => picked[t.id]);
   const pickedTests = Object.values(picked)
     .map((p) => tests.find((t) => t.id === p.testId))
     .filter((t): t is AssessmentTest => !!t);
@@ -331,55 +329,30 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
           <fieldset className={`p-3 border rounded-xl space-y-3 ${pickError ? 'border-slate-300 bg-indigo-50' : 'border-indigo-200 bg-indigo-50/50'}`}>
             <legend className="px-1 text-xs font-bold text-indigo-900">Tests for this job</legend>
             <p className="text-[11px] text-slate-600 -mt-1">
-              Tick the tests that matter for the role. Candidates are ranked on their scores in them.
+              Add the tests that matter for the role. Candidates are ranked on their scores in them.
             </p>
             {pickError && <p className="text-[11px] font-semibold text-slate-800">Pick at least one test.</p>}
 
-            <div className="relative">
-              <Search className="w-4 h-4 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="search"
-                value={testQuery}
-                onChange={(e) => setTestQuery(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
-                placeholder="Search tests by name, skill or role"
-                aria-label="Search tests"
-                className="w-full h-9 pl-8 pr-8 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              />
-              {testQuery && (
-                <button type="button" onClick={() => setTestQuery('')} aria-label="Clear search" className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-700">
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-            {testTerms.length > 0 && ![...companyTests, ...vetterTests].some((t) => !picked[t.id] && matchesQuery(t)) && (
-              <p className="text-[11px] text-slate-500">No tests match "{testQuery.trim()}".</p>
-            )}
-
-            {[
-              { label: businesses.length === 1 ? 'Your tests' : `${business?.name}'s tests`, list: companyTests.filter(matchesQuery) },
-              { label: 'Praxa tests', list: vetterTests.filter(matchesQuery) },
-            ]
-              .filter((g) => g.list.length > 0)
-              .map((group) => (
-                <div key={group.label} className="space-y-1">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{group.label}</div>
-                  <ul className="bg-white border border-slate-200 rounded-lg divide-y divide-slate-100 max-h-80 overflow-y-auto">
-                    {group.list.map((t) => {
+            {/* The tests on the job, each with its level, minimum score and whether it's required; more are added in a pop-up */}
+            {chosenTests.length > 0 && (
+                  <ul className="bg-white border border-slate-200 rounded-lg divide-y divide-slate-100">
+                    {chosenTests.map((t) => {
                       const pick = picked[t.id];
                       return (
                         <li key={t.id} className="px-3 py-2">
-                          <label className="flex items-start gap-2.5 cursor-pointer">
-                            <input type="checkbox" checked={!!pick} onChange={() => togglePick(t.id)} className="mt-0.5 accent-indigo-600" />
-                            <span className="min-w-0">
+                          <div className="flex items-start gap-2.5">
+                            <span className="min-w-0 flex-1">
                               <span className="block text-xs font-semibold text-slate-900">{t.title}</span>
                               <span className="block text-[11px] text-slate-500">
-                                {t.category} &middot;{' '}
+                                {fieldOf(t)} &middot;{' '}
                                 {levelsOf(t, tests).length > 1 ? `${levelsOf(t, tests).length} levels` : t.difficulty}
-                                {t.roles?.length ? ` · ${t.roles.join(', ')}` : ''}
+                                {' '}&middot; ~{t.estimatedMinutes} min
                               </span>
                             </span>
-                          </label>
+                            <button type="button" onClick={() => togglePick(t.id)} aria-label={`Remove ${t.title}`} className="p-1 rounded text-slate-400 hover:text-rose-600">
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                           {pick && (
                             <div className="mt-2 ml-6 flex flex-wrap items-center gap-3 text-[11px]">
                               {levelsOf(t, tests).length > 1 && (
@@ -422,8 +395,15 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
                       );
                     })}
                   </ul>
-                </div>
-              ))}
+            )}
+            <button
+              type="button"
+              onClick={() => setPickerOpen(true)}
+              className="w-full h-10 rounded-lg border border-dashed border-indigo-300 bg-white text-xs font-semibold text-indigo-700 hover:bg-indigo-50 inline-flex items-center justify-center gap-1.5"
+            >
+              <Plus className="w-4 h-4" />
+              {chosenTests.length ? 'Add more tests' : 'Add tests'}
+            </button>
 
             {/* The picked tests are the job's tests: an average pass mark, and whether candidates must pass them to apply */}
             <div className="flex flex-wrap items-end gap-4 pt-1">
@@ -506,6 +486,18 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
           )}
         </form>
       </div>
+      {pickerOpen && (
+        <TestPickerDialog
+          groups={[
+            { label: businesses.length === 1 ? 'Your tests' : `${business?.name}'s tests`, list: companyTests },
+            { label: 'Praxa tests', list: vetterTests },
+          ].filter((g) => g.list.length > 0)}
+          allTests={tests}
+          isPicked={(t) => !!picked[t.id]}
+          onToggle={(t) => togglePick(t.id)}
+          onClose={() => setPickerOpen(false)}
+        />
+      )}
     </div>
   );
 };
