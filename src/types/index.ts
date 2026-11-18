@@ -712,13 +712,19 @@ export interface ProjectGroup {
 }
 
 // A column the company added to a project, as on monday: its values live on each task under the column's id
-export type ProjectColumnType = 'text' | 'number' | 'label' | 'date' | 'people' | 'checkbox' | 'link';
+export type ProjectColumnType = 'text' | 'number' | 'label' | 'date' | 'people' | 'checkbox' | 'link' | 'email' | 'phone' | 'money' | 'formula' | 'connect';
 export interface ProjectColumn {
   id: string;
   title: string;
   type: ProjectColumnType;
   // Labels to pick from (label columns), each with a colour index
   options?: { id: string; label: string; colour: number }[];
+  // Formula columns: arithmetic over other columns by name, e.g. {Deal value} * {Close probability} / 100
+  formula?: string;
+  // Money and formula columns: the currency sign shown, e.g. £
+  currency?: string;
+  // Connect columns: the board whose items it links to
+  boardId?: string;
 }
 
 // The built-in columns, which can be hidden but not deleted
@@ -731,18 +737,24 @@ export interface ProjectView {
   name: string;
   type: 'table' | 'kanban' | 'calendar' | 'timeline' | 'chart';
   by?: string;
+  // Kanban lanes and charts: a money, number or formula column to total (counts items when unset)
+  measure?: string;
 }
 
 // "When this happens, do that", as monday's automations. Each runs once per change, never off another automation
 export interface ProjectAutomation {
   id: string;
-  when: 'status' | 'created' | 'assigned' | 'overdue' | 'checked';
+  when: 'status' | 'created' | 'assigned' | 'overdue' | 'checked' | 'label';
   // status: the status it changed to (any change when unset); created: the group it was made in (any when unset);
-  // checked: the checkbox column
+  // checked: the checkbox column; label: the label column and the option it changed to (any when unset)
   status?: ProjectTaskStatus;
+  optionId?: string;
   groupId?: string;
   columnId?: string;
-  then: 'move' | 'setStatus' | 'setPriority' | 'assign';
+  then: 'move' | 'setStatus' | 'setPriority' | 'assign' | 'setLabel';
+  // setLabel: the label column (toColumnId) and option (toOptionId) to set
+  toColumnId?: string;
+  toOptionId?: string;
   toGroupId?: string;
   toStatus?: ProjectTaskStatus;
   toPriority?: ProjectTaskPriority;
@@ -761,6 +773,10 @@ export interface Project {
   hidden?: ProjectBuiltIn[];
   views?: ProjectView[];
   automations?: ProjectAutomation[];
+  // A CRM board (made by Set up CRM, linked to the others) or an ordinary project
+  kind?: 'leads' | 'contacts' | 'accounts' | 'deals' | 'project';
+  // What one item is called on the board: Lead, Contact, Deal… (Task when unset)
+  itemName?: string;
   createdAt: string; // ISO timestamp
 }
 
@@ -784,6 +800,8 @@ export interface ProjectTask {
   values?: Record<string, string | number | boolean | string[]>;
   // What changed and who changed it, newest last (kept to the last 50)
   log?: { at: string; by: string; text: string }[];
+  // Calls, emails, meetings and notes logged on it, as monday CRM's Emails & Activities
+  activities?: { id: string; type: 'call' | 'email' | 'meeting' | 'note'; text: string; at: string; by: string }[];
   createdAt: string; // ISO timestamp
   updatedAt?: string;
 }

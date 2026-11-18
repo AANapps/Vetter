@@ -7,6 +7,14 @@ import {
   Columns3,
   Copy,
   ExternalLink,
+  Mail,
+  Phone,
+  PhoneCall,
+  StickyNote,
+  Users as UsersIcon,
+  Send,
+  Loader2,
+  ArrowRightLeft,
   EyeOff,
   GanttChart,
   Plus,
@@ -34,6 +42,9 @@ import { Pic } from './Pic';
 import { shortDate } from '../lib/work';
 import { PRIORITY_LABEL, STATUS_LABEL, describeAutomation, isLate, overdueChanges, recipes, runAutomations, withLog } from '../lib/projectAutomations';
 import { CalendarView, ChartBar, ChartView, TimelineView } from './ProjectViews';
+import { boardForAi, convertLead, evalFormula, money, numberOf } from '../lib/crm';
+import { aiFetch } from '../lib/aiRequest';
+import { BrandSparkle } from './Brand';
 
 /**
  * One of a company's projects on its team board, like a monday.com board. Tasks sit in coloured groups with built-in
@@ -85,6 +96,11 @@ const COLUMN_TYPES: { type: ProjectColumnType; label: string; hint: string; titl
   { type: 'people', label: 'People', hint: 'Reviewers, approvers, helpers', title: 'People' },
   { type: 'checkbox', label: 'Checkbox', hint: 'Yes or no, ticked off', title: 'Check' },
   { type: 'link', label: 'Link', hint: 'A web address to open', title: 'Link' },
+  { type: 'email', label: 'Email', hint: 'An address to email in one click', title: 'Email' },
+  { type: 'phone', label: 'Phone', hint: 'A number to call in one click', title: 'Phone' },
+  { type: 'money', label: 'Money', hint: 'Values and budgets, totalled', title: 'Value' },
+  { type: 'formula', label: 'Formula', hint: 'Worked out from other columns', title: 'Formula' },
+  { type: 'connect', label: 'Connect boards', hint: 'Link items on another board', title: 'Linked' },
 ];
 
 const BUILT_IN: { id: ProjectBuiltIn; title: string; width: string }[] = [
@@ -94,7 +110,7 @@ const BUILT_IN: { id: ProjectBuiltIn; title: string; width: string }[] = [
   { id: 'due', title: 'Due', width: '124px' },
   { id: 'timeline', title: 'Timeline', width: '170px' },
 ];
-const TYPE_WIDTH: Record<ProjectColumnType, string> = { text: '170px', number: '110px', label: '140px', date: '124px', people: '120px', checkbox: '84px', link: '170px' };
+const TYPE_WIDTH: Record<ProjectColumnType, string> = { text: '170px', number: '110px', label: '140px', date: '124px', people: '120px', checkbox: '84px', link: '170px', email: '190px', phone: '140px', money: '120px', formula: '130px', connect: '180px' };
 
 const VIEW_TYPES: { type: ProjectView['type']; label: string; icon: React.ComponentType<{ className?: string }>; hint: string }[] = [
   { type: 'table', label: 'Table', icon: Table2, hint: 'Groups and columns' },
@@ -287,10 +303,93 @@ const InlineText: React.FC<{ value: string; onSave: (v: string) => void; classNa
 };
 
 // A task's value in an added column, as a cell or a field
-const ValueCell: React.FC<{ col: ProjectColumn; task: ProjectTask; people: BoardPerson[]; onSet: (v: string | number | boolean | string[] | undefined) => void; field?: boolean }> = ({ col, task, people, onSet, field }) => {
+// Other boards' items, for connect columns: what there is to link to, and opening one
+interface Linking {
+  columns: ProjectColumn[];
+  boards: Project[];
+  allTasks: ProjectTask[];
+  onOpenItem?: (projectId: string, taskId: string) => void;
+}
+
+// Linking items on another board: the ones linked as chips, and a searchable list to add more
+const ConnectCell: React.FC<{ col: ProjectColumn; value: string[]; link: Linking; onSet: (ids: string[] | undefined) => void; field?: boolean }> = ({ col, value, link, onSet, field }) => {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const btn = useRef<HTMLButtonElement>(null);
+  const board = link.boards.find((b) => b.id === col.boardId);
+  const items = link.allTasks.filter((t) => t.projectId === col.boardId);
+  const linked = value.map((id) => items.find((t) => t.id === id)).filter((t): t is ProjectTask => !!t);
+  return (
+    <div className={`flex items-center gap-1 min-w-0 ${field ? 'flex-wrap min-h-9' : 'w-full h-full px-2 overflow-hidden'}`}>
+      {linked.map((t) => (
+        <button
+          key={t.id}
+          onClick={() => link.onOpenItem?.(t.projectId, t.id)}
+          title={`Open ${t.title}`}
+          className="shrink-0 max-w-[120px] truncate px-1.5 py-0.5 rounded-md bg-indigo-50 border border-indigo-100 text-[11px] font-medium text-indigo-800 hover:border-indigo-300"
+        >
+          {t.title}
+        </button>
+      ))}
+      <button ref={btn} onClick={() => setOpen((o) => !o)} aria-label={`Link ${col.title}`} className="shrink-0 p-0.5 rounded text-slate-300 hover:text-indigo-700">
+        <Plus className="w-3.5 h-3.5" />
+      </button>
+      {open && (
+        <Floating anchor={btn} onClose={() => setOpen(false)} width={260}>
+          <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder={`Search ${board?.name ?? 'items'}`} className="w-full h-8 px-2 mb-1 rounded-lg border border-slate-200 text-xs" />
+          {!board && <p className="p-2 text-xs text-slate-500">The linked board is gone.</p>}
+          {items
+            .filter((t) => !q.trim() || t.title.toLowerCase().includes(q.trim().toLowerCase()))
+            .slice(0, 40)
+            .map((t) => {
+              const on = value.includes(t.id);
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => onSet(on ? value.filter((x) => x !== t.id) : [...value, t.id])}
+                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left text-sm ${on ? 'bg-indigo-50 text-indigo-900' : 'hover:bg-slate-50 text-slate-800'}`}
+                >
+                  <span className="flex-1 truncate">{t.title}</span>
+                  {on && <Check className="w-3.5 h-3.5 text-indigo-600" />}
+                </button>
+              );
+            })}
+          {board && items.length === 0 && <p className="p-2 text-xs text-slate-500">Nothing on {board.name} yet.</p>}
+        </Floating>
+      )}
+    </div>
+  );
+};
+
+const ValueCell: React.FC<{ col: ProjectColumn; task: ProjectTask; people: BoardPerson[]; link: Linking; onSet: (v: string | number | boolean | string[] | undefined) => void; field?: boolean }> = ({ col, task, people, link, onSet, field }) => {
   const v = task.values?.[col.id];
   const pad = field ? 'h-9 px-3 rounded-lg border border-slate-200' : 'h-full px-3';
   switch (col.type) {
+    case 'email':
+    case 'phone':
+      return (
+        <span className="flex items-center w-full h-full">
+          <InlineText label={col.title} type={col.type === 'email' ? 'email' : 'tel'} value={typeof v === 'string' ? v : ''} onSave={(x) => onSet(x.trim() || undefined)} className={`flex-1 min-w-0 text-xs text-slate-800 ${pad}`} />
+          {typeof v === 'string' && v && (
+            <a href={col.type === 'email' ? `mailto:${v}` : `tel:${v.replace(/\s+/g, '')}`} aria-label={col.type === 'email' ? 'Send an email' : 'Call'} className="px-1.5 text-slate-400 hover:text-indigo-700">
+              {col.type === 'email' ? <Mail className="w-3.5 h-3.5" /> : <Phone className="w-3.5 h-3.5" />}
+            </a>
+          )}
+        </span>
+      );
+    case 'money':
+      return (
+        <span className={`flex items-center w-full ${field ? '' : 'h-full'}`}>
+          <span className="pl-2 text-xs text-slate-400">{col.currency ?? ''}</span>
+          <InlineText label={col.title} type="number" value={typeof v === 'number' ? String(v) : ''} onSave={(x) => onSet(x === '' || isNaN(Number(x)) ? undefined : Number(x))} className={`w-full text-sm text-right tabular-nums text-slate-800 ${pad}`} />
+        </span>
+      );
+    case 'formula': {
+      const n = evalFormula(col.formula ?? '', task, link.columns);
+      return <span className={`w-full flex items-center justify-end text-sm tabular-nums text-slate-700 bg-slate-50/60 ${pad}`} title={col.formula}>{n === undefined ? '–' : money(n, col.currency)}</span>;
+    }
+    case 'connect':
+      return <ConnectCell col={col} value={Array.isArray(v) ? v : []} link={link} field={field} onSet={(ids) => onSet(ids?.length ? ids : undefined)} />;
     case 'text':
       return <InlineText label={col.title} value={typeof v === 'string' ? v : ''} onSave={(x) => onSet(x.trim() || undefined)} className={`w-full text-sm text-slate-800 ${pad}`} />;
     case 'number':
@@ -396,12 +495,17 @@ const AutomationsDialog: React.FC<{ project: Project; people: BoardPerson[]; nam
   const list = project.automations ?? [];
   const [draft, setDraft] = useState<Omit<ProjectAutomation, 'id'>>({ when: 'status', status: 'done', then: 'move', toGroupId: project.groups.at(-1)?.id });
   const checkboxes = (project.columns ?? []).filter((c) => c.type === 'checkbox');
+  const labelCols = (project.columns ?? []).filter((c) => c.type === 'label');
   const same = (a: Omit<ProjectAutomation, 'id'>, b: Omit<ProjectAutomation, 'id'>) =>
-    a.when === b.when && a.status === b.status && a.groupId === b.groupId && a.columnId === b.columnId && a.then === b.then && a.toGroupId === b.toGroupId && a.toStatus === b.toStatus && a.toPriority === b.toPriority && a.toUid === b.toUid;
+    a.when === b.when && a.status === b.status && a.groupId === b.groupId && a.columnId === b.columnId && a.optionId === b.optionId && a.then === b.then && a.toGroupId === b.toGroupId && a.toStatus === b.toStatus && a.toPriority === b.toPriority && a.toUid === b.toUid && a.toColumnId === b.toColumnId && a.toOptionId === b.toOptionId;
   const offered = recipes(project).filter((r) => !list.some((a) => same(a, r)));
   const add = (a: Omit<ProjectAutomation, 'id'>) => onSave([...list, { ...a, id: newId('auto') }]);
   const ready =
-    (draft.then === 'move' && draft.toGroupId) || (draft.then === 'setStatus' && draft.toStatus) || (draft.then === 'setPriority' && draft.toPriority) || (draft.then === 'assign' && draft.toUid);
+    (draft.then === 'move' && draft.toGroupId) ||
+    (draft.then === 'setStatus' && draft.toStatus) ||
+    (draft.then === 'setPriority' && draft.toPriority) ||
+    (draft.then === 'assign' && draft.toUid) ||
+    (draft.then === 'setLabel' && draft.toColumnId && draft.toOptionId);
   const sel = 'h-8 px-2 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-800';
   const fake = { ...draft, id: 'draft' } as ProjectAutomation;
 
@@ -481,8 +585,18 @@ const AutomationsDialog: React.FC<{ project: Project; people: BoardPerson[]; nam
               <select
                 className={sel}
                 value={draft.when}
-                onChange={(e) => setDraft({ ...draft, when: e.target.value as ProjectAutomation['when'], status: e.target.value === 'status' ? 'done' : undefined, groupId: undefined, columnId: e.target.value === 'checked' ? checkboxes[0]?.id : undefined })}
+                onChange={(e) =>
+                  setDraft({
+                    ...draft,
+                    when: e.target.value as ProjectAutomation['when'],
+                    status: e.target.value === 'status' ? 'done' : undefined,
+                    groupId: undefined,
+                    optionId: undefined,
+                    columnId: e.target.value === 'checked' ? checkboxes[0]?.id : e.target.value === 'label' ? labelCols[0]?.id : undefined,
+                  })
+                }
               >
+                {labelCols.length > 0 && <option value="label">a label column changes</option>}
                 <option value="status">status changes to</option>
                 <option value="created">a task is created</option>
                 <option value="assigned">someone is assigned</option>
@@ -509,6 +623,26 @@ const AutomationsDialog: React.FC<{ project: Project; people: BoardPerson[]; nam
                   ))}
                 </select>
               )}
+              {draft.when === 'label' && (
+                <>
+                  <select className={sel} value={draft.columnId ?? ''} onChange={(e) => setDraft({ ...draft, columnId: e.target.value, optionId: undefined })}>
+                    {labelCols.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.title}
+                      </option>
+                    ))}
+                  </select>
+                  <span>to</span>
+                  <select className={sel} value={draft.optionId ?? ''} onChange={(e) => setDraft({ ...draft, optionId: e.target.value || undefined })}>
+                    <option value="">anything</option>
+                    {labelCols.find((c) => c.id === draft.columnId)?.options?.map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              )}
               {draft.when === 'checked' && (
                 <select className={sel} value={draft.columnId ?? ''} onChange={(e) => setDraft({ ...draft, columnId: e.target.value })}>
                   {checkboxes.map((c) => (
@@ -521,12 +655,35 @@ const AutomationsDialog: React.FC<{ project: Project; people: BoardPerson[]; nam
             </div>
             <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
               <span className="font-semibold">then</span>
-              <select className={sel} value={draft.then} onChange={(e) => setDraft({ ...draft, then: e.target.value as ProjectAutomation['then'], toGroupId: undefined, toStatus: undefined, toPriority: undefined, toUid: undefined })}>
+              <select className={sel} value={draft.then} onChange={(e) => setDraft({ ...draft, then: e.target.value as ProjectAutomation['then'], toGroupId: undefined, toStatus: undefined, toPriority: undefined, toUid: undefined, toColumnId: undefined, toOptionId: undefined })}>
                 <option value="move">move it to</option>
                 <option value="setStatus">set status to</option>
                 <option value="setPriority">set priority to</option>
                 <option value="assign">assign</option>
+                {labelCols.length > 0 && <option value="setLabel">set a label to</option>}
               </select>
+              {draft.then === 'setLabel' && (
+                <>
+                  <select className={sel} value={draft.toColumnId ?? ''} onChange={(e) => setDraft({ ...draft, toColumnId: e.target.value || undefined, toOptionId: undefined })}>
+                    <option value="">pick a column</option>
+                    {labelCols.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.title}
+                      </option>
+                    ))}
+                  </select>
+                  {draft.toColumnId && (
+                    <select className={sel} value={draft.toOptionId ?? ''} onChange={(e) => setDraft({ ...draft, toOptionId: e.target.value || undefined })}>
+                      <option value="">pick a label</option>
+                      {labelCols.find((c) => c.id === draft.toColumnId)?.options?.map((o) => (
+                        <option key={o.id} value={o.id}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </>
+              )}
               {draft.then === 'move' && (
                 <select className={sel} value={draft.toGroupId ?? ''} onChange={(e) => setDraft({ ...draft, toGroupId: e.target.value || undefined })}>
                   <option value="">pick a group</option>
@@ -582,18 +739,39 @@ const AutomationsDialog: React.FC<{ project: Project; people: BoardPerson[]; nam
 };
 
 // ---------- The task opened on its own: every field, notes and its activity
+const ACTIVITY: Record<NonNullable<ProjectTask['activities']>[number]['type'], { label: string; icon: React.ComponentType<{ className?: string }>; tone: string }> = {
+  call: { label: 'Call', icon: PhoneCall, tone: 'bg-emerald-100 text-emerald-700' },
+  email: { label: 'Email', icon: Mail, tone: 'bg-sky-100 text-sky-700' },
+  meeting: { label: 'Meeting', icon: UsersIcon, tone: 'bg-violet-100 text-violet-700' },
+  note: { label: 'Note', icon: StickyNote, tone: 'bg-amber-100 text-amber-700' },
+};
+
 const TaskPanel: React.FC<{
   task: ProjectTask;
   project: Project;
   people: BoardPerson[];
+  link: Linking;
+  me: BoardPerson;
   onChange: (change: Partial<ProjectTask>) => void;
   onSetValue: (colId: string, v: unknown) => void;
   onDuplicate: () => void;
   onDelete: () => void;
   onClose: () => void;
-}> = ({ task, project, people, onChange, onSetValue, onDuplicate, onDelete, onClose }) => {
+  // Leads: make it a contact, an account and a deal
+  onConvert?: () => void;
+  // Built-in columns the board hides, left out here too
+  hidden?: ProjectBuiltIn[];
+}> = ({ task, project, people, link, me, onChange, onSetValue, onDuplicate, onDelete, onClose, onConvert, hidden = [] }) => {
   const [notes, setNotes] = useState(task.notes ?? '');
   useEffect(() => setNotes(task.notes ?? ''), [task.id]);
+  const [tab, setTab] = useState<'details' | 'activity'>('details');
+  const [kind, setKind] = useState<NonNullable<ProjectTask['activities']>[number]['type']>('call');
+  const [entry, setEntry] = useState('');
+  const logActivity = () => {
+    if (!entry.trim()) return;
+    onChange({ activities: [...(task.activities ?? []), { id: `act-${Date.now().toString(36)}`, type: kind, text: entry.trim(), at: new Date().toISOString(), by: me.name }] });
+    setEntry('');
+  };
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', onKey);
@@ -604,11 +782,94 @@ const TaskPanel: React.FC<{
     <div className="fixed inset-0 z-40 bg-slate-900/30" onClick={onClose}>
       <aside role="dialog" aria-label={task.title} onClick={(e) => e.stopPropagation()} className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl p-6 overflow-y-auto space-y-5">
         <div className="flex items-start gap-3">
-          <InlineText label="Task" value={task.title} allowEmpty={false} onSave={(v) => onChange({ title: v.trim() })} className="flex-1 text-lg font-bold text-slate-900 rounded-lg px-2 -mx-2 py-1 hover:bg-slate-50" />
+          <InlineText label={project.itemName ?? 'Task'} value={task.title} allowEmpty={false} onSave={(v) => onChange({ title: v.trim() })} className="flex-1 text-lg font-bold text-slate-900 rounded-lg px-2 -mx-2 py-1 hover:bg-slate-50" />
           <button onClick={onClose} aria-label="Close" className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100">
             <X className="w-5 h-5" />
           </button>
         </div>
+        {onConvert && (
+          <button onClick={onConvert} className="w-full h-10 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold inline-flex items-center justify-center gap-2">
+            <ArrowRightLeft className="w-4 h-4" />
+            Convert to contact, account and deal
+          </button>
+        )}
+        <div className="flex gap-1 border-b border-slate-200">
+          {(
+            [
+              ['details', 'Details'],
+              ['activity', `Emails & activities${task.activities?.length ? ` · ${task.activities.length}` : ''}`],
+            ] as const
+          ).map(([k, label]) => (
+            <button key={k} onClick={() => setTab(k)} aria-pressed={tab === k} className={`px-3 py-2 -mb-px border-b-2 text-sm font-semibold ${tab === k ? 'border-indigo-600 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-900'}`}>
+              {label}
+            </button>
+          ))}
+        </div>
+        {tab === 'activity' ? (
+          <section className="space-y-4">
+            {/* Log a call, email, meeting or note, as monday CRM's activity timeline */}
+            <div className="p-3 rounded-xl border border-slate-200 space-y-2">
+              <div className="flex gap-1.5">
+                {(Object.keys(ACTIVITY) as (keyof typeof ACTIVITY)[]).map((k) => {
+                  const A = ACTIVITY[k];
+                  return (
+                    <button key={k} onClick={() => setKind(k)} aria-pressed={kind === k} className={`h-8 px-2.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 ${kind === k ? A.tone : 'text-slate-500 hover:bg-slate-50'}`}>
+                      <A.icon className="w-3.5 h-3.5" />
+                      {A.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <textarea
+                value={entry}
+                onChange={(e) => setEntry(e.target.value)}
+                onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === 'Enter' && logActivity()}
+                rows={3}
+                placeholder={kind === 'call' ? 'What was said on the call, and what happens next' : kind === 'email' ? 'What the email said' : kind === 'meeting' ? 'Who met, what was agreed' : 'A note'}
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              <div className="flex items-center justify-between gap-2">
+                {(() => {
+                  const email = (project.columns ?? []).find((c) => c.type === 'email' && typeof task.values?.[c.id] === 'string');
+                  return email ? (
+                    <a href={`mailto:${task.values![email.id]}`} className="text-xs font-semibold text-indigo-700 hover:underline inline-flex items-center gap-1">
+                      <Mail className="w-3.5 h-3.5" />
+                      Email {task.values![email.id] as string}
+                    </a>
+                  ) : (
+                    <span />
+                  );
+                })()}
+                <button onClick={logActivity} disabled={!entry.trim()} className="h-8 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-semibold">
+                  Log {ACTIVITY[kind].label.toLowerCase()}
+                </button>
+              </div>
+            </div>
+            {task.activities?.length ? (
+              <ol className="space-y-3">
+                {[...task.activities].reverse().map((a) => {
+                  const A = ACTIVITY[a.type];
+                  return (
+                    <li key={a.id} className="flex gap-3">
+                      <span className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${A.tone}`}>
+                        <A.icon className="w-4 h-4" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[11px] text-slate-500">
+                          <span className="font-semibold text-slate-800">{a.by}</span> logged a {A.label.toLowerCase()} · {new Date(a.at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                        <p className="text-sm text-slate-800 whitespace-pre-wrap">{a.text}</p>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
+            ) : (
+              <p className="text-xs text-slate-400">No calls, emails, meetings or notes logged yet.</p>
+            )}
+          </section>
+        ) : (
+        <>
         <dl className="grid grid-cols-[96px_1fr] gap-x-3 gap-y-3 items-center text-sm">
           <dt className="text-xs font-semibold text-slate-500">Group</dt>
           <dd>
@@ -625,27 +886,43 @@ const TaskPanel: React.FC<{
             <PeoplePicker people={people} value={task.ownerUids} onChange={(ownerUids) => onChange({ ownerUids })} compact />
             <span className="ml-2 text-xs text-slate-500 truncate">{people.filter((p) => task.ownerUids.includes(p.uid)).map((p) => p.name).join(', ') || 'No one yet'}</span>
           </dd>
-          <dt className="text-xs font-semibold text-slate-500">Status</dt>
-          <dd className="h-9 rounded-lg overflow-hidden">
-            <ColourSelect label="Status" value={task.status} options={TASK_STATUS} onChange={(status) => status && onChange({ status })} />
-          </dd>
-          <dt className="text-xs font-semibold text-slate-500">Priority</dt>
-          <dd className="h-9 rounded-lg overflow-hidden">
-            <ColourSelect label="Priority" value={task.priority} options={PRIORITY} empty="None" onChange={(priority) => onChange({ priority })} />
-          </dd>
-          <dt className="text-xs font-semibold text-slate-500">Start</dt>
-          <dd>
-            <input type="date" value={task.startDate ?? ''} onChange={(e) => onChange({ startDate: e.target.value || undefined })} className={field} />
-          </dd>
-          <dt className="text-xs font-semibold text-slate-500">Due</dt>
-          <dd>
-            <input type="date" value={task.dueDate ?? ''} onChange={(e) => onChange({ dueDate: e.target.value || undefined })} className={field} />
-          </dd>
+          {!hidden.includes('status') && (
+            <>
+              <dt className="text-xs font-semibold text-slate-500">Status</dt>
+              <dd className="h-9 rounded-lg overflow-hidden">
+                <ColourSelect label="Status" value={task.status} options={TASK_STATUS} onChange={(status) => status && onChange({ status })} />
+              </dd>
+            </>
+          )}
+          {!hidden.includes('priority') && (
+            <>
+              <dt className="text-xs font-semibold text-slate-500">Priority</dt>
+              <dd className="h-9 rounded-lg overflow-hidden">
+                <ColourSelect label="Priority" value={task.priority} options={PRIORITY} empty="None" onChange={(priority) => onChange({ priority })} />
+              </dd>
+            </>
+          )}
+          {!hidden.includes('timeline') && (
+            <>
+              <dt className="text-xs font-semibold text-slate-500">Start</dt>
+              <dd>
+                <input type="date" value={task.startDate ?? ''} onChange={(e) => onChange({ startDate: e.target.value || undefined })} className={field} />
+              </dd>
+            </>
+          )}
+          {!(hidden.includes('due') && hidden.includes('timeline')) && (
+            <>
+              <dt className="text-xs font-semibold text-slate-500">{project.kind === 'leads' ? 'Follow up' : 'Due'}</dt>
+              <dd>
+                <input type="date" value={task.dueDate ?? ''} onChange={(e) => onChange({ dueDate: e.target.value || undefined })} className={field} />
+              </dd>
+            </>
+          )}
           {(project.columns ?? []).map((c) => (
             <React.Fragment key={c.id}>
               <dt className="text-xs font-semibold text-slate-500 truncate">{c.title}</dt>
               <dd>
-                <ValueCell field col={c} task={task} people={people} onSet={(v) => onSetValue(c.id, v)} />
+                <ValueCell field col={c} task={task} people={people} link={link} onSet={(v) => onSetValue(c.id, v)} />
               </dd>
             </React.Fragment>
           ))}
@@ -673,9 +950,11 @@ const TaskPanel: React.FC<{
               ))}
             </ol>
           ) : (
-            <p className="text-xs text-slate-400">Changes to this task will show here.</p>
+            <p className="text-xs text-slate-400">Changes to this {(project.itemName ?? 'task').toLowerCase()} will show here.</p>
           )}
         </section>
+        </>
+        )}
         <div className="flex items-center justify-between text-[11px] text-slate-400 pt-2 border-t border-slate-100">
           <span>Added {shortDate(task.createdAt)}</span>
           <span className="flex items-center gap-3">
@@ -689,6 +968,125 @@ const TaskPanel: React.FC<{
             </button>
           </span>
         </div>
+      </aside>
+    </div>
+  );
+};
+
+// ---------- Ask AI: questions about the board and how to run the process, answered from the board's data
+const SUGGESTIONS: Record<string, string[]> = {
+  deals: ['What is my pipeline worth, and the forecast?', 'Which deals are expected to close this month?', 'Which deals have had no activity lately?', 'How should I set up my sales stages?'],
+  leads: ['Which leads should I follow up first?', 'Where do most of my leads come from?', 'How do I qualify a lead well?', 'What automations would help with leads?'],
+  contacts: ['Who are my customers?', 'Which contacts have no account linked?', 'How should I keep contacts tidy?'],
+  accounts: ['Which accounts have the most deals?', 'Which accounts have no contacts?', 'How should I organise accounts?'],
+  project: ['What is late or stuck?', 'Who has the most open work?', 'What should we do this week?', 'Which automations would save us time?'],
+};
+
+const AskAi: React.FC<{ project: Project; text: () => string; boards: Project[]; company?: string; onClose: () => void }> = ({ project, text, boards, company, onClose }) => {
+  const [messages, setMessages] = useState<{ role: 'user' | 'assistant'; text: string }[]>([]);
+  const [input, setInput] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const end = useRef<HTMLDivElement>(null);
+  useEffect(() => end.current?.scrollIntoView({ block: 'end' }), [messages, busy]);
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.stopImmediatePropagation();
+      onClose();
+    };
+    window.addEventListener('keydown', key, true);
+    return () => window.removeEventListener('keydown', key, true);
+  }, [onClose]);
+  const ask = async (q: string) => {
+    if (!q.trim() || busy) return;
+    const next = [...messages, { role: 'user' as const, text: q.trim() }];
+    setMessages(next);
+    setInput('');
+    setBusy(true);
+    setError('');
+    try {
+      const res = await aiFetch('/api/crm-assistant', { company, board: text(), boards: boards.filter((b) => b.id !== project.id).map((b) => b.name), messages: next });
+      const body = (await res.json().catch(() => ({}))) as { reply?: string; error?: string };
+      if (res.status === 402) setError('Your AI credit has run out. Top it up from the home chat to keep asking.');
+      else if (!res.ok || !body.reply) setError(body.error === 'not-configured' ? 'Praxa’s AI isn’t switched on here yet.' : body.error || 'The AI couldn’t answer. Try again.');
+      else setMessages([...next, { role: 'assistant', text: body.reply }]);
+    } catch {
+      setError('The AI couldn’t be reached. Check your connection and try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="fixed inset-0 z-40 bg-slate-900/20" onClick={onClose}>
+      <aside role="dialog" aria-label="Ask AI" onClick={(e) => e.stopPropagation()} className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl flex flex-col">
+        <div className="p-4 border-b border-slate-200 flex items-start gap-3">
+          <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-600 text-white flex items-center justify-center shrink-0">
+            <BrandSparkle className="w-5 h-5" />
+          </span>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-base font-bold text-slate-900">Ask AI</h2>
+            <p className="text-xs text-slate-500">About {project.name}: its figures, who's doing what, and how to run it well.</p>
+          </div>
+          <button onClick={onClose} aria-label="Close" className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          {messages.length === 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-slate-500">Try asking</p>
+              {(SUGGESTIONS[project.kind ?? 'project'] ?? SUGGESTIONS.project).map((q) => (
+                <button key={q} onClick={() => ask(q)} className="w-full p-3 rounded-xl border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/40 text-left text-sm text-slate-800">
+                  {q}
+                </button>
+              ))}
+            </div>
+          )}
+          {messages.map((m, i) =>
+            m.role === 'user' ? (
+              <p key={i} className="ml-8 px-3 py-2 rounded-2xl rounded-br-md bg-indigo-600 text-white text-sm whitespace-pre-wrap">
+                {m.text}
+              </p>
+            ) : (
+              <p key={i} className="mr-4 px-3 py-2 rounded-2xl rounded-bl-md bg-slate-100 text-slate-800 text-sm whitespace-pre-wrap">
+                {m.text}
+              </p>
+            )
+          )}
+          {busy && (
+            <p className="text-xs text-slate-500 inline-flex items-center gap-1.5">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              Reading the board…
+            </p>
+          )}
+          {error && <p className="text-xs text-rose-600">{error}</p>}
+          <div ref={end} />
+        </div>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            ask(input);
+          }}
+          className="p-3 border-t border-slate-200 flex items-end gap-2"
+        >
+          <textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                ask(input);
+              }
+            }}
+            rows={2}
+            placeholder="Ask about this board or your process"
+            className="flex-1 px-3 py-2 rounded-xl border border-slate-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+          <button type="submit" disabled={!input.trim() || busy} aria-label="Ask" className="h-10 w-10 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white flex items-center justify-center">
+            <Send className="w-4 h-4" />
+          </button>
+        </form>
       </aside>
     </div>
   );
@@ -708,7 +1106,14 @@ export const ProjectBoard: React.FC<{
   onDeleteProject: () => void;
   onSaveTask: (task: ProjectTask) => void;
   onDeleteTask: (task: ProjectTask) => void;
-}> = ({ project, tasks, people, me, onSaveProject, onDeleteProject, onSaveTask, onDeleteTask }) => {
+  // Every board and item the company has: for connect columns, converting leads and Ask AI
+  boards?: Project[];
+  allTasks?: ProjectTask[];
+  onOpenItem?: (projectId: string, taskId: string) => void;
+  // An item to open as the board opens (from a link on another board)
+  openTaskId?: string;
+  company?: string;
+}> = ({ project, tasks, people, me, onSaveProject, onDeleteProject, onSaveTask, onDeleteTask, boards = [project], allTasks = tasks, onOpenItem, openTaskId, company }) => {
   const views = project.views?.length ? project.views : DEFAULT_VIEWS;
   const viewKey = `vetter.projectView.${project.id}`;
   const [viewId, setViewIdState] = useState(() => store.get(viewKey) ?? views[0].id);
@@ -723,17 +1128,26 @@ export const ProjectBoard: React.FC<{
   const [statusFilter, setStatusFilter] = useState<'all' | 'open' | ProjectTaskStatus>('all');
   const [sort, setSort] = useState<Sort>('manual');
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(openTaskId ?? null);
+  useEffect(() => {
+    if (openTaskId) setOpenId(openTaskId);
+  }, [openTaskId]);
+  const [asking, setAsking] = useState(false);
   const [adding, setAdding] = useState<Record<string, string>>({});
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [automating, setAutomating] = useState(false);
   const [dragId, setDragId] = useState<string | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
   const [addingCol, setAddingCol] = useState(false);
+  const [connecting, setConnecting] = useState(false);
 
   const names = useMemo(() => Object.fromEntries(people.map((p) => [p.uid, p.name.replace(/ \(you\)$/, '')])), [people]);
   const columns = project.columns ?? [];
   const hidden = project.hidden ?? ['timeline'];
+  const noun = project.itemName ?? 'Task';
+  const link: Linking = { columns, boards, allTasks, onOpenItem: (pid, tid) => (pid === project.id ? setOpenId(tid) : onOpenItem?.(pid, tid)) };
+  const sumOf = (list: ProjectTask[], col: ProjectColumn) => list.reduce((n, t) => n + (numberOf(t, col, columns) ?? 0), 0);
+  const measures = columns.filter((c) => c.type === 'money' || c.type === 'number' || c.type === 'formula');
   const builtIns = BUILT_IN.filter((b) => !hidden.includes(b.id));
 
   // Dates that passed while the board was shut: run the overdue automations once
@@ -773,7 +1187,11 @@ export const ProjectBoard: React.FC<{
                 ? 'ticked'
                 : col.type === 'people'
                   ? (b as string[]).map((u) => names[u] ?? 'someone').join(', ')
-                  : String(b);
+                  : col.type === 'connect'
+                    ? (b as string[]).map((i) => allTasks.find((x) => x.id === i)?.title ?? 'an item').join(', ')
+                    : col.type === 'money'
+                      ? money(b as number, col.currency)
+                      : String(b);
         out.push(b === undefined ? `cleared ${col.title}` : col.type === 'checkbox' ? `ticked ${col.title}` : `set ${col.title} to ${shown}`);
       }
     }
@@ -795,14 +1213,31 @@ export const ProjectBoard: React.FC<{
     if (said.length) next = withLog(next, me.name, said.join(', '));
     onSaveTask(clean(runAutomations(project, t, next, names)));
   };
-  const setValue = (t: ProjectTask, colId: string, v: unknown) => change(t, { values: { ...(t.values ?? {}), [colId]: v as never } });
+  const setValue = (t: ProjectTask, colId: string, v: unknown) => {
+    change(t, { values: { ...(t.values ?? {}), [colId]: v as never } });
+    // A link is two-way, as monday's connected boards: the other board's item links back when it has a column for this board
+    const col = columns.find((c) => c.id === colId);
+    if (col?.type !== 'connect') return;
+    const other = boards.find((b) => b.id === col.boardId);
+    const back = other?.columns?.find((c) => c.type === 'connect' && c.boardId === project.id);
+    if (!other || !back) return;
+    const before = (t.values?.[colId] as string[] | undefined) ?? [];
+    const after = (v as string[] | undefined) ?? [];
+    for (const otherId of new Set([...before, ...after])) {
+      const item = allTasks.find((x) => x.id === otherId);
+      if (!item) continue;
+      const has = ((item.values?.[back.id] as string[] | undefined) ?? []).filter((x) => x !== t.id);
+      const next = after.includes(otherId) ? [...has, t.id] : has;
+      onSaveTask(clean({ ...item, values: { ...(item.values ?? {}), [back.id]: (next.length ? next : undefined) as never } }));
+    }
+  };
   const add = (fields: Partial<ProjectTask>) => {
     const group = project.groups.find((g) => g.id === fields.groupId) ?? project.groups[0];
     if (!group) return;
     const id = newId('task');
     const t: ProjectTask = withLog(
       {
-        title: 'New task',
+        title: `New ${noun.toLowerCase()}`,
         status: 'todo',
         ownerUids: owner !== 'all' && owner !== 'none' ? [owner] : [],
         ...fields,
@@ -825,12 +1260,15 @@ export const ProjectBoard: React.FC<{
   const saveGroups = (groups: ProjectGroup[]) => saveProject({ groups });
 
   // ---- Columns
-  const addColumn = (type: ProjectColumnType) => {
+  const addColumn = (type: ProjectColumnType, boardId?: string) => {
     const def = COLUMN_TYPES.find((c) => c.type === type)!;
     const col: ProjectColumn = {
       id: newId('col'),
-      title: def.title,
+      title: type === 'connect' ? boards.find((b) => b.id === boardId)?.name ?? def.title : def.title,
       type,
+      ...(type === 'connect' && { boardId }),
+      ...(type === 'money' && { currency: '£' }),
+      ...(type === 'formula' && { formula: measures[0] ? `{${measures[0].title}}` : '' }),
       ...(type === 'label' && {
         options: [
           { id: newId('opt'), label: 'Yes', colour: 0 },
@@ -963,9 +1401,9 @@ export const ProjectBoard: React.FC<{
       <span key={b} />
     );
   const columnFooter = (c: ProjectColumn, list: ProjectTask[]) =>
-    c.type === 'number' ? (
+    c.type === 'number' || c.type === 'money' || c.type === 'formula' ? (
       <span key={c.id} className="px-3 py-2 text-[11px] text-right font-semibold tabular-nums text-slate-700">
-        {list.reduce((n, t) => n + (typeof t.values?.[c.id] === 'number' ? (t.values![c.id] as number) : 0), 0).toLocaleString()}
+        {money(sumOf(list, c), c.currency)}
         <span className="block text-[9px] font-normal text-slate-400">sum</span>
       </span>
     ) : c.type === 'checkbox' ? (
@@ -996,7 +1434,7 @@ export const ProjectBoard: React.FC<{
             className={`text-sm font-bold ${c.text} rounded px-1 -mx-1 hover:bg-slate-100`}
           />
           <span className="text-xs text-slate-400 shrink-0">
-            {list.length} {list.length === 1 ? 'task' : 'tasks'}
+            {list.length} {list.length === 1 ? noun.toLowerCase() : `${noun.toLowerCase()}s`}
           </span>
           {shut && <span className="ml-2">{summary(list)}</span>}
           <span className="ml-auto flex items-center gap-1 opacity-0 group-hover/title:opacity-100 focus-within:opacity-100">
@@ -1027,7 +1465,7 @@ export const ProjectBoard: React.FC<{
                     className="accent-indigo-600"
                   />
                 </label>
-                <span className="px-3 py-2">Task</span>
+                <span className="px-3 py-2">{noun}</span>
                 {builtIns.map((b) => (
                   <span key={b.id} className="group/h relative px-2 py-2 text-center">
                     {b.title}
@@ -1080,7 +1518,7 @@ export const ProjectBoard: React.FC<{
                   {builtIns.map((b) => builtInCell(b.id, t))}
                   {columns.map((col) => (
                     <div key={col.id} className="border-l border-slate-100 flex items-stretch min-w-0">
-                      <ValueCell col={col} task={t} people={people} onSet={(v) => setValue(t, col.id, v)} />
+                      <ValueCell col={col} task={t} people={people} link={link} onSet={(v) => setValue(t, col.id, v)} />
                     </div>
                   ))}
                   <div className="flex items-center justify-center border-l border-slate-100">
@@ -1107,8 +1545,8 @@ export const ProjectBoard: React.FC<{
                     if ((adding[g.id] ?? '').trim()) add({ groupId: g.id, title: adding[g.id].trim() });
                     setAdding((a) => ({ ...a, [g.id]: '' }));
                   }}
-                  placeholder="+ Add task"
-                  aria-label={`Add a task to ${g.name}`}
+                  placeholder={`+ Add ${noun.toLowerCase()}`}
+                  aria-label={`Add a ${noun.toLowerCase()} to ${g.name}`}
                   className="px-3 py-2 text-sm bg-transparent placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500"
                 />
               </div>
@@ -1116,7 +1554,7 @@ export const ProjectBoard: React.FC<{
                 <span />
                 <span />
                 <span className="px-3 py-2 text-[11px] text-slate-400">
-                  {list.filter((t) => t.status === 'done').length} of {list.length} done
+                  {hidden.includes('status') ? `${list.length} ${list.length === 1 ? noun.toLowerCase() : `${noun.toLowerCase()}s`}` : `${list.filter((t) => t.status === 'done').length} of ${list.length} done`}
                 </span>
                 {builtIns.map((b) => footerCell(b.id, list))}
                 {columns.map((col) => columnFooter(col, list))}
@@ -1130,6 +1568,7 @@ export const ProjectBoard: React.FC<{
   };
 
   // ---- Kanban by a field: drag a card to another lane to change it
+  const measureCol = measures.find((c) => c.id === view.measure);
   const kanban = () => {
     const f = fieldOf(view.by);
     return (
@@ -1149,9 +1588,12 @@ export const ProjectBoard: React.FC<{
               }}
               className="w-64 shrink-0 rounded-xl bg-slate-100/70 overflow-hidden"
             >
-              <div className={`px-3 py-2 text-xs font-bold flex items-center justify-between ${lane.cell}`}>
-                <span className="truncate">{lane.label}</span>
-                <span className="opacity-80">{list.length}</span>
+              <div className={`px-3 py-2 text-xs font-bold ${lane.cell}`}>
+                <div className="flex items-center justify-between">
+                  <span className="truncate">{lane.label}</span>
+                  <span className="opacity-80">{list.length}</span>
+                </div>
+                {measureCol && <div className="text-sm tabular-nums">{money(sumOf(list, measureCol), measureCol.currency)}</div>}
               </div>
               <ul className="p-2 space-y-2 min-h-16">
                 {list.map((t) => (
@@ -1168,9 +1610,10 @@ export const ProjectBoard: React.FC<{
                     <div className="flex items-center justify-between gap-2 text-[11px] text-slate-500">
                       <Faces people={ownersOf(t)} />
                       <span className="flex items-center gap-1.5">
-                        {f.id !== 'status' && <span className={`px-1.5 py-px rounded text-[10px] font-semibold ${TASK_STATUS[t.status].cell}`}>{STATUS_LABEL[t.status]}</span>}
+                        {f.id !== 'status' && !hidden.includes('status') && <span className={`px-1.5 py-px rounded text-[10px] font-semibold ${TASK_STATUS[t.status].cell}`}>{STATUS_LABEL[t.status]}</span>}
                         {f.id !== 'priority' && t.priority && <span className={`px-1.5 py-px rounded text-[10px] font-semibold ${PRIORITY[t.priority].cell}`}>{PRIORITY_LABEL[t.priority]}</span>}
                         {t.dueDate && <span className={isLate(t) ? 'text-rose-600 font-semibold' : ''}>{shortDate(t.dueDate)}</span>}
+                        {measureCol && numberOf(t, measureCol, columns) !== undefined && <span className="font-semibold text-slate-800 tabular-nums">{money(numberOf(t, measureCol, columns), measureCol.currency)}</span>}
                       </span>
                     </div>
                   </li>
@@ -1180,12 +1623,12 @@ export const ProjectBoard: React.FC<{
                 <button
                   onClick={() => {
                     const c = f.set!(lane.key);
-                    const base = { title: 'New task' } as ProjectTask;
+                    const base = { title: `New ${noun.toLowerCase()}` } as ProjectTask;
                     setOpenId(add(typeof c === 'function' ? { ...c(base) } : c) ?? null);
                   }}
                   className="w-full px-3 py-2 text-left text-xs font-semibold text-slate-500 hover:text-slate-900"
                 >
-                  + Add task
+                  + Add {noun.toLowerCase()}
                 </button>
               )}
             </div>
@@ -1201,11 +1644,15 @@ export const ProjectBoard: React.FC<{
     const bars: ChartBar[] = f.lanes
       .map((l) => {
         const list = shown.filter((t) => (f.id === 'owner' ? (l.key ? t.ownerUids.includes(l.key) : t.ownerUids.length === 0) : f.of(t) === l.key));
-        return { key: l.key || 'none', label: l.label, bar: l.bar, count: list.length, done: list.filter((t) => t.status === 'done').length };
+        const mc = measures.find((c) => c.id === view.measure);
+        return mc
+          ? { key: l.key || 'none', label: l.label, bar: l.bar, count: sumOf(list, mc), done: sumOf(list.filter((t) => t.status === 'done'), mc), format: (n: number) => money(n, mc.currency) }
+          : { key: l.key || 'none', label: l.label, bar: l.bar, count: list.length, done: list.filter((t) => t.status === 'done').length };
       })
       .filter((b) => b.count > 0);
-    const sums = columns.filter((c) => c.type === 'number').map((c) => ({ title: c.title, total: shown.reduce((n, t) => n + (typeof t.values?.[c.id] === 'number' ? (t.values![c.id] as number) : 0), 0) }));
-    return <ChartView tasks={shown} bars={bars} byLabel={f.label} sums={sums} />;
+    const sums = measures.map((c) => ({ title: c.title, total: money(sumOf(shown, c), c.currency) }));
+    const mc = measures.find((c) => c.id === view.measure);
+    return <ChartView tasks={shown} bars={bars} byLabel={f.label} sums={sums} noun={noun} measure={mc?.title} statusBased={!hidden.includes('status')} />;
   };
 
   const viewIcon = (type: ProjectView['type']) => VIEW_TYPES.find((v) => v.type === type)!.icon;
@@ -1227,7 +1674,7 @@ export const ProjectBoard: React.FC<{
           onSave={(v) => saveProject({ name: v.trim() })}
           className="min-w-0 flex-1 text-xl font-bold text-slate-900 rounded-lg px-2 -mx-2 py-1 hover:bg-slate-50"
         />
-        {tasks.length > 0 && (
+        {tasks.length > 0 && !hidden.includes('status') && (
           <span className="flex items-center gap-2 text-xs text-slate-500">
             {summary(tasks)}
             {Math.round((done / tasks.length) * 100)}% done
@@ -1337,7 +1784,14 @@ export const ProjectBoard: React.FC<{
           className="h-9 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold inline-flex items-center gap-1.5"
         >
           <Plus className="w-4 h-4" />
-          New task
+          New {noun.toLowerCase()}
+        </button>
+        <button
+          onClick={() => setAsking(true)}
+          className="h-9 px-3 rounded-lg text-sm font-semibold inline-flex items-center gap-1.5 text-white bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 hover:opacity-90"
+        >
+          <BrandSparkle className="w-4 h-4" />
+          Ask AI
         </button>
         <div className="relative">
           <Search className="w-4 h-4 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
@@ -1352,7 +1806,7 @@ export const ProjectBoard: React.FC<{
           ))}
           <option value="none">No owner</option>
         </select>
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)} aria-label="Filter by status" className="h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-700">
+        {!hidden.includes('status') && <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)} aria-label="Filter by status" className="h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-700">
           <option value="all">Any status</option>
           <option value="open">Not done</option>
           {STATUS_ORDER.map((k) => (
@@ -1360,7 +1814,7 @@ export const ProjectBoard: React.FC<{
               {STATUS_LABEL[k]}
             </option>
           ))}
-        </select>
+        </select>}
         {view.type === 'table' && (
           <select value={sort} onChange={(e) => setSort(e.target.value as Sort)} aria-label="Sort" className="h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-700">
             <option value="manual">Sort: added</option>
@@ -1384,6 +1838,19 @@ export const ProjectBoard: React.FC<{
             </select>
           </label>
         )}
+        {(view.type === 'kanban' || view.type === 'chart') && measures.length > 0 && (
+          <label className="h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-500 inline-flex items-center gap-2">
+            {view.type === 'chart' ? 'Show' : 'Total'}
+            <select value={view.measure ?? ''} onChange={(e) => updateView({ measure: e.target.value || undefined })} className="bg-transparent text-slate-800 font-semibold focus:outline-none">
+              <option value="">{view.type === 'chart' ? `Number of ${noun.toLowerCase()}s` : 'Nothing'}</option>
+              {measures.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.title}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         {view.type === 'table' && (
           <MenuButton icon={Columns3} label="Columns" width={240}>
             {() => (
@@ -1399,9 +1866,9 @@ export const ProjectBoard: React.FC<{
                 {columns.map((c) => (
                   <div key={c.id} className="flex items-center gap-2 px-2 py-1.5 text-sm text-slate-800">
                     <span className="flex-1 truncate">{c.title}</span>
-                    {c.type === 'label' ? (
+                    {c.type === 'label' || c.type === 'formula' ? (
                       <button onClick={() => setAddingCol(true)} className="text-[10px] font-semibold text-indigo-700 hover:underline">
-                        Edit labels
+                        {c.type === 'label' ? 'Edit labels' : 'Edit formula'}
                       </button>
                     ) : (
                       <span className="text-[10px] text-slate-400">{COLUMN_TYPES.find((t) => t.type === c.type)?.label}</span>
@@ -1420,7 +1887,7 @@ export const ProjectBoard: React.FC<{
           </MenuButton>
         )}
         <span className="ml-auto text-xs text-slate-400">
-          {shown.length} {shown.length === 1 ? 'task' : 'tasks'}
+          {shown.length} {shown.length === 1 ? noun.toLowerCase() : `${noun.toLowerCase()}s`}
         </span>
       </div>
 
@@ -1447,19 +1914,20 @@ export const ProjectBoard: React.FC<{
 
       {/* Adding a column: its type */}
       {addingCol && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40" onClick={() => setAddingCol(false)}>
-          <div role="dialog" aria-label="Add a column" onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-5 space-y-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40" onClick={() => (setAddingCol(false), setConnecting(false))}>
+          <div role="dialog" aria-label="Columns" onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-5 space-y-3 max-h-[88vh] overflow-y-auto">
             <div className="flex items-center justify-between">
-              <h2 className="text-base font-bold text-slate-900">Add a column</h2>
-              <button onClick={() => setAddingCol(false)} aria-label="Close" className="p-1 rounded-lg text-slate-400 hover:text-slate-700">
+              <h2 className="text-base font-bold text-slate-900">Columns</h2>
+              <button onClick={() => (setAddingCol(false), setConnecting(false))} aria-label="Close" className="p-1 rounded-lg text-slate-400 hover:text-slate-700">
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {COLUMN_TYPES.map((c) => (
                 <button
                   key={c.type}
                   onClick={() => {
+                    if (c.type === 'connect') return setConnecting(true);
                     addColumn(c.type);
                     setAddingCol(false);
                   }}
@@ -1471,6 +1939,33 @@ export const ProjectBoard: React.FC<{
               ))}
             </div>
             <p className="text-[11px] text-slate-400">Rename a column by clicking its name. A label column starts with Yes, Maybe and No; change its labels below.</p>
+            {connecting && (
+              <div className="pt-3 border-t border-slate-100 space-y-2">
+                <p className="text-xs font-bold text-slate-700">Link items on which board?</p>
+                {boards.filter((b) => b.id !== project.id).length === 0 ? (
+                  <p className="text-xs text-slate-500">Make another board first.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {boards
+                      .filter((b) => b.id !== project.id)
+                      .map((b) => (
+                        <button
+                          key={b.id}
+                          onClick={() => {
+                            addColumn('connect', b.id);
+                            setConnecting(false);
+                            setAddingCol(false);
+                          }}
+                          className="px-2.5 py-1 rounded-lg border border-slate-200 hover:border-indigo-300 text-xs font-semibold text-slate-700"
+                        >
+                          {b.name}
+                        </button>
+                      ))}
+                  </div>
+                )}
+              </div>
+            )}
+            {columns.some((c) => c.type === 'formula') && <FormulaEditor columns={columns} onSave={(cols) => saveProject({ columns: cols })} />}
             {columns.some((c) => c.type === 'label') && <LabelEditor columns={columns} onSave={(cols) => saveProject({ columns: cols })} />}
           </div>
         </div>
@@ -1545,6 +2040,8 @@ export const ProjectBoard: React.FC<{
         </div>
       )}
 
+      {asking && <AskAi project={project} boards={boards} company={company} text={() => boardForAi(project, tasks, allTasks, names)} onClose={() => setAsking(false)} />}
+
       {automating && <AutomationsDialog project={project} people={people} names={names} onSave={(automations) => saveProject({ automations })} onClose={() => setAutomating(false)} />}
 
       {open && (
@@ -1552,6 +2049,20 @@ export const ProjectBoard: React.FC<{
           task={open}
           project={project}
           people={people}
+          link={link}
+          me={me}
+          hidden={hidden}
+          onConvert={
+            project.kind === 'leads' && boards.some((b) => b.kind === 'deals')
+              ? () => {
+                  const made = convertLead(open, boards, allTasks, me.name);
+                  if (!made) return;
+                  made.saves.forEach((t) => onSaveTask(clean(t)));
+                  const deals = boards.find((b) => b.kind === 'deals');
+                  if (deals && made.dealId) onOpenItem?.(deals.id, made.dealId);
+                }
+              : undefined
+          }
           onChange={(c) => change(open, c)}
           onSetValue={(colId, v) => setValue(open, colId, v)}
           onDuplicate={() => setOpenId(duplicate(open) ?? null)}
@@ -1562,6 +2073,49 @@ export const ProjectBoard: React.FC<{
           onClose={() => setOpenId(null)}
         />
       )}
+    </div>
+  );
+};
+
+// A formula column's sum: column names in braces and + - * / ( )
+const FormulaEditor: React.FC<{ columns: ProjectColumn[]; onSave: (columns: ProjectColumn[]) => void }> = ({ columns, onSave }) => {
+  const formulas = columns.filter((c) => c.type === 'formula');
+  const [colId, setColId] = useState(formulas[0]?.id);
+  const col = formulas.find((c) => c.id === colId) ?? formulas[0];
+  const [text, setText] = useState(col?.formula ?? '');
+  useEffect(() => setText(col?.formula ?? ''), [col?.id]);
+  if (!col) return null;
+  const usable = columns.filter((c) => (c.type === 'number' || c.type === 'money' || c.type === 'formula') && c.id !== col.id);
+  const save = (formula: string, currency = col.currency) => onSave(columns.map((c) => (c.id === col.id ? { ...c, formula, currency: currency || undefined } : c)));
+  const ok = /^[\d+\-*/().\s]*$/.test(text.replace(/\{[^}]+\}/g, '0'));
+  return (
+    <div className="pt-3 border-t border-slate-100 space-y-2">
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-bold text-slate-700">Formula for</span>
+        <select value={col.id} onChange={(e) => setColId(e.target.value)} className="h-7 px-2 rounded-lg border border-slate-200 text-xs font-semibold">
+          {formulas.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.title}
+            </option>
+          ))}
+        </select>
+        <input defaultValue={col.currency ?? ''} key={col.id} onBlur={(e) => save(text, e.target.value.trim())} placeholder="£" aria-label="Currency sign" className="w-12 h-7 px-2 rounded-lg border border-slate-200 text-xs" />
+      </div>
+      <input
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={() => ok && save(text)}
+        placeholder="{Deal value} * {Close probability} / 100"
+        className={`w-full h-9 px-3 rounded-lg border font-mono text-xs ${ok ? 'border-slate-200' : 'border-rose-300 bg-rose-50'}`}
+      />
+      <div className="flex flex-wrap gap-1">
+        {usable.map((c) => (
+          <button key={c.id} onClick={() => setText((t) => `${t}{${c.title}}`)} className="px-1.5 py-0.5 rounded bg-slate-100 text-[11px] font-mono text-slate-700 hover:bg-indigo-50">
+            {`{${c.title}}`}
+          </button>
+        ))}
+      </div>
+      <p className="text-[11px] text-slate-400">{ok ? 'Click a column to add it; use + - * / and brackets. Saved when you click away.' : 'Only column names in braces, numbers and + - * / ( ) can be used.'}</p>
     </div>
   );
 };

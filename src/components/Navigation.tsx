@@ -45,7 +45,7 @@ export const NAV_TABS: Record<'candidate' | 'recruiter', { id: AppTab; label: st
     { id: 'business-jobs', label: 'Jobs', icon: Briefcase, group: 'Hiring' },
     { id: 'business-candidates', label: 'Candidates', icon: Users, group: 'Hiring' },
     { id: 'business-tests', label: 'Tests', icon: ClipboardCheck, group: 'Hiring' },
-    { id: 'business-projects', label: 'Projects', icon: FolderKanban, group: 'Project Manager' },
+    { id: 'business-projects', label: 'Projects & CRM', icon: FolderKanban, group: 'Project Manager' },
     { id: 'business-team', label: 'Team', icon: UsersRound, group: 'Project Manager' },
     { id: 'business-training', label: 'Training', icon: GraduationCap, group: 'Project Manager' },
   ],

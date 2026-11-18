@@ -26,6 +26,12 @@ function fires(a: ProjectAutomation, before: ProjectTask | undefined, after: Pro
       return !!a.columnId && after.values?.[a.columnId] === true && before?.values?.[a.columnId] !== true;
     case 'overdue':
       return isLate(after);
+    case 'label': {
+      if (!a.columnId) return false;
+      const was = before?.values?.[a.columnId];
+      const now = after.values?.[a.columnId];
+      return !!before && was !== now && (!a.optionId ? now !== undefined : now === a.optionId);
+    }
   }
 }
 
@@ -40,8 +46,16 @@ function act(a: ProjectAutomation, t: ProjectTask, project: Project): Partial<Pr
       return a.toPriority && t.priority !== a.toPriority ? { priority: a.toPriority } : null;
     case 'assign':
       return a.toUid && !t.ownerUids.includes(a.toUid) ? { ownerUids: [...t.ownerUids, a.toUid] } : null;
+    case 'setLabel':
+      return a.toColumnId && a.toOptionId && t.values?.[a.toColumnId] !== a.toOptionId ? { values: { ...(t.values ?? {}), [a.toColumnId]: a.toOptionId } } : null;
   }
 }
+
+// A label column's option, by name, for sentences
+const optionName = (project: Project, colId?: string, optId?: string) => {
+  const col = project.columns?.find((c) => c.id === colId);
+  return { col: col?.title ?? 'a label', opt: col?.options?.find((o) => o.id === optId)?.label ?? 'something' };
+};
 
 // What the automation does, in a few words, for the task's activity
 const didText = (a: ProjectAutomation, project: Project, names: Record<string, string>) =>
@@ -51,7 +65,9 @@ const didText = (a: ProjectAutomation, project: Project, names: Record<string, s
       ? `set status to ${STATUS_LABEL[a.toStatus!]}`
       : a.then === 'setPriority'
         ? `set priority to ${PRIORITY_LABEL[a.toPriority!]}`
-        : `assigned ${names[a.toUid!] ?? 'someone'}`;
+        : a.then === 'setLabel'
+          ? `set ${optionName(project, a.toColumnId, a.toOptionId).col} to ${optionName(project, a.toColumnId, a.toOptionId).opt}`
+          : `assigned ${names[a.toUid!] ?? 'someone'}`;
 
 // The task after the project's automations have run on a change from before to after
 export function runAutomations(project: Project, before: ProjectTask | undefined, after: ProjectTask, names: Record<string, string> = {}): ProjectTask {
@@ -107,7 +123,11 @@ export function describeAutomation(a: ProjectAutomation, project: Project, names
           ? 'When someone is assigned'
           : a.when === 'overdue'
             ? 'When the due date passes and it isn’t done'
-            : `When ${col?.title ?? 'a checkbox'} is checked`;
+            : a.when === 'label'
+              ? a.optionId
+                ? `When ${optionName(project, a.columnId, a.optionId).col} changes to ${optionName(project, a.columnId, a.optionId).opt}`
+                : `When ${col?.title ?? 'a label'} changes`
+              : `When ${col?.title ?? 'a checkbox'} is checked`;
   const then = didText(a, project, names).replace(/^moved it/, 'move it').replace(/^assigned /, 'assign ');
   return `${when}, ${then}`;
 }

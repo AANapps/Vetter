@@ -2022,7 +2022,8 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
           )}
 
           {!detailPage && activeRole !== 'candidate' && currentTab === 'business-projects' && (
-            <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-8">
+            // The workspace uses the whole screen, as a CRM does
+            <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
               {recruiterBusiness ? (
                 <ProjectsPage
                   business={recruiterBusiness}

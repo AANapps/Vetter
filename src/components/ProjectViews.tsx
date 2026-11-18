@@ -191,23 +191,34 @@ export interface ChartBar {
   bar: string;
   count: number;
   done: number;
+  // How a total is shown (money), when the bars are a column's total rather than a count
+  format?: (n: number) => string;
 }
 export const ChartView: React.FC<{
   tasks: ProjectTask[];
   bars: ChartBar[];
   byLabel: string;
-  sums: { title: string; total: number }[];
-}> = ({ tasks, bars, byLabel, sums }) => {
+  sums: { title: string; total: string }[];
+  noun?: string;
+  // The column the bars total, when not counting items
+  measure?: string;
+  // Whether done/late/stuck mean anything on this board (CRM boards hide the status)
+  statusBased?: boolean;
+}> = ({ tasks, bars, byLabel, sums, noun = 'Task', measure, statusBased = true }) => {
   const done = tasks.filter((t) => t.status === 'done').length;
   const late = tasks.filter(isLate).length;
   const stuck = tasks.filter((t) => t.status === 'stuck').length;
   const max = Math.max(1, ...bars.map((b) => b.count));
   const tiles = [
-    { label: 'Tasks', value: tasks.length, tone: 'text-slate-900' },
-    { label: 'Done', value: tasks.length ? `${Math.round((done / tasks.length) * 100)}%` : '–', tone: 'text-emerald-600' },
-    { label: 'Late', value: late, tone: late ? 'text-rose-600' : 'text-slate-900' },
-    { label: 'Stuck', value: stuck, tone: stuck ? 'text-rose-600' : 'text-slate-900' },
-    ...sums.map((s) => ({ label: s.title, value: s.total.toLocaleString(), tone: 'text-indigo-700' })),
+    { label: `${noun}s`, value: tasks.length, tone: 'text-slate-900' },
+    ...(statusBased
+      ? [
+          { label: 'Done', value: tasks.length ? `${Math.round((done / tasks.length) * 100)}%` : '–', tone: 'text-emerald-600' },
+          { label: 'Late', value: late, tone: late ? 'text-rose-600' : 'text-slate-900' },
+          { label: 'Stuck', value: stuck, tone: stuck ? 'text-rose-600' : 'text-slate-900' },
+        ]
+      : []),
+    ...sums.map((s) => ({ label: s.title, value: s.total, tone: 'text-indigo-700' })),
   ];
   return (
     <div className="space-y-4">
@@ -220,26 +231,29 @@ export const ChartView: React.FC<{
         ))}
       </div>
       <div className="p-5 rounded-xl border border-slate-200 bg-white space-y-3">
-        <h3 className="text-sm font-bold text-slate-900">Tasks by {byLabel.toLowerCase()}</h3>
+        <h3 className="text-sm font-bold text-slate-900">
+          {measure ?? `${noun}s`} by {byLabel.toLowerCase()}
+        </h3>
         {bars.length === 0 ? (
           <p className="text-sm text-slate-500">No tasks yet.</p>
         ) : (
           <ul className="space-y-2.5">
             {bars.map((b) => (
-              <li key={b.key} className="grid grid-cols-[140px_1fr_64px] items-center gap-3">
+              <li key={b.key} className="grid grid-cols-[140px_1fr_96px] items-center gap-3">
                 <span className="text-xs font-medium text-slate-700 truncate">{b.label}</span>
                 <span className="h-6 rounded-md bg-slate-100 overflow-hidden relative">
-                  <span className={`absolute inset-y-0 left-0 ${b.bar} opacity-40`} style={{ width: `${(b.count / max) * 100}%` }} />
-                  <span className={`absolute inset-y-0 left-0 ${b.bar}`} style={{ width: `${(b.done / max) * 100}%` }} />
+                  <span className={`absolute inset-y-0 left-0 ${b.bar} ${statusBased ? 'opacity-40' : ''}`} style={{ width: `${(b.count / max) * 100}%` }} />
+                  {statusBased && <span className={`absolute inset-y-0 left-0 ${b.bar}`} style={{ width: `${(b.done / max) * 100}%` }} />}
                 </span>
                 <span className="text-xs tabular-nums text-slate-600 text-right">
-                  {b.count} <span className="text-slate-400">· {b.done} done</span>
+                  {b.format ? b.format(b.count) : b.count}
+                  {statusBased && !b.format && <span className="text-slate-400"> · {b.done} done</span>}
                 </span>
               </li>
             ))}
           </ul>
         )}
-        <p className="text-[11px] text-slate-400">The solid part of each bar is done; the pale part is still open.</p>
+        {statusBased && <p className="text-[11px] text-slate-400">The solid part of each bar is done; the pale part is still open.</p>}
       </div>
     </div>
   );
