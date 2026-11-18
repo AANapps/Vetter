@@ -557,7 +557,8 @@ export interface JobPosting {
   invitations: JobInvitation[];
   invitedEmails?: string[];
   applicantCount: number;
-  status: 'active' | 'paused' | 'filled';
+  // draft: still being written (by the company, or while a test for it is built with AI); only the company sees it
+  status: 'active' | 'paused' | 'filled' | 'draft';
   // Invite only: left off the job board, search and Google; only people invited (or sent its link) can open it.
   // Unset is public
   visibility?: 'public' | 'invite';

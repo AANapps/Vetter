@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Pic } from './Pic';
 import { BackButton } from './BackButton';
 import { backOr } from '../lib/back';
-import { AssessmentTest, Business, JobPosting, TrialResult, User } from '../types';
+import { AssessmentTest, Business, JobPosting, TestDraft, TrialResult, User } from '../types';
 import { JobDetailsModal } from './JobDetails';
 import { SectorSelect } from './SectorPicker';
 import { FOCUS_SECTOR, SectorId, jobSector, sectorLabel as sectorName } from '../lib/sectors';
@@ -63,6 +63,13 @@ interface BusinessJobsProps {
   onUpdateJobRequirements: (jobId: string, requirements: JobPosting['requirements']) => void;
   // The sector a job is listed under for candidates
   onUpdateJobSector: (jobId: string, sector: SectorId) => void;
+  // Job drafts: kept to finish later, or while a test for them is built with AI
+  onSaveJobDraft?: (job: JobPosting) => void;
+  onBuildTestWithAI?: (job: JobPosting) => void;
+  onContinueJobDraft?: (jobId: string) => void;
+  // Tests being written with AI for a job, still drafts
+  testDrafts?: TestDraft[];
+  onContinueTestDraft?: (draft: TestDraft) => void;
   // Public on the job board, or invite only
   onUpdateJobVisibility?: (jobId: string, visibility: 'public' | 'invite') => void;
   // The sector the company hires in, which new jobs start in; only its owner can change it
@@ -179,7 +186,7 @@ const JobList: React.FC<BusinessJobsProps> = ({
   business,
   onUpdateCompanySector,
   businesses,
-  jobs,
+  jobs: allJobsIn,
   tests,
   candidates,
   onSelect,
@@ -189,9 +196,17 @@ const JobList: React.FC<BusinessJobsProps> = ({
   onInvite,
   onOpenPerson,
   onOpenPersonForJob,
+  onSaveJobDraft,
+  onBuildTestWithAI,
+  onContinueJobDraft,
+  testDrafts = [],
+  onContinueTestDraft,
 }) => {
+  // Drafts are listed on their own, each with the AI tests being written for it; the rest are the company's jobs
+  const drafts = allJobsIn.filter((j) => j.status === 'draft');
+  const jobs = allJobsIn.filter((j) => j.status !== 'draft');
   // A company with no jobs yet starts on posting its first
-  const [isCreating, setIsCreating] = useState(() => !!business && jobs.length === 0);
+  const [isCreating, setIsCreating] = useState(() => !!business && allJobsIn.length === 0);
   const [sharing, setSharing] = useState<JobPosting | null>(null);
   const tracked = jobs.map((job) => {
     const rows = jobTracking(job, candidates);
@@ -254,6 +269,66 @@ const JobList: React.FC<BusinessJobsProps> = ({
           Post a job
         </button>
       </div>
+
+      {/* Jobs not posted yet, and the tests being written with AI for them */}
+      {drafts.length > 0 && (
+        <section className="space-y-3">
+          <div>
+            <h2 className="text-sm font-bold text-slate-900">Drafts</h2>
+            <p className="text-xs text-slate-500">Jobs you haven't posted yet. Only your company can see them.</p>
+          </div>
+          <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {drafts.map((job) => {
+              const building = testDrafts.filter((d) => d.jobId === job.id);
+              const ready = job.testIds.map((id) => tests.find((t) => t.id === id)).filter((t): t is AssessmentTest => !!t);
+              return (
+                <li key={job.id} className="p-4 rounded-xl bg-white border border-dashed border-slate-300 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <span className="text-[10px] font-semibold uppercase text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">Draft</span>
+                      <div className="mt-1 text-base font-bold text-slate-900 truncate">{job.title}</div>
+                      <div className="text-xs text-slate-500">
+                        {job.location} · {job.workType} · {job.salaryRange}
+                      </div>
+                    </div>
+                    <button onClick={() => window.confirm(`Delete the draft "${job.title}"?`) && onDeleteJob(job.id)} className="text-[11px] font-semibold text-slate-400 hover:text-rose-600">
+                      Delete
+                    </button>
+                  </div>
+                  <div className="space-y-1.5">
+                    {ready.map((t) => (
+                      <div key={t.id} className="flex items-center gap-2 text-xs text-slate-700">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                        <span className="truncate">{t.title}</span>
+                      </div>
+                    ))}
+                    {/* The AI test drafts within it */}
+                    {building.map((d) => (
+                      <div key={d.id} className="flex items-center justify-between gap-2 p-2 rounded-lg bg-amber-50 border border-amber-200">
+                        <span className="min-w-0">
+                          <span className="block text-[10px] font-semibold uppercase text-amber-700">AI test draft</span>
+                          <span className="block text-xs font-medium text-slate-800 truncate">{d.test.title}</span>
+                        </span>
+                        {onContinueTestDraft && (
+                          <button onClick={() => onContinueTestDraft(d)} className="shrink-0 text-[11px] font-semibold text-indigo-700 hover:underline">
+                            Continue building
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    {!ready.length && !building.length && <p className="text-xs text-slate-400">No tests yet.</p>}
+                  </div>
+                  {onContinueJobDraft && (
+                    <button onClick={() => onContinueJobDraft(job.id)} className="w-full h-9 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold">
+                      Finish and post
+                    </button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
 
       {jobs.length === 0 ? (
         <div className="bg-white border border-dashed border-slate-300 rounded-2xl p-8 sm:p-12 text-center space-y-4">
@@ -379,6 +454,22 @@ const JobList: React.FC<BusinessJobsProps> = ({
           businesses={business ? [business] : businesses}
           postedBy={business ? 'company' : 'vetter'}
           tests={tests}
+          onSaveDraft={
+            onSaveJobDraft
+              ? (job) => {
+                  onSaveJobDraft(job);
+                  setIsCreating(false);
+                }
+              : undefined
+          }
+          onBuildWithAI={
+            onBuildTestWithAI
+              ? (job) => {
+                  setIsCreating(false);
+                  onBuildTestWithAI(job);
+                }
+              : undefined
+          }
           onSave={(job) => {
             onCreateJob(job);
             setIsCreating(false);

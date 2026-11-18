@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { AssessmentTest, Business, JobPosting, isPublic, levelName } from '../types';
 import { CITIES } from '../lib/geo';
-import { EMPLOYMENT_TYPES, EXPERIENCE_LEVELS, formatSalaryRange } from '../lib/jobFilters';
+import { EMPLOYMENT_TYPES, EXPERIENCE_LEVELS, formatSalaryRange, parseSalaryRange } from '../lib/jobFilters';
 import { Loader2, Plus, Sparkles, X } from 'lucide-react';
 import { SectorSelect } from './SectorPicker';
 import { FOCUS_SECTOR, SectorId, inCompanySector } from '../lib/sectors';
@@ -23,42 +23,71 @@ interface JobFormProps {
   initialVisibility?: 'public' | 'invite';
   // The job's title to start with, e.g. the role a test was made for
   initialTitle?: string;
+  // A draft of this job to carry on with: every field filled in as it was left, and posting it publishes that draft
+  initialJob?: JobPosting;
+  // Keeping it as a draft to finish later
+  onSaveDraft?: (job: JobPosting) => void;
+  // Building a test for it with AI: the form is kept as a draft, the AI test builder opens, and the form comes back after
+  onBuildWithAI?: (job: JobPosting) => void;
+  // Tests for this job still being written with AI (kept as drafts), to carry on with
+  testDrafts?: { id: string; title: string }[];
+  onContinueTestDraft?: (draftId: string) => void;
 }
 
 const inputClass =
   'w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100';
 
 // The one job form, used by companies and by the Praxa team
-export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, onSave, onCancel, initialTestIds = [], initialTitle = '', initialVisibility = 'public' }) => {
-  const [visibility, setVisibility] = useState<'public' | 'invite'>(initialVisibility);
-  const [businessId, setBusinessId] = useState(businesses[0]?.id ?? '');
+export const JobForm: React.FC<JobFormProps> = ({
+  businesses,
+  postedBy,
+  tests,
+  onSave,
+  onCancel,
+  initialTestIds = [],
+  initialTitle = '',
+  initialVisibility = 'public',
+  initialJob,
+  onSaveDraft,
+  onBuildWithAI,
+  testDrafts = [],
+  onContinueTestDraft,
+}) => {
+  const init = initialJob;
+  const initSalary = init ? parseSalaryRange(init.salaryRange) : undefined;
+  // The job's id stays the same from draft to posting
+  const [jobId] = useState(() => init?.id ?? `job-${Date.now()}`);
+  const [visibility, setVisibility] = useState<'public' | 'invite'>(init?.visibility ?? initialVisibility);
+  const [businessId, setBusinessId] = useState(init?.businessId ?? businesses[0]?.id ?? '');
   const business = businesses.find((b) => b.id === businessId) ?? businesses[0];
   // The company's own tests come first, the newest at the top
   const companyTests = newestFirst(tests.filter((t) => t.type === 'custom' && t.businessId === business?.id && t.purpose !== 'training'));
 
-  const [title, setTitle] = useState(initialTitle);
-  const [department, setDepartment] = useState('Core Engineering');
+  const [title, setTitle] = useState(init?.title ?? initialTitle);
+  const [department, setDepartment] = useState(init?.department ?? 'Core Engineering');
   // Starts in the company's sector; a job can be listed under another
-  const [pickedSector, setSector] = useState<SectorId | ''>('');
+  const [pickedSector, setSector] = useState<SectorId | ''>(init?.sector ?? '');
   const sector = FOCUS_SECTOR || pickedSector || business?.sector || '';
   // Each Praxa test once, in the job's sector only; its level is chosen when it's ticked
   const vetterTests = tests.filter((t) => isPublic(t) && isMainVersion(t) && t.businessId !== business?.id && inCompanySector(sector)(t));
   // Every field the job board filters on is asked for here, so new jobs filter like the seeded ones
-  const [location, setLocation] = useState(CITIES[business?.headquarters ?? ''] ? business!.headquarters : 'San Francisco, CA');
-  const [workType, setWorkType] = useState<JobPosting['workType']>('Remote');
-  const [salaryMin, setSalaryMin] = useState(170000);
-  const [salaryMax, setSalaryMax] = useState(210000);
-  const [employmentType, setEmploymentType] = useState<NonNullable<JobPosting['employmentType']>>('Full-time');
-  const [experience, setExperience] = useState(EXPERIENCE_LEVELS[2]);
-  const [description, setDescription] = useState('');
+  const [location, setLocation] = useState(init?.location ?? (CITIES[business?.headquarters ?? ''] ? business!.headquarters : 'San Francisco, CA'));
+  const [workType, setWorkType] = useState<JobPosting['workType']>(init?.workType ?? 'Remote');
+  const [salaryMin, setSalaryMin] = useState(initSalary?.min ?? 170000);
+  const [salaryMax, setSalaryMax] = useState(initSalary?.max ?? 210000);
+  const [employmentType, setEmploymentType] = useState<NonNullable<JobPosting['employmentType']>>(init?.employmentType ?? 'Full-time');
+  const [experience, setExperience] = useState(init?.experienceLevel ?? EXPERIENCE_LEVELS[2]);
+  const [description, setDescription] = useState(init?.description ?? '');
   // The tests candidates are ranked on, by main version: the level picked, its minimum score and importance
   type Pick = { testId: string; minScore: number; importance: 'required' | 'preferred' };
   // Keyed by the test's main version, as the list below is
+  // From a draft: each test as it was set (a test added since, e.g. by the AI builder, starts at the defaults)
   const [picked, setPicked] = useState<Record<string, Pick>>(() =>
     Object.fromEntries(
-      initialTestIds.flatMap((id) => {
+      [...initialTestIds, ...(init?.testIds ?? [])].flatMap((id) => {
         const t = tests.find((x) => x.id === id);
-        return t ? [[t.familyId ?? t.id, { testId: t.id, minScore: 70, importance: 'required' as const }]] : [];
+        const req = init?.requirements.find((r) => r.testId === id);
+        return t ? [[t.familyId ?? t.id, { testId: t.id, minScore: req?.minScore ?? 70, importance: req?.importance ?? ('required' as const) }]] : [];
       })
     )
   );
@@ -87,8 +116,8 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
   const [include, setInclude] = useState<string[]>([]);
   const [askedFor, setAskedFor] = useState('');
   const [asking, setAsking] = useState(false);
-  const [passingScore, setPassingScore] = useState<number>(70);
-  const [requireTest, setRequireTest] = useState<boolean>(true);
+  const [passingScore, setPassingScore] = useState<number>(init?.testPassingScore ?? 70);
+  const [requireTest, setRequireTest] = useState<boolean>(init?.testsRequired ?? true);
 
   const changeBusiness = (id: string) => {
     setBusinessId(id);
@@ -148,26 +177,32 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
   };
 
   const post = (picks: Record<string, Pick>) => {
+    if (!business) return;
+    if (!Object.values(picks).some((p) => tests.some((t) => t.id === p.testId))) {
+      setPickError(true);
+      return;
+    }
+    onSave(buildJob(picks, 'active'));
+  };
+
+  // The job as filled in so far: posted, or kept as a draft (which needs no tests yet)
+  const buildJob = (picks: Record<string, Pick>, status: JobPosting['status']): JobPosting => {
     const pickedTests = Object.values(picks)
       .map((p) => tests.find((t) => t.id === p.testId))
       .filter((t): t is AssessmentTest => !!t);
     const pickFor = (testId: string) => Object.values(picks).find((p) => p.testId === testId)!;
-    if (!business) return;
-    if (pickedTests.length === 0) {
-      setPickError(true);
-      return;
-    }
-    onSave({
-      id: `job-${Date.now()}`,
-      title: title.trim(),
-      companyName: business.name,
-      companyLogo: business.logo,
-      businessId: business.id,
+    const business_ = business!;
+    return {
+      id: jobId,
+      title: title.trim() || (status === 'draft' ? 'Untitled job' : ''),
+      companyName: business_.name,
+      companyLogo: business_.logo,
+      businessId: business_.id,
       postedBy,
       location,
       workType,
       salaryRange: formatSalaryRange(salaryMin, salaryMax),
-      description: description || `We are hiring a ${title.trim()} to join ${business.name}.`,
+      description: description || `We are hiring a ${title.trim()} to join ${business_.name}.`,
       department: department.trim(),
       ...(sector && { sector }),
       postedDate: new Date().toISOString().split('T')[0],
@@ -185,19 +220,21 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
       testIds: pickedTests.map((t) => t.id),
       testPassingScore: passingScore,
       testsRequired: requireTest,
-      invitations: [],
-      applicantCount: 0,
-      status: 'active',
+      invitations: init?.invitations ?? [],
+      ...(init?.invitedEmails && { invitedEmails: init.invitedEmails }),
+      applicantCount: init?.applicantCount ?? 0,
+      status,
       ...(visibility === 'invite' && { visibility }),
-    });
+    };
   };
+  const draftNow = () => (business ? buildJob(picked, 'draft') : null);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
       <div className="bg-white border border-slate-200 rounded-2xl max-w-xl w-full max-h-[calc(100vh-2rem)] overflow-y-auto p-6 space-y-5 shadow-2xl">
         <div className="flex items-center justify-between border-b border-slate-200 pb-3">
           <h3 className="text-base font-bold text-slate-900">
-            {businesses.length === 1 ? `Post a Job at ${business?.name}` : 'Post a Job for a Company'}
+            {init?.status === 'draft' ? `Finish your job${title.trim() ? `: ${title.trim()}` : ''}` : businesses.length === 1 ? `Post a Job at ${business?.name}` : 'Post a Job for a Company'}
           </h3>
           <button onClick={onCancel} className="text-slate-400 hover:text-slate-700 text-xs font-medium">
             Cancel
@@ -432,6 +469,36 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
               <Plus className="w-4 h-4" />
               {chosenTests.length ? 'Add more tests' : 'Add tests'}
             </button>
+            {onBuildWithAI && (
+              <button
+                type="button"
+                onClick={() => {
+                  const d = draftNow();
+                  if (d) onBuildWithAI(d);
+                }}
+                className="w-full h-10 rounded-lg text-xs font-semibold text-white bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 hover:opacity-90 inline-flex items-center justify-center gap-1.5"
+              >
+                <Sparkles className="w-4 h-4" />
+                Build a test for this job with AI
+              </button>
+            )}
+            {onBuildWithAI && <p className="text-[11px] text-slate-500 -mt-1">Your job is kept as a draft while the test is built, and this form comes back with the test added.</p>}
+            {/* Tests for this job still being written with AI, kept as drafts */}
+            {testDrafts.length > 0 && (
+              <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-200 space-y-1.5">
+                <div className="text-[11px] font-semibold text-amber-900">AI test drafts for this job</div>
+                {testDrafts.map((d) => (
+                  <div key={d.id} className="flex items-center justify-between gap-2">
+                    <span className="text-xs text-slate-800 truncate">{d.title}</span>
+                    {onContinueTestDraft && (
+                      <button type="button" onClick={() => onContinueTestDraft(d.id)} className="shrink-0 text-[11px] font-semibold text-indigo-700 hover:underline">
+                        Continue building
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* The picked tests are the job's tests: an average pass mark, and whether candidates must pass them to apply */}
             <div className="flex flex-wrap items-end gap-4 pt-1">
@@ -512,6 +579,18 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
               <span>{asking ? 'Finding tests that fit your job description…' : 'Post Job'}</span>
             </button>
           )}
+          {onSaveDraft && !suggested && (
+            <button
+              type="button"
+              onClick={() => {
+                const d = draftNow();
+                if (d) onSaveDraft(d);
+              }}
+              className="w-full py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:border-slate-400 rounded-lg"
+            >
+              Save as draft
+            </button>
+          )}
         </form>
       </div>
       {pickerOpen && (
@@ -524,6 +603,15 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
           isPicked={(t) => !!picked[t.id]}
           onToggle={(t) => togglePick(t.id)}
           onClose={() => setPickerOpen(false)}
+          onBuildWithAI={
+            onBuildWithAI
+              ? () => {
+                  const d = draftNow();
+                  setPickerOpen(false);
+                  if (d) onBuildWithAI(d);
+                }
+              : undefined
+          }
         />
       )}
     </div>

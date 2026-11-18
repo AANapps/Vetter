@@ -216,6 +216,8 @@ type GeneratorOpen = {
   background?: string;
   plan?: AgreedPlan;
   planChat?: ChatState;
+  // Opened from the job form: the form (kept as a draft of this job) comes back when the builder closes
+  returnToJob?: string;
 };
 
 export default function App() {
@@ -522,6 +524,8 @@ export default function App() {
   const [inviteJobFor, setInviteJobFor] = useState<string | null>(null);
   // A test being sent to the company's own staff (from its page)
   const [staffTestId, setStaffTestId] = useState<string | null>(null);
+  // A job draft open in the job form, to finish and post (after building a test for it with AI, or from Drafts)
+  const [jobFormDraftId, setJobFormDraftId] = useState<string | null>(null);
   // A job whose sharing opens as soon as its page shows: one just posted, or the job a test was sent through
   const [shareJobId, setShareJobId] = useState<string | null>(null);
   // The job form opened to send a test (not from a test plan, which posting then closes)
@@ -582,10 +586,10 @@ export default function App() {
   // to them or who applied, and whoever opens one's link (the open job page)
   const jobs = allJobs.filter(
     (j) =>
-      isListed(j) ||
+      (isListed(j) && j.status !== 'draft') ||
       activeRole === 'admin' ||
       (activeRole === 'recruiter' && j.businessId === recruiterBusiness?.id) ||
-      (activeRole === 'candidate' && (j.id === jobPageId || j.invitations.some((i) => i.candidateId === candidate.id) || candidate.appliedJobIds.includes(j.id)))
+      (activeRole === 'candidate' && j.status !== 'draft' && (j.id === jobPageId || j.invitations.some((i) => i.candidateId === candidate.id) || candidate.appliedJobIds.includes(j.id)))
   );
 
   // The home chat is kept on this device per company, so a reload doesn't lose what was said and picked. Library tests in
@@ -1410,6 +1414,33 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
     return setJobs((prev) => [{ ...(companySector && { sector: companySector }), ...newJob }, ...prev]);
   };
 
+  // A job saved as it is: a draft, or a draft being posted (the same job, so it isn't listed twice)
+  const upsertJob = (job: JobPosting) => {
+    const companySector = businesses.find((b) => b.id === job.businessId)?.sector;
+    return setJobs((prev) =>
+      prev.some((j) => j.id === job.id) ? prev.map((j) => (j.id === job.id ? { ...j, ...job } : j)) : [{ ...(companySector && { sector: companySector }), ...job }, ...prev]
+    );
+  };
+  const saveJobDraft = (job: JobPosting) => {
+    upsertJob({ ...job, status: 'draft' });
+    showToast(`"${job.title}" saved as a draft. Find it under Jobs, with any AI tests being built for it.`);
+  };
+  // Building a test for a job with AI from its form: the form is kept as a draft, the AI test builder opens on the job,
+  // and when it closes the form comes back as it was, with the new test on it
+  const buildTestForJob = (job: JobPosting) => {
+    if (!aiAllowed) return setPlansOpen(true);
+    upsertJob({ ...job, status: 'draft' });
+    setJobFormDraftId(null);
+    openGenerator({ jobId: job.id, seed: `Create a test for this job:\n\n${jobBrief(job)}`, autoSend: true, returnToJob: job.id });
+  };
+  const publishJob = (job: JobPosting) => {
+    upsertJob({ ...job, status: 'active', postedDate: new Date().toISOString().split('T')[0] });
+    setJobFormDraftId(null);
+    setShareJobId(job.id);
+    showToast(`"${job.title}" is posted. Now send it to candidates.`);
+    openBusinessJob(job.id);
+  };
+
   const handleSaveJobTests = (jobId: string, change: Pick<JobPosting, 'testIds' | 'testPassingScore' | 'testsRequired' | 'maxAttempts'>) => {
     setJobs((prev) => prev.map((j) => (j.id === jobId ? { ...j, ...change } : j)));
   };
@@ -2169,10 +2200,15 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
               onShareOpened={() => setShareJobId(null)}
               onSelect={openBusinessJob}
               onCreateJob={(job) => {
-                handleCreateJob(job);
+                upsertJob(job);
                 // Posted: straight on to sending it
                 setShareJobId(job.id);
               }}
+              onSaveJobDraft={saveJobDraft}
+              onBuildTestWithAI={buildTestForJob}
+              onContinueJobDraft={setJobFormDraftId}
+              testDrafts={visibleDrafts}
+              onContinueTestDraft={(d) => openGenerator({ jobId: d.jobId, resume: d, ...(d.jobId && { returnToJob: d.jobId }) })}
               onEditTests={(jobId) => setEditingTests({ jobId, addTestIds: [] })}
               onSuggestTests={(jobId) => {
                 const job = jobs.find((j) => j.id === jobId);
@@ -2256,7 +2292,8 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
               drafts={visibleDrafts}
               onSaveDraft={saveTestDraft}
               onDeleteDraft={deleteTestDraft}
-              onContinueDraft={(d) => openGenerator({ jobId: d.jobId, resume: d })}
+              // A test drafted for a job still being written goes back to that job's form when it's done
+              onContinueDraft={(d) => openGenerator({ jobId: d.jobId, resume: d, ...(d.jobId && allJobs.find((j) => j.id === d.jobId)?.status === 'draft' && { returnToJob: d.jobId }) })}
               onEditDraftByHand={(d) => setDraftBuilder({ draft: d.test, jobId: d.jobId, alsoAdd: [], record: d })}
               onEditOwnTest={editOwnTest}
               {...(adminAsCompany && activeRole === 'recruiter' && { companyPicker: { onPick: setAdminCompanyId } })}
@@ -2356,6 +2393,30 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
         />
       )}
 
+      {jobFormDraftId && !generator && allJobs.find((j) => j.id === jobFormDraftId) && (
+        <JobForm
+          key={jobFormDraftId}
+          businesses={recruiterBusiness && activeRole !== 'admin' ? [recruiterBusiness] : businesses}
+          postedBy={activeRole === 'admin' ? 'vetter' : 'company'}
+          tests={tests}
+          initialJob={allJobs.find((j) => j.id === jobFormDraftId)}
+          testDrafts={visibleDrafts.filter((d) => d.jobId === jobFormDraftId).map((d) => ({ id: d.id, title: d.test.title }))}
+          onContinueTestDraft={(id) => {
+            const d = visibleDrafts.find((x) => x.id === id);
+            if (!d) return;
+            setJobFormDraftId(null);
+            openGenerator({ jobId: jobFormDraftId, resume: d, returnToJob: jobFormDraftId });
+          }}
+          onSaveDraft={(job) => {
+            saveJobDraft(job);
+            setJobFormDraftId(null);
+          }}
+          onBuildWithAI={buildTestForJob}
+          onSave={publishJob}
+          onCancel={() => setJobFormDraftId(null)}
+        />
+      )}
+
       {staffTestId && recruiterBusiness && tests.find((t) => t.id === staffTestId) && (
         <SendToStaffDialog
           test={tests.find((t) => t.id === staffTestId)!}
@@ -2432,6 +2493,8 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
           onOpenTest={(testId) => {
             setGenerator(null);
             if (generator.fromHome) reportBuild();
+            // Built from the job form: back to the form, the test on it
+            if (generator.returnToJob) return setJobFormDraftId(generator.returnToJob);
             openTestPage(testId);
           }}
           resume={generator.resume}
@@ -2468,6 +2531,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
           onClose={() => {
             setGenerator(null);
             if (generator.fromHome) reportBuild();
+            if (generator.returnToJob) setJobFormDraftId(generator.returnToJob);
             if (!planToBuilder.current) setPlanBuilding(null);
             planToBuilder.current = false;
           }}

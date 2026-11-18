@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, Search, X } from 'lucide-react';
+import { Check, Search, Sparkles, X } from 'lucide-react';
 import { AssessmentTest } from '../types';
 import { ROLE_GROUPS } from '../lib/testRoles';
 import { levelsOf } from '../lib/testLevels';
@@ -41,7 +41,9 @@ export const TestPickerDialog: React.FC<{
   isPicked: (t: AssessmentTest) => boolean;
   onToggle: (t: AssessmentTest) => void;
   onClose: () => void;
-}> = ({ groups, allTests, isPicked, onToggle, onClose }) => {
+  // None fits: build one for the job with AI
+  onBuildWithAI?: () => void;
+}> = ({ groups, allTests, isPicked, onToggle, onClose, onBuildWithAI }) => {
   const [q, setQ] = useState('');
   const [field, setField] = useState('all');
   const box = useRef<HTMLInputElement>(null);
@@ -123,7 +125,15 @@ export const TestPickerDialog: React.FC<{
 
         <div className="flex-1 overflow-y-auto p-5 pt-3 space-y-4">
           {shown.length === 0 ? (
-            <p className="py-10 text-center text-sm text-slate-500">No tests match{q.trim() ? ` "${q.trim()}"` : ''}.</p>
+            <div className="py-10 text-center space-y-3">
+              <p className="text-sm text-slate-500">No tests match{q.trim() ? ` "${q.trim()}"` : ''}.</p>
+              {onBuildWithAI && (
+                <button onClick={onBuildWithAI} className="h-9 px-4 rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 hover:opacity-90 inline-flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4" />
+                  Build one for this job with AI
+                </button>
+              )}
+            </div>
           ) : (
             shown.map((g) => (
               <div key={g.label} className="space-y-1.5">
@@ -166,6 +176,12 @@ export const TestPickerDialog: React.FC<{
           <span className="text-xs text-slate-500">
             {pickedCount} {pickedCount === 1 ? 'test' : 'tests'} on this job
           </span>
+          {onBuildWithAI && (
+            <button onClick={onBuildWithAI} className="ml-auto h-9 px-4 rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 hover:opacity-90 inline-flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4" />
+              Build with AI
+            </button>
+          )}
           <button onClick={onClose} className="h-9 px-5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold">
             Done
           </button>
