@@ -10,6 +10,8 @@ Kept up to date as work is asked for and finished. Newest items at the bottom of
 
 - **Try AI formula columns live** (2026-11-18). A formula column's "Describe what this column should show" writes the formula with AI (`/api/write-formula`, server/writeFormula.ts, billed); untested against the real AI because the Anthropic credit was out. Check it picks the right columns and how often the fix round is needed.
 
+- **App library for job simulations** (planned 2026-11-18, see docs/app-library-plan.md). Separate apps from test data, grow them in changes-only versions, put library apps on the job simulation desktop, refine them from Claude Code (`library-apps/<app>/`, pull and push), and an admin app library page. Start with steps 1 and 4, using Deskly.
+
 - **Live training bookings (company Training page)**: deploy the `trainingBookings` Firestore rule; build the Praxa-admin side to confirm a booking, set the tutor and dates, and mark it done (today only the data and rules allow it); recruit tutors; email the company when a booking changes. Prices (src/data/trainingCatalogue.ts) were set against UK live-online providers in Nov 2026: review yearly.
 
 - **Skills games, one at a time.** Build the skills games (attention to detail, verbal reasoning, numerical reasoning, logical reasoning, memory, multitasking) one by one, each tried and agreed before the next. The first six made together were removed on 2026-11-12. The library already supports them: category `Aptitude`, shown in every sector under "Skills games" (role "Any role"), and suggested by `/api/suggest-tests` when a job needs those abilities. The removed code is in git history (commit 9271ef1, `src/data/skillsGames.ts`) to start from.
