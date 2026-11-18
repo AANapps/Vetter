@@ -264,6 +264,44 @@ export async function approveSubmission(sub: EnvironmentSubmission, page: Enviro
   return envId;
 }
 
+// One of Praxa's own apps (library-apps/, LibraryApp in libraryApps.ts) put in the library as its next version, from the
+// admin panel; npm run apps -- push does the same from the repo
+export async function publishRepoApp(app: { id: string; name: string; product: string; summary: string; version: number; features: string[]; data: string; state: string }, html: string): Promise<number> {
+  const at = now();
+  const existing = (await loadEnvironments()).find((e) => e.id === app.id);
+  const version = Math.max(app.version, existing ? existing.version + 1 : 1);
+  const env: SavedEnvironment = {
+    id: app.id,
+    app: app.name,
+    name: app.name,
+    product: app.product,
+    summary: app.summary,
+    features: unique(app.features),
+    version,
+    builtFor: existing?.builtFor ?? 'Praxa',
+    createdAt: existing?.createdAt ?? at,
+    updatedAt: at,
+    createdBy: existing?.createdBy ?? auth().currentUser?.uid ?? 'praxa',
+    uses: existing?.uses ?? 0,
+    dataDriven: true,
+    data: app.data,
+    state: app.state,
+  };
+  if (!firebaseEnabled) {
+    const data = local();
+    setLocal({ ...data, envs: [env, ...data.envs.filter((e) => e.id !== app.id)], envPages: { ...data.envPages, [app.id]: { html } } });
+  } else {
+    const { id: _id, ...fields } = env;
+    const batch = writeBatch(db());
+    batch.set(doc(db(), 'environments', app.id), fields);
+    batch.set(doc(db(), 'environmentPages', app.id), { html, callouts: [] });
+    batch.set(doc(db(), 'environmentVersions', `${app.id}@${version}`), { envId: app.id, version, html, features: env.features, at, by: env.createdBy });
+    await batch.commit();
+  }
+  changed();
+  return version;
+}
+
 export async function rejectSubmission(sub: EnvironmentSubmission, note: string): Promise<void> {
   const review = { status: 'rejected' as const, reviewedAt: now(), ...(note.trim() && { note: note.trim().slice(0, 500) }) };
   if (!firebaseEnabled) {

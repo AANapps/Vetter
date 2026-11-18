@@ -9,6 +9,7 @@ import {
   isStale,
   loadEnvironmentPage,
   loadSubmissionPage,
+  publishRepoApp,
   rejectSubmission,
   useLibrary,
 } from '../lib/environments';
@@ -288,6 +289,26 @@ export const SimulationLibraryAdmin: React.FC = () => {
                   <Eye className="w-3.5 h-3.5" />
                   Open
                 </button>
+                {inRepoOnly(env) && (
+                  <button
+                    type="button"
+                    disabled={!!busy}
+                    onClick={() =>
+                      run(env.id, async () => {
+                        const repo = LIBRARY_APPS[env.id];
+                        try {
+                          await publishRepoApp(repo.manifest, repo.html);
+                        } catch (e) {
+                          return `Couldn't add it: ${e instanceof Error ? e.message : String(e)}. If it says permission, the Firestore rules need deploying.`;
+                        }
+                      })
+                    }
+                    className="px-2.5 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg flex items-center gap-1.5 disabled:opacity-50"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    {busy === env.id ? 'Adding…' : saved.some((e) => e.id === env.id) ? `Update the library to version ${env.version}` : 'Add to library'}
+                  </button>
+                )}
                 {!inRepoOnly(env) && <button type="button" disabled={!!busy} onClick={() => remove(env)} className="px-2.5 py-1.5 text-xs font-semibold text-slate-500 hover:text-rose-700 bg-white border border-slate-300 hover:border-rose-300 rounded-lg flex items-center gap-1.5">
                   <Trash2 className="w-3.5 h-3.5" />
                   Remove
