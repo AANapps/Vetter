@@ -6,6 +6,7 @@ import { BrandSparkle, BrandWordmark } from './Brand';
 import { ArrowRight, ArrowUp, Briefcase, Check, ChevronDown, Circle, ExternalLink, Eye, GraduationCap, Library, Loader2, Lock, Monitor, Pencil, Plus, Send, Square, UserSearch, Users, Wand2, X } from 'lucide-react';
 import { AssessmentTest, Business, JobPosting, QuestionType, TestKind, User, levelName } from '../types';
 import { Pic } from './Pic';
+import { StarterArt, StarterArtKind } from './StarterArt';
 import { AdvisorTurn, CUSTOM_KIND_LABELS, CustomIdea, HomeBuild, SuggestedPerson, askAdvisor, testOutline } from '../lib/testAdvisor';
 import { Credit, loadCredit, startAiRun, stopAiRun } from '../lib/aiRequest';
 import { ChatContext, ChatState, TestPlan, proposePlan } from '../lib/testChat';
@@ -78,18 +79,20 @@ const chatSummary = (turns: AdvisorTurn[]) =>
 // Where a company starts: one big card per thing Praxa does. Most start the chat with that ask; the rest open a page
 type Starter = {
   id: string;
+  // The small looping sketch at the top of the card
+  art: StarterArtKind;
   icon: React.ComponentType<{ className?: string }>;
   tone: string;
   title: string;
   body: string;
 } & ({ ask: string } | { go: 'library' });
 const STARTERS: Starter[] = [
-  { id: 'sim', icon: Monitor, tone: 'from-indigo-500 to-violet-500', title: 'Create a job simulation', body: 'A day in the role on a real desktop: email, files, the apps they’d use. Built with AI for your job.', ask: 'I want to create a job simulation.' },
-  { id: 'job', icon: Briefcase, tone: 'from-sky-500 to-indigo-500', title: 'Create a job and pick the perfect tests', body: 'Tell Praxa the role or paste the description; it picks the tests that prove it, ready to post.', ask: 'I want to create a job. Help me pick the perfect tests for it.' },
-  { id: 'find', icon: UserSearch, tone: 'from-emerald-500 to-teal-500', title: 'Find the perfect candidate', body: 'Describe who you need. Praxa ranks people by the skills they’ve proven in tests.', ask: 'I’m looking for the perfect candidate. Help me find them.' },
-  { id: 'train', icon: GraduationCap, tone: 'from-amber-500 to-orange-500', title: 'Train my team on an app', body: 'A hands-on copy of the software your team uses, with guided tasks, to send to them.', ask: 'I want to create training for my team.' },
-  { id: 'live', icon: Users, tone: 'from-rose-500 to-pink-500', title: 'Book live training', body: 'Short sessions and bootcamps taught by a Praxa tutor, for your whole team.', ask: 'I want to book live training for my team.' },
-  { id: 'library', icon: Library, tone: 'from-slate-600 to-slate-800', title: 'Browse the test library', body: 'Ready-made tests and simulations by role and level, free to send.', go: 'library' },
+  { id: 'sim', art: 'sim', icon: Monitor, tone: 'from-indigo-500 to-violet-500', title: 'Create a job simulation', body: 'A day in the role on a real desktop: email, files, the apps they’d use. Built with AI for your job.', ask: 'I want to create a job simulation.' },
+  { id: 'job', art: 'job', icon: Briefcase, tone: 'from-sky-500 to-indigo-500', title: 'Create a job and pick the perfect tests', body: 'Tell Praxa the role or paste the description; it picks the tests that prove it, ready to post.', ask: 'I want to create a job. Help me pick the perfect tests for it.' },
+  { id: 'find', art: 'find', icon: UserSearch, tone: 'from-emerald-500 to-teal-500', title: 'Find the perfect candidate', body: 'Describe who you need. Praxa ranks people by the skills they’ve proven in tests.', ask: 'I’m looking for the perfect candidate. Help me find them.' },
+  { id: 'train', art: 'train', icon: GraduationCap, tone: 'from-amber-500 to-orange-500', title: 'Train my team on an app', body: 'A hands-on copy of the software your team uses, with guided tasks, to send to them.', ask: 'I want to create training for my team.' },
+  { id: 'live', art: 'live', icon: Users, tone: 'from-rose-500 to-pink-500', title: 'Book live training', body: 'Short sessions and bootcamps taught by a Praxa tutor, for your whole team.', ask: 'I want to book live training for my team.' },
+  { id: 'library', art: 'library', icon: Library, tone: 'from-slate-600 to-slate-800', title: 'Browse the test library', body: 'Ready-made tests and simulations by role and level, free to send.', go: 'library' },
 ];
 
 // A company's home: a chat with Praxa about who they're hiring, which answers with a roadmap, the library tests that
@@ -305,16 +308,19 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
                   <button
                     key={s.id}
                     onClick={() => ('ask' in s ? send(s.ask) : onGoTo('business-tests'))}
-                    className="group ai-glass p-4 sm:p-5 rounded-2xl border border-white/80 shadow-xs hover:shadow-md hover:border-indigo-300 transition-all flex flex-col gap-3 min-h-[150px]"
+                    className="group ai-glass p-3 rounded-2xl border border-white/80 shadow-xs hover:shadow-md hover:-translate-y-0.5 hover:border-indigo-300 transition-all flex flex-col gap-3"
                   >
-                    <span className={`w-10 h-10 rounded-xl bg-gradient-to-br ${s.tone} text-white flex items-center justify-center shadow-sm`}>
-                      <s.icon className="w-5 h-5" />
+                    <StarterArt kind={s.art} />
+                    <span className="flex items-start gap-2.5 px-1">
+                      <span className={`w-8 h-8 rounded-lg bg-gradient-to-br ${s.tone} text-white flex items-center justify-center shadow-sm shrink-0`}>
+                        <s.icon className="w-4 h-4" />
+                      </span>
+                      <span className="space-y-0.5 min-w-0">
+                        <span className="block text-sm font-bold text-slate-900 group-hover:text-indigo-700 leading-snug">{s.title}</span>
+                        <span className="block text-xs text-slate-500 leading-relaxed">{s.body}</span>
+                      </span>
                     </span>
-                    <span className="space-y-1">
-                      <span className="block text-sm font-bold text-slate-900 group-hover:text-indigo-700">{s.title}</span>
-                      <span className="block text-xs text-slate-500 leading-relaxed">{s.body}</span>
-                    </span>
-                    <span className="mt-auto text-xs font-semibold text-indigo-600 inline-flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity">
+                    <span className="mt-auto px-1 pb-1 text-xs font-semibold text-indigo-600 inline-flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity">
                       {'ask' in s ? 'Start' : 'Open'}
                       <ArrowRight className="w-3.5 h-3.5" />
                     </span>
