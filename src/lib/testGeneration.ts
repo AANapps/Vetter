@@ -187,6 +187,8 @@ export function assembleFromBank(opts: GenerationOptions, library: AssessmentTes
 }
 
 export type RawQuestion = Omit<Partial<Question>, 'tables'> & {
+  // The software an app task was planned in: the app library's app to build it on, or '' to build it new
+  plannedApp?: { software: string; appId: string };
   // A task's label, and on a question about a task, the task's label (a kept task's label is its id)
   ref?: string;
   taskRef?: string;

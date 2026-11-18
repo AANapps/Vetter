@@ -69,8 +69,11 @@ const schema = {
               brief: { type: 'string' },
               points: { type: 'integer' },
               minutes: { type: 'integer' },
+              // The software it's done in (app items; a job simulation's parts), and the library app used for it
+              software: { type: 'string' },
+              appId: { type: 'string' },
             },
-            required: ['ref', 'taskRef', 'type', 'title', 'brief', 'points', 'minutes'],
+            required: ['ref', 'taskRef', 'type', 'title', 'brief', 'points', 'minutes', 'software', 'appId'],
             additionalProperties: false,
           },
         },
@@ -81,6 +84,21 @@ const schema = {
   },
   required: ['reply', 'existing', 'software', 'lookUp'],
   additionalProperties: false,
+};
+
+// Praxa's app library: apps already built (help desks, CRMs...) that a simulation can be done in, filled with its own
+// data. One that fits is used: it's ready, quicker and cheaper than building one
+type AppsRequest = { apps?: { id: string; name: string; product: string; summary: string }[] };
+const appLibrary = (req: AppsRequest, jobSim: boolean) => {
+  const apps = (req.apps ?? []).slice(0, 40);
+  return `SOFTWARE: for every ${jobSim ? 'part done in the job\'s own software (a help desk, a CRM, a booking system)' : 'app item'}, software names the product it's done in, as the
+company would say it ("Zendesk", "Xero", "NinjaOne"; the kind, e.g. "a help desk", when no product is named), and appId
+is the id of the app from PRAXA'S APP LIBRARY below that it's done in: the same product, or another of the same kind
+that fits the work (a help desk for a help desk task, whatever its brand), since it's ready and quicker and cheaper.
+appId "" when none fits, and Praxa builds the software. The company sees both and can change them. Every other item has
+software "" and appId "".${jobSim ? ' Parts in the Spreadsheet, Browser, Database or Code apps: software "" and appId "".' : ''}
+PRAXA'S APP LIBRARY:
+${apps.length ? apps.map((a) => `- ${a.id}: ${String(a.name).slice(0, 80)} (${String(a.product).slice(0, 60)}). ${String(a.summary).slice(0, 240)}`).join('\n') : '(empty)'}`;
 };
 
 function instructions(req: ChatRequest, research: string): string {
@@ -135,6 +153,7 @@ difficulty is one of: ${req.levels.join(', ')}; ${levelPick(req)}.
 
 ${stylesNote(req)}${styleGuide(req)}
 software: the one product, device or equipment the app items copy (e.g. "Xero" or "iPhone 13"), or "".
+${appLibrary(req as AppsRequest, false)}
 lookUp: when the plan needs an app copying a product, device or equipment that the RESEARCH below doesn't cover${research ? '' : ' (there is no research yet)'}, put its name here (with the procedure for a device, e.g. "iPhone 13 screen replacement") and send only reply "" and existing, with no plan; Praxa researches it and asks you again. Otherwise "".
 
 ${
@@ -190,7 +209,8 @@ MADE FOR THIS COMPANY AND THIS JOB
 - difficulty is one of: ${req.levels.join(', ')}; usually the middle one, or what the job's seniority says. passingScore 70.
 - category and roles: from the job.
 
-software and lookUp: "".
+software and lookUp: "" (the response's; each part has its own software and appId).
+${appLibrary(req as AppsRequest, true)}
 ${req.wantExisting ? `LIBRARY PICKS: "existing" lists up to 4 tests from the LIBRARY that genuinely fit the job alongside the simulation, best first, each with a one-sentence reason. Only ids from the library.` : 'Return an empty "existing" list.'}
 
 ${research ? `RESEARCH on how the job is really done. Every task, term, figure and step must match it.\n${research}\n\n` : ''}LIBRARY:

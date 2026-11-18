@@ -215,6 +215,17 @@ async function libraryBase(item: RawQuestion, mode: PageMode): Promise<LibraryBa
   }
 }
 
+// A library app by its id, with its code
+async function libraryAppById(id: string): Promise<LibraryBase | null> {
+  try {
+    const app = (await reusableApps()).find((a) => a.id === id);
+    const html = app ? await reusableAppCode(app) : null;
+    return app && html ? { ...app, html } : null;
+  } catch {
+    return null;
+  }
+}
+
 // Who a simulation is built for, and whether the build waits until it's been sent for review (the Praxa team's own
 // builds do, so the review queue shows it straight away)
 interface PageOwner {
@@ -300,8 +311,14 @@ async function buildAppPage(item: RawQuestion, research?: string, mode: PageMode
   try {
     // The app in the library is built on: only this task's data is written, plus small edits for what it lacks. An app
     // that isn't there yet is designed from nothing, kept apart from its data so the next test can build on it
-    step("looking for this app in Praxa's app library…");
-    const base = await libraryBase(item, mode);
+    // The plan named the app: its library app when it has one, none when the company chose to have it built
+    const planned = item.plannedApp;
+    let base: LibraryBase | null = null;
+    if (planned?.appId) base = await libraryAppById(planned.appId);
+    else if (!planned) {
+      step("looking for this app in Praxa's app library…");
+      base = await libraryBase(item, mode);
+    }
     if (base) {
       step(`using “${base.name}” (version ${base.version}) from the library: writing this task's data and adding anything it lacks…`);
       const fitted = await fitLibraryApp(base, { mode: 'task', title: item.title ?? '', prompt: item.prompt ?? '', brief: item.appHtml ?? '', testCases: item.testCases, research }, step);
@@ -655,7 +672,8 @@ async function inBatches<T, R>(items: T[], limit: number, run: (item: T) => Prom
   return results;
 }
 
-type PlanItem = { ref: string; taskRef: string; type: string; title: string; brief: string; points: number; minutes: number };
+// software: what an app item (or a job simulation's part) is done in; appId: the app library's app it uses, '' to build it
+type PlanItem = { ref: string; taskRef: string; type: string; title: string; brief: string; points: number; minutes: number; software?: string; appId?: string };
 
 // The plan split into sections to write side by side: each case or task with its questions, and the other questions
 // four at a time
@@ -692,7 +710,12 @@ export type { PlanItem };
 // The plan step: asks Praxa for the plan (researching the job first when it can have simulations), and keeps only items
 // in the allowed styles, each with its own ref
 async function fetchPlan(ctx: ChatContext, request: Record<string, unknown>) {
-  const planned = await post('/api/plan-test', request);
+  // The app library, so app items (and a job simulation's software) use an app that's already built when one fits
+  const game = pageModeOf(ctx).game;
+  const apps = await reusableApps()
+    .then((list) => list.filter((a) => (a.game ?? '') === (ctx.kind === 'simulation' ? '' : game ?? '')).map(({ id, name, product, summary }) => ({ id, name, product, summary })))
+    .catch(() => []);
+  const planned = await post('/api/plan-test', { ...request, apps });
   if (planned.failure) return { body: planned.body, failure: planned.failure };
   const body = planned.body;
   const plan = body.plan as TestPlan | undefined;
@@ -728,7 +751,7 @@ const JOB_SIM_PARTS: [string, string, number][] = [
 function jobSimPlan(plan: TestPlan): TestPlan {
   const items = JOB_SIM_PARTS.map(([ref, title, minutes]) => {
     const given = plan.items?.find((item) => item.ref === ref) ?? plan.items?.find((item) => String(item.title ?? '').toLowerCase().startsWith(title.toLowerCase()));
-    return { ref, taskRef: '', type: 'part', title: given?.title?.trim() || title, brief: given?.brief ?? '', points: 0, minutes };
+    return { ref, taskRef: '', type: 'part', title: given?.title?.trim() || title, brief: given?.brief ?? '', points: 0, minutes, software: given?.software ?? '', appId: given?.appId ?? '' };
   });
   return { ...plan, items };
 }
@@ -795,7 +818,13 @@ async function writeJobSimDay(
   // (kept apart from its data, and sent to the library). Each is opened once out of sight to see how it starts
   const fitApps = async (world: Record<string, unknown>) => {
     const raw = world as unknown as RawJobSim;
-    const wanted = (raw.libraryApps ?? []).filter((a) => library.some((l) => l.id === a.id)).slice(0, 2);
+    // The apps the plan named (the company may have changed them), and any others the world put on the desktop
+    const fromPlan = (extra.plan?.items ?? [])
+      .filter((i) => i.appId?.trim() && library.some((l) => l.id === i.appId))
+      .map((i) => raw.libraryApps?.find((a) => a.id === i.appId) ?? { id: i.appId!, label: library.find((l) => l.id === i.appId)!.name, brief: i.brief });
+    const wanted = [...fromPlan, ...(raw.libraryApps ?? []).filter((a) => library.some((l) => l.id === a.id))]
+      .filter((a, i, all) => all.findIndex((b) => b.id === a.id) === i)
+      .slice(0, 2);
     const day = `${raw.role} at ${raw.company}. ${raw.scenario ?? ''}\nThe people: ${(raw.contacts ?? []).map((c) => `${c.name} (${c.role}, ${c.email})`).join('; ')}\nPlanted in the day: ${((world.planted as string[]) ?? []).join('; ')}`;
     const out: DayApp[] = [];
     for (const want of wanted) {
@@ -926,7 +955,9 @@ async function writePlan(plan: TestPlan, research: string | undefined, messages:
     // Matched to the plan by position; the plan's ref and taskRef win, since the writer sometimes drops them
     return ((part.body.questions ?? []) as RawQuestion[]).slice(0, write.length).map((q, i) => {
       const item = plan.items.find((it) => it.ref === write[i]);
-      return { ...q, ref: write[i], taskRef: item?.taskRef ?? q.taskRef ?? '' };
+      // An app item's software, as planned (and maybe changed by the company): the library app to use, or build new
+      const planned = item?.type === 'app' && (item.software?.trim() || item.appId?.trim()) ? { plannedApp: { software: item.software ?? '', appId: item.appId ?? '' } } : {};
+      return { ...q, ref: write[i], taskRef: item?.taskRef ?? q.taskRef ?? '', ...planned };
     });
   });
   let questions = written.flat();

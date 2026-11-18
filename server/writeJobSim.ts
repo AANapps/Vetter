@@ -23,7 +23,7 @@ export interface JobSimRequest {
   background?: string;
   research?: string;
   // The plan agreed in the chat: its five parts, cast and blueprint
-  plan?: { title?: string; description?: string; company?: string; setting?: string; people?: string[]; blueprint?: string[]; items?: { ref: string; title: string; brief: string; minutes: number }[] };
+  plan?: { title?: string; description?: string; company?: string; setting?: string; people?: string[]; blueprint?: string[]; items?: { ref: string; title: string; brief: string; minutes: number; software?: string; appId?: string }[] };
   // A day already written, to change as asked or to fix
   current?: unknown;
   change?: string;
@@ -287,7 +287,10 @@ export async function writeJobSim(body: unknown, apiKey: string | undefined, mod
         req.plan.setting && `Setting: ${req.plan.setting}`,
         req.plan.people?.length && `People:\n${req.plan.people.join('\n')}`,
         req.plan.blueprint?.length && `What the hire needs:\n${req.plan.blueprint.join('\n')}`,
-        req.plan.items?.length && `The parts:\n${req.plan.items.map((i) => `- ${i.title} (${i.minutes} min): ${i.brief}`).join('\n')}`,
+        req.plan.items?.length &&
+          `The parts:\n${req.plan.items
+            .map((i) => `- ${i.title} (${i.minutes} min): ${i.brief}${i.software?.trim() ? ` [Done in ${i.software}: ${i.appId?.trim() ? `library app ${i.appId}, so list it in libraryApps` : 'not in the library, so describe it in newApp'}]` : ''}`)
+            .join('\n')}`,
       ]
         .filter(Boolean)
         .join('\n\n')}`
