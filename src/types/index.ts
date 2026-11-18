@@ -697,6 +697,43 @@ export interface Assignment {
   certificateScore?: number;
 }
 
+// A company's project on its team board, like a monday.com board: tasks in coloured groups (e.g. This week, Next
+// week, Done). Only the company sees projects; people on its team see the tasks they own
+export interface ProjectGroup {
+  id: string;
+  name: string;
+  colour: number;
+}
+
+export interface Project {
+  id: string;
+  businessId: string;
+  name: string;
+  description?: string;
+  groups: ProjectGroup[];
+  createdAt: string; // ISO timestamp
+}
+
+export type ProjectTaskStatus = 'todo' | 'working' | 'stuck' | 'done';
+export type ProjectTaskPriority = 'low' | 'medium' | 'high' | 'critical';
+
+export interface ProjectTask {
+  id: string;
+  businessId: string;
+  projectId: string;
+  groupId: string;
+  title: string;
+  status: ProjectTaskStatus;
+  priority?: ProjectTaskPriority;
+  // Who it's for: people on the team (their account) or the company's own staff
+  ownerUids: string[];
+  startDate?: string; // YYYY-MM-DD
+  dueDate?: string; // YYYY-MM-DD
+  notes?: string;
+  createdAt: string; // ISO timestamp
+  updatedAt?: string;
+}
+
 export interface TestDraft {
   id: string;
   // A skills test or a job simulation, as the company chose

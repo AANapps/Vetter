@@ -15,7 +15,7 @@ import {
   where,
   writeBatch,
 } from 'firebase/firestore';
-import { AppNotification, Assignment, AssessmentTest, Business, TeamMember, FeedComment, FeedPost, JobInvitation, JobPosting, Lead, SocialState, TestDraft, TrialResult, User } from '../types';
+import { AppNotification, Assignment, Project, ProjectTask, AssessmentTest, Business, TeamMember, FeedComment, FeedPost, JobInvitation, JobPosting, Lead, SocialState, TestDraft, TrialResult, User } from '../types';
 import { db } from './firebase';
 import { Company } from './accounts';
 import { initialsAvatar } from '../data/seedCandidates';
@@ -72,6 +72,9 @@ export interface CloudData {
   team: TeamMember[];
   // Tests, simulations and training given to people on a team: the company's, or the candidate's own
   assignments: Assignment[];
+  // A company's projects and all their tasks, or, for someone on a team, the tasks they own
+  projects: Project[];
+  projectTasks: ProjectTask[];
 }
 
 const kudosId = (itemId: string, uid: string) => `${encodeURIComponent(itemId)}__${uid}`;
@@ -146,9 +149,12 @@ export function useCloudData(viewer: Viewer | null, enabled: boolean, onError: (
         watch('teamByUid', collection(d, 'teamMembers'), where('uid', '==', viewer.uid));
         watch('teamByEmail', collection(d, 'teamMembers'), where('email', '==', viewer.email.toLowerCase()));
         watch('assignments', collection(d, 'assignments'), where('uid', '==', viewer.uid));
+        watch('projectTasks', collection(d, 'projectTasks'), where('ownerUids', 'array-contains', viewer.uid));
       } else {
         watch('teamByUid', collection(d, 'teamMembers'), ...mine('businessId'));
         watch('assignments', collection(d, 'assignments'), ...mine('businessId'));
+        watch('projects', collection(d, 'projects'), ...mine('businessId'));
+        watch('projectTasks', collection(d, 'projectTasks'), ...mine('businessId'));
       }
       if (viewer.role !== 'candidate') {
         watch('leads', collection(d, 'leads'), ...mine('businessId'));
@@ -166,7 +172,7 @@ export function useCloudData(viewer: Viewer | null, enabled: boolean, onError: (
     return () => stops.forEach((s) => s());
   }, [enabled, key]);
 
-  const needed = ['jobs', 'tests', 'profiles', 'companies', 'posts', 'comments', 'kudos', ...(viewer ? ['applications', 'invitations', 'emailInvites', 'notifications'] : []), ...(viewer && viewer.role !== 'candidate' ? ['leads', 'testDrafts', 'trials'] : []), ...(viewer ? ['teamByUid', 'assignments'] : []), ...(viewer?.role === 'candidate' ? ['teamByEmail'] : [])];
+  const needed = ['jobs', 'tests', 'profiles', 'companies', 'posts', 'comments', 'kudos', ...(viewer ? ['applications', 'invitations', 'emailInvites', 'notifications'] : []), ...(viewer && viewer.role !== 'candidate' ? ['leads', 'testDrafts', 'trials'] : []), ...(viewer ? ['teamByUid', 'assignments', 'projectTasks'] : []), ...(viewer && viewer.role !== 'candidate' ? ['projects'] : []), ...(viewer?.role === 'candidate' ? ['teamByEmail'] : [])];
   if (!enabled || needed.some((n) => !parts[n])) return null;
 
   const applications = (parts.applications ?? []) as Application[];
@@ -218,6 +224,8 @@ export function useCloudData(viewer: Viewer | null, enabled: boolean, onError: (
     trials: ((parts.trials ?? []) as TrialResult[]).sort((a, b) => b.completedAt.localeCompare(a.completedAt)),
     team: [...new Map([...((parts.teamByUid ?? []) as TeamMember[]), ...((parts.teamByEmail ?? []) as TeamMember[])].map((m) => [m.id, m])).values()],
     assignments: ((parts.assignments ?? []) as Assignment[]).sort((a, b) => b.assignedAt.localeCompare(a.assignedAt)),
+    projects: ((parts.projects ?? []) as Project[]).sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+    projectTasks: ((parts.projectTasks ?? []) as ProjectTask[]).sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
   };
 }
 
@@ -359,3 +367,15 @@ export function syncAssignments(prev: Assignment[], next: Assignment[], onError:
   ];
   return run(writes, onError);
 }
+
+// A company's projects, and tasks added, changed or deleted on them
+const syncById = <T extends { id: string }>(name: string) => (prev: T[], next: T[], onError: (err: unknown) => void) => {
+  const d = db();
+  const writes = [
+    ...next.filter((x) => !same(prev.find((p) => p.id === x.id), x)).map((x) => setDoc(doc(d, name, x.id), JSON.parse(JSON.stringify(x)))),
+    ...prev.filter((p) => !next.some((x) => x.id === p.id)).map((p) => deleteDoc(doc(d, name, p.id))),
+  ];
+  return run(writes, onError);
+};
+export const syncProjects = syncById<Project>('projects');
+export const syncProjectTasks = syncById<ProjectTask>('projectTasks');

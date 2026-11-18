@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { AssessmentTest, Business, JobPosting, isPublic, levelName } from '../types';
 import { CITIES } from '../lib/geo';
 import { EMPLOYMENT_TYPES, EXPERIENCE_LEVELS, formatSalaryRange } from '../lib/jobFilters';
-import { Loader2, Plus, Sparkles } from 'lucide-react';
+import { Loader2, Plus, Search, Sparkles, X } from 'lucide-react';
 import { SectorSelect } from './SectorPicker';
 import { FOCUS_SECTOR, SectorId, inCompanySector } from '../lib/sectors';
 import { isMainVersion, levelsOf, versionTitle, newestFirst } from '../lib/testLevels';
@@ -59,6 +59,12 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
     )
   );
   const [pickError, setPickError] = useState(false);
+  // Searching the tests: by name, field, skill or role. Ticked tests always stay in the list
+  const [testQuery, setTestQuery] = useState('');
+  const testTerms = testQuery.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const matchesQuery = (t: AssessmentTest) =>
+    !!picked[t.id] ||
+    testTerms.every((w) => `${t.title} ${t.category} ${t.skillsTested.join(' ')} ${(t.roles ?? []).join(' ')}`.toLowerCase().includes(w));
   const pickedTests = Object.values(picked)
     .map((p) => tests.find((t) => t.id === p.testId))
     .filter((t): t is AssessmentTest => !!t);
@@ -329,15 +335,36 @@ export const JobForm: React.FC<JobFormProps> = ({ businesses, postedBy, tests, o
             </p>
             {pickError && <p className="text-[11px] font-semibold text-slate-800">Pick at least one test.</p>}
 
+            <div className="relative">
+              <Search className="w-4 h-4 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="search"
+                value={testQuery}
+                onChange={(e) => setTestQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
+                placeholder="Search tests by name, skill or role"
+                aria-label="Search tests"
+                className="w-full h-9 pl-8 pr-8 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              />
+              {testQuery && (
+                <button type="button" onClick={() => setTestQuery('')} aria-label="Clear search" className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-700">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+            {testTerms.length > 0 && ![...companyTests, ...vetterTests].some((t) => !picked[t.id] && matchesQuery(t)) && (
+              <p className="text-[11px] text-slate-500">No tests match "{testQuery.trim()}".</p>
+            )}
+
             {[
-              { label: businesses.length === 1 ? 'Your tests' : `${business?.name}'s tests`, list: companyTests },
-              { label: 'Praxa tests', list: vetterTests },
+              { label: businesses.length === 1 ? 'Your tests' : `${business?.name}'s tests`, list: companyTests.filter(matchesQuery) },
+              { label: 'Praxa tests', list: vetterTests.filter(matchesQuery) },
             ]
               .filter((g) => g.list.length > 0)
               .map((group) => (
                 <div key={group.label} className="space-y-1">
                   <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{group.label}</div>
-                  <ul className="bg-white border border-slate-200 rounded-lg divide-y divide-slate-100">
+                  <ul className="bg-white border border-slate-200 rounded-lg divide-y divide-slate-100 max-h-80 overflow-y-auto">
                     {group.list.map((t) => {
                       const pick = picked[t.id];
                       return (

@@ -201,6 +201,27 @@ service cloud.firestore {
       allow delete: if isAdmin() || worksAt(resource.data.businessId);
     }
 
+    // A company's projects on its team board, like monday.com boards: only the company and the Praxa team
+    match /projects/{projectId} {
+      allow read: if signedIn() && (isAdmin() || worksAt(resource.data.businessId));
+      allow create: if (isAdmin() || worksAt(request.resource.data.businessId)) && request.resource.data.id == projectId;
+      allow update: if (isAdmin() || worksAt(resource.data.businessId)) && request.resource.data.businessId == resource.data.businessId;
+      allow delete: if isAdmin() || worksAt(resource.data.businessId);
+    }
+
+    // Tasks on a project. The company does anything with them; someone on its team who owns a task sees it and can
+    // move its status along and add notes
+    match /projectTasks/{taskId} {
+      allow read: if signedIn() && (isAdmin() || worksAt(resource.data.businessId) || uid() in resource.data.get('ownerUids', []));
+      allow create: if (isAdmin() || worksAt(request.resource.data.businessId)) && request.resource.data.id == taskId
+        && request.resource.data.ownerUids is list;
+      allow update: if ((isAdmin() || worksAt(resource.data.businessId)) && request.resource.data.businessId == resource.data.businessId)
+        || (signedIn() && uid() in resource.data.get('ownerUids', [])
+          && changed().hasOnly(['status', 'notes', 'updatedAt'])
+          && request.resource.data.status in ['todo', 'working', 'stuck', 'done']);
+      allow delete: if isAdmin() || worksAt(resource.data.businessId);
+    }
+
     // A company's own tries at tests, seen only by its team and the Praxa team
     match /trials/{trialId} {
       allow read: if signedIn() && (isAdmin() || worksAt(resource.data.businessId));

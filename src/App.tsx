@@ -5,7 +5,7 @@ import { AnswerRecord, saveSubmission } from './lib/submissions';
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { BrandWordmark } from './components/Brand';
 import { CurrencyPicker } from './components/CurrencyPicker';
-import { User, UserRole, Assignment, TeamMember, AssessmentTest, JobPosting, Business, SocialState, AppNotification, JobInvitation, Lead, TestDraft, TestKind, TestRole, TrialResult, ResultBreakdown, hasAiTests, madeWithAI, isPublic } from './types';
+import { User, UserRole, Assignment, Project, ProjectTask, TeamMember, AssessmentTest, JobPosting, Business, SocialState, AppNotification, JobInvitation, Lead, TestDraft, TestKind, TestRole, TrialResult, ResultBreakdown, hasAiTests, madeWithAI, isPublic } from './types';
 import { INITIAL_RECRUITER, INITIAL_BUSINESSES, STANDARD_ASSESSMENTS } from './data/mockData';
 import { loadData, saveData, clearData, createSeedData } from './lib/store';
 import { getPercentile } from './lib/leaderboard';
@@ -50,7 +50,7 @@ import { useAccount } from './lib/useAccount';
 import { loadProfile, saveProfile } from './lib/profiles';
 import { Account, accountError, signOut, updateAccountName, updateCompanyInfo, updateCompanySector } from './lib/accounts';
 import { BusinessInfo } from './components/BusinessInfoEditor';
-import { Viewer, apply, syncAssignments, syncTeam, syncJobs, syncLeads, syncNotifications, syncSocial, putTestDraft, putTrial, syncTestDrafts, syncTests, useCloudData } from './lib/cloud';
+import { Viewer, apply, syncAssignments, syncProjects, syncProjectTasks, syncTeam, syncJobs, syncLeads, syncNotifications, syncSocial, putTestDraft, putTrial, syncTestDrafts, syncTests, useCloudData } from './lib/cloud';
 import { LeadsPage } from './components/LeadsPage';
 import { LeadChange } from './components/LeadsView';
 import { LeadRow, buildLeadRows, updatedLead } from './lib/leads';
@@ -267,6 +267,8 @@ export default function App() {
   const [localTrials, setLocalTrials] = useState<TrialResult[]>(initialData.trials);
   const [localTeam, setLocalTeam] = useState<TeamMember[]>(initialData.team);
   const [localAssignments, setLocalAssignments] = useState<Assignment[]>(initialData.assignments);
+  const [localProjects, setLocalProjects] = useState<Project[]>(initialData.projects);
+  const [localProjectTasks, setLocalProjectTasks] = useState<ProjectTask[]>(initialData.projectTasks);
 
   // With accounts on, everything real comes from Firebase (src/lib/cloud.ts) and changes are written back there;
   // without them, the demo's example data lives in this browser
@@ -300,6 +302,12 @@ export default function App() {
   teamRef.current = team;
   const assignmentsRef = useRef(assignments);
   assignmentsRef.current = assignments;
+  const projects = cloud ? cloud.projects : localProjects;
+  const projectTasks = cloud ? cloud.projectTasks : localProjectTasks;
+  const projectsRef = useRef(projects);
+  projectsRef.current = projects;
+  const projectTasksRef = useRef(projectTasks);
+  projectTasksRef.current = projectTasks;
   const testDraftsRef = useRef(testDrafts);
   testDraftsRef.current = testDrafts;
   const leadsRef = useRef(leads);
@@ -329,6 +337,10 @@ export default function App() {
     firebaseEnabled ? syncTeam(teamRef.current, update(teamRef.current), reportCloudError) : setLocalTeam(update);
   const setAssignments = (update: Update<Assignment[]>) =>
     firebaseEnabled ? syncAssignments(assignmentsRef.current, update(assignmentsRef.current), reportCloudError) : setLocalAssignments(update);
+  const setProjects = (update: Update<Project[]>) =>
+    firebaseEnabled ? syncProjects(projectsRef.current, update(projectsRef.current), reportCloudError) : setLocalProjects(update);
+  const setProjectTasks = (update: Update<ProjectTask[]>) =>
+    firebaseEnabled ? syncProjectTasks(projectTasksRef.current, update(projectTasksRef.current), reportCloudError) : setLocalProjectTasks(update);
   const setTestDrafts = (update: Update<TestDraft[]>) =>
     firebaseEnabled ? syncTestDrafts(testDraftsRef.current, update(testDraftsRef.current), reportCloudError) : setLocalTestDrafts(update);
 
@@ -342,8 +354,8 @@ export default function App() {
 
   useEffect(() => {
     if (firebaseEnabled) return;
-    saveData({ candidate, otherCandidates, jobs, tests, social, notifications, leads, testDrafts, trials, team, assignments });
-  }, [candidate, otherCandidates, jobs, tests, social, notifications, leads, testDrafts, trials, team, assignments]);
+    saveData({ candidate, otherCandidates, jobs, tests, social, notifications, leads, testDrafts, trials, team, assignments, projects, projectTasks });
+  }, [candidate, otherCandidates, jobs, tests, social, notifications, leads, testDrafts, trials, team, assignments, projects, projectTasks]);
 
   // Changes one person's invitation to a job's tests, adding it if they don't have one yet
   const updateInvitation = (jobId: string, candidateId: string, change: Partial<JobInvitation>) =>
@@ -2004,6 +2016,16 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
                   onOpenTest={openTestPage}
                   onViewPerson={setProfilePersonId}
                   training={trainingView}
+                  me={{ uid: account?.uid ?? staffUser.id, name: staffUser.name, pic: staffUser.avatarUrl }}
+                  projects={projects.filter((pr) => pr.businessId === recruiterBusiness.id)}
+                  projectTasks={projectTasks.filter((t) => t.businessId === recruiterBusiness.id)}
+                  onSaveProject={(pr) => setProjects((prev) => (prev.some((x) => x.id === pr.id) ? prev.map((x) => (x.id === pr.id ? pr : x)) : [...prev, pr]))}
+                  onDeleteProject={(pr) => {
+                    setProjectTasks((prev) => prev.filter((t) => t.projectId !== pr.id));
+                    setProjects((prev) => prev.filter((x) => x.id !== pr.id));
+                  }}
+                  onSaveTask={(t) => setProjectTasks((prev) => (prev.some((x) => x.id === t.id) ? prev.map((x) => (x.id === t.id ? t : x)) : [...prev, t]))}
+                  onDeleteTask={(t) => setProjectTasks((prev) => prev.filter((x) => x.id !== t.id))}
                 />
               ) : (
                 <p className="text-sm text-slate-500">Teams belong to a company. Switch to a company's view to invite people and send them training.</p>

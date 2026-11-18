@@ -3,6 +3,8 @@
 Kept up to date as work is asked for and finished. Newest items at the bottom of each section.
 
 ## To do
+- **Team projects (Team → Board).** Deploy the `projects` and `projectTasks` Firestore rules (`firebase deploy --only firestore:rules`). Then show people on a team the project tasks they own in Work mode, where they can move the status and add notes (the rules and data already allow it). Maybe later: subitems, comments/updates per task, a timeline view, files.
+
 - **Live training bookings (company Training page)**: deploy the `trainingBookings` Firestore rule; build the Praxa-admin side to confirm a booking, set the tutor and dates, and mark it done (today only the data and rules allow it); recruit tutors; email the company when a booking changes. Prices (src/data/trainingCatalogue.ts) were set against UK live-online providers in Nov 2026: review yearly.
 
 - **Skills games, one at a time.** Build the skills games (attention to detail, verbal reasoning, numerical reasoning, logical reasoning, memory, multitasking) one by one, each tried and agreed before the next. The first six made together were removed on 2026-11-12. The library already supports them: category `Aptitude`, shown in every sector under "Skills games" (role "Any role"), and suggested by `/api/suggest-tests` when a job needs those abilities. The removed code is in git history (commit 9271ef1, `src/data/skillsGames.ts`) to start from.
