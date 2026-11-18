@@ -711,12 +711,56 @@ export interface ProjectGroup {
   colour: number;
 }
 
+// A column the company added to a project, as on monday: its values live on each task under the column's id
+export type ProjectColumnType = 'text' | 'number' | 'label' | 'date' | 'people' | 'checkbox' | 'link';
+export interface ProjectColumn {
+  id: string;
+  title: string;
+  type: ProjectColumnType;
+  // Labels to pick from (label columns), each with a colour index
+  options?: { id: string; label: string; colour: number }[];
+}
+
+// The built-in columns, which can be hidden but not deleted
+export type ProjectBuiltIn = 'owner' | 'status' | 'priority' | 'due' | 'timeline';
+
+// A saved way of looking at a project: a table, a kanban, a calendar, a timeline or a chart. Kanban and chart are by a
+// field: status, priority, group, owner, or a label column's id
+export interface ProjectView {
+  id: string;
+  name: string;
+  type: 'table' | 'kanban' | 'calendar' | 'timeline' | 'chart';
+  by?: string;
+}
+
+// "When this happens, do that", as monday's automations. Each runs once per change, never off another automation
+export interface ProjectAutomation {
+  id: string;
+  when: 'status' | 'created' | 'assigned' | 'overdue' | 'checked';
+  // status: the status it changed to (any change when unset); created: the group it was made in (any when unset);
+  // checked: the checkbox column
+  status?: ProjectTaskStatus;
+  groupId?: string;
+  columnId?: string;
+  then: 'move' | 'setStatus' | 'setPriority' | 'assign';
+  toGroupId?: string;
+  toStatus?: ProjectTaskStatus;
+  toPriority?: ProjectTaskPriority;
+  toUid?: string;
+  off?: boolean;
+}
+
 export interface Project {
   id: string;
   businessId: string;
   name: string;
   description?: string;
   groups: ProjectGroup[];
+  columns?: ProjectColumn[];
+  // Built-in columns hidden from the table
+  hidden?: ProjectBuiltIn[];
+  views?: ProjectView[];
+  automations?: ProjectAutomation[];
   createdAt: string; // ISO timestamp
 }
 
@@ -736,6 +780,10 @@ export interface ProjectTask {
   startDate?: string; // YYYY-MM-DD
   dueDate?: string; // YYYY-MM-DD
   notes?: string;
+  // Values in the project's added columns, by column id
+  values?: Record<string, string | number | boolean | string[]>;
+  // What changed and who changed it, newest last (kept to the last 50)
+  log?: { at: string; by: string; text: string }[];
   createdAt: string; // ISO timestamp
   updatedAt?: string;
 }

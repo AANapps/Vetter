@@ -217,7 +217,7 @@ service cloud.firestore {
         && request.resource.data.ownerUids is list;
       allow update: if ((isAdmin() || worksAt(resource.data.businessId)) && request.resource.data.businessId == resource.data.businessId)
         || (signedIn() && uid() in resource.data.get('ownerUids', [])
-          && changed().hasOnly(['status', 'notes', 'updatedAt'])
+          && changed().hasOnly(['status', 'notes', 'updatedAt', 'log'])
           && request.resource.data.status in ['todo', 'working', 'stuck', 'done']);
       allow delete: if isAdmin() || worksAt(resource.data.businessId);
     }

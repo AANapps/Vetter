@@ -65,6 +65,15 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 type TeamSection = 'overview' | 'tests' | 'training' | 'people';
 
+// Whether a board was opened here before, so the Team page opens on the Board
+const boardRemembered = (businessId: string) => {
+  try {
+    return !!localStorage.getItem(`vetter.teamBoard.${businessId}`);
+  } catch {
+    return false;
+  }
+};
+
 const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
   <section className={`bg-white border border-slate-200 rounded-2xl shadow-xs ${className}`}>{children}</section>
 );
@@ -98,10 +107,25 @@ export const TeamPage: React.FC<TeamPageProps> = ({
   onSaveTask,
   onDeleteTask,
 }) => {
-  // Which board is open on the Board tab: the tests sent, or a project
-  const [boardId, setBoardId] = useState<string>('sent');
+  // Which board is open on the Board tab: the tests sent, or a project. The last one opened is opened again
+  const boardKey = `vetter.teamBoard.${business.id}`;
+  const [boardId, setBoardIdState] = useState<string>(() => {
+    try {
+      return localStorage.getItem(boardKey) ?? 'sent';
+    } catch {
+      return 'sent';
+    }
+  });
+  const setBoardId = (id: string) => {
+    setBoardIdState(id);
+    try {
+      localStorage.setItem(boardKey, id);
+    } catch {
+      // Private windows can refuse storage; the choice then lasts for the visit
+    }
+  };
   const [naming, setNaming] = useState<string | null>(null);
-  const [section, setSection] = useState<TeamSection>(assignments.length || projects.length ? 'tests' : team.length ? 'overview' : 'people');
+  const [section, setSection] = useState<TeamSection>(assignments.length || projects.length || boardRemembered(business.id) ? 'tests' : team.length ? 'overview' : 'people');
   const [invite, setInvite] = useState('');
   const [assigning, setAssigning] = useState<string[] | null>(null);
   const [openMember, setOpenMember] = useState<string | null>(null);
@@ -463,6 +487,7 @@ export const TeamPage: React.FC<TeamPageProps> = ({
                 project={openProject}
                 tasks={projectTasks.filter((t) => t.projectId === openProject.id)}
                 people={boardPeople}
+                me={me}
                 onSaveProject={onSaveProject}
                 onDeleteProject={() => {
                   onDeleteProject(openProject);
