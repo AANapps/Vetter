@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { JobProfile, VerifiedSkill } from '../types';
+import { ProfessionPicker } from './ProfessionPicker';
 
 interface JobProfileEditorProps {
   profile: JobProfile;
@@ -58,20 +59,14 @@ export const JobProfileEditor: React.FC<JobProfileEditorProps> = ({ profile, isN
         <div className="pr-8">
           <h2 className="text-lg font-bold text-slate-900 tracking-tight">{isNew ? 'New job profile' : `Edit ${profile.name} profile`}</h2>
           <p className="text-xs text-slate-500">
-            Keep a profile for each kind of work you want. Companies see the one you apply with.
+            Keep a profile for each profession you want. Companies see the one you apply with.
           </p>
         </div>
 
-        <label className="block space-y-1.5">
-          <span className="text-xs font-semibold text-slate-700">Kind of work</span>
-          <input
-            value={draft.name}
-            onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-            placeholder="e.g. Data, Customer service, Retail"
-            className={inputClass}
-            autoFocus
-          />
-        </label>
+        <div className="space-y-1.5">
+          <span className="text-xs font-semibold text-slate-700">Profession</span>
+          <ProfessionPicker value={draft.name} onChange={(name) => setDraft({ ...draft, name })} className={inputClass} autoFocus />
+        </div>
 
         <label className="block space-y-1.5">
           <span className="text-xs font-semibold text-slate-700">Headline</span>
