@@ -71,9 +71,10 @@ const schema = {
               minutes: { type: 'integer' },
               // The software it's done in (app items; a job simulation's parts), and the library app used for it
               software: { type: 'string' },
+              softwareKind: { type: 'string' },
               appId: { type: 'string' },
             },
-            required: ['ref', 'taskRef', 'type', 'title', 'brief', 'points', 'minutes', 'software', 'appId'],
+            required: ['ref', 'taskRef', 'type', 'title', 'brief', 'points', 'minutes', 'software', 'softwareKind', 'appId'],
             additionalProperties: false,
           },
         },
@@ -97,8 +98,8 @@ is the id of the app from PRAXA'S APP LIBRARY below that it's done in. You decid
 fits; another of the same kind fits when the work done in it is the same (ticket triage in a help desk works in any
 help desk, whatever its brand), since it's ready, quicker and cheaper. One that would change how the task is really
 done (missing the screens or the way of working the job depends on) doesn't fit. appId "" when none fits, and Praxa
-builds the software. Every other item has
-software "" and appId "".${jobSim ? ' Parts in the Spreadsheet, Browser, Database or Code apps: software "" and appId "".' : ''}
+builds the software. softwareKind: the kind of software in one to three words, as the library names kinds ("help desk",
+"CRM", "ads manager"). Every other item has software "", softwareKind "" and appId "".${jobSim ? ' Parts in the Spreadsheet, Browser, Database or Code apps: software "", softwareKind "" and appId "".' : ''}
 PRAXA'S APP LIBRARY:
 ${apps.length ? apps.map((a) => `- ${a.id}: ${String(a.name).slice(0, 80)} (${String(a.product).slice(0, 60)}). ${String(a.summary).slice(0, 240)}`).join('\n') : '(empty)'}`;
 };

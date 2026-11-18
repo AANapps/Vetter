@@ -673,7 +673,7 @@ async function inBatches<T, R>(items: T[], limit: number, run: (item: T) => Prom
 }
 
 // software: what an app item (or a job simulation's part) is done in; appId: the app library's app it uses, '' to build it
-type PlanItem = { ref: string; taskRef: string; type: string; title: string; brief: string; points: number; minutes: number; software?: string; appId?: string };
+type PlanItem = { ref: string; taskRef: string; type: string; title: string; brief: string; points: number; minutes: number; software?: string; softwareKind?: string; appId?: string };
 
 // The plan split into sections to write side by side: each case or task with its questions, and the other questions
 // four at a time
@@ -751,7 +751,7 @@ const JOB_SIM_PARTS: [string, string, number][] = [
 function jobSimPlan(plan: TestPlan): TestPlan {
   const items = JOB_SIM_PARTS.map(([ref, title, minutes]) => {
     const given = plan.items?.find((item) => item.ref === ref) ?? plan.items?.find((item) => String(item.title ?? '').toLowerCase().startsWith(title.toLowerCase()));
-    return { ref, taskRef: '', type: 'part', title: given?.title?.trim() || title, brief: given?.brief ?? '', points: 0, minutes, software: given?.software ?? '', appId: given?.appId ?? '' };
+    return { ref, taskRef: '', type: 'part', title: given?.title?.trim() || title, brief: given?.brief ?? '', points: 0, minutes, software: given?.software ?? '', softwareKind: given?.softwareKind ?? '', appId: given?.appId ?? '' };
   });
   return { ...plan, items };
 }

@@ -843,10 +843,8 @@ const PlanCard: React.FC<{ plan: TestPlan; canBuild: boolean; onBuild: () => voi
     };
   }, []);
   const edit = (ref: string, change: Partial<TestPlan['items'][number]>) => onChange({ ...plan, items: plan.items.map((item) => (item.ref === ref ? { ...item, ...change } : item)) });
-  const softwareOf = (item: TestPlan['items'][number]) => {
-    const app = apps.find((a) => a.id === item.appId);
-    return app ? `${app.name}, from Praxa's app library` : item.software?.trim() ? `${item.software}, built for this test` : item.type === 'app' ? 'Picked when it’s built' : '';
-  };
+  // Done in software: app tasks, and parts of the day in the job's own software
+  const usesSoftware = (item: TestPlan['items'][number]) => item.type === 'app' || !!item.software?.trim() || !!item.appId?.trim();
   return (
     <div className="p-4 bg-white border border-indigo-200 rounded-xl space-y-3 shadow-sm shadow-indigo-100/60">
       <div>
@@ -872,7 +870,6 @@ const PlanCard: React.FC<{ plan: TestPlan; canBuild: boolean; onBuild: () => voi
         {rows.map(({ item, number }) => {
           const isOpen = open.includes(item.ref);
           const name = day ? `Part ${number}` : number ? `Question ${number}` : 'Case study';
-          const software = softwareOf(item);
           return (
             <li key={item.ref} className={`text-sm ${item.taskRef ? 'ml-5 pl-3 border-l-2 border-slate-100' : ''}`}>
               <button
@@ -892,8 +889,8 @@ const PlanCard: React.FC<{ plan: TestPlan; canBuild: boolean; onBuild: () => voi
                   <p className="text-[11px] text-slate-500">
                     {!day && label(item.type)}
                     {Number(item.minutes) > 0 && `${!day ? ' · ' : ''}${item.minutes} min`}
-                    {software && ` · ${software}`}
                   </p>
+                  {usesSoftware(item) && <SoftwarePick item={item} apps={apps} editable={canBuild} onChange={(c) => edit(item.ref, c)} />}
                   {canBuild ? (
                     <PromptBox value={item.brief ?? ''} label={`Prompt for ${name.toLowerCase()}`} onSave={(brief) => edit(item.ref, { brief })} />
                   ) : (
@@ -941,6 +938,45 @@ const PromptBox: React.FC<{ value: string; label: string; onSave: (v: string) =>
       onBlur={() => text.trim() !== value.trim() && text.trim() && onSave(text.trim())}
       className="w-full resize-none overflow-hidden px-2.5 py-1.5 text-xs text-slate-700 leading-relaxed bg-slate-50 border border-slate-200 hover:border-slate-300 focus:bg-white focus:border-indigo-400 focus:outline-none rounded-lg"
     />
+  );
+};
+
+// The software a task is done in, as Praxa picked it: an app from its library (ready, quicker and cheaper) or an exact
+// copy built for this test. The company can switch to another app of the same kind, or to building the exact copy
+const norm = (s = '') => s.trim().toLowerCase().replace(/^(a|an|the)\s+/, '');
+const SoftwarePick: React.FC<{ item: TestPlan['items'][number]; apps: ReusableApp[]; editable: boolean; onChange: (c: { appId: string }) => void }> = ({ item, apps, editable, onChange }) => {
+  const picked = apps.find((a) => a.id === item.appId);
+  const kind = norm(item.softwareKind) || norm(picked?.product);
+  // Apps of the same kind (one kind's name inside the other's, e.g. "help desk" and "IT help desk"), the pick always
+  const sameKind = apps.filter((a) => a.id === picked?.id || (kind && (norm(a.product).includes(kind) || kind.includes(norm(a.product)))));
+  const named = item.software?.trim();
+  const generic = !named || /^(a|an)\s/i.test(named) || norm(named) === kind;
+  const build = generic ? `Build a new ${kind || 'one'}` : `Build an exact copy of ${named}`;
+  const title = kind ? kind[0].toUpperCase() + kind.slice(1) : 'Software';
+  if (!editable)
+    return (
+      <p className="text-[11px] text-slate-600 flex items-center gap-1.5">
+        <Monitor className="w-3.5 h-3.5 text-slate-400" aria-hidden />
+        {title}: {picked ? `${picked.name} (ready)` : generic ? 'built for this test' : `${named} (built for this test)`}
+      </p>
+    );
+  return (
+    <label className="flex flex-wrap items-center gap-2 text-[11px] text-slate-600">
+      <Monitor className="w-3.5 h-3.5 text-slate-400" aria-hidden />
+      {title}:
+      <select
+        value={picked ? picked.id : ''}
+        onChange={(e) => onChange({ appId: e.target.value })}
+        className="h-7 max-w-full px-2 rounded-lg border border-slate-200 bg-white text-[11px] font-semibold text-slate-800"
+      >
+        {sameKind.map((a) => (
+          <option key={a.id} value={a.id}>
+            {a.name}: ready now · quicker and cheaper
+          </option>
+        ))}
+        <option value="">{build}: about 5 minutes · uses more credit</option>
+      </select>
+    </label>
   );
 };
 
