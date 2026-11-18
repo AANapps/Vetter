@@ -3,6 +3,9 @@
 Kept up to date as work is asked for and finished. Newest items at the bottom of each section.
 
 ## To do
+- **Bug: menu opens white blank pages** (reported 2026-11-18). Clicking items in the company menu sometimes shows a blank white page. Not reproduced yet: find which items and whether it's the live site (Firebase on), then fix.
+- **Board permissions (Projects & CRM).** Each board gets who can see and edit it: everyone in the company and on the team by default, or invite only (pick people). Today the company's staff see every board and team members see nothing but tasks they own.
+
 - **Team projects and CRM (Project Manager → Projects & CRM).** Deploy the Firestore rules (`projects`, `projectTasks`, and `teamMembers` now taking `pendingTests`): `firebase deploy --only firestore:rules`. Ask AI (`/api/crm-assistant`) needs credit on the Anthropic account: the key in `.env.local` returned "credit balance is too low" on 2026-11-18. Then show people on a team the project tasks they own in Work mode. Overdue automations only run when someone opens the board; run them on a schedule on the server if they need to happen on time. monday CRM features not built yet: sending and receiving real emails from items (Gmail/Outlook sync), lead capture web forms, email sequences, quotes and invoices, duplicate merging, mass email, subitems, files on items, mirror columns, and automations that notify people.
 
 - **Live training bookings (company Training page)**: deploy the `trainingBookings` Firestore rule; build the Praxa-admin side to confirm a booking, set the tutor and dates, and mark it done (today only the data and rules allow it); recruit tutors; email the company when a booking changes. Prices (src/data/trainingCatalogue.ts) were set against UK live-online providers in Nov 2026: review yearly.
