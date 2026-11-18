@@ -3,7 +3,7 @@ import { TRAINING, asksForTraining, searchTraining } from '../data/trainingCatal
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { BrandSparkle, BrandWordmark } from './Brand';
-import { ArrowRight, ArrowUp, Check, ChevronDown, Circle, ExternalLink, Eye, Loader2, Lock, Pencil, Plus, Send, Square, Wand2, X } from 'lucide-react';
+import { ArrowRight, ArrowUp, Briefcase, Check, ChevronDown, Circle, ExternalLink, Eye, GraduationCap, Library, Loader2, Lock, Monitor, Pencil, Plus, Send, Square, UserSearch, Users, Wand2, X } from 'lucide-react';
 import { AssessmentTest, Business, JobPosting, QuestionType, TestKind, User, levelName } from '../types';
 import { Pic } from './Pic';
 import { AdvisorTurn, CUSTOM_KIND_LABELS, CustomIdea, HomeBuild, SuggestedPerson, askAdvisor, testOutline } from '../lib/testAdvisor';
@@ -75,12 +75,21 @@ const chatSummary = (turns: AdvisorTurn[]) =>
     .join('\n')
     .slice(-5000);
 
-// What the chat does: find people, make a job simulation, and train the team
-const STARTERS = [
-  "I'm looking for a data analyst who knows SQL",
-  'Find me a junior React developer',
-  'Create a test for a customer support agent',
-  'Train my support team on Zendesk',
+// Where a company starts: one big card per thing Praxa does. Most start the chat with that ask; the rest open a page
+type Starter = {
+  id: string;
+  icon: React.ComponentType<{ className?: string }>;
+  tone: string;
+  title: string;
+  body: string;
+} & ({ ask: string } | { go: 'library' });
+const STARTERS: Starter[] = [
+  { id: 'sim', icon: Monitor, tone: 'from-indigo-500 to-violet-500', title: 'Create a job simulation', body: 'A day in the role on a real desktop: email, files, the apps they’d use. Built with AI for your job.', ask: 'I want to create a job simulation.' },
+  { id: 'job', icon: Briefcase, tone: 'from-sky-500 to-indigo-500', title: 'Create a job and pick the perfect tests', body: 'Tell Praxa the role or paste the description; it picks the tests that prove it, ready to post.', ask: 'I want to create a job. Help me pick the perfect tests for it.' },
+  { id: 'find', icon: UserSearch, tone: 'from-emerald-500 to-teal-500', title: 'Find the perfect candidate', body: 'Describe who you need. Praxa ranks people by the skills they’ve proven in tests.', ask: 'I’m looking for the perfect candidate. Help me find them.' },
+  { id: 'train', icon: GraduationCap, tone: 'from-amber-500 to-orange-500', title: 'Train my team on an app', body: 'A hands-on copy of the software your team uses, with guided tasks, to send to them.', ask: 'I want to create training for my team.' },
+  { id: 'live', icon: Users, tone: 'from-rose-500 to-pink-500', title: 'Book live training', body: 'Short sessions and bootcamps taught by a Praxa tutor, for your whole team.', ask: 'I want to book live training for my team.' },
+  { id: 'library', icon: Library, tone: 'from-slate-600 to-slate-800', title: 'Browse the test library', body: 'Ready-made tests and simulations by role and level, free to send.', go: 'library' },
 ];
 
 // A company's home: a chat with Praxa about who they're hiring, which answers with a roadmap, the library tests that
@@ -285,23 +294,30 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
       <section className="min-w-0 min-h-0 flex flex-col">
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain py-8 space-y-6 -mx-2 px-2">
           {turns.length === 0 ? (
-            <div className="pt-10 sm:pt-20 space-y-6 text-center">
+            <div className="pt-6 sm:pt-12 space-y-6 text-center">
               <div className="space-y-2">
                 <BrandWordmark size="lg" className="mx-auto w-fit" />
-                <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">Who are you hiring?</h1>
-                <p className="text-sm text-slate-500 max-w-md mx-auto">
-                  Describe the role, or paste the job description. Praxa asks what it needs to know, then builds the test right here: you see
-                  what's in it, open it with See test, and ask for any change.
-                </p>
+                <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">What do you want to do?</h1>
+                <p className="text-sm text-slate-500 max-w-md mx-auto">Pick one to start, or just type below: describe the role or paste a job description.</p>
               </div>
-              <div className="flex flex-wrap justify-center gap-2 max-w-xl mx-auto">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-left">
                 {STARTERS.map((s) => (
                   <button
-                    key={s}
-                    onClick={() => send(s)}
-                    className="ai-glass px-3 py-1.5 text-xs font-medium text-slate-700 border border-white/80 shadow-xs rounded-full hover:border-indigo-300 hover:text-indigo-700 transition-colors"
+                    key={s.id}
+                    onClick={() => ('ask' in s ? send(s.ask) : onGoTo('business-tests'))}
+                    className="group ai-glass p-4 sm:p-5 rounded-2xl border border-white/80 shadow-xs hover:shadow-md hover:border-indigo-300 transition-all flex flex-col gap-3 min-h-[150px]"
                   >
-                    {s}
+                    <span className={`w-10 h-10 rounded-xl bg-gradient-to-br ${s.tone} text-white flex items-center justify-center shadow-sm`}>
+                      <s.icon className="w-5 h-5" />
+                    </span>
+                    <span className="space-y-1">
+                      <span className="block text-sm font-bold text-slate-900 group-hover:text-indigo-700">{s.title}</span>
+                      <span className="block text-xs text-slate-500 leading-relaxed">{s.body}</span>
+                    </span>
+                    <span className="mt-auto text-xs font-semibold text-indigo-600 inline-flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity">
+                      {'ask' in s ? 'Start' : 'Open'}
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </span>
                   </button>
                 ))}
               </div>

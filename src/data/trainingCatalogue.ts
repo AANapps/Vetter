@@ -256,7 +256,8 @@ export function searchTraining(query: string, limit = 6): TrainingItem[] {
     // (advanced, bootcamp, mini) only rank
     const topic = words.filter((w) => !GENERIC.test(w));
     if (topic.length && !scoreOf(topic)) return { t, score: 0 };
-    let score = scoreOf(words);
+    // Only general words ("live training for my team"): everything is a match, so a sample shows
+    let score = scoreOf(words) || (topic.length ? 0 : 1);
     if (score && level) score += t.level === level ? 2 : 0;
     if (score && wantsBootcamp && t.kind === 'Bootcamp') score += 2;
     if (score && wantsMini && t.kind === 'Mini module') score += 2;
