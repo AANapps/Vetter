@@ -292,10 +292,12 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
         <span />
         <span />
       </div>
-    <div className="h-full max-w-4xl mx-auto px-4 sm:px-6 grid grid-cols-1 grid-rows-[minmax(0,1fr)]">
-      {/* The chat */}
+    <div className="h-full grid grid-cols-1 grid-rows-[minmax(0,1fr)]">
+      {/* The chat: it scrolls the full width, so its scroll bar sits at the right edge of the screen; the messages stay
+          in a column down the middle */}
       <section className="min-w-0 min-h-0 flex flex-col">
-        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain py-8 space-y-6 -mx-2 px-2">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 space-y-6">
           {turns.length === 0 ? (
             <div className="pt-6 sm:pt-12 space-y-6 text-center">
               <div className="space-y-2">
@@ -395,13 +397,14 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
           )}
           <div ref={endRef} />
         </div>
+        </div>
 
         <form
           onSubmit={(e) => {
             e.preventDefault();
             send(input);
           }}
-          className="shrink-0 pb-3 pt-2"
+          className="shrink-0 pb-3 pt-2 w-full max-w-4xl mx-auto px-4 sm:px-6"
         >
           {credit && (credit.billing ? credit.balance !== undefined : true) && (
             <div className="mb-2">

@@ -15,6 +15,7 @@ import {
   Send,
   Loader2,
   ArrowRightLeft,
+  Undo2,
   EyeOff,
   GanttChart,
   Plus,
@@ -43,6 +44,7 @@ import { shortDate } from '../lib/work';
 import { PRIORITY_LABEL, STATUS_LABEL, describeAutomation, isLate, overdueChanges, recipes, runAutomations, withLog } from '../lib/projectAutomations';
 import { CalendarView, ChartBar, ChartView, TimelineView } from './ProjectViews';
 import { boardForAi, convertLead, evalFormula, money, numberOf } from '../lib/crm';
+import { CrmAction, applyActions, describeAction } from '../lib/crmActions';
 import { aiFetch } from '../lib/aiRequest';
 import { BrandSparkle } from './Brand';
 
@@ -982,8 +984,45 @@ const SUGGESTIONS: Record<string, string[]> = {
   project: ['What is late or stuck?', 'Who has the most open work?', 'What should we do this week?', 'Which automations would save us time?'],
 };
 
-const AskAi: React.FC<{ project: Project; text: () => string; boards: Project[]; company?: string; onClose: () => void }> = ({ project, text, boards, company, onClose }) => {
-  const [messages, setMessages] = useState<{ role: 'user' | 'assistant'; text: string }[]>([]);
+type AiMessage = { role: 'user' | 'assistant'; text: string; actions?: CrmAction[]; picked?: boolean[]; result?: { done: number; skipped: string[]; undone?: boolean } };
+
+// If anything in the panel goes wrong, it says so in the panel instead of taking the page down with it
+class PanelGuard extends React.Component<{ onClose: () => void; children: React.ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  componentDidCatch(err: unknown) {
+    console.error('Ask AI failed', err);
+  }
+  render() {
+    if (!this.state.failed) return this.props.children;
+    return (
+      <div className="fixed inset-0 z-40 bg-slate-900/20" onClick={this.props.onClose}>
+        <aside className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl p-6 space-y-3" onClick={(e) => e.stopPropagation()}>
+          <h2 className="text-base font-bold text-slate-900">Ask AI ran into a problem</h2>
+          <p className="text-sm text-slate-600">Nothing on your boards was changed. Close this and try again.</p>
+          <button onClick={this.props.onClose} className="h-9 px-4 rounded-lg bg-indigo-600 text-white text-sm font-semibold">
+            Close
+          </button>
+        </aside>
+      </div>
+    );
+  }
+}
+
+const AskAi: React.FC<{
+  project: Project;
+  text: () => string;
+  others: () => string[];
+  boards: Project[];
+  company?: string;
+  onApply: (actions: CrmAction[]) => { done: number; skipped: string[]; undo: () => void };
+  onClose: () => void;
+}> = ({ project, text, others, boards, company, onApply, onClose }) => {
+  const [messages, setMessages] = useState<AiMessage[]>([]);
+  // Undo for each applied set of changes, by the message they came with
+  const undos = useRef(new Map<number, () => void>());
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -1006,11 +1045,29 @@ const AskAi: React.FC<{ project: Project; text: () => string; boards: Project[];
     setBusy(true);
     setError('');
     try {
-      const res = await aiFetch('/api/crm-assistant', { company, board: text(), boards: boards.filter((b) => b.id !== project.id).map((b) => b.name), messages: next });
-      const body = (await res.json().catch(() => ({}))) as { reply?: string; error?: string };
+      let board = '';
+      let rest: string[] = [];
+      try {
+        board = text();
+        rest = others();
+      } catch (err) {
+        console.error('Reading the boards for Ask AI failed', err);
+        board = `Board: ${project.name}`;
+      }
+      const res = await aiFetch('/api/crm-assistant', {
+        company,
+        board,
+        boards: boards.filter((b) => b.id !== project.id).map((b) => b.name),
+        others: rest,
+        messages: next.map(({ role, text: t }) => ({ role, text: t })),
+      });
+      const body = (await res.json().catch(() => ({}))) as { reply?: string; actions?: CrmAction[]; error?: string };
       if (res.status === 402) setError('Your AI credit has run out. Top it up from the home chat to keep asking.');
-      else if (!res.ok || !body.reply) setError(body.error === 'not-configured' ? 'Praxa’s AI isn’t switched on here yet.' : body.error || 'The AI couldn’t answer. Try again.');
-      else setMessages([...next, { role: 'assistant', text: body.reply }]);
+      else if (!res.ok || typeof body.reply !== 'string') setError(body.error === 'not-configured' ? 'Praxa’s AI isn’t switched on here yet.' : body.error || 'The AI couldn’t answer. Try again.');
+      else {
+        const actions = Array.isArray(body.actions) ? body.actions.filter((a) => a && typeof a.op === 'string') : [];
+        setMessages([...next, { role: 'assistant', text: body.reply || 'Here’s what I’d change.', ...(actions.length && { actions, picked: actions.map(() => true) }) }]);
+      }
     } catch {
       setError('The AI couldn’t be reached. Check your connection and try again.');
     } finally {
@@ -1049,9 +1106,73 @@ const AskAi: React.FC<{ project: Project; text: () => string; boards: Project[];
                 {m.text}
               </p>
             ) : (
-              <p key={i} className="mr-4 px-3 py-2 rounded-2xl rounded-bl-md bg-slate-100 text-slate-800 text-sm whitespace-pre-wrap">
-                {m.text}
-              </p>
+              <div key={i} className="mr-4 space-y-2">
+                <p className="px-3 py-2 rounded-2xl rounded-bl-md bg-slate-100 text-slate-800 text-sm whitespace-pre-wrap">{m.text}</p>
+                {/* Changes it suggests: ticked to apply, then undoable */}
+                {m.actions && (
+                  <div className="p-3 rounded-xl border border-indigo-200 bg-indigo-50/40 space-y-2">
+                    <div className="text-xs font-bold text-slate-800">Suggested changes</div>
+                    <ul className="space-y-1.5">
+                      {m.actions.map((a, j) => (
+                        <li key={j}>
+                          <label className={`flex items-start gap-2 text-xs ${m.result ? '' : 'cursor-pointer'}`}>
+                            <input
+                              type="checkbox"
+                              disabled={!!m.result}
+                              checked={!!m.picked?.[j]}
+                              onChange={() => setMessages((all) => all.map((x, k) => (k === i ? { ...x, picked: x.picked?.map((p, n) => (n === j ? !p : p)) } : x)))}
+                              className="mt-0.5 accent-indigo-600"
+                            />
+                            <span>
+                              <span className="block text-slate-800">{describeAction(a)}</span>
+                              {a.why && <span className="block text-[11px] text-slate-500">{a.why}</span>}
+                            </span>
+                          </label>
+                        </li>
+                      ))}
+                    </ul>
+                    {!m.result ? (
+                      <button
+                        disabled={!m.picked?.some(Boolean)}
+                        onClick={() => {
+                          const chosen = m.actions!.filter((_, j) => m.picked?.[j]);
+                          const r = onApply(chosen);
+                          undos.current.set(i, r.undo);
+                          setMessages((all) => all.map((x, k) => (k === i ? { ...x, result: { done: r.done, skipped: r.skipped } } : x)));
+                        }}
+                        className="w-full h-9 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-semibold"
+                      >
+                        Apply {m.picked?.filter(Boolean).length ?? 0} {m.picked?.filter(Boolean).length === 1 ? 'change' : 'changes'}
+                      </button>
+                    ) : (
+                      <div className="space-y-1.5">
+                        <p className="text-xs font-semibold text-emerald-700">
+                          {m.result.undone ? 'Undone: everything is back as it was.' : `Done: ${m.result.done} ${m.result.done === 1 ? 'change' : 'changes'} made.`}
+                        </p>
+                        {m.result.skipped.length > 0 && !m.result.undone && (
+                          <ul className="text-[11px] text-amber-800 space-y-0.5">
+                            {m.result.skipped.map((s, n) => (
+                              <li key={n}>Skipped: {s}</li>
+                            ))}
+                          </ul>
+                        )}
+                        {!m.result.undone && (
+                          <button
+                            onClick={() => {
+                              undos.current.get(i)?.();
+                              setMessages((all) => all.map((x, k) => (k === i && x.result ? { ...x, result: { ...x.result, undone: true } } : x)));
+                            }}
+                            className="h-8 px-3 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-700 inline-flex items-center gap-1.5"
+                          >
+                            <Undo2 className="w-3.5 h-3.5" />
+                            Undo
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             )
           )}
           {busy && (
@@ -2040,7 +2161,35 @@ export const ProjectBoard: React.FC<{
         </div>
       )}
 
-      {asking && <AskAi project={project} boards={boards} company={company} text={() => boardForAi(project, tasks, allTasks, names)} onClose={() => setAsking(false)} />}
+      {asking && (
+        <PanelGuard onClose={() => setAsking(false)}>
+          <AskAi
+            project={project}
+            boards={boards}
+            company={company}
+            text={() => boardForAi(project, tasks, allTasks, names)}
+            others={() =>
+              boards
+                .filter((b) => b.id !== project.id)
+                .slice(0, 8)
+                .map((b) => boardForAi(b, allTasks.filter((t) => t.projectId === b.id).slice(0, 60), allTasks, names))
+            }
+            onApply={(actions) =>
+              applyActions(actions, {
+                boards,
+                tasks: allTasks,
+                people,
+                by: me.name,
+                current: project,
+                saveProject: onSaveProject,
+                saveTask: onSaveTask,
+                deleteTask: onDeleteTask,
+              })
+            }
+            onClose={() => setAsking(false)}
+          />
+        </PanelGuard>
+      )}
 
       {automating && <AutomationsDialog project={project} people={people} names={names} onSave={(automations) => saveProject({ automations })} onClose={() => setAutomating(false)} />}
 
