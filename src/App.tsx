@@ -67,6 +67,7 @@ import { COURSES, courseIdFromPath, coursePath, isLearnIndexPath, isUpskillIndex
 import { useCourseProgress } from './lib/courseProgress';
 import { BusinessHome } from './components/BusinessHome';
 import { TeamPage } from './components/TeamPage';
+import { ProjectsPage } from './components/ProjectsPage';
 import { InviteToJobDialog } from './components/InviteToJobDialog';
 import { TrainingPage } from './components/TrainingPage';
 import { PlansDialog } from './components/PlansDialog';
@@ -157,6 +158,7 @@ const TAB_PATHS: Record<AppTab, string> = {
   'business-tests': '/business/tests/',
   'business-candidates': '/business/candidates/',
   'business-team': '/business/team/',
+  'business-projects': '/business/projects/',
   'business-training': '/business/training/',
   ranked: '/ranked/',
   guides: '/guides/',
@@ -177,7 +179,7 @@ const businessCandidateIdFromPath = () => {
 // The pages each side has; companies is on both
 const SIDE_TABS: Record<'candidate' | 'staff', AppTab[]> = {
   candidate: ['home', 'tests', 'jobs', 'work', 'ranked', 'learn', 'upskill', 'profile', 'companies', 'guides'],
-  staff: ['business-home', 'business-jobs', 'business-tests', 'business-candidates', 'business-training', 'business-team', 'companies', 'guides'],
+  staff: ['business-home', 'business-jobs', 'business-tests', 'business-candidates', 'business-projects', 'business-training', 'business-team', 'companies', 'guides'],
 };
 const sideOf = (role: UserRole) => (role === 'candidate' ? 'candidate' : 'staff');
 
@@ -2019,6 +2021,38 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
             </div>
           )}
 
+          {!detailPage && activeRole !== 'candidate' && currentTab === 'business-projects' && (
+            <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-8">
+              {recruiterBusiness ? (
+                <ProjectsPage
+                  business={recruiterBusiness}
+                  me={{ uid: account?.uid ?? staffUser.id, name: staffUser.name, pic: staffUser.avatarUrl }}
+                  people={[
+                    { uid: account?.uid ?? staffUser.id, name: `${staffUser.name} (you)`, pic: staffUser.avatarUrl },
+                    ...ourTeam
+                      .filter((m) => m.status === 'active' && m.uid && m.uid !== (account?.uid ?? staffUser.id))
+                      .map((m) => {
+                        const p = allCandidates.find((c) => c.id === m.uid);
+                        return { uid: m.uid!, name: p?.name ?? m.name, pic: p?.avatarUrl };
+                      }),
+                  ]}
+                  projects={projects.filter((pr) => pr.businessId === recruiterBusiness.id)}
+                  projectTasks={projectTasks.filter((t) => t.businessId === recruiterBusiness.id)}
+                  onSaveProject={(pr) => setProjects((prev) => (prev.some((x) => x.id === pr.id) ? prev.map((x) => (x.id === pr.id ? pr : x)) : [...prev, pr]))}
+                  onDeleteProject={(pr) => {
+                    setProjectTasks((prev) => prev.filter((t) => t.projectId !== pr.id));
+                    setProjects((prev) => prev.filter((x) => x.id !== pr.id));
+                  }}
+                  onSaveTask={(t) => setProjectTasks((prev) => (prev.some((x) => x.id === t.id) ? prev.map((x) => (x.id === t.id ? t : x)) : [...prev, t]))}
+                  onDeleteTask={(t) => setProjectTasks((prev) => prev.filter((x) => x.id !== t.id))}
+                  onInviteTeam={() => goToTab('business-team')}
+                />
+              ) : (
+                <p className="text-sm text-slate-500">Projects belong to a company. Switch to a company's view to plan your team's work.</p>
+              )}
+            </div>
+          )}
+
           {!detailPage && activeRole !== 'candidate' && currentTab === 'business-team' && (
             <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
               {recruiterBusiness ? (
@@ -2039,17 +2073,6 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
                   onSeePlans={() => setPlansOpen(true)}
                   onOpenTest={openTestPage}
                   onViewPerson={setProfilePersonId}
-                  training={trainingView}
-                  me={{ uid: account?.uid ?? staffUser.id, name: staffUser.name, pic: staffUser.avatarUrl }}
-                  projects={projects.filter((pr) => pr.businessId === recruiterBusiness.id)}
-                  projectTasks={projectTasks.filter((t) => t.businessId === recruiterBusiness.id)}
-                  onSaveProject={(pr) => setProjects((prev) => (prev.some((x) => x.id === pr.id) ? prev.map((x) => (x.id === pr.id ? pr : x)) : [...prev, pr]))}
-                  onDeleteProject={(pr) => {
-                    setProjectTasks((prev) => prev.filter((t) => t.projectId !== pr.id));
-                    setProjects((prev) => prev.filter((x) => x.id !== pr.id));
-                  }}
-                  onSaveTask={(t) => setProjectTasks((prev) => (prev.some((x) => x.id === t.id) ? prev.map((x) => (x.id === t.id ? t : x)) : [...prev, t]))}
-                  onDeleteTask={(t) => setProjectTasks((prev) => prev.filter((x) => x.id !== t.id))}
                 />
               ) : (
                 <p className="text-sm text-slate-500">Teams belong to a company. Switch to a company's view to invite people and send them training.</p>

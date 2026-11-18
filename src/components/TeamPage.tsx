@@ -1,8 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Award, Check, Sparkles, GraduationCap, LayoutGrid, ListTodo, Lock, Mail, Plus, Search, SquareKanban, Trash2, UserPlus, X } from 'lucide-react';
 import { byUrgency, dueLabel, isOverdue, shortDate } from '../lib/work';
-import { Assignment, AssessmentTest, Business, Project, ProjectTask, TeamMember, User, isPublic, levelName } from '../types';
-import { BoardPerson, GROUP_COLOURS, ProjectBoard, newProject } from './ProjectBoard';
+import { Assignment, AssessmentTest, Business, TeamMember, User, isPublic, levelName } from '../types';
 import { Pic } from './Pic';
 import { PageHeader } from './PageHeader';
 import { WorkBoard } from './WorkBoard';
@@ -29,16 +28,6 @@ interface TeamPageProps {
   onSeePlans: () => void;
   onOpenTest: (testId: string) => void;
   onViewPerson: (personId: string) => void;
-  // The company's training (catalogue and own courses), shown under Training
-  training?: React.ReactNode;
-  // Projects on the Board, like monday.com boards, and their tasks. Whoever is signed in can own tasks too
-  me: BoardPerson;
-  projects: Project[];
-  projectTasks: ProjectTask[];
-  onSaveProject: (project: Project) => void;
-  onDeleteProject: (project: Project) => void;
-  onSaveTask: (task: ProjectTask) => void;
-  onDeleteTask: (task: ProjectTask) => void;
 }
 
 // What a piece of work is, as the team sees it
@@ -63,16 +52,8 @@ const STATUS_CHIP: Record<TeamMember['status'], { label: string; cls: string }> 
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-type TeamSection = 'overview' | 'tests' | 'training' | 'people';
+type TeamSection = 'overview' | 'tests' | 'people';
 
-// Whether a board was opened here before, so the Team page opens on the Board
-const boardRemembered = (businessId: string) => {
-  try {
-    return !!localStorage.getItem(`vetter.teamBoard.${businessId}`);
-  } catch {
-    return false;
-  }
-};
 
 const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
   <section className={`bg-white border border-slate-200 rounded-2xl shadow-xs ${className}`}>{children}</section>
@@ -98,34 +79,8 @@ export const TeamPage: React.FC<TeamPageProps> = ({
   onSeePlans,
   onOpenTest,
   onViewPerson,
-  training,
-  me,
-  projects,
-  projectTasks,
-  onSaveProject,
-  onDeleteProject,
-  onSaveTask,
-  onDeleteTask,
 }) => {
-  // Which board is open on the Board tab: the tests sent, or a project. The last one opened is opened again
-  const boardKey = `vetter.teamBoard.${business.id}`;
-  const [boardId, setBoardIdState] = useState<string>(() => {
-    try {
-      return localStorage.getItem(boardKey) ?? 'sent';
-    } catch {
-      return 'sent';
-    }
-  });
-  const setBoardId = (id: string) => {
-    setBoardIdState(id);
-    try {
-      localStorage.setItem(boardKey, id);
-    } catch {
-      // Private windows can refuse storage; the choice then lasts for the visit
-    }
-  };
-  const [naming, setNaming] = useState<string | null>(null);
-  const [section, setSection] = useState<TeamSection>(assignments.length || projects.length || boardRemembered(business.id) ? 'tests' : team.length ? 'overview' : 'people');
+  const [section, setSection] = useState<TeamSection>(assignments.length ? 'tests' : team.length ? 'overview' : 'people');
   const [invite, setInvite] = useState('');
   const [assigning, setAssigning] = useState<string[] | null>(null);
   const [openMember, setOpenMember] = useState<string | null>(null);
@@ -168,19 +123,11 @@ export const TeamPage: React.FC<TeamPageProps> = ({
   const doneAll = live.filter((a) => a.completedAt);
   const teamAvg = doneAll.length ? Math.round(doneAll.reduce((s, a) => s + (a.score ?? 0), 0) / doneAll.length) : undefined;
   const menu: { id: TeamSection; label: string; icon: React.ComponentType<{ className?: string }>; count?: number; alert?: boolean }[] = [
-    { id: 'tests', label: 'Board', icon: SquareKanban, count: live.filter((a) => !a.completedAt).length + projectTasks.filter((t) => t.status !== 'done').length, alert: late.length > 0 },
     { id: 'overview', label: 'Overview', icon: LayoutGrid, count: active.length },
-    ...(training ? [{ id: 'training' as const, label: 'Training', icon: GraduationCap }] : []),
+    { id: 'tests', label: 'Work sent', icon: SquareKanban, count: live.filter((a) => !a.completedAt).length, alert: late.length > 0 },
     { id: 'people', label: 'People & invites', icon: UserPlus, count: team.filter((m) => m.status === 'invited').length || undefined },
   ];
   const member = openMember ? team.find((m) => m.id === openMember) : undefined;
-  // Projects: who tasks can be given to (whoever is signed in, then everyone who joined), and the open board
-  const boardPeople: BoardPerson[] = [
-    { ...me, name: `${me.name} (you)` },
-    ...active.filter((m) => m.uid && m.uid !== me.uid).map((m) => ({ uid: m.uid!, name: nameOf(m), pic: person(m)?.avatarUrl })),
-  ];
-  const openProject = projects.find((p) => p.id === boardId);
-  const currentBoard = openProject ? openProject.id : 'sent';
 
   // The skills matrix: the skills most of the team has proven, by person
   const skillColumns = (() => {
@@ -426,77 +373,7 @@ export const TeamPage: React.FC<TeamPageProps> = ({
         {/* ---------- Board: everything sent the team, like a work-management board ---------- */}
         {section === 'tests' && (
           <>
-            <PageHeader title="Team board" sub="Your team's projects and tasks, and the tests and training you've sent them." />
-            {/* Boards: what was sent, then each project, like monday's board list */}
-            <div className="flex flex-wrap items-center gap-2">
-              {[{ id: 'sent', name: 'Tests sent', colour: -1 }, ...projects.map((p, i) => ({ id: p.id, name: p.name, colour: i }))].map((b) => {
-                const n = b.id === 'sent' ? live.filter((a) => !a.completedAt).length : projectTasks.filter((t) => t.projectId === b.id && t.status !== 'done').length;
-                return (
-                  <button
-                    key={b.id}
-                    onClick={() => setBoardId(b.id)}
-                    aria-pressed={currentBoard === b.id}
-                    className={`h-9 px-3 rounded-lg border text-sm font-semibold inline-flex items-center gap-2 ${
-                      currentBoard === b.id ? 'border-indigo-600 bg-indigo-50 text-indigo-800' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                    }`}
-                  >
-                    {b.colour >= 0 ? <span className={`w-2.5 h-2.5 rounded-sm ${GROUP_COLOURS[b.colour % GROUP_COLOURS.length].strip}`} /> : <SquareKanban className="w-4 h-4" />}
-                    <span className="max-w-[180px] truncate">{b.name}</span>
-                    {n > 0 && <span className="text-xs text-slate-400">{n}</span>}
-                  </button>
-                );
-              })}
-              {naming === null ? (
-                <button onClick={() => setNaming('')} className="h-9 px-3 rounded-lg border border-dashed border-slate-300 text-sm font-semibold text-slate-600 hover:bg-slate-50 inline-flex items-center gap-1.5">
-                  <Plus className="w-4 h-4" />
-                  New project
-                </button>
-              ) : (
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    if (!naming.trim()) return;
-                    const p = newProject(business.id, naming.trim());
-                    onSaveProject(p);
-                    setBoardId(p.id);
-                    setNaming(null);
-                  }}
-                  className="flex items-center gap-1.5"
-                >
-                  <input
-                    autoFocus
-                    value={naming}
-                    onChange={(e) => setNaming(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Escape' && setNaming(null)}
-                    placeholder="Project name"
-                    aria-label="Project name"
-                    className="h-9 w-48 px-3 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                  <button type="submit" disabled={!naming.trim()} className="h-9 px-3 rounded-lg bg-indigo-600 text-white text-sm font-semibold disabled:opacity-50">
-                    Create
-                  </button>
-                  <button type="button" onClick={() => setNaming(null)} aria-label="Cancel" className="p-2 rounded-lg text-slate-400 hover:text-slate-700">
-                    <X className="w-4 h-4" />
-                  </button>
-                </form>
-              )}
-            </div>
-            {openProject ? (
-              <ProjectBoard
-                key={openProject.id}
-                project={openProject}
-                tasks={projectTasks.filter((t) => t.projectId === openProject.id)}
-                people={boardPeople}
-                me={me}
-                onSaveProject={onSaveProject}
-                onDeleteProject={() => {
-                  onDeleteProject(openProject);
-                  setBoardId('sent');
-                }}
-                onSaveTask={onSaveTask}
-                onDeleteTask={onDeleteTask}
-              />
-            ) : (
+            <PageHeader title="Work sent" sub="The tests, simulations and training you've sent your team: who it's for, where it's up to, and the score." />
             <WorkBoard
               side="company"
               whoLabel="Person"
@@ -511,15 +388,6 @@ export const TeamPage: React.FC<TeamPageProps> = ({
               newLabel="Send a test"
               onNew={active.length ? () => setAssigning(active.map((m) => m.id)) : undefined}
             />
-            )}
-          </>
-        )}
-
-        {/* ---------- Training: the catalogue and the company's own courses ---------- */}
-        {section === 'training' && (
-          <>
-            <PageHeader title="Training" sub="Live training taught by a Praxa tutor, and your own courses to send the team." />
-            {training}
           </>
         )}
 

@@ -4,7 +4,7 @@ import { ThemeToggle } from './ThemeToggle';
 import { Pic } from './Pic';
 import { UserRole } from '../types';
 import { ArrowLeftRight,
-  BookOpen, Building2, LogOut, Menu, ShieldCheck, Trophy, X, Bell, Briefcase, ChevronDown, ClipboardCheck, GraduationCap, House, UsersRound, Repeat, Search, Users, ListTodo, UserRound, MoreHorizontal, Sparkles } from 'lucide-react';
+  BookOpen, Building2, LogOut, Menu, ShieldCheck, Trophy, X, Bell, Briefcase, ChevronDown, ClipboardCheck, GraduationCap, House, UsersRound, FolderKanban, Repeat, Search, Users, ListTodo, UserRound, MoreHorizontal, Sparkles } from 'lucide-react';
 
 export type AppTab =
   | 'home'
@@ -20,6 +20,7 @@ export type AppTab =
   | 'business-tests'
   | 'business-candidates'
   | 'business-team'
+  | 'business-projects'
   | 'business-training'
   | 'ranked'
   | 'guides';
@@ -27,7 +28,7 @@ export type AppTab =
 type TabIcon = React.ComponentType<{ className?: string }>;
 
 // Companies have jobs, tests and candidates: each job's tests go out to candidates, who take them
-export const NAV_TABS: Record<'candidate' | 'recruiter', { id: AppTab; label: string; icon: TabIcon }[]> = {
+export const NAV_TABS: Record<'candidate' | 'recruiter', { id: AppTab; label: string; icon: TabIcon; group?: string }[]> = {
   // Kept to what a candidate does when looking for work: their home, tests, jobs and profile. Work from their team is a
   // mode of its own, switched to from their name (Work mode). The rest is
   // under More (MORE_TABS)
@@ -37,13 +38,16 @@ export const NAV_TABS: Record<'candidate' | 'recruiter', { id: AppTab; label: st
     { id: 'jobs', label: 'Jobs', icon: Briefcase },
     { id: 'profile', label: 'Profile', icon: UserRound },
   ],
-  // The first is the AI chat (Create with AI); then hiring, the team, and tests
+  // The first is the AI chat (Create with AI); then two groups kept apart: hiring (jobs, candidates and the tests they
+  // take) and the Project Manager for the company's own people (projects, the team, training)
   recruiter: [
     { id: 'business-home', label: 'Home', icon: House },
-    { id: 'business-jobs', label: 'Jobs', icon: Briefcase },
-    { id: 'business-candidates', label: 'Candidates', icon: Users },
-    { id: 'business-team', label: 'Team', icon: UsersRound },
-    { id: 'business-tests', label: 'Tests', icon: ClipboardCheck },
+    { id: 'business-jobs', label: 'Jobs', icon: Briefcase, group: 'Hiring' },
+    { id: 'business-candidates', label: 'Candidates', icon: Users, group: 'Hiring' },
+    { id: 'business-tests', label: 'Tests', icon: ClipboardCheck, group: 'Hiring' },
+    { id: 'business-projects', label: 'Projects', icon: FolderKanban, group: 'Project Manager' },
+    { id: 'business-team', label: 'Team', icon: UsersRound, group: 'Project Manager' },
+    { id: 'business-training', label: 'Training', icon: GraduationCap, group: 'Project Manager' },
   ],
 };
 
@@ -583,7 +587,7 @@ const VisitorHeader: React.FC<{ currentTab: AppTab; onTabChange: (tab: AppTab) =
 // Companies' and the Praxa team's menu, like a chat app's: a panel down the left of the window with a new chat,
 // search, the pages and the account. On phones and tablets it slides in from the left from a slim top bar
 const StaffNav: React.FC<{
-  tabs: { id: AppTab; label: string; icon: TabIcon }[];
+  tabs: { id: AppTab; label: string; icon: TabIcon; group?: string }[];
   currentTab: AppTab;
   onTabChange: (tab: AppTab) => void;
   onNewChat?: () => void;
@@ -632,10 +636,7 @@ const StaffNav: React.FC<{
 
   // Home is the chat; the rest are the company's pages, then the shared ones
   const pages = tabs.filter((t) => t.id !== tabs[0].id);
-  const extra: { id: AppTab; label: string; icon: TabIcon }[] = [
-    { id: 'companies', label: 'Companies', icon: Building2 },
-    { id: 'guides', label: 'How-to guides', icon: BookOpen },
-  ];
+  const extra: { id: AppTab; label: string; icon: TabIcon }[] = [{ id: 'guides', label: 'How-to guides', icon: BookOpen }];
   const item = (t: { id: AppTab; label: string; icon: TabIcon }, collapsed = false) => {
     const Icon = t.icon;
     const active = currentTab === t.id;
@@ -707,7 +708,14 @@ const StaffNav: React.FC<{
       </div>
 
       <nav className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-4 space-y-0.5" aria-label="Pages">
-        {pages.map((t) => item(t, collapsed))}
+        {pages.map((t, i) => (
+          <React.Fragment key={t.id}>
+            {/* A heading over each group: Hiring, then Project Manager */}
+            {t.group && t.group !== pages[i - 1]?.group &&
+              (collapsed ? <div className="my-3 mx-2 border-t border-slate-200" /> : <div className="pt-4 pb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400 whitespace-nowrap">{t.group}</div>)}
+            {item(t, collapsed)}
+          </React.Fragment>
+        ))}
         {collapsed ? <div className="my-3 mx-2 border-t border-slate-200" /> : <div className="pt-4 pb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">More</div>}
         {extra.map((t) => item(t, collapsed))}
       </nav>
