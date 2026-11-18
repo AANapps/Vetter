@@ -679,6 +679,8 @@ export interface TeamMember {
   status: 'invited' | 'active' | 'declined';
   invitedAt: string; // ISO timestamp
   joinedAt?: string;
+  // Tests the company sent while they were still invited: sent to them as soon as they join
+  pendingTests?: { testId: string; dueDate?: string; note?: string }[];
 }
 
 // A test, job simulation or training a company gave someone on its team, and how they got on. Kept private to the

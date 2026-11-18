@@ -1,6 +1,6 @@
 import React from 'react';
 import { BackButton } from './BackButton';
-import { Globe, Link2, Pencil, Play, PlusCircle, Sparkles } from 'lucide-react';
+import { Globe, Link2, Pencil, Play, PlusCircle, Sparkles, UsersRound } from 'lucide-react';
 import { AssessmentTest, Business, JobPosting, TEST_DIFFICULTIES, User, UserRole, timerOf, isPublic, levelName } from '../types';
 import { RETAKE_DAYS, nextAttemptAt } from '../lib/results';
 import { getLeaderboard, getTestStats } from '../lib/leaderboard';
@@ -28,6 +28,8 @@ interface TestPageProps {
   referredByCompany?: Business;
   // Companies and the Praxa team add the test to one of their jobs, then send it from there
   onSend?: () => void;
+  // Companies: send it to their own staff (the team), inviting any who aren't on Praxa yet
+  onSendToStaff?: () => void;
   // The send button's words: "Send to candidates" on the company's own test
   sendLabel?: string;
   // Companies take a copy of a Praxa module test to add their own questions to its areas and levels
@@ -57,6 +59,7 @@ export const TestPage: React.FC<TestPageProps> = ({
   currentCandidateId,
   referredByCompany,
   onSend,
+  onSendToStaff,
   sendLabel,
   onCustomize,
   onEdit,
@@ -98,8 +101,9 @@ export const TestPage: React.FC<TestPageProps> = ({
 
       {/* Overview */}
       <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 space-y-6 shadow-xs">
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6">
-          <div className="space-y-2 max-w-2xl">
+        {/* The test, then its actions; the actions wrap under it when there are more than fit beside it */}
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="space-y-2 max-w-2xl flex-1 min-w-[min(100%,420px)]">
             <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono uppercase tracking-wider">
               <span className="text-indigo-700 font-bold">{test.category}</span>
               <span className="text-slate-300">&middot;</span>
@@ -140,6 +144,15 @@ export const TestPage: React.FC<TestPageProps> = ({
             </div>
           </div>
 
+          {onSendToStaff && (
+            <button
+              onClick={onSendToStaff}
+              className="px-4 py-2.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:border-indigo-400 rounded-lg transition-colors flex items-center gap-2 shrink-0 self-start"
+            >
+              <UsersRound className="w-3.5 h-3.5" />
+              <span>Send to your staff</span>
+            </button>
+          )}
           {onSend && (
             <button
               onClick={onSend}

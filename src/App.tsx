@@ -69,6 +69,7 @@ import { BusinessHome } from './components/BusinessHome';
 import { TeamPage } from './components/TeamPage';
 import { ProjectsPage } from './components/ProjectsPage';
 import { InviteToJobDialog } from './components/InviteToJobDialog';
+import { SendToStaffDialog } from './components/SendToStaffDialog';
 import { TrainingPage } from './components/TrainingPage';
 import { PlansDialog } from './components/PlansDialog';
 import { AdvisorTurn, HomeBuild, testOutline } from './lib/testAdvisor';
@@ -519,6 +520,8 @@ export default function App() {
   // being made for them
   const [inviteFor, setInviteFor] = useState<string | null>(null);
   const [inviteJobFor, setInviteJobFor] = useState<string | null>(null);
+  // A test being sent to the company's own staff (from its page)
+  const [staffTestId, setStaffTestId] = useState<string | null>(null);
   // A job whose sharing opens as soon as its page shows: one just posted, or the job a test was sent through
   const [shareJobId, setShareJobId] = useState<string | null>(null);
   // The job form opened to send a test (not from a test plan, which posting then closes)
@@ -1257,6 +1260,77 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
     showToast(`Sent "${test.title}" to ${made.length} ${made.length === 1 ? 'person' : 'people'}.`);
   };
 
+  // A test sent to staff: people on the team get it now; addresses not on the team are invited, the test waiting on
+  // their invitation until they join (and queued on invitations already out)
+  const sendToStaff = (test: AssessmentTest, members: TeamMember[], emails: string[], dueDate?: string, note?: string) => {
+    if (!recruiterBusiness) return;
+    const pending = { testId: test.id, ...(dueDate && { dueDate }), ...(note && { note }) };
+    const now = new Date().toISOString();
+    const already = new Set(members.map((m) => m.id));
+    const direct = [...members];
+    const changed: TeamMember[] = [];
+    for (const email of emails) {
+      const existing = ourTeam.find((m) => m.email === email || (m.uid && allCandidates.find((c) => c.id === m.uid)?.email?.toLowerCase() === email));
+      if (existing?.status === 'active' && existing.uid) {
+        if (!already.has(existing.id)) direct.push(existing);
+        already.add(existing.id);
+      } else if (existing?.status === 'invited') {
+        changed.push({ ...existing, pendingTests: [...(existing.pendingTests ?? []).filter((p) => p.testId !== test.id), pending] });
+      } else {
+        changed.push({
+          id: `${recruiterBusiness.id}__${email}`,
+          businessId: recruiterBusiness.id,
+          companyName: recruiterBusiness.name,
+          email,
+          name: email,
+          status: 'invited',
+          invitedAt: now,
+          pendingTests: [pending],
+        });
+      }
+    }
+    if (direct.length) assignWork(direct, test, dueDate, note);
+    if (changed.length) {
+      const declined = changed.filter((m) => ourTeam.some((x) => x.id === m.id && x.status === 'declined'));
+      const save = () => setTeam((prev) => [...prev.filter((m) => !changed.some((c) => c.id === m.id)), ...changed]);
+      // Asked again after declining: a fresh invitation
+      if (declined.length && firebaseEnabled) syncTeam(declined.map((m) => ourTeam.find((x) => x.id === m.id)!), [], reportCloudError).then(save);
+      else save();
+    }
+    const invitedCount = changed.length;
+    showToast(
+      [direct.length && `Sent "${test.title}" to ${direct.length} ${direct.length === 1 ? 'person' : 'people'}.`, invitedCount && `Invited ${invitedCount} to your team; it's sent to them when they join.`]
+        .filter(Boolean)
+        .join(' ')
+    );
+    setStaffTestId(null);
+  };
+  // Tests waiting on invitations: sent once the person has joined
+  const pendingSent = useRef(new Set<string>());
+  useEffect(() => {
+    if (!recruiterBusiness || activeRole === 'candidate') return;
+    const ready = ourTeam.filter((m) => m.status === 'active' && m.uid && m.pendingTests?.length && !pendingSent.current.has(m.id));
+    if (!ready.length) return;
+    ready.forEach((m) => pendingSent.current.add(m.id));
+    const now = Date.now();
+    const made: Assignment[] = ready.flatMap((m, i) =>
+      m.pendingTests!.filter((p) => tests.some((t) => t.id === p.testId)).map((p, j) => ({
+        id: `asg-${now}-${i}-${j}-${Math.random().toString(36).slice(2, 7)}`,
+        businessId: recruiterBusiness.id,
+        companyName: recruiterBusiness.name,
+        memberId: m.id,
+        uid: m.uid!,
+        testId: p.testId,
+        assignedAt: new Date(now).toISOString(),
+        ...(p.dueDate && { dueDate: p.dueDate }),
+        ...(p.note && { note: p.note }),
+      }))
+    );
+    if (made.length) setAssignments((prev) => [...made, ...prev]);
+    setTeam((prev) => prev.map((m) => (ready.some((r) => r.id === m.id) ? (({ pendingTests: _p, ...rest }) => rest)(m) : m)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ourTeam.map((m) => `${m.id}:${m.status}:${m.pendingTests?.length ?? 0}`).join(','), recruiterBusiness?.id, activeRole]);
+
   // Someone's own side of it: companies that asked them to join, and the work sent to them
   const myEmail = (account?.email ?? candidate.email ?? '').toLowerCase();
   const myTeamInvites = activeRole === 'candidate' && !isVisitor ? team.filter((m) => m.status === 'invited' && (m.uid === candidate.id || (!!myEmail && m.email === myEmail))) : [];
@@ -1710,6 +1784,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
                   : () => setEditingTests({ addTestIds: [testPageTest.id] })
               }
               sendLabel={activeRole === 'recruiter' && testPageTest.businessId === recruiterBusiness?.id ? 'Send to candidates' : undefined}
+              onSendToStaff={activeRole !== 'candidate' && recruiterBusiness ? () => setStaffTestId(testPageTest.id) : undefined}
               onCustomize={
                 // Any test in the library, Praxa's or another company's approved one, can start a test of their own
                 activeRole === 'recruiter' &&
@@ -2278,6 +2353,17 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
             setPlanOpen(false);
           }}
           onBack={() => setPlanOpen(false)}
+        />
+      )}
+
+      {staffTestId && recruiterBusiness && tests.find((t) => t.id === staffTestId) && (
+        <SendToStaffDialog
+          test={tests.find((t) => t.id === staffTestId)!}
+          team={ourTeam}
+          nameOf={(m) => allCandidates.find((c) => c.id === m.uid)?.name ?? m.name}
+          picOf={(m) => allCandidates.find((c) => c.id === m.uid)?.avatarUrl}
+          onSend={(members, emails, due, note) => sendToStaff(tests.find((t) => t.id === staffTestId)!, members, emails, due, note)}
+          onClose={() => setStaffTestId(null)}
         />
       )}
 
