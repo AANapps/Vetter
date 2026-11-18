@@ -94,11 +94,15 @@ const appLibrary = (req: AppsRequest, jobSim: boolean) => {
   const apps = (req.apps ?? []).slice(0, 40);
   return `SOFTWARE: for every ${jobSim ? 'part done in the job\'s own software (a help desk, a CRM, a booking system)' : 'app item'}, software names the product it's done in, as the
 company would say it ("Zendesk", "Xero", "NinjaOne"; the kind, e.g. "a help desk", when no product is named), and appId
-is the id of the app from PRAXA'S APP LIBRARY below that it's done in. You decide whether one fits: the same product
-fits; another of the same kind fits when the work done in it is the same (ticket triage in a help desk works in any
-help desk, whatever its brand), since it's ready, quicker and cheaper. One that would change how the task is really
-done (missing the screens or the way of working the job depends on) doesn't fit. appId "" when none fits, and Praxa
-builds the software. softwareKind: the kind of software in one to three words, as the library names kinds ("help desk",
+is the id of the app from PRAXA'S APP LIBRARY below that it's done in. You decide whether one fits:
+- When the company named the product (in its messages, the job description or what it said earlier, e.g. "we use
+  NinjaOne"), only a library app that IS that product fits: candidates are tested in what they'll really use. If the
+  library has no copy of it, appId is "" and Praxa builds an exact copy (the company can still pick a ready app of the
+  same kind instead, to save time and credit).
+- When it only described the work ("handles support tickets"), another app of the same kind fits when the work done
+  in it is the same (ticket triage works in any help desk), since it's ready, quicker and cheaper. One missing the
+  screens or the way of working the job depends on doesn't fit.
+appId "" when none fits, and Praxa builds the software. softwareKind: the kind of software in one to three words, as the library names kinds ("help desk",
 "CRM", "ads manager"). Every other item has software "", softwareKind "" and appId "".${jobSim ? ' Parts in the Spreadsheet, Browser, Database or Code apps: software "", softwareKind "" and appId "".' : ''}
 PRAXA'S APP LIBRARY:
 ${apps.length ? apps.map((a) => `- ${a.id}: ${String(a.name).slice(0, 80)} (${String(a.product).slice(0, 60)}). ${String(a.summary).slice(0, 240)}`).join('\n') : '(empty)'}`;
