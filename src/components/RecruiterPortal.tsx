@@ -9,7 +9,6 @@ import { getTestStats } from '../lib/leaderboard';
 import { JobCandidates } from './JobCandidates';
 import { CheckCircle2, FileText, Pencil, Plus, Search, Sparkles, Trash2 } from 'lucide-react';
 import { TestBuilder } from './TestBuilder';
-import { EnvironmentLibrary } from './EnvironmentLibrary';
 import { roleHidden, testHidden, useLibraryVisibility } from '../lib/libraryVisibility';
 
 // Jobs have their own page (BusinessJobs); this is the company's tests and the candidates ranked for each job
@@ -445,9 +444,6 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
               </ul>
             </div>
           )}
-
-          {/* Environments and the app simulation library are for the Praxa team only, not companies */}
-          {isPraxa && <EnvironmentLibrary isPraxa />}
 
           <div className="pt-2">
             <h2 className="text-lg font-bold text-slate-900">{isPraxa ? "Praxa's library" : 'All tests'}</h2>
