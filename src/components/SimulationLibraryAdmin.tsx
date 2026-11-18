@@ -9,6 +9,8 @@ import {
   isStale,
   loadEnvironmentPage,
   loadSubmissionPage,
+  loadVersions,
+  EnvironmentVersion,
   publishRepoApp,
   rejectSubmission,
   useLibrary,
@@ -16,7 +18,7 @@ import {
 import { buildLibrarySimulation, mergeSubmission } from '../lib/testChat';
 import { startAiRun } from '../lib/aiRequest';
 import { SimulationPreview } from './SimulationPreview';
-import { LIBRARY_APPS, withData } from '../lib/libraryApps';
+import { LIBRARY_APPS, parseData, withData } from '../lib/libraryApps';
 
 const when = (iso?: string) => (iso ? new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
 
@@ -76,12 +78,31 @@ export const SimulationLibraryAdmin: React.FC = () => {
     }
   };
 
-  const openSub = async (sub: EnvironmentSubmission) => setOpen({ kind: 'sub', sub, page: await loadSubmissionPage(sub.id) });
+  // A data-driven app is tried with the data of the test it was built for
+  const filled = (page: EnvironmentPage | null, data?: unknown): EnvironmentPage | null => (page && data ? { ...page, html: withData(page.html, data) } : page);
+  const openSub = async (sub: EnvironmentSubmission) => {
+    const page = await loadSubmissionPage(sub.id);
+    setOpen({ kind: 'sub', sub, page: filled(page, parseData(page?.data)) });
+  };
+  // Some data to try a library app with: Praxa's own sample, else the data of the latest test it was built for
+  const dataFor = async (envId: string): Promise<unknown> => {
+    if (LIBRARY_APPS[envId]) return LIBRARY_APPS[envId].sample;
+    const app = environments.find((e) => e.id === envId)?.app.trim().toLowerCase();
+    const last = submissions
+      .filter((s) => s.envId === envId || (!s.envId && s.app.trim().toLowerCase() === app))
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+    return last ? parseData((await loadSubmissionPage(last.id))?.data) : undefined;
+  };
+  const [versions, setVersions] = useState<{ envId: string; list: EnvironmentVersion[] } | null>(null);
+  const showVersions = async (env: SavedEnvironment) =>
+    versions?.envId === env.id ? setVersions(null) : setVersions({ envId: env.id, list: await loadVersions(env.id) });
+  const openVersion = async (env: SavedEnvironment, v: EnvironmentVersion) =>
+    setOpen({ kind: 'env', env: { ...env, version: v.version }, page: filled({ html: v.html }, env.dataDriven || LIBRARY_APPS[env.id] ? await dataFor(env.id) : undefined) });
   // Praxa's own apps hold no data, so they open with their sample data
   const openEnv = async (env: SavedEnvironment) => {
     const repo = LIBRARY_APPS[env.id];
     const page = inRepoOnly(env) ? { html: repo.html } : await loadEnvironmentPage(env.id);
-    setOpen({ kind: 'env', env, page: page && repo ? { ...page, html: withData(page.html, repo.sample) } : page });
+    setOpen({ kind: 'env', env, page: filled(page, repo || env.dataDriven ? await dataFor(env.id) : undefined) });
   };
 
   const approve = (sub: EnvironmentSubmission) =>
@@ -283,12 +304,38 @@ export const SimulationLibraryAdmin: React.FC = () => {
                 </div>
               </div>
               <p className="text-xs text-slate-600">{env.summary}</p>
+              {(env.dataDriven || LIBRARY_APPS[env.id]) && <p className="text-[11px] text-emerald-700">Kept apart from its data: tests only write data for it, and add to it when they need more.</p>}
               <Chips items={env.features} max={10} />
+              {versions?.envId === env.id && (
+                <ul className="border border-slate-100 rounded-lg divide-y divide-slate-100">
+                  {versions.list.length === 0 && <li className="px-3 py-2 text-[11px] text-slate-500">No versions kept yet (versions are kept from 18 Nov 2026).</li>}
+                  {versions.list.map((v) => (
+                    <li key={v.id} className="px-3 py-2 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-slate-800">Version {v.version}</span>
+                        <span className="text-[11px] text-slate-500 flex-1 truncate">
+                          {when(v.at)}
+                          {v.by ? ` · ${v.by}` : ''}
+                        </span>
+                        <button type="button" onClick={() => openVersion(env, v)} className="text-[11px] font-semibold text-indigo-700 hover:underline">
+                          Open
+                        </button>
+                      </div>
+                      {v.added?.length ? <Chips items={v.added} tone="new" max={8} /> : <p className="text-[11px] text-slate-400">{v.version === 1 ? 'First version' : 'No new features listed'}</p>}
+                    </li>
+                  ))}
+                </ul>
+              )}
               <div className="flex gap-2 pt-1">
                 <button type="button" onClick={() => openEnv(env)} className="px-2.5 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:border-indigo-400 rounded-lg flex items-center gap-1.5">
                   <Eye className="w-3.5 h-3.5" />
                   Open
                 </button>
+                {!inRepoOnly(env) && (
+                  <button type="button" onClick={() => showVersions(env)} className="px-2.5 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:border-indigo-400 rounded-lg">
+                    {versions?.envId === env.id ? 'Hide versions' : 'Versions'}
+                  </button>
+                )}
                 {inRepoOnly(env) && (
                   <button
                     type="button"

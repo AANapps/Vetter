@@ -5,8 +5,9 @@ import { probeApp } from './appSimulation';
 import { isGroupType, orderedQuestions } from './questionTypes';
 import { aiFetch } from './aiRequest';
 import { EnvironmentSubmission, loadEnvironmentPage, loadEnvironments, loadSubmissionPage, markEnvironmentUsed, submitEnvironment, updateSubmission } from './environments';
+import { AppEdit, ReusableApp, applyEdits, parseData, reusableAppCode, reusableApps, splitData, withData } from './libraryApps';
 import { categoriesFor, companySector, rolesFor } from './sectors';
-import { RawJobSim, assembleJobSim, finishJobSim, isJobSimDraft } from './jobSimBuild';
+import { DayApp, RawJobSim, assembleJobSim, finishJobSim, isJobSimDraft } from './jobSimBuild';
 import { ALL_ROLES, RawQuestion, Suggestion, assembleFromBank, checkQuestion, libraryFor, linkTasks, matchExisting } from './testGeneration';
 
 // Building a test by talking to Praxa (server/testChat.ts does the AI side). Each turn sends the conversation and the
@@ -179,34 +180,36 @@ type BuiltPage = {
   appHtml?: string;
   testCases?: RawQuestion['testCases'];
   callouts?: AppCallout[];
-  catalog?: { app?: string; name?: string; product?: string; summary?: string; features?: string[]; added?: string[] };
+  // The task's data, apart from the app (JSON), which the page reads from window.praxaData
+  data?: string;
+  catalog?: { app?: string; name?: string; product?: string; summary?: string; features?: string[]; added?: string[]; dataShape?: string; stateShape?: string };
 };
-type LibraryBase = { id: string; name: string; html: string; features: string[]; version: number };
+// An app from Praxa's app library to build on, with its code
+type LibraryBase = ReusableApp & { html: string };
 
-// The app this page copies, from Praxa's environment library, to build on: its latest approved version. A quick model
-// works out which app the page copies and finds it there. Null when the app isn't in the library (or it can't be read)
-// Off for now (2026-11-15): every simulation is built from scratch. Building on a saved app rewrote the whole app and
-// ran past the model's output limit once the app grew; it needs the builder to send only its changes first
-const BUILD_ON_LIBRARY = false;
+// Building on the app library (since 2026-11-18): a test whose app is in the library is built on it, writing only its
+// data and small edits for anything the app lacks (/api/fit-app), so apps never have to be written out again whole
+const BUILD_ON_LIBRARY = true;
 
+// The app this page copies, from Praxa's app library (only apps kept apart from their data): a quick model works out
+// which app the page copies and finds it there. Null when the app isn't in the library (or it can't be read)
 async function libraryBase(item: RawQuestion, mode: PageMode): Promise<LibraryBase | null> {
   if (!BUILD_ON_LIBRARY) return null;
   try {
     // A game-like page is built differently from a desk app, so each is only built on its own kind
-    const saved = (await loadEnvironments()).filter((e) => (e.game ?? '') === (mode.game ?? ''));
-    if (!saved.length) return null;
+    const apps = (await reusableApps()).filter((a) => (a.game ?? '') === (mode.game ?? ''));
+    if (!apps.length) return null;
     const res = await aiFetch('/api/match-environment', {
       title: item.title,
       prompt: item.prompt,
       brief: item.appHtml,
-      environments: saved.slice(0, 60).map(({ id, app, name, product, summary, features }) => ({ id, app, name, product, summary, features })),
+      environments: apps.slice(0, 60).map(({ id, name, product, summary, features }) => ({ id, app: name, name, product, summary, features })),
     });
     if (!res.ok) return null;
     const { id } = (await res.json()) as { id?: string };
-    const match = id ? saved.find((e) => e.id === id) : undefined;
-    if (!match) return null;
-    const page = await loadEnvironmentPage(match.id);
-    return page?.html ? { id: match.id, name: match.name, html: page.html, features: match.features, version: match.version } : null;
+    const match = id ? apps.find((a) => a.id === id) : undefined;
+    const html = match ? await reusableAppCode(match) : null;
+    return match && html ? { ...match, html } : null;
   } catch {
     return null;
   }
@@ -219,9 +222,69 @@ interface PageOwner {
   awaitSave?: boolean;
 }
 
+type FitOut = { data?: string; edits?: AppEdit[]; added?: string[]; dataShape?: string; stateShape?: string; testCases?: RawQuestion['testCases']; callouts?: AppCallout[]; planted?: string[] };
+export interface FittedApp {
+  // The app's code with the edits made (the library app itself when there were none)
+  app: string;
+  data: Record<string, unknown>;
+  edits: AppEdit[];
+  added: string[];
+  dataShape: string;
+  stateShape: string;
+  testCases?: RawQuestion['testCases'];
+  callouts?: AppCallout[];
+  planted: string[];
+}
+
+// A library app fitted to a task or a job simulation's day: its data written, and edits made only for what it lacks.
+// Edits that don't apply, data that isn't the app's format, or a page that won't load or has dead controls go back
+// once to be fixed. Null when nothing usable came back
+export async function fitLibraryApp(
+  base: LibraryBase,
+  ask: { mode: 'task' | 'jobsim'; title: string; prompt: string; brief: string; testCases?: RawQuestion['testCases']; research?: string },
+  step: Progress = () => {}
+): Promise<FittedApp | null> {
+  let fix: { problems: string[]; data?: string; edits?: AppEdit[] } | undefined;
+  let usable: FittedApp | null = null;
+  for (let round = 0; round < 2; round++) {
+    const res = await aiFetch('/api/fit-app', {
+      ...ask,
+      app: { name: base.name, html: base.html, features: base.features, data: base.data, state: base.state, sample: base.sample },
+      ...(fix && { fix }),
+    }).catch(() => null);
+    if (!res?.ok) return usable;
+    const out = (await res.json().catch(() => ({}))) as FitOut;
+    const data = parseData(out.data);
+    const edits = (out.edits ?? []).filter((e) => e && typeof e.find === 'string');
+    const applied = applyEdits(base.html, edits);
+    let problems = [...applied.problems, ...(data ? [] : ["data isn't a JSON object in the app's data format."])];
+    if (!problems.length) {
+      const fitted: FittedApp = {
+        app: applied.html,
+        data: data!,
+        edits,
+        added: edits.length ? (out.added ?? []).map((a) => String(a).trim()).filter(Boolean) : [],
+        dataShape: out.dataShape?.trim() || base.data,
+        stateShape: out.stateShape?.trim() || base.state,
+        testCases: out.testCases,
+        callouts: out.callouts,
+        planted: (out.planted ?? []).map(String),
+      };
+      step('clicking every control to see it works…');
+      problems = await appProblems({ type: 'app', title: ask.title, prompt: ask.prompt, appHtml: withData(fitted.app, fitted.data), testCases: ask.mode === 'task' ? out.testCases : [] } as RawQuestion);
+      // A page that loads is usable even with a dead control or two; one with none is done
+      const loads = !problems.some((p) => !/^The control|^Clicking/.test(p));
+      if (loads) usable = fitted;
+      if (!problems.length) return fitted;
+    }
+    if (round === 0) step(`fixing ${problems.length === 1 ? 'a problem' : `${problems.length} problems`} with the app…`);
+    fix = { problems, data: out.data, edits };
+  }
+  return usable;
+}
+
 async function buildAppPage(item: RawQuestion, research?: string, mode: PageMode = {}, step: Progress = () => {}, who: PageOwner = {}): Promise<RawQuestion> {
   let design: string | undefined;
-  let base: LibraryBase | null = null;
   const request = (fix?: { html: string; problems: string[] }, quick?: boolean) =>
     aiFetch('/api/build-app', {
       title: item.title,
@@ -231,38 +294,49 @@ async function buildAppPage(item: RawQuestion, research?: string, mode: PageMode
       research,
       ...mode,
       ...(design && { design }),
-      ...(base && !fix && { base: { html: base.html, name: base.name, features: base.features } }),
       ...(quick && { quick }),
       ...(fix && { fix }),
     }).then(async (res) => (res.ok ? ((await res.json()) as BuiltPage) : null));
   try {
-    // The app's simulation in the library is built on, keeping every feature it has and adding what this task needs;
-    // an app that isn't there yet is designed from nothing first
-    if (BUILD_ON_LIBRARY) step("looking for this app in Praxa's environment library…");
-    base = await libraryBase(item, mode);
-    let page: BuiltPage | null = null;
+    // The app in the library is built on: only this task's data is written, plus small edits for what it lacks. An app
+    // that isn't there yet is designed from nothing, kept apart from its data so the next test can build on it
+    step("looking for this app in Praxa's app library…");
+    const base = await libraryBase(item, mode);
     if (base) {
-      step(`building on “${base.name}” (version ${base.version}) from the library, adding what this task needs…`);
-      page = await request().catch(() => null);
-      if (!page?.appHtml) {
-        step("that didn't come back, so designing a new page instead…");
-        base = null;
+      step(`using “${base.name}” (version ${base.version}) from the library: writing this task's data and adding anything it lacks…`);
+      const fitted = await fitLibraryApp(base, { mode: 'task', title: item.title ?? '', prompt: item.prompt ?? '', brief: item.appHtml ?? '', testCases: item.testCases, research }, step);
+      if (fitted) {
+        const final: RawQuestion = {
+          ...item,
+          appHtml: withData(fitted.app, fitted.data),
+          testCases: fitted.testCases?.length ? fitted.testCases : item.testCases,
+          callouts: fitted.callouts ?? [],
+          libraryApp: { id: base.id, version: base.version },
+        };
+        const saving = remember(final, { base, mode, owner: who.owner, app: fitted.app, data: fitted.data, added: fitted.added, dataShape: fitted.dataShape, stateShape: fitted.stateShape });
+        if (who.awaitSave) {
+          step('sending it to the Praxa team for review…');
+          await saving;
+        }
+        return final;
       }
+      step("that didn't come back, so designing a new page instead…");
     }
-    if (!page?.appHtml) {
-      // A game page is built with more thought; if that doesn't come back (it can run out of time), once more at the usual effort
-      step('designing it: the look, layout, screens and data…');
-      design = await designAppPage(item, research, mode);
-      step('writing the page from the design…');
-      page = await request().catch(() => null);
-      if (!page && mode.game) {
-        step("the first try didn't come back in time, so writing it again more quickly…");
-        page = await request(undefined, true);
-      }
+    // A game page is built with more thought; if that doesn't come back (it can run out of time), once more at the usual effort
+    step('designing it: the look, layout, screens and data…');
+    design = await designAppPage(item, research, mode);
+    step('writing the page from the design…');
+    let page = await request().catch(() => null);
+    if (!page && mode.game) {
+      step("the first try didn't come back in time, so writing it again more quickly…");
+      page = await request(undefined, true);
     }
     if (!page?.appHtml) return item;
     const catalog = page.catalog;
-    const built: RawQuestion = { ...item, appHtml: page.appHtml, testCases: page.testCases?.length ? page.testCases : item.testCases, callouts: page.callouts ?? [] };
+    // The data written apart from the app, when it was (otherwise it's in the page's code, as pages were before)
+    let data = parseData(page.data);
+    let app = page.appHtml;
+    const built: RawQuestion = { ...item, appHtml: data ? withData(app, data) : app, testCases: page.testCases?.length ? page.testCases : item.testCases, callouts: page.callouts ?? [] };
     let final = built;
     step('clicking every control to see it works…');
     const problems = await appProblems(built);
@@ -270,14 +344,20 @@ async function buildAppPage(item: RawQuestion, research?: string, mode: PageMode
       step(`fixing ${problems.length === 1 ? 'a problem' : `${problems.length} problems`} found clicking through it…`);
       const fixed = await request({ html: built.appHtml!, problems }).catch(() => null);
       if (fixed?.appHtml) {
-        const repaired: RawQuestion = { ...built, appHtml: fixed.appHtml, testCases: fixed.testCases?.length ? fixed.testCases : built.testCases, callouts: fixed.callouts?.length ? fixed.callouts : built.callouts };
+        const fixedData = data ? parseData(fixed.data) ?? data : parseData(fixed.data);
+        const html = fixedData ? withData(fixed.appHtml, fixedData) : fixed.appHtml;
+        const repaired: RawQuestion = { ...built, appHtml: html, testCases: fixed.testCases?.length ? fixed.testCases : built.testCases, callouts: fixed.callouts?.length ? fixed.callouts : built.callouts };
         // The repair is kept unless it made things worse: it must still load
         step('loading the fixed page to make sure it still works…');
         const after = await probeApp(repaired.appHtml!, checksOf(repaired));
-        if (after.state) final = repaired;
+        if (after.state) {
+          final = repaired;
+          app = fixed.appHtml;
+          data = fixedData;
+        }
       }
     }
-    const saving = remember(final, catalog, base, mode, who.owner);
+    const saving = remember(final, { catalog, mode, owner: who.owner, ...(data && { app, data, dataShape: catalog?.dataShape, stateShape: catalog?.stateShape }) });
     if (who.awaitSave) {
       step('sending it to the Praxa team for review…');
       await saving;
@@ -289,32 +369,49 @@ async function buildAppPage(item: RawQuestion, research?: string, mode: PageMode
 }
 
 // A page that loads is sent to the Praxa team for review: a new app for the library, or the next version of the app it
-// was built on, with the features it added. Never holds up the test
-async function remember(page: RawQuestion, catalog: BuiltPage['catalog'], base: LibraryBase | null, mode: PageMode, owner = 'Praxa'): Promise<void> {
+// was built on, with the features it added. An app kept apart from its data goes to the library as the app alone (the
+// test's data stays with the submission, for the team to try it). Never holds up the test
+interface Remembered {
+  catalog?: BuiltPage['catalog'];
+  base?: LibraryBase | null;
+  mode: PageMode;
+  owner?: string;
+  // The app without the test's data, and that data, when they're kept apart
+  app?: string;
+  data?: Record<string, unknown>;
+  // Built on the library: what its edits added
+  added?: string[];
+  dataShape?: string;
+  stateShape?: string;
+}
+async function remember(page: RawQuestion, r: Remembered): Promise<void> {
+  const { catalog, base, mode, owner = 'Praxa' } = r;
   if (base) void markEnvironmentUsed(base.id);
-  if (!page.appHtml || !catalog?.app?.trim()) return;
+  if (!page.appHtml) return;
+  const list = (l?: string[]) => (l ?? []).map((f) => String(f).trim().slice(0, 120)).filter(Boolean).slice(0, 80);
+  // Built on the library: only what its edits added is new. Nothing added, nothing to review
+  const added = base ? list(r.added ?? catalog?.added).filter((f) => !base.features.some((b) => b.toLowerCase() === f.toLowerCase())) : list(catalog?.features);
+  if (base && !added.length) return;
+  if (!base && !catalog?.app?.trim()) return;
   const probe = await probeApp(page.appHtml, checksOf(page));
   if (!probe.state) return;
-  const list = (l?: string[]) => (l ?? []).map((f) => String(f).trim().slice(0, 120)).filter(Boolean).slice(0, 80);
-  const features = list(catalog.features);
-  // Built on the library: only what it adds is new. Nothing added, nothing to review
-  const added = base ? list(catalog.added).filter((f) => !base.features.some((b) => b.toLowerCase() === f.toLowerCase())) : features;
-  if (base && !added.length) return;
+  const features = base ? [...base.features, ...added] : added;
   await submitEnvironment(
     {
       ...(base && { envId: base.id, baseVersion: base.version }),
-      app: catalog.app.trim().slice(0, 80),
-      name: String(catalog.name ?? catalog.app).trim().slice(0, 100),
-      product: String(catalog.product ?? '').trim().slice(0, 60) || 'Simulation',
-      summary: String(catalog.summary ?? '').trim().slice(0, 600),
+      app: (base?.name ?? catalog?.app ?? '').trim().slice(0, 80),
+      name: String(base?.name ?? catalog?.name ?? catalog?.app).trim().slice(0, 100),
+      product: String(base?.product ?? catalog?.product ?? '').trim().slice(0, 60) || 'Simulation',
+      summary: String(base?.summary ?? catalog?.summary ?? '').trim().slice(0, 600),
       features,
       added,
       builtFor: String(page.title ?? '').trim().slice(0, 140),
       owner: owner.slice(0, 100),
       ...(mode.sector && { sector: mode.sector }),
       ...(mode.game && { game: mode.game }),
+      ...(r.app && r.data && { dataDriven: true, data: String(r.dataShape ?? '').slice(0, 6000), state: String(r.stateShape ?? '').slice(0, 4000) }),
     },
-    { html: page.appHtml, callouts: page.callouts ?? [] }
+    r.app && r.data ? { html: r.app, callouts: page.callouts ?? [], data: JSON.stringify(r.data) } : { html: page.appHtml, callouts: page.callouts ?? [] }
   );
 }
 
@@ -356,12 +453,14 @@ export async function mergeSubmission(sub: EnvironmentSubmission, progress: (sta
     const page = (await res.json()) as BuiltPage;
     if (!page.appHtml) return "The merge didn't come back. Try again.";
     progress('Loading the merged page to check it works…');
-    const probe = await probeApp(page.appHtml, []);
+    // A data-driven app is tried with the data of the test it was built for
+    const tryData = env.dataDriven ? parseData(other.data) : undefined;
+    const probe = await probeApp(tryData ? withData(page.appHtml, tryData) : page.appHtml, []);
     if (!probe.state) return `The merged page didn't load${probe.problem ? `: ${probe.problem}` : ''}. Try again.`;
     await updateSubmission(
       sub,
       { baseVersion: env.version, features: page.catalog?.features?.length ? page.catalog.features : [...env.features, ...sub.added] },
-      { html: page.appHtml, callouts: page.callouts ?? latest.callouts ?? [] }
+      { html: splitData(page.appHtml).app, callouts: page.callouts ?? latest.callouts ?? [], ...(other.data && { data: other.data }) }
     );
     return null;
   } catch {
@@ -382,9 +481,20 @@ async function editAppPage(question: Question, change: string, taskPrompt: strin
     if (!res.ok) return null;
     const page = (await res.json()) as BuiltPage;
     if (!page.appHtml) return null;
+    // The page's data, apart from the app when it was sent that way (kept as it was if none came back)
+    const before = splitData(question.appHtml ?? '');
+    const data = parseData(page.data) ?? (before.data as Record<string, unknown> | undefined);
+    const appHtml = data ? withData(splitData(page.appHtml).app, data) : page.appHtml;
     step('loading the changed page and checking its tasks can still be marked…');
-    const checked = await checkQuestion({ type: 'app', title: question.title, prompt, appHtml: page.appHtml, testCases: (page.testCases?.length ? page.testCases : checks) as RawQuestion['testCases'], callouts: page.callouts?.length ? page.callouts : question.callouts, points: question.weight, timeLimitMinutes: question.timeLimitMinutes });
-    if (checked) void remember({ type: 'app', title: question.title, prompt, appHtml: checked.appHtml, testCases: checked.testCases, callouts: checked.callouts } as RawQuestion, page.catalog, base, mode, who.owner);
+    const checked = await checkQuestion({ type: 'app', title: question.title, prompt, appHtml, testCases: (page.testCases?.length ? page.testCases : checks) as RawQuestion['testCases'], callouts: page.callouts?.length ? page.callouts : question.callouts, points: question.weight, timeLimitMinutes: question.timeLimitMinutes });
+    if (checked)
+      void remember({ type: 'app', title: question.title, prompt, appHtml: checked.appHtml, testCases: checked.testCases, callouts: checked.callouts } as RawQuestion, {
+        catalog: page.catalog,
+        base,
+        mode,
+        owner: who.owner,
+        ...(data && { app: splitData(checked.appHtml ?? '').app, data, dataShape: page.catalog?.dataShape, stateShape: page.catalog?.stateShape }),
+      });
     // Same question, so the questions about it stay joined to it
     return checked ? { ...question, prompt, appHtml: checked.appHtml, contextData: checked.contextData, starterCode: checked.starterCode, testCases: checked.testCases, callouts: checked.callouts } : null;
   } catch {
@@ -654,47 +764,125 @@ async function writeJobSimDay(
   // A day without the AI's own copy (made before it was kept) is sent as the desktop it became
   const before = extra.current && (current ?? { desktop: extra.current.questions[0]?.desktop, checks: extra.current.questions[0]?.testCases.map((tc) => [tc.description, tc.input, tc.rubric ?? tc.expectedOutput]) });
 
+  // The app library, so the day can happen in the job's own software (a help desk, a CRM) filled with its data
+  const library = await reusableApps()
+    .then((apps) => apps.filter((a) => !a.game))
+    .catch(() => [] as ReusableApp[]);
+  let apps: DayApp[] = [];
+  let initial: Record<string, Record<string, unknown>> = {};
   const writeWorld = async (problems?: string[], was?: unknown) => {
-    const out = await post('/api/write-job-sim', { ...base, stage: 'world', ...((was ?? before) && { current: was ?? before }), ...(problems && { problems, change: undefined }) });
+    const out = await post('/api/write-job-sim', {
+      ...base,
+      stage: 'world',
+      library: library.map(({ id, name, product, summary, features }) => ({ id, name, product, summary, features })),
+      ...((was ?? before) && { current: was ?? before }),
+      ...(problems && { problems, change: undefined }),
+    });
     return out.failure ? { failure: out.failure } : { world: out.body as Record<string, unknown> };
   };
   const writeScript = async (world: Record<string, unknown>, problems?: string[], was?: unknown) => {
-    const out = await post('/api/write-job-sim', { ...base, stage: 'script', world, ...((was ?? before) && { current: was ?? before }), ...(problems && { problems, change: undefined }) });
+    const out = await post('/api/write-job-sim', {
+      ...base,
+      stage: 'script',
+      world,
+      appsInDay: apps.map((a) => ({ id: a.id, label: a.label, state: a.state ?? '', data: JSON.stringify(a.data), planted: a.planted ?? [] })),
+      ...((was ?? before) && { current: was ?? before }),
+      ...(problems && { problems, change: undefined }),
+    });
     return out.failure ? { failure: out.failure } : { script: out.body as Record<string, unknown> };
+  };
+  // The world's apps put on the desktop: library apps fitted to the day, and software the library lacks built for it
+  // (kept apart from its data, and sent to the library). Each is opened once out of sight to see how it starts
+  const fitApps = async (world: Record<string, unknown>) => {
+    const raw = world as unknown as RawJobSim;
+    const wanted = (raw.libraryApps ?? []).filter((a) => library.some((l) => l.id === a.id)).slice(0, 2);
+    const day = `${raw.role} at ${raw.company}. ${raw.scenario ?? ''}\nThe people: ${(raw.contacts ?? []).map((c) => `${c.name} (${c.role}, ${c.email})`).join('; ')}\nPlanted in the day: ${((world.planted as string[]) ?? []).join('; ')}`;
+    const out: DayApp[] = [];
+    for (const want of wanted) {
+      const app = library.find((l) => l.id === want.id)!;
+      list.start('apps', `Filling ${want.label || app.name} from Praxa's app library with the day's data…`);
+      const html = await reusableAppCode(app);
+      if (!html) continue;
+      const libBase = { ...app, html };
+      const fitted = await fitLibraryApp(libBase, { mode: 'jobsim', title: String(raw.day ?? raw.role ?? ''), prompt: day, brief: want.brief, research: extra.research });
+      if (!fitted) continue;
+      out.push({ id: app.id, label: want.label || app.name, envId: app.id, version: app.version, data: fitted.data, html: fitted.app, state: fitted.stateShape, planted: fitted.planted });
+      if (fitted.edits.length)
+        void remember({ type: 'app', title: `${raw.role} at ${raw.company}`, prompt: day, appHtml: withData(fitted.app, fitted.data) } as RawQuestion, {
+          base: libBase,
+          mode: {},
+          owner: ctx.business?.name,
+          app: fitted.app,
+          data: fitted.data,
+          added: fitted.added,
+          dataShape: fitted.dataShape,
+          stateShape: fitted.stateShape,
+        });
+    }
+    const n = raw.newApp;
+    if (n?.app?.trim() && n.brief?.trim() && out.length < 2) {
+      list.start('apps', `Building ${n.label || n.app} for the day (it isn't in Praxa's app library yet, so it's added there after)… a few minutes`);
+      const brief = `A working copy of ${n.app} (${n.product}), called ${n.label || n.app}, as people in this job use it day to day: its real layout, navigation and look, with the screens the day needs. What it must hold for the day:\n${n.brief}`;
+      const built = await buildAppPage({ type: 'app', title: n.label || n.app, prompt: day, appHtml: brief, testCases: [], points: 1, timeLimitMinutes: 40 } as RawQuestion, extra.research, {}, () => {}, { owner: ctx.business?.name });
+      if (built.appHtml && built.appHtml !== brief) {
+        const { app, data } = splitData(built.appHtml);
+        const id = (n.label || n.app).toLowerCase().replace(/[^a-z0-9]+/g, '') || 'app';
+        out.push({ id: out.some((a) => a.id === id) ? `${id}2` : id, label: n.label || n.app, envId: '', version: 0, data: (data as Record<string, unknown>) ?? {}, html: app, planted: [] });
+      }
+    }
+    // How each app starts: what the script marks against, and what no check may already match
+    const starts: Record<string, Record<string, unknown>> = {};
+    for (const a of out) {
+      const probe = await probeApp(withData(a.html!, a.data), []);
+      if (probe.state) starts[a.id] = probe.state;
+      if (!a.state) a.state = `Starts as: ${JSON.stringify(probe.state ?? {}).slice(0, 3000)}`;
+    }
+    apps = out;
+    initial = starts;
   };
 
   list.start('world', extra.change ? 'Rewriting the people and the data with your change…' : 'Writing the world: the people, and the data, pages and files already on the computer, with the issues planted in them…');
   const w = await writeWorld();
   if (w.failure) return { failure: w.failure };
   let world = w.world!;
+  await fitApps(world);
   list.start('script', 'Writing the day against that data: the emails, who writes back, each part’s brief and how it’s marked…');
   const sc = await writeScript(world);
   if (sc.failure) return { failure: sc.failure };
-  let raw = { ...world, ...sc.script } as unknown as RawJobSim;
+  let raw = { ...world, ...sc.script, customApps: apps } as unknown as RawJobSim;
 
   list.start('check', 'Working out every answer from the data and checking each part can be marked…');
-  let made = assembleJobSim(raw, ctx.business);
+  let made = assembleJobSim(raw, ctx.business, false, initial);
   if (made.problems.length) {
     list.start('check', `Fixing ${made.problems.length === 1 ? 'one problem' : `${made.problems.length} problems`} Praxa's checks found…`);
     // Problems with the computer itself (no data for an app) are the world's; the rest are the script's
     const inWorld = made.problems.some((p) => /^(The desktop has no work app|apps has )/.test(p));
     let fixedWorld = world;
+    const kept = { apps, initial };
     if (inWorld) {
       const again = await writeWorld(made.problems, raw);
-      if (again.world) fixedWorld = again.world;
+      if (again.world) {
+        fixedWorld = again.world;
+        await fitApps(fixedWorld);
+      }
     }
     const again = await writeScript(fixedWorld, made.problems, raw);
     if (again.script) {
-      const next = { ...fixedWorld, ...again.script } as unknown as RawJobSim;
-      const remade = assembleJobSim(next, ctx.business);
+      const next = { ...fixedWorld, ...again.script, customApps: apps } as unknown as RawJobSim;
+      const remade = assembleJobSim(next, ctx.business, false, initial);
       // The fix is kept when it passes, or when the first version can't stand even with its broken checks left out
-      if (!remade.problems.length || !assembleJobSim(raw, ctx.business, true).test) {
+      if (!remade.problems.length || !assembleJobSim(raw, ctx.business, true, kept.initial).test) {
         raw = next;
         world = fixedWorld;
         made = remade;
       }
     }
-    if (made.problems.length) made = assembleJobSim(raw, ctx.business, true);
+    // The first version stands: so do its apps
+    if (raw.customApps !== apps) {
+      apps = kept.apps;
+      initial = kept.initial;
+    }
+    if (made.problems.length) made = assembleJobSim(raw, ctx.business, true, initial);
   }
   list.finish();
   if (!made.test) return { failure: "Praxa couldn't make a job simulation that passes its checks. Try Build again." };
@@ -707,6 +895,7 @@ async function writeJobSimDay(
 }
 const JOB_SIM_STEPS: [string, string][] = [
   ['world', 'Write the people, data and pages for the day'],
+  ['apps', "Put the job's software on the desktop, from Praxa's app library"],
   ['script', 'Write the emails, briefs and marks against that data'],
   ['check', 'Work out every answer and check each part is marked'],
 ];

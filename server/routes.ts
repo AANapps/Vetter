@@ -13,6 +13,7 @@ import { suggestTests } from './suggestTests.js';
 import { taskAssistant } from './taskAssistant.js';
 import { crmAssistant } from './crmAssistant.js';
 import { writeFormula } from './writeFormula.js';
+import { fitApp } from './fitApp.js';
 import { runCode } from './runCode.js';
 import { matchEnvironment } from './matchEnvironment.js';
 import { metered } from './meter.js';
@@ -124,6 +125,8 @@ export const API_ROUTES: Record<string, Handler> = {
   // A saved simulation from Praxa's environment library to build a new page on, when one is the same kind of product;
   // a quick model reading short summaries
   '/api/match-environment': logged('match-environment', billed('match-environment', (body, env) => matchEnvironment(body, env.ANTHROPIC_API_KEY, env.MATCH_MODEL || 'claude-haiku-5-5'))),
+  // A test built on an app from Praxa's app library: only the test's data and, when it needs more, small edits to the app
+  '/api/fit-app': logged('fit-app', billed('fit-app', (body, env) => fitApp(body, env.ANTHROPIC_API_KEY, testModel(env)))),
   // Each interactive page of a test, built in its own request so a long test fits the host's time limit
   '/api/build-app': logged('build-app', billed('build-app', (body, env) => buildApp(body, env.ANTHROPIC_API_KEY, testModel(env)))),
   // The company home's chat recommends tests and plans; it writes nothing, so a quicker model is enough by default

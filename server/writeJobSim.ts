@@ -31,6 +31,10 @@ export interface JobSimRequest {
   // Which half to write: the world, or the script for the world already written
   stage: 'world' | 'script';
   world?: unknown;
+  // Praxa's app library: apps the day can put on the desktop (a help desk, a CRM), each filled with the day's data
+  library?: { id: string; name: string; product: string; summary: string; features?: string[] }[];
+  // For the script: the library apps on the desktop, fitted to the day (their data, what they save, what's planted)
+  appsInDay?: { id: string; label: string; state: string; data: string; planted: string[] }[];
 }
 
 const MAX_TEXT = 12000;
@@ -140,7 +144,11 @@ const pick = (keys: string[], extra: Record<string, unknown> = {}) => ({
 const WORLD_KEYS = ['role', 'company', 'domain', 'day', 'description', 'category', 'skillsTested', 'scenario', 'briefing', 'user', 'time', 'apps', 'contacts', 'workbookName', 'sheets', 'databaseName', 'tables', 'homepage', 'pages', 'files', 'project'];
 const SCRIPT_KEYS = ['reply', 'briefs', 'inbox', 'replies', 'checks'];
 // planted: for the script's writer, each issue in the data and where it is, and the facts and figures the day turns on
-const STAGE_SCHEMAS = { world: pick(WORLD_KEYS, { planted: strs }), script: pick(SCRIPT_KEYS) };
+// libraryApps: apps from the library on the desktop, each with what it must hold for the day; newApp: software the job
+// uses that the library doesn't have yet, which Praxa builds (empty strings when there's none)
+const appBrief = { type: 'object', properties: { id: str, label: str, brief: str }, required: ['id', 'label', 'brief'], additionalProperties: false };
+const newApp = { type: 'object', properties: { app: str, product: str, label: str, brief: str }, required: ['app', 'product', 'label', 'brief'], additionalProperties: false };
+const STAGE_SCHEMAS = { world: pick(WORLD_KEYS, { planted: strs, libraryApps: { type: 'array', items: appBrief }, newApp }), script: pick(SCRIPT_KEYS) };
 
 const STAGE_NOTES = {
   world: `WRITE NOW: THE WORLD ONLY (the first of two steps; the emails and checks are written next, against what you write
@@ -182,7 +190,15 @@ MADE FOR THIS COMPANY AND THIS JOB
 - Set the day AT the hiring company (company = its name; domain = its email domain, from its website if given, else a
   plausible one). Use what the company told you: its products, customers, sector, location, tools, team names, and
   the duties, tools and seniority in the job description. Every task is one the job description says this person does.
-- Pick the environments from the tools the job really uses: sheet (Spreadsheet: Excel-style, formulas), browser (an
+- THE JOB'S OWN SOFTWARE: when the job is done in a particular kind of software (a help desk for support, a CRM for
+  sales, a booking system, an ads manager), the day happens in it. If PRAXA'S APP LIBRARY (below) has it, list it in
+  libraryApps: its id, label (the name on the taskbar, e.g. "Deskly") and brief: everything it must hold for the day
+  (the records, how many, the planted issues and exactly where they are, the curveball's effect), consistent with the
+  rest of the world. Praxa writes its data from that brief. If the job's main software isn't in the library, describe
+  it in newApp: app (the real product, or "Generic <kind>"), product (its kind in a few words), label (an invented
+  name for the taskbar) and brief (its screens and what it must hold for the day); Praxa builds it. Otherwise newApp
+  has empty strings and libraryApps is []. A library or new app counts as one of the two or three work environments.
+- Pick the other environments from the tools the job really uses: sheet (Spreadsheet: Excel-style, formulas), browser (an
   intranet, a client portal, a supplier site, documentation: pages with text, tables, links and downloads), sql (a
   database to query with SQL; data only, its results reach the marks through the sheet or emails), code (a small
   JavaScript project with tests).
@@ -227,6 +243,10 @@ for, short ("Q1 sales are right for every store"). input is one of:
   mail:<address>          the last email to them, marked against rubric
   mailwith:<address>:<part of a file name>   the email to them carrying that file, marked against rubric
   visited:<url>           the page was opened (expected "true")
+  app:<app id>:<path>     a value in a library or new app's saved state (THE APPS ON THE DESKTOP below give each
+                          one's state, data and planted issues), e.g. app:deskly:tickets.9004.group with expected
+                          "Team Leads"; several right answers "a|b", a list as a JSON array. It must NOT already have
+                          that value at the start
   test:<project check id> one of the project's checks passes (expected "passes")
 expected: for sheet checks, the right value; when it depends on the data, write it as a formula starting with "="
   on the pre-loaded workbook (a value from the curveball's email written in as a number), e.g.
@@ -283,7 +303,21 @@ export async function writeJobSim(body: unknown, apiKey: string | undefined, mod
     req.current ? `THE DAY AS WRITTEN:\n${JSON.stringify(req.current).slice(0, 60000)}` : '',
     req.change ? `THE COMPANY WANTS THIS CHANGED (write your half again with exactly that change, everything else kept):\n${req.change.slice(0, MAX_TEXT)}` : '',
     req.problems?.length ? `PRAXA'S CHECKS FOUND THESE PROBLEMS. Write your half again with every one fixed and everything else kept:\n${req.problems.map((p) => `- ${p}`).join('\n')}` : '',
+    req.stage === 'world' && req.library?.length
+      ? `PRAXA'S APP LIBRARY (apps the desktop can have):\n${req.library
+          .slice(0, 40)
+          .map((a) => `- id ${a.id}: ${String(a.name).slice(0, 80)} (${String(a.product).slice(0, 60)}). ${String(a.summary).slice(0, 300)} Features: ${(a.features ?? []).slice(0, 25).join('; ').slice(0, 900)}`)
+          .join('\n')}`
+      : req.stage === 'world'
+        ? "PRAXA'S APP LIBRARY is empty: libraryApps is []; use newApp if the job's main software is needed."
+        : '',
     req.stage === 'script' && req.world ? `THE WORLD, ALREADY WRITTEN:\n${JSON.stringify(req.world).slice(0, 60000)}` : '',
+    req.stage === 'script' && req.appsInDay?.length
+      ? `THE APPS ON THE DESKTOP (mark work in them with app:<id>:<path> checks):\n${req.appsInDay
+          .slice(0, 3)
+          .map((a) => `APP ${a.id} ("${a.label}")\nIts saved state: ${String(a.state).slice(0, 3000)}\nWhat's planted and how it's marked: ${(a.planted ?? []).slice(0, 30).join('\n') || 'not listed'}\nIts data: ${String(a.data).slice(0, 25000)}`)
+          .join('\n\n')}`
+      : '',
     STAGE_NOTES[req.stage === 'script' ? 'script' : 'world'],
   ]
     .filter(Boolean)

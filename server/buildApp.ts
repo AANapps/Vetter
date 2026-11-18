@@ -80,12 +80,16 @@ const schema = {
         summary: { type: 'string' },
         features: { type: 'array', items: { type: 'string' } },
         added: { type: 'array', items: { type: 'string' } },
+        dataShape: { type: 'string' },
+        stateShape: { type: 'string' },
       },
-      required: ['app', 'name', 'product', 'summary', 'features', 'added'],
+      required: ['app', 'name', 'product', 'summary', 'features', 'added', 'dataShape', 'stateShape'],
       additionalProperties: false,
     },
+    // The task's data, apart from the app (JSON): the page reads it from window.praxaData
+    data: { type: 'string' },
   },
-  required: ['appHtml', 'testCases', 'callouts', 'catalog'],
+  required: ['appHtml', 'testCases', 'callouts', 'catalog', 'data'],
   additionalProperties: false,
 };
 
@@ -129,8 +133,23 @@ adds features. Return catalog: app, the specific app or device it copies as peop
 ("Meta Ads Manager: campaigns, ad sets and ads"); product, the kind in a few generic words ("ads manager", "CRM");
 summary, 2 to 3 sentences on its shell, screens and components (not this task's data, company or answers); features,
 every screen and feature the page has, each a short phrase ("Campaign list with status toggles", "Audience builder");
-added, the features this page adds to the LIBRARY PAGE it was built on (all of features when there was none).
+added, the features this page adds to the LIBRARY PAGE it was built on (all of features when there was none);
+dataShape, the format of the page's data (below) as a short typed outline ({ customers: [{ id, name, plan }], ... });
+stateShape, the same for the state object it saves.
+THE APP APART FROM ITS DATA: the library shares the app with every company, so its code holds NO data of this task.
+Put every record, person, company name, figure and planted problem the task uses into data, a JSON object written as a
+string, and make the page read it at the start: var D = window.praxaData || {}; then render everything from D (Praxa
+puts the data in front of the page). The code keeps only the product itself: its layout, styles, screens, logic, menus,
+fixed options and labels. Write the code so any company's data in the same format works.
 ${research ? `\nRESEARCH on the job and what the page copies (keep every term, step and value true to it):\n${research.slice(0, MAX_TEXT * 2)}` : ''}`;
+
+// A page as Praxa runs it is the app with its data in front (src/lib/libraryApps.ts withData); for a repair or a change
+// the two are sent apart, as they're written
+const DATA_TAG = /<script>window\.praxaData=([\s\S]*?);<\/script>/;
+const apart = (html: string) => {
+  const m = DATA_TAG.exec(html);
+  return m ? `${html.replace(DATA_TAG, '')}\n\nITS DATA (window.praxaData; return it in data, changed only where needed):\n${m[1].slice(0, 60000)}` : html;
+};
 
 export async function buildApp(body: unknown, apiKey: string | undefined, model: string): Promise<{ status: number; json: unknown }> {
   const req = body as BuildAppRequest;
@@ -178,14 +197,14 @@ export async function buildApp(body: unknown, apiKey: string | undefined, model:
                 : []),
               ...(req.fix?.html
                 ? [
-                    `THE PAGE AS YOU BUILT IT:\n${String(req.fix.html).slice(0, MAX_PAGE)}`,
+                    `THE PAGE AS YOU BUILT IT:\n${apart(String(req.fix.html).slice(0, MAX_PAGE * 2))}`,
                     `PROBLEMS FOUND WHEN PRAXA TRIED IT OUT:\n${(req.fix.problems ?? []).slice(0, 30).map((p) => `- ${String(p).slice(0, 200)}`).join('\n')}`,
                     'Return the whole page again, keeping its data-ref tips, with every problem fixed. For a label hidden, cut off or overlapping: move it into clear space beside or under what it names (with a leader line if needed), draw it after the shapes so it sits on top, give it a halo, and keep it inside the drawing, so every letter can be read. For a control: make each control named above do what its label says in this kind of product, or grey it out (disabled, reduced opacity, cursor:not-allowed, a "Not available in this test" title) when it is outside the task. Fix any errors. Keep everything that already works, the data and the state paths the checks read.',
                   ]
                 : []),
               ...(req.edit?.html
                 ? [
-                    `THE PAGE AS IT IS NOW:\n${String(req.edit.html).slice(0, MAX_PAGE)}`,
+                    `THE PAGE AS IT IS NOW:\n${apart(String(req.edit.html).slice(0, MAX_PAGE * 2))}`,
                     `THE CHANGE THE COMPANY ASKED FOR:\n${String(req.edit.change ?? '').slice(0, MAX_TEXT)}`,
                     ...(req.libraryFeatures?.length
                       ? [`THE LIBRARY'S VERSION OF THIS APP has these features: ${req.libraryFeatures.slice(0, 80).join('; ')}. In catalog.added, list the features your page has that aren't among them.`]

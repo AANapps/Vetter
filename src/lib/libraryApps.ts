@@ -29,6 +29,8 @@ export interface LibraryApp {
   sample: unknown;
 }
 
+import { SavedEnvironment, loadEnvironmentPage, loadEnvironments } from './environments';
+
 const pages = import.meta.glob('/library-apps/*/app.html', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 const manifests = import.meta.glob('/library-apps/*/manifest.json', { import: 'default', eager: true }) as Record<string, LibraryAppManifest>;
 const samples = import.meta.glob('/library-apps/*/sample-data.json', { import: 'default', eager: true }) as Record<string, unknown>;
@@ -53,4 +55,88 @@ export function libraryPage(id: string, data: unknown): string {
   const app = LIBRARY_APPS[id];
   if (!app?.html) throw new Error(`There's no app called ${id} in library-apps`);
   return withData(app.html, data);
+}
+
+// --- Pages as an app plus its data
+
+// The data a page was given (by withData), and the app without it. A page made before apps were kept apart from their
+// data has none: its data is in its code
+const DATA_TAG = /<script>window\.praxaData=([\s\S]*?);<\/script>/;
+export function splitData(page: string): { app: string; data?: unknown } {
+  const m = DATA_TAG.exec(page);
+  if (!m) return { app: page };
+  try {
+    return { app: page.replace(DATA_TAG, ''), data: JSON.parse(m[1]) };
+  } catch {
+    return { app: page };
+  }
+}
+
+// A change to an app as small edits: each find is copied exactly from the app and must be there exactly once
+export interface AppEdit {
+  find: string;
+  replace: string;
+}
+export function applyEdits(app: string, edits: AppEdit[]): { html: string; problems: string[] } {
+  let html = app;
+  const problems: string[] = [];
+  edits.forEach((e, i) => {
+    const find = String(e.find ?? '');
+    if (!find) return problems.push(`Edit ${i + 1} has nothing in find.`);
+    const at = html.indexOf(find);
+    if (at < 0) return problems.push(`Edit ${i + 1}: its find text isn't in the app (copy it exactly): ${find.slice(0, 120)}`);
+    if (html.indexOf(find, at + 1) >= 0) return problems.push(`Edit ${i + 1}: its find text is in the app more than once; include more around it: ${find.slice(0, 120)}`);
+    html = html.slice(0, at) + String(e.replace ?? '') + html.slice(at + find.length);
+  });
+  return { html, problems };
+}
+
+// A data object as the AI wrote it (a JSON string), or undefined when it isn't one
+export function parseData(text: unknown): Record<string, unknown> | undefined {
+  if (typeof text !== 'string' || !text.trim()) return undefined;
+  try {
+    const v = JSON.parse(text);
+    return v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length ? v : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+// --- Apps a new test can be built on
+
+// An app in the library that is kept apart from its data, so a test only writes data for it (and adds what it lacks)
+export interface ReusableApp {
+  id: string;
+  name: string;
+  product: string;
+  summary: string;
+  features: string[];
+  version: number;
+  data: string;
+  state: string;
+  game?: SavedEnvironment['game'];
+  // Praxa's own apps in the repo have sample data
+  sample?: unknown;
+}
+
+// Praxa's own apps and every data-driven app in Firestore, each at its latest version
+export async function reusableApps(): Promise<ReusableApp[]> {
+  const saved = (await loadEnvironments().catch(() => [] as SavedEnvironment[])).filter((e) => e.dataDriven);
+  const out = new Map<string, ReusableApp>();
+  for (const e of saved)
+    out.set(e.id, { id: e.id, name: e.app || e.name, product: e.product, summary: e.summary, features: e.features, version: e.version, data: e.data ?? '', state: e.state ?? '', ...(e.game && { game: e.game }) });
+  for (const { manifest: m, sample } of Object.values(LIBRARY_APPS)) {
+    const there = out.get(m.id);
+    if (!there || there.version < m.version) out.set(m.id, { id: m.id, name: m.name, product: m.product, summary: m.summary, features: m.features, version: m.version, data: m.data, state: m.state, sample });
+    else out.set(m.id, { ...there, sample });
+  }
+  return [...out.values()];
+}
+
+// A reusable app's code at the version listed: the repo's copy when that's the one, otherwise the library's page
+export async function reusableAppCode(app: ReusableApp): Promise<string | null> {
+  const repo = LIBRARY_APPS[app.id];
+  if (repo && repo.manifest.version >= app.version) return repo.html;
+  const page = await loadEnvironmentPage(app.id);
+  return page?.html ? splitData(page.html).app : null;
 }

@@ -95,11 +95,30 @@ export interface EnvironmentSubmission {
   note?: string;
   // Once approved: the library app and version it became
   version?: number;
+  // Kept apart from its data (reads window.praxaData), and what that data and its saved state look like
+  dataDriven?: boolean;
+  data?: string;
+  state?: string;
 }
 
 export interface EnvironmentPage {
   html: string;
   callouts?: AppCallout[];
+  // A data-driven app's page holds the app only; a submission keeps the data of the test it was built for (JSON), so
+  // the Praxa team can try it. The library's own pages never hold a company's data
+  data?: string;
+}
+
+// One version of a library app, kept so tests built on it can still be traced to it and the team can look back
+export interface EnvironmentVersion {
+  id: string;
+  envId: string;
+  version: number;
+  html: string;
+  features: string[];
+  added?: string[];
+  at: string;
+  by?: string;
 }
 
 // --- The demo keeps everything in this browser ---
@@ -222,7 +241,7 @@ export async function submitEnvironment(entry: NewSubmission, page: EnvironmentP
       const { id: _id, ...fields } = sub;
       const batch = writeBatch(db());
       batch.set(doc(db(), 'environmentSubmissions', id), { ...fields, createdBy: uid });
-      batch.set(doc(db(), 'submissionPages', id), { html: page.html, callouts: page.callouts ?? [] });
+      batch.set(doc(db(), 'submissionPages', id), { html: page.html, callouts: page.callouts ?? [], ...(page.data && { data: page.data }) });
       await batch.commit();
     }
     changed();
@@ -238,25 +257,37 @@ export async function approveSubmission(sub: EnvironmentSubmission, page: Enviro
   // Built on an app in the library, or built new for an app that's there already (same name): that app's next version
   const all = await loadEnvironments();
   const existing = sub.envId ? all.find((e) => e.id === sub.envId) : all.find((e) => e.app.trim().toLowerCase() === sub.app.trim().toLowerCase());
-  const envId = existing?.id ?? newId('env');
-  const version = existing ? existing.version + 1 : 1;
+  // An app of Praxa's own (library-apps/) that isn't in Firestore yet keeps its id, and this is its next version
+  const envId = existing?.id ?? sub.envId ?? newId('env');
+  const version = existing ? existing.version + 1 : (sub.baseVersion ?? 0) + 1;
   const env: SavedEnvironment = existing
-    ? { ...existing, name: sub.name || existing.name, summary: sub.summary || existing.summary, features: unique([...existing.features, ...sub.features, ...sub.added]), version, updatedAt: at }
-    : { id: envId, app: sub.app, name: sub.name, product: sub.product, summary: sub.summary, features: unique([...sub.features, ...sub.added]), version, builtFor: sub.builtFor, ...(sub.sector && { sector: sub.sector }), ...(sub.game && { game: sub.game }), createdAt: at, updatedAt: at, createdBy: sub.createdBy, uses: 0 };
+    ? {
+        ...existing,
+        name: sub.name || existing.name,
+        summary: sub.summary || existing.summary,
+        features: unique([...existing.features, ...sub.features, ...sub.added]),
+        version,
+        updatedAt: at,
+        ...(sub.dataDriven && { dataDriven: true, data: sub.data || existing.data, state: sub.state || existing.state }),
+      }
+    : { id: envId, app: sub.app, name: sub.name, product: sub.product, summary: sub.summary, features: unique([...sub.features, ...sub.added]), version, builtFor: sub.builtFor, ...(sub.sector && { sector: sub.sector }), ...(sub.game && { game: sub.game }), createdAt: at, updatedAt: at, createdBy: sub.createdBy, uses: 0 , ...(sub.dataDriven && { dataDriven: true, data: sub.data ?? '', state: sub.state ?? '' }) };
   const review = { status: 'approved' as const, reviewedAt: at, envId, version };
+  // The library's page is the app alone: the data of the test it was built for stays with the submission
+  const libPage = { html: page.html, callouts: page.callouts ?? [] };
   if (!firebaseEnabled) {
     const data = local();
     setLocal({
       ...data,
       envs: [env, ...data.envs.filter((e) => e.id !== envId)],
-      envPages: { ...data.envPages, [envId]: page },
+      envPages: { ...data.envPages, [envId]: libPage },
       subs: data.subs.map((s) => (s.id === sub.id ? { ...s, ...review } : s)),
     });
   } else {
     const { id: _id, ...fields } = env;
     const batch = writeBatch(db());
     batch.set(doc(db(), 'environments', envId), fields);
-    batch.set(doc(db(), 'environmentPages', envId), { html: page.html, callouts: page.callouts ?? [] });
+    batch.set(doc(db(), 'environmentPages', envId), libPage);
+    batch.set(doc(db(), 'environmentVersions', `${envId}@${version}`), { envId, version, html: page.html, features: env.features, added: sub.added, at, by: sub.owner });
     batch.update(doc(db(), 'environmentSubmissions', sub.id), review);
     await batch.commit();
   }
@@ -363,6 +394,18 @@ export const isStale = (sub: EnvironmentSubmission, envs: SavedEnvironment[]) =>
 };
 
 // --- For pages ---
+
+// Every version of a library app kept in Firestore, newest first (none for the demo)
+export async function loadVersions(envId: string): Promise<EnvironmentVersion[]> {
+  if (!firebaseEnabled) return [];
+  try {
+    const snap = await getDocs(query(collection(db(), 'environmentVersions'), where('envId', '==', envId)));
+    return snap.docs.map((d) => ({ ...(d.data() as Omit<EnvironmentVersion, 'id'>), id: d.id })).sort((a, b) => b.version - a.version);
+  } catch (err) {
+    console.warn("Couldn't read an app's versions", err);
+    return [];
+  }
+}
 
 // The library and, when asked, the submissions; refreshed whenever either changes
 export function useLibrary(withSubmissions: false | 'mine' | 'all' = false) {

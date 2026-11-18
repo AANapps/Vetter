@@ -3,6 +3,8 @@ import { DeskBlock, DeskPage, DesktopConfig } from './desktop';
 import { checkSheet, parseWorkbook, workbookStarter } from './spreadsheet';
 import { JobSimCheck, JobSimPart, jobSimulation } from '../data/modules/jobSimKit';
 import { categoriesFor, companySector } from './sectors';
+import { matchesExpected, readPath } from './appSimulation';
+import { withData } from './libraryApps';
 
 /**
  * A job simulation written by Praxa's AI (server/writeJobSim.ts), turned into a test with jobSimulation(), so every
@@ -52,6 +54,24 @@ export interface RawJobSim {
   inbox: (RawMail & { id: string; phase: string; to: string[]; cc: string[]; date: string })[];
   replies: { id: string; to: string; mustMention: string[][]; mustAttach: string; reply: RawMail; otherwise: RawMail }[];
   checks: { part: JobSimPart; description: string; input: string; expected: string; rubric: string[] }[];
+  // Apps from Praxa's app library on the desktop, as the world asked for them, and software to build for the day
+  libraryApps?: { id: string; label: string; brief: string }[];
+  newApp?: { app: string; product: string; label: string; brief: string };
+  // The apps as fitted to the day (added by the browser, not the AI): the library app, its version, its code with any
+  // edits, and the day's data. The code isn't kept in the test's own copy of the day (it's in the desktop)
+  customApps?: DayApp[];
+}
+
+export interface DayApp {
+  id: string;
+  label: string;
+  envId: string;
+  version: number;
+  data: Record<string, unknown>;
+  html?: string;
+  // What the app saves, and what's planted in its data and how it's marked, for the script
+  state?: string;
+  planted?: string[];
 }
 
 const PARTS: JobSimPart[] = ['core', 'curveball', 'juggling', 'report'];
@@ -89,7 +109,8 @@ function block(b: RawJobSim['pages'][number]['blocks'][number]): DeskBlock | nul
 function desktopOf(raw: RawJobSim): Omit<DesktopConfig, 'phases'> {
   const domain = lower(raw.domain).replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, '') || 'company.co.uk';
   const me = `${slug(raw.user?.name)}@${domain}`;
-  const work = [...new Set((raw.apps ?? []).filter((a) => ['sheet', 'browser', 'sql', 'code'].includes(a)))];
+  const custom = (raw.customApps ?? []).filter((a) => a.id && a.html);
+  const work = [...new Set([...custom.map((a) => a.id), ...(raw.apps ?? []).filter((a) => ['sheet', 'browser', 'sql', 'code'].includes(a))])];
   const sheets = (raw.sheets ?? []).filter((s) => s.name?.trim() && s.rows?.length);
   const tables = (raw.tables ?? []).filter((t) => t.name?.trim() && t.columns?.length);
   const pages: DeskPage[] = (raw.pages ?? []).filter((p) => p.url?.trim()).map((p) => ({ url: p.url.trim(), site: p.site || raw.company, title: p.title || p.url, blocks: (p.blocks ?? []).map(block).filter((b): b is DeskBlock => !!b) }));
@@ -100,6 +121,7 @@ function desktopOf(raw: RawJobSim): Omit<DesktopConfig, 'phases'> {
     company: raw.company,
     time: raw.time || 'Mon 09:00',
     apps: ['mail', ...work, 'files', 'ai'],
+    ...(custom.length && { customApps: custom.map((a) => ({ id: a.id, label: a.label || a.id, html: withData(a.html!, a.data) })) }),
     contacts: (raw.contacts ?? []).filter((c) => c.email?.trim()).map((c) => ({ name: c.name, role: c.role, email: lower(c.email) })),
     inbox: (raw.inbox ?? []).map((m, i) => ({
       id: m.id?.trim() || `m-${i + 1}`,
@@ -136,12 +158,13 @@ export interface AssembledJobSim {
 
 // The AI's day as a test, with what's wrong with it. With lenient, checks that can't be marked are left out rather
 // than reported, so a day that's otherwise sound is still made
-export function assembleJobSim(raw: RawJobSim, business?: Business, lenient = false): AssembledJobSim {
+// initial: each app's state as it starts (tried in a hidden frame), so a check that passes before any work is found
+export function assembleJobSim(raw: RawJobSim, business?: Business, lenient = false, initial: Record<string, Record<string, unknown>> = {}): AssembledJobSim {
   const problems: string[] = [];
   if (!raw || typeof raw !== 'object') return { problems: ['Nothing came back.'] };
   const desktop = desktopOf(raw);
   const work = desktop.apps.filter((a) => !['mail', 'files', 'ai'].includes(a));
-  if (!work.length) problems.push('The desktop has no work app: pick two of sheet, browser, sql and code.');
+  if (!work.length) problems.push('The desktop has no work app: pick two of sheet, browser, sql and code (or a library app).');
   if (work.includes('sheet') && !desktop.workbook) problems.push('apps has sheet but the workbook has no sheets.');
   if (work.includes('browser') && !desktop.pages?.length) problems.push('apps has browser but there are no pages.');
   if (work.includes('sql') && !desktop.tables?.length) problems.push('apps has sql but there are no tables.');
@@ -216,6 +239,15 @@ export function assembleJobSim(raw: RawJobSim, business?: Business, lenient = fa
           if (!projectChecks.has(rest)) problem = `${name} is about a project check that doesn't exist.`;
           expected = 'passes';
           break;
+        case 'app': {
+          const [id, ...path] = rest.split(':');
+          const want = String(expected);
+          if (!desktop.customApps?.some((a) => a.id === id)) problem = `${name} is about an app (${id}) that isn't on the desktop.`;
+          else if (!path.join(':').trim()) problem = `${name} has no state path after the app's id.`;
+          else if (!want) problem = `${name} has no expected value.`;
+          else if (initial[id] && matchesExpected(readPath(initial[id], path.join(':')), want)) problem = `${name} already passes when the app opens, before the candidate does anything.`;
+          break;
+        }
         default:
           problem = `${name} isn't a kind of check Praxa can mark.`;
       }
@@ -265,7 +297,8 @@ export function finishJobSim(test: AssessmentTest, raw: RawJobSim, business: Bus
     ...(business && { businessId: business.id, companyName: business.name }),
     difficulty: level ?? (TEST_DIFFICULTIES.includes(difficulty as TestDifficulty) ? (difficulty as TestDifficulty) : 'Professional'),
     madeWith: 'ai',
-    jobSimSource: JSON.stringify(raw),
+    // The day as the AI wrote it, without the apps' code (that's in the desktop)
+    jobSimSource: JSON.stringify({ ...raw, ...(raw.customApps && { customApps: raw.customApps.map(({ html: _html, ...a }) => a) }) }),
   };
 }
 
