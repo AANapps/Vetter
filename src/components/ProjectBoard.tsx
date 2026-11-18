@@ -14,6 +14,7 @@ import {
   Users as UsersIcon,
   Send,
   Loader2,
+  Sparkles,
   ArrowRightLeft,
   Undo2,
   EyeOff,
@@ -43,7 +44,8 @@ import { Pic } from './Pic';
 import { shortDate } from '../lib/work';
 import { PRIORITY_LABEL, STATUS_LABEL, describeAutomation, isLate, overdueChanges, recipes, runAutomations, withLog } from '../lib/projectAutomations';
 import { CalendarView, ChartBar, ChartView, TimelineView } from './ProjectViews';
-import { boardForAi, convertLead, evalFormula, money, numberOf } from '../lib/crm';
+import { boardForAi, convertLead, money, numberOf } from '../lib/crm';
+import { BUILT_IN_REFS, FORMULA_FUNCTIONS, checkFormula, formulaResult, showFormula } from '../lib/boardFormula';
 import { CrmAction, applyActions, describeAction } from '../lib/crmActions';
 import { aiFetch } from '../lib/aiRequest';
 import { BrandSparkle } from './Brand';
@@ -387,8 +389,16 @@ const ValueCell: React.FC<{ col: ProjectColumn; task: ProjectTask; people: Board
         </span>
       );
     case 'formula': {
-      const n = evalFormula(col.formula ?? '', task, link.columns);
-      return <span className={`w-full flex items-center justify-end text-sm tabular-nums text-slate-700 bg-slate-50/60 ${pad}`} title={col.formula}>{n === undefined ? '–' : money(n, col.currency)}</span>;
+      const r = formulaResult(col.formula ?? '', task, { columns: link.columns, allTasks: link.allTasks, names: Object.fromEntries(people.map((p) => [p.uid, p.name.replace(/ \(you\)$/, '')])) });
+      const shown = showFormula(r, col.currency);
+      return (
+        <span
+          className={`w-full flex items-center ${typeof r.value === 'number' ? 'justify-end tabular-nums' : 'justify-start'} text-sm truncate ${r.error ? 'text-rose-600 font-semibold' : r.value === true ? 'text-emerald-600 font-semibold' : 'text-slate-700'} bg-slate-50/60 ${pad}`}
+          title={r.error ? `${r.error}: ${col.formula}` : col.formula}
+        >
+          {shown || <span className="text-slate-300">–</span>}
+        </span>
+      );
     }
     case 'connect':
       return <ConnectCell col={col} value={Array.isArray(v) ? v : []} link={link} field={field} onSet={(ids) => onSet(ids?.length ? ids : undefined)} />;
@@ -1261,6 +1271,8 @@ export const ProjectBoard: React.FC<{
   const [selected, setSelected] = useState<string[]>([]);
   const [addingCol, setAddingCol] = useState(false);
   const [connecting, setConnecting] = useState(false);
+  // The formula column the Columns dialog opens on (one just added, or Edit formula)
+  const [formulaFocus, setFormulaFocus] = useState<string | undefined>();
 
   const names = useMemo(() => Object.fromEntries(people.map((p) => [p.uid, p.name.replace(/ \(you\)$/, '')])), [people]);
   const columns = project.columns ?? [];
@@ -1389,7 +1401,7 @@ export const ProjectBoard: React.FC<{
       type,
       ...(type === 'connect' && { boardId }),
       ...(type === 'money' && { currency: '£' }),
-      ...(type === 'formula' && { formula: measures[0] ? `{${measures[0].title}}` : '' }),
+      ...(type === 'formula' && { formula: '' }),
       ...(type === 'label' && {
         options: [
           { id: newId('opt'), label: 'Yes', colour: 0 },
@@ -1399,6 +1411,7 @@ export const ProjectBoard: React.FC<{
       }),
     };
     saveProject({ columns: [...columns, col] });
+    return col;
   };
   const toggleBuiltIn = (id: ProjectBuiltIn) => saveProject({ hidden: hidden.includes(id) ? hidden.filter((h) => h !== id) : [...hidden, id] });
 
@@ -1988,7 +2001,7 @@ export const ProjectBoard: React.FC<{
                   <div key={c.id} className="flex items-center gap-2 px-2 py-1.5 text-sm text-slate-800">
                     <span className="flex-1 truncate">{c.title}</span>
                     {c.type === 'label' || c.type === 'formula' ? (
-                      <button onClick={() => setAddingCol(true)} className="text-[10px] font-semibold text-indigo-700 hover:underline">
+                      <button onClick={() => (c.type === 'formula' && setFormulaFocus(c.id), setAddingCol(true))} className="text-[10px] font-semibold text-indigo-700 hover:underline">
                         {c.type === 'label' ? 'Edit labels' : 'Edit formula'}
                       </button>
                     ) : (
@@ -2035,11 +2048,11 @@ export const ProjectBoard: React.FC<{
 
       {/* Adding a column: its type */}
       {addingCol && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40" onClick={() => (setAddingCol(false), setConnecting(false))}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40" onClick={() => (setAddingCol(false), setConnecting(false), setFormulaFocus(undefined))}>
           <div role="dialog" aria-label="Columns" onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-5 space-y-3 max-h-[88vh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <h2 className="text-base font-bold text-slate-900">Columns</h2>
-              <button onClick={() => (setAddingCol(false), setConnecting(false))} aria-label="Close" className="p-1 rounded-lg text-slate-400 hover:text-slate-700">
+              <button onClick={() => (setAddingCol(false), setConnecting(false), setFormulaFocus(undefined))} aria-label="Close" className="p-1 rounded-lg text-slate-400 hover:text-slate-700">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -2049,7 +2062,9 @@ export const ProjectBoard: React.FC<{
                   key={c.type}
                   onClick={() => {
                     if (c.type === 'connect') return setConnecting(true);
-                    addColumn(c.type);
+                    const col = addColumn(c.type);
+                    // A formula column stays here, on its editor, to describe or write what it works out
+                    if (c.type === 'formula') return setFormulaFocus(col.id);
                     setAddingCol(false);
                   }}
                   className="p-3 rounded-xl border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/40 text-left"
@@ -2059,7 +2074,7 @@ export const ProjectBoard: React.FC<{
                 </button>
               ))}
             </div>
-            <p className="text-[11px] text-slate-400">Rename a column by clicking its name. A label column starts with Yes, Maybe and No; change its labels below.</p>
+            <p className="text-[11px] text-slate-400">Rename a column by clicking its name. A label column starts with Yes, Maybe and No; change its labels below. A formula column works something out from the others: describe it and AI writes the formula.</p>
             {connecting && (
               <div className="pt-3 border-t border-slate-100 space-y-2">
                 <p className="text-xs font-bold text-slate-700">Link items on which board?</p>
@@ -2086,7 +2101,9 @@ export const ProjectBoard: React.FC<{
                 )}
               </div>
             )}
-            {columns.some((c) => c.type === 'formula') && <FormulaEditor columns={columns} onSave={(cols) => saveProject({ columns: cols })} />}
+            {columns.some((c) => c.type === 'formula') && (
+              <FormulaEditor key={formulaFocus ?? 'formula'} focusId={formulaFocus} columns={columns} tasks={tasks} names={names} allTasks={allTasks} onSave={(cols) => saveProject({ columns: cols })} />
+            )}
             {columns.some((c) => c.type === 'label') && <LabelEditor columns={columns} onSave={(cols) => saveProject({ columns: cols })} />}
           </div>
         </div>
@@ -2226,19 +2243,104 @@ export const ProjectBoard: React.FC<{
   );
 };
 
-// A formula column's sum: column names in braces and + - * / ( )
-const FormulaEditor: React.FC<{ columns: ProjectColumn[]; onSave: (columns: ProjectColumn[]) => void }> = ({ columns, onSave }) => {
+// A formula column: say what it should do and AI writes it, or write it by hand with column names in braces and
+// functions (boardFormula.ts). It's checked as it's typed and tried on the board's first items
+const FormulaEditor: React.FC<{
+  columns: ProjectColumn[];
+  tasks: ProjectTask[];
+  names: Record<string, string>;
+  allTasks: ProjectTask[];
+  focusId?: string;
+  onSave: (columns: ProjectColumn[]) => void;
+}> = ({ columns, tasks, names, allTasks, focusId, onSave }) => {
   const formulas = columns.filter((c) => c.type === 'formula');
-  const [colId, setColId] = useState(formulas[0]?.id);
+  const [colId, setColId] = useState(focusId ?? formulas[0]?.id);
   const col = formulas.find((c) => c.id === colId) ?? formulas[0];
   const [text, setText] = useState(col?.formula ?? '');
-  useEffect(() => setText(col?.formula ?? ''), [col?.id]);
+  const [describe, setDescribe] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [aiNote, setAiNote] = useState('');
+  const [aiError, setAiError] = useState('');
+  const [showFns, setShowFns] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    setText(col?.formula ?? '');
+    setAiNote('');
+    setAiError('');
+  }, [col?.id]);
   if (!col) return null;
-  const usable = columns.filter((c) => (c.type === 'number' || c.type === 'money' || c.type === 'formula') && c.id !== col.id);
-  const save = (formula: string, currency = col.currency) => onSave(columns.map((c) => (c.id === col.id ? { ...c, formula, currency: currency || undefined } : c)));
-  const ok = /^[\d+\-*/().\s]*$/.test(text.replace(/\{[^}]+\}/g, '0'));
+  const ctx = { columns, names, allTasks };
+  const problem = text.trim() ? checkFormula(text, ctx) : undefined;
+  const save = (c: Partial<ProjectColumn>) => onSave(columns.map((x) => (x.id === col.id ? { ...x, ...c, currency: (c.currency ?? x.currency) || undefined } : x)));
+  const usable = columns.filter((c) => c.id !== col.id);
+  const insert = (piece: string) => {
+    const el = inputRef.current;
+    const at = el?.selectionStart ?? text.length;
+    const next = text.slice(0, at) + piece + text.slice(el?.selectionEnd ?? at);
+    setText(next);
+    requestAnimationFrame(() => {
+      el?.focus();
+      el?.setSelectionRange(at + piece.length, at + piece.length);
+    });
+  };
+  // A few items, spelled out, so the AI sees what the values look like
+  const samples = tasks.slice(0, 4).map((t) => {
+    const vals = columns
+      .filter((c) => c.type !== 'formula')
+      .map((c) => {
+        const r = formulaResult(`{${c.title}}`, t, ctx);
+        return r.value === null || r.value === '' ? '' : `${c.title}: ${String(r.value)}`;
+      })
+      .filter(Boolean);
+    return `- ${t.title} (Status: ${STATUS_LABEL[t.status]}${t.dueDate ? `, Due date: ${t.dueDate}` : ''}${vals.length ? `, ${vals.join(', ')}` : ''})`;
+  });
+
+  const write = async () => {
+    if (!describe.trim() || busy) return;
+    setBusy(true);
+    setAiError('');
+    setAiNote('');
+    const payload = {
+      description: describe.trim(),
+      title: col.title,
+      current: col.formula || undefined,
+      columns: usable.map((c) => ({ title: c.title, type: c.type, ...(c.options && { options: c.options.map((o) => o.label) }) })),
+      samples,
+    };
+    try {
+      let previous = '';
+      let problemWas = '';
+      // Written once, and sent back once to fix if it doesn't read on this board
+      for (let round = 0; round < 2; round++) {
+        const res = await aiFetch('/api/write-formula', { ...payload, ...(problemWas && { problem: problemWas, previous }) });
+        const body = (await res.json().catch(() => ({}))) as { formula?: string; title?: string; currency?: string; explanation?: string; error?: string };
+        if (res.status === 402) return setAiError('Your AI credit has run out. Top it up from the home chat to keep using AI.');
+        if (!res.ok || !body.formula) return setAiError(body.error === 'not-configured' ? 'Praxa’s AI isn’t switched on here yet.' : body.error || 'The AI couldn’t write it. Try again.');
+        const wrong = checkFormula(body.formula, ctx);
+        if (wrong && round === 0) {
+          previous = body.formula;
+          problemWas = wrong;
+          continue;
+        }
+        setText(body.formula);
+        if (wrong) return setAiError(`The formula it wrote doesn’t work here (${wrong}). Fix it below or describe it another way.`);
+        // A column still called Formula takes the name the AI gave it
+        const rename = /^formula( \d+)?$/i.test(col.title) && body.title && !columns.some((c) => c.id !== col.id && c.title.toLowerCase() === body.title!.toLowerCase());
+        save({ formula: body.formula, ...(rename && { title: body.title }), ...(body.currency !== undefined && { currency: body.currency }) });
+        setAiNote(body.explanation || 'Done.');
+        setDescribe('');
+        return;
+      }
+    } catch {
+      setAiError('The AI couldn’t be reached. Check your connection and try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const preview = tasks.slice(0, 3).map((t) => ({ t, r: formulaResult(text, t, ctx) }));
   return (
-    <div className="pt-3 border-t border-slate-100 space-y-2">
+    <div className="pt-3 border-t border-slate-100 space-y-3">
       <div className="flex items-center gap-2">
         <span className="text-xs font-bold text-slate-700">Formula for</span>
         <select value={col.id} onChange={(e) => setColId(e.target.value)} className="h-7 px-2 rounded-lg border border-slate-200 text-xs font-semibold">
@@ -2248,23 +2350,79 @@ const FormulaEditor: React.FC<{ columns: ProjectColumn[]; onSave: (columns: Proj
             </option>
           ))}
         </select>
-        <input defaultValue={col.currency ?? ''} key={col.id} onBlur={(e) => save(text, e.target.value.trim())} placeholder="£" aria-label="Currency sign" className="w-12 h-7 px-2 rounded-lg border border-slate-200 text-xs" />
+        <input defaultValue={col.currency ?? ''} key={col.id} onBlur={(e) => save({ currency: e.target.value.trim() })} placeholder="£" aria-label="Currency sign" title="Shown before numbers, e.g. £" className="w-12 h-7 px-2 rounded-lg border border-slate-200 text-xs" />
       </div>
-      <input
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onBlur={() => ok && save(text)}
-        placeholder="{Deal value} * {Close probability} / 100"
-        className={`w-full h-9 px-3 rounded-lg border font-mono text-xs ${ok ? 'border-slate-200' : 'border-rose-300 bg-rose-50'}`}
-      />
+
+      {/* Say it */}
+      <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-3 space-y-2">
+        <label htmlFor="formula-describe" className="flex items-center gap-1.5 text-xs font-bold text-indigo-900">
+          <Sparkles className="w-3.5 h-3.5" /> Describe what this column should show
+        </label>
+        <div className="flex gap-2">
+          <input
+            id="formula-describe"
+            value={describe}
+            onChange={(e) => setDescribe(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && write()}
+            placeholder="e.g. days until it's due, or Overdue if the due date has passed and it isn't done"
+            className="flex-1 min-w-0 h-9 px-3 rounded-lg border border-slate-200 bg-white text-xs"
+          />
+          <button onClick={write} disabled={!describe.trim() || busy} className="h-9 px-3 rounded-lg bg-indigo-600 text-white text-xs font-semibold disabled:opacity-50 flex items-center gap-1.5">
+            {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+            {busy ? 'Writing' : 'Write it'}
+          </button>
+        </div>
+        {aiNote && <p className="text-[11px] text-indigo-900">{aiNote}</p>}
+        {aiError && <p className="text-[11px] text-rose-600">{aiError}</p>}
+        {!aiNote && !aiError && <p className="text-[10px] text-slate-500">Paid from your AI credit. You can check and change the formula below.</p>}
+      </div>
+
+      {/* Or write it */}
+      <div className="space-y-1.5">
+        <input
+          ref={inputRef}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onBlur={() => !problem && text !== (col.formula ?? '') && save({ formula: text })}
+          onKeyDown={(e) => e.key === 'Enter' && !problem && save({ formula: text })}
+          aria-label="Formula"
+          placeholder='IF({Deal value} > 10000, "Big", "Small")'
+          className={`w-full h-9 px-3 rounded-lg border font-mono text-xs ${problem ? 'border-rose-300 bg-rose-50' : 'border-slate-200'}`}
+        />
+        <p className={`text-[11px] ${problem ? 'text-rose-600' : 'text-slate-400'}`}>
+          {problem ?? 'Click a column or function to add it. Saved when you press Enter or click away.'}
+        </p>
+        {!problem && text.trim() && preview.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {preview.map(({ t, r }) => (
+              <span key={t.id} className="px-2 py-0.5 rounded-md bg-slate-50 border border-slate-100 text-[11px] text-slate-600 max-w-full truncate">
+                {t.title}: <span className={`font-semibold ${r.error ? 'text-rose-600' : 'text-slate-900'}`}>{r.error ? r.error : showFormula(r, col.currency) || 'empty'}</span>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
       <div className="flex flex-wrap gap-1">
-        {usable.map((c) => (
-          <button key={c.id} onClick={() => setText((t) => `${t}{${c.title}}`)} className="px-1.5 py-0.5 rounded bg-slate-100 text-[11px] font-mono text-slate-700 hover:bg-indigo-50">
-            {`{${c.title}}`}
+        {[...usable.map((c) => c.title), ...BUILT_IN_REFS.filter((b) => !usable.some((c) => c.title.toLowerCase() === b.toLowerCase()))].map((title) => (
+          <button key={title} onClick={() => insert(`{${title}}`)} className="px-1.5 py-0.5 rounded bg-slate-100 text-[11px] font-mono text-slate-700 hover:bg-indigo-50">
+            {`{${title}}`}
           </button>
         ))}
       </div>
-      <p className="text-[11px] text-slate-400">{ok ? 'Click a column to add it; use + - * / and brackets. Saved when you click away.' : 'Only column names in braces, numbers and + - * / ( ) can be used.'}</p>
+      <div>
+        <button onClick={() => setShowFns((x) => !x)} className="text-[11px] font-semibold text-indigo-700 hover:underline">
+          {showFns ? 'Hide functions' : `Functions (${FORMULA_FUNCTIONS.length})`}
+        </button>
+        {showFns && (
+          <div className="mt-1.5 grid grid-cols-1 sm:grid-cols-2 gap-1 max-h-44 overflow-y-auto">
+            {FORMULA_FUNCTIONS.map((f) => (
+              <button key={f.name} onClick={() => insert(`${f.name}(`)} title={f.help} className="text-left px-2 py-1 rounded hover:bg-indigo-50 text-[11px] text-slate-600 truncate">
+                <span className="font-mono font-semibold text-slate-800">{f.name}</span> {f.help.replace(/^[A-Z_]+/, '')}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

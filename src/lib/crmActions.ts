@@ -16,6 +16,8 @@ export interface CrmAction {
   group?: string;
   column?: string;
   columnType?: ProjectColumnType;
+  // Formula columns: what it works out
+  formula?: string;
   values?: { column: string; value: string }[];
   owner?: string;
   due?: string;
@@ -55,7 +57,7 @@ export function describeAction(a: CrmAction): string {
     case 'delete_item':
       return `Delete "${a.item}"${on}`;
     case 'add_column':
-      return `Add a ${a.columnType ?? 'text'} column "${a.title}"${on}${a.values?.length ? ` (${a.values.map((v) => v.value).join(', ')})` : ''}`;
+      return `Add a ${a.columnType ?? 'text'} column "${a.title}"${a.formula ? ` = ${a.formula}` : ''}${on}${a.values?.length ? ` (${a.values.map((v) => v.value).join(', ')})` : ''}`;
     case 'remove_column':
       return `Remove the "${a.column}" column${on}`;
     case 'add_group':
@@ -217,6 +219,7 @@ export function applyActions(actions: CrmAction[], ctx: Ctx): { done: number; sk
           type,
           ...(type === 'label' && { options: (a.values ?? []).map((v, i) => ({ id: id('opt'), label: v.value, colour: i })) }),
           ...(type === 'money' && { currency: '£' }),
+          ...(type === 'formula' && { formula: a.formula?.trim() ?? '' }),
         };
         putBoard({ ...b, columns: [...(b.columns ?? []), col] });
         done++;

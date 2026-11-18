@@ -141,6 +141,8 @@ export const STEP_NAMES: Record<string, string> = {
   'build-app': 'Building an interactive task',
   'test-chat': 'Changing the test',
   'generate-test': 'Writing a test',
+  'crm-assistant': 'Ask AI on a board',
+  'write-formula': 'Writing a formula column',
 };
 
 // step: the route; purpose: the test it was for, as the browser named it

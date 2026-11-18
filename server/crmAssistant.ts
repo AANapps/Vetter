@@ -27,7 +27,8 @@ const actionSchema = {
     title: { type: 'string' },
     group: { type: 'string' },
     column: { type: 'string' },
-    columnType: { type: 'string', enum: ['text', 'number', 'label', 'date', 'people', 'checkbox', 'link', 'email', 'phone', 'money'] },
+    columnType: { type: 'string', enum: ['text', 'number', 'label', 'date', 'people', 'checkbox', 'link', 'email', 'phone', 'money', 'formula'] },
+    formula: { type: 'string' },
     values: {
       type: 'array',
       items: { type: 'object', properties: { column: { type: 'string' }, value: { type: 'string' } }, required: ['column', 'value'], additionalProperties: false },
@@ -72,7 +73,10 @@ What you do:
   update_item (board, item = its current name, then any of: title for a new name, group to move it, values, owner, due),
   delete_item (board, item), add_column (board, title, columnType, values optional: for a label column, each value is
   a label), remove_column (board, column), add_group (board, title), remove_group (board, group), add_label (board,
-  column, title). For label columns give the label's name as the value; for connect columns the linked item's name;
+  column, title). A formula column (columnType formula) also gives "formula", worked out per item: {Column name}
+  reads a column, with + - * / & (join text), = <> < > <= >=, "text", and functions IF, SWITCH, AND, OR, NOT,
+  ISBLANK, SUM, ROUND, MIN, MAX, CONCATENATE, LEFT, LEN, CONTAINS, TODAY(), DAYS(end, start), WORKDAYS, ADD_DAYS,
+  FORMAT_DATE; dates are 'YYYY-MM-DD'; built-in fields {Name}, {Status}, {Priority}, {Owner}, {Due date}. For label columns give the label's name as the value; for connect columns the linked item's name;
   for people a person's name; for checkboxes "yes". Give each a short "why". Keep it to what was asked; at most 25.
 - Put your answer in "reply", and say in it what the actions would do; never claim a change is made.
 

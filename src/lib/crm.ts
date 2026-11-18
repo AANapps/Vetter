@@ -1,5 +1,6 @@
 import { Project, ProjectColumn, ProjectGroup, ProjectTask } from '../types';
 import { STATUS_LABEL, PRIORITY_LABEL, withLog } from './projectAutomations';
+import { FormulaContext, formulaResult, showFormula } from './boardFormula';
 
 /**
  * Praxa's CRM, built the way monday CRM is: linked boards. Leads come in and are worked; a qualified lead is converted
@@ -116,23 +117,11 @@ export const numberOf = (t: ProjectTask, col: ProjectColumn, columns: ProjectCol
   return typeof v === 'number' ? v : undefined;
 };
 
-// Arithmetic over other columns: {Name} is that column's number (0 when empty). Only numbers and + - * / ( ) are left
-// once names are filled in, so nothing else can run
-export function evalFormula(formula: string, t: ProjectTask, columns: ProjectColumn[], depth = 0): number | undefined {
-  if (!formula.trim() || depth > 3) return undefined;
-  const filled = formula.replace(/\{([^}]+)\}/g, (_, name: string) => {
-    const col = columns.find((c) => c.title.toLowerCase() === name.trim().toLowerCase());
-    if (!col) return '0';
-    const n = col.type === 'formula' ? evalFormula(col.formula ?? '', t, columns, depth + 1) : typeof t.values?.[col.id] === 'number' ? (t.values![col.id] as number) : 0;
-    return String(n ?? 0);
-  });
-  if (!/^[\d+\-*/().\s]+$/.test(filled)) return undefined;
-  try {
-    const n = Function(`"use strict"; return (${filled});`)() as unknown;
-    return typeof n === 'number' && isFinite(n) ? Math.round(n * 100) / 100 : undefined;
-  } catch {
-    return undefined;
-  }
+// A formula column's number on an item (for sums, totals and charts); text and yes/no results aren't numbers.
+// The formula language is in boardFormula.ts
+export function evalFormula(formula: string, t: ProjectTask, columns: ProjectColumn[], ctx: Omit<FormulaContext, 'columns'> = {}): number | undefined {
+  const r = formulaResult(formula, t, { ...ctx, columns });
+  return typeof r.value === 'number' ? Math.round(r.value * 100) / 100 : undefined;
 }
 
 export const money = (n: number | undefined, currency = '') => (n === undefined ? '' : `${currency}${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}`);
@@ -183,7 +172,7 @@ export function convertLead(
 export function boardForAi(project: Project, tasks: ProjectTask[], allTasks: ProjectTask[], names: Record<string, string>): string {
   const cols = project.columns ?? [];
   const value = (t: ProjectTask, c: ProjectColumn) => {
-    if (c.type === 'formula') return money(evalFormula(c.formula ?? '', t, cols), c.currency);
+    if (c.type === 'formula') return showFormula(formulaResult(c.formula ?? '', t, { columns: cols, names, allTasks }), c.currency);
     const v = t.values?.[c.id];
     if (v === undefined) return '';
     if (c.type === 'label') return c.options?.find((o) => o.id === v)?.label ?? '';
