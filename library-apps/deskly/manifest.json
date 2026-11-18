@@ -1,0 +1,24 @@
+{
+  "id": "deskly",
+  "name": "Deskly",
+  "product": "help desk",
+  "summary": "A modern help desk agent workspace, like Zendesk or Freshdesk: ticket views with live counts and SLA countdowns, a ticket with its properties, the conversation, a reply composer with macros and internal notes, the customer's orders, and a knowledge base.",
+  "version": 1,
+  "features": [
+    "Ticket views (yours, unassigned, urgent and high, breaching first-reply target, pending, recently solved) with live counts",
+    "SLA countdowns and breached flags, sortable queue",
+    "Ticket properties: priority, type, group, status",
+    "Tags from a set list, added by typing",
+    "Conversation history with customer, agent and internal note messages",
+    "Reply composer: public reply or internal note, with status on send",
+    "Macros that fill the reply with the customer's first name",
+    "Customer card: plan, customer since, location, orders, other tickets, note",
+    "Knowledge base with search",
+    "Extra ticket fields with set options",
+    "Issue a refund (order, amount, method, reason)",
+    "Create an engineering issue (title, steps, expected, actual, severity)",
+    "Live chat with a customer, asked from a question library, with a cause to pick"
+  ],
+  "data": "HelpdeskConfig in src/data/modules/helpdeskApp.ts: { product, company, agent, now, groups[], tagOptions[], macros?[{name, body, tags?}], slaPolicy?[], kb?[{title, body}], tickets[{id, subject, requester, email, plan?, channel, received, ageMins, slaMins?, messages[{from: customer|agent|note, name, at, body}], priority?, type?, group?, status?, tags?, customer?{since, location?, orders?[{id, item, date, total, status}], otherTickets?, note?}}], extraFields?[{key, label, options[]}], refunds?{methods[], reasons[]}, issues?{severities[]}, chat?{customer, topic, opening[], questions[{id, text, reply}], causes[]} }",
+  "state": "{ tickets: { <id>: { priority, type, group, status, tags[], tagSet{<tag>: true}, replies[{public, text, status}], replied, noted, macros[], fields{}, refund{order, amount, method, reason} | null, issue{title, steps, expected, actual, severity} | null, lastPublic, lastNote } }, opened[ids], read[article titles], replyOrder[ids], chat{messages, asked[], askedSet{}, cause, lastAgent} }. Marked with checks like app:deskly:tickets.9001.status"
+}

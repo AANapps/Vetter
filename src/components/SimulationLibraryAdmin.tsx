@@ -15,6 +15,7 @@ import {
 import { buildLibrarySimulation, mergeSubmission } from '../lib/testChat';
 import { startAiRun } from '../lib/aiRequest';
 import { SimulationPreview } from './SimulationPreview';
+import { LIBRARY_APPS, withData } from '../lib/libraryApps';
 
 const when = (iso?: string) => (iso ? new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
 
@@ -36,8 +37,15 @@ const Chips: React.FC<{ items: string[]; tone?: 'new' | 'plain'; max?: number }>
  * an app for the library, look through the library, and take an app out of it.
  */
 export const SimulationLibraryAdmin: React.FC = () => {
-  const { environments, submissions, loading, error } = useLibrary('all');
-  const [view, setView] = useState<'pending' | 'library' | 'decided'>('pending');
+  const { environments: saved, submissions, loading, error } = useLibrary('all');
+  // The library: the apps in Firestore, and Praxa's own apps in the repo (library-apps/) that aren't pushed yet or are
+  // newer there, so the team sees every app (npm run apps -- push <id> puts one in Firestore)
+  const repoOnly: SavedEnvironment[] = Object.values(LIBRARY_APPS)
+    .filter(({ manifest: m }) => !saved.some((e) => e.id === m.id && e.version >= m.version))
+    .map(({ manifest: m }) => ({ id: m.id, app: m.name, name: m.name, product: m.product, summary: m.summary, features: m.features, version: m.version, builtFor: 'Praxa', createdAt: '', updatedAt: '', uses: 0 }));
+  const environments = [...repoOnly, ...saved.filter((e) => !repoOnly.some((r) => r.id === e.id))];
+  const inRepoOnly = (env: SavedEnvironment) => repoOnly.some((r) => r.id === env.id);
+  const [view, setView] = useState<'pending' | 'library' | 'decided'>('library');
   const [open, setOpen] = useState<{ kind: 'sub'; sub: EnvironmentSubmission; page: EnvironmentPage | null } | { kind: 'env'; env: SavedEnvironment; page: EnvironmentPage | null } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
@@ -68,7 +76,12 @@ export const SimulationLibraryAdmin: React.FC = () => {
   };
 
   const openSub = async (sub: EnvironmentSubmission) => setOpen({ kind: 'sub', sub, page: await loadSubmissionPage(sub.id) });
-  const openEnv = async (env: SavedEnvironment) => setOpen({ kind: 'env', env, page: await loadEnvironmentPage(env.id) });
+  // Praxa's own apps hold no data, so they open with their sample data
+  const openEnv = async (env: SavedEnvironment) => {
+    const repo = LIBRARY_APPS[env.id];
+    const page = inRepoOnly(env) ? { html: repo.html } : await loadEnvironmentPage(env.id);
+    setOpen({ kind: 'env', env, page: page && repo ? { ...page, html: withData(page.html, repo.sample) } : page });
+  };
 
   const approve = (sub: EnvironmentSubmission) =>
     run(sub.id, async () => {
@@ -262,7 +275,9 @@ export const SimulationLibraryAdmin: React.FC = () => {
                 <div className="min-w-0 flex-1">
                   <h4 className="text-sm font-semibold text-slate-900">{env.app}</h4>
                   <p className="text-[11px] text-slate-500">
-                    Version {env.version} · {env.features.length} features · built on {env.uses} {env.uses === 1 ? 'time' : 'times'} · updated {when(env.updatedAt)}
+                    {inRepoOnly(env)
+                      ? `Version ${env.version} · ${env.features.length} features · Praxa's own app, in the repo (not pushed to the library yet)`
+                      : `Version ${env.version} · ${env.features.length} features · built on ${env.uses} ${env.uses === 1 ? 'time' : 'times'} · updated ${when(env.updatedAt)}`}
                   </p>
                 </div>
               </div>
@@ -273,10 +288,10 @@ export const SimulationLibraryAdmin: React.FC = () => {
                   <Eye className="w-3.5 h-3.5" />
                   Open
                 </button>
-                <button type="button" disabled={!!busy} onClick={() => remove(env)} className="px-2.5 py-1.5 text-xs font-semibold text-slate-500 hover:text-rose-700 bg-white border border-slate-300 hover:border-rose-300 rounded-lg flex items-center gap-1.5">
+                {!inRepoOnly(env) && <button type="button" disabled={!!busy} onClick={() => remove(env)} className="px-2.5 py-1.5 text-xs font-semibold text-slate-500 hover:text-rose-700 bg-white border border-slate-300 hover:border-rose-300 rounded-lg flex items-center gap-1.5">
                   <Trash2 className="w-3.5 h-3.5" />
                   Remove
-                </button>
+                </button>}
               </div>
             </li>
           ))}

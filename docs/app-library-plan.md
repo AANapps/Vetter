@@ -21,4 +21,6 @@
 
 **Needed:** pushing from Claude Code needs the user's Firebase login. Google asked for a fresh sign-in on 2026-11-18 (`invalid_rapt`): `! npx -y firebase-tools@13 login --reauth --no-localhost`.
 
-**Status:** proposed, waiting for the user's go-ahead to start steps 1 and 4 with Deskly.
+**Status:**
+- 2026-11-18, steps 1 and 4 done for Deskly. `library-apps/deskly/` (app.html with no data, manifest.json, sample-data.json). `libraryPage(id, data)` in src/lib/libraryApps.ts fills it, and both Deskly tests use it. `npm run apps -- list|pull|push` (scripts/library-apps.mjs) also keeps every version in `environmentVersions` (rule added, not deployed). The admin Simulation library lists repo apps with a sample-data preview.
+- Not yet: Deskly isn't pushed to Firestore (the Firebase login needs `--reauth`). Next: steps 2, 3 and 5.

@@ -1,0 +1,31 @@
+{
+  "product": "Deskly",
+  "company": "Northwind Outdoor",
+  "agent": "Sam Taylor",
+  "now": "Tuesday 10:00",
+  "groups": ["Customer Care", "Returns", "Tier 2 Technical"],
+  "tagOptions": ["delivery", "damaged", "refund", "account", "vip"],
+  "slaPolicy": ["Urgent: 1 hour", "High: 4 hours", "Normal: 8 business hours"],
+  "macros": [{ "name": "Late delivery: apology", "body": "Hi {{first_name}},\n\nSorry your order is running late. I've checked with the courier and it's on its way.\n\nBest wishes,\nSam" }],
+  "kb": [{ "title": "Refund policy", "body": "Refunds within 30 days of delivery to the original payment method." }],
+  "tickets": [
+    {
+      "id": "101", "subject": "Tent arrived with a broken pole", "requester": "Priya Shah", "email": "priya@example.com", "plan": "Member",
+      "channel": "Email", "received": "Today 08:40", "ageMins": 80, "slaMins": 160,
+      "messages": [{ "from": "customer", "name": "Priya Shah", "at": "08:40", "body": "Hi, my new tent arrived today and one of the poles is snapped. Can you help?" }],
+      "customer": { "since": "2023", "location": "Leeds", "orders": [{ "id": "NW-5521", "item": "Ridge 2 tent", "date": "3 days ago", "total": "£189.00", "status": "Delivered" }] }
+    },
+    {
+      "id": "102", "subject": "Where is my order?", "requester": "Tom Reid", "email": "tom@example.com",
+      "channel": "Chat", "received": "Today 09:15", "ageMins": 45, "slaMins": -5,
+      "messages": [{ "from": "customer", "name": "Tom Reid", "at": "09:15", "body": "Ordered boots last week and still nothing." }],
+      "customer": { "since": "2025", "orders": [{ "id": "NW-5610", "item": "Trail boots", "date": "8 days ago", "total": "£95.00", "status": "With courier" }] }
+    },
+    {
+      "id": "103", "subject": "Change my email address", "requester": "Ana Lopes", "email": "ana@example.com",
+      "channel": "Web form", "received": "Yesterday 17:02", "ageMins": 1018,
+      "messages": [{ "from": "customer", "name": "Ana Lopes", "at": "17:02", "body": "Please change the email on my account to ana.l@example.org." }]
+    }
+  ],
+  "refunds": { "methods": ["Original payment method", "Store credit"], "reasons": ["Damaged", "Late or lost", "Other"] }
+}

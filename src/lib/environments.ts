@@ -61,6 +61,11 @@ export interface SavedEnvironment {
   createdBy?: string;
   // How many later simulations were built on it
   uses: number;
+  // Reads its data from window.praxaData (Praxa's own apps, library-apps/), so a test only writes data for it; and
+  // what that data and its saved state look like
+  dataDriven?: boolean;
+  data?: string;
+  state?: string;
 }
 
 export type SubmissionStatus = 'pending' | 'approved' | 'rejected';

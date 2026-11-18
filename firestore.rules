@@ -326,6 +326,11 @@ service cloud.firestore {
       allow read: if staff();
       allow write: if isAdmin();
     }
+    // Every version of each app (envId@version), so a test built on one keeps it after the app moves on
+    match /environmentVersions/{versionId} {
+      allow read: if staff();
+      allow write: if isAdmin();
+    }
     // Waiting for review, and the history of what was approved: sent as oneself, pending; read by the sender and the
     // Praxa team; decided by the Praxa team
     match /environmentSubmissions/{subId} {
