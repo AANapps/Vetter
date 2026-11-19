@@ -672,14 +672,22 @@ export async function generateTest(body: unknown, apiKey: string | undefined, mo
   }
 }
 
+// The message inside an error from Claude, without the status and JSON around it
+const reasonOf = (err: InstanceType<typeof Anthropic.APIError>): string =>
+  String((err.error as { error?: { message?: string } } | undefined)?.error?.message ?? err.message).slice(0, 300);
+
 // A failed call to Claude, as the response the browser gets
 export function apiFailure(name: string, err: unknown): { status: number; json: unknown } {
   if (err instanceof Anthropic.AuthenticationError) return { status: 503, json: { error: 'The Anthropic API key was rejected. Check ANTHROPIC_API_KEY.' } };
   if (err instanceof Anthropic.RateLimitError) return { status: 429, json: { error: 'Too many requests to Claude right now. Try again in a minute.' } };
   if (err instanceof Anthropic.APIError) console.error(`[${name}] ${err.message}`);
-  // Praxa's own account has run out of credit: logged above for the Praxa team; companies get a plain 'busy' message
-  if (err instanceof Anthropic.APIError && /credit balance/i.test(err.message))
+  // Praxa's own Anthropic account is out of credit, or has hit the monthly spend limit set in the Console (a 400 saying
+  // "You have reached your specified API usage limits"): logged above for the Praxa team; companies get a plain 'busy'
+  // message
+  if (err instanceof Anthropic.APIError && /credit balance|usage limit/i.test(err.message))
     return { status: 503, json: { error: "Praxa's AI is busy right now. Nothing is lost: try again in a little while." } };
+  // Any other refused request says why, so it can be fixed
+  if (err instanceof Anthropic.BadRequestError) return { status: 502, json: { error: `Claude refused the request (400): ${reasonOf(err)}` } };
   if (err instanceof Anthropic.APIError) return { status: 502, json: { error: `Claude returned an error (${err.status}).` } };
   return { status: 502, json: { error: err instanceof Error ? err.message : 'The AI request failed.' } };
 }
