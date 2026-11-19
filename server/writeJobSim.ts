@@ -9,9 +9,10 @@ import { MAX_PROMPT, PRICES, SimulationCompany, apiFailure } from './generateTes
  * Briefing 2 min, Core task 12, Curveball 6, Juggling and judgement 10, Report back 7, plus a 3-minute buffer.
  *
  * It's written from the job description, the company and everything the company said, plus the plan agreed in the chat
- * (server/planTest.ts), in two requests so each stays well inside the host's five-minute limit: first the world (the
- * cast and everything pre-loaded on the computer, with the issues planted in it), then the script written against it
- * (the emails, who writes back, each part's brief and how it's marked). The browser (src/lib/jobSimBuild.ts) turns it into a test with jobSimulation(), works out every
+ * (server/planTest.ts), in three requests so each stays inside the host's five-minute limit and each reply shape is
+ * small enough for Claude to hold to exactly: the setting (the cast, the apps, what's planted), then the desk
+ * (everything pre-loaded on the computer, with the issues planted in it), then the script written against both (the
+ * emails, who writes back, each part's brief and how it's marked). The browser (src/lib/jobSimBuild.ts) turns it into a test with jobSimulation(), works out every
  * spreadsheet answer from the data, checks it, and sends it back here once with what's wrong to fix.
  */
 
@@ -29,8 +30,8 @@ export interface JobSimRequest {
   current?: unknown;
   change?: string;
   problems?: string[];
-  // Which half to write: the world, or the script for the world already written
-  stage: 'world' | 'script';
+  // Which step to write: the setting (world), the computer's contents for it (desk), or the script for both
+  stage: 'world' | 'desk' | 'script';
   world?: unknown;
   // Praxa's app library: apps the day can put on the desktop (a help desk, a CRM), each filled with the day's data
   library?: { id: string; name: string; product: string; summary: string; features?: string[] }[];
@@ -142,22 +143,34 @@ const pick = (keys: string[], extra: Record<string, unknown> = {}) => ({
   required: [...keys, ...Object.keys(extra)],
   additionalProperties: false,
 });
-const WORLD_KEYS = ['role', 'company', 'domain', 'day', 'description', 'category', 'skillsTested', 'scenario', 'briefing', 'user', 'time', 'apps', 'contacts', 'workbookName', 'sheets', 'databaseName', 'tables', 'homepage', 'pages', 'files', 'project'];
+// The world is written in two steps, each its own reply shape: one shape for all of it is more than Claude can hold to
+// exactly (a 400, "The compiled grammar is too large"). First the setting (who, where, which apps, what's planted),
+// then the desk: the data, pages, files and project on the computer, written to it
+const WORLD_KEYS = ['role', 'company', 'domain', 'day', 'description', 'category', 'skillsTested', 'scenario', 'briefing', 'user', 'time', 'apps', 'contacts'];
+const DESK_KEYS = ['workbookName', 'sheets', 'databaseName', 'tables', 'homepage', 'pages', 'files', 'project'];
 const SCRIPT_KEYS = ['reply', 'briefs', 'inbox', 'replies', 'checks'];
 // planted: for the script's writer, each issue in the data and where it is, and the facts and figures the day turns on
 // libraryApps: apps from the library on the desktop, each with what it must hold for the day; newApp: software the job
 // uses that the library doesn't have yet, which Praxa builds (empty strings when there's none)
 const appBrief = { type: 'object', properties: { id: str, label: str, brief: str }, required: ['id', 'label', 'brief'], additionalProperties: false };
 const newApp = { type: 'object', properties: { app: str, product: str, label: str, brief: str }, required: ['app', 'product', 'label', 'brief'], additionalProperties: false };
-const STAGE_SCHEMAS = { world: pick(WORLD_KEYS, { planted: strs, libraryApps: { type: 'array', items: appBrief }, newApp }), script: pick(SCRIPT_KEYS) };
+const STAGE_SCHEMAS = {
+  world: pick(WORLD_KEYS, { planted: strs, libraryApps: { type: 'array', items: appBrief }, newApp }),
+  desk: pick(DESK_KEYS, { planted: strs }),
+  script: pick(SCRIPT_KEYS),
+};
 
 const STAGE_NOTES = {
-  world: `WRITE NOW: THE WORLD ONLY (the first of two steps; the emails and checks are written next, against what you write
-now). Everything about the company, the cast and what's pre-loaded on the computer (sheets, tables, pages, files,
-project) for the day the plan describes. Build the planted issues into the data, and prepare the curveball (e.g. the
-draft figure is what's in the data; the corrected one comes later by email). planted: one line each for every planted
-issue and exactly where it is (sheet and rows, page, file, function), the curveball's change, the judgement call, and
-the key figures and names the emails and checks will need.`,
+  world: `WRITE NOW: THE SETTING ONLY (the first of three steps; the data on the computer is written next, then the emails
+and checks, all against what you write now). The company, the role, the cast, the apps on the desktop, the library apps
+and any new app for the day the plan describes, and the plan of what's planted. planted: one line each for every issue
+to plant and exactly where it will be (sheet and rows, table, page, file, function, app record), the curveball's
+change, the judgement call, and the key figures and names the data, emails and checks will need.`,
+  desk: `WRITE NOW: THE COMPUTER'S CONTENTS ONLY (the second of three steps): the sheets, tables, pages, files and project
+pre-loaded for THE SETTING above, for exactly its apps (an app it doesn't list stays empty: "" or []), with its cast,
+company and figures. Build every planted issue into the data exactly where THE SETTING says, and prepare the curveball
+(e.g. the draft figure is what's in the data; the corrected one comes later by email). planted: THE SETTING's lines,
+updated to say exactly where each issue now is (sheet name and rows, table and ids, page url, file name, function).`,
   script: `WRITE NOW: THE SCRIPT ONLY (the second of two steps): reply, briefs, inbox, replies and checks for THE WORLD
 above, used exactly as written: every sheet name, cell, column, page url, file name, project check id, address and
 figure must match it. Every planted issue is handled by a check, and the report back's rubric names them.`,
@@ -273,6 +286,8 @@ revenue number from it, and an area manager asks to leave their store out of the
 Report back: email the Operations Director the summary with the workbook attached, marked on naming the stores that
 missed and why, and on flagging the duplicates and the corrected target.`;
 
+const stageOf = (req: JobSimRequest) => (req.stage === 'script' || req.stage === 'desk' ? req.stage : 'world');
+
 export async function writeJobSim(body: unknown, apiKey: string | undefined, model: string): Promise<{ status: number; json: unknown }> {
   const req = body as JobSimRequest;
   if (!req || (!req.brief?.trim() && !req.job && !req.plan && !req.current)) return { status: 400, json: { error: 'Say what the job is.' } };
@@ -307,6 +322,7 @@ export async function writeJobSim(body: unknown, apiKey: string | undefined, mod
     req.current ? `THE DAY AS WRITTEN:\n${JSON.stringify(req.current).slice(0, 60000)}` : '',
     req.change ? `THE COMPANY WANTS THIS CHANGED (write your half again with exactly that change, everything else kept):\n${req.change.slice(0, MAX_TEXT)}` : '',
     req.problems?.length ? `PRAXA'S CHECKS FOUND THESE PROBLEMS. Write your half again with every one fixed and everything else kept:\n${req.problems.map((p) => `- ${p}`).join('\n')}` : '',
+    req.stage === 'desk' && req.world ? `THE SETTING, ALREADY WRITTEN:\n${JSON.stringify(req.world).slice(0, 30000)}` : '',
     req.stage === 'world' && req.library?.length
       ? `PRAXA'S APP LIBRARY (apps the desktop can have):\n${req.library
           .slice(0, 40)
@@ -322,19 +338,19 @@ export async function writeJobSim(body: unknown, apiKey: string | undefined, mod
           .map((a) => `APP ${a.id} ("${a.label}")\nIts saved state: ${String(a.state).slice(0, 3000)}\nWhat's planted and how it's marked: ${(a.planted ?? []).slice(0, 30).join('\n') || 'not listed'}\nIts data: ${String(a.data).slice(0, 25000)}`)
           .join('\n\n')}`
       : '',
-    STAGE_NOTES[req.stage === 'script' ? 'script' : 'world'],
+    STAGE_NOTES[stageOf(req)],
   ]
     .filter(Boolean)
     .join('\n\n');
 
-  const stage = req.stage === 'script' ? 'script' : 'world';
+  const stage = stageOf(req);
   const client = new Anthropic({ apiKey });
   try {
     const message = await streamJson(client, {
         model,
         max_tokens: 32000,
         // The world is mostly data, written quickly; the script decides how the day is marked, so it thinks more
-        output_config: { effort: stage === 'world' ? 'low' : 'medium', format: { type: 'json_schema', schema: STAGE_SCHEMAS[stage] } },
+        output_config: { effort: stage === 'script' ? 'medium' : 'low', format: { type: 'json_schema', schema: STAGE_SCHEMAS[stage] } },
         ...(!model.includes('haiku') && { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' as const }),
         system: [{ type: 'text', text: RULES, cache_control: { type: 'ephemeral' } }],
         messages: [{ role: 'user', content }],

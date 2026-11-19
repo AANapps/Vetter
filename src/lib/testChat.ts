@@ -801,7 +801,18 @@ async function writeJobSimDay(
       ...((was ?? before) && { current: was ?? before }),
       ...(problems && { problems, change: undefined }),
     });
-    return out.failure ? { failure: out.failure } : { world: out.body as Record<string, unknown> };
+    if (out.failure) return { failure: out.failure };
+    // Then what's on the computer, written to that setting (two steps: one reply shape for both is too big for Claude)
+    const setting = out.body as Record<string, unknown>;
+    const desk = await post('/api/write-job-sim', {
+      ...base,
+      stage: 'desk',
+      world: setting,
+      ...((was ?? before) && { current: was ?? before }),
+      ...(problems && { problems, change: undefined }),
+    });
+    if (desk.failure) return { failure: desk.failure };
+    return { world: { ...setting, ...(desk.body as Record<string, unknown>) } };
   };
   const writeScript = async (world: Record<string, unknown>, problems?: string[], was?: unknown) => {
     const out = await post('/api/write-job-sim', {
