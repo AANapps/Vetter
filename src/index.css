@@ -791,6 +791,8 @@ html.dark :is(.text-emerald-600, .text-emerald-700) { color: #34d399; }
 html.dark :is(.text-amber-600, .text-amber-700) { color: #fbbf24; }
 html.dark :is(.text-rose-600, .text-rose-700, .text-rose-800) { color: #fb7185; }
 html.dark .theme-light :is(.text-indigo-600, .text-indigo-700) { color: rgb(88, 52, 255); }
+/* The faintest grey text (a "–" for none, a "·" between details) stays visible on the dark page */
+html.dark .text-slate-300:not(.theme-light *, .text-white *, [class~="bg-slate-800"] *, [class~="bg-slate-900"] *, [class~="bg-slate-950"] *) { color: #6d788c; }
 /* Praxa's indigo is a navy: its middle shades, as text or on hover, are brightened like the rest of the brand text */
 html.dark :is(.text-indigo-400, .text-indigo-500, .text-violet-500) { color: #b4a8ff; }
 html.dark :is(.hover\:text-indigo-600:hover, .group:hover .group-hover\:text-indigo-600) { color: #a99bff; }
@@ -925,7 +927,7 @@ html.dark .sa-stage { background: linear-gradient(160deg, #0f172a, #1e1b4b); bor
 .sa-soft { background: var(--sa-soft); }
 .sa-ink { background: #6366f1; }
 .sa-ink-2 { background: #8b5cf6; }
-.sa-ok { background: #10b981; }
+.sa-ok { background: #059669; }
 .sa-warm { background: #f59e0b; }
 .sa-rose { background: #f43f5e; }
 
