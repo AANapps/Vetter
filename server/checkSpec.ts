@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { streamJson } from './streamJson.js';
 import { meter } from './meter.js';
 import { MAX_PROMPT, PRICES, apiFailure } from './generateTest.js';
 
@@ -87,8 +88,7 @@ export async function checkSpec(body: unknown, apiKey: string | undefined, model
 
   const client = new Anthropic({ apiKey });
   try {
-    const message = await client.beta.messages
-      .stream({
+    const message = await streamJson(client, {
         model,
         max_tokens: 32000,
         // Medium: the thinking is the point of the check, and it writes back no more than the spec
@@ -96,8 +96,7 @@ export async function checkSpec(body: unknown, apiKey: string | undefined, model
         ...(!model.includes('haiku') && { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' as const }),
         system: instructions(req),
         messages: [{ role: 'user', content }],
-      })
-      .finalMessage();
+      });
     meter(model, message.usage);
     const price = PRICES[model];
     const { input_tokens, output_tokens } = message.usage;

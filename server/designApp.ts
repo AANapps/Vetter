@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { streamJson } from './streamJson.js';
 import { meter } from './meter.js';
 import { APP_PAGE_RULES, GAME_PAGE_RULES, PRICES, apiFailure, sectorSimulationRules } from './generateTest.js';
 import type { BuildAppRequest } from './buildApp.js';
@@ -55,8 +56,7 @@ export async function designApp(body: unknown, apiKey: string | undefined, model
 
   const client = new Anthropic({ apiKey });
   try {
-    const message = await client.beta.messages
-      .stream({
+    const message = await streamJson(client, {
         model,
         max_tokens: 24000,
         // The thinking happens here, at high effort; the design itself is short, so it fits the time limit
@@ -74,8 +74,7 @@ export async function designApp(body: unknown, apiKey: string | undefined, model
             ].join('\n\n'),
           },
         ],
-      })
-      .finalMessage();
+      });
     meter(model, message.usage);
 
     const price = PRICES[model];

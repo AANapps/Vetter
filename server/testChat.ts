@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { streamJson } from './streamJson.js';
 import { meter } from './meter.js';
 import { CODE_RULE, APP_KINDS, APP_TASK_RULES, DEPTH_STYLE_RULES, EMAIL_RULES, ASSISTANT_RULES, GAMIFIED_TEST_RULES, QUALITY_RULES, SKILLS_TEST_RULES, STANDALONE_RULES, TRAINING_RULES, SimulationCompany, sectorSimulationRules, simulationRules, TASK_RULES, WORKSPACE_RULES, MAX_PROMPT, PRICES, apiFailure, questionSchema, researchSoftware } from './generateTest.js';
 
@@ -262,8 +263,7 @@ export function appEditsOf(text: unknown): { id: string; change: string; taskPro
 const sameProduct = (a = '', b = '') => a.trim().toLowerCase() === b.trim().toLowerCase();
 
 async function turn(client: Anthropic, model: string, req: ChatRequest, research: string) {
-  const message = await client.beta.messages
-    .stream({
+  const message = await streamJson(client, {
       model,
       max_tokens: 64000,
       output_config: { effort: 'medium', format: { type: 'json_schema', schema: responseSchema } },
@@ -271,8 +271,7 @@ async function turn(client: Anthropic, model: string, req: ChatRequest, research
       // The instructions and library stay the same across a conversation, so they're cached
       system: [{ type: 'text', text: instructions(req, research), cache_control: { type: 'ephemeral' } }],
       messages: conversation(req),
-    })
-    .finalMessage();
+    });
     meter(model, message.usage);
   const price = PRICES[model];
   const { input_tokens, output_tokens, cache_read_input_tokens } = message.usage;

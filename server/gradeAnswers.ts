@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { streamJson } from './streamJson.js';
 import { meter } from './meter.js';
 
 /**
@@ -126,16 +127,14 @@ export async function gradeAnswers(body: unknown, apiKey: string | undefined, mo
 
   const client = new Anthropic({ apiKey });
   try {
-    const message = await client.beta.messages
-      .stream({
+    const message = await streamJson(client, {
         model,
         max_tokens: 16000,
         output_config: { effort: 'medium', format: { type: 'json_schema', schema } },
         ...(!model.includes('haiku') && { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' as const }),
         system: SYSTEM,
         messages: [{ role: 'user', content: `Mark these answers.\n\n${content}` }],
-      })
-      .finalMessage();
+      });
     meter(model, message.usage);
 
     const price = PRICES[model];

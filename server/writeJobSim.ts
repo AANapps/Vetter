@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { streamJson } from './streamJson.js';
 import { meter } from './meter.js';
 import { MAX_PROMPT, PRICES, SimulationCompany, apiFailure } from './generateTest.js';
 
@@ -329,8 +330,7 @@ export async function writeJobSim(body: unknown, apiKey: string | undefined, mod
   const stage = req.stage === 'script' ? 'script' : 'world';
   const client = new Anthropic({ apiKey });
   try {
-    const message = await client.beta.messages
-      .stream({
+    const message = await streamJson(client, {
         model,
         max_tokens: 32000,
         // The world is mostly data, written quickly; the script decides how the day is marked, so it thinks more
@@ -338,8 +338,7 @@ export async function writeJobSim(body: unknown, apiKey: string | undefined, mod
         ...(!model.includes('haiku') && { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' as const }),
         system: [{ type: 'text', text: RULES, cache_control: { type: 'ephemeral' } }],
         messages: [{ role: 'user', content }],
-      })
-      .finalMessage();
+      });
     meter(model, message.usage);
     const price = PRICES[model];
     const { input_tokens, output_tokens } = message.usage;

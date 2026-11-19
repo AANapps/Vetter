@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { streamJson } from './streamJson.js';
 import { meter } from './meter.js';
 
 /**
@@ -607,8 +608,7 @@ Only facts you found or can be confident of. Under 1,200 words. No preamble.`;
 async function searchAndNote(client: Anthropic, model: string, content: string, system: string, label: string): Promise<string> {
   const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: 'user', content }];
   for (let turn = 0; turn < 4; turn++) {
-    const message = await client.beta.messages
-      .stream({
+    const message = await streamJson(client, {
         model,
         max_tokens: 16000,
         output_config: { effort: 'low' },
@@ -617,8 +617,7 @@ async function searchAndNote(client: Anthropic, model: string, content: string, 
         ...(!model.includes('haiku') && { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' as const }),
         system,
         messages,
-      })
-      .finalMessage();
+      });
     meter(model, message.usage);
     if (message.stop_reason === 'pause_turn') {
       messages.push({ role: 'assistant', content: message.content });
@@ -643,8 +642,7 @@ export async function generateTest(body: unknown, apiKey: string | undefined, mo
     // Research is a help, not a must: without it the app is built from what Claude already knows
     const research = wantsApp ? await researchSoftware(client, model, req.prompt).catch((err) => (console.error('[generate-test] research failed', err), '')) : '';
     // Streamed so a long test can't hit a request timeout; the finished message is all that's needed
-    const message = await client.beta.messages
-      .stream({
+    const message = await streamJson(client, {
         model,
         // An app is a whole page of code, so it needs more room
         max_tokens: wantsApp ? 64000 : 32000,
@@ -655,8 +653,7 @@ export async function generateTest(body: unknown, apiKey: string | undefined, mo
         ...(!model.includes('haiku') && { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' as const }),
         system: instructions({ ...req, research, questionCount: Math.min(45, Math.max(1, Math.round(req.questionCount || 26))) }),
         messages: [{ role: 'user', content: `The job or test the company described:\n\n${req.prompt.slice(0, MAX_PROMPT)}` }],
-      })
-      .finalMessage();
+      });
     meter(model, message.usage);
 
     const price = PRICES[model];

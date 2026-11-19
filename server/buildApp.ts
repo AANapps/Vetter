@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { streamJson } from './streamJson.js';
 import { meter } from './meter.js';
 import { APP_PAGE_RULES, GAME_PAGE_RULES, PRICES, apiFailure, sectorSimulationRules } from './generateTest.js';
 
@@ -158,8 +159,7 @@ export async function buildApp(body: unknown, apiKey: string | undefined, model:
 
   const client = new Anthropic({ apiKey });
   try {
-    const message = await client.beta.messages
-      .stream({
+    const message = await streamJson(client, {
         model,
         max_tokens: 64000,
         // Low effort: the designer has done the thinking in the spec, and a page at higher effort can run past the host's
@@ -215,8 +215,7 @@ export async function buildApp(body: unknown, apiKey: string | undefined, model:
             ].join('\n\n'),
           },
         ],
-      })
-      .finalMessage();
+      });
     meter(model, message.usage);
 
     const price = PRICES[model];

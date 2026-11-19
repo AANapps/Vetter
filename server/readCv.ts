@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { streamJson } from './streamJson.js';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { meter } from './meter.js';
 import { apiFailure } from './generateTest.js';
@@ -100,15 +101,13 @@ export async function readCv(body: unknown, env: Env, authorization: string | un
     ? [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdf } }, { type: 'text', text: 'Fill in my profile from this CV.' }]
     : [{ type: 'text', text: `Fill in my profile from this:\n\n${text}` }];
   try {
-    const message = await client.beta.messages
-      .stream({
+    const message = await streamJson(client, {
         model,
         max_tokens: 8000,
         output_config: { effort: 'low', format: { type: 'json_schema', schema } },
         system: RULES(),
         messages: [{ role: 'user', content }],
-      })
-      .finalMessage();
+      });
     meter(model, message.usage);
     if (message.stop_reason === 'refusal') return { status: 422, json: { error: "Praxa couldn't read that. Try pasting the text instead." } };
     return { status: 200, json: JSON.parse(message.content.flatMap((b) => (b.type === 'text' ? [b.text] : [])).join('')) };

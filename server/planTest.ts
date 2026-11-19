@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { streamJson } from './streamJson.js';
 import { meter } from './meter.js';
 import { MAX_PROMPT, PRICES, apiFailure, researchJob, researchSoftware } from './generateTest.js';
 import { ChatRequest, backgroundNote, levelPick, styleGuide, stylesNote } from './testChat.js';
@@ -243,16 +244,14 @@ function conversation(req: PlanRequest): Anthropic.Beta.BetaMessageParam[] {
 const sameProduct = (a = '', b = '') => a.trim().toLowerCase() === b.trim().toLowerCase();
 
 async function turn(client: Anthropic, model: string, req: PlanRequest, research: string) {
-  const message = await client.beta.messages
-    .stream({
+  const message = await streamJson(client, {
       model,
       max_tokens: 32000,
       output_config: { effort: 'medium', format: { type: 'json_schema', schema: schemaFor(req.styles, req.kind === 'simulation') } },
       ...(!model.includes('haiku') && { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' as const }),
       system: [{ type: 'text', text: req.kind === 'simulation' ? jobSimInstructions(req, research) : instructions(req, research), cache_control: { type: 'ephemeral' } }],
       messages: conversation(req),
-    })
-    .finalMessage();
+    });
     meter(model, message.usage);
   const price = PRICES[model];
   const { input_tokens, output_tokens } = message.usage;

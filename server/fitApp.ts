@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { streamJson } from './streamJson.js';
 import { meter } from './meter.js';
 import { PRICES, apiFailure } from './generateTest.js';
 
@@ -120,16 +121,14 @@ export async function fitApp(body: unknown, apiKey: string | undefined, model: s
 
   const client = new Anthropic({ apiKey });
   try {
-    const message = await client.beta.messages
-      .stream({
+    const message = await streamJson(client, {
         model,
         max_tokens: 32000,
         output_config: { effort: 'medium', format: { type: 'json_schema', schema } },
         ...(!model.includes('haiku') && { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' as const }),
         system: [{ type: 'text', text: SYSTEM(mode), cache_control: { type: 'ephemeral' } }],
         messages: [{ role: 'user', content }],
-      })
-      .finalMessage();
+      });
     meter(model, message.usage);
     const price = PRICES[model];
     const { input_tokens, output_tokens } = message.usage;
