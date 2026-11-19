@@ -312,12 +312,16 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
                 <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">What do you want to do?</h1>
                 <p className="text-sm text-slate-500 max-w-md mx-auto">Pick one to start, or just type below: describe the role or paste a job description.</p>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-left">
-                {STARTERS.map((s) => (
+              {/* The starters slide past right to left, fading in and out at both ends; pointing at one stops them */}
+              <div className="ai-marquee-mask overflow-hidden -mx-4 sm:mx-0 text-left">
+                <div className="ai-marquee starter-marquee py-2">
+                {[0, 1].flatMap((copy) => STARTERS.map((s) => (
                   <button
-                    key={s.id}
+                    key={`${copy}-${s.id}`}
+                    aria-hidden={copy === 1 || undefined}
+                    tabIndex={copy === 1 ? -1 : undefined}
                     onClick={() => ('ask' in s ? send(s.ask) : onGoTo('business-tests'))}
-                    className="group ai-glass p-3 rounded-2xl border border-white/80 shadow-xs hover:shadow-md hover:-translate-y-0.5 hover:border-indigo-300 transition-all flex flex-col gap-3"
+                    className="group ai-glass w-56 shrink-0 mr-3 p-2.5 rounded-2xl border border-white/80 shadow-xs hover:shadow-md hover:-translate-y-0.5 hover:border-indigo-300 transition-all flex flex-col gap-2.5"
                   >
                     <StarterArt kind={s.art} />
                     <span className="flex items-start gap-2.5 px-1">
@@ -334,7 +338,8 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
                       <ArrowRight className="w-3.5 h-3.5" />
                     </span>
                   </button>
-                ))}
+                )))}
+                </div>
               </div>
               {/* Or write one by hand */}
               <div className="flex justify-center pt-1">
