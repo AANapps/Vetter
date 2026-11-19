@@ -925,7 +925,11 @@ async function writeJobSimDay(
     if (made.problems.length) made = assembleJobSim(raw, ctx.business, true, initial);
   }
   list.finish();
-  if (!made.test) return { failure: "Praxa couldn't make a job simulation that passes its checks. Try Build again." };
+  if (!made.test) {
+    console.warn('[job sim] still failing its checks after the fix:', made.problems);
+    const why = made.problems.slice(0, 3).map((p) => p.replace(/^:?\s*/, '')).join(' ');
+    return { failure: `Praxa couldn't make a job simulation that passes its checks${why ? ` (${why})` : ''}. Try Build again.` };
+  }
   const plan = extra.plan;
   const test = finishJobSim(made.test, raw, ctx.business, ctx.level, plan?.difficulty ?? extra.current?.difficulty);
   return {
