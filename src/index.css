@@ -152,8 +152,6 @@
 @keyframes ai-marquee { to { transform: translateX(-50%); } }
 .ai-marquee { display: flex; width: max-content; animation: ai-marquee 40s linear infinite; }
 .ai-marquee[data-paused='true'] { animation-play-state: paused; }
-.starter-marquee { animation-duration: 45s; }
-.starter-marquee:hover, .starter-marquee:focus-within { animation-play-state: paused; }
 /* The AI mark standing still: the same colours without the turning that repaints it every frame */
 .ai-mark-still { background: conic-gradient(from 200deg, #4f8bf5, #9b6cf6, #ec6fae, #4f8bf5); }
 .ai-marquee-mask {
@@ -164,8 +162,6 @@
 .ai-caret { display: inline-block; width: 2px; height: 1em; margin-left: 1px; vertical-align: -0.15em; background: #8b5cf6; animation: ai-caret 1s steps(1) infinite; }
 @media (prefers-reduced-motion: reduce) {
   .ai-marquee, .ai-caret { animation: none; }
-  /* The starters stand still, so they scroll by hand instead */
-  .ai-marquee-mask:has(.starter-marquee) { overflow-x: auto; }
 }
 
 @layer base {

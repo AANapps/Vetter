@@ -3,7 +3,7 @@ import { TRAINING, asksForTraining, searchTraining } from '../data/trainingCatal
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { BrandSparkle, BrandWordmark } from './Brand';
-import { ArrowRight, ArrowUp, Briefcase, Check, ChevronDown, Circle, ExternalLink, Eye, GraduationCap, Library, Loader2, Lock, Monitor, Pencil, Plus, Send, Square, UserSearch, Users, Wand2, X } from 'lucide-react';
+import { ArrowRight, ArrowUp, Briefcase, Check, ChevronDown, ChevronLeft, ChevronRight, Circle, ExternalLink, Eye, GraduationCap, Library, Loader2, Lock, Monitor, Pencil, Plus, Send, Square, UserSearch, Users, Wand2, X } from 'lucide-react';
 import { AssessmentTest, Business, JobPosting, QuestionType, TestKind, User, levelName } from '../types';
 import { Pic } from './Pic';
 import { StarterArt, StarterArtKind } from './StarterArt';
@@ -95,6 +95,73 @@ const STARTERS: Starter[] = [
   { id: 'live', art: 'live', icon: Users, tone: 'from-rose-500 to-pink-500', title: 'Book live training', body: 'Short sessions and bootcamps taught by a Praxa tutor, for your whole team.', ask: 'I want to book live training for my team.' },
   { id: 'library', art: 'library', icon: Library, tone: 'from-slate-600 to-slate-800', title: 'Browse the test library', body: 'Ready-made tests and simulations by role and level, free to send.', go: 'library' },
 ];
+
+// A row that slides right to left on its own, looping (its children are the cards twice over), with arrows either side
+// to move it one card at a time. Pointing at it or focusing a card stops it; with reduced motion it only moves by arrow
+const STEP = 236; // a card (w-56) and its gap (mr-3)
+const SPEED = 30; // pixels a second
+const StarterSlide: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const track = useRef<HTMLDivElement>(null);
+  const offset = useRef(0);
+  const target = useRef<number | null>(null);
+  const paused = useRef(false);
+  useEffect(() => {
+    const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    let last = performance.now();
+    let frame = 0;
+    const tick = (now: number) => {
+      const dt = Math.min(now - last, 100) / 1000;
+      last = now;
+      const el = track.current;
+      if (el) {
+        const half = el.scrollWidth / 2;
+        if (target.current !== null) {
+          const gap = target.current - offset.current;
+          if (Math.abs(gap) < 0.5) {
+            offset.current = target.current;
+            target.current = null;
+          } else offset.current += gap * Math.min(1, dt * 10);
+        } else if (!paused.current && !still) offset.current += SPEED * dt;
+        // Loop: the second copy stands where the first began
+        if (half > 0) {
+          const wrap = offset.current >= half ? -half : offset.current < 0 ? half : 0;
+          offset.current += wrap;
+          if (target.current !== null) target.current += wrap;
+        }
+        el.style.transform = `translateX(${-offset.current}px)`;
+      }
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, []);
+  const move = (dir: 1 | -1) => {
+    const from = target.current ?? offset.current;
+    target.current = (Math.round(from / STEP) + dir) * STEP;
+  };
+  const arrow = 'absolute top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white/90 border border-slate-200 shadow-sm text-slate-600 hover:text-indigo-700 hover:border-indigo-300 flex items-center justify-center';
+  return (
+    <div className="relative -mx-4 sm:mx-0 text-left">
+      <div
+        className="ai-marquee-mask overflow-hidden"
+        onMouseEnter={() => (paused.current = true)}
+        onMouseLeave={() => (paused.current = false)}
+        onFocus={() => (paused.current = true)}
+        onBlur={() => (paused.current = false)}
+      >
+        <div ref={track} className="flex w-max py-2 will-change-transform">
+          {children}
+        </div>
+      </div>
+      <button type="button" aria-label="Previous" onClick={() => move(-1)} className={`${arrow} left-1 sm:-left-4`}>
+        <ChevronLeft className="w-4 h-4" />
+      </button>
+      <button type="button" aria-label="Next" onClick={() => move(1)} className={`${arrow} right-1 sm:-right-4`}>
+        <ChevronRight className="w-4 h-4" />
+      </button>
+    </div>
+  );
+};
 
 // A company's home: a chat with Praxa about who they're hiring, which answers with a roadmap, the library tests that
 // fit and custom pieces worth building. The menu sits on the left
@@ -312,9 +379,9 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
                 <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">What do you want to do?</h1>
                 <p className="text-sm text-slate-500 max-w-md mx-auto">Pick one to start, or just type below: describe the role or paste a job description.</p>
               </div>
-              {/* The starters slide past right to left, fading in and out at both ends; pointing at one stops them */}
-              <div className="ai-marquee-mask overflow-hidden -mx-4 sm:mx-0 text-left">
-                <div className="ai-marquee starter-marquee py-2">
+              {/* The starters slide past right to left, fading in and out at both ends; pointing at one stops them, and the
+                  arrows move them by hand */}
+              <StarterSlide>
                 {[0, 1].flatMap((copy) => STARTERS.map((s) => (
                   <button
                     key={`${copy}-${s.id}`}
@@ -339,8 +406,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
                     </span>
                   </button>
                 )))}
-                </div>
-              </div>
+              </StarterSlide>
               {/* Or write one by hand */}
               <div className="flex justify-center pt-1">
                 <button
