@@ -673,8 +673,10 @@ html.dark {
   /* Borders drawn without a colour */
   --color-gray-200: #273246;
 }
-/* Already-dark panels, and anything that must stay light (a printed certificate), keep light mode's greys */
-html.dark [class~="bg-slate-800"], [class*=" bg-slate-800/"], [class^="bg-slate-800/"], html.dark [class~="bg-slate-900"], [class*=" bg-slate-900/"], [class^="bg-slate-900/"], html.dark [class~="bg-slate-950"], [class*=" bg-slate-950/"], [class^="bg-slate-950/"], html.dark [class~="bg-indigo-700"], [class*=" bg-indigo-700/"], [class^="bg-indigo-700/"], html.dark [class~="bg-indigo-800"], [class*=" bg-indigo-800/"], [class^="bg-indigo-800/"], html.dark [class~="bg-indigo-900"], [class*=" bg-indigo-900/"], [class^="bg-indigo-900/"], html.dark [class~="bg-indigo-950"], [class*=" bg-indigo-950/"], [class^="bg-indigo-950/"], html.dark .theme-light {
+/* Already-dark panels, anything that must stay light (a printed certificate), and anything with white text (a solid
+   button, a banner: drawn for a deep colour behind it) keep light mode's colours, so a bg-emerald-700 button or a
+   text-indigo-100 line on a banner doesn't turn pale and unreadable */
+html.dark [class~="bg-slate-800"], [class*=" bg-slate-800/"], [class^="bg-slate-800/"], html.dark [class~="bg-slate-900"], [class*=" bg-slate-900/"], [class^="bg-slate-900/"], html.dark [class~="bg-slate-950"], [class*=" bg-slate-950/"], [class^="bg-slate-950/"], html.dark [class~="bg-indigo-700"], [class*=" bg-indigo-700/"], [class^="bg-indigo-700/"], html.dark [class~="bg-indigo-800"], [class*=" bg-indigo-800/"], [class^="bg-indigo-800/"], html.dark [class~="bg-indigo-900"], [class*=" bg-indigo-900/"], [class^="bg-indigo-900/"], html.dark [class~="bg-indigo-950"], [class*=" bg-indigo-950/"], [class^="bg-indigo-950/"], html.dark .theme-light, html.dark .text-white {
   --color-slate-50: oklch(98.4% 0.003 247.858);
   --color-slate-100: #eef0f4;
   --color-slate-200: #dadfe7;
@@ -698,7 +700,9 @@ html.dark [class~="bg-slate-800"], [class*=" bg-slate-800/"], [class^="bg-slate-
   --color-indigo-900: #111833;
   --color-indigo-950: #0b1022;
 }
-html.dark .theme-light {
+/* ...and their colours too, so a dark panel's bright text (a code runner's green pass, amber warning) stays bright */
+html.dark [class~="bg-slate-800"], html.dark [class*=" bg-slate-800/"], html.dark [class^="bg-slate-800/"], html.dark [class~="bg-slate-900"], html.dark [class*=" bg-slate-900/"], html.dark [class^="bg-slate-900/"], html.dark [class~="bg-slate-950"], html.dark [class*=" bg-slate-950/"], html.dark [class^="bg-slate-950/"], html.dark [class~="bg-indigo-700"], html.dark [class*=" bg-indigo-700/"], html.dark [class^="bg-indigo-700/"], html.dark [class~="bg-indigo-800"], html.dark [class*=" bg-indigo-800/"], html.dark [class^="bg-indigo-800/"], html.dark [class~="bg-indigo-900"], html.dark [class*=" bg-indigo-900/"], html.dark [class^="bg-indigo-900/"], html.dark [class~="bg-indigo-950"], html.dark [class*=" bg-indigo-950/"], html.dark [class^="bg-indigo-950/"],
+html.dark .theme-light, html.dark .text-white {
   --color-emerald-50: oklch(97.9% 0.021 166.113);
   --color-emerald-100: oklch(95% 0.052 163.051);
   --color-emerald-200: oklch(90.5% 0.093 164.15);
@@ -769,6 +773,11 @@ html.dark .theme-light .bg-white, html.dark .theme-light.bg-white { background-c
 
 html.dark, html.dark body { background-color: #0b1120; color: #e6eaf0; }
 html.dark .bg-white { background-color: var(--surface); }
+html.dark .focus\:bg-white:focus { background-color: var(--surface); }
+@media (min-width: 64rem) { html.dark .lg\:bg-white { background-color: var(--surface); } }
+/* Gradients that fade to white fade to the panel colour instead */
+html.dark .via-white { --tw-gradient-via: var(--surface); }
+html.dark .to-white { --tw-gradient-to: var(--surface); }
 html.dark .\[\&_input\]\:bg-white input { background-color: var(--surface); }
 html.dark :is(.bg-white\/95, .bg-white\/90, .bg-white\/80, .bg-white\/70, .bg-white\/60, .bg-white\/50) { background-color: rgb(18 26 43 / 0.9); }
 html.dark :is(.hover\:bg-white:hover) { background-color: var(--surface-hover); }
@@ -782,6 +791,10 @@ html.dark :is(.text-emerald-600, .text-emerald-700) { color: #34d399; }
 html.dark :is(.text-amber-600, .text-amber-700) { color: #fbbf24; }
 html.dark :is(.text-rose-600, .text-rose-700, .text-rose-800) { color: #fb7185; }
 html.dark .theme-light :is(.text-indigo-600, .text-indigo-700) { color: rgb(88, 52, 255); }
+/* Praxa's indigo is a navy: its middle shades, as text or on hover, are brightened like the rest of the brand text */
+html.dark :is(.text-indigo-400, .text-indigo-500, .text-violet-500) { color: #b4a8ff; }
+html.dark :is(.hover\:text-indigo-600:hover, .group:hover .group-hover\:text-indigo-600) { color: #a99bff; }
+html.dark .theme-light :is(.text-indigo-400, .text-indigo-500) { color: var(--color-indigo-500); }
 
 /* Buttons and fields */
 html.dark :is(button.bg-white, button.bg-slate-50, button.bg-slate-100) { background-color: var(--surface); box-shadow: inset 0 0 0 1px #364259; }
