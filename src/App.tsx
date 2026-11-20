@@ -1671,6 +1671,8 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
         currentTab={currentTab}
         onTabChange={(tab) => {
           setCompaniesQuery('');
+          // Tests from the menu always opens on every role
+          if (tab === 'tests') setTestField(null);
           goToTab(tab);
         }}
         activeRole={activeRole}

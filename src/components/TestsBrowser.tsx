@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ArrowLeft, ArrowRight, Briefcase, Check, ChevronRight, Clock, ListChecks, Monitor, Play, Search, Sparkles, X } from 'lucide-react';
+import { ArrowLeft, Briefcase, Check, ChevronRight, Clock, ListChecks, Monitor, Play, Search, Sparkles, X } from 'lucide-react';
 import { AssessmentTest, JobPosting, TEST_DIFFICULTIES, TestDifficulty, TestRole, User, isJobSim, isPublic, levelName } from '../types';
 import { ROLE_GROUPS, ROLE_SECTIONS, TestField, TestSection } from '../lib/testRoles';
 import { isMainVersion, levelsOf } from '../lib/testLevels';
@@ -35,6 +35,25 @@ type Status = 'all' | 'todo' | 'passed';
 
 const levelLabel = (d: TestDifficulty | string) => (d === 'Junior' ? 'Beginner' : levelName(d));
 const isSim = (t: AssessmentTest, sec?: TestSection) => /simulation/i.test(sec?.label ?? '') || /simulation/i.test(t.title);
+
+// A small completion circle: the share of a role's tests passed, with the count in the middle
+const ProgressRing: React.FC<{ done: number; total: number }> = ({ done, total }) => {
+  const r = 17;
+  const c = 2 * Math.PI * r;
+  const pct = total ? done / total : 0;
+  const all = total > 0 && done === total;
+  return (
+    <span className="relative w-11 h-11 shrink-0" aria-label={`${done} of ${total} passed`} role="img">
+      <svg width="44" height="44" aria-hidden="true">
+        <circle cx="22" cy="22" r={r} fill="none" className="stroke-slate-100" strokeWidth="4" />
+        <circle cx="22" cy="22" r={r} fill="none" className={all ? 'stroke-emerald-500' : 'stroke-indigo-600'} strokeWidth="4" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - pct)} transform="rotate(-90 22 22)" />
+      </svg>
+      <span className={`absolute inset-0 flex items-center justify-center text-[10px] font-bold font-mono ${all ? 'text-emerald-700' : 'text-slate-700'}`}>
+        {all ? <Check className="w-4 h-4" strokeWidth={3} /> : `${done}/${total}`}
+      </span>
+    </span>
+  );
+};
 
 export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandidates, tests, jobs, sector, testField, onTestFieldChange, onOpenTest, onStartTest }) => {
   const visibility = useLibraryVisibility();
@@ -472,22 +491,18 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
                         className="group w-full h-full text-left p-5 rounded-2xl bg-white border border-slate-200 hover:border-indigo-300 hover:shadow-md transition-all flex flex-col gap-3"
                       >
                         <span className="flex items-start justify-between gap-3">
-                          <span>
+                          <span className="min-w-0">
                             <span className="block text-base font-bold text-slate-900 group-hover:text-indigo-700">{r}</span>
                             <span className="block text-xs text-slate-500">
                               {list.length} {list.length === 1 ? 'test' : 'tests'} · about {mins >= 90 ? `${Math.round(mins / 60)} hours` : `${mins} min`}
                             </span>
                           </span>
-                          <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-indigo-600 group-hover:translate-x-0.5 transition-transform shrink-0 mt-1" />
+                          {/* How much of the role they've passed, as on the role's own page */}
+                          <ProgressRing done={done} total={list.length} />
                         </span>
                         {done > 0 ? (
-                          <span className="space-y-1">
-                            <span className="block h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                              <span className="block h-full bg-emerald-500" style={{ width: `${(done / list.length) * 100}%` }} />
-                            </span>
-                            <span className="block text-[11px] text-slate-500">
-                              {done} of {list.length} passed
-                            </span>
+                          <span className="text-[11px] text-slate-500">
+                            {done} of {list.length} passed
                           </span>
                         ) : (
                           first && <span className="text-xs text-slate-500">Starts with <span className="font-semibold text-slate-700">{first}</span></span>

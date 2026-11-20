@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { backOr } from '../lib/back';
 import { Pic } from './Pic';
 import { User, AssessmentTest, JobPosting, CandidateJobMatch, Business, JobProfile } from '../types';
@@ -124,18 +124,8 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   const activeProfile = activeProfileOf(candidate);
   const shown = asProfile(candidate, activeProfile);
 
-  // The role they're working towards (as on their profile): the Tests page opens on it, once a visit
+  // The role they're working towards (as on their profile). The Tests page opens on every role (All roles)
   const progress = useProfileProgress({ candidate, shown, activeProfile, tests, jobs, sector });
-  const openedOnRole = useRef(false);
-  useEffect(() => {
-    if (section !== 'tests' || jobPageId || openedOnRole.current) return;
-    openedOnRole.current = true;
-    if (!testField && !visitor && progress.role) onTestFieldChange({ label: progress.role, roles: [progress.role] });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [section, jobPageId]);
-  useEffect(() => {
-    if (section !== 'tests') openedOnRole.current = false;
-  }, [section]);
 
   const activeJobs = jobs.filter((j) => j.status === 'active' && (sector === 'all' || jobInSector(sector, tests)(j)));
 
