@@ -1,8 +1,8 @@
 import React, { useId } from 'react';
 
 /**
- * Praxa's brand: a person whose head is an AI sparkle, white on the AI gradient (blue, violet, pink) in a rounded
- * square: AI for hiring people. The name is set in a rounded geometric sans (Outfit) in the same gradient. The AI chat
+ * Praxa's brand: a clean synapse, white on the AI gradient (blue, violet, pink) in a rounded square: one cell's
+ * terminal passing a signal across the gap to the next, the way Praxa connects people and work. The name is set in a rounded geometric sans (Outfit) in the same gradient. The AI chat
  * has its own mark (AiMark, an animated +).
  */
 
@@ -17,10 +17,18 @@ export const BrandSparkle: React.FC<{ className?: string; busy?: boolean; title?
           <stop offset="1" stopColor="#db5a9e" />
         </linearGradient>
       </defs>
-      {/* A person whose head is an AI sparkle, in a rounded square */}
+      {/* A clean synapse on one diagonal: a line into a round terminal, three dots crossing the gap, and the next cell's
+          cup facing it with a line out */}
       <rect x="1" y="1" width="22" height="22" rx="6.5" fill={`url(#bs-${id})`} />
-      <path d="M12 4.6C12.45 7.35 13.1 8 15.85 8.45C13.1 8.9 12.45 9.55 12 12.3C11.55 9.55 10.9 8.9 8.15 8.45C10.9 8 11.55 7.35 12 4.6Z" fill="#fff" />
-      <path d="M6.6 18.6a5.4 4.9 0 0 1 10.8 0" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" />
+      <g fill="none" stroke="#fff" strokeWidth="2.3" strokeLinecap="round">
+        <path d="M4.6 4.6 7.7 7.7M16 9.6A6.4 6.4 0 0 1 9.6 16M14.13 14.13 19.4 19.4" />
+      </g>
+      <g fill="#fff">
+        <circle cx="9.6" cy="9.6" r="2.9" />
+        <circle cx="13.92" cy="11.17" r="0.85" />
+        <circle cx="12.85" cy="12.85" r="0.85" />
+        <circle cx="11.17" cy="13.92" r="0.85" />
+      </g>
     </svg>
   );
 };
