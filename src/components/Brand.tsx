@@ -34,8 +34,8 @@ export const BrandSparkle: React.FC<{ className?: string; busy?: boolean; title?
 };
 
 /**
- * The AI chat's symbol: a white + on the AI gradient (blue, violet, pink). Animated: at rest the + makes a quarter turn
- * every few seconds (a + looks the same turned, so it loops seamlessly); while the AI works it spins. bare: just the
+ * The AI chat's symbol: a white + on the AI gradient (blue, violet, pink). Animated: at rest the + spins round, slows to
+ * a stop, rests and goes again (a full turn ends where it started, so it loops seamlessly); while the AI works it spins. bare: just the
  * white +, for buttons already on the gradient. Motion stops for people who ask for less (index.css).
  */
 export const AiMark: React.FC<{ className?: string; busy?: boolean; title?: string; bare?: boolean; still?: boolean }> = ({ className = 'w-6 h-6', busy, title, bare, still }) => {
@@ -54,8 +54,9 @@ export const AiMark: React.FC<{ className?: string; busy?: boolean; title?: stri
           <rect x="1" y="1" width="22" height="22" rx="6.5" fill={`url(#am-${id})`} />
         </>
       )}
-      <g className={still ? '' : busy ? 'ai-plus-spin' : 'ai-plus-turn'} fill="none" stroke={bare ? 'currentColor' : '#fff'} strokeWidth={bare ? 2.4 : 2.6} strokeLinecap="round">
-        <path d={bare ? 'M12 4.5v15M4.5 12h15' : 'M12 6.5v11M6.5 12h11'} />
+      {/* The line weight is set in screen pixels, so the + is equally thick at every size (the menu's 16px, the chat's 28px) */}
+      <g className={still ? '' : busy ? 'ai-plus-spin' : 'ai-plus-turn'} fill="none" stroke={bare ? 'currentColor' : '#fff'} strokeWidth="2.5" strokeLinecap="round" vectorEffect="non-scaling-stroke">
+        <path d={bare ? 'M12 4.5v15M4.5 12h15' : 'M12 6.5v11M6.5 12h11'} vectorEffect="non-scaling-stroke" />
       </g>
     </svg>
   );
