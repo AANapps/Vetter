@@ -205,8 +205,9 @@ const JobList: React.FC<BusinessJobsProps> = ({
   // Drafts are listed on their own, each with the AI tests being written for it; the rest are the company's jobs
   const drafts = allJobsIn.filter((j) => j.status === 'draft');
   const jobs = allJobsIn.filter((j) => j.status !== 'draft');
-  // A company with no jobs yet starts on posting its first
-  const [isCreating, setIsCreating] = useState(() => !!business && allJobsIn.length === 0);
+  // The page always opens as the page; the form opens only from Post a job (jobs load after the page on Firebase, so
+  // opening it when the list looked empty popped it up over companies that have jobs)
+  const [isCreating, setIsCreating] = useState(false);
   const [sharing, setSharing] = useState<JobPosting | null>(null);
   const tracked = jobs.map((job) => {
     const rows = jobTracking(job, candidates);
