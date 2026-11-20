@@ -1,9 +1,9 @@
 import React, { useId } from 'react';
 
 /**
- * Praxa's brand: an abstract neuron in a rounded square (a cell body and its branches, white on the AI gradient: blue,
- * violet, pink) and the name set in a rounded geometric sans (Outfit) in the same gradient. The mark is also the AI
- * chat's avatar; while the AI works it pulses.
+ * Praxa's brand: a person whose head is an AI sparkle, white on the AI gradient (blue, violet, pink) in a rounded
+ * square: AI for hiring people. The name is set in a rounded geometric sans (Outfit) in the same gradient. The AI chat
+ * has its own mark (AiMark, an animated +).
  */
 
 export const BrandSparkle: React.FC<{ className?: string; busy?: boolean; title?: string }> = ({ className = 'w-6 h-6', busy, title }) => {
@@ -17,19 +17,10 @@ export const BrandSparkle: React.FC<{ className?: string; busy?: boolean; title?
           <stop offset="1" stopColor="#db5a9e" />
         </linearGradient>
       </defs>
-      {/* An abstract neuron in a rounded square: a cell body with three short branches and a long one that forks at its end */}
+      {/* A person whose head is an AI sparkle, in a rounded square */}
       <rect x="1" y="1" width="22" height="22" rx="6.5" fill={`url(#bs-${id})`} />
-      <g fill="none" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M10 10C8.6 8 7.2 6.8 5.4 6.1M10 10c.8-2.4 2-4 3.9-5M10 10c-2 .9-3.6 2.3-4.7 4.4M10 10c2.8 1.2 5 3.4 6.2 6.4m0 0 2.6-1m-2.6 1 .8 2.7" />
-      </g>
-      <g fill="#fff">
-        <circle cx="10" cy="10" r="2.6" />
-        <circle cx="5.4" cy="6.1" r="1.25" />
-        <circle cx="13.9" cy="5" r="1.25" />
-        <circle cx="5.3" cy="14.4" r="1.25" />
-        <circle cx="18.8" cy="15.4" r="1.15" />
-        <circle cx="17" cy="19.1" r="1.15" />
-      </g>
+      <path d="M12 4.6C12.45 7.35 13.1 8 15.85 8.45C13.1 8.9 12.45 9.55 12 12.3C11.55 9.55 10.9 8.9 8.15 8.45C10.9 8 11.55 7.35 12 4.6Z" fill="#fff" />
+      <path d="M6.6 18.6a5.4 4.9 0 0 1 10.8 0" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" />
     </svg>
   );
 };
