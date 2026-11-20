@@ -95,6 +95,7 @@ export const businessOf = (c: Company & Partial<Business>): Business => ({
   techStack: c.techStack ?? [],
   ...(c.sector && { sector: c.sector }),
   ...(c.plan && { plan: c.plan }),
+  ...(c.hiddenTests?.length && { hiddenTests: c.hiddenTests }),
 });
 
 // Candidates' profiles are public, without their email or where they applied

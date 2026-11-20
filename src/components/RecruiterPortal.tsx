@@ -32,6 +32,11 @@ interface RecruiterPortalProps {
   onGenerateTest: (seed?: string) => void;
   // Sends a test to candidates: the job it's on, or a new job for it
   onSendTest?: (testId: string) => void;
+  // Praxa's tests the company took off its lists, and taking one off
+  hiddenTests?: string[];
+  onHideTest?: (testId: string) => void;
+  // Saves a copy of one of Praxa's tests as the company's own and opens it in the AI chat once it's saved
+  onCopyAndEdit?: (copy: AssessmentTest) => void;
   // Tests still being written, newest first
   drafts: TestDraft[];
   onSaveDraft: (record: TestDraft) => Promise<boolean>;
@@ -72,6 +77,9 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   onDeleteTest,
   onGenerateTest,
   onSendTest,
+  hiddenTests = [],
+  onHideTest,
+  onCopyAndEdit,
   drafts,
   onSaveDraft,
   onDeleteDraft,
@@ -94,7 +102,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   const companySims = ownTests.filter(isSim);
   const companyTests = ownTests.filter((t) => !isSim(t));
   // Praxa's own job simulations, which any company can send as they are
-  const praxaSims = tests.filter((t) => isJobSim(t) && isPublic(t) && isMainVersion(t));
+  const praxaSims = tests.filter((t) => isJobSim(t) && isPublic(t) && isMainVersion(t) && !hiddenTests.includes(t.id));
   // For the Praxa team: every company's own tests, company by company, the busiest first
   const byCompany = isPraxa
     ? [
@@ -209,6 +217,21 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
       taken ? `${taken} ${taken === 1 ? 'person has' : 'people have'} taken it; their scores stay on their record but it won't show any more.` : '',
     ].filter(Boolean);
     if (window.confirm(`Delete ${t.title}? ${warnings.join(' ')} This can't be undone.`.replace(/\s+/g, ' '))) onDeleteTest(t.id);
+  };
+
+  // Every job simulation in the list can be edited and deleted. A job simulation is always changed in the AI chat. One
+  // of Praxa's is first copied as the company's own (the shared one is left as it is for everyone else), and deleting
+  // one of Praxa's takes it off the company's list only
+  const editSim = (t: AssessmentTest) => {
+    if (t.businessId === business?.id) return onEditWithAI(t.id);
+    if (!business || !onCopyAndEdit) return onEditWithAI(t.id);
+    const { familyId: _f, publicStatus: _p, publicAskedAt: _a, publicNote: _n, ...rest } = t;
+    const copy: AssessmentTest = { ...rest, id: `test-custom-${Date.now()}`, type: 'custom', businessId: business.id, companyName: business.name, purpose: 'hiring', madeWith: 'ai' };
+    onCopyAndEdit(copy);
+  };
+  const deleteSim = (t: AssessmentTest) => {
+    if (t.businessId === business?.id || !onHideTest) return deleteTest(t);
+    if (window.confirm(`Take ${t.title} off your list? It stays in Praxa's library for other companies, and any of your jobs using it keep it.`)) onHideTest(t.id);
   };
 
   const [editingBusiness, setEditingBusiness] = useState(false);
@@ -393,10 +416,10 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
               {[...companySims]
                 .sort((a, b) => madeAt(b) - madeAt(a))
                 .map((t) => (
-                  <SimRow key={t.id} test={t} tag="Yours" usedBy={usedByOf(t)} onOpen={() => onOpenTest(t.id)} onSend={onSendTest && (() => onSendTest(t.id))} onEdit={() => editTest(t)} onDelete={() => deleteTest(t)} />
+                  <SimRow key={t.id} test={t} tag="Yours" usedBy={usedByOf(t)} onOpen={() => onOpenTest(t.id)} onSend={onSendTest && (() => onSendTest(t.id))} onEdit={() => editSim(t)} onDelete={() => deleteSim(t)} />
                 ))}
               {praxaSims.map((t) => (
-                <SimRow key={t.id} test={t} tag="Praxa" usedBy={usedByOf(t)} onOpen={() => onOpenTest(t.id)} onSend={onSendTest && !isPraxa ? () => onSendTest(t.id) : undefined} />
+                <SimRow key={t.id} test={t} tag="Praxa" usedBy={usedByOf(t)} onOpen={() => onOpenTest(t.id)} onSend={onSendTest && !isPraxa ? () => onSendTest(t.id) : undefined} onEdit={() => editSim(t)} onDelete={isPraxa ? undefined : () => deleteSim(t)} />
               ))}
             </ul>
           </section>

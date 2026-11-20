@@ -511,6 +511,8 @@ export interface Business {
   sector?: SectorId;
   // The plan it pays for; unset or 'free' has no AI test creation. Only the Praxa team sets it
   plan?: BusinessPlan;
+  // Praxa's ready-made tests and job simulations the company took off its own lists (they stay in Praxa's library)
+  hiddenTests?: string[];
 }
 
 export type BusinessPlan = 'free' | 'per-job' | 'growth' | 'scale';

@@ -279,3 +279,5 @@ export const updateAccountName = (uid: string, name: string) => updateDoc(userRe
 // A company's public details, changed by its owner or the Praxa team. The plan and status are never touched here
 export type CompanyInfo = Pick<Company, 'name' | 'website'> & { logo: string; industry: string; headquarters: string; companySize: string; description: string };
 export const updateCompanyInfo = (companyId: string, info: CompanyInfo) => updateDoc(companyRef(companyId), { ...info });
+// Praxa's tests the company took off its own lists
+export const setHiddenTests = (companyId: string, ids: string[]) => updateDoc(companyRef(companyId), { hiddenTests: ids });

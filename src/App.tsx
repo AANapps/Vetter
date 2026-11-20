@@ -48,7 +48,7 @@ import { CheckCircle2 } from 'lucide-react';
 import { firebaseEnabled } from './lib/firebase';
 import { useAccount } from './lib/useAccount';
 import { loadProfile, saveProfile } from './lib/profiles';
-import { Account, accountError, signOut, updateAccountName, updateCompanyInfo, updateCompanySector } from './lib/accounts';
+import { Account, accountError, setHiddenTests, signOut, updateAccountName, updateCompanyInfo, updateCompanySector } from './lib/accounts';
 import { BusinessInfo } from './components/BusinessInfoEditor';
 import { Viewer, apply, syncAssignments, syncProjects, syncProjectTasks, syncTeam, syncJobs, syncLeads, syncNotifications, syncSocial, putTestDraft, putTrial, syncTestDrafts, syncTests, useCloudData } from './lib/cloud';
 import { LeadsPage } from './components/LeadsPage';
@@ -548,6 +548,15 @@ export default function App() {
   const [plansOpen, setPlansOpen] = useState(false);
   // What the candidate's Tests page is narrowed to, e.g. a field picked on Home
   const [testField, setTestField] = useState<TestField | null>(null);
+  // Praxa's tests each company took off its own lists, kept in this browser too, so it works before the rule allowing
+  // it on the company's record is published
+  const [hiddenLocal, setHiddenLocal] = useState<Record<string, string[]>>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('praxa-hidden-tests') ?? '{}') as Record<string, string[]>;
+    } catch {
+      return {};
+    }
+  });
   // The sector the candidate browses: tests, jobs, leaderboards, the feed and courses all narrow to it
   const [sector, setSectorState] = useState<SectorId>(loadSector);
   const setSector = (next: SectorId) => {
@@ -635,6 +644,15 @@ export default function App() {
     setDraftBuilder({ draft: test, jobId, alsoAdd: [] });
   };
   // The test chat on a saved test, picking up changes saved as a draft earlier where they were left
+  // A copy of one of Praxa's tests made to edit: the chat opens on it once it's saved (with Firebase on, a new test only
+  // shows once the database has it, and the chat must open on the copy, not a blank test)
+  const [editWhenSaved, setEditWhenSaved] = useState<string | null>(null);
+  useEffect(() => {
+    if (!editWhenSaved || !tests.some((t) => t.id === editWhenSaved)) return;
+    setEditWhenSaved(null);
+    enhanceTest(editWhenSaved);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tests, editWhenSaved]);
   const enhanceTest = (testId: string, jobId?: string) => {
     const pending = testDrafts.find((d) => d.editsTestId === testId);
     openGenerator(pending ? { jobId: pending.jobId ?? jobId, resume: pending } : { jobId, editTestId: testId });
@@ -1072,6 +1090,26 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
   };
   // A company's public details: its owner, or the Praxa team for any company
   const canEditBusiness = (b?: Business) => !!b && (!firebaseEnabled || account?.role === 'admin' || (!!company && company.id === b.id && company.ownerUid === account?.uid));
+  // A company takes one of Praxa's tests off its own lists; it stays in Praxa's library for everyone else
+  const hiddenTestsOf = (b?: Business) => (b ? [...new Set([...(b.hiddenTests ?? []), ...(hiddenLocal[b.id] ?? [])])] : []);
+  const hideTest = (testId: string) => {
+    const b = recruiterBusiness;
+    if (!b) return;
+    const next = [...new Set([...hiddenTestsOf(b), testId])];
+    setHiddenLocal((prev) => {
+      const all = { ...prev, [b.id]: next };
+      try {
+        localStorage.setItem('praxa-hidden-tests', JSON.stringify(all));
+      } catch {
+        /* this browser won't remember it; the company's record still does once the rule is out */
+      }
+      return all;
+    });
+    if (firebaseEnabled) setHiddenTests(b.id, next).catch((err) => console.warn("Couldn't save the hidden test on the company's record", err));
+    const t = tests.find((x) => x.id === testId);
+    showToast(`${t?.title ?? 'That test'} is off your list. It's still in Praxa's library if you want it back.`);
+  };
+
   const editBusiness = (businessId: string, info: BusinessInfo) => {
     setBusinessEdits((prev) => ({ ...prev, [businessId]: info }));
     if (firebaseEnabled) {
@@ -2294,6 +2332,13 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
               }}
               onGenerateTest={(seed) => startInChat(seed || 'I want to create a test.')}
               onSendTest={sendTest}
+              hiddenTests={hiddenTestsOf(activeRole === 'admin' ? undefined : recruiterBusiness)}
+              onHideTest={activeRole === 'admin' ? undefined : hideTest}
+              onCopyAndEdit={(copy) => {
+                handleCreateTest(copy);
+                setEditWhenSaved(copy.id);
+                showToast(`Making your own copy of ${copy.title} to edit…`);
+              }}
               drafts={visibleDrafts}
               onSaveDraft={saveTestDraft}
               onDeleteDraft={deleteTestDraft}
