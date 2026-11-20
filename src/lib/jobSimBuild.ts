@@ -121,7 +121,7 @@ function desktopOf(raw: RawJobSim): Omit<DesktopConfig, 'phases'> {
     company: raw.company,
     time: raw.time || 'Mon 09:00',
     apps: ['mail', ...work, 'files', 'ai'],
-    ...(custom.length && { customApps: custom.map((a) => ({ id: a.id, label: a.label || a.id, html: withData(a.html!, a.data) })) }),
+    ...(custom.length && { customApps: custom.map((a) => ({ id: a.id, label: a.label || a.id, html: withData(a.html!, a.data), ...(a.envId && a.version > 0 && { libraryApp: { id: a.envId, version: a.version } }) })) }),
     contacts: (raw.contacts ?? []).filter((c) => c.email?.trim()).map((c) => ({ name: c.name, role: c.role, email: lower(c.email) })),
     inbox: (raw.inbox ?? []).map((m, i) => ({
       id: m.id?.trim() || `m-${i + 1}`,

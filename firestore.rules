@@ -326,9 +326,11 @@ service cloud.firestore {
       allow read: if staff();
       allow write: if isAdmin();
     }
-    // Every version of each app (envId@version), so a test built on one keeps it after the app moves on
+    // Every version of each app (envId@version), so a test built on one keeps it after the app moves on. A data-driven
+    // app's version holds no company's data, and tests store only a reference to it (src/lib/appRefs.ts), so anyone
+    // signed in (a candidate taking the test) can read those
     match /environmentVersions/{versionId} {
-      allow read: if staff();
+      allow read: if staff() || (signedIn() && resource.data.dataDriven == true);
       allow write: if isAdmin();
     }
     // Waiting for review, and the history of what was approved: sent as oneself, pending; read by the sender and the

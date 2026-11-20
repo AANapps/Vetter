@@ -17,6 +17,7 @@ import {
 } from 'firebase/firestore';
 import { AppNotification, Assignment, Project, ProjectTask, AssessmentTest, Business, TeamMember, FeedComment, FeedPost, JobInvitation, JobPosting, Lead, SocialState, TestDraft, TrialResult, User } from '../types';
 import { db } from './firebase';
+import { compactDraft, compactTest, hydrateTest, loadAppCodes, onAppCodes } from './appRefs';
 import { Company } from './accounts';
 import { initialsAvatar } from '../data/seedCandidates';
 
@@ -104,11 +105,31 @@ export const publicProfile = (p: User) => {
 const profileFrom = (id: string, { updatedAt: _, ...data }: Partial<User> & { updatedAt?: unknown }): User =>
   ({ verifiedSkills: [], testResults: [], ...data, id, email: '', appliedJobIds: [], avatarUrl: initialsAvatar(data.name ?? '') }) as User;
 
+// A draft with its test's library apps filled in (src/lib/appRefs.ts), the same object while nothing changes
+const drafts = new WeakMap<TestDraft, TestDraft>();
+function hydrateDraft(d: TestDraft): TestDraft {
+  if (!d.test) return d;
+  const test = hydrateTest(d.test);
+  if (test === d.test) return d;
+  const seen = drafts.get(d);
+  if (seen?.test === test) return seen;
+  const out = { ...d, test };
+  drafts.set(d, out);
+  return out;
+}
+
 // Live data for whoever is looking: everyone sees jobs, tests, profiles, companies and the feed; candidates also
 // see their own applications, invitations and notifications, and companies those for their own jobs
 export function useCloudData(viewer: Viewer | null, enabled: boolean, onError: (err: unknown) => void): CloudData | null {
   const [parts, setParts] = useState<Record<string, unknown[]>>({});
   const [following, setFollowing] = useState<string[]>([]);
+  // Library apps' code arriving for tests stored by reference (src/lib/appRefs.ts): shown once it's here
+  const [, setCodes] = useState(0);
+  useEffect(() => onAppCodes(() => setCodes((n) => n + 1)), []);
+  useEffect(() => {
+    if (parts.tests) loadAppCodes(parts.tests as AssessmentTest[]);
+    if (parts.testDrafts) loadAppCodes((parts.testDrafts as TestDraft[]).map((d) => d.test).filter(Boolean));
+  }, [parts.tests, parts.testDrafts]);
   const key = viewer ? `${viewer.uid}:${viewer.role}:${viewer.companyId ?? ''}:${viewer.email}` : 'visitor';
 
   useEffect(() => {
@@ -207,7 +228,7 @@ export function useCloudData(viewer: Viewer | null, enabled: boolean, onError: (
 
   return {
     jobs,
-    tests: parts.tests as AssessmentTest[],
+    tests: (parts.tests as AssessmentTest[]).map(hydrateTest),
     profiles,
     businesses: (parts.companies as (Company & Partial<Business>)[]).map(businessOf),
     social: {
@@ -220,7 +241,7 @@ export function useCloudData(viewer: Viewer | null, enabled: boolean, onError: (
     notifications: (parts.notifications ?? []) as AppNotification[],
     emailedJobIds: viewer?.role === 'candidate' ? emailInvites.map((e) => e.jobId) : [],
     leads: (parts.leads ?? []) as Lead[],
-    testDrafts: ((parts.testDrafts ?? []) as TestDraft[]).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
+    testDrafts: ((parts.testDrafts ?? []) as TestDraft[]).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).map(hydrateDraft),
     trials: ((parts.trials ?? []) as TrialResult[]).sort((a, b) => b.completedAt.localeCompare(a.completedAt)),
     team: [...new Map([...((parts.teamByUid ?? []) as TeamMember[]), ...((parts.teamByEmail ?? []) as TeamMember[])].map((m) => [m.id, m])).values()],
     assignments: ((parts.assignments ?? []) as Assignment[]).sort((a, b) => b.assignedAt.localeCompare(a.assignedAt)),
@@ -273,7 +294,7 @@ export function syncJobs(prev: JobPosting[], next: JobPosting[], onError: (err: 
 export function syncTests(prev: AssessmentTest[], next: AssessmentTest[], onError: (err: unknown) => void) {
   const changed = next.filter((t) => prev.find((p) => p.id === t.id) !== t);
   const gone = prev.filter((p) => !next.some((t) => t.id === p.id));
-  return run([...changed.map((t) => setDoc(doc(db(), 'tests', t.id), t)), ...gone.map((t) => deleteDoc(doc(db(), 'tests', t.id)))], onError);
+  return run([...changed.map((t) => setDoc(doc(db(), 'tests', t.id), compactTest(t))), ...gone.map((t) => deleteDoc(doc(db(), 'tests', t.id)))], onError);
 }
 
 export function syncNotifications(prev: AppNotification[], next: AppNotification[], onError: (err: unknown) => void) {
@@ -314,7 +335,7 @@ export function apply(job: JobPosting, uid: string, profileId: string | undefine
 // Saves one test draft and only resolves once Firebase has it, so the company is never told a draft is saved when it
 // isn't. Firestore refuses documents over 1 MiB and the write never settles offline, so both are turned into errors.
 export async function putTestDraft(draft: TestDraft) {
-  const data = JSON.parse(JSON.stringify(draft));
+  const data = JSON.parse(JSON.stringify(compactDraft(draft)));
   if (new Blob([JSON.stringify(data)]).size > 1_000_000) throw Object.assign(new Error('too-large'), { code: 'draft/too-large' });
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
@@ -331,7 +352,7 @@ export async function putTestDraft(draft: TestDraft) {
 export function syncTestDrafts(prev: TestDraft[], next: TestDraft[], onError: (err: unknown) => void) {
   const d = db();
   const writes = [
-    ...next.filter((t) => !same(prev.find((p) => p.id === t.id), t)).map((t) => setDoc(doc(d, 'testDrafts', t.id), JSON.parse(JSON.stringify(t)))),
+    ...next.filter((t) => !same(prev.find((p) => p.id === t.id), t)).map((t) => setDoc(doc(d, 'testDrafts', t.id), JSON.parse(JSON.stringify(compactDraft(t))))),
     ...prev.filter((p) => !next.some((t) => t.id === p.id)).map((p) => deleteDoc(doc(d, 'testDrafts', p.id))),
   ];
   return run(writes, onError);

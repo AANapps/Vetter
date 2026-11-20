@@ -109,12 +109,15 @@ export interface EnvironmentPage {
   data?: string;
 }
 
-// One version of a library app, kept so tests built on it can still be traced to it and the team can look back
+// One version of a library app, kept so tests built on it can still be traced to it and the team can look back. A
+// data-driven app's version holds no company's data, so anyone signed in can read it: tests store only a reference to
+// it plus their data (src/lib/appRefs.ts), and candidates load it when they take the test
 export interface EnvironmentVersion {
   id: string;
   envId: string;
   version: number;
   html: string;
+  dataDriven?: boolean;
   features: string[];
   added?: string[];
   at: string;
@@ -287,7 +290,7 @@ export async function approveSubmission(sub: EnvironmentSubmission, page: Enviro
     const batch = writeBatch(db());
     batch.set(doc(db(), 'environments', envId), fields);
     batch.set(doc(db(), 'environmentPages', envId), libPage);
-    batch.set(doc(db(), 'environmentVersions', `${envId}@${version}`), { envId, version, html: page.html, features: env.features, added: sub.added, at, by: sub.owner });
+    batch.set(doc(db(), 'environmentVersions', `${envId}@${version}`), { envId, version, html: page.html, features: env.features, added: sub.added, at, by: sub.owner, ...(env.dataDriven && { dataDriven: true }) });
     batch.update(doc(db(), 'environmentSubmissions', sub.id), review);
     await batch.commit();
   }
@@ -326,7 +329,7 @@ export async function publishRepoApp(app: { id: string; name: string; product: s
     const batch = writeBatch(db());
     batch.set(doc(db(), 'environments', app.id), fields);
     batch.set(doc(db(), 'environmentPages', app.id), { html, callouts: [] });
-    batch.set(doc(db(), 'environmentVersions', `${app.id}@${version}`), { envId: app.id, version, html, features: env.features, at, by: env.createdBy });
+    batch.set(doc(db(), 'environmentVersions', `${app.id}@${version}`), { envId: app.id, version, html, features: env.features, at, by: env.createdBy, dataDriven: true });
     await batch.commit();
   }
   changed();
@@ -404,6 +407,17 @@ export async function loadVersions(envId: string): Promise<EnvironmentVersion[]>
   } catch (err) {
     console.warn("Couldn't read an app's versions", err);
     return [];
+  }
+}
+
+// One version of a library app, or null when it isn't there or can't be read
+export async function loadVersion(envId: string, version: number): Promise<EnvironmentVersion | null> {
+  if (!firebaseEnabled) return null;
+  try {
+    const snap = await getDoc(doc(db(), 'environmentVersions', `${envId}@${version}`));
+    return snap.exists() ? { ...(snap.data() as Omit<EnvironmentVersion, 'id'>), id: snap.id } : null;
+  } catch {
+    return null;
   }
 }
 

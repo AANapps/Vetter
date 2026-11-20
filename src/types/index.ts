@@ -347,8 +347,11 @@ export interface Question {
   tables?: DataTable[];
   // App simulations: the simulated product as one HTML page (its name is in contextData). Checks read its saved state
   appHtml?: string;
-  // The app from Praxa's app library this page was built on, and its version then (the page holds its own copy)
+  // The app from Praxa's app library this page was built on, and its version then
   libraryApp?: { id: string; version: number };
+  // Stored (src/lib/appRefs.ts): a page that is that library version unchanged plus its data keeps only the data
+  // (JSON), and appHtml is filled back in from the library when the test is read
+  appData?: string;
   // App simulations: tips pinned to parts of the page (elements marked data-ref="<ref>"), shown as glowing pop-ups the
   // candidate can close, so where things are is shown on the app rather than described in the prompt
   callouts?: AppCallout[];

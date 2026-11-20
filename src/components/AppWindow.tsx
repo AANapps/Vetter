@@ -26,6 +26,14 @@ export const AppWindow: React.FC<AppWindowProps> = ({ value, onChange, html, app
   const [loads, setLoads] = useState(0);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+  // A test stored with a library app by reference may open before the app's code has loaded: it starts once it's here
+  const started = useRef(!!html);
+  useEffect(() => {
+    if (started.current || !html) return;
+    started.current = true;
+    setDoc(appDocument(html, parseAppState(value), false, callouts));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [html]);
 
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
@@ -122,7 +130,13 @@ export const AppWindow: React.FC<AppWindowProps> = ({ value, onChange, html, app
         </div>
       )}
       {/* No same-origin, forms, popups or navigation: the app can run its own code and nothing else */}
-      <iframe key={loads} ref={frameRef} title={appName} srcDoc={doc} sandbox="allow-scripts" className="flex-1 w-full border-0 bg-white" />
+      {html ? (
+        <iframe key={loads} ref={frameRef} title={appName} srcDoc={doc} sandbox="allow-scripts" className="flex-1 w-full border-0 bg-white" />
+      ) : (
+        <div className="flex-1 grid place-items-center text-sm text-slate-500" role="status">
+          Loading {appName}…
+        </div>
+      )}
     </div>
   );
 };

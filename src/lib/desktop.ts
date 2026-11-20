@@ -95,7 +95,11 @@ export type DeskApp = 'mail' | 'browser' | 'files' | 'sheet' | 'sql' | 'ai' | 'c
 export interface DeskCustomApp {
   id: string;
   label: string;
+  // The page; while stored, left out when it's a library app's version unchanged (src/lib/appRefs.ts)
   html: string;
+  // The app from Praxa's app library it is, and its version, and (stored without html) its data as JSON
+  libraryApp?: { id: string; version: number };
+  data?: string;
 }
 
 export interface DesktopConfig {

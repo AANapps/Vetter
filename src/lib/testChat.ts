@@ -5,7 +5,7 @@ import { probeApp } from './appSimulation';
 import { isGroupType, orderedQuestions } from './questionTypes';
 import { aiFetch } from './aiRequest';
 import { EnvironmentSubmission, loadEnvironmentPage, loadEnvironments, loadSubmissionPage, markEnvironmentUsed, submitEnvironment, updateSubmission } from './environments';
-import { AppEdit, ReusableApp, applyEdits, parseData, reusableAppCode, reusableApps, splitData, withData } from './libraryApps';
+import { AppEdit, ReusableApp, applyEdits, parseData, refsOf, reusableAppCode, reusableApps, shapeProblems, splitData, withData } from './libraryApps';
 import { categoriesFor, companySector, rolesFor } from './sectors';
 import { DayApp, RawJobSim, assembleJobSim, finishJobSim, isJobSimDraft } from './jobSimBuild';
 import { ALL_ROLES, RawQuestion, Suggestion, assembleFromBank, checkQuestion, libraryFor, linkTasks, matchExisting } from './testGeneration';
@@ -233,7 +233,8 @@ interface PageOwner {
   awaitSave?: boolean;
 }
 
-type FitOut = { data?: string; edits?: AppEdit[]; added?: string[]; dataShape?: string; stateShape?: string; testCases?: RawQuestion['testCases']; callouts?: AppCallout[]; planted?: string[] };
+type DataOut = { data?: string; missing?: string[]; testCases?: RawQuestion['testCases']; callouts?: AppCallout[]; planted?: string[] };
+type ExtendOut = { edits?: AppEdit[]; added?: string[]; dataShape?: string; stateShape?: string; data?: string };
 export interface FittedApp {
   // The app's code with the edits made (the library app itself when there were none)
   app: string;
@@ -247,49 +248,88 @@ export interface FittedApp {
   planted: string[];
 }
 
-// A library app fitted to a task or a job simulation's day: its data written, and edits made only for what it lacks.
-// Edits that don't apply, data that isn't the app's format, or a page that won't load or has dead controls go back
-// once to be fixed. Null when nothing usable came back
-export async function fitLibraryApp(
-  base: LibraryBase,
-  ask: { mode: 'task' | 'jobsim'; title: string; prompt: string; brief: string; testCases?: RawQuestion['testCases']; research?: string },
-  step: Progress = () => {}
-): Promise<FittedApp | null> {
-  let fix: { problems: string[]; data?: string; edits?: AppEdit[] } | undefined;
-  let usable: FittedApp | null = null;
-  for (let round = 0; round < 2; round++) {
-    const res = await aiFetch('/api/fit-app', {
-      ...ask,
-      app: { name: base.name, html: base.html, features: base.features, data: base.data, state: base.state, sample: base.sample },
-      ...(fix && { fix }),
-    }).catch(() => null);
-    if (!res?.ok) return usable;
-    const out = (await res.json().catch(() => ({}))) as FitOut;
-    const data = parseData(out.data);
-    const edits = (out.edits ?? []).filter((e) => e && typeof e.find === 'string');
-    const applied = applyEdits(base.html, edits);
-    let problems = [...applied.problems, ...(data ? [] : ["data isn't a JSON object in the app's data format."])];
-    if (!problems.length) {
-      const fitted: FittedApp = {
-        app: applied.html,
-        data: data!,
-        edits,
-        added: edits.length ? (out.added ?? []).map((a) => String(a).trim()).filter(Boolean) : [],
-        dataShape: out.dataShape?.trim() || base.data,
-        stateShape: out.stateShape?.trim() || base.state,
-        testCases: out.testCases,
-        callouts: out.callouts,
-        planted: (out.planted ?? []).map(String),
-      };
-      step('clicking every control to see it works…');
-      problems = await appProblems({ type: 'app', title: ask.title, prompt: ask.prompt, appHtml: withData(fitted.app, fitted.data), testCases: ask.mode === 'task' ? out.testCases : [] } as RawQuestion);
-      // A page that loads is usable even with a dead control or two; one with none is done
-      const loads = !problems.some((p) => !/^The control|^Clicking/.test(p));
-      if (loads) usable = fitted;
-      if (!problems.length) return fitted;
+type FitAsk = { mode: 'task' | 'jobsim'; title: string; prompt: string; brief: string; testCases?: RawQuestion['testCases']; research?: string };
+
+// A library app fitted to a task or a job simulation's day. The AI writes the data from the app's manifest alone (its
+// features, data and state formats, sample data and control names), never reading its code; code checks the data's shape
+// for free first. Only when the work needs something the app lacks is the code sent, to add just that (the extend
+// stage), and what's added becomes the app's next version. Then the page is opened and clicked through; problems go
+// back once. Null when nothing usable came back
+export async function fitLibraryApp(base: LibraryBase, ask: FitAsk, step: Progress = () => {}): Promise<FittedApp | null> {
+  const manifest = { name: base.name, refs: refsOf(base.html), features: base.features, data: base.data, state: base.state, sample: base.sample };
+  const post = async <T,>(body: Record<string, unknown>): Promise<T | null> => {
+    const res = await aiFetch('/api/fit-app', { ...ask, ...body }).catch(() => null);
+    return res?.ok ? ((await res.json().catch(() => null)) as T | null) : null;
+  };
+
+  // The data, from the manifest. Data that isn't the app's shape goes back once, before anything else is spent on it
+  const writeData = async (fix?: { problems: string[]; data?: string }) => {
+    let out = await post<DataOut>({ stage: 'data', app: manifest, ...(fix && { fix }) });
+    let data = parseData(out?.data);
+    let problems = data ? shapeProblems(data, base.sample) : ["data isn't a JSON object in the app's data format."];
+    if (out && problems.length) {
+      step(`the data didn't match the app's format, so writing it again…`);
+      const again = await post<DataOut>({ stage: 'data', app: manifest, fix: { problems: [...(fix?.problems ?? []), ...problems], data: out.data } });
+      const againData = parseData(again?.data);
+      const againProblems = againData ? shapeProblems(againData, base.sample) : ['no data'];
+      if (againData && againProblems.length <= problems.length) [out, data, problems] = [again, againData, againProblems];
     }
-    if (round === 0) step(`fixing ${problems.length === 1 ? 'a problem' : `${problems.length} problems`} with the app…`);
-    fix = { problems, data: out.data, edits };
+    return out && data ? { out, data } : null;
+  };
+
+  // What the work needs that the app lacks, added to its code: edits that don't apply go back once
+  const extend = async (missing: string[], data: Record<string, unknown>, fix?: { problems: string[]; edits?: AppEdit[] }) => {
+    let tryFix = fix;
+    for (let round = 0; round < 2; round++) {
+      const out = await post<ExtendOut>({ stage: 'extend', app: { ...manifest, html: base.html }, missing, data: JSON.stringify(data), ...(tryFix && { fix: tryFix }) });
+      if (!out) return null;
+      const edits = (out.edits ?? []).filter((e) => e && typeof e.find === 'string');
+      const applied = applyEdits(base.html, edits);
+      if (!applied.problems.length && edits.length)
+        return { app: applied.html, edits, added: (out.added ?? []).map((a) => String(a).trim()).filter(Boolean), dataShape: out.dataShape?.trim() || base.data, stateShape: out.stateShape?.trim() || base.state, data: parseData(out.data) ?? data };
+      tryFix = { problems: applied.problems.length ? applied.problems : ['No edits came back, but the features are missing.'], edits };
+    }
+    return null;
+  };
+
+  let usable: FittedApp | null = null;
+  let fixData: { problems: string[]; data?: string } | undefined;
+  let fixEdits: { problems: string[]; edits?: AppEdit[] } | undefined;
+  let written: { out: DataOut; data: Record<string, unknown> } | null = null;
+  for (let round = 0; round < 2; round++) {
+    if (!written || fixData) {
+      written = await writeData(fixData);
+      if (!written) return usable;
+    }
+    const { out } = written;
+    let fitted: FittedApp = {
+      app: base.html,
+      data: written.data,
+      edits: [],
+      added: [],
+      dataShape: base.data,
+      stateShape: base.state,
+      testCases: out.testCases,
+      callouts: out.callouts,
+      planted: (out.planted ?? []).map(String),
+    };
+    const missing = (out.missing ?? []).map((m) => String(m).trim()).filter(Boolean);
+    if (missing.length) {
+      step(`adding what ${base.name} doesn't have yet: ${missing.slice(0, 3).join('; ')}…`);
+      const ext = await extend(missing, written.data, fixEdits);
+      if (ext) fitted = { ...fitted, app: ext.app, data: ext.data, edits: ext.edits, added: ext.added, dataShape: ext.dataShape, stateShape: ext.stateShape };
+    }
+    step('clicking every control to see it works…');
+    const problems = await appProblems({ type: 'app', title: ask.title, prompt: ask.prompt, appHtml: withData(fitted.app, fitted.data), testCases: ask.mode === 'task' ? fitted.testCases : [] } as RawQuestion);
+    // A page that loads is usable even with a dead control or two; one with none is done
+    const loads = !problems.some((p) => !/^The control|^Clicking/.test(p));
+    if (loads) usable = fitted;
+    if (!problems.length || round === 1) return usable;
+    step(`fixing ${problems.length === 1 ? 'a problem' : `${problems.length} problems`} with the app…`);
+    // Problems in what was added go back to the edits (the code is cached from the first time); the rest to the data
+    fixData = fitted.edits.length ? undefined : { problems, data: JSON.stringify(fitted.data) };
+    fixEdits = fitted.edits.length ? { problems, edits: fitted.edits } : undefined;
+    if (fixEdits) written = { ...written, data: fitted.data };
   }
   return usable;
 }

@@ -139,7 +139,7 @@ export const Desktop: React.FC<{ question: Question; answer: string; onChange: (
         <AppWindow
           value={state.appStates?.[app] ?? ''}
           onChange={(json) => save({ appStates: { ...(latest.current.appStates ?? {}), [app]: json } })}
-          html={custom.html}
+          html={custom.html ?? ''}
           appName={custom.label}
         />
       );

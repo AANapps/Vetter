@@ -29,7 +29,8 @@ export interface LibraryApp {
   sample: unknown;
 }
 
-import { SavedEnvironment, loadEnvironmentPage, loadEnvironments } from './environments';
+import { SavedEnvironment, loadEnvironmentPage, loadEnvironments, loadVersion } from './environments';
+import { rememberAppCode } from './appRefs';
 
 const pages = import.meta.glob('/library-apps/*/app.html', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 const manifests = import.meta.glob('/library-apps/*/manifest.json', { import: 'default', eager: true }) as Record<string, LibraryAppManifest>;
@@ -133,10 +134,60 @@ export async function reusableApps(): Promise<ReusableApp[]> {
   return [...out.values()];
 }
 
-// A reusable app's code at the version listed: the repo's copy when that's the one, otherwise the library's page
+// A reusable app's code at the version listed: the repo's copy when that's the one, then that version as kept in the
+// library (which candidates can load too, so tests built on it store only a reference), otherwise the library's page
 export async function reusableAppCode(app: ReusableApp): Promise<string | null> {
   const repo = LIBRARY_APPS[app.id];
   if (repo && repo.manifest.version >= app.version) return repo.html;
+  const kept = await loadVersion(app.id, app.version);
+  if (kept?.html && kept.dataDriven) {
+    const code = splitData(kept.html).app;
+    rememberAppCode(app.id, app.version, code);
+    return code;
+  }
   const page = await loadEnvironmentPage(app.id);
   return page?.html ? splitData(page.html).app : null;
+}
+
+// --- Checked by code, before any AI is asked again
+
+// The data-ref names on an app's controls, for tips written without its code
+export function refsOf(html: string): string[] {
+  return [...new Set([...html.matchAll(/data-ref=["']([\w:.-]+)["']/g)].map((m) => m[1]).filter((r) => !r.endsWith("-")))];
+}
+
+const kind = (v: unknown) => (v === null || v === undefined ? 'empty' : Array.isArray(v) ? 'list' : typeof v === 'object' ? 'object' : 'value');
+
+// Where data written for an app doesn't have the shape of its sample: a field every sample record has that's missing,
+// or a list or object where the sample has something else. Free and instant, so the AI is only asked again for real
+// problems. Kept loose (values' types and optional fields aren't checked) so it never sends good data back
+export function shapeProblems(data: unknown, sample: unknown, path = 'data', depth = 0): string[] {
+  if (sample === undefined || sample === null || depth > 4) return [];
+  const want = kind(sample);
+  const got = kind(data);
+  if (want !== 'value' && got !== want && got !== 'empty') return [`${path} should be ${want === 'list' ? 'a list' : 'an object'}, as in the app's sample data.`];
+  if (want === 'list' && got === 'list') {
+    const items = (sample as unknown[]).filter((s) => kind(s) === 'object') as Record<string, unknown>[];
+    if (!items.length) return [];
+    // A field is required when every sample record has it
+    const required = Object.keys(items[0]).filter((k) => items.every((s) => k in s));
+    const problems: string[] = [];
+    (data as unknown[]).forEach((d, i) => {
+      if (problems.length >= 8) return;
+      if (kind(d) !== 'object') return problems.push(`${path}[${i}] should be an object like the sample's records.`);
+      const lacks = required.filter((k) => !(k in (d as Record<string, unknown>)));
+      if (lacks.length) problems.push(`${path}[${i}] is missing ${lacks.join(', ')}.`);
+      for (const k of required) if (k in (d as Record<string, unknown>)) problems.push(...shapeProblems((d as Record<string, unknown>)[k], items[0][k], `${path}[${i}].${k}`, depth + 1));
+    });
+    return problems.slice(0, 12);
+  }
+  if (want === 'object' && got === 'object') {
+    const s = sample as Record<string, unknown>;
+    const d = data as Record<string, unknown>;
+    // At the top every field of the sample is the app's; deeper down only lists and objects are compared
+    const problems = depth === 0 ? Object.keys(s).filter((k) => !(k in d)).map((k) => `${path} is missing ${k}.`) : [];
+    for (const k of Object.keys(s)) if (k in d) problems.push(...shapeProblems(d[k], s[k], `${path}.${k}`, depth + 1));
+    return problems.slice(0, 12);
+  }
+  return [];
 }
