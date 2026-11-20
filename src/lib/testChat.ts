@@ -22,6 +22,8 @@ export interface ChatMessage {
   failed?: boolean;
   // It failed because the company's AI credit ran out: topping up lets it carry on
   needsCredit?: boolean;
+  // A change planned for a written draft, shown as a checklist with Build; made only when that's pressed
+  proposal?: ChangeProposal;
   // What the turn used of the company's credit, in pence, when it pays for AI
   cost?: number;
 }
@@ -1236,22 +1238,25 @@ export async function buildPlan(state: ChatState, plan: TestPlan, ctx: ChatConte
 
 // One turn: the company's message in, Praxa's reply and the draft's new version out. A first draft (or a rewrite of
 // most of it) is planned and written in stages; other changes are made in one go
-// A message about a job simulation already written. A cheap first step works out what it needs, from a summary of the
-// day and how each app on the desktop loads right now: an answer; small edits to an app (a colour, a fix for a blank
-// screen, a button), made in place; or, only for a change to the day itself, the day rewritten (returned as rewrite)
-async function jobSimTurn(
-  draft: AssessmentTest,
-  messages: ChatMessage[],
-  ctx: ChatContext,
-  progress: Progress
-): Promise<{ failure?: string; reply?: string; rewrite?: string; test?: AssessmentTest; note?: string }> {
-  const list = checklist(progress, [['read', 'Read your message and work out what it needs']]);
-  list.start('read', 'Reading your message and trying each app…');
-  const q = draft.questions[0];
-  const desk = q.desktop!;
-  const apps = desk.customApps ?? [];
-  const health = await Promise.all(apps.map(async (a) => ({ id: a.id, label: a.label, health: await pageHealth(a.html) })));
-  const day = [
+// --- Changes to a written draft: planned first, made only when the company presses Build
+
+// What the change-plan step agreed, shown as a checklist under the reply with a Build button
+export interface ChangeProposal {
+  kind: 'jobsim' | 'test';
+  steps: string[];
+  // The company's message it answers
+  request: string;
+  // Job simulations: edits to apps on the desktop, and the change to the day when the day itself changes
+  edits?: { app: string; change: string }[];
+  rewrite?: string;
+  // Pressed: the checklist stays, without its button
+  built?: boolean;
+}
+
+// The day in short, for the change-plan step and for app edits
+function daySummary(draft: AssessmentTest): string {
+  const desk = draft.questions[0].desktop!;
+  return [
     `${desk.user.role} at ${desk.company}; the candidate is ${desk.user.name}. Title: ${draft.title}`,
     `Parts: ${(desk.phases ?? []).map((p) => `${p.title} (${p.minutes} min): ${p.brief}`).join(' | ')}`,
     `Emails in the inbox: ${desk.inbox.map((m) => `"${m.subject}" from ${m.from}`).join('; ')}`,
@@ -1261,28 +1266,57 @@ async function jobSimTurn(
   ]
     .filter(Boolean)
     .join('\n');
-  const res = await post('/api/job-sim-chat', { messages: messages.map(({ role, text }) => ({ role, text })), day, apps: health, ...(ctx.viewing && { viewing: ctx.viewing.label }) });
+}
+
+// A message about a draft already written: a cheap first step reads it with a summary of the draft and how each app
+// loads right now, and either answers or plans the change as a checklist. Nothing changes until Build
+async function proposeChange(state: ChatState, messages: ChatMessage[], ctx: ChatContext, progress: Progress): Promise<ChatState> {
+  const draft = state.draft!;
+  const jobsim = isJobSimDraft(draft);
+  const list = checklist(progress, [['read', 'Read your message and check the apps']]);
+  list.start('read', 'Reading your message and trying each app…');
+  const apps = jobsim
+    ? await Promise.all((draft.questions[0].desktop!.customApps ?? []).map(async (a) => ({ id: a.id, label: a.label, health: await pageHealth(a.html) })))
+    : await Promise.all(draft.questions.filter((q) => q.type === 'app').map(async (q) => ({ id: q.id, label: q.contextData || q.title, health: await pageHealth(q.appHtml) })));
+  const summary = jobsim
+    ? daySummary(draft)
+    : [`${draft.title} (${draft.difficulty}): ${draft.description ?? ''}`, ...draft.questions.map((q, i) => `${i + 1}. [${q.type}, id ${q.id}] ${q.title}: ${q.prompt.slice(0, 160).replace(/\s+/g, ' ')}`)].join('\n');
+  const res = await post('/api/change-plan', {
+    kind: jobsim ? 'jobsim' : 'test',
+    messages: messages.map(({ role, text, proposal }) => ({ role, text: proposal ? `${text}\nPlanned${proposal.built ? ' and built' : ', not built yet'}: ${proposal.steps.join('; ')}` : text })),
+    draft: summary,
+    apps,
+    ...(ctx.viewing && { viewing: ctx.viewing.label }),
+  });
+  list.finish();
   if (res.failure) {
-    list.finish();
-    return { failure: res.failure };
+    if (res.failure === 'no-credit')
+      return { ...state, messages: [...messages, { role: 'assistant', text: "You've used up your AI credit. Top up to carry on: your test and this conversation are kept, and I'll pick up right here.", failed: true, needsCredit: true }] };
+    return { ...state, messages: [...messages, { role: 'assistant', text: res.failure === 'not-configured' ? NOT_CONFIGURED : res.failure, failed: true }] };
   }
-  const out = res.body as { action?: string; reply?: string; edits?: { app: string; change: string }[]; rewrite?: string };
+  const out = res.body as { action?: string; reply?: string; steps?: string[]; edits?: { app: string; change: string }[]; rewrite?: string };
   const reply = String(out.reply ?? '').trim();
-  if (out.action === 'rewrite') {
-    list.finish();
-    return { reply, rewrite: String(out.rewrite ?? '').trim() };
-  }
-  const edits = out.action === 'edit-apps' ? (out.edits ?? []).filter((e) => apps.some((a) => a.id === e.app) && e.change?.trim()) : [];
-  if (!edits.length) {
-    list.finish();
-    return { reply: reply || "I couldn't tell what to change. Say which app, and what you'd like different." };
-  }
-  list.add(edits.map((e) => [`edit-${e.app}`, `Change ${apps.find((a) => a.id === e.app)!.label}`] as [string, string]));
+  const steps = (out.steps ?? []).map((x) => String(x).trim()).filter(Boolean).slice(0, 8);
+  const edits = jobsim ? (out.edits ?? []).filter((e) => apps.some((a) => a.id === e.app) && e.change?.trim()) : [];
+  const rewrite = jobsim ? String(out.rewrite ?? '').trim() : '';
+  const change = out.action === 'change' && steps.length && (!jobsim || edits.length || rewrite);
+  if (!change) return { ...state, messages: [...messages, { role: 'assistant', text: reply || "I couldn't tell what to change. Say which part, and what you'd like different." }] };
+  const proposal: ChangeProposal = { kind: jobsim ? 'jobsim' : 'test', steps, request: messages[messages.length - 1].text, ...(edits.length && { edits }), ...(rewrite && { rewrite }) };
+  return { ...state, messages: [...messages, { role: 'assistant', text: reply || 'Here’s what I’ll change. Press Build to make it.', proposal }] };
+}
+
+// Edits to apps on a job simulation's desktop, each as small edits to its page and tried out after
+async function editDayApps(draft: AssessmentTest, edits: { app: string; change: string }[], list: Checklist): Promise<{ test?: AssessmentTest; done: string[]; failed: string[] }> {
+  const q = draft.questions[0];
+  const desk = q.desktop!;
+  const apps = desk.customApps ?? [];
+  const day = daySummary(draft);
   let next = apps;
-  const failed: string[] = [];
   const done: string[] = [];
+  const failed: string[] = [];
   for (const e of edits) {
-    const app = next.find((a) => a.id === e.app)!;
+    const app = next.find((a) => a.id === e.app);
+    if (!app) continue;
     list.start(`edit-${e.app}`, `Changing ${app.label}…`);
     const changed = app.html ? await editPage(app.html, e.change, { title: app.label, prompt: day }, (line) => list.start(`edit-${e.app}`, `${app.label}: ${line}`)) : null;
     if (!changed || changed.unchanged) {
@@ -1293,20 +1327,62 @@ async function jobSimTurn(
     // An edited app is its own page from now on, no longer the library's version as it was
     next = next.map((a) => (a.id === e.app ? { ...a, html: changed.html } : a));
   }
-  list.finish();
-  const test = next === apps ? undefined : { ...draft, questions: [{ ...q, desktop: { ...desk, customApps: next } }, ...draft.questions.slice(1)] };
-  const text = [reply, ...done.filter((d) => d && d !== reply)].filter(Boolean).join(' ');
+  return { ...(next !== apps && { test: { ...draft, questions: [{ ...q, desktop: { ...desk, customApps: next } }, ...draft.questions.slice(1)] } }), done, failed };
+}
+
+// Build pressed on the latest proposal: the change is made as planned, and the reply says what was done
+export async function buildChange(state: ChatState, ctx: ChatContext, progress: Progress = () => {}): Promise<ChatState> {
+  const at = state.messages.map((m) => !!m.proposal && !m.proposal.built).lastIndexOf(true);
+  const proposal = state.messages[at]?.proposal;
+  if (!proposal || !state.draft) return state;
+  const pressed: ChatMessage[] = state.messages.map((m, i) => (i === at ? { ...m, proposal: { ...proposal, built: true } } : m));
+  const agreed = `${proposal.request}\n\nMake exactly these changes, nothing else:\n${proposal.steps.map((x) => `- ${x}`).join('\n')}`;
+  if (proposal.kind === 'test') {
+    // The test's writer makes it, from the company's message and the agreed checklist
+    const after = await runTurn({ ...state, messages: pressed }, 'Build', ctx, progress, agreed);
+    return after;
+  }
+  const messages: ChatMessage[] = [...pressed, { role: 'user', text: 'Build' }];
+  let draft = state.draft;
+  const notes: string[] = [];
+  const said: string[] = [];
+  if (proposal.rewrite) {
+    const request = chatRequest(state, [...pressed, { role: 'user', text: agreed }], ctx);
+    const day = await writeJobSimDay(request, ctx, { research: state.research, current: draft, change: `${proposal.rewrite}\n\nThe agreed changes:\n${proposal.steps.map((x) => `- ${x}`).join('\n')}` }, checklist(progress, JOB_SIM_STEPS));
+    if (day.failure) return { ...state, messages: [...messages, { role: 'assistant', text: day.failure, failed: true }] };
+    if (day.test) draft = day.test;
+    if (day.reply) said.push(day.reply);
+  }
+  if (proposal.edits?.length) {
+    const list = checklist(progress, proposal.edits.map((e) => [`edit-${e.app}`, `Change ${draft.questions[0].desktop?.customApps?.find((a) => a.id === e.app)?.label ?? e.app}`] as [string, string]));
+    const out = await editDayApps(draft, proposal.edits, list);
+    list.finish();
+    if (out.test) draft = out.test;
+    said.push(...out.done);
+    if (out.failed.length) notes.push(`Not changed: ${out.failed.join('; ')}. Try describing it differently, or say which part of the app.`);
+  }
+  const changed = draft !== state.draft;
   return {
-    reply: text || 'Changed.',
-    test,
-    ...(failed.length && { note: `Not changed: ${failed.join('; ')}. Try describing it differently, or say which part of the app.` }),
+    ...state,
+    draft,
+    messages: [...messages, { role: 'assistant', text: changed ? said.join(' ') || 'Done: the changes are made.' : "That didn't change anything.", ...(notes.length && { note: notes.join(' ') }), ...(!changed && { failed: true }) }],
   };
 }
 
+// The company's message: on a written draft it's planned first (an answer, or a checklist with Build); without one the
+// test is planned and written
 export async function sendChat(state: ChatState, text: string, ctx: ChatContext, progress: Progress = () => {}): Promise<ChatState> {
+  if (state.draft) return proposeChange(state, [...state.messages, { role: 'user', text }], ctx, progress);
+  return runTurn(state, text, ctx, progress);
+}
+
+// A turn of the test's writer: the message shown as the company's (text), and what the writer is asked (ask: the
+// agreed checklist when Build was pressed)
+async function runTurn(state: ChatState, text: string, ctx: ChatContext, progress: Progress = () => {}, ask = text): Promise<ChatState> {
   const messages: ChatMessage[] = [...state.messages, { role: 'user', text }];
   const library = libraryFor(ctx.tests, ctx.business);
-  const request = chatRequest(state, messages, ctx);
+  const asked: ChatMessage[] = [...state.messages, { role: 'user', text: ask }];
+  const request = chatRequest(state, asked, ctx);
 
   let body: Record<string, any> = {};
   let failure: string | undefined;
@@ -1319,20 +1395,12 @@ export async function sendChat(state: ChatState, text: string, ctx: ChatContext,
     body = out.body ?? {};
     staged = out.built;
   } else if (isJobSimDraft(state.draft)) {
-    // Worked out first: an answer, a change to an app on the desktop, or (only for the day itself) a rewrite
-    const turn = await jobSimTurn(state.draft, messages, ctx, progress);
-    if (turn.failure) failure = turn.failure;
-    else if (turn.rewrite !== undefined) {
-      const day = await writeJobSimDay(request, ctx, { research: state.research, current: state.draft, change: turn.rewrite || text }, checklist(progress, JOB_SIM_STEPS));
-      if (day.failure) failure = day.failure;
-      else {
-        body = { reply: day.reply ?? turn.reply ?? 'Changed.' };
-        staged = { test: day.test, dropped: 0 };
-      }
-    } else {
-      body = { reply: turn.reply };
-      if (turn.test) staged = { test: turn.test, dropped: 0 };
-      if (turn.note) body.note = turn.note;
+    // A job simulation's changes go through buildChange; this is only reached by older callers
+    const day = await writeJobSimDay(request, ctx, { research: state.research, current: state.draft, change: ask }, checklist(progress, JOB_SIM_STEPS));
+    if (day.failure) failure = day.failure;
+    else {
+      body = { reply: day.reply ?? 'Changed.' };
+      staged = { test: day.test, dropped: 0 };
     }
   } else {
     // What each app page does when loaded right now, so a problem the company reports is fixed where it is
@@ -1345,7 +1413,7 @@ export async function sendChat(state: ChatState, text: string, ctx: ChatContext,
     // Praxa judged the change too big to make in one go: plan and write the test afresh
     if (!failure && body.lookUp === 'REPLAN') {
       list = undefined;
-      const out = await planAndWrite(state, messages, ctx, request, progress, [read]);
+      const out = await planAndWrite(state, asked, ctx, request, progress, [read]);
       ({ failure } = out);
       body = out.body ?? {};
       staged = out.built;

@@ -6,7 +6,7 @@ import { DraftPreview, Dropdown, draftProblems, finaliseDraft } from './DraftPre
 import { BuildingCard } from './BuildingCard';
 import { hydrateTest, useAppCodes } from '../lib/appRefs';
 import { jobBrief } from '../lib/testGeneration';
-import { BuildStep, ChatState, TestPlan, buildPlan, sendChat } from '../lib/testChat';
+import { BuildStep, ChatState, TestPlan, buildChange, buildPlan, sendChat } from '../lib/testChat';
 import { kindLabel } from './KindChoice';
 import { versionTitle } from '../lib/testLevels';
 import { aiSimulationsFor } from '../lib/sectors';
@@ -273,16 +273,20 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
     setStage('Stopping…');
   };
 
-  const send = async (text: string, again = false) => {
-    const message = text.trim();
+  // build: the Build button under a planned change (and Try again after a build that failed), which makes the change
+  const send = async (text: string, again = false, build = false) => {
+    const message = build ? 'Build' : text.trim();
     if (!message || working) return;
-    if (!again) setInput('');
+    if (!again && !build) setInput('');
     setWorking(true);
-    const base = again ? { ...chat, messages: chat.messages.slice(0, -2) } : chat;
+    const dropped = again ? { ...chat, messages: chat.messages.slice(0, -2) } : chat;
+    // Building again after a failure: the checklist it came from gets its button back
+    const reopened = build && again ? { ...dropped, messages: dropped.messages.map((m, i, all) => (m.proposal && i === all.map((x) => !!x.proposal).lastIndexOf(true) ? { ...m, proposal: { ...m.proposal, built: false } } : m)) } : dropped;
+    const base = reopened;
     // The AI works on the draft with its apps' pages in it
     const withPages = base.draft ? { ...base, draft: hydrateTest(base.draft) } : base;
-    // The message shows at once; the reply follows
-    setChat({ ...base, messages: [...base.messages, { role: 'user', text: message }] });
+    // The message shows at once (a pressed checklist loses its button); the reply follows
+    setChat({ ...base, messages: [...base.messages.map((m) => (build && m.proposal && !m.proposal.built ? { ...m, proposal: { ...m.proposal, built: true } } : m)), { role: 'user', text: message }] });
     const before = chat.draft;
     const balanceBefore = credit?.billing ? credit.balance : undefined;
     // Each charge names the test it was for
@@ -291,11 +295,12 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
     setSteps([]);
     const signal = startAiRun().signal;
     const runId = ++runs.current;
-    const next = await sendChat(withPages, message, ctx, (line, list) => {
+    const report = (line: string, list?: BuildStep[]) => {
       if (signal.aborted) return;
       setStage(line);
       if (list) setSteps(list);
-    }).catch((err) => {
+    };
+    const next = await (build ? buildChange(withPages, ctx, report) : sendChat(withPages, message, ctx, report)).catch((err) => {
       if (signal.aborted) return base;
       throw err;
     });
@@ -637,6 +642,26 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                     <VAvatar />
                     <div className="max-w-[85%] min-w-0">
                       <div className="px-3.5 py-2 rounded-2xl rounded-tl-md bg-slate-100 text-slate-800 text-sm leading-relaxed whitespace-pre-wrap">{m.text}</div>
+                      {m.proposal && (
+                        <div className="mt-2 rounded-xl border border-slate-200 bg-white p-3">
+                          <ul className="space-y-1.5">
+                            {m.proposal.steps.map((step, k) => (
+                              <li key={k} className="flex items-start gap-2 text-sm text-slate-800">
+                                {m.proposal!.built ? <Check className="w-4 h-4 mt-0.5 shrink-0 text-emerald-600" /> : <span className="w-3.5 h-3.5 mt-1 shrink-0 rounded-full border-2 border-slate-300" />}
+                                {step}
+                              </li>
+                            ))}
+                          </ul>
+                          {!m.proposal.built && i === chat.messages.length - 1 && !working && (
+                            <div className="mt-3 flex items-center gap-2">
+                              <button onClick={() => send('', false, true)} className="px-4 py-1.5 rounded-lg text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700">
+                                Build
+                              </button>
+                              <span className="text-xs text-slate-500">or tell me what to change in the list</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
                       {m.failed && i === chat.messages.length - 1 && !working && plan && !draft && !m.needsCredit && (
                         <button onClick={runBuild} className="mt-1.5 px-3 py-1 rounded-full text-xs font-semibold border border-indigo-300 text-indigo-700 hover:bg-indigo-50">
                           Build again
@@ -644,7 +669,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                       )}
                       {m.failed && i === chat.messages.length - 1 && !working && chat.messages[i - 1]?.role === 'user' && (
                         <button
-                          onClick={() => (m.needsCredit ? setTopUpOpen(true) : send(chat.messages[i - 1].text, true))}
+                          onClick={() => (m.needsCredit ? setTopUpOpen(true) : send(chat.messages[i - 1].text, true, chat.messages[i - 1].text === 'Build' && chat.messages.some((x) => x.proposal)))}
                           className={`mt-1.5 px-3 py-1 rounded-full text-sm font-semibold disabled:opacity-40 ${
                             m.needsCredit ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'border border-indigo-300 text-indigo-700 hover:bg-indigo-50'
                           }`}

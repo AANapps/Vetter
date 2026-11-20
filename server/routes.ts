@@ -15,7 +15,7 @@ import { crmAssistant } from './crmAssistant.js';
 import { writeFormula } from './writeFormula.js';
 import { fitApp } from './fitApp.js';
 import { editApp } from './editApp.js';
-import { jobSimChat } from './jobSimChat.js';
+import { changePlan } from './changePlan.js';
 import { runCode } from './runCode.js';
 import { matchEnvironment } from './matchEnvironment.js';
 import { metered } from './meter.js';
@@ -131,8 +131,9 @@ export const API_ROUTES: Record<string, Handler> = {
   '/api/fit-app': logged('fit-app', billed('fit-app', (body, env) => fitApp(body, env.ANTHROPIC_API_KEY, testModel(env)))),
   // A change to an app page already in a test (a colour, a fix, a missing button), as small edits to its code
   '/api/edit-app': logged('edit-app', billed('edit-app', (body, env) => editApp(body, env.ANTHROPIC_API_KEY, testModel(env)))),
-  // The chat on a written job simulation: works out whether a message needs an answer, an app edit or the day rewritten
-  '/api/job-sim-chat': logged('job-sim-chat', billed('job-sim-chat', (body, env) => jobSimChat(body, env.ANTHROPIC_API_KEY, env.ADVISOR_MODEL || 'claude-sonnet-5-5'))),
+  // The first step of a message about a written draft: an answer, or a checklist of changes made only once the company
+  // presses Build
+  '/api/change-plan': logged('change-plan', billed('change-plan', (body, env) => changePlan(body, env.ANTHROPIC_API_KEY, env.ADVISOR_MODEL || 'claude-sonnet-5-5'))),
   // Each interactive page of a test, built in its own request so a long test fits the host's time limit
   '/api/build-app': logged('build-app', billed('build-app', (body, env) => buildApp(body, env.ANTHROPIC_API_KEY, testModel(env)))),
   // The company home's chat recommends tests and plans; it writes nothing, so a quicker model is enough by default
