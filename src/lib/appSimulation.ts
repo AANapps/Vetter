@@ -374,7 +374,7 @@ export function probeApp(
       setTimeout(() => {
         if (done) return;
         const passing = checks.filter((c) => matchesExpected(readPath(first, c.input), c.expectedOutput)).length;
-        if (passing === checks.length) return finish({ problem: 'The checks pass before the candidate does anything' });
+        if (checks.length && passing === checks.length) return finish({ problem: 'The checks pass before the candidate does anything' });
         started = first;
         if (!audit) finish({ state: first });
       }, 400);

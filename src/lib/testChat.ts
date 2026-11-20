@@ -525,12 +525,67 @@ export async function mergeSubmission(sub: EnvironmentSubmission, progress: (sta
   }
 }
 
+// How an app page is doing right now, told to the chat so a reported problem is fixed in the right place
+async function pageHealth(html: string | undefined): Promise<string> {
+  if (!html?.trim()) return 'its page is empty, so it shows a blank screen';
+  const probe = await probeApp(html, [], 6000);
+  return probe.state ? 'loads and works' : `doesn't load: ${probe.problem ?? 'no reason given'}`;
+}
+
+// A page that won't load counts more than a dead control when comparing before and after a change
+const breaks = (problems: string[]) => problems.filter((p) => !/^The control|^Clicking/.test(p)).length;
+
+// A change to an app page as small edits to its code (a colour, a fix, a button), never a rewrite: what Praxa finds
+// clicking through the page goes with the change, so a reported problem is fixed at its cause. The edits are applied
+// and the page tried again; edits that don't apply, or a page left worse than before, go back once. Null when nothing
+// usable came back; unchanged when the AI said the change can't be made in this page
+async function editPage(
+  html: string,
+  change: string,
+  about: { title: string; prompt?: string; checks?: RawQuestion['testCases'] },
+  step: Progress = () => {}
+): Promise<{ html: string; done: string; unchanged?: boolean } | null> {
+  const probe = (page: string) => appProblems({ type: 'app', title: about.title, prompt: about.prompt ?? '', appHtml: page, testCases: about.checks ?? [] } as RawQuestion);
+  step('trying the page to see what the change touches…');
+  const before = await probe(html);
+  let fix: { problems: string[]; edits?: AppEdit[] } | undefined;
+  for (let round = 0; round < 2; round++) {
+    const res = await aiFetch('/api/edit-app', { title: about.title, change, html, problems: before, prompt: about.prompt, checks: about.checks ?? [], ...(fix && { fix }) }).catch(() => null);
+    if (!res?.ok) return null;
+    const out = (await res.json().catch(() => ({}))) as { edits?: AppEdit[]; done?: string };
+    const edits = (out.edits ?? []).filter((e) => e && typeof e.find === 'string');
+    if (!edits.length) return out.done?.trim() ? { html, done: out.done.trim(), unchanged: true } : null;
+    const applied = applyEdits(html, edits);
+    if (applied.problems.length) {
+      step("an edit didn't fit the page, so trying again…");
+      fix = { problems: applied.problems, edits };
+      continue;
+    }
+    step('loading the changed page and clicking through it…');
+    const after = await probe(applied.html);
+    if (breaks(after) > breaks(before) || after.length > before.length) {
+      step('the change broke something, so fixing it…');
+      fix = { problems: after.filter((p) => !before.includes(p)), edits };
+      continue;
+    }
+    return { html: applied.html, done: out.done?.trim() || 'Changed.' };
+  }
+  return null;
+}
+
 // An app page changed as the company asked: the builder gets the page as it is and the change, and the result is
 // checked like a new page (it must load and its checks must still fail at the start). Null when it doesn't hold up
 async function editAppPage(question: Question, change: string, taskPrompt: string, research?: string, mode: PageMode = {}, step: Progress = () => {}, who: PageOwner = {}): Promise<Question | null> {
   const checks = question.testCases.map(({ description, input, expectedOutput }) => ({ description, input, expectedOutput }));
   const prompt = taskPrompt?.trim() || question.prompt;
   try {
+    // Small edits first: most changes (a colour, a fix, a button) need nothing more, and the page isn't written again
+    const quick = await editPage(question.appHtml ?? '', change, { title: question.title, prompt, checks: checks as RawQuestion['testCases'] }, step);
+    if (quick && !quick.unchanged) {
+      step('checking its tasks can still be marked…');
+      const checked = await checkQuestion({ type: 'app', title: question.title, prompt, appHtml: quick.html, testCases: checks as RawQuestion['testCases'], callouts: question.callouts, points: question.weight, timeLimitMinutes: question.timeLimitMinutes });
+      if (checked) return { ...question, prompt, appHtml: checked.appHtml, contextData: checked.contextData, starterCode: checked.starterCode, testCases: checked.testCases, callouts: checked.callouts };
+    }
     // The app's library copy, so the features this change adds go to the Praxa team as its next version
     const base = await libraryBase({ type: 'app', title: question.title, prompt, appHtml: change } as RawQuestion, mode).catch(() => null);
     step('rewriting the page with your change…');
@@ -1181,6 +1236,73 @@ export async function buildPlan(state: ChatState, plan: TestPlan, ctx: ChatConte
 
 // One turn: the company's message in, Praxa's reply and the draft's new version out. A first draft (or a rewrite of
 // most of it) is planned and written in stages; other changes are made in one go
+// A message about a job simulation already written. A cheap first step works out what it needs, from a summary of the
+// day and how each app on the desktop loads right now: an answer; small edits to an app (a colour, a fix for a blank
+// screen, a button), made in place; or, only for a change to the day itself, the day rewritten (returned as rewrite)
+async function jobSimTurn(
+  draft: AssessmentTest,
+  messages: ChatMessage[],
+  ctx: ChatContext,
+  progress: Progress
+): Promise<{ failure?: string; reply?: string; rewrite?: string; test?: AssessmentTest; note?: string }> {
+  const list = checklist(progress, [['read', 'Read your message and work out what it needs']]);
+  list.start('read', 'Reading your message and trying each app…');
+  const q = draft.questions[0];
+  const desk = q.desktop!;
+  const apps = desk.customApps ?? [];
+  const health = await Promise.all(apps.map(async (a) => ({ id: a.id, label: a.label, health: await pageHealth(a.html) })));
+  const day = [
+    `${desk.user.role} at ${desk.company}; the candidate is ${desk.user.name}. Title: ${draft.title}`,
+    `Parts: ${(desk.phases ?? []).map((p) => `${p.title} (${p.minutes} min): ${p.brief}`).join(' | ')}`,
+    `Emails in the inbox: ${desk.inbox.map((m) => `"${m.subject}" from ${m.from}`).join('; ')}`,
+    desk.pages?.length ? `Web pages: ${desk.pages.map((p) => `${p.title} (${p.url})`).join('; ')}` : '',
+    desk.files?.length ? `Files: ${desk.files.map((f) => f.name).join(', ')}` : '',
+    `Apps on the taskbar: ${desk.apps.join(', ')}`,
+  ]
+    .filter(Boolean)
+    .join('\n');
+  const res = await post('/api/job-sim-chat', { messages: messages.map(({ role, text }) => ({ role, text })), day, apps: health, ...(ctx.viewing && { viewing: ctx.viewing.label }) });
+  if (res.failure) {
+    list.finish();
+    return { failure: res.failure };
+  }
+  const out = res.body as { action?: string; reply?: string; edits?: { app: string; change: string }[]; rewrite?: string };
+  const reply = String(out.reply ?? '').trim();
+  if (out.action === 'rewrite') {
+    list.finish();
+    return { reply, rewrite: String(out.rewrite ?? '').trim() };
+  }
+  const edits = out.action === 'edit-apps' ? (out.edits ?? []).filter((e) => apps.some((a) => a.id === e.app) && e.change?.trim()) : [];
+  if (!edits.length) {
+    list.finish();
+    return { reply: reply || "I couldn't tell what to change. Say which app, and what you'd like different." };
+  }
+  list.add(edits.map((e) => [`edit-${e.app}`, `Change ${apps.find((a) => a.id === e.app)!.label}`] as [string, string]));
+  let next = apps;
+  const failed: string[] = [];
+  const done: string[] = [];
+  for (const e of edits) {
+    const app = next.find((a) => a.id === e.app)!;
+    list.start(`edit-${e.app}`, `Changing ${app.label}…`);
+    const changed = app.html ? await editPage(app.html, e.change, { title: app.label, prompt: day }, (line) => list.start(`edit-${e.app}`, `${app.label}: ${line}`)) : null;
+    if (!changed || changed.unchanged) {
+      failed.push(changed?.unchanged ? `${app.label}: ${changed.done}` : app.label);
+      continue;
+    }
+    done.push(changed.done);
+    // An edited app is its own page from now on, no longer the library's version as it was
+    next = next.map((a) => (a.id === e.app ? { ...a, html: changed.html } : a));
+  }
+  list.finish();
+  const test = next === apps ? undefined : { ...draft, questions: [{ ...q, desktop: { ...desk, customApps: next } }, ...draft.questions.slice(1)] };
+  const text = [reply, ...done.filter((d) => d && d !== reply)].filter(Boolean).join(' ');
+  return {
+    reply: text || 'Changed.',
+    test,
+    ...(failed.length && { note: `Not changed: ${failed.join('; ')}. Try describing it differently, or say which part of the app.` }),
+  };
+}
+
 export async function sendChat(state: ChatState, text: string, ctx: ChatContext, progress: Progress = () => {}): Promise<ChatState> {
   const messages: ChatMessage[] = [...state.messages, { role: 'user', text }];
   const library = libraryFor(ctx.tests, ctx.business);
@@ -1197,13 +1319,25 @@ export async function sendChat(state: ChatState, text: string, ctx: ChatContext,
     body = out.body ?? {};
     staged = out.built;
   } else if (isJobSimDraft(state.draft)) {
-    const day = await writeJobSimDay(request, ctx, { research: state.research, current: state.draft, change: text }, checklist(progress, JOB_SIM_STEPS));
-    if (day.failure) failure = day.failure;
-    else {
-      body = { reply: day.reply ?? 'Changed.' };
-      staged = { test: day.test, dropped: 0 };
+    // Worked out first: an answer, a change to an app on the desktop, or (only for the day itself) a rewrite
+    const turn = await jobSimTurn(state.draft, messages, ctx, progress);
+    if (turn.failure) failure = turn.failure;
+    else if (turn.rewrite !== undefined) {
+      const day = await writeJobSimDay(request, ctx, { research: state.research, current: state.draft, change: turn.rewrite || text }, checklist(progress, JOB_SIM_STEPS));
+      if (day.failure) failure = day.failure;
+      else {
+        body = { reply: day.reply ?? turn.reply ?? 'Changed.' };
+        staged = { test: day.test, dropped: 0 };
+      }
+    } else {
+      body = { reply: turn.reply };
+      if (turn.test) staged = { test: turn.test, dropped: 0 };
+      if (turn.note) body.note = turn.note;
     }
   } else {
+    // What each app page does when loaded right now, so a problem the company reports is fixed where it is
+    const pages = state.draft.questions.filter((q) => q.type === 'app');
+    if (pages.length) (request as Record<string, unknown>).appHealth = await Promise.all(pages.map(async (q) => ({ id: q.id, title: q.contextData || q.title, health: await pageHealth(q.appHtml) })));
     const read: [string, string] = ['read', 'Read your message and work out the changes'];
     list = checklist(progress, [read]);
     list.start('read', 'Reading your message and working out the changes…');
@@ -1243,7 +1377,7 @@ export async function sendChat(state: ChatState, text: string, ctx: ChatContext,
     return test ? [{ test, reason }] : [];
   });
   let draft = state.draft;
-  let note: string | undefined;
+  let note: string | undefined = body.note;
   const appEditsOn = (test?: AssessmentTest) => ((body.appEdits ?? []) as { id: string; change: string; taskPrompt: string }[]).filter((e) => e.change?.trim() && test?.questions.some((q) => q.id === e.id && q.type === 'app'));
   if (list && !staged) {
     const edits = appEditsOn(draft);

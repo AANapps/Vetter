@@ -43,6 +43,8 @@ export interface ChatRequest {
   timeLimit?: number | 'none';
   // The task the company has open beside the chat, when it's an app simulation
   viewing?: { id: string; label: string; app: string };
+  // What Praxa found loading each app page in the draft just now (it loads, an error, an empty page)
+  appHealth?: { id: string; title: string; health: string }[];
   library: { id: string; title: string; category: string; difficulty: string; skills: string[]; roles: string[]; description: string }[];
   roles: string[];
   categories: string[];
@@ -210,7 +212,11 @@ ${stylesNote(req)}THE DRAFT
   on the page for the page builder (it sees the page's code, not this conversation); the new task text is what the
   candidate now reads, if the change means the task should read differently, otherwise leave it empty (end the line
   with "##"). Don't use "##" anywhere else in the line. Change the questions about it in "test" too if they no longer fit. Praxa's
-  page builder makes the change and tries the page out. appEdits is "" when no app page changes. Write an app again from
+  page builder makes the change and tries the page out. appEdits is "" when no app page changes.
+  When the company reports a problem they see (a blank screen, a button that does nothing, something missing), it's in
+  an app page: fix it with an appEdits line naming the problem and what APP PAGES AS PRAXA FOUND THEM shows (the page
+  that doesn't load, or the one they have open), and change nothing else. A small ask (a colour, a label, a size) is
+  only an appEdits line too. Do exactly what the company asks, no more. Write an app again from
   scratch only when asked for a different product or a new task.
 - If the change means rewriting more than about half of the test (a different level, a different job, "start again"),
   don't write it here: send lookUp "REPLAN", reply "" and no test. Praxa plans and writes the test afresh from the
@@ -247,6 +253,7 @@ function conversation(req: ChatRequest): Anthropic.Beta.BetaMessageParam[] {
     req.viewing
       ? `THE COMPANY HAS OPEN BESIDE THE CHAT: ${req.viewing.label}, the app "${req.viewing.app}" (question id ${req.viewing.id}). Unless they say otherwise, "this", "it", "here", "the app", a screen, button or field they mention means this page, so change it through appEdits.`
       : '',
+    req.appHealth?.length ? `APP PAGES AS PRAXA FOUND THEM just now:\n${req.appHealth.map((a) => `- ${a.id} (${a.title}): ${a.health}`).join('\n')}` : '',
     req.wantExisting ? `LIBRARY TESTS PICKED SO FAR: ${req.existing.length ? req.existing.join(', ') : 'none'}` : '',
   ]
     .filter(Boolean)

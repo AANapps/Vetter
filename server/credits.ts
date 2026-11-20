@@ -144,6 +144,8 @@ export const STEP_NAMES: Record<string, string> = {
   'crm-assistant': 'Ask AI on a board',
   'write-formula': 'Writing a formula column',
   'fit-app': 'Fitting a library app to the test',
+  'edit-app': 'Changing an app in the test',
+  'job-sim-chat': 'Reading your message',
   'design-app': 'Designing an interactive task',
 };
 

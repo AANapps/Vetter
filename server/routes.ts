@@ -14,6 +14,8 @@ import { taskAssistant } from './taskAssistant.js';
 import { crmAssistant } from './crmAssistant.js';
 import { writeFormula } from './writeFormula.js';
 import { fitApp } from './fitApp.js';
+import { editApp } from './editApp.js';
+import { jobSimChat } from './jobSimChat.js';
 import { runCode } from './runCode.js';
 import { matchEnvironment } from './matchEnvironment.js';
 import { metered } from './meter.js';
@@ -127,6 +129,10 @@ export const API_ROUTES: Record<string, Handler> = {
   '/api/match-environment': logged('match-environment', billed('match-environment', (body, env) => matchEnvironment(body, env.ANTHROPIC_API_KEY, env.MATCH_MODEL || 'claude-haiku-5-5'))),
   // A test built on an app from Praxa's app library: only the test's data and, when it needs more, small edits to the app
   '/api/fit-app': logged('fit-app', billed('fit-app', (body, env) => fitApp(body, env.ANTHROPIC_API_KEY, testModel(env)))),
+  // A change to an app page already in a test (a colour, a fix, a missing button), as small edits to its code
+  '/api/edit-app': logged('edit-app', billed('edit-app', (body, env) => editApp(body, env.ANTHROPIC_API_KEY, testModel(env)))),
+  // The chat on a written job simulation: works out whether a message needs an answer, an app edit or the day rewritten
+  '/api/job-sim-chat': logged('job-sim-chat', billed('job-sim-chat', (body, env) => jobSimChat(body, env.ANTHROPIC_API_KEY, env.ADVISOR_MODEL || 'claude-sonnet-5-5'))),
   // Each interactive page of a test, built in its own request so a long test fits the host's time limit
   '/api/build-app': logged('build-app', billed('build-app', (body, env) => buildApp(body, env.ANTHROPIC_API_KEY, testModel(env)))),
   // The company home's chat recommends tests and plans; it writes nothing, so a quicker model is enough by default
