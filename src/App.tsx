@@ -2137,7 +2137,9 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
                       openPerson(personId);
                     }}
                     onOpenTest={(testId) => {
+                      // Through the candidate's profile page, so Back from the test returns to their profile
                       close();
+                      openPerson(personId);
                       openTestPage(testId);
                     }}
                     onOpenJob={(jobId) => {
@@ -2714,7 +2716,9 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
               openPerson(person.id);
             }}
             onOpenTest={(testId) => {
+              // Through the candidate's profile page, so Back from the test returns to their profile
               close();
+              openPerson(person.id);
               openTestPage(testId);
             }}
             onOpenJob={(jobId) => {
