@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { BrandSparkle } from './Brand';
+import { AiSynapse } from './Brand';
 import { AnimatePresence, motion, useInView } from 'motion/react';
 import { Check, FileText, Sparkles } from 'lucide-react';
 import { useStages, useTypewriter } from './Motion';
@@ -14,7 +14,7 @@ const ExampleTag = () => <span className="text-[10px] font-medium uppercase trac
 const PanelTop: React.FC<{ title: string; busy?: boolean }> = ({ title, busy }) => (
   <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-900/[0.06]">
     <div className="flex items-center gap-2.5">
-      <BrandSparkle className="w-6 h-6" busy={busy} />
+      <AiSynapse className="w-6 h-6" busy={busy} />
       <span className="text-[13px] font-semibold text-slate-900">{title}</span>
     </div>
     <ExampleTag />

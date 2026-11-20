@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { BrandSparkle, BrandWordmark } from './Brand';
+import { AiSynapse, BrandSparkle, BrandWordmark } from './Brand';
 import { ThemeToggle } from './ThemeToggle';
 import { Pic } from './Pic';
 import { UserRole } from '../types';
 import { ArrowLeftRight,
-  BookOpen, Building2, LogOut, Menu, ShieldCheck, Trophy, X, Bell, Briefcase, ChevronDown, ClipboardCheck, GraduationCap, House, UsersRound, FolderKanban, Repeat, Search, Users, ListTodo, UserRound, MoreHorizontal, Sparkles } from 'lucide-react';
+  BookOpen, Building2, LogOut, Menu, ShieldCheck, Trophy, X, Bell, Briefcase, ChevronDown, ClipboardCheck, GraduationCap, House, UsersRound, FolderKanban, Repeat, Search, Users, ListTodo, UserRound, MoreHorizontal } from 'lucide-react';
 
 export type AppTab =
   | 'home'
@@ -684,7 +684,7 @@ const StaffNav: React.FC<{
               title="Create with AI"
               className="w-10 h-10 flex items-center justify-center rounded-lg bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-600 text-white shadow-sm"
             >
-              <Sparkles className="w-4 h-4" />
+              <AiSynapse bare className="w-4 h-4" />
             </button>
             <button onClick={() => setRailOpen(true)} aria-label="Search people and tests" title="Search" className="w-10 h-10 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-200/60 hover:text-slate-900">
               <Search className="w-4 h-4" />
@@ -699,7 +699,7 @@ const StaffNav: React.FC<{
               }}
               className="w-full h-10 flex items-center justify-center gap-2 px-3 rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 hover:from-indigo-500 hover:via-violet-500 hover:to-fuchsia-500 shadow-sm whitespace-nowrap"
             >
-              <Sparkles className="w-4 h-4" />
+              <AiSynapse bare className="w-4 h-4" />
               Create with AI
             </button>
             <div className="[&_input]:bg-white">{renderSearch(null)}</div>

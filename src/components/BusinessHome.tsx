@@ -2,7 +2,7 @@ import { useCurrency } from '../lib/currency';
 import { TRAINING, asksForTraining, searchTraining } from '../data/trainingCatalogue';
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { BrandSparkle, BrandWordmark } from './Brand';
+import { AiSynapse, BrandWordmark } from './Brand';
 import { ArrowRight, ArrowUp, Briefcase, Check, ChevronDown, ChevronLeft, ChevronRight, Circle, ExternalLink, Eye, GraduationCap, Library, Loader2, Lock, Monitor, Pencil, Plus, Send, Square, UserSearch, Users, Wand2, X } from 'lucide-react';
 import { AssessmentTest, Business, JobPosting, QuestionType, TestKind, User, levelName } from '../types';
 import { Pic } from './Pic';
@@ -458,7 +458,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
           )}
           {build?.working && (
             <div className="flex gap-3">
-              <BrandSparkle className="w-7 h-7 mt-0.5" busy />
+              <AiSynapse className="w-7 h-7 mt-0.5" busy />
               <div className="ai-glass min-w-0 flex-1 p-4 rounded-2xl rounded-tl-md border border-white/80 shadow-sm space-y-1">
                 <p className="text-sm font-semibold text-slate-900 flex items-center gap-2">
                   <Loader2 className="w-4 h-4 text-indigo-600 animate-spin" />
@@ -470,7 +470,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
           )}
           {thinking && (
             <div className="flex items-center gap-2 text-sm text-slate-500">
-              <BrandSparkle className="w-7 h-7" busy />
+              <AiSynapse className="w-7 h-7" busy />
               <span className="ai-shimmer font-medium">Looking through Praxa…</span>
             </div>
           )}
@@ -620,7 +620,7 @@ const AdvisorReply: React.FC<{
   onOpenTraining?: (id: string) => void;
 }> = ({ turn, onOpenTraining, onEditWithAI, onSendTest, aiAllowed, picked, onTogglePick, onPickAll, onEditCopy, onBuildWithAI, onSeePlans, onOpenTest, onPreview, onTopUp, canBuild, onBuild, onChangePlan, onOpenLibrary, candidates, onViewPerson, jobs, onInvite, onQuickReply }) => (
   <div className="flex gap-3">
-    <BrandSparkle className="w-7 h-7 mt-0.5" />
+    <AiSynapse className="w-7 h-7 mt-0.5" />
     <div className="ai-glass min-w-0 flex-1 space-y-4 p-4 sm:p-5 rounded-2xl rounded-tl-md border border-white/80 shadow-sm">
       <p className={`text-sm leading-relaxed whitespace-pre-wrap ${turn.error ? 'text-slate-800' : 'text-slate-800'}`}>{turn.text}</p>
 
