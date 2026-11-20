@@ -590,10 +590,10 @@ html.dark {
   --color-slate-200: #273246;
   --color-slate-300: #364259;
   --color-slate-400: #6d788c;
-  --color-slate-500: #949eae;
-  --color-slate-600: #aeb6c4;
-  --color-slate-700: #c7ced9;
-  --color-slate-800: #dde2ea;
+  --color-slate-500: #aab3c1;
+  --color-slate-600: #c3cad5;
+  --color-slate-700: #d8dde5;
+  --color-slate-800: #e7ebf1;
   --color-slate-900: #eef1f6;
   --color-slate-950: #f8fafc;
   --color-emerald-50: color-mix(in oklab, oklch(69.6% 0.17 162.48) 14%, #0f1626);
@@ -676,7 +676,7 @@ html.dark {
 /* Already-dark panels, anything that must stay light (a printed certificate), and anything with white text (a solid
    button, a banner: drawn for a deep colour behind it) keep light mode's colours, so a bg-emerald-700 button or a
    text-indigo-100 line on a banner doesn't turn pale and unreadable */
-html.dark [class~="bg-slate-800"], [class*=" bg-slate-800/"], [class^="bg-slate-800/"], html.dark [class~="bg-slate-900"], [class*=" bg-slate-900/"], [class^="bg-slate-900/"], html.dark [class~="bg-slate-950"], [class*=" bg-slate-950/"], [class^="bg-slate-950/"], html.dark [class~="bg-indigo-700"], [class*=" bg-indigo-700/"], [class^="bg-indigo-700/"], html.dark [class~="bg-indigo-800"], [class*=" bg-indigo-800/"], [class^="bg-indigo-800/"], html.dark [class~="bg-indigo-900"], [class*=" bg-indigo-900/"], [class^="bg-indigo-900/"], html.dark [class~="bg-indigo-950"], [class*=" bg-indigo-950/"], [class^="bg-indigo-950/"], html.dark .theme-light, html.dark .text-white {
+html.dark [class~="bg-slate-800"], html.dark [class~="bg-slate-900"], html.dark [class~="bg-slate-950"], html.dark [class~="bg-indigo-700"], html.dark [class~="bg-indigo-800"], html.dark [class~="bg-indigo-900"], html.dark [class~="bg-indigo-950"], html.dark .bg-slate-900\/95, html.dark .theme-light, html.dark .text-white {
   --color-slate-50: oklch(98.4% 0.003 247.858);
   --color-slate-100: #eef0f4;
   --color-slate-200: #dadfe7;
@@ -701,8 +701,8 @@ html.dark [class~="bg-slate-800"], [class*=" bg-slate-800/"], [class^="bg-slate-
   --color-indigo-950: #0b1022;
 }
 /* ...and their colours too, so a dark panel's bright text (a code runner's green pass, amber warning) stays bright */
-html.dark [class~="bg-slate-800"], html.dark [class*=" bg-slate-800/"], html.dark [class^="bg-slate-800/"], html.dark [class~="bg-slate-900"], html.dark [class*=" bg-slate-900/"], html.dark [class^="bg-slate-900/"], html.dark [class~="bg-slate-950"], html.dark [class*=" bg-slate-950/"], html.dark [class^="bg-slate-950/"], html.dark [class~="bg-indigo-700"], html.dark [class*=" bg-indigo-700/"], html.dark [class^="bg-indigo-700/"], html.dark [class~="bg-indigo-800"], html.dark [class*=" bg-indigo-800/"], html.dark [class^="bg-indigo-800/"], html.dark [class~="bg-indigo-900"], html.dark [class*=" bg-indigo-900/"], html.dark [class^="bg-indigo-900/"], html.dark [class~="bg-indigo-950"], html.dark [class*=" bg-indigo-950/"], html.dark [class^="bg-indigo-950/"],
-html.dark .theme-light, html.dark .text-white {
+html.dark [class~="bg-slate-800"], html.dark [class~="bg-slate-900"], html.dark [class~="bg-slate-950"], html.dark [class~="bg-indigo-700"], html.dark [class~="bg-indigo-800"], html.dark [class~="bg-indigo-900"], html.dark [class~="bg-indigo-950"],
+html.dark .bg-slate-900\/95, html.dark .theme-light, html.dark .text-white {
   --color-emerald-50: oklch(97.9% 0.021 166.113);
   --color-emerald-100: oklch(95% 0.052 163.051);
   --color-emerald-200: oklch(90.5% 0.093 164.15);
@@ -779,7 +779,7 @@ html.dark .focus\:bg-white:focus { background-color: var(--surface); }
 html.dark .via-white { --tw-gradient-via: var(--surface); }
 html.dark .to-white { --tw-gradient-to: var(--surface); }
 html.dark .\[\&_input\]\:bg-white input { background-color: var(--surface); }
-html.dark :is(.bg-white\/95, .bg-white\/90, .bg-white\/80, .bg-white\/70, .bg-white\/60, .bg-white\/50) { background-color: rgb(18 26 43 / 0.9); }
+html.dark :is(.bg-white\/95, .bg-white\/90, .bg-white\/80, .bg-white\/70, .bg-white\/60, .bg-white\/50, .bg-white\/40) { background-color: rgb(18 26 43 / 0.9); }
 html.dark :is(.hover\:bg-white:hover) { background-color: var(--surface-hover); }
 /* An app simulation is its own page, light as it was built */
 html.dark iframe { background-color: #ffffff; color-scheme: light; }
@@ -911,6 +911,8 @@ html.dark .build-veil { background: rgb(11 17 30 / 0.6); }
   background: linear-gradient(90deg, #3b6fe0, #8b5cf6 55%, #db5a9e); -webkit-background-clip: text; background-clip: text; color: transparent;
   padding-bottom: 0.08em;
 }
+/* The name's gradient, lighter so it reads on the dark page */
+html.dark .brand-word:not(.theme-light *) { background-image: linear-gradient(90deg, #7ea2ff, #b69cff 55%, #f08bc0); }
 @keyframes brand-spin { 50% { transform: scale(0.88); opacity: 0.8; } }
 .brand-spin { animation: brand-spin 1.4s ease-in-out infinite; transform-origin: 50% 50%; }
 @media (prefers-reduced-motion: reduce) { .brand-spin { animation: none; } }
