@@ -10,6 +10,7 @@ import { CaseBrief } from './CaseBrief';
 import { DatabaseWindow } from './DatabaseWindow';
 import { QuestionEditor } from './QuestionEditors';
 import { SpreadsheetWindow } from './SpreadsheetWindow';
+import { Desktop } from './Desktop';
 import { hydrateTest, useAppCodes } from '../lib/appRefs';
 
 const styleLabel = (q: Question) => QUESTION_STYLES.find((s) => s.type === q.type)?.label ?? q.type;
@@ -318,9 +319,12 @@ const PreviewGroup: React.FC<{
       </p>
       {test.scenario && <CaseBrief scenario={test.scenario} />}
       {isTask && (
-        <div className={first.type === 'case' ? 'max-h-[70vh] overflow-y-auto rounded-lg' : 'h-[30rem] max-h-[70vh]'}>
+        <div className={first.type === 'case' ? 'max-h-[70vh] overflow-y-auto rounded-lg' : first.type === 'desktop' ? 'h-[44rem] max-h-[80vh]' : 'h-[30rem] max-h-[70vh]'}>
           {first.type === 'case' ? (
             <CaseMaterial question={first} />
+          ) : first.type === 'desktop' ? (
+            // A job simulation's day: the whole desktop, as the candidate gets it
+            <Desktop key={first.id} question={first} answer={answers[first.id] ?? ''} onChange={(v) => setAnswer(first.id, v)} company={test.scenario?.company ?? test.companyName} />
           ) : first.type === 'sheet' ? (
             <SpreadsheetWindow key={first.id} value={answer(first)} onChange={(v) => setAnswer(first.id, v)} fileName={first.contextData || `${first.title}.xlsx`} files={test.scenario?.files} />
           ) : first.type === 'database' ? (
