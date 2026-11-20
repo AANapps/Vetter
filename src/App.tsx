@@ -644,6 +644,21 @@ export default function App() {
     setDraftBuilder({ draft: test, jobId, alsoAdd: [] });
   };
   // The test chat on a saved test, picking up changes saved as a draft earlier where they were left
+  // "Use as a template" opens a new browser tab at the Tests page with ?template=<test id>: the builder opens there on a
+  // copy of that test once the tests have loaded, and the address is tidied
+  const [templateId, setTemplateId] = useState<string | null>(() => new URLSearchParams(window.location.search).get('template'));
+  useEffect(() => {
+    if (!templateId || activeRole !== 'recruiter') return;
+    const t = tests.find((x) => x.id === templateId);
+    if (!t) return;
+    setTemplateId(null);
+    setDraftBuilder({ draft: t, isCopy: true, alsoAdd: [] });
+    const url = new URL(window.location.href);
+    url.searchParams.delete('template');
+    window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [templateId, tests, activeRole]);
+
   // A copy of one of Praxa's tests made to edit: the chat opens on it once it's saved (with Firebase on, a new test only
   // shows once the database has it, and the chat must open on the copy, not a blank test)
   const [editWhenSaved, setEditWhenSaved] = useState<string | null>(null);
@@ -1863,7 +1878,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
                 activeRole === 'recruiter' &&
                 recruiterBusiness &&
                 (testPageTest.type === 'standard' || (testPageTest.publicStatus === 'approved' && testPageTest.businessId !== recruiterBusiness.id))
-                  ? () => setDraftBuilder({ draft: testPageTest, isCopy: true, alsoAdd: [] })
+                  ? () => window.open(`/business/tests/?template=${encodeURIComponent(testPageTest.id)}`, '_blank', 'noopener')
                   : undefined
               }
               {...((activeRole === 'admin' || account?.role === 'admin') && testPageTest.type !== 'custom' && {
