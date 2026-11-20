@@ -89,9 +89,10 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   const isPraxa = !business;
   const jobs = isPraxa ? allJobs : allJobs.filter((j) => j.businessId === business.id);
   const ownTests = isPraxa ? [] : tests.filter((t) => t.type === 'custom' && t.businessId === business.id && t.purpose !== 'training');
-  // Job simulations saved to send to candidates are listed apart from the company's test library
-  const companySims = ownTests.filter(isHiringSim);
-  const companyTests = ownTests.filter((t) => !isHiringSim(t));
+  // The company's job simulations (a day on the desktop, however they were saved) are listed apart from its tests
+  const isSim = (t: AssessmentTest) => isHiringSim(t) || isJobSim(t);
+  const companySims = ownTests.filter(isSim);
+  const companyTests = ownTests.filter((t) => !isSim(t));
   // Praxa's own job simulations, which any company can send as they are
   const praxaSims = tests.filter((t) => isJobSim(t) && isPublic(t) && isMainVersion(t));
   // For the Praxa team: every company's own tests, company by company, the busiest first
