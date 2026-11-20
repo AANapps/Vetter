@@ -391,6 +391,8 @@ export type TestDifficulty = 'Beginner' | 'Junior' | 'Professional' | 'Senior';
 export const isPublic = (test: Pick<AssessmentTest, 'type' | 'publicStatus'> & { purpose?: TestPurpose }) =>
   test.purpose !== 'training' && test.purpose !== 'hiring' && (test.type === 'standard' || test.publicStatus === 'approved');
 export const isTraining = (test: { purpose?: TestPurpose }) => test.purpose === 'training';
+// A job simulation: a timed day on the desktop (Praxa's library ones and any made in the AI builder)
+export const isJobSim = (test: { questions: { type: string; desktop?: { phases?: unknown[] } }[] }) => test.questions.some((q) => q.type === 'desktop' && !!q.desktop?.phases?.length);
 // A job simulation the company saved to send to candidates, rather than as a test in its library
 export const isHiringSim = (test: { purpose?: TestPurpose }) => test.purpose === 'hiring';
 

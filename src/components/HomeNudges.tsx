@@ -1,10 +1,11 @@
 import React from 'react';
-import { ArrowRight, Briefcase, Building2, CalendarClock, CheckCircle2, Clock, ListTodo, MapPin, Play, Sparkles, Wallet } from 'lucide-react';
+import { ArrowRight, Briefcase, Building2, CalendarClock, CheckCircle2, Clock, ListTodo, MapPin, Monitor, Play, Sparkles, Wallet } from 'lucide-react';
 import { Pic } from './Pic';
-import { Assignment, AssessmentTest, JobPosting, TeamMember, User } from '../types';
+import { Assignment, AssessmentTest, JobPosting, TeamMember, User, isJobSim, isPublic } from '../types';
 import { activeProfileOf } from '../lib/jobProfiles';
 import { SectorId } from '../lib/sectors';
-import { useProfileProgress } from '../lib/profileProgress';
+import { PASS, useProfileProgress } from '../lib/profileProgress';
+import { getBestTestScore } from '../lib/matchingAlgorithm';
 import { invitesFor, jobTestProgress, jobTestsOf, totalMinutes } from '../lib/jobTests';
 import { isOverdue } from '../lib/work';
 
@@ -109,11 +110,26 @@ export const HomeNudges: React.FC<{
     });
   }
 
+  // 4. The job simulation for the job they're after: the strongest proof they can do it, until they've passed it
+  const sim = tests.find((t) => isJobSim(t) && isPublic(t) && !!progress.role && t.roles?.includes(progress.role));
+  const simBest = sim ? getBestTestScore(candidate, sim.id) : undefined;
+  if (sim && (simBest ?? -1) < PASS)
+    todos.push({
+      key: 'job-sim',
+      icon: Monitor,
+      tone: 'bg-indigo-600 text-white',
+      kicker: 'Prove you can do the job',
+      title: `${progress.role} job simulation`,
+      body: `A real working day in the role, about ${sim.estimatedMinutes} min. Pass it and companies see proof you can do the job, not just a CV`,
+      cta: simBest === undefined ? 'Start the day' : 'Try again',
+      onClick: () => onOpenTest(sim.id),
+    });
+
   const first = candidate.name.split(' ')[0];
   const jobCount = invited.length + started.length;
 
   // Brand new: nothing taken and nothing waiting. One thing to do: pick the job they want, then take its first test
-  if (candidate.testResults.length === 0 && invited.length === 0 && todos.every((t) => t.key === 'next-test')) {
+  if (candidate.testResults.length === 0 && invited.length === 0 && todos.every((t) => t.key === 'next-test' || t.key === 'job-sim')) {
     const m = progress.nextModule;
     return (
       <section className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { ArrowLeft, ArrowRight, Briefcase, Check, ChevronRight, Clock, ListChecks, Play, Search, Sparkles, X } from 'lucide-react';
-import { AssessmentTest, JobPosting, TEST_DIFFICULTIES, TestDifficulty, TestRole, User, isPublic, levelName } from '../types';
+import { ArrowLeft, ArrowRight, Briefcase, Check, ChevronRight, Clock, ListChecks, Monitor, Play, Search, Sparkles, X } from 'lucide-react';
+import { AssessmentTest, JobPosting, TEST_DIFFICULTIES, TestDifficulty, TestRole, User, isJobSim, isPublic, levelName } from '../types';
 import { ROLE_GROUPS, ROLE_SECTIONS, TestField, TestSection } from '../lib/testRoles';
 import { isMainVersion, levelsOf } from '../lib/testLevels';
 import { roleHidden, testHidden, useLibraryVisibility } from '../lib/libraryVisibility';
@@ -355,6 +355,8 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
 
   // ======================= No role yet: pick one, or search everything =======================
   const searching = q.trim() !== '' || browseAll;
+  // The job simulations, the one for the job they're after first
+  const sims = library.filter(isJobSim).sort((a, b) => Number(!!b.roles?.includes(candidate.targetRole as TestRole)) - Number(!!a.roles?.includes(candidate.targetRole as TestRole)));
   const everything = library.filter(matches).sort((a, b) => easiest(a) - easiest(b));
   return (
     <div className="space-y-8">
@@ -402,6 +404,52 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
         </section>
       ) : (
         <>
+          {/* Job simulations first: the strongest proof a candidate can give that they can do the job */}
+          {sims.length > 0 && (
+            <section className="rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-xs">
+              <div className="relative px-6 sm:px-8 py-7 text-white" style={{ background: 'radial-gradient(circle at 85% 90%, rgba(56,189,248,0.4) 0, transparent 45%), linear-gradient(120deg, #312e81 0%, #4f46e5 50%, #7c3aed 100%)' }}>
+                <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.7) 1px, transparent 1px)', backgroundSize: '18px 18px' }} />
+                <div className="relative max-w-2xl">
+                  <div className="text-xs font-semibold uppercase tracking-wider text-indigo-200">Job simulations</div>
+                  <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Don't just say you can do the job. Show it.</h2>
+                  <p className="mt-2 text-sm text-indigo-100">
+                    Each one is a real working day in the role, about 40 minutes: emails to answer, the job's own software, and a curveball halfway through.
+                    Pass it ({PASS}+) and it goes on your profile as proof you've done the work, which counts for more with companies than any CV line.
+                  </p>
+                </div>
+              </div>
+              <ul className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-px bg-slate-100">
+                {sims.map((t) => {
+                  const score = best(t);
+                  const ok = passed(t);
+                  return (
+                    <li key={t.id} className="bg-white p-5 flex flex-col gap-3">
+                      <div className="flex items-start gap-3">
+                        <span className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center ${ok ? 'bg-emerald-50 text-emerald-600' : 'bg-indigo-50 text-indigo-600'}`} aria-hidden="true">
+                          {ok ? <Check className="w-5 h-5" strokeWidth={3} /> : <Monitor className="w-5 h-5" />}
+                        </span>
+                        <button onClick={() => onOpenTest(t.id)} className="min-w-0 text-left">
+                          <span className="block text-sm font-bold text-slate-900 hover:text-indigo-700">{t.roles?.[0] ?? t.title}</span>
+                          <span className="block text-xs text-slate-500">{t.title.replace(/^.*?:\s*/, '')}</span>
+                        </button>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 text-[11px] text-slate-600">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100">
+                          <Clock className="w-3 h-3" />~{t.estimatedMinutes} min
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full bg-slate-100">5 timed parts</span>
+                        {score !== undefined && <span className={`px-2 py-0.5 rounded-full font-semibold ${ok ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>{ok ? `Passed · ${score}` : `Best ${score}`}</span>}
+                      </div>
+                      <button onClick={() => onStartTest(t)} className={`mt-auto px-4 py-2 rounded-lg text-sm font-semibold inline-flex items-center justify-center gap-1.5 ${ok ? 'border border-slate-300 text-slate-700 hover:bg-slate-50' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}>
+                        <Play className="w-3.5 h-3.5 fill-current" />
+                        {score === undefined ? 'Prove it: start the day' : ok ? 'Take it again' : 'Try again'}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          )}
           {groups.map((g) => (
             <section key={g.industry} className="space-y-3">
               <button

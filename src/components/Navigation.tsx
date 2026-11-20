@@ -4,7 +4,7 @@ import { ThemeToggle } from './ThemeToggle';
 import { Pic } from './Pic';
 import { UserRole } from '../types';
 import { ArrowLeftRight,
-  BookOpen, Building2, LogOut, Menu, ShieldCheck, Trophy, X, Bell, Briefcase, ChevronDown, ClipboardCheck, GraduationCap, House, UsersRound, FolderKanban, Repeat, Search, Users, ListTodo, UserRound, MoreHorizontal } from 'lucide-react';
+  BookOpen, Building2, LogOut, Menu, ShieldCheck, Trophy, X, Bell, Briefcase, ChevronDown, ClipboardCheck, GraduationCap, House, UsersRound, FolderKanban, Repeat, Search, Users, ListTodo, UserRound, MoreHorizontal, Monitor } from 'lucide-react';
 
 export type AppTab =
   | 'home'
@@ -18,6 +18,7 @@ export type AppTab =
   | 'business-home'
   | 'business-jobs'
   | 'business-tests'
+  | 'business-sims'
   | 'business-candidates'
   | 'business-team'
   | 'business-projects'
@@ -45,6 +46,7 @@ export const NAV_TABS: Record<'candidate' | 'recruiter', { id: AppTab; label: st
     { id: 'business-jobs', label: 'Jobs', icon: Briefcase, group: 'Hiring' },
     { id: 'business-candidates', label: 'Candidates', icon: Users, group: 'Hiring' },
     { id: 'business-tests', label: 'Tests', icon: ClipboardCheck, group: 'Hiring' },
+    { id: 'business-sims', label: 'Job simulations', icon: Monitor, group: 'Hiring' },
     { id: 'business-projects', label: 'Projects & CRM', icon: FolderKanban, group: 'Project Manager' },
     { id: 'business-team', label: 'Team', icon: UsersRound, group: 'Project Manager' },
     { id: 'business-training', label: 'Training', icon: GraduationCap, group: 'Project Manager' },

@@ -2,17 +2,17 @@ import { isMainVersion } from '../lib/testLevels';
 import { Pic } from './Pic';
 import { BusinessInfo, BusinessInfoEditor } from './BusinessInfoEditor';
 import React, { useState } from 'react';
-import { User, JobPosting, AssessmentTest, Business, TestDraft, TestRole, isHiringSim, isPublic, levelName, madeWithAI } from '../types';
+import { User, JobPosting, AssessmentTest, Business, TestDraft, TestRole, isHiringSim, isJobSim, isPublic, levelName, madeWithAI } from '../types';
 import { ROLE_GROUPS } from '../lib/testRoles';
 import { companySector, inCompanySector, industriesFor, sectorRoles } from '../lib/sectors';
 import { getTestStats } from '../lib/leaderboard';
 import { JobCandidates } from './JobCandidates';
-import { CheckCircle2, FileText, Pencil, Plus, Search, Sparkles, Trash2 } from 'lucide-react';
+import { CheckCircle2, FileText, Monitor, Pencil, Plus, Search, Send, Sparkles, Trash2 } from 'lucide-react';
 import { TestBuilder } from './TestBuilder';
 import { roleHidden, testHidden, useLibraryVisibility } from '../lib/libraryVisibility';
 
 // Jobs have their own page (BusinessJobs); this is the company's tests and the candidates ranked for each job
-export type BusinessSection = 'tests' | 'candidates';
+export type BusinessSection = 'tests' | 'sims' | 'candidates';
 
 interface RecruiterPortalProps {
   section: BusinessSection;
@@ -30,6 +30,8 @@ interface RecruiterPortalProps {
   onDeleteTest: (testId: string) => void;
   // Praxa's AI writes a test from a description, or from a first message filled in for it
   onGenerateTest: (seed?: string) => void;
+  // Sends a test to candidates: the job it's on, or a new job for it
+  onSendTest?: (testId: string) => void;
   // Tests still being written, newest first
   drafts: TestDraft[];
   onSaveDraft: (record: TestDraft) => Promise<boolean>;
@@ -69,6 +71,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   onUpdateTest,
   onDeleteTest,
   onGenerateTest,
+  onSendTest,
   drafts,
   onSaveDraft,
   onDeleteDraft,
@@ -89,6 +92,8 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   // Job simulations saved to send to candidates are listed apart from the company's test library
   const companySims = ownTests.filter(isHiringSim);
   const companyTests = ownTests.filter((t) => !isHiringSim(t));
+  // Praxa's own job simulations, which any company can send as they are
+  const praxaSims = tests.filter((t) => isJobSim(t) && isPublic(t) && isMainVersion(t));
   // For the Praxa team: every company's own tests, company by company, the busiest first
   const byCompany = isPraxa
     ? [
@@ -207,7 +212,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
 
   const [editingBusiness, setEditingBusiness] = useState(false);
   return (
-    <div className={`${section === 'tests' ? 'px-4 sm:px-6' : 'max-w-7xl mx-auto px-6'} py-8 space-y-8`}>
+    <div className={`${section === 'tests' || section === 'sims' ? 'px-4 sm:px-6' : 'max-w-7xl mx-auto px-6'} py-8 space-y-8`}>
       {editingBusiness && business && onEditBusiness && (
         <BusinessInfoEditor
           business={business}
@@ -321,6 +326,61 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
       )}
 
       {/* Tests: the company's own and Praxa's library in one list */}
+      {/* Job simulations: a timed day doing the job, kept apart from tests. The company's own, made to send to its
+          candidates, then Praxa's ready-made ones it can send as they are */}
+      {section === 'sims' && (
+        <div className="space-y-8">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+            <div className="space-y-1">
+              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Job simulations</h1>
+              <p className="text-sm text-slate-500 max-w-xl">
+                A 40-minute day doing the job: the inbox, the job's own software and a curveball, in five timed parts. Send one to a job's candidates
+                and see who can actually do the work.
+              </p>
+            </div>
+            <button onClick={() => onGenerateTest('I want to create a job simulation.')} className="create-border shrink-0 px-4 py-2 text-sm font-semibold text-indigo-700 hover:text-indigo-900 rounded-lg inline-flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4" />
+              Create a job simulation
+            </button>
+          </div>
+
+          {!isPraxa && (
+            <section aria-labelledby="sims-yours" className="space-y-3">
+              <h2 id="sims-yours" className="text-lg font-bold text-slate-900">
+                Yours <span className="font-normal text-slate-400 tabular-nums">{companySims.length}</span>
+              </h2>
+              {companySims.length === 0 ? (
+                <p className="bg-white border border-dashed border-slate-300 rounded-xl px-5 py-8 text-center text-sm text-slate-500">
+                  None yet. Create one for a role you're hiring for, or send one of Praxa's below.
+                </p>
+              ) : (
+                <ul className="bg-white border border-slate-200 rounded-xl divide-y divide-slate-100 overflow-hidden">
+                  {[...companySims]
+                    .sort((a, b) => madeAt(b) - madeAt(a))
+                    .map((t) => (
+                      <SimRow key={t.id} test={t} usedBy={usedByOf(t)} onOpen={() => onOpenTest(t.id)} onSend={onSendTest && (() => onSendTest(t.id))} onEdit={() => editTest(t)} onDelete={() => deleteTest(t)} />
+                    ))}
+                </ul>
+              )}
+            </section>
+          )}
+
+          <section aria-labelledby="sims-praxa" className="space-y-3">
+            <div>
+              <h2 id="sims-praxa" className="text-lg font-bold text-slate-900">
+                Ready-made by Praxa <span className="font-normal text-slate-400 tabular-nums">{praxaSims.length}</span>
+              </h2>
+              <p className="text-xs text-slate-500">Send one as it is, or ask Praxa to make one set at your company.</p>
+            </div>
+            <ul className="bg-white border border-slate-200 rounded-xl divide-y divide-slate-100 overflow-hidden">
+              {praxaSims.map((t) => (
+                <SimRow key={t.id} test={t} usedBy={usedByOf(t)} onOpen={() => onOpenTest(t.id)} onSend={onSendTest && !isPraxa ? () => onSendTest(t.id) : undefined} />
+              ))}
+            </ul>
+          </section>
+        </div>
+      )}
+
       {section === 'tests' && (
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
@@ -365,22 +425,6 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                 ))}
               </select>
             </label>
-          )}
-
-          {/* The company's job simulations for hiring, sent to candidates on its jobs */}
-          {!isPraxa && companySims.length > 0 && (
-            <section aria-labelledby="your-sims" className="space-y-3">
-              <h2 id="your-sims" className="text-lg font-bold text-slate-900">
-                Job simulations <span className="font-normal text-slate-400 tabular-nums">{companySims.length}</span>
-              </h2>
-              <ul className="bg-white border border-slate-200 rounded-xl divide-y divide-slate-100 overflow-hidden">
-                {[...companySims]
-                  .sort((a, b) => madeAt(b) - madeAt(a))
-                  .map((t) => (
-                    <YourTestRow key={t.id} test={t} usedBy={usedByOf(t)} onOpen={() => onOpenTest(t.id)} onEdit={() => editTest(t)} onDelete={() => deleteTest(t)} />
-                  ))}
-              </ul>
-            </section>
           )}
 
           {/* The company's own tests first, each ready to change by asking Praxa or by hand */}
@@ -761,6 +805,44 @@ const madeAt = (t: AssessmentTest) => Number(t.id.match(/-(\d{12,})$/)?.[1] ?? 0
 
 // One of the company's own tests: its name and a line on what it is, with Edit with AI first and quieter by-hand
 // edit and delete beside it
+// A job simulation in a list: its day in short, the jobs it's on, and sending it to candidates
+const SimRow: React.FC<{
+  test: AssessmentTest;
+  usedBy: JobPosting[];
+  onOpen: () => void;
+  onSend?: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
+}> = ({ test, usedBy, onOpen, onSend, onEdit, onDelete }) => (
+  <li className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50/70">
+    <span className="w-9 h-9 shrink-0 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center" aria-hidden="true">
+      <Monitor className="w-4 h-4" />
+    </span>
+    <button onClick={onOpen} className="min-w-0 flex-1 text-left">
+      <span className="block text-sm font-semibold text-slate-900 truncate">{test.title}</span>
+      <span className="block text-xs text-slate-500 truncate">
+        {test.roles?.[0] ?? test.category} &middot; ~{test.estimatedMinutes} min &middot; {usedBy.length ? (usedBy.length === 1 ? `On ${usedBy[0].title}` : `On ${usedBy.length} jobs`) : 'Not on a job yet'}
+      </span>
+    </button>
+    {onSend && (
+      <button onClick={onSend} className="shrink-0 px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg inline-flex items-center gap-1.5">
+        <Send className="w-3.5 h-3.5" />
+        Send to candidates
+      </button>
+    )}
+    {onEdit && (
+      <button onClick={onEdit} aria-label={`Edit ${test.title}`} title="Edit" className="shrink-0 p-1.5 text-slate-400 hover:text-indigo-700 rounded-md hover:bg-slate-100">
+        <Pencil className="w-4 h-4" />
+      </button>
+    )}
+    {onDelete && (
+      <button onClick={onDelete} aria-label={`Delete ${test.title}`} title="Delete" className="shrink-0 p-1.5 text-slate-400 hover:text-rose-600 rounded-md hover:bg-slate-100">
+        <Trash2 className="w-4 h-4" />
+      </button>
+    )}
+  </li>
+);
+
 const YourTestRow: React.FC<{
   test: AssessmentTest;
   usedBy: JobPosting[];
