@@ -7,6 +7,7 @@ import { BuildingCard } from './BuildingCard';
 import { hydrateTest, useAppCodes } from '../lib/appRefs';
 import { jobBrief } from '../lib/testGeneration';
 import { BuildStep, ChatState, TestPlan, buildChange, buildPlan, sendChat } from '../lib/testChat';
+import { isJobSimDraft } from '../lib/jobSimBuild';
 import { kindLabel } from './KindChoice';
 import { versionTitle } from '../lib/testLevels';
 import { aiSimulationsFor } from '../lib/sectors';
@@ -25,6 +26,8 @@ interface TestGeneratorProps {
   // Saves the new test, told which kind it is; returns its id
   onSaveTest: (test: AssessmentTest, kind: TestKind) => string;
   onAddToJob: (jobId: string, testIds: string[]) => void;
+  // A job simulation saved to send to candidates: takes the company on to sending it (a job for it)
+  onSendTest?: (testId: string) => void;
   // A saved test to change by asking Praxa: the chat starts from it, and saving updates it in place
   editing?: AssessmentTest;
   // Saves the changed test over the one being edited
@@ -67,7 +70,7 @@ const PICKABLE: QuestionType[] = ['choice', 'multi', 'text', 'written', 'order',
 const PICKABLE_STYLES = PICKABLE.map((type) => QUESTION_STYLES.find((s) => s.type === type)!).filter(Boolean);
 
 // Build a test by talking to Praxa: describe the job, get a draft, then ask for changes until it's right
-export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tests, onOpenTest, onSaveTest, onAddToJob, editing, onUpdateTest, onEditDraft, onSaveDraft, resume, seed, autoSend, background: backgroundGiven, kind: kindAsked, plan, planChat, onClose }) => {
+export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tests, onOpenTest, onSaveTest, onAddToJob, onSendTest, editing, onUpdateTest, onEditDraft, onSaveDraft, resume, seed, autoSend, background: backgroundGiven, kind: kindAsked, plan, planChat, onClose }) => {
   const background = backgroundGiven ?? resume?.background;
   // The saved test being changed, opened from its job or from a draft of changes to it
   const [original] = useState(() => editing ?? (resume?.editsTestId ? tests.find((t) => t.id === resume.editsTestId) : undefined));
@@ -366,7 +369,13 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
       draft: next.draft,
       messages: [
         ...c.messages,
-        { role: 'assistant', text: 'Built. Look it over on the right: try any question, or edit it in place. Ask me here for anything to change, then Save test.', ...(reply?.note && { note: reply.note }) },
+        {
+          role: 'assistant',
+          text: isJobSimDraft(next.draft)
+            ? 'Built. Look the day over on the right and ask me here for anything to change. Then save it: as a job simulation to send to candidates, or as a test in your library.'
+            : 'Built. Look it over on the right: try any question, or edit it in place. Ask me here for anything to change, then Save test.',
+          ...(reply?.note && { note: reply.note }),
+        },
       ],
     }));
     setFlash(true);
@@ -427,18 +436,40 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
   const editDraft = (test: AssessmentTest) => setChat((c) => ({ ...c, draft: test }));
   const unfinished = draft && keepNew ? draftProblems(draft) : 0;
   const addCount = chosen.length + (draft && keepNew ? 1 : 0);
-  const finish = () => {
+  // A new job simulation is saved one of two ways, which the company picks: to send to candidates (it's theirs for
+  // hiring, and they go on to a job for it) or as a test in their library. On a job it's for that job's candidates
+  const asksHowToSave = !!draft && !original && !job && isJobSimDraft(draft) && kind !== 'training';
+  const [saveMenu, setSaveMenu] = useState(false);
+  const finish = (as?: 'hiring' | 'library') => {
     if (unfinished) return;
     if (original) {
       if (draft) onUpdateTest(withPurpose(asSaved(finaliseDraft(draft))));
       onClose();
       return;
     }
+    const hiring = as === 'hiring' || (!!job && !!draft && isJobSimDraft(draft));
     const ids = [...chosen];
-    if (draft && keepNew) ids.push(onSaveTest(withPurpose({ ...finaliseDraft(draft), madeWith: 'ai' }), kind));
+    let saved: string | undefined;
+    if (draft && keepNew) {
+      saved = onSaveTest(withPurpose({ ...finaliseDraft(draft), madeWith: 'ai', ...(hiring && { purpose: 'hiring' as const }) }), kind);
+      ids.push(saved);
+    }
     if (job && ids.length) onAddToJob(job.id, ids);
     onClose();
+    if (as === 'hiring' && saved && onSendTest) onSendTest(saved);
   };
+  const saveChoice = (
+    <div className="flex flex-wrap gap-2">
+      <button onClick={() => finish('hiring')} disabled={working || unfinished > 0} className="px-3.5 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 rounded-lg text-left">
+        Save as a job simulation
+        <span className="block text-xs font-normal text-indigo-100">Send it to candidates for a job</span>
+      </button>
+      <button onClick={() => finish('library')} disabled={working || unfinished > 0} className="px-3.5 py-2 text-sm font-semibold text-slate-800 bg-white border border-slate-300 hover:border-indigo-400 disabled:opacity-40 rounded-lg text-left">
+        Save as a test
+        <span className="block text-xs font-normal text-slate-500">Keep it in your test library</span>
+      </button>
+    </div>
+  );
 
   const buildingTitle = draft
     ? 'Updating your draft'
@@ -500,7 +531,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
             </button>
             {original ? (
               <button
-                onClick={finish}
+                onClick={() => finish()}
                 disabled={!draft || chat.draft === original || working || unfinished > 0}
                 title={unfinished ? 'Finish the questions marked under Structure first' : undefined}
                 className="px-3 sm:px-4 py-1.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 rounded-lg flex items-center gap-1.5"
@@ -510,7 +541,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
               </button>
             ) : job ? (
               <button
-                onClick={finish}
+                onClick={() => finish()}
                 disabled={addCount === 0 || working || unfinished > 0}
                 title={unfinished ? 'Finish the questions marked under Structure first' : undefined}
                 className="px-3 sm:px-4 py-1.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 rounded-lg flex items-center gap-1.5"
@@ -518,8 +549,22 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                 <Check className="w-4 h-4" />
                 {addCount === 0 ? 'Nothing picked yet' : `Add ${addCount} ${addCount === 1 ? 'test' : 'tests'} to the job`}
               </button>
+            ) : asksHowToSave ? (
+              <div className="relative">
+                <button onClick={() => setSaveMenu((o) => !o)} disabled={working || unfinished > 0} aria-expanded={saveMenu} title={unfinished ? 'Finish the questions marked under Structure first' : undefined} className="px-3 sm:px-4 py-1.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 rounded-lg flex items-center gap-1.5">
+                  <Check className="w-4 h-4" />
+                  Save
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+                {saveMenu && (
+                  <div className="menu-panel absolute right-0 mt-2 z-20 w-72 p-3 bg-white border border-slate-200 rounded-xl shadow-xl space-y-2">
+                    <p className="text-xs text-slate-500">How do you want to save it?</p>
+                    {saveChoice}
+                  </div>
+                )}
+              </div>
             ) : (
-              <button onClick={finish} disabled={!draft || working || unfinished > 0} title={unfinished ? 'Finish the questions marked under Structure first' : undefined} className="px-3 sm:px-4 py-1.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 rounded-lg flex items-center gap-1.5">
+              <button onClick={() => finish()} disabled={!draft || working || unfinished > 0} title={unfinished ? 'Finish the questions marked under Structure first' : undefined} className="px-3 sm:px-4 py-1.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 rounded-lg flex items-center gap-1.5">
                 <Check className="w-4 h-4" />
                 Save test
               </button>
@@ -684,6 +729,8 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                         </p>
                       )}
                       {m.cost !== undefined && m.cost > 0 && <p className="mt-1 text-xs text-slate-400 tabular-nums">Used {pounds(m.cost)} of credit</p>}
+                      {/* A built job simulation: how to save it, under the latest reply (unless a change is waiting on Build) */}
+                      {asksHowToSave && i === chat.messages.length - 1 && !working && !(m.proposal && !m.proposal.built) && <div className="mt-2">{saveChoice}</div>}
                     </div>
                   </div>
                 )

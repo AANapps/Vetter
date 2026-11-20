@@ -674,6 +674,8 @@ export default function App() {
       role: 'assistant',
       text: draft
         ? `Your ${what} "${test.title}" is saved as a draft, so you can pick it up any time from your test library. What would you like to do next?`
+        : test.purpose === 'hiring'
+        ? `Done! Your job simulation "${test.title}" is saved. Pick the job to send it to candidates for. What would you like to do next?`
         : `Done! Your ${what} "${test.title}" is saved in your test library. What would you like to do next?`,
       created: {
         title: test.title,
@@ -2519,11 +2521,12 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
             const id = saveNewTest(test);
             builtInCreator.current = { test, kind, testId: id };
             deleteTestDraft(generator.resume?.id);
-            if (!generator.jobId) showToast(test.purpose === 'training' ? `"${test.title}" saved to your training.` : `"${test.title}" saved to your tests.`);
+            if (!generator.jobId) showToast(test.purpose === 'training' ? `"${test.title}" saved to your training.` : test.purpose === 'hiring' ? `"${test.title}" saved as a job simulation. Pick the job to send it to.` : `"${test.title}" saved to your tests.`);
             markPlanBuilt(id);
             return id;
           }}
           onAddToJob={addTestsToJob}
+          onSendTest={sendTest}
           onEditDraft={(draft, alsoAdd, record) => {
             planToBuilder.current = true;
             setDraftBuilder({ draft, jobId: generator.jobId, alsoAdd, record });

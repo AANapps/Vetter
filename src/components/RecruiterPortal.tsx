@@ -2,7 +2,7 @@ import { isMainVersion } from '../lib/testLevels';
 import { Pic } from './Pic';
 import { BusinessInfo, BusinessInfoEditor } from './BusinessInfoEditor';
 import React, { useState } from 'react';
-import { User, JobPosting, AssessmentTest, Business, TestDraft, TestRole, isPublic, levelName, madeWithAI } from '../types';
+import { User, JobPosting, AssessmentTest, Business, TestDraft, TestRole, isHiringSim, isPublic, levelName, madeWithAI } from '../types';
 import { ROLE_GROUPS } from '../lib/testRoles';
 import { companySector, inCompanySector, industriesFor, sectorRoles } from '../lib/sectors';
 import { getTestStats } from '../lib/leaderboard';
@@ -85,7 +85,10 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   // A business only manages its own jobs and its own tests; the Praxa team sees every company's jobs
   const isPraxa = !business;
   const jobs = isPraxa ? allJobs : allJobs.filter((j) => j.businessId === business.id);
-  const companyTests = isPraxa ? [] : tests.filter((t) => t.type === 'custom' && t.businessId === business.id && t.purpose !== 'training');
+  const ownTests = isPraxa ? [] : tests.filter((t) => t.type === 'custom' && t.businessId === business.id && t.purpose !== 'training');
+  // Job simulations saved to send to candidates are listed apart from the company's test library
+  const companySims = ownTests.filter(isHiringSim);
+  const companyTests = ownTests.filter((t) => !isHiringSim(t));
   // For the Praxa team: every company's own tests, company by company, the busiest first
   const byCompany = isPraxa
     ? [
@@ -362,6 +365,22 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                 ))}
               </select>
             </label>
+          )}
+
+          {/* The company's job simulations for hiring, sent to candidates on its jobs */}
+          {!isPraxa && companySims.length > 0 && (
+            <section aria-labelledby="your-sims" className="space-y-3">
+              <h2 id="your-sims" className="text-lg font-bold text-slate-900">
+                Job simulations <span className="font-normal text-slate-400 tabular-nums">{companySims.length}</span>
+              </h2>
+              <ul className="bg-white border border-slate-200 rounded-xl divide-y divide-slate-100 overflow-hidden">
+                {[...companySims]
+                  .sort((a, b) => madeAt(b) - madeAt(a))
+                  .map((t) => (
+                    <YourTestRow key={t.id} test={t} usedBy={usedByOf(t)} onOpen={() => onOpenTest(t.id)} onEdit={() => editTest(t)} onDelete={() => deleteTest(t)} />
+                  ))}
+              </ul>
+            </section>
           )}
 
           {/* The company's own tests first, each ready to change by asking Praxa or by hand */}

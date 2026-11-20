@@ -388,9 +388,11 @@ export type TestDifficulty = 'Beginner' | 'Junior' | 'Professional' | 'Senior';
 // In the public library, for every company to use and every candidate to take: Praxa's own tests, and companies'
 // tests the Praxa team approved
 // Training is never in the library: it's a company's own, for its team
-export const isPublic = (test: Pick<AssessmentTest, 'type' | 'publicStatus'> & { purpose?: 'training' }) =>
-  test.purpose !== 'training' && (test.type === 'standard' || test.publicStatus === 'approved');
-export const isTraining = (test: { purpose?: 'training' }) => test.purpose === 'training';
+export const isPublic = (test: Pick<AssessmentTest, 'type' | 'publicStatus'> & { purpose?: TestPurpose }) =>
+  test.purpose !== 'training' && test.purpose !== 'hiring' && (test.type === 'standard' || test.publicStatus === 'approved');
+export const isTraining = (test: { purpose?: TestPurpose }) => test.purpose === 'training';
+// A job simulation the company saved to send to candidates, rather than as a test in its library
+export const isHiringSim = (test: { purpose?: TestPurpose }) => test.purpose === 'hiring';
 
 // Whether a test is changed by asking Praxa (made in the test chat) or by hand. Tests saved before this was recorded
 // are told apart by what only the chat leaves: a blueprint (which the builder used to drop on saving), or question ids
@@ -400,7 +402,7 @@ export const madeWithAI = (test: AssessmentTest) =>
   (test.madeWith ?? (test.blueprint?.length || test.questions.some((q) => CHAT_QUESTION_ID.test(q.id)) ? 'ai' : 'hand')) === 'ai';
 
 // The minutes a candidate has for a test, or null when it has no time limit. Training is never timed
-export const timerOf = (test: { timeLimit?: number | 'none'; estimatedMinutes: number; purpose?: 'training' }): number | null =>
+export const timerOf = (test: { timeLimit?: number | 'none'; estimatedMinutes: number; purpose?: TestPurpose }): number | null =>
   test.purpose === 'training' || test.timeLimit === 'none' ? null : test.timeLimit ?? test.estimatedMinutes;
 
 // The levels tests come in. Beginner is no longer offered; tests saved at it are treated as Junior
@@ -450,8 +452,9 @@ export interface AssessmentTest {
   // to any area at any level
   aspects?: TestAspect[];
   // Training: written to teach employees a piece of software or a way of working, not to hire. Never on leaderboards or
-  // profiles; a company assigns it to its team, and each person sees feedback on every task when they finish
-  purpose?: 'training';
+  // profiles; a company assigns it to its team, and each person sees feedback on every task when they finish.
+  // Hiring: a job simulation the company saved to send to candidates (on a job), kept apart from its test library
+  purpose?: TestPurpose;
   // What the hire needs, worked out before the questions were written: each competency, why it matters, how the test
   // proves it, and its share of the marks
   blueprint?: BlueprintItem[];
@@ -671,6 +674,7 @@ export type ArchiveReason = 'Not a fit' | 'Below pass mark' | 'Suspected cheatin
 // A skills test, a gamified test (every kind of question mixed with simulations), one standalone simulation marked on
 // the tasks it sets, or training for a company's own people
 export type TestKind = 'test' | 'simulation' | 'standalone' | 'training';
+export type TestPurpose = 'training' | 'hiring';
 
 // Someone a company asked to join its team on Praxa, by their account (picked from candidates) or by email. Once they
 // accept, the company can assign them tests, job simulations and training. Kept in teamMembers/<businessId>__<key>,
