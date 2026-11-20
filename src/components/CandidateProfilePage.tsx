@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowLeft, Award, Briefcase, Check, ChevronDown, ExternalLink, GraduationCap, Link2, MapPin, X, Send } from 'lucide-react';
-import { AssessmentTest, Business, JobPosting, User, isPublic } from '../types';
+import { AssessmentTest, Business, JobPosting, User, isPublic, isJobSim } from '../types';
 import { getLeaderboard } from '../lib/leaderboard';
 import { unfinishedStarts } from '../lib/results';
 import { sortExperience } from '../lib/experience';
@@ -8,6 +8,7 @@ import { LeadRow } from '../lib/leads';
 import { Pic } from './Pic';
 import { TestHistory } from './TestHistory';
 import { CertificationList, EducationList, ExperienceList, ProfileLinks } from './ExperienceList';
+import { JobSimRecord } from './JobSimRecord';
 import { ApplicantSummary } from './ApplicantSummary';
 import { FitPanel } from './FitPanel';
 import { fitSummary } from '../lib/fitReasons';
@@ -95,6 +96,8 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
       const test = tests.find((t) => t.id === testId);
       if (!test || !isPublic(test)) return [];
       const attempts = person.testResults.filter((r) => r.testId === testId);
+      // Job simulations have their own section
+      if (isJobSim(test)) return [];
       const unfinished = unfinishedStarts(person, testId);
       if (!attempts.length && !unfinished) return [];
       const board = getLeaderboard(testId, candidates);
@@ -266,6 +269,9 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
 
           {/* Then what concerns the company: the tests it sent them and the jobs of its they applied to */}
           <ApplicantSummary person={person} rows={rows} tests={tests} candidates={candidates} onOpenTest={onOpenTest} onOpenJob={onOpenJob} />
+
+          {/* The job simulations they've done, apart from their skills tests */}
+          <JobSimRecord person={person} tests={tests} onOpenTest={onOpenTest} />
 
           {/* Every Praxa skills test they've taken, as square cards coloured by score */}
           <section className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-xs">

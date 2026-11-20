@@ -86,7 +86,6 @@ const CANDIDATE_SECTIONS: Partial<Record<AppTab, CandidateSection>> = {
 
 const BUSINESS_SECTIONS: Partial<Record<AppTab, BusinessSection>> = {
   'business-tests': 'tests',
-  'business-sims': 'sims',
   'business-candidates': 'candidates',
 };
 
@@ -158,7 +157,6 @@ const TAB_PATHS: Record<AppTab, string> = {
   'business-home': '/business/',
   'business-jobs': '/business/jobs/',
   'business-tests': '/business/tests/',
-  'business-sims': '/business/simulations/',
   'business-candidates': '/business/candidates/',
   'business-team': '/business/team/',
   'business-projects': '/business/projects/',
@@ -182,7 +180,7 @@ const businessCandidateIdFromPath = () => {
 // The pages each side has; companies is on both
 const SIDE_TABS: Record<'candidate' | 'staff', AppTab[]> = {
   candidate: ['home', 'tests', 'jobs', 'work', 'ranked', 'learn', 'upskill', 'profile', 'companies', 'guides'],
-  staff: ['business-home', 'business-jobs', 'business-tests', 'business-sims', 'business-candidates', 'business-projects', 'business-training', 'business-team', 'companies', 'guides'],
+  staff: ['business-home', 'business-jobs', 'business-tests', 'business-candidates', 'business-projects', 'business-training', 'business-team', 'companies', 'guides'],
 };
 const sideOf = (role: UserRole) => (role === 'candidate' ? 'candidate' : 'staff');
 

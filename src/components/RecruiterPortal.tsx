@@ -12,7 +12,7 @@ import { TestBuilder } from './TestBuilder';
 import { roleHidden, testHidden, useLibraryVisibility } from '../lib/libraryVisibility';
 
 // Jobs have their own page (BusinessJobs); this is the company's tests and the candidates ranked for each job
-export type BusinessSection = 'tests' | 'sims' | 'candidates';
+export type BusinessSection = 'tests' | 'candidates';
 
 interface RecruiterPortalProps {
   section: BusinessSection;
@@ -212,7 +212,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
 
   const [editingBusiness, setEditingBusiness] = useState(false);
   return (
-    <div className={`${section === 'tests' || section === 'sims' ? 'px-4 sm:px-6' : 'max-w-7xl mx-auto px-6'} py-8 space-y-8`}>
+    <div className={`${section === 'tests' ? 'px-4 sm:px-6' : 'max-w-7xl mx-auto px-6'} py-8 space-y-8`}>
       {editingBusiness && business && onEditBusiness && (
         <BusinessInfoEditor
           business={business}
@@ -326,61 +326,6 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
       )}
 
       {/* Tests: the company's own and Praxa's library in one list */}
-      {/* Job simulations: a timed day doing the job, kept apart from tests. The company's own, made to send to its
-          candidates, then Praxa's ready-made ones it can send as they are */}
-      {section === 'sims' && (
-        <div className="space-y-8">
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-            <div className="space-y-1">
-              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Job simulations</h1>
-              <p className="text-sm text-slate-500 max-w-xl">
-                A 40-minute day doing the job: the inbox, the job's own software and a curveball, in five timed parts. Send one to a job's candidates
-                and see who can actually do the work.
-              </p>
-            </div>
-            <button onClick={() => onGenerateTest('I want to create a job simulation.')} className="create-border shrink-0 px-4 py-2 text-sm font-semibold text-indigo-700 hover:text-indigo-900 rounded-lg inline-flex items-center gap-1.5">
-              <Sparkles className="w-4 h-4" />
-              Create a job simulation
-            </button>
-          </div>
-
-          {!isPraxa && (
-            <section aria-labelledby="sims-yours" className="space-y-3">
-              <h2 id="sims-yours" className="text-lg font-bold text-slate-900">
-                Yours <span className="font-normal text-slate-400 tabular-nums">{companySims.length}</span>
-              </h2>
-              {companySims.length === 0 ? (
-                <p className="bg-white border border-dashed border-slate-300 rounded-xl px-5 py-8 text-center text-sm text-slate-500">
-                  None yet. Create one for a role you're hiring for, or send one of Praxa's below.
-                </p>
-              ) : (
-                <ul className="bg-white border border-slate-200 rounded-xl divide-y divide-slate-100 overflow-hidden">
-                  {[...companySims]
-                    .sort((a, b) => madeAt(b) - madeAt(a))
-                    .map((t) => (
-                      <SimRow key={t.id} test={t} usedBy={usedByOf(t)} onOpen={() => onOpenTest(t.id)} onSend={onSendTest && (() => onSendTest(t.id))} onEdit={() => editTest(t)} onDelete={() => deleteTest(t)} />
-                    ))}
-                </ul>
-              )}
-            </section>
-          )}
-
-          <section aria-labelledby="sims-praxa" className="space-y-3">
-            <div>
-              <h2 id="sims-praxa" className="text-lg font-bold text-slate-900">
-                Ready-made by Praxa <span className="font-normal text-slate-400 tabular-nums">{praxaSims.length}</span>
-              </h2>
-              <p className="text-xs text-slate-500">Send one as it is, or ask Praxa to make one set at your company.</p>
-            </div>
-            <ul className="bg-white border border-slate-200 rounded-xl divide-y divide-slate-100 overflow-hidden">
-              {praxaSims.map((t) => (
-                <SimRow key={t.id} test={t} usedBy={usedByOf(t)} onOpen={() => onOpenTest(t.id)} onSend={onSendTest && !isPraxa ? () => onSendTest(t.id) : undefined} />
-              ))}
-            </ul>
-          </section>
-        </div>
-      )}
-
       {section === 'tests' && (
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
@@ -426,6 +371,34 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
               </select>
             </label>
           )}
+
+          {/* Job simulations, under their own label: a timed day doing the job rather than a test. The company's own (made
+              to send to candidates) and Praxa's ready-made ones, each ready to send */}
+          <section aria-labelledby="job-sims" className="space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+              <div>
+                <h2 id="job-sims" className="text-lg font-bold text-slate-900 inline-flex items-center gap-2">
+                  <Monitor className="w-5 h-5 text-indigo-600" />
+                  Job simulations <span className="font-normal text-slate-400 tabular-nums">{companySims.length + praxaSims.length}</span>
+                </h2>
+                <p className="text-xs text-slate-500 max-w-xl">A 40-minute day doing the job: the inbox, the job's own software and a curveball, in five timed parts. Send one to a job's candidates to see who can do the work.</p>
+              </div>
+              <button onClick={() => onGenerateTest('I want to create a job simulation.')} className="create-border shrink-0 px-3 py-2 text-xs font-semibold text-indigo-700 hover:text-indigo-900 rounded-lg inline-flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5" />
+                Create a job simulation
+              </button>
+            </div>
+            <ul className="bg-white border border-slate-200 rounded-xl divide-y divide-slate-100 overflow-hidden">
+              {[...companySims]
+                .sort((a, b) => madeAt(b) - madeAt(a))
+                .map((t) => (
+                  <SimRow key={t.id} test={t} tag="Yours" usedBy={usedByOf(t)} onOpen={() => onOpenTest(t.id)} onSend={onSendTest && (() => onSendTest(t.id))} onEdit={() => editTest(t)} onDelete={() => deleteTest(t)} />
+                ))}
+              {praxaSims.map((t) => (
+                <SimRow key={t.id} test={t} tag="Praxa" usedBy={usedByOf(t)} onOpen={() => onOpenTest(t.id)} onSend={onSendTest && !isPraxa ? () => onSendTest(t.id) : undefined} />
+              ))}
+            </ul>
+          </section>
 
           {/* The company's own tests first, each ready to change by asking Praxa or by hand */}
           {!isPraxa && (
@@ -808,18 +781,23 @@ const madeAt = (t: AssessmentTest) => Number(t.id.match(/-(\d{12,})$/)?.[1] ?? 0
 // A job simulation in a list: its day in short, the jobs it's on, and sending it to candidates
 const SimRow: React.FC<{
   test: AssessmentTest;
+  // Whose it is: the company's own or Praxa's
+  tag?: string;
   usedBy: JobPosting[];
   onOpen: () => void;
   onSend?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
-}> = ({ test, usedBy, onOpen, onSend, onEdit, onDelete }) => (
+}> = ({ test, tag, usedBy, onOpen, onSend, onEdit, onDelete }) => (
   <li className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50/70">
     <span className="w-9 h-9 shrink-0 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center" aria-hidden="true">
       <Monitor className="w-4 h-4" />
     </span>
     <button onClick={onOpen} className="min-w-0 flex-1 text-left">
-      <span className="block text-sm font-semibold text-slate-900 truncate">{test.title}</span>
+      <span className="flex items-center gap-2 min-w-0">
+        <span className="text-sm font-semibold text-slate-900 truncate">{test.title}</span>
+        {tag && <span className="shrink-0 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded bg-slate-100 text-slate-600">{tag}</span>}
+      </span>
       <span className="block text-xs text-slate-500 truncate">
         {test.roles?.[0] ?? test.category} &middot; ~{test.estimatedMinutes} min &middot; {usedBy.length ? (usedBy.length === 1 ? `On ${usedBy[0].title}` : `On ${usedBy.length} jobs`) : 'Not on a job yet'}
       </span>

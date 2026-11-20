@@ -23,6 +23,7 @@ import { Pic } from './Pic';
 import { getBadgeTier } from './VerifiedSkillBadge';
 import { CertificationList, EducationList, ExperienceList, ProfileLinks } from './ExperienceList';
 import { TestHistory } from './TestHistory';
+import { JobSimRecord } from './JobSimRecord';
 import { ProfileSidebar } from './ProfileSidebar';
 import { stageOf } from '../lib/audience';
 import { sortExperience } from '../lib/experience';
@@ -532,6 +533,9 @@ export const MyProfile: React.FC<MyProfileProps> = (p) => {
             </button>
           )}
         </Card>
+
+        {/* ---------- Job simulations: a working day in the role, kept apart from skills ---------- */}
+        <JobSimRecord person={candidate} tests={tests} onOpenTest={p.onOpenTest} own />
 
         {/* ---------- Verified skills: only ever from passed tests ---------- */}
         <Card className="p-5 sm:p-6">
