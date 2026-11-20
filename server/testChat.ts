@@ -169,6 +169,9 @@ Every question has every field: "" for text, [] for lists and -1 for correctOpti
 Style rules (testCases is an empty list for choice, multi, text, order and match):
 - choice: 4 options, exactly one right; correctOption is its 0-based index.
 - multi: 4 to 6 options; correctOptions lists every right index (at least 2).
+- Options: write the right one(s) in any position, and make every option the same length, detail and tone, each one a
+  mistake a real person in the job makes; the right answer must never stand out as the longest, most careful or most
+  hedged.
 - text: a short factual answer (a word, number or short phrase); acceptedAnswers lists every acceptable wording.
 - order: 4 to 6 items listed in the RIGHT order (candidates see them shuffled).
 - match: 3 to 5 pairs; each left prompt with its right answer, all distinct.

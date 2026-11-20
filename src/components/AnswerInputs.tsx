@@ -52,15 +52,19 @@ const optionClass = (selected: boolean) =>
 
 const Letter: React.FC<{ i: number }> = ({ i }) => <span className="font-mono text-xs text-slate-400 mr-2">{String.fromCharCode(65 + i)}</span>;
 
+// Options are shown in a stable shuffled order per question (the AI tends to write the right answer first), while the
+// answer saved is still each option's own index, so marking and every test already saved are unchanged
+const shownOrder = (q: AnswerInputProps['question']) => shuffledIndexes(`${q.id}:options`, q.options?.length ?? 0);
+
 const SingleChoice: React.FC<AnswerInputProps> = ({ question: q, answer, onChange }) => (
   <fieldset className="space-y-3">
     <legend className="sr-only">Choose one answer</legend>
-    {(q.options ?? []).map((option, i) => (
+    {shownOrder(q).map((i, at) => (
       <label key={i} className={optionClass(answer === String(i))}>
         <input type="radio" name={`answer-${q.id}`} checked={answer === String(i)} onChange={() => onChange(String(i))} className="mt-0.5 accent-indigo-600" />
         <span>
-          <Letter i={i} />
-          {option}
+          <Letter i={at} />
+          {q.options![i]}
         </span>
       </label>
     ))}
@@ -73,12 +77,12 @@ const MultiChoice: React.FC<AnswerInputProps> = ({ question: q, answer, onChange
   return (
     <fieldset className="space-y-3">
       <legend className="sr-only">Select all that apply</legend>
-      {(q.options ?? []).map((option, i) => (
+      {shownOrder(q).map((i, at) => (
         <label key={i} className={optionClass(picked.includes(i))}>
           <input type="checkbox" checked={picked.includes(i)} onChange={() => toggle(i)} className="mt-0.5 accent-indigo-600" />
           <span>
-            <Letter i={i} />
-            {option}
+            <Letter i={at} />
+            {q.options![i]}
           </span>
         </label>
       ))}
