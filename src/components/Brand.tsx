@@ -35,38 +35,28 @@ export const BrandSparkle: React.FC<{ className?: string; busy?: boolean; title?
 };
 
 /**
- * The AI chat's symbol: a synapse (an axon's bulb, the signal crossing the gap, the next cell's dendrite cupped to
- * receive it), white on the AI gradient. bare: just the white glyph, for buttons already on the gradient. Pulses while busy.
+ * The AI chat's symbol: a white + on the AI gradient (blue, violet, pink). Animated: at rest the + makes a quarter turn
+ * every few seconds (a + looks the same turned, so it loops seamlessly); while the AI works it spins. bare: just the
+ * white +, for buttons already on the gradient. Motion stops for people who ask for less (index.css).
  */
-export const AiSynapse: React.FC<{ className?: string; busy?: boolean; title?: string; bare?: boolean }> = ({ className = 'w-6 h-6', busy, title, bare }) => {
+export const AiMark: React.FC<{ className?: string; busy?: boolean; title?: string; bare?: boolean; still?: boolean }> = ({ className = 'w-6 h-6', busy, title, bare, still }) => {
   const id = useId().replace(/:/g, '');
-  const ink = bare ? 'currentColor' : '#fff';
   return (
-    <svg viewBox="0 0 24 24" className={`${className} shrink-0 ${busy ? 'brand-spin' : ''}`} role={title ? 'img' : undefined} aria-label={title} aria-hidden={title ? undefined : true}>
+    <svg viewBox="0 0 24 24" className={`${className} shrink-0`} role={title ? 'img' : undefined} aria-label={title} aria-hidden={title ? undefined : true}>
       {!bare && (
         <>
           <defs>
-            <linearGradient id={`as-${id}`} x1="3" y1="21" x2="21" y2="3" gradientUnits="userSpaceOnUse">
+            <linearGradient id={`am-${id}`} x1="3" y1="21" x2="21" y2="3" gradientUnits="userSpaceOnUse">
               <stop offset="0" stopColor="#3b6fe0" />
               <stop offset="0.55" stopColor="#8b5cf6" />
               <stop offset="1" stopColor="#db5a9e" />
             </linearGradient>
           </defs>
-          <rect x="1" y="1" width="22" height="22" rx="6.5" fill={`url(#as-${id})`} />
+          <rect x="1" y="1" width="22" height="22" rx="6.5" fill={`url(#am-${id})`} />
         </>
       )}
-      <g fill="none" stroke={ink} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-        {/* The axon, into its bulb */}
-        <path d="M4 4l4 4" />
-        {/* The dendrite's cup, facing the bulb, and its branch away */}
-        <path d="M16 11.2A4.8 4.8 0 0 1 11.2 16M14.4 14.4l5.2 5.2M17.4 17.4l2.4-.6M17.4 17.4l-.6 2.4" />
-      </g>
-      <g fill={ink}>
-        <circle cx="9.4" cy="9.4" r="2.5" />
-        {/* What crosses the gap */}
-        <circle cx="12.9" cy="12.9" r="0.85" />
-        <circle cx="13.9" cy="11.2" r="0.65" />
-        <circle cx="11.2" cy="13.9" r="0.65" />
+      <g className={still ? '' : busy ? 'ai-plus-spin' : 'ai-plus-turn'} fill="none" stroke={bare ? 'currentColor' : '#fff'} strokeWidth={bare ? 2.4 : 2.6} strokeLinecap="round">
+        <path d={bare ? 'M12 4.5v15M4.5 12h15' : 'M12 6.5v11M6.5 12h11'} />
       </g>
     </svg>
   );

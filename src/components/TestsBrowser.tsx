@@ -38,18 +38,18 @@ const isSim = (t: AssessmentTest, sec?: TestSection) => /simulation/i.test(sec?.
 
 // A small completion circle: the share of a role's tests passed, with the count in the middle
 const ProgressRing: React.FC<{ done: number; total: number }> = ({ done, total }) => {
-  const r = 17;
+  const r = 27;
   const c = 2 * Math.PI * r;
   const pct = total ? done / total : 0;
   const all = total > 0 && done === total;
   return (
-    <span className="relative w-11 h-11 shrink-0" aria-label={`${done} of ${total} passed`} role="img">
-      <svg width="44" height="44" aria-hidden="true">
-        <circle cx="22" cy="22" r={r} fill="none" className="stroke-slate-100" strokeWidth="4" />
-        <circle cx="22" cy="22" r={r} fill="none" className={all ? 'stroke-emerald-500' : 'stroke-indigo-600'} strokeWidth="4" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - pct)} transform="rotate(-90 22 22)" />
+    <span className="relative w-16 h-16 shrink-0" aria-label={`${done} of ${total} passed`} role="img">
+      <svg width="64" height="64" aria-hidden="true">
+        <circle cx="32" cy="32" r={r} fill="none" className="stroke-slate-100" strokeWidth="6" />
+        <circle cx="32" cy="32" r={r} fill="none" className={all ? 'stroke-emerald-500' : 'stroke-indigo-600'} strokeWidth="6" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - pct)} transform="rotate(-90 32 32)" />
       </svg>
-      <span className={`absolute inset-0 flex items-center justify-center text-[10px] font-bold font-mono ${all ? 'text-emerald-700' : 'text-slate-700'}`}>
-        {all ? <Check className="w-4 h-4" strokeWidth={3} /> : `${done}/${total}`}
+      <span className={`absolute inset-0 flex items-center justify-center text-sm font-bold font-mono ${all ? 'text-emerald-700' : 'text-slate-800'}`}>
+        {all ? <Check className="w-6 h-6" strokeWidth={3} /> : `${done}/${total}`}
       </span>
     </span>
   );

@@ -48,7 +48,7 @@ import { boardForAi, convertLead, money, numberOf } from '../lib/crm';
 import { BUILT_IN_REFS, FORMULA_FUNCTIONS, checkFormula, formulaResult, showFormula } from '../lib/boardFormula';
 import { CrmAction, applyActions, describeAction } from '../lib/crmActions';
 import { aiFetch } from '../lib/aiRequest';
-import { AiSynapse } from './Brand';
+import { AiMark } from './Brand';
 
 /**
  * One of a company's projects on its team board, like a monday.com board. Tasks sit in coloured groups with built-in
@@ -1089,7 +1089,7 @@ const AskAi: React.FC<{
       <aside role="dialog" aria-label="Ask AI" onClick={(e) => e.stopPropagation()} className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl flex flex-col">
         <div className="p-4 border-b border-slate-200 flex items-start gap-3">
           <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-600 text-white flex items-center justify-center shrink-0">
-            <AiSynapse className="w-5 h-5" />
+            <AiMark className="w-5 h-5" />
           </span>
           <div className="flex-1 min-w-0">
             <h2 className="text-base font-bold text-slate-900">Ask AI</h2>
@@ -1924,7 +1924,7 @@ export const ProjectBoard: React.FC<{
           onClick={() => setAsking(true)}
           className="h-9 px-3 rounded-lg text-sm font-semibold inline-flex items-center gap-1.5 text-white bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 hover:opacity-90"
         >
-          <AiSynapse className="w-4 h-4" />
+          <AiMark className="w-4 h-4" />
           Ask AI
         </button>
         <div className="relative">
