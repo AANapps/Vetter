@@ -10,6 +10,7 @@ import { CaseBrief } from './CaseBrief';
 import { DatabaseWindow } from './DatabaseWindow';
 import { QuestionEditor } from './QuestionEditors';
 import { SpreadsheetWindow } from './SpreadsheetWindow';
+import { hydrateTest, useAppCodes } from '../lib/appRefs';
 
 const styleLabel = (q: Question) => QUESTION_STYLES.find((s) => s.type === q.type)?.label ?? q.type;
 
@@ -51,7 +52,10 @@ interface DraftPreviewProps {
 
 // The draft as the candidate will meet it, one task or question at a time, with the outline in a dropdown and every
 // question editable in place while the conversation goes on
-export const DraftPreview: React.FC<DraftPreviewProps> = ({ test, onChange, locked, flash, onOpenBuilder, toolbarExtra, onViewing }) => {
+export const DraftPreview: React.FC<DraftPreviewProps> = ({ test: given, onChange, locked, flash, onOpenBuilder, toolbarExtra, onViewing }) => {
+  // Library apps stored by reference are filled in once their code has loaded (src/lib/appRefs.ts)
+  useAppCodes(given);
+  const test = hydrateTest(given);
   const groups = useMemo(() => groupQuestions(test.questions), [test.questions]);
   const ordered = useMemo(() => groups.flatMap((g) => g.questions), [groups]);
   const [index, setIndex] = useState(0);

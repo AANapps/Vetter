@@ -18,6 +18,7 @@ import {
 import { AppNotification, Assignment, Project, ProjectTask, AssessmentTest, Business, TeamMember, FeedComment, FeedPost, JobInvitation, JobPosting, Lead, SocialState, TestDraft, TrialResult, User } from '../types';
 import { db } from './firebase';
 import { compactDraft, compactTest, hydrateTest, loadAppCodes, onAppCodes } from './appRefs';
+import { fromFirestore, toFirestore } from './firestoreSafe';
 import { Company } from './accounts';
 import { initialsAvatar } from '../data/seedCandidates';
 
@@ -127,8 +128,8 @@ export function useCloudData(viewer: Viewer | null, enabled: boolean, onError: (
   const [, setCodes] = useState(0);
   useEffect(() => onAppCodes(() => setCodes((n) => n + 1)), []);
   useEffect(() => {
-    if (parts.tests) loadAppCodes(parts.tests as AssessmentTest[]);
-    if (parts.testDrafts) loadAppCodes((parts.testDrafts as TestDraft[]).map((d) => d.test).filter(Boolean));
+    if (parts.tests) loadAppCodes((parts.tests as AssessmentTest[]).map(fromFirestore));
+    if (parts.testDrafts) loadAppCodes((parts.testDrafts as TestDraft[]).map((d) => fromFirestore(d).test).filter(Boolean));
   }, [parts.tests, parts.testDrafts]);
   const key = viewer ? `${viewer.uid}:${viewer.role}:${viewer.companyId ?? ''}:${viewer.email}` : 'visitor';
 
@@ -228,7 +229,7 @@ export function useCloudData(viewer: Viewer | null, enabled: boolean, onError: (
 
   return {
     jobs,
-    tests: (parts.tests as AssessmentTest[]).map(hydrateTest),
+    tests: (parts.tests as AssessmentTest[]).map((t) => hydrateTest(fromFirestore(t))),
     profiles,
     businesses: (parts.companies as (Company & Partial<Business>)[]).map(businessOf),
     social: {
@@ -241,7 +242,7 @@ export function useCloudData(viewer: Viewer | null, enabled: boolean, onError: (
     notifications: (parts.notifications ?? []) as AppNotification[],
     emailedJobIds: viewer?.role === 'candidate' ? emailInvites.map((e) => e.jobId) : [],
     leads: (parts.leads ?? []) as Lead[],
-    testDrafts: ((parts.testDrafts ?? []) as TestDraft[]).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).map(hydrateDraft),
+    testDrafts: ((parts.testDrafts ?? []) as TestDraft[]).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).map((d) => hydrateDraft(fromFirestore(d))),
     trials: ((parts.trials ?? []) as TrialResult[]).sort((a, b) => b.completedAt.localeCompare(a.completedAt)),
     team: [...new Map([...((parts.teamByUid ?? []) as TeamMember[]), ...((parts.teamByEmail ?? []) as TeamMember[])].map((m) => [m.id, m])).values()],
     assignments: ((parts.assignments ?? []) as Assignment[]).sort((a, b) => b.assignedAt.localeCompare(a.assignedAt)),
@@ -294,7 +295,7 @@ export function syncJobs(prev: JobPosting[], next: JobPosting[], onError: (err: 
 export function syncTests(prev: AssessmentTest[], next: AssessmentTest[], onError: (err: unknown) => void) {
   const changed = next.filter((t) => prev.find((p) => p.id === t.id) !== t);
   const gone = prev.filter((p) => !next.some((t) => t.id === p.id));
-  return run([...changed.map((t) => setDoc(doc(db(), 'tests', t.id), compactTest(t))), ...gone.map((t) => deleteDoc(doc(db(), 'tests', t.id)))], onError);
+  return run([...changed.map((t) => setDoc(doc(db(), 'tests', t.id), toFirestore(compactTest(t)))), ...gone.map((t) => deleteDoc(doc(db(), 'tests', t.id)))], onError);
 }
 
 export function syncNotifications(prev: AppNotification[], next: AppNotification[], onError: (err: unknown) => void) {
@@ -335,7 +336,7 @@ export function apply(job: JobPosting, uid: string, profileId: string | undefine
 // Saves one test draft and only resolves once Firebase has it, so the company is never told a draft is saved when it
 // isn't. Firestore refuses documents over 1 MiB and the write never settles offline, so both are turned into errors.
 export async function putTestDraft(draft: TestDraft) {
-  const data = JSON.parse(JSON.stringify(compactDraft(draft)));
+  const data = toFirestore(JSON.parse(JSON.stringify(compactDraft(draft))));
   if (new Blob([JSON.stringify(data)]).size > 1_000_000) throw Object.assign(new Error('too-large'), { code: 'draft/too-large' });
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
@@ -352,7 +353,7 @@ export async function putTestDraft(draft: TestDraft) {
 export function syncTestDrafts(prev: TestDraft[], next: TestDraft[], onError: (err: unknown) => void) {
   const d = db();
   const writes = [
-    ...next.filter((t) => !same(prev.find((p) => p.id === t.id), t)).map((t) => setDoc(doc(d, 'testDrafts', t.id), JSON.parse(JSON.stringify(compactDraft(t))))),
+    ...next.filter((t) => !same(prev.find((p) => p.id === t.id), t)).map((t) => setDoc(doc(d, 'testDrafts', t.id), toFirestore(JSON.parse(JSON.stringify(compactDraft(t)))))),
     ...prev.filter((p) => !next.some((t) => t.id === p.id)).map((p) => deleteDoc(doc(d, 'testDrafts', p.id))),
   ];
   return run(writes, onError);

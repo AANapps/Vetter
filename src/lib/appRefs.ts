@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { AssessmentTest, Question, TestDraft } from '../types';
 import { DeskCustomApp } from './desktop';
 import { loadVersion } from './environments';
@@ -149,4 +150,14 @@ export function loadAppCodes(tests: AssessmentTest[]): void {
 export function onAppCodes(fn: () => void): () => void {
   listeners.add(fn);
   return () => listeners.delete(fn);
+}
+
+// For a screen that keeps its own copy of a test (the AI builder holds its draft in state): loads the library apps it
+// refers to and re-renders once they're here, so hydrateTest(copy) fills them in
+export function useAppCodes(test: AssessmentTest | undefined): void {
+  const [, setN] = useState(0);
+  useEffect(() => onAppCodes(() => setN((n) => n + 1)), []);
+  useEffect(() => {
+    if (test) loadAppCodes([test]);
+  }, [test]);
 }

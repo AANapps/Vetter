@@ -4,6 +4,7 @@ import { AssessmentTest, Business, JobPosting, QuestionType, TEST_DIFFICULTIES, 
 import { QUESTION_STYLES } from '../lib/questionTypes';
 import { DraftPreview, Dropdown, draftProblems, finaliseDraft } from './DraftPreview';
 import { BuildingCard } from './BuildingCard';
+import { hydrateTest, useAppCodes } from '../lib/appRefs';
 import { jobBrief } from '../lib/testGeneration';
 import { BuildStep, ChatState, TestPlan, buildPlan, sendChat } from '../lib/testChat';
 import { kindLabel } from './KindChoice';
@@ -185,7 +186,10 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
   const scroller = useRef<HTMLDivElement>(null);
   const box = useRef<HTMLTextAreaElement>(null);
 
-  const draft = chat.draft;
+  // A draft reopened from Firebase keeps its library apps by reference: filled in here once their code has loaded (the
+  // chat's own copy stays as it was, so it still tells whether anything changed)
+  useAppCodes(chat.draft);
+  const draft = chat.draft && hydrateTest(chat.draft);
   const started = chat.messages.some((m) => m.role === 'user');
   // Outside tech, app simulations come from Praxa's library rather than the company's AI
   const pickable = aiSimulationsFor(business) ? PICKABLE : PICKABLE.filter((t) => t !== 'app');
@@ -275,6 +279,8 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
     if (!again) setInput('');
     setWorking(true);
     const base = again ? { ...chat, messages: chat.messages.slice(0, -2) } : chat;
+    // The AI works on the draft with its apps' pages in it
+    const withPages = base.draft ? { ...base, draft: hydrateTest(base.draft) } : base;
     // The message shows at once; the reply follows
     setChat({ ...base, messages: [...base.messages, { role: 'user', text: message }] });
     const before = chat.draft;
@@ -285,7 +291,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
     setSteps([]);
     const signal = startAiRun().signal;
     const runId = ++runs.current;
-    const next = await sendChat(base, message, ctx, (line, list) => {
+    const next = await sendChat(withPages, message, ctx, (line, list) => {
       if (signal.aborted) return;
       setStage(line);
       if (list) setSteps(list);
