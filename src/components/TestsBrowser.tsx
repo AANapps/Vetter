@@ -1,20 +1,3 @@
-                        className="group w-full h-full text-left p-5 rounded-2xl bg-white border border-slate-200 hover:border-indigo-300 hover:shadow-md transition-all flex items-center gap-4"
-                      >
-                        <span className="min-w-0 flex-1 flex flex-col gap-1.5">
-                          <span className="block text-base font-bold text-slate-900 group-hover:text-indigo-700">{r}</span>
-                          <span className="block text-xs text-slate-500">
-                            {list.length} {list.length === 1 ? 'test' : 'tests'} · about {mins >= 90 ? `${Math.round(mins / 60)} hours` : `${mins} min`}
-                          </span>
-                          {done > 0 ? (
-                            <span className="text-[11px] text-slate-500">
-                              {done} of {list.length} passed
-                            </span>
-                          ) : (
-                            first && <span className="text-xs text-slate-500">Starts with <span className="font-semibold text-slate-700">{first}</span></span>
-                          )}
-                        </span>
-                        {/* How much of the role they've passed, down the card's right-hand side */}
-                        <ProgressRing done={done} total={list.length} />
 import React, { useMemo, useState } from 'react';
 import { ArrowLeft, Briefcase, Check, ChevronRight, Clock, ListChecks, Monitor, Play, Search, Sparkles, X } from 'lucide-react';
 import { AssessmentTest, JobPosting, TEST_DIFFICULTIES, TestDifficulty, TestRole, User, isJobSim, isPublic, levelName } from '../types';
@@ -505,25 +488,23 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
                     <li key={r}>
                       <button
                         onClick={() => onTestFieldChange({ label: r, roles: [r] })}
-                        className="group w-full h-full text-left p-5 rounded-2xl bg-white border border-slate-200 hover:border-indigo-300 hover:shadow-md transition-all flex flex-col gap-3"
+                        className="group w-full h-full text-left p-5 rounded-2xl bg-white border border-slate-200 hover:border-indigo-300 hover:shadow-md transition-all flex items-center gap-4"
                       >
-                        <span className="flex items-start justify-between gap-3">
-                          <span className="min-w-0">
-                            <span className="block text-base font-bold text-slate-900 group-hover:text-indigo-700">{r}</span>
-                            <span className="block text-xs text-slate-500">
-                              {list.length} {list.length === 1 ? 'test' : 'tests'} · about {mins >= 90 ? `${Math.round(mins / 60)} hours` : `${mins} min`}
+                        <span className="min-w-0 flex-1 flex flex-col gap-1.5">
+                          <span className="block text-base font-bold text-slate-900 group-hover:text-indigo-700">{r}</span>
+                          <span className="block text-xs text-slate-500">
+                            {list.length} {list.length === 1 ? 'test' : 'tests'} · about {mins >= 90 ? `${Math.round(mins / 60)} hours` : `${mins} min`}
+                          </span>
+                          {done > 0 ? (
+                            <span className="text-[11px] text-slate-500">
+                              {done} of {list.length} passed
                             </span>
-                          </span>
-                          {/* How much of the role they've passed, as on the role's own page */}
-                          <ProgressRing done={done} total={list.length} />
+                          ) : (
+                            first && <span className="text-xs text-slate-500">Starts with <span className="font-semibold text-slate-700">{first}</span></span>
+                          )}
                         </span>
-                        {done > 0 ? (
-                          <span className="text-[11px] text-slate-500">
-                            {done} of {list.length} passed
-                          </span>
-                        ) : (
-                          first && <span className="text-xs text-slate-500">Starts with <span className="font-semibold text-slate-700">{first}</span></span>
-                        )}
+                        {/* How much of the role they've passed, down the card's right-hand side */}
+                        <ProgressRing done={done} total={list.length} />
                       </button>
                     </li>
                   );
