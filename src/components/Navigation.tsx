@@ -318,27 +318,31 @@ export const Navigation: React.FC<NavigationProps> = ({
     );
   };
 
-  // A candidate's other pages: a small menu, opening down from the top bar or up from the bottom one
-  const moreButton = (placement: 'top' | 'bottom') => {
+  // A candidate's other pages: a small menu opening down from the top bar. top: among the page links (tablets and up);
+  // phone: an icon of its own in the phone's top bar, left of Notifications
+  const moreButton = (placement: 'top' | 'phone') => {
     const isActive = MORE_TABS.some((t) => t.id === currentTab);
     return (
-      <div ref={placement === 'top' ? moreRef : moreBottomRef} className={`relative ${placement === 'bottom' ? 'flex-1 min-w-0' : ''}`}>
+      <div ref={placement === 'top' ? moreRef : moreBottomRef} className={`relative ${placement === 'phone' ? 'md:hidden' : ''}`}>
         <button
           onClick={() => setIsMoreOpen((o) => !o)}
           aria-expanded={isMoreOpen}
           aria-haspopup="menu"
-          className={`relative w-full flex flex-col items-center justify-center gap-0.5 transition-colors ${placement === 'top' ? 'h-14 min-w-[4.5rem] px-2' : 'h-14 px-0.5'} ${
+          aria-label={placement === 'phone' ? 'More pages' : undefined}
+          className={`relative w-full flex flex-col items-center justify-center gap-0.5 transition-colors ${placement === 'top' ? 'h-14 min-w-[4.5rem] px-2' : 'h-14 min-w-[3rem] px-1'} ${
             isActive ? 'text-slate-900' : 'text-slate-500 hover:text-slate-900'
           }`}
         >
           <MoreHorizontal className={`w-5 h-5 ${isActive ? 'text-indigo-600' : ''}`} />
-          <span className={`${placement === 'top' ? 'text-[11px]' : 'text-[10px]'} ${isActive ? 'font-semibold' : 'font-medium'} inline-flex items-center`}>
-            More
-            {placement === 'top' && <ChevronDown className="w-3 h-3" />}
-          </span>
+          {placement === 'top' && (
+            <span className={`text-[11px] ${isActive ? 'font-semibold' : 'font-medium'} inline-flex items-center`}>
+              More
+              <ChevronDown className="w-3 h-3" />
+            </span>
+          )}
         </button>
         {isMoreOpen && (
-          <div role="menu" className={`absolute ${placement === 'top' ? 'right-0 top-full mt-1' : 'right-2 bottom-full mb-2'} w-64 menu-panel z-50 p-1.5`}>
+          <div role="menu" className="absolute right-0 top-full mt-1 w-64 max-w-[calc(100vw-2rem)] menu-panel z-50 p-1.5">
             {MORE_TABS.map((t) => (
               <button
                 key={t.id}
@@ -396,6 +400,9 @@ export const Navigation: React.FC<NavigationProps> = ({
               </>
             )}
           </nav>
+
+          {/* Phones: More sits up here, left of Notifications */}
+          {activeRole === 'candidate' && !inWork && moreButton('phone')}
 
           {notifications && (
             <div ref={bellRef} className="relative">
@@ -505,7 +512,6 @@ export const Navigation: React.FC<NavigationProps> = ({
         ) : (
           <>
             {tabs.map((tab) => tabButton(tab, 'bottom'))}
-            {activeRole === 'candidate' && moreButton('bottom')}
           </>
         )}
       </nav>
