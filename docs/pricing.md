@@ -46,6 +46,30 @@ These are the plans on the pricing page (`src/components/PricingSection.tsx`), o
 Annual billing is two months free. Watch how many jobs a typical employer posts: if most post 4 or more, consider
 £199 for Growth; if few free employers reach 25 candidates, lower that limit.
 
+## Recommended plan for launch (2026-11-21): aim £10k+ MRR
+
+Agreed as the direction to build towards. Supersedes the "Plans" table above once built.
+
+| Plan | Price | Limits | AI allowance |
+|---|---|---|---|
+| Free | £0 | 1 active job, 15 applicants, library tests, scores + pass/fail only | £2 once |
+| Starter | £99/mo | 3 jobs, 2 seats | £10/mo |
+| Growth | £249/mo | 10 jobs, 5 seats | £25/mo |
+| Scale | £549/mo | Unlimited jobs and seats | £60/mo |
+| Per job | £149 one-off | 1 job, 30 days | (as Starter) |
+| Enterprise | Custom | ATS, SSO, invoicing | custom |
+
+- Candidates free, always.
+- Paid: AI builder + AI job sims (allowance, top-ups beyond), library job sims (Growth+), full candidate reports
+  (integrity, answers, sim replay, why they fit; free shows score only), candidate pool search + invites, more jobs and
+  seats, branding/CSV (Scale), ATS/SSO (Enterprise).
+- Project Manager (Projects & CRM, Team, Training): £99/mo add-on or Scale only. Live training bookings charged per booking.
+- Per job priced above Starter on purpose: one-off income isn't MRR.
+- Annual = 2 months free.
+- Path to £10k: e.g. 30 Starter + 20 Growth + 4 Scale ≈ £10.1k, about 55 paying companies.
+- Before charging: fix the verified-skill/pass-mark issues (docs/TODO.md platform review), Stripe subscriptions,
+  build the monthly AI allowance, turn off `AI_TESTS_FOR_ALL`.
+
 ## AI credit and plans (November 2026)
 
 Companies now pay for AI test writing from prepaid credit (Stripe), charged at real Claude cost × `CREDIT_MARKUP`
