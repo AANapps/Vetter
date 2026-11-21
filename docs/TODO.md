@@ -39,6 +39,46 @@ Kept up to date as work is asked for and finished. Newest items at the bottom of
 
 - **Try the five-part job simulations live.** Data Analyst, Customer Support, Software Developer and Frontend now run as Briefing, Core task, Curveball, Juggling and judgement, Report back (40 min, src/data/modules/jobSimKit.ts). Not clicked through in a browser yet: check the part timers, the emails that land mid-day, and that 40 minutes is enough. The other Tech roles' job simulations must be built with jobSimulation() too.
 
+## Platform review (2026-11-21)
+From a code read-through of both flows (not clicked through live).
+
+**Fix first (trust in results)**
+- Verified skills: code verifies any score though the UI says 75+ (src/lib/results.ts). Only verify at PASS (75).
+- Three pass marks: job testPassingScore (70), per-test minScore (70), profile PASS (75). Keep one per test.
+- Verified skill percentile is always 0: compute it or hide it.
+- The 5 sample candidates are mixed in with real ones live: label them or remove them.
+- The test AI chat (task assistant) has no login and Praxa pays: require sign-in and set a limit.
+- Firestore rules not deployed; Anthropic credit out (since 2026-11-18).
+
+**Candidate side**
+- Home and Tests both show "Your path / Up next": Home = dashboard, Tests = catalogue.
+- Work mode is only in the name menu: link it on Home for team members.
+- "Career switch" (learn) and Upskill (no menu link) are two learning areas: merge them.
+- Ranked is buried under More while the test start screen talks up leaderboard ties.
+- Auto-apply once passed sends no confirmation: notify the candidate.
+- Escape during a test is flagged as cheating: warn first, only flag if they stay out.
+- Google sign-up loses the target job unless picked first: ask after sign-up.
+- 40-minute job sims need a short practice run.
+
+**Company side**
+- Home chat has too many starter buttons: cut to about 3 main actions.
+- Candidates page vs each job's candidates: make clear which is everyone and which is one job's pipeline.
+- Job sim save question: default to hiring, library as an option.
+- "Project Manager" holds Team and Training: rename the group (e.g. "Your team").
+- Projects & CRM pulls focus from hiring: hide behind a setting for now.
+- Pipeline stages capitalised inconsistently ("Offer Extended" vs "Screening").
+- Show the credit cost before Build.
+- Builder chat answers either plainly or with "OK: …" + Build: always show a clear "Apply changes" step.
+
+**Speed and cost**
+- Test builds with simulations take ~5 min, near Vercel's 300s limit: build in the background with progress.
+- Stop only cancels in the browser (already listed above).
+- Board overdue automations only run when the board is opened: schedule them.
+- App pages up to ~90KB rewritten each time: one module per screen.
+- Job sim app edits lost when the day is rewritten: keep them or warn.
+
+**Not tested live yet:** Stripe credits, CV import, AI-made job sims, full-screen rules, code runner.
+
 ## Done
 
 - 2026-11-12: Tests fit the job (no spreadsheets for trades/clinical), drawings labelled.
