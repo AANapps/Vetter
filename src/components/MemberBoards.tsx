@@ -3,7 +3,9 @@ import { Business, Project, ProjectTask, TeamMember } from '../types';
 import { firebaseEnabled } from '../lib/firebase';
 import { useMemberBoards } from '../lib/memberBoards';
 import { ProjectsPage } from './ProjectsPage';
+import { Users } from 'lucide-react';
 import { BoardPerson } from './ProjectBoard';
+import { WorkspaceTeam } from './WorkspaceTeam';
 
 /**
  * A company's projects and CRM, monday-style, for someone on its team (candidate Work mode): the same boards the company
@@ -22,7 +24,10 @@ export const MemberBoards: React.FC<{
   myWork?: { extra?: React.ReactNode; extraCount?: number };
   extraNav?: React.ComponentProps<typeof ProjectsPage>['extraNav'];
   header?: React.ReactNode;
-}> = ({ business, me, personOf, local, myWork, extraNav, header }) => {
+  // Under the company's team on its Team page: their own teams and invitations
+  teamExtra?: React.ReactNode;
+  teamAlert?: boolean;
+}> = ({ business, me, personOf, local, myWork, extraNav, header, teamExtra, teamAlert }) => {
   const live = useMemberBoards(firebaseEnabled ? business.id : null);
   const src = firebaseEnabled
     ? live
@@ -59,7 +64,17 @@ export const MemberBoards: React.FC<{
         onDeleteTask={src.deleteTask}
         member
         myWork={myWork ?? {}}
-        extraNav={extraNav}
+        extraNav={[
+          {
+            id: 'team',
+            label: 'Team',
+            icon: Users,
+            count: src.team.filter((m) => m.status === 'active').length,
+            alert: teamAlert,
+            render: () => <WorkspaceTeam company={business.name} me={me} team={src.team} personOf={personOf} extra={teamExtra} />,
+          },
+          ...(extraNav ?? []),
+        ]}
         header={header}
       />
     </div>

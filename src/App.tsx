@@ -1103,6 +1103,27 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
   };
   // The business and Praxa team views share the same pages
   const staffUser = activeRole === 'admin' ? PRAXA_TEAM : recruiter;
+  // The company's Team page: on its own and inside the workspace's sidebar
+  const teamPageFor = (b: Business) => (
+    <TeamPage
+      business={b}
+      team={ourTeam}
+      assignments={ourAssignments}
+      tests={tests}
+      // The live site's sample candidates aren't real people, so they can't be invited
+      candidates={otherCandidates.filter((c) => !(firebaseEnabled && c.id.startsWith('cand-sample-'))).concat(activeRole === 'recruiter' && !firebaseEnabled ? [candidate] : [])}
+      aiAllowed={aiAllowed}
+      onInviteEmail={(email) => inviteToTeam({ email })}
+      onInviteCandidate={(c) => inviteToTeam({ uid: c.id, name: c.name })}
+      onRemoveMember={(m) => setTeam((prev) => prev.filter((x) => x.id !== m.id))}
+      onAssign={assignWork}
+      onUnassign={(a) => setAssignments((prev) => prev.filter((x) => x.id !== a.id))}
+      onCreateTraining={() => startInChat('I want to create training for my team.')}
+      onSeePlans={() => setPlansOpen(true)}
+      onOpenTest={openTestPage}
+      onViewPerson={setProfilePersonId}
+    />
+  );
 
   // Your own name, from the candidate view: saved on your account, so it follows you everywhere
   const renameMe = (name: string) => {
@@ -1860,11 +1881,36 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
                 onStart: (assignment: Assignment, test: AssessmentTest) => setAssignmentRun({ assignment, test }),
                 onFindTests: () => goToTab('tests'),
               };
-              // Not on a team yet (an invitation at most): the plain Work page
-              if (!myTeams.length) return <WorkPage {...workProps} />;
-              // On a team: the company's own workspace, exactly as the company sees it, full screen; their training,
-              // certificates and teams sit in its sidebar
               const open = myAssignments.filter((a) => !a.completedAt);
+              const me = { uid: candidate.id, name: candidate.name, pic: candidate.avatarUrl };
+              const sideNav = [
+                { id: 'training', label: 'Training', icon: GraduationCap, count: open.filter((a) => tests.find((t) => t.id === a.testId)?.purpose === 'training').length, render: () => <WorkPage {...workProps} only="training" /> },
+                { id: 'certificates', label: 'Certificates', icon: Award, count: myAssignments.filter((a) => a.certifiedAt).length, render: () => <WorkPage {...workProps} only="certificates" /> },
+                { id: 'settings', label: 'Settings', icon: Settings, render: () => <WorkPage {...workProps} only="settings" /> },
+              ];
+              // Not on a team yet (an invitation at most): the same workspace, without boards until they join one
+              if (!myTeams.length)
+                return (
+                  <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
+                    <ProjectsPage
+                      business={{ id: '', name: myTeamInvites.length ? `Invited by ${myTeamInvites.map((i) => i.companyName).join(', ')}` : 'Not on a team yet' } as Business}
+                      me={me}
+                      people={[me]}
+                      projects={[]}
+                      projectTasks={[]}
+                      onSaveProject={() => {}}
+                      onDeleteProject={() => {}}
+                      onSaveTask={() => {}}
+                      onDeleteTask={() => {}}
+                      member
+                      myWork={{ extra: <WorkPage {...workProps} only="tasks" />, extraCount: open.length }}
+                      noBoards="Join a company's team to see its boards and team here. Invitations are under Team."
+                      extraNav={[{ id: 'team', label: 'Team', icon: Users, alert: myTeamInvites.length > 0, render: () => <WorkPage {...workProps} only="teams" /> }, ...sideNav]}
+                    />
+                  </div>
+                );
+              // On a team: the company's own workspace, exactly as the company sees it, full screen; its team, their
+              // training, certificates and settings sit in its sidebar
               return (
                 <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
                   <WorkPage
@@ -1888,13 +1934,10 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
                               </select>
                             ) : undefined
                           }
-                          extraNav={[
-                            { id: 'training', label: 'Training', icon: GraduationCap, count: open.filter((a) => tests.find((t) => t.id === a.testId)?.purpose === 'training').length, render: () => <WorkPage {...workProps} only="training" /> },
-                            { id: 'certificates', label: 'Certificates', icon: Award, count: myAssignments.filter((a) => a.certifiedAt).length, render: () => <WorkPage {...workProps} only="certificates" /> },
-                            { id: 'teams', label: 'Teams', icon: Users, alert: myTeamInvites.length > 0, render: () => <WorkPage {...workProps} only="teams" /> },
-                            { id: 'settings', label: 'Settings', icon: Settings, render: () => <WorkPage {...workProps} only="settings" /> },
-                          ]}
-                          me={{ uid: candidate.id, name: candidate.name, pic: candidate.avatarUrl }}
+                          extraNav={sideNav}
+                          teamExtra={<WorkPage {...workProps} only="teams" />}
+                          teamAlert={myTeamInvites.length > 0}
+                          me={me}
                           personOf={(uid) => {
                             const p = allCandidates.find((c) => c.id === uid);
                             return p && { uid, name: p.name, pic: p.avatarUrl };
@@ -2288,6 +2331,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
                   onSaveTask={(t) => setProjectTasks((prev) => (prev.some((x) => x.id === t.id) ? prev.map((x) => (x.id === t.id ? t : x)) : [...prev, t]))}
                   onDeleteTask={(t) => setProjectTasks((prev) => prev.filter((x) => x.id !== t.id))}
                   onInviteTeam={() => goToTab('business-team')}
+                  extraNav={[{ id: 'team', label: 'Team', icon: Users, count: ourTeam.filter((m) => m.status === 'active').length, render: () => teamPageFor(recruiterBusiness) }]}
                 />
               ) : (
                 <p className="text-sm text-slate-500">Projects belong to a company. Switch to a company's view to plan your team's work.</p>
@@ -2298,24 +2342,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
           {!detailPage && activeRole !== 'candidate' && currentTab === 'business-team' && (
             <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
               {recruiterBusiness ? (
-                <TeamPage
-                  business={recruiterBusiness}
-                  team={ourTeam}
-                  assignments={ourAssignments}
-                  tests={tests}
-                  // The live site's sample candidates aren't real people, so they can't be invited
-                  candidates={otherCandidates.filter((c) => !(firebaseEnabled && c.id.startsWith('cand-sample-'))).concat(activeRole === 'recruiter' && !firebaseEnabled ? [candidate] : [])}
-                  aiAllowed={aiAllowed}
-                  onInviteEmail={(email) => inviteToTeam({ email })}
-                  onInviteCandidate={(c) => inviteToTeam({ uid: c.id, name: c.name })}
-                  onRemoveMember={(m) => setTeam((prev) => prev.filter((x) => x.id !== m.id))}
-                  onAssign={assignWork}
-                  onUnassign={(a) => setAssignments((prev) => prev.filter((x) => x.id !== a.id))}
-                  onCreateTraining={() => startInChat('I want to create training for my team.')}
-                  onSeePlans={() => setPlansOpen(true)}
-                  onOpenTest={openTestPage}
-                  onViewPerson={setProfilePersonId}
-                />
+                teamPageFor(recruiterBusiness)
               ) : (
                 <p className="text-sm text-slate-500">Teams belong to a company. Switch to a company's view to invite people and send them training.</p>
               )}

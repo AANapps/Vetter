@@ -66,7 +66,9 @@ export const ProjectsPage: React.FC<{
   extraNav?: { id: string; label: string; icon: React.ComponentType<{ className?: string }>; count?: number; alert?: boolean; render: () => React.ReactNode }[];
   // Above the workspace's name: a way to switch company, for someone on several teams
   header?: React.ReactNode;
-}> = ({ business, me, people, projects, projectTasks, onSaveProject, onDeleteProject, onSaveTask, onDeleteTask, onInviteTeam, member, myWork, extraNav, header }) => {
+  // Not on a company's team yet: the workspace without boards (My work and the sidebar pages), with this message
+  noBoards?: string;
+}> = ({ business, me, people, projects, projectTasks, onSaveProject, onDeleteProject, onSaveTask, onDeleteTask, onInviteTeam, member, myWork, extraNav, header, noBoards }) => {
   const key = `vetter.teamBoard.${business.id}`;
   const [openId, setOpenIdState] = useState<string | null>(() => (myWork ? MY_WORK : store.get(key)));
   const [openTask, setOpenTask] = useState<{ projectId: string; taskId: string; n: number } | null>(null);
@@ -175,10 +177,10 @@ export const ProjectsPage: React.FC<{
           <h1 className="text-lg font-bold text-slate-900 tracking-tight">Workspace</h1>
           {header ?? <p className="text-xs text-slate-500">{business.name}</p>}
         </div>
-        <div className="relative">
+        {!noBoards && <div className="relative">
           <Search className="w-4 h-4 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search boards" aria-label="Search boards" className="w-full h-9 pl-8 pr-3 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-        </div>
+        </div>}
         <nav aria-label="Boards" className="space-y-4">
           {myWork && (
             <button
@@ -191,7 +193,7 @@ export const ProjectsPage: React.FC<{
               {mineOpen.length + (myWork.extraCount ?? 0) > 0 && <span className="text-[11px] tabular-nums text-slate-400">{mineOpen.length + (myWork.extraCount ?? 0)}</span>}
             </button>
           )}
-          {crm.length > 0 && (
+          {!noBoards && crm.length > 0 && (
             <div className="space-y-0.5">
               <div className="px-2.5 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                 <Briefcase className="w-3 h-3" />
@@ -200,6 +202,7 @@ export const ProjectsPage: React.FC<{
               {crm.filter(match).map(boardButton)}
             </div>
           )}
+          {!noBoards && (<>
           <div className="space-y-0.5">
             <div className="px-2.5 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
               <FolderKanban className="w-3 h-3" />
@@ -252,6 +255,7 @@ export const ProjectsPage: React.FC<{
               </button>
             )}
           </div>
+          </>)}
           {/* A team member's own pages (training, certificates, teams), under the boards */}
           {extraNav && extraNav.length > 0 && (
             <div className="pt-2 border-t border-slate-200 space-y-0.5">
@@ -278,6 +282,9 @@ export const ProjectsPage: React.FC<{
 
       <main className="min-w-0">
         {onMyWork ? (
+          noBoards ? (
+            myWork?.extra
+          ) : (
           <MyWork
             company={business.name}
             tasks={mine}
@@ -290,8 +297,11 @@ export const ProjectsPage: React.FC<{
             onStatus={(t, status) => onSaveTask({ ...t, status, updatedAt: new Date().toISOString(), log: [...(t.log ?? []), { at: new Date().toISOString(), by: me.name, text: `set the status to ${TASK_STATUS[status].label}` }].slice(-50) })}
             extra={myWork?.extra}
           />
+          )
         ) : openExtra ? (
           openExtra.render()
+        ) : noBoards ? (
+          <p className="p-6 rounded-2xl border border-dashed border-slate-300 bg-white text-sm text-slate-500 text-center">{noBoards}</p>
         ) : projects.length === 0 || showStart || !open ? (
           start
         ) : (

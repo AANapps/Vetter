@@ -75,6 +75,7 @@ From a code read-through of both flows (not clicked through live).
 - 2026-11-22: Work mode workspace has My work first (monday-style: every item on the company's boards they own, overdue/to do/done, status changed in place, plus the training and tests the company sent) and the company's teammates as people on the boards (teamMembers readable by teammates). Needs the rules deployed.
 - 2026-11-22: A team member's Work is the company's exact workspace (same page, full screen, same buttons: they can make boards and set up the CRM; only deleting a board stays with the company), with My work first and Training, Certificates, Teams and Settings in its sidebar; Work opens in a new tab from the name menu and Home. Rules: team members can create boards (deploy needed).
 - 2026-11-22: Work mode opened in a new tab by a Praxa admin (candidate view) no longer switches to the business view: candidate-only pages open as the candidate.
+- 2026-11-22: Work mode is always the workspace: a candidate not on a team gets the same workspace (My work, Team with their invitations, Training, Certificates, Settings) with no boards until they join. Both workspaces have a Team page in the sidebar: the company's is its full Team page (invite, send work), a team member's lists the company's team, then their own teams and invitations. Not clicked through in a browser yet.
 
 - 2026-11-12: Tests fit the job (no spreadsheets for trades/clinical), drawings labelled.
 - 2026-11-12: Library tests suggested when a job is posted, not while making a test.
