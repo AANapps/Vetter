@@ -353,10 +353,32 @@ export async function updateSubmission(sub: EnvironmentSubmission, change: Parti
   } else {
     const batch = writeBatch(db());
     batch.update(doc(db(), 'environmentSubmissions', sub.id), change);
-    batch.set(doc(db(), 'submissionPages', sub.id), { html: page.html, callouts: page.callouts ?? [] });
+    batch.set(doc(db(), 'submissionPages', sub.id), { html: page.html, callouts: page.callouts ?? [], ...(page.data && { data: page.data }) });
     await batch.commit();
   }
   changed();
+}
+
+// The Praxa team changed a library app in the admin panel's app editor: its page becomes the app's next version (the
+// versions before it are kept, so tests built on them keep working). Returns the new version
+export async function saveEditedVersion(env: SavedEnvironment, html: string, note: string): Promise<number> {
+  const at = now();
+  const version = env.version + 1;
+  const by = auth().currentUser?.email ?? 'Praxa team';
+  const next: SavedEnvironment = { ...env, version, updatedAt: at };
+  if (!firebaseEnabled) {
+    const data = local();
+    setLocal({ ...data, envs: [next, ...data.envs.filter((e) => e.id !== env.id)], envPages: { ...data.envPages, [env.id]: { html } } });
+  } else {
+    const { id: _id, ...fields } = next;
+    const batch = writeBatch(db());
+    batch.set(doc(db(), 'environments', env.id), fields);
+    batch.set(doc(db(), 'environmentPages', env.id), { html, callouts: [] });
+    batch.set(doc(db(), 'environmentVersions', `${env.id}@${version}`), { envId: env.id, version, html, features: env.features, added: note ? [note.slice(0, 120)] : [], at, by, ...(env.dataDriven && { dataDriven: true }) });
+    await batch.commit();
+  }
+  changed();
+  return version;
 }
 
 // A library app was built on again

@@ -541,7 +541,7 @@ const breaks = (problems: string[]) => problems.filter((p) => !/^The control|^Cl
 // clicking through the page goes with the change, so a reported problem is fixed at its cause. The edits are applied
 // and the page tried again; edits that don't apply, or a page left worse than before, go back once. Null when nothing
 // usable came back; unchanged when the AI said the change can't be made in this page
-async function editPage(
+export async function editPage(
   html: string,
   change: string,
   about: { title: string; prompt?: string; checks?: RawQuestion['testCases'] },
