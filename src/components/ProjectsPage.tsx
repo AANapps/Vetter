@@ -55,8 +55,11 @@ export const ProjectsPage: React.FC<{
   onDeleteProject: (project: Project) => void;
   onSaveTask: (task: ProjectTask) => void;
   onDeleteTask: (task: ProjectTask) => void;
-  onInviteTeam: () => void;
-}> = ({ business, me, people, projects, projectTasks, onSaveProject, onDeleteProject, onSaveTask, onDeleteTask, onInviteTeam }) => {
+  onInviteTeam?: () => void;
+  // Someone on the company's team (Work mode): they work on the boards and their items, but making, setting up or
+  // deleting boards stays with the company
+  member?: boolean;
+}> = ({ business, me, people, projects, projectTasks, onSaveProject, onDeleteProject, onSaveTask, onDeleteTask, onInviteTeam, member }) => {
   const key = `vetter.teamBoard.${business.id}`;
   const [openId, setOpenIdState] = useState<string | null>(() => store.get(key));
   const [openTask, setOpenTask] = useState<{ projectId: string; taskId: string; n: number } | null>(null);
@@ -181,7 +184,7 @@ export const ProjectsPage: React.FC<{
               Projects
             </div>
             {others.filter(match).map(boardButton)}
-            {naming === null ? (
+            {member ? null : naming === null ? (
               <button onClick={() => setNaming('')} className="w-full h-9 px-2.5 rounded-lg flex items-center gap-2.5 text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-900">
                 <Plus className="w-4 h-4" />
                 New project
@@ -209,6 +212,7 @@ export const ProjectsPage: React.FC<{
               </form>
             )}
           </div>
+          {!member && (
           <div className="pt-2 border-t border-slate-200 space-y-0.5">
             {crm.length === 0 && (
               <button onClick={makeCrm} className="w-full h-9 px-2.5 rounded-lg flex items-center gap-2.5 text-sm font-semibold text-indigo-700 hover:bg-indigo-50">
@@ -220,18 +224,25 @@ export const ProjectsPage: React.FC<{
               <FolderKanban className="w-4 h-4" />
               Templates
             </button>
-            {people.length <= 1 && (
+            {people.length <= 1 && onInviteTeam && (
               <button onClick={onInviteTeam} className="w-full h-9 px-2.5 rounded-lg flex items-center gap-2.5 text-sm text-slate-600 hover:bg-slate-100">
                 <Plus className="w-4 h-4" />
                 Invite your team
               </button>
             )}
           </div>
+          )}
         </nav>
       </aside>
 
       <main className="min-w-0">
-        {projects.length === 0 || showStart || !open ? (
+        {member && (projects.length === 0 || !open) ? (
+          <section className="p-8 rounded-2xl border border-dashed border-slate-300 bg-white text-center space-y-1">
+            <FolderKanban className="w-8 h-8 text-slate-300 mx-auto" />
+            <p className="text-sm font-semibold text-slate-800">No boards yet</p>
+            <p className="text-sm text-slate-500">{business.name} hasn&rsquo;t set up any projects or CRM boards. They&rsquo;ll show here when it does.</p>
+          </section>
+        ) : projects.length === 0 || showStart || !open ? (
           start
         ) : (
           <ProjectBoard
@@ -249,7 +260,7 @@ export const ProjectsPage: React.FC<{
               setOpenTask((o) => ({ projectId, taskId, n: (o?.n ?? 0) + 1 }));
             }}
             onSaveProject={onSaveProject}
-            onDeleteProject={() => onDeleteProject(open)}
+            onDeleteProject={member ? undefined : () => onDeleteProject(open)}
             onSaveTask={onSaveTask}
             onDeleteTask={onDeleteTask}
           />

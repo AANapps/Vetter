@@ -3,6 +3,7 @@
 Kept up to date as work is asked for and finished. Newest items at the bottom of each section.
 
 ## To do
+- **Deploy the Firestore rules (2026-11-22).** Team members' access to their company's boards (Work mode) needs `firebase deploy --only firestore:rules --project vetter-7b06f`; the CLI here needs `firebase login --reauth` first.
 - **Bug: menu opens white blank pages** (reported 2026-11-18). Clicking items in the company menu sometimes shows a blank white page. Not reproduced yet: find which items and whether it's the live site (Firebase on), then fix.
 - **Board permissions (Projects & CRM).** Each board gets who can see and edit it: everyone in the company and on the team by default, or invite only (pick people). Today the company's staff see every board and team members see nothing but tasks they own.
 
@@ -70,6 +71,7 @@ From a code read-through of both flows (not clicked through live).
 - 2026-11-22: Admins try tests instantly: in the app any test an admin starts runs straight in (no intro, signing, countdown, full screen, retake gap or saving). /admin has a Test lab: run any test or job simulation, open the desktop with every app (built-in ones filled from the job sims, library apps with sample data) or start on one app, open a job sim's own desktop untimed, open each library app alone, and the job sim practice.
 - 2026-11-22: Admin app editor (/admin): open any app (library, waiting for review, or inside a company's saved test), try it, and change it by chatting with the AI (small checked edits via /api/edit-app, undo, then Save: library apps save as their next version, submissions keep waiting, company tests get the new page). Untested against the real AI (credit out).
 - 2026-11-22: Company flow: home chat has 3 starters (job simulation, create a job and its tests, find candidates); Candidates tabs renamed Your pipeline / Everyone on Praxa / Best fit for a job with a line on what each is, and a job's page says "This job's pipeline"; a job simulation saves for hiring by default (library in the menu); "Project Manager" is "Your team" (Team, Training); Projects & CRM is Work mode, opened from the name menu in a new tab; stage and match names in sentence case; the builder chat's plan has a titled card and an Apply changes button, and a plain answer offers "I meant it as a change: plan it".
+- 2026-11-22: Candidate Work mode opens on the company's Projects & CRM, monday-style (MemberBoards: the same boards, live; team members work on items, columns and views; making or deleting boards stays with the company), with "Work at <company>" at the top (a picker when on several teams) and the company on the Work mode button. Needs the Firestore rules deployed (onTeamOf on projects and projectTasks).
 
 - 2026-11-12: Tests fit the job (no spreadsheets for trades/clinical), drawings labelled.
 - 2026-11-12: Library tests suggested when a job is posted, not while making a test.

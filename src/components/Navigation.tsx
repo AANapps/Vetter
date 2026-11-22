@@ -104,7 +104,7 @@ interface NavigationProps {
   // Companies: start a fresh chat with Praxa on the home page
   onNewChat?: () => void;
   // Candidates: what their teams have sent them, shown on the Work mode switch
-  work?: { open: number; late: number };
+  work?: { open: number; late: number; companies?: string[] };
 }
 
 // The sparkle and the name in the brand's gradient: ✦ Praxa
@@ -220,7 +220,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                         {
                           id: 'work',
                           label: 'Work',
-                          blurb: work && work.open ? `${work.open} to do${work.late ? ` · ${work.late} late` : ''}` : 'What your team sends you',
+                          blurb: `${work?.companies?.length ? `${work.companies.join(', ')} · ` : ''}${work && work.open ? `${work.open} to do${work.late ? ` · ${work.late} late` : ''}` : 'Projects, tasks and training'}`,
                           icon: ListTodo,
                           active: inWork,
                           go: 'work' as AppTab,
@@ -428,7 +428,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                 title="Switch mode"
               >
                 <ListTodo className="w-4 h-4" />
-                Work mode
+                {work?.companies?.length ? <span className="max-w-[16rem] truncate">Work · {work.companies.join(', ')}</span> : 'Work mode'}
                 <ChevronDown className="w-3.5 h-3.5" />
               </button>
             ) : (

@@ -1234,7 +1234,8 @@ export const ProjectBoard: React.FC<{
   // Whoever is making changes, for each task's activity
   me: BoardPerson;
   onSaveProject: (project: Project) => void;
-  onDeleteProject: () => void;
+  // Left out for someone on the company's team: deleting a board stays with the company
+  onDeleteProject?: () => void;
   onSaveTask: (task: ProjectTask) => void;
   onDeleteTask: (task: ProjectTask) => void;
   // Every board and item the company has: for connect columns, converting leads and Ask AI
@@ -1821,7 +1822,7 @@ export const ProjectBoard: React.FC<{
             <span className="px-1.5 rounded-full bg-amber-100 text-amber-800 text-[11px]">{(project.automations ?? []).filter((a) => !a.off).length}</span>
           )}
         </button>
-        {confirmDelete ? (
+        {!onDeleteProject ? null : confirmDelete ? (
           <span className="flex items-center gap-2 text-xs">
             <span className="text-slate-600">Delete this project and its {tasks.length} tasks?</span>
             <button onClick={onDeleteProject} className="px-2.5 py-1 rounded-lg bg-rose-600 text-white font-semibold">

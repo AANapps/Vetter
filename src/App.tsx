@@ -32,6 +32,7 @@ import { CandidateProfilePage } from './components/CandidateProfilePage';
 import { HomeNudges } from './components/HomeNudges';
 import { takeSignUpRole } from './lib/signUpRole';
 import { PRACTICE_SIM } from './data/practiceSim';
+import { MemberBoards } from './components/MemberBoards';
 import { WorkPage } from './components/WorkPage';
 import { BrowseCandidates } from './components/BrowseCandidates';
 import { BusinessJobs } from './components/BusinessJobs';
@@ -1748,6 +1749,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
             ? {
                 open: myAssignments.filter((a) => !a.completedAt).length,
                 late: myAssignments.filter((a) => !a.completedAt && !!a.dueDate && a.dueDate < new Date().toISOString().slice(0, 10)).length,
+                companies: [...new Set(myTeams.map((m) => m.companyName))],
               }
             : undefined
         }
@@ -1852,6 +1854,27 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
               onLeave={(m) => (setTeam((prev) => prev.filter((x) => x.id !== m.id)), showToast(`You've left ${m.companyName}'s team.`))}
               onStart={(assignment, test) => setAssignmentRun({ assignment, test })}
               onFindTests={() => goToTab('tests')}
+              renderBoards={(businessId) => {
+                const biz = businesses.find((b) => b.id === businessId) ?? ({ id: businessId, name: myTeams.find((m) => m.businessId === businessId)?.companyName ?? 'Your company' } as Business);
+                return (
+                  <MemberBoards
+                    key={businessId}
+                    business={biz}
+                    me={{ uid: candidate.id, name: candidate.name, pic: candidate.avatarUrl }}
+                    personOf={(uid) => {
+                      const p = allCandidates.find((c) => c.id === uid);
+                      return p && { uid, name: p.name, pic: p.avatarUrl };
+                    }}
+                    local={{
+                      projects,
+                      tasks: projectTasks,
+                      saveProject: (pr) => setProjects((prev) => (prev.some((x) => x.id === pr.id) ? prev.map((x) => (x.id === pr.id ? pr : x)) : [...prev, pr])),
+                      saveTask: (t) => setProjectTasks((prev) => (prev.some((x) => x.id === t.id) ? prev.map((x) => (x.id === t.id ? t : x)) : [...prev, t])),
+                      deleteTask: (t) => setProjectTasks((prev) => prev.filter((x) => x.id !== t.id)),
+                    }}
+                  />
+                );
+              }}
             />
           )}
           {currentTab === 'ranked' && !testPageTest && (

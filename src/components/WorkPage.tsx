@@ -29,7 +29,7 @@ import { byUrgency, dueLabel, isOverdue, shortDate } from '../lib/work';
  * they can leave a team. Results here stay between them and the company.
  */
 
-type Section = 'tasks' | 'training' | 'certificates' | 'teams' | 'settings';
+type Section = 'boards' | 'tasks' | 'training' | 'certificates' | 'teams' | 'settings';
 
 interface WorkPageProps {
   invitations: TeamMember[];
@@ -42,14 +42,22 @@ interface WorkPageProps {
   onLeave: (member: TeamMember) => void;
   onStart: (assignment: Assignment, test: AssessmentTest) => void;
   onFindTests: () => void;
+  // The company's projects and CRM boards (monday-style), for one of the companies whose team they're on
+  renderBoards?: (businessId: string) => React.ReactNode;
 }
 
 const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
   <section className={`bg-white border border-slate-200 rounded-2xl shadow-xs ${className}`}>{children}</section>
 );
 
-export const WorkPage: React.FC<WorkPageProps> = ({ invitations, memberships, assignments, tests, businesses, personName, onRespond, onLeave, onStart, onFindTests }) => {
-  const [section, setSection] = useState<Section>(invitations.length && !memberships.length ? 'teams' : 'tasks');
+export const WorkPage: React.FC<WorkPageProps> = ({ invitations, memberships, assignments, tests, businesses, personName, onRespond, onLeave, onStart, onFindTests, renderBoards }) => {
+  // On a team, Work opens on the company's boards, as the company sees them
+  const [section, setSection] = useState<Section>(invitations.length && !memberships.length ? 'teams' : memberships.length && renderBoards ? 'boards' : 'tasks');
+  const [boardsOf, setBoardsOf] = useState<string | null>(memberships[0]?.businessId ?? null);
+  const companies = [...new Map(memberships.map((m) => [m.businessId, m.companyName])).entries()];
+  const boardCompany = companies.find(([id]) => id === boardsOf) ?? companies[0];
+  // The boards take the whole width, with the menu as a row above them
+  const wide = section === 'boards';
   const [cert, setCert] = useState<CertificateDetails | null>(null);
   const [leaving, setLeaving] = useState<string | null>(null);
 
@@ -70,6 +78,7 @@ export const WorkPage: React.FC<WorkPageProps> = ({ invitations, memberships, as
   });
 
   const menu: { id: Section; label: string; icon: React.ComponentType<{ className?: string }>; count?: number; alert?: boolean }[] = [
+    ...(memberships.length && renderBoards ? [{ id: 'boards' as Section, label: 'Projects & CRM', icon: SquareKanban }] : []),
     { id: 'tasks', label: 'My work', icon: ListTodo, count: open.length, alert: late.length > 0 },
     { id: 'training', label: 'Training', icon: GraduationCap, count: assignments.filter((a) => isTraining(a) && !a.completedAt).length },
     { id: 'certificates', label: 'Certificates', icon: Award, count: certified.length },
@@ -116,10 +125,34 @@ export const WorkPage: React.FC<WorkPageProps> = ({ invitations, memberships, as
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-      <div className="grid grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)] gap-6 items-start">
-        {/* Side menu: a strip of pills on phones */}
-        <aside className="lg:sticky lg:top-20 space-y-3">
-          <Card className="overflow-hidden hidden lg:block">
+      {/* Whose work this is: the company (or companies) whose team they're on */}
+      {companies.length > 0 && (
+        <div className="mb-5 flex flex-wrap items-center gap-3">
+          {logoOf(boardCompany[0]) ? (
+            <Pic src={logoOf(boardCompany[0])!} alt="" referrerPolicy="no-referrer" className="w-10 h-10 rounded-xl object-cover bg-slate-100 border border-slate-200" />
+          ) : (
+            <span className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-700 font-bold grid place-items-center">{boardCompany[1][0]}</span>
+          )}
+          <div className="min-w-0">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Work at</div>
+            {companies.length > 1 ? (
+              <select value={boardCompany[0]} onChange={(e) => setBoardsOf(e.target.value)} aria-label="Company" className="text-lg font-bold text-slate-900 bg-transparent pr-6 -ml-1 focus:outline-none">
+                {companies.map(([id, name]) => (
+                  <option key={id} value={id}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div className="text-lg font-bold text-slate-900 leading-tight">{boardCompany[1]}</div>
+            )}
+          </div>
+        </div>
+      )}
+      <div className={`grid grid-cols-1 gap-6 items-start ${wide ? '' : 'lg:grid-cols-[240px_minmax(0,1fr)]'}`}>
+        {/* Side menu: a strip of pills on phones, and above the boards (which need the width) */}
+        <aside className={`space-y-3 ${wide ? '' : 'lg:sticky lg:top-20'}`}>
+          <Card className={`overflow-hidden hidden ${wide ? '' : 'lg:block'}`}>
             <div className="h-12" style={{ background: 'linear-gradient(120deg, #312e81 0%, #4f46e5 45%, #7c3aed 100%)' }} />
             <div className="px-4 pb-4 -mt-5 space-y-1">
               <span className="w-10 h-10 rounded-xl bg-white border border-slate-200 shadow-xs flex items-center justify-center text-indigo-600">
@@ -132,7 +165,7 @@ export const WorkPage: React.FC<WorkPageProps> = ({ invitations, memberships, as
               </div>
             </div>
           </Card>
-          <nav aria-label="Work" className="flex lg:flex-col gap-1 overflow-x-auto lg:overflow-visible lg:bg-white lg:border lg:border-slate-200 lg:rounded-2xl lg:p-2 lg:shadow-xs">
+          <nav aria-label="Work" className={`flex gap-1 overflow-x-auto ${wide ? '' : 'lg:flex-col lg:overflow-visible lg:bg-white lg:border lg:border-slate-200 lg:rounded-2xl lg:p-2 lg:shadow-xs'}`}>
             {menu.map((m) => (
               <button
                 key={m.id}
@@ -162,6 +195,9 @@ export const WorkPage: React.FC<WorkPageProps> = ({ invitations, memberships, as
         </aside>
 
         <main className="min-w-0 space-y-5">
+          {/* ---------- The company's boards, as it sees them ---------- */}
+          {section === 'boards' && boardCompany && renderBoards?.(boardCompany[0])}
+
           {/* ---------- My tasks ---------- */}
           {section === 'tasks' && (
             <>

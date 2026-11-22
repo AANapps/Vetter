@@ -184,6 +184,17 @@ service cloud.firestore {
     // Work given to someone on a company's team, and how they got on: only the company, that person and the Praxa
     // team see it. Only people who joined the team can be given work; they record starting and finishing it
     function teamMemberDoc(memberId) { return get(/databases/$(database)/documents/teamMembers/$(memberId)).data; }
+    // Someone on a company's team, joined (their membership is companyId__uid, or companyId__email when they were invited
+    // by address before they had an account)
+    function onTeamOf(companyId) {
+      return signedIn() && (
+        (exists(/databases/$(database)/documents/teamMembers/$(companyId + '__' + uid()))
+          && teamMemberDoc(companyId + '__' + uid()).status == 'active')
+        || (request.auth.token.email is string
+          && exists(/databases/$(database)/documents/teamMembers/$(companyId + '__' + request.auth.token.email.lower()))
+          && teamMemberDoc(companyId + '__' + request.auth.token.email.lower()).status == 'active'
+          && teamMemberDoc(companyId + '__' + request.auth.token.email.lower()).get('uid', '') == uid()));
+    }
     match /assignments/{assignmentId} {
       allow read: if signedIn() && (isAdmin() || worksAt(resource.data.businessId) || resource.data.get('uid', null) == uid());
       allow create: if (isAdmin() || worksAt(request.resource.data.businessId))
@@ -202,24 +213,26 @@ service cloud.firestore {
     }
 
     // A company's projects on its team board, like monday.com boards: only the company and the Praxa team
+    // The company's boards. Someone on its team (Work mode) sees every board and can work on it (its items, columns and
+    // views), as on monday; making and deleting boards stays with the company
     match /projects/{projectId} {
-      allow read: if signedIn() && (isAdmin() || worksAt(resource.data.businessId));
+      allow read: if signedIn() && (isAdmin() || worksAt(resource.data.businessId) || onTeamOf(resource.data.businessId));
       allow create: if (isAdmin() || worksAt(request.resource.data.businessId)) && request.resource.data.id == projectId;
-      allow update: if (isAdmin() || worksAt(resource.data.businessId)) && request.resource.data.businessId == resource.data.businessId;
+      allow update: if (isAdmin() || worksAt(resource.data.businessId) || onTeamOf(resource.data.businessId)) && request.resource.data.businessId == resource.data.businessId;
       allow delete: if isAdmin() || worksAt(resource.data.businessId);
     }
 
     // Tasks on a project. The company does anything with them; someone on its team who owns a task sees it and can
     // move its status along and add notes
     match /projectTasks/{taskId} {
-      allow read: if signedIn() && (isAdmin() || worksAt(resource.data.businessId) || uid() in resource.data.get('ownerUids', []));
-      allow create: if (isAdmin() || worksAt(request.resource.data.businessId)) && request.resource.data.id == taskId
+      allow read: if signedIn() && (isAdmin() || worksAt(resource.data.businessId) || onTeamOf(resource.data.businessId) || uid() in resource.data.get('ownerUids', []));
+      allow create: if (isAdmin() || worksAt(request.resource.data.businessId) || onTeamOf(request.resource.data.businessId)) && request.resource.data.id == taskId
         && request.resource.data.ownerUids is list;
-      allow update: if ((isAdmin() || worksAt(resource.data.businessId)) && request.resource.data.businessId == resource.data.businessId)
+      allow update: if ((isAdmin() || worksAt(resource.data.businessId) || onTeamOf(resource.data.businessId)) && request.resource.data.businessId == resource.data.businessId)
         || (signedIn() && uid() in resource.data.get('ownerUids', [])
           && changed().hasOnly(['status', 'notes', 'updatedAt', 'log'])
           && request.resource.data.status in ['todo', 'working', 'stuck', 'done']);
-      allow delete: if isAdmin() || worksAt(resource.data.businessId);
+      allow delete: if isAdmin() || worksAt(resource.data.businessId) || onTeamOf(resource.data.businessId);
     }
 
     // A company's own tries at tests, seen only by its team and the Praxa team
