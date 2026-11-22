@@ -103,7 +103,7 @@ export const ProjectsPage: React.FC<{
 
   const boardButton = (p: Project, i: number) => {
     const Icon = p.kind && CRM_ICON[p.kind] ? CRM_ICON[p.kind] : FolderKanban;
-    const on = open?.id === p.id;
+    const on = !onMyWork && !openExtra && open?.id === p.id;
     const n = openCount(p);
     return (
       <button
