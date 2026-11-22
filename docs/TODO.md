@@ -45,16 +45,9 @@ From a code read-through of both flows (not clicked through live).
 **Fix first (trust in results)**
 - The 5 sample candidates are mixed in with real ones live: label them or remove them.
 - The test AI chat (task assistant) has no login and Praxa pays: require sign-in and set a limit.
-- Firestore rules not deployed; Anthropic credit out (since 2026-11-18).
+- Anthropic credit out (since 2026-11-18).
 
 **Candidate side**
-- Home and Tests both show "Your path / Up next": Home = dashboard, Tests = catalogue.
-- Work mode is only in the name menu: link it on Home for team members.
-- "Career switch" (learn) and Upskill (no menu link) are two learning areas: merge them.
-- Ranked is buried under More while the test start screen talks up leaderboard ties.
-- Auto-apply once passed sends no confirmation: notify the candidate.
-- Escape during a test is flagged as cheating: warn first, only flag if they stay out.
-- Google sign-up loses the target job unless picked first: ask after sign-up.
 - 40-minute job sims need a short practice run.
 
 **Company side**
@@ -80,6 +73,7 @@ From a code read-through of both flows (not clicked through live).
 
 - 2026-11-22: No pass marks, "verified" or medals: candidates and companies see the score (and rank) on every test. Job pass marks and per-skill minimums are gone (finishing a job's required tests sends the application with the score); companies see every try's score; the percentile is gone. Training keeps its pass mark for certificates. Not clicked through in a browser yet.
 - 2026-11-22: Fit for a job is only the average of the candidate's scores on that job's tests (a test not taken counts 0, attempt limits respected). No fit is shown until they've taken one of the job's tests; jobs without tests have no fit.
+- 2026-11-22: Candidate flow: Tests is the catalogue (no progress ring or Up next; Home has those), Work mode card on Home for team members, Ranked in the main menu, Career switch and Upskill merged into one Courses page with a switch, a bell notification when finishing a job's tests sends the application, leaving full screen gives a 10-second warning the first 2 times before it's recorded, and Google sign-up asks for the job after. Not clicked through in a browser yet.
 
 - 2026-11-12: Tests fit the job (no spreadsheets for trades/clinical), drawings labelled.
 - 2026-11-12: Library tests suggested when a job is posted, not while making a test.
@@ -101,4 +95,4 @@ From a code read-through of both flows (not clicked through live).
 ## Candidate's target role (2026-11-17)
 - Sign-up now asks "What job are you after?" and saves it on the profile as `targetRole` (src/lib/signUpRole.ts → App). Home's Start here, the profile path and the Tests page already start from it.
 - Still to do: rank the Discover feed by it (results, jobs and posts for that role first, src/lib/feed.ts `buildFeed`), and pin its field first in Explore by field (FieldSlider).
-- Google sign-up only saves the job when the candidate picks it before pressing Continue with Google.
+- Google sign-up: a new candidate who didn't pick a job first is asked for it straight after (2026-11-22).

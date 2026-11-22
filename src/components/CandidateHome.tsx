@@ -6,7 +6,7 @@ import { useProfileProgress } from '../lib/profileProgress';
 import { STATUS_LABELS, invitesFor } from '../lib/jobTests';
 import { jobIdFromPath } from '../lib/jobSeo';
 import { activeProfileOf } from '../lib/jobProfiles';
-import { Briefcase, Link2, MapPin, Play } from 'lucide-react';
+import { Briefcase, ChevronRight, Link2, MapPin } from 'lucide-react';
 
 interface CandidateHomeProps {
   candidate: User;
@@ -16,7 +16,9 @@ interface CandidateHomeProps {
   onOpenJob: (jobId: string) => void;
   onStartTest: (test: AssessmentTest) => void;
   onOpenTest: (testId: string) => void;
-  onGoTo: (tab: 'tests' | 'jobs' | 'profile') => void;
+  onGoTo: (tab: 'tests' | 'jobs' | 'profile' | 'work') => void;
+  // On a company's team: its name(s) and their open tasks, for the way into Work mode
+  work?: { companies: string[]; open: number };
   // Someone not signed in: they see an invitation to join instead of a profile
   visitor?: { onJoin: () => void; onSignIn: () => void };
   sector: SectorId;
@@ -34,7 +36,7 @@ const jobIdFromLink = (text: string) => {
 };
 
 // A candidate's home: the jobs whose tests companies sent them, what's left to do and how they did
-export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, jobs, tests, businesses, onOpenJob, onStartTest, onOpenTest, onGoTo, visitor, sector }) => {
+export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, jobs, tests, businesses, onOpenJob, onStartTest, onOpenTest, onGoTo, visitor, sector, work }) => {
   const items = visitor ? [] : invitesFor(candidate, jobs);
   const finished = items.filter((i) => i.progress.score !== undefined);
   const profile = activeProfileOf(candidate);
@@ -148,10 +150,27 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, jobs, t
               </div>
             ))}
           </dl>
+
+          {/* Team members: Work mode, where their team's tasks and training are */}
+          {work && work.companies.length > 0 && (
+            <button
+              onClick={() => onGoTo('work')}
+              className="w-full mt-1 p-3 rounded-xl bg-violet-50 border border-violet-200 hover:border-violet-400 text-left flex items-center gap-3"
+            >
+              <Briefcase className="w-4 h-4 text-violet-700 shrink-0" />
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold text-slate-900">Work mode</span>
+                <span className="block text-[11px] text-slate-600 truncate">
+                  {work.companies.join(', ')} · {work.open ? `${work.open} ${work.open === 1 ? 'task' : 'tasks'} to do` : 'nothing to do right now'}
+                </span>
+              </span>
+              <ChevronRight className="w-4 h-4 text-violet-400 shrink-0" />
+            </button>
+          )}
         </div>
       </section>
 
-      {/* Their role's path in miniature: a dot for each module */}
+      {/* Their role's path in miniature: a dot for each module (the next test itself is in What to do next) */}
       {progress.role && progress.path.length > 0 && candidate.testResults.length > 0 && (
         <section className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3">
           <div className="flex items-center justify-between gap-2">
@@ -173,16 +192,6 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, jobs, t
               />
             ))}
           </div>
-          {progress.nextModule && (
-            <button onClick={() => onOpenTest(progress.nextModule!.test.id)} className="w-full p-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-left flex items-center gap-3">
-              <Play className="w-4 h-4 fill-current shrink-0" />
-              <span className="min-w-0 flex-1">
-                <span className="block text-[10px] font-semibold uppercase tracking-wide text-indigo-300">Up next</span>
-                <span className="block text-sm font-semibold truncate">{progress.nextModule.sec.label}</span>
-              </span>
-              <span className="text-[11px] text-slate-300 shrink-0">~{progress.nextModule.test.estimatedMinutes} min</span>
-            </button>
-          )}
         </section>
       )}
 

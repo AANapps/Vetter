@@ -1219,6 +1219,12 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
       if (progress.status === 'completed' && job.testsRequired && !applied) {
         handleApplyJob(job.id);
         showToast(`${scored}. Your application to ${job.companyName} has been sent with your score.`);
+        // Kept in the bell too, so they have a record of it after the toast has gone
+        const at = new Date().toISOString();
+        setNotifications((prev) => [
+          { id: `note-applied-${job.id}-${Date.now()}`, userId: updatedCandidate.id, kind: 'applied', jobId: job.id, score: progress.score, createdAt: at, read: false },
+          ...prev,
+        ]);
       } else if (progress.status === 'completed') {
         showToast(`${scored}. ${job.companyName} sees your score.`);
       } else {
@@ -1621,8 +1627,11 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
       return [
         {
           id: n.id,
-          text: `${job.companyName} invited you to take the tests for ${job.title}`,
-          detail: `${job.testIds.length} ${job.testIds.length === 1 ? 'test' : 'tests'}${job.closingDate ? ` · closes ${new Date(job.closingDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : ''}`,
+          text: n.kind === 'applied' ? `Application sent to ${job.companyName} for ${job.title}` : `${job.companyName} invited you to take the tests for ${job.title}`,
+          detail:
+            n.kind === 'applied'
+              ? `Sent when you finished the job's tests${n.score !== undefined ? `, with your score of ${n.score}/100` : ''}`
+              : `${job.testIds.length} ${job.testIds.length === 1 ? 'test' : 'tests'}${job.closingDate ? ` · closes ${new Date(job.closingDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : ''}`,
           when: new Date(n.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
           read: n.read,
         },
@@ -1648,13 +1657,13 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
       })),
   ];
   const candidateSection = CANDIDATE_SECTIONS[currentTab];
-  // The sector picker sits on the pages a candidate browses: Home's feed, Tests, Jobs, Ranked and Career switch
+  // The sector picker sits on the pages a candidate browses: Home's feed, Tests, Jobs, Ranked and Courses
   const showSectorBar =
     !FOCUS_SECTOR &&
     activeRole === 'candidate' &&
     !detailPage &&
     !jobPageId &&
-    (['tests', 'jobs', 'ranked'].includes(currentTab) || (currentTab === 'home' && !isVisitor && !hiringHome) || (currentTab === 'learn' && !coursePage));
+    (['tests', 'jobs', 'ranked'].includes(currentTab) || (currentTab === 'home' && !isVisitor && !hiringHome) || ((currentTab === 'learn' || currentTab === 'upskill') && !coursePage));
   const profilePerson = profilePersonId ? allCandidates.find((c) => c.id === profilePersonId) : undefined;
   const candidatePagePerson = activeRole !== 'candidate' && candidatePageId ? allCandidates.find((c) => c.id === candidatePageId) : undefined;
   // A candidate's page is titled after them; runs after the title effect above, so it wins while the page is open
@@ -1788,7 +1797,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
         <main className={`flex-1 bg-white ${chatHome ? '' : 'pb-16'}`}>
           {accountGate ?? (
           <>
-          {showSectorBar && <SectorBar sector={sector} onChange={setSector} wide={currentTab !== 'learn'} />}
+          {showSectorBar && <SectorBar sector={sector} onChange={setSector} wide={currentTab !== 'learn' && currentTab !== 'upskill'} />}
           {activeRole === 'recruiter' && company && account && company.ownerUid === account.uid && companyBusiness && <TeamRequests company={company} />}
           {activeRole === 'admin' && firebaseEnabled && account?.role === 'admin' && <CompanyReview />}
           {activeRole === 'admin' && !testPageTest && <PublicTestReview tests={tests} onOpen={openTestPage} onDecide={decidePublic} />}
@@ -1814,6 +1823,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
             <LearnPage
               key={currentTab}
               track={currentTab === 'upskill' ? 'upskill' : 'switch'}
+              onTrackChange={(t) => goToTab(t === 'upskill' ? 'upskill' : 'learn')}
               sector={sector}
               progress={courseProgress.progress} onOpenCourse={openCoursePage} onTrainTeam={trainTeam} />
           )}
@@ -2002,6 +2012,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
                 onGoTo={goToTab}
                 visitor={isVisitor ? { onJoin: () => setAuthDialog({ mode: 'sign-up' }), onSignIn: () => setAuthDialog({ mode: 'sign-in' }) } : undefined}
                 sector={sector}
+                work={myTeams.length ? { companies: [...new Set(myTeams.map((m) => m.companyName))], open: myAssignments.filter((a) => !a.completedAt).length } : undefined}
               />
               {candidate.testResults.length > 0 && (
               <div className="space-y-4 order-last lg:order-none lg:col-start-3 lg:row-start-1">
@@ -2386,7 +2397,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
                 {(
                   [
                     ['ranked', 'Leaderboards'],
-                    ['learn', 'Career switch'],
+                    ['learn', 'Courses'],
                     ['companies', 'Companies'],
                   ] as const
                 ).map(([tab, label]) => (

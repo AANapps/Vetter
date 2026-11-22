@@ -12,8 +12,8 @@ import { LevelPicker } from './LevelPicker';
 
 /**
  * Praxa's tests, laid out for someone who has never been here. With no role picked it asks what job they want (or
- * lets them search everything). With a role, it shows a header with their progress and the next test, the role's path
- * as numbered steps, and a card for each module. A group of roles (an industry, or a field from Home) is a grid of
+ * lets them search everything). With a role, it's the catalogue for it: a header, the role's tests as numbered steps,
+ * and a card for each module. Progress and the next test to take live on Home, not here. A group of roles (an industry, or a field from Home) is a grid of
  * its tests. Every card says the same few things in words: level, minutes, questions, their best and one button.
  */
 
@@ -235,12 +235,7 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
     const all = testsFor(role);
     const modules = path.filter((m) => matches(m.test));
     const extra = all.filter((t) => !path.some((m) => m.test.id === t.id)).filter(matches).sort((a, b) => easiest(a) - easiest(b));
-    const done = path.filter((m) => passed(m.test)).length;
-    const next = path.filter((m) => !isSim(m.test, m.sec)).find((m) => best(m.test) === undefined) ?? path.find((m) => !passed(m.test));
-    const pct = path.length ? Math.round((done / path.length) * 100) : 0;
     const minutes = (path.length ? path.map((m) => m.test) : all).reduce((s, t) => s + t.estimatedMinutes, 0);
-    const r = 30;
-    const c = 2 * Math.PI * r;
     return (
       <div className="space-y-6">
         <button onClick={() => onTestFieldChange(null)} className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-slate-900">
@@ -248,22 +243,11 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
           All roles
         </button>
 
-        {/* Header: the role, their progress and the one thing to do next */}
+        {/* Header: the role and its tests */}
         <section className="rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-xs">
           <div className="relative px-6 sm:px-8 py-7 text-white" style={{ background: 'radial-gradient(circle at 85% 90%, rgba(56,189,248,0.4) 0, transparent 45%), linear-gradient(120deg, #312e81 0%, #4f46e5 50%, #7c3aed 100%)' }}>
             <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.7) 1px, transparent 1px)', backgroundSize: '18px 18px' }} />
             <div className="relative flex flex-col md:flex-row md:items-center gap-6">
-              {path.length > 0 && (
-                <div className="relative w-[72px] h-[72px] shrink-0">
-                  <svg width="72" height="72" aria-hidden="true">
-                    <circle cx="36" cy="36" r={r} fill="none" stroke="white" strokeOpacity="0.2" strokeWidth="6" />
-                    <circle cx="36" cy="36" r={r} fill="none" stroke="white" strokeWidth="6" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - pct / 100)} transform="rotate(-90 36 36)" />
-                  </svg>
-                  <span className="absolute inset-0 flex items-center justify-center text-sm font-bold font-mono">
-                    {done}/{path.length}
-                  </span>
-                </div>
-              )}
               <div className="min-w-0 flex-1">
                 <div className="text-xs font-semibold uppercase tracking-wider text-indigo-200">Tests for</div>
                 <h1 className="text-3xl font-bold tracking-tight">{role}</h1>
@@ -271,40 +255,20 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
                   {path.length ? `${path.length} tests in order, about ${Math.round(minutes / 60)} hours in all.` : `${all.length} tests.`} Each score goes on your profile.
                 </p>
               </div>
-              {next && (
-                <button
-                  onClick={() => onStartTest(next.test)}
-                  className="shrink-0 self-start md:self-auto px-5 py-3 rounded-full bg-white text-indigo-700 hover:bg-indigo-50 text-sm font-bold inline-flex items-center gap-2 shadow-sm"
-                >
-                  <Play className="w-4 h-4 fill-current" />
-                  {best(next.test) === undefined ? `Start ${next.sec.label}` : `Retake ${next.sec.label}`}
-                </button>
-              )}
             </div>
           </div>
 
-          {/* The path: one step for each module, in order */}
+          {/* The role's tests in order: a step for each, jumping to its card */}
           {path.length > 0 && (
             <ol className="px-4 sm:px-6 py-4 flex gap-1 overflow-x-auto">
               {path.map((m, i) => {
-                const ok = passed(m.test);
-                const tried = best(m.test) !== undefined;
-                const isNext = next?.test.id === m.test.id;
                 return (
                   <li key={m.sec.id} className="flex items-center shrink-0">
                     <button
                       onClick={() => document.getElementById(`test-card-${m.test.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
-                      className={`flex items-center gap-2 px-2.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors ${
-                        isNext ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50'
-                      }`}
+                      className="flex items-center gap-2 px-2.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors text-slate-600 hover:bg-slate-50"
                     >
-                      <span
-                        className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                          ok ? 'bg-emerald-500 text-white' : tried ? 'bg-amber-400 text-white' : isNext ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'
-                        }`}
-                      >
-                        {ok ? <Check className="w-3 h-3" strokeWidth={3} /> : i + 1}
-                      </span>
+                      <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold bg-slate-100 text-slate-500">{i + 1}</span>
                       {m.sec.label}
                     </button>
                     {i < path.length - 1 && <ChevronRight className="w-3.5 h-3.5 text-slate-300 shrink-0" />}
@@ -320,7 +284,7 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
         {modules.length > 0 && (
           <ul className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {modules.map((m) =>
-              card(m.test, { step: path.indexOf(m) + 1, label: m.sec.label, blurb: m.sec.blurb, next: next?.test.id === m.test.id, sim: isSim(m.test, m.sec) })
+              card(m.test, { step: path.indexOf(m) + 1, label: m.sec.label, blurb: m.sec.blurb, sim: isSim(m.test, m.sec) })
             )}
           </ul>
         )}

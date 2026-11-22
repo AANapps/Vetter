@@ -164,7 +164,7 @@ export function loadData(): AppData {
       notifications: saved.notifications
         ? saved.notifications.flatMap((n) => {
             const jobId = n.jobId ?? saved.exams?.find((e) => e.id === n.examId)?.jobId;
-            return jobId ? [{ id: n.id, userId: n.userId, kind: 'job-invite' as const, jobId, createdAt: n.createdAt, read: n.read }] : [];
+            return jobId ? [{ id: n.id, userId: n.userId, kind: n.kind ?? 'job-invite', jobId, ...(n.score !== undefined && { score: n.score }), createdAt: n.createdAt, read: n.read }] : [];
           })
         : seed.notifications,
     };

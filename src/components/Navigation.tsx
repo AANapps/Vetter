@@ -29,13 +29,15 @@ type TabIcon = React.ComponentType<{ className?: string }>;
 
 // Companies have jobs, tests and candidates: each job's tests go out to candidates, who take them
 export const NAV_TABS: Record<'candidate' | 'recruiter', { id: AppTab; label: string; icon: TabIcon; group?: string }[]> = {
-  // Kept to what a candidate does when looking for work: their home, tests, jobs and profile. Work from their team is a
+  // Kept to what a candidate does when looking for work: their home, tests, jobs, where they rank and their profile.
+  // Work from their team is a
   // mode of its own, switched to from their name (Work mode). The rest is
   // under More (MORE_TABS)
   candidate: [
     { id: 'home', label: 'Home', icon: House },
     { id: 'tests', label: 'Tests', icon: ClipboardCheck },
     { id: 'jobs', label: 'Jobs', icon: Briefcase },
+    { id: 'ranked', label: 'Ranked', icon: Trophy },
     { id: 'profile', label: 'Profile', icon: UserRound },
   ],
   // The first is the AI chat (Create with AI); then two groups kept apart: hiring (jobs, candidates and the tests they
@@ -53,8 +55,7 @@ export const NAV_TABS: Record<'candidate' | 'recruiter', { id: AppTab; label: st
 
 // A candidate's other pages, under More: still a click away, never in the way
 export const MORE_TABS: { id: AppTab; label: string; icon: TabIcon; blurb: string }[] = [
-  { id: 'ranked', label: 'Ranked', icon: Trophy, blurb: 'Leaderboards for every test' },
-  { id: 'learn', label: 'Career switch', icon: Repeat, blurb: 'Courses to move into a new role' },
+  { id: 'learn', label: 'Courses', icon: Repeat, blurb: 'Switch career or grow in the job you have' },
 ];
 
 const VIEWS: { role: UserRole; label: string }[] = [
@@ -321,7 +322,7 @@ export const Navigation: React.FC<NavigationProps> = ({
   // A candidate's other pages: a small menu opening down from the top bar. top: among the page links (tablets and up);
   // phone: an icon of its own in the phone's top bar, left of Notifications
   const moreButton = (placement: 'top' | 'phone') => {
-    const isActive = MORE_TABS.some((t) => t.id === currentTab);
+    const isActive = MORE_TABS.some((t) => t.id === currentTab) || currentTab === 'upskill';
     return (
       <div ref={placement === 'top' ? moreRef : moreBottomRef} className={`relative ${placement === 'phone' ? 'md:hidden' : ''}`}>
         <button
@@ -351,7 +352,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                   onTabChange(t.id);
                   setIsMoreOpen(false);
                 }}
-                className={`w-full flex items-start gap-3 px-3 py-2.5 rounded-lg text-left hover:bg-slate-100 ${currentTab === t.id ? 'bg-slate-100' : ''}`}
+                className={`w-full flex items-start gap-3 px-3 py-2.5 rounded-lg text-left hover:bg-slate-100 ${currentTab === t.id || (t.id === 'learn' && currentTab === 'upskill') ? 'bg-slate-100' : ''}`}
               >
                 <t.icon className="w-4 h-4 mt-0.5 text-indigo-600 shrink-0" />
                 <span className="min-w-0">
@@ -527,7 +528,7 @@ const VisitorHeader: React.FC<{ currentTab: AppTab; onTabChange: (tab: AppTab) =
   onJoin,
 }) => {
   const links: { id: AppTab; label: string }[] = [
-    // Only what a newcomer needs; Ranked and Career switch are in the footer
+    // Only what a newcomer needs; Leaderboards and Courses are in the footer
     { id: 'tests', label: 'Tests' },
     { id: 'jobs', label: 'Jobs' },
     { id: 'guides', label: 'Guides' },

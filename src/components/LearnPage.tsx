@@ -10,6 +10,8 @@ export type LearnTrack = 'switch' | 'upskill';
 
 interface LearnPageProps {
   track: LearnTrack;
+  // One Courses page for both: the switch at the top moves between them (/learn/ and /upskill/)
+  onTrackChange: (track: LearnTrack) => void;
   progress: CourseProgress;
   onOpenCourse: (courseId: string) => void;
   onTrainTeam: () => void;
@@ -46,7 +48,7 @@ const TRACKS: Record<
 > = {
   switch: {
     icon: Repeat,
-    label: 'Career switch',
+    label: 'Switch career',
     title: 'Switch to a career you want',
     intro:
       "Bootcamps and courses for changing careers, whatever you do now: AI, sales, law, accounting, data, software, design and more. Most end in a Praxa test, so you finish with a score companies hire on, and you don't need the experience on your CV. Sign up for one and we'll contact you to talk it through.",
@@ -54,7 +56,7 @@ const TRACKS: Record<
   },
   upskill: {
     icon: TrendingUp,
-    label: 'Upskill',
+    label: 'Grow in your job',
     title: 'Get better at the job you have',
     intro:
       'Short courses for employees who want to grow in their role, take on more, or go for a promotion. Learn alongside work, a few hours a week, and prove it with a test score.',
@@ -103,10 +105,9 @@ export const CourseCard: React.FC<{ course: Course; progress: CourseProgress; on
 const courseTitle = (id: string) => COURSES.find((c) => c.id === id)?.title ?? id;
 
 // The course catalogue, framed for career switchers (/learn/) or employees upskilling (/upskill/). Each course has its own page
-export const LearnPage: React.FC<LearnPageProps> = ({ track, progress, onOpenCourse, onTrainTeam, sector = 'all' }) => {
+export const LearnPage: React.FC<LearnPageProps> = ({ track, onTrackChange, progress, onOpenCourse, onTrainTeam, sector = 'all' }) => {
   const [picked, setCategory] = useState('All');
   const t = TRACKS[track];
-  const Icon = t.icon;
   const forTrack = COURSES.filter((c) => c.audiences.includes(t.audience) && courseInSector(sector)(c));
   const CATEGORIES = ['All', ...COURSE_CATEGORIES.filter((cat) => forTrack.some((c) => c.category === cat))];
   // A category from another sector falls back to all of this one
@@ -121,10 +122,25 @@ export const LearnPage: React.FC<LearnPageProps> = ({ track, progress, onOpenCou
     <div>
       <section className="bg-slate-50 border-b border-slate-200">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
-          <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-indigo-600">
-            <Icon className="w-4 h-4" /> {t.label}
-          </span>
-          <h1 className="mt-3 text-4xl sm:text-5xl font-extrabold tracking-tight text-slate-900 leading-[1.05]">{t.title}</h1>
+          <div role="tablist" aria-label="Courses for" className="inline-flex p-1 rounded-full bg-white border border-slate-200">
+            {(['switch', 'upskill'] as const).map((id) => {
+              const Tab = TRACKS[id].icon;
+              return (
+                <button
+                  key={id}
+                  role="tab"
+                  aria-selected={track === id}
+                  onClick={() => onTrackChange(id)}
+                  className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-semibold transition-colors ${
+                    track === id ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Tab className="w-4 h-4" /> {TRACKS[id].label}
+                </button>
+              );
+            })}
+          </div>
+          <h1 className="mt-5 text-4xl sm:text-5xl font-extrabold tracking-tight text-slate-900 leading-[1.05]">{t.title}</h1>
           <p className="mt-4 text-lg text-slate-600 max-w-2xl">{t.intro}</p>
 
           {/* Popular routes: from what you do now to where you want to be */}

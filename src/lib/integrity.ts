@@ -201,6 +201,10 @@ export async function countScreens(ask: boolean): Promise<{ screens: number | nu
   return { screens: extended === false ? 1 : null, extended };
 }
 
+// Leaving full screen: how many times a candidate gets a warning first, and how long they have to go back
+export const FULLSCREEN_GRACES = 2;
+export const FULLSCREEN_GRACE_SECONDS = 10;
+
 /**
  * Starts watching. currentQuestion says what's on screen when something happens. Returns a function that stops
  * watching and hands back the report.
@@ -282,20 +286,36 @@ export function startIntegrityMonitor(currentQuestion: () => string | undefined,
     }
   };
 
-  // Full screen: the test runs full screen, and every time the candidate leaves it is counted and timed until they go
-  // back. A task's own app opened full screen inside it still counts as full screen
+  // Full screen: the test runs full screen, and leaving it is counted and timed until they go back. Escape always leaves
+  // full screen, so people press it by habit: the first FULLSCREEN_GRACES times, they're warned and have
+  // FULLSCREEN_GRACE_SECONDS to go back, and nothing is recorded if they do. Staying out longer counts from when they
+  // left. A task's own app opened full screen inside it still counts as full screen
   let outSince: number | null = null;
+  let graceLeft = FULLSCREEN_GRACES;
+  let graceTimer: ReturnType<typeof setTimeout> | undefined;
+  let graceUntil: number | null = null;
   let fullscreenChangedAt = 0;
+  const recordExit = (at: number) => {
+    graceUntil = null;
+    outSince = at;
+    report.fullscreenExits = (report.fullscreenExits ?? 0) + 1;
+    log('fullscreen-exit');
+  };
   const onFullscreen = () => {
     fullscreenChangedAt = Date.now();
     if (!document.fullscreenElement) {
-      if (outSince !== null) return;
-      outSince = Date.now();
-      report.fullscreenExits = (report.fullscreenExits ?? 0) + 1;
-      log('fullscreen-exit');
+      if (outSince !== null || graceUntil !== null) return;
+      const at = Date.now();
+      if (graceLeft > 0) {
+        graceLeft--;
+        graceUntil = at + FULLSCREEN_GRACE_SECONDS * 1000;
+        graceTimer = setTimeout(() => recordExit(at), FULLSCREEN_GRACE_SECONDS * 1000);
+      } else recordExit(at);
     } else endOut();
   };
   const endOut = () => {
+    clearTimeout(graceTimer);
+    graceUntil = null;
     if (outSince !== null) report.secondsOutOfFullscreen = (report.secondsOutOfFullscreen ?? 0) + Math.round((Date.now() - outSince) / 1000);
     outSince = null;
   };
@@ -407,6 +427,8 @@ export function startIntegrityMonitor(currentQuestion: () => string | undefined,
 
   return {
     report,
+    // While out of full screen within the grace: when it ends (ms), after which leaving is recorded; otherwise null
+    fullscreenGraceUntil: () => graceUntil,
     // Called when the candidate allowed screen counting on Begin
     setScreens: (s: { screens: number | null; extended: boolean | null; details?: ScreenDetails }) => {
       recordScreens(s, false);

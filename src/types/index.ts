@@ -664,8 +664,10 @@ export interface JobTestAttempt {
 export interface AppNotification {
   id: string;
   userId: string;
-  kind: 'job-invite';
+  // job-invite: a company sent the job's tests. applied: finishing the job's tests sent the application, with the score
+  kind: 'job-invite' | 'applied';
   jobId: string;
+  score?: number;
   createdAt: string; // ISO timestamp
   read: boolean;
 }

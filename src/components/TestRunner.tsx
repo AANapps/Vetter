@@ -408,6 +408,21 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
   useEffect(() => {
     if (showCompletionModal && document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
   }, [showCompletionModal]);
+  // Out of full screen within the warning: the seconds left to go back before it's recorded (null once it counts)
+  const [graceSeconds, setGraceSeconds] = useState<number | null>(null);
+  useEffect(() => {
+    if (!outOfFullscreen) {
+      setGraceSeconds(null);
+      return;
+    }
+    const tick = () => {
+      const until = monitorRef.current?.fullscreenGraceUntil() ?? null;
+      setGraceSeconds(until === null ? null : Math.max(0, Math.ceil((until - Date.now()) / 1000)));
+    };
+    tick();
+    const timer = setInterval(tick, 250);
+    return () => clearInterval(timer);
+  }, [outOfFullscreen]);
 
   const formatTime = (secs: number) => {
     const m = Math.floor(secs / 60);
@@ -1259,11 +1274,20 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
                 <ShieldAlert className="w-5 h-5 text-indigo-600" />
               </div>
               <div className="space-y-1">
-                <h3 id="fullscreen-title" className="text-base font-bold text-slate-900">{flags.fullscreen ? 'You left full screen' : 'This test runs full screen'}</h3>
+                <h3 id="fullscreen-title" className="text-base font-bold text-slate-900">
+                  {graceSeconds !== null ? 'You left full screen' : flags.fullscreen ? 'You left full screen' : 'This test runs full screen'}
+                </h3>
                 <p className="text-xs text-slate-500">
-                  {flags.fullscreen
-                    ? `Leaving full screen has been recorded (${flags.fullscreen} ${flags.fullscreen === 1 ? 'time' : 'times'}), with how long you were out of it. The company sees it with your result.`
-                    : 'Go full screen to carry on. Leaving full screen during the test is recorded, and the company sees it with your result.'}
+                  {graceSeconds !== null ? (
+                    <>
+                      Pressing Escape leaves full screen. Go back within <span className="font-mono font-bold text-slate-900 tabular-nums">{graceSeconds}s</span> and
+                      nothing is recorded; after that, leaving full screen is recorded and the company sees it with your result.
+                    </>
+                  ) : flags.fullscreen ? (
+                    `Leaving full screen has been recorded (${flags.fullscreen} ${flags.fullscreen === 1 ? 'time' : 'times'}), with how long you were out of it. The company sees it with your result.`
+                  ) : (
+                    'Go full screen to carry on. Leaving full screen during the test is recorded, and the company sees it with your result.'
+                  )}
                 </p>
               </div>
             </div>

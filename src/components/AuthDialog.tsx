@@ -38,6 +38,8 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ initialMode, reason, ini
   const [busy, setBusy] = useState(false);
   // The job a candidate is after: Home, their feed and the Tests page start from it
   const [jobWanted, setJobWanted] = useState('');
+  // A new candidate account made with Google before they picked a job: asked for it next, before the dialog closes
+  const [askJob, setAskJob] = useState(false);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -96,6 +98,10 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ initialMode, reason, ini
           ...(role === 'recruiter' && { company: { name: companyName.trim(), website: website.trim(), noWorkEmail: isFreeEmail(user.email ?? ''), ...(sector && { sector }) } }),
         });
         if (role === 'candidate' && jobWanted) rememberSignUpRole(jobWanted);
+        if (role === 'candidate' && !jobWanted) {
+          setAskJob(true);
+          return;
+        }
       }
       onClose();
     } catch (err) {
@@ -106,6 +112,62 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ initialMode, reason, ini
   };
 
   const title = mode === 'sign-in' ? 'Sign in to Praxa' : mode === 'reset' ? 'Reset your password' : 'Create your Praxa account';
+
+  const jobSelect = (
+    <select id="auth-job" value={jobWanted} onChange={(e) => setJobWanted(e.target.value)} className={inputClass}>
+      <option value="">Not sure yet</option>
+      {ROLE_GROUPS.filter((g) => !FOCUS_SECTOR || industryInSector(FOCUS_SECTOR)(g.industry)).map((g) => {
+        const roles = g.roles.filter((r) => ROLE_SECTIONS[r]?.length);
+        return roles.length ? (
+          <optgroup key={g.industry} label={g.industry}>
+            {roles.map((r) => (
+              <option key={r} value={r}>
+                {r}
+              </option>
+            ))}
+          </optgroup>
+        ) : null;
+      })}
+    </select>
+  );
+
+  // After Google made the account: the one question left
+  if (askJob)
+    return (
+      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/60 backdrop-blur-sm">
+        <div role="dialog" aria-modal="true" aria-label="What job are you after?" className="bg-white sm:rounded-2xl rounded-t-2xl max-w-md w-full shadow-2xl p-6 space-y-4">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900">Your account is ready</h2>
+            <p className="text-xs text-slate-500 mt-0.5">One question, so we can start you in the right place.</p>
+          </div>
+          <div>
+            <label htmlFor="auth-job" className="block text-xs font-semibold text-slate-700 mb-1">
+              What job are you after?
+            </label>
+            {jobSelect}
+            <p className="text-[11px] text-slate-500 mt-1">We'll show you the tests and jobs for it first. You can change it any time.</p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                if (jobWanted) {
+                  // Kept for when their profile loads, and sent now in case it already has
+                  rememberSignUpRole(jobWanted);
+                  window.dispatchEvent(new CustomEvent('praxa-path-change', { detail: jobWanted }));
+                }
+                onClose();
+              }}
+              className="flex-1 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold"
+            >
+              Continue
+            </button>
+            <button onClick={onClose} className="px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900">
+              Skip
+            </button>
+          </div>
+        </div>
+      </div>
+    );
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/60 backdrop-blur-sm" onClick={onClose}>
@@ -182,21 +244,7 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ initialMode, reason, ini
               <label htmlFor="auth-job" className="block text-xs font-semibold text-slate-700 mb-1">
                 What job are you after?
               </label>
-              <select id="auth-job" value={jobWanted} onChange={(e) => setJobWanted(e.target.value)} className={inputClass}>
-                <option value="">Not sure yet</option>
-                {ROLE_GROUPS.filter((g) => !FOCUS_SECTOR || industryInSector(FOCUS_SECTOR)(g.industry)).map((g) => {
-                  const roles = g.roles.filter((r) => ROLE_SECTIONS[r]?.length);
-                  return roles.length ? (
-                    <optgroup key={g.industry} label={g.industry}>
-                      {roles.map((r) => (
-                        <option key={r} value={r}>
-                          {r}
-                        </option>
-                      ))}
-                    </optgroup>
-                  ) : null;
-                })}
-              </select>
+              {jobSelect}
               <p className="text-[11px] text-slate-500 mt-1">We'll show you the tests and jobs for it first. You can change it any time.</p>
             </div>
           )}
