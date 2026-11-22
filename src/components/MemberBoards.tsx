@@ -20,7 +20,9 @@ export const MemberBoards: React.FC<{
   local: { projects: Project[]; tasks: ProjectTask[]; team: TeamMember[]; saveProject: (p: Project) => void; saveTask: (t: ProjectTask) => void; deleteTask: (t: ProjectTask) => void };
   // The training and tests the company sent them, shown in My work under their board items
   myWork?: { extra?: React.ReactNode; extraCount?: number };
-}> = ({ business, me, personOf, local, myWork }) => {
+  extraNav?: React.ComponentProps<typeof ProjectsPage>['extraNav'];
+  header?: React.ReactNode;
+}> = ({ business, me, personOf, local, myWork, extraNav, header }) => {
   const live = useMemberBoards(firebaseEnabled ? business.id : null);
   const src = firebaseEnabled
     ? live
@@ -57,6 +59,8 @@ export const MemberBoards: React.FC<{
         onDeleteTask={src.deleteTask}
         member
         myWork={myWork ?? {}}
+        extraNav={extraNav}
+        header={header}
       />
     </div>
   );

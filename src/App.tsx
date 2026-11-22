@@ -45,7 +45,7 @@ import { CustomIdea } from './lib/testAdvisor';
 import { TestBuilder } from './components/TestBuilder';
 import { attemptsAt, jobTestProgress, withAttemptFinished, withAttemptStarted, withInvitation } from './lib/jobTests';
 import { CandidateHome } from './components/CandidateHome';
-import { CheckCircle2 } from 'lucide-react';
+import { Award, CheckCircle2, GraduationCap, Settings, Users } from 'lucide-react';
 import { firebaseEnabled } from './lib/firebase';
 import { useAccount } from './lib/useAccount';
 import { loadProfile, saveProfile } from './lib/profiles';
@@ -1843,41 +1843,73 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
               progress={courseProgress.progress} onOpenCourse={openCoursePage} onTrainTeam={trainTeam} />
           )}
           {!detailPage && !testPageTest && activeRole === 'candidate' && currentTab === 'work' && (
-            <WorkPage
-              invitations={myTeamInvites}
-              memberships={myTeams}
-              assignments={myAssignments}
-              tests={tests}
-              businesses={businesses}
-              personName={candidate.name}
-              onRespond={respondToTeam}
-              onLeave={(m) => (setTeam((prev) => prev.filter((x) => x.id !== m.id)), showToast(`You've left ${m.companyName}'s team.`))}
-              onStart={(assignment, test) => setAssignmentRun({ assignment, test })}
-              onFindTests={() => goToTab('tests')}
-              renderBoards={(businessId, myWork) => {
-                const biz = businesses.find((b) => b.id === businessId) ?? ({ id: businessId, name: myTeams.find((m) => m.businessId === businessId)?.companyName ?? 'Your company' } as Business);
-                return (
-                  <MemberBoards
-                    key={businessId}
-                    business={biz}
-                    myWork={myWork}
-                    me={{ uid: candidate.id, name: candidate.name, pic: candidate.avatarUrl }}
-                    personOf={(uid) => {
-                      const p = allCandidates.find((c) => c.id === uid);
-                      return p && { uid, name: p.name, pic: p.avatarUrl };
-                    }}
-                    local={{
-                      projects,
-                      tasks: projectTasks,
-                      team,
-                      saveProject: (pr) => setProjects((prev) => (prev.some((x) => x.id === pr.id) ? prev.map((x) => (x.id === pr.id ? pr : x)) : [...prev, pr])),
-                      saveTask: (t) => setProjectTasks((prev) => (prev.some((x) => x.id === t.id) ? prev.map((x) => (x.id === t.id ? t : x)) : [...prev, t])),
-                      deleteTask: (t) => setProjectTasks((prev) => prev.filter((x) => x.id !== t.id)),
+            (() => {
+              const workProps = {
+                invitations: myTeamInvites,
+                memberships: myTeams,
+                assignments: myAssignments,
+                tests,
+                businesses,
+                personName: candidate.name,
+                onRespond: respondToTeam,
+                onLeave: (m: TeamMember) => (setTeam((prev) => prev.filter((x) => x.id !== m.id)), showToast(`You've left ${m.companyName}'s team.`)),
+                onStart: (assignment: Assignment, test: AssessmentTest) => setAssignmentRun({ assignment, test }),
+                onFindTests: () => goToTab('tests'),
+              };
+              // Not on a team yet (an invitation at most): the plain Work page
+              if (!myTeams.length) return <WorkPage {...workProps} />;
+              // On a team: the company's own workspace, exactly as the company sees it, full screen; their training,
+              // certificates and teams sit in its sidebar
+              const open = myAssignments.filter((a) => !a.completedAt);
+              return (
+                <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
+                  <WorkPage
+                    {...workProps}
+                    only="boards"
+                    renderBoards={(businessId, myWork, pick) => {
+                      const biz = businesses.find((b) => b.id === businessId) ?? ({ id: businessId, name: myTeams.find((m) => m.businessId === businessId)?.companyName ?? 'Your company' } as Business);
+                      return (
+                        <MemberBoards
+                          key={businessId}
+                          business={biz}
+                          myWork={myWork}
+                          header={
+                            pick.companies.length > 1 ? (
+                              <select value={businessId} onChange={(e) => pick.onPick(e.target.value)} aria-label="Company" className="mt-0.5 text-xs text-slate-600 bg-transparent -ml-1 focus:outline-none">
+                                {pick.companies.map(([id, name]) => (
+                                  <option key={id} value={id}>
+                                    {name}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : undefined
+                          }
+                          extraNav={[
+                            { id: 'training', label: 'Training', icon: GraduationCap, count: open.filter((a) => tests.find((t) => t.id === a.testId)?.purpose === 'training').length, render: () => <WorkPage {...workProps} only="training" /> },
+                            { id: 'certificates', label: 'Certificates', icon: Award, count: myAssignments.filter((a) => a.certifiedAt).length, render: () => <WorkPage {...workProps} only="certificates" /> },
+                            { id: 'teams', label: 'Teams', icon: Users, alert: myTeamInvites.length > 0, render: () => <WorkPage {...workProps} only="teams" /> },
+                            { id: 'settings', label: 'Settings', icon: Settings, render: () => <WorkPage {...workProps} only="settings" /> },
+                          ]}
+                          me={{ uid: candidate.id, name: candidate.name, pic: candidate.avatarUrl }}
+                          personOf={(uid) => {
+                            const p = allCandidates.find((c) => c.id === uid);
+                            return p && { uid, name: p.name, pic: p.avatarUrl };
+                          }}
+                          local={{
+                            projects,
+                            tasks: projectTasks,
+                            team,
+                            saveProject: (pr) => setProjects((prev) => (prev.some((x) => x.id === pr.id) ? prev.map((x) => (x.id === pr.id ? pr : x)) : [...prev, pr])),
+                            saveTask: (t) => setProjectTasks((prev) => (prev.some((x) => x.id === t.id) ? prev.map((x) => (x.id === t.id ? t : x)) : [...prev, t])),
+                            deleteTask: (t) => setProjectTasks((prev) => prev.filter((x) => x.id !== t.id)),
+                          }}
+                        />
+                      );
                     }}
                   />
-                );
-              }}
-            />
+                </div>
+              );
+            })()
           )}
           {currentTab === 'ranked' && !testPageTest && (
             <RankedPage tests={sectorTests} allCandidates={allCandidates} viewerId={isVisitor ? '' : candidate.id} onOpenTest={openTestPage} companyJobs={activeRole === 'recruiter' ? ourJobs : []} onOpenPerson={activeRole !== 'candidate' && !isVisitor ? openPersonFor : undefined} />
@@ -2030,7 +2062,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
                   teamWork={myAssignments}
                   onOpenTest={openTestPage}
                   onOpenJob={openJobPage}
-                  onGoTo={goToTab}
+                  onGoTo={(tab) => (tab === 'work' ? window.open('/work/', '_blank', 'noopener') : goToTab(tab))}
                   allTests={tests}
                   onStartJobTest={startJobTest}
                 />
@@ -2048,7 +2080,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
                 onOpenJob={openJobPage}
                 onStartTest={startTest}
                 onOpenTest={openTestPage}
-                onGoTo={goToTab}
+                onGoTo={(tab) => (tab === 'work' ? window.open('/work/', '_blank', 'noopener') : goToTab(tab))}
                 visitor={isVisitor ? { onJoin: () => setAuthDialog({ mode: 'sign-up' }), onSignIn: () => setAuthDialog({ mode: 'sign-in' }) } : undefined}
                 sector={sector}
                 work={myTeams.length ? { companies: [...new Set(myTeams.map((m) => m.companyName))], open: myAssignments.filter((a) => !a.completedAt).length } : undefined}
@@ -2076,7 +2108,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
                   teamWork={myAssignments}
                   onOpenTest={openTestPage}
                   onOpenJob={openJobPage}
-                  onGoTo={goToTab}
+                  onGoTo={(tab) => (tab === 'work' ? window.open('/work/', '_blank', 'noopener') : goToTab(tab))}
                   allTests={tests}
                   onStartJobTest={startJobTest}
                 />

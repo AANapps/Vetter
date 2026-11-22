@@ -214,11 +214,11 @@ service cloud.firestore {
     }
 
     // A company's projects on its team board, like monday.com boards: only the company and the Praxa team
-    // The company's boards. Someone on its team (Work mode) sees every board and can work on it (its items, columns and
-    // views), as on monday; making and deleting boards stays with the company
+    // The company's boards. Someone on its team (Work mode) has the same workspace: they see every board, make boards and
+    // work on them (items, columns and views), as on monday; deleting a board stays with the company
     match /projects/{projectId} {
       allow read: if signedIn() && (isAdmin() || worksAt(resource.data.businessId) || onTeamOf(resource.data.businessId));
-      allow create: if (isAdmin() || worksAt(request.resource.data.businessId)) && request.resource.data.id == projectId;
+      allow create: if (isAdmin() || worksAt(request.resource.data.businessId) || onTeamOf(request.resource.data.businessId)) && request.resource.data.id == projectId;
       allow update: if (isAdmin() || worksAt(resource.data.businessId) || onTeamOf(resource.data.businessId)) && request.resource.data.businessId == resource.data.businessId;
       allow delete: if isAdmin() || worksAt(resource.data.businessId);
     }

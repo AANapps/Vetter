@@ -56,13 +56,17 @@ export const ProjectsPage: React.FC<{
   onSaveTask: (task: ProjectTask) => void;
   onDeleteTask: (task: ProjectTask) => void;
   onInviteTeam?: () => void;
-  // Someone on the company's team (Work mode): they work on the boards and their items, but making, setting up or
-  // deleting boards stays with the company
+  // Someone on the company's team (Work mode): the same workspace as the company's, but deleting a board stays with the
+  // company
   member?: boolean;
   // A "My work" view at the top of the workspace, as on monday: every item on the company's boards that's theirs, and
   // anything else given to them (extra: the training and tests the company sent). Open first when given
   myWork?: { extra?: React.ReactNode; extraCount?: number };
-}> = ({ business, me, people, projects, projectTasks, onSaveProject, onDeleteProject, onSaveTask, onDeleteTask, onInviteTeam, member, myWork }) => {
+  // More pages in the sidebar, under the boards (a team member's training, certificates and teams)
+  extraNav?: { id: string; label: string; icon: React.ComponentType<{ className?: string }>; count?: number; alert?: boolean; render: () => React.ReactNode }[];
+  // Above the workspace's name: a way to switch company, for someone on several teams
+  header?: React.ReactNode;
+}> = ({ business, me, people, projects, projectTasks, onSaveProject, onDeleteProject, onSaveTask, onDeleteTask, onInviteTeam, member, myWork, extraNav, header }) => {
   const key = `vetter.teamBoard.${business.id}`;
   const [openId, setOpenIdState] = useState<string | null>(() => (myWork ? MY_WORK : store.get(key)));
   const [openTask, setOpenTask] = useState<{ projectId: string; taskId: string; n: number } | null>(null);
@@ -77,6 +81,7 @@ export const ProjectsPage: React.FC<{
   const others = projects.filter((p) => !crm.includes(p));
   const open = projects.find((p) => p.id === openId) ?? crm.find((p) => p.kind === 'deals') ?? projects[0];
   const onMyWork = !!myWork && openId === MY_WORK;
+  const openExtra = extraNav?.find((x) => openId === `extra:${x.id}`);
   const mine = projectTasks.filter((t) => t.ownerUids.includes(me.uid) && projects.some((p) => p.id === t.projectId));
   const mineOpen = mine.filter((t) => t.status !== 'done');
   const term = q.trim().toLowerCase();
@@ -168,7 +173,7 @@ export const ProjectsPage: React.FC<{
       <aside className="lg:sticky lg:top-6 space-y-4">
         <div>
           <h1 className="text-lg font-bold text-slate-900 tracking-tight">Workspace</h1>
-          <p className="text-xs text-slate-500">{business.name}</p>
+          {header ?? <p className="text-xs text-slate-500">{business.name}</p>}
         </div>
         <div className="relative">
           <Search className="w-4 h-4 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
@@ -201,7 +206,7 @@ export const ProjectsPage: React.FC<{
               Projects
             </div>
             {others.filter(match).map(boardButton)}
-            {member ? null : naming === null ? (
+            {naming === null ? (
               <button onClick={() => setNaming('')} className="w-full h-9 px-2.5 rounded-lg flex items-center gap-2.5 text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-900">
                 <Plus className="w-4 h-4" />
                 New project
@@ -229,7 +234,6 @@ export const ProjectsPage: React.FC<{
               </form>
             )}
           </div>
-          {!member && (
           <div className="pt-2 border-t border-slate-200 space-y-0.5">
             {crm.length === 0 && (
               <button onClick={makeCrm} className="w-full h-9 px-2.5 rounded-lg flex items-center gap-2.5 text-sm font-semibold text-indigo-700 hover:bg-indigo-50">
@@ -248,6 +252,26 @@ export const ProjectsPage: React.FC<{
               </button>
             )}
           </div>
+          {/* A team member's own pages (training, certificates, teams), under the boards */}
+          {extraNav && extraNav.length > 0 && (
+            <div className="pt-2 border-t border-slate-200 space-y-0.5">
+              {extraNav.map((x) => {
+                const on = openId === `extra:${x.id}`;
+                return (
+                  <button
+                    key={x.id}
+                    onClick={() => setOpenIdState(`extra:${x.id}`)}
+                    aria-current={on ? 'page' : undefined}
+                    className={`w-full h-9 px-2.5 rounded-lg flex items-center gap-2.5 text-sm text-left ${on ? 'bg-indigo-50 text-indigo-800 font-semibold' : 'text-slate-700 hover:bg-slate-100'}`}
+                  >
+                    <x.icon className={`w-4 h-4 shrink-0 ${on ? 'text-indigo-600' : 'text-slate-400'}`} />
+                    <span className="flex-1 truncate">{x.label}</span>
+                    {x.alert && <span className="w-2 h-2 rounded-full bg-rose-500" />}
+                    {!!x.count && <span className="text-[11px] tabular-nums text-slate-400">{x.count}</span>}
+                  </button>
+                );
+              })}
+            </div>
           )}
         </nav>
       </aside>
@@ -266,12 +290,8 @@ export const ProjectsPage: React.FC<{
             onStatus={(t, status) => onSaveTask({ ...t, status, updatedAt: new Date().toISOString(), log: [...(t.log ?? []), { at: new Date().toISOString(), by: me.name, text: `set the status to ${TASK_STATUS[status].label}` }].slice(-50) })}
             extra={myWork?.extra}
           />
-        ) : member && (projects.length === 0 || !open) ? (
-          <section className="p-8 rounded-2xl border border-dashed border-slate-300 bg-white text-center space-y-1">
-            <FolderKanban className="w-8 h-8 text-slate-300 mx-auto" />
-            <p className="text-sm font-semibold text-slate-800">No boards yet</p>
-            <p className="text-sm text-slate-500">{business.name} hasn&rsquo;t set up any projects or CRM boards. They&rsquo;ll show here when it does.</p>
-          </section>
+        ) : openExtra ? (
+          openExtra.render()
         ) : projects.length === 0 || showStart || !open ? (
           start
         ) : (

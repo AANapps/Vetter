@@ -232,8 +232,10 @@ export const Navigation: React.FC<NavigationProps> = ({
                         role="menuitemradio"
                         aria-checked={m.active}
                         onClick={() => {
-                          onTabChange(m.go);
                           setIsMeOpen(false);
+                          // Work opens in a tab of its own, as the company's workspace does; job seeking comes back here
+                          if (m.id === 'work' && !m.active) window.open('/work/', '_blank', 'noopener');
+                          else if (!m.active) onTabChange(m.go);
                         }}
                         className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-left border ${m.active ? 'border-indigo-300 bg-indigo-50' : 'border-transparent hover:bg-slate-100'}`}
                       >
@@ -242,7 +244,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                           <span className="block text-sm font-semibold text-slate-900">{m.label}</span>
                           <span className={`block text-[11px] ${m.id === 'work' && work?.late ? 'text-rose-600' : 'text-slate-500'}`}>{m.blurb}</span>
                         </span>
-                        {m.active && <span className="w-2 h-2 rounded-full bg-indigo-600" />}
+                        {m.active ? <span className="w-2 h-2 rounded-full bg-indigo-600" /> : m.id === 'work' && <ExternalLink className="w-3.5 h-3.5 text-slate-400" />}
                       </button>
                     ))}
                   </div>
