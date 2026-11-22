@@ -56,7 +56,7 @@ const BulletList: React.FC<{ title: string; items?: string[] }> = ({ title, item
     </div>
   ) : null;
 
-// A job's tests, in order, each with the candidate's best score on it and the job's pass mark
+// A job's tests, in order, each with the candidate's best score on it
 export interface JobTest {
   key: string;
   // What the test is for on this job: "Required to apply" or "For this job"
@@ -65,7 +65,6 @@ export interface JobTest {
   name: string;
   test: AssessmentTest;
   score?: number;
-  target: number;
   // Tries left at it, when the job limits them
   attemptsLeft?: number;
 }
@@ -80,7 +79,6 @@ export const getJobTests = (job: JobPosting, candidate: User, tests: AssessmentT
     name: test.title,
     test,
     score: progress.scores[test.id],
-    target: job.testPassingScore,
     attemptsLeft: attemptsAt(job, candidate, test.id).left,
   }));
 };
@@ -162,19 +160,14 @@ export const JobTests: React.FC<{ items: JobTest[] }> = ({ items }) => {
 
 const TestBlock: React.FC<{ item: JobTest }> = ({ item: t }) => {
   const taken = t.score !== undefined;
-  const passed = taken && t.score! >= t.target;
-  const status = !taken
-    ? { text: 'To do', tone: 'bg-indigo-50 text-indigo-700' }
-    : passed
-    ? { text: 'Passed', tone: 'bg-emerald-50 text-emerald-700' }
-    : { text: 'Below pass mark', tone: 'bg-indigo-50 text-slate-800' };
+  const status = !taken ? { text: 'To do', tone: 'bg-indigo-50 text-indigo-700' } : { text: 'Done', tone: 'bg-emerald-50 text-emerald-700' };
 
   return (
     <li className="flex flex-col gap-3 p-4 bg-white border border-slate-200 rounded-xl">
       <div className="flex items-start justify-between gap-2">
         <span className="text-[11px] font-medium text-slate-500">{t.label}</span>
         <span className={`shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${status.tone}`}>
-          {passed && <CheckCircle2 className="w-3 h-3" />}
+          {taken && <CheckCircle2 className="w-3 h-3" />}
           {status.text}
         </span>
       </div>
@@ -184,24 +177,16 @@ const TestBlock: React.FC<{ item: JobTest }> = ({ item: t }) => {
       <div className="mt-auto space-y-1.5">
         <div className="flex items-baseline justify-between text-xs">
           {taken ? (
-            <span className={`font-mono font-bold tabular-nums ${passed ? 'text-emerald-700' : 'text-amber-700'}`}>
+            <span className="font-mono font-bold tabular-nums text-slate-900">
               {t.score}
               <span className="text-slate-400 font-medium">/100</span>
             </span>
           ) : (
             <span className="text-slate-500">Not taken</span>
           )}
-          <span className="text-slate-500">Pass mark {t.target}</span>
         </div>
-        {/* Your score against the pass mark */}
         <div className="relative h-1.5 rounded-full bg-slate-100">
-          {taken && (
-            <div
-              className={`absolute inset-y-0 left-0 rounded-full ${passed ? 'bg-emerald-500' : 'bg-amber-400'}`}
-              style={{ width: `${Math.min(t.score!, 100)}%` }}
-            />
-          )}
-          <div className="absolute -top-0.5 -bottom-0.5 w-0.5 bg-slate-400 rounded" style={{ left: `${t.target}%` }} />
+          {taken && <div className="absolute inset-y-0 left-0 rounded-full bg-indigo-500" style={{ width: `${Math.min(t.score!, 100)}%` }} />}
         </div>
       </div>
     </li>
@@ -218,7 +203,7 @@ interface JobDetailsProps {
   isApplied: boolean;
   // Left out when a company is looking: they see the job as candidates do, but can't apply or see a fit
   onApply?: () => void;
-  // One of the job's tests: passing them all can send the application
+  // One of the job's tests: finishing them all can send the application
   onStartJobTest: (test: AssessmentTest) => void;
   onOpenTest: (testId: string) => void;
 }
@@ -247,7 +232,6 @@ export const JobDetails: React.FC<JobDetailsProps> = ({
           labelTone={t.required ? 'required' : 'muted'}
           test={t.test}
           score={t.score}
-          target={t.target}
           attemptsLeft={t.attemptsLeft}
           onStart={() => onStartJobTest(t.test)}
           onOpenTest={onOpenTest}
@@ -333,8 +317,7 @@ export const JobDetails: React.FC<JobDetailsProps> = ({
             <h4 className="text-sm font-bold text-slate-900">Tests for this job</h4>
             {jobTests.length > 0 && (
               <p className="text-[11px] text-slate-500">
-                Pass mark {job.testPassingScore}
-                {jobTests.length > 1 ? ' on average' : ''}.{onApply ? ' Each also counts on your profile.' : ''}
+                {job.companyName} sees your score{jobTests.length > 1 ? 's' : ''}.{onApply ? ' Each also counts on your profile.' : ''}
               </p>
             )}
           </div>
@@ -369,12 +352,10 @@ const TestRow: React.FC<{
   labelTone: 'required' | 'muted';
   test: AssessmentTest;
   score?: number;
-  target: number;
   attemptsLeft?: number;
   onStart: () => void;
   onOpenTest: (testId: string) => void;
-}> = ({ label, labelTone, test, score, target, attemptsLeft, onStart, onOpenTest }) => {
-  const passed = score !== undefined && score >= target;
+}> = ({ label, labelTone, test, score, attemptsLeft, onStart, onOpenTest }) => {
   return (
     <li className="px-4 py-2.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
       <div className="min-w-0 flex items-baseline gap-2 flex-wrap">
@@ -386,15 +367,9 @@ const TestRow: React.FC<{
 
       <div className="flex items-center gap-2.5 shrink-0 ml-auto">
         {score === undefined ? (
-          <span className="text-[11px] font-medium text-amber-700">Not taken &middot; {target} needed</span>
+          <span className="text-[11px] font-medium text-amber-700">Not taken</span>
         ) : (
-          <span className={`font-mono font-bold tabular-nums ${passed ? 'text-emerald-700' : 'text-amber-700'}`}>
-            {score}/100
-            <span className="font-sans font-medium text-[11px]">
-              {' '}
-              &middot; {passed ? 'Passed' : `${target - score} short`}
-            </span>
-          </span>
+          <span className="font-mono font-bold tabular-nums text-slate-900">{score}/100</span>
         )}
         {attemptsLeft === 0 ? (
           <span className="text-[11px] font-medium text-slate-500">No attempts left</span>

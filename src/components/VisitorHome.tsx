@@ -53,7 +53,7 @@ const AudienceSwitch: React.FC<{ audience: HomeAudience; onChange: (a: HomeAudie
 const STEPS = [
   { icon: ClipboardCheck, title: 'Take a free test', text: 'Short tests and job simulations, 10 to 25 minutes, in the skills jobs actually ask for.' },
   { icon: Sparkles, title: 'AI marks every answer', text: 'Code and SQL are run and checked; written answers are marked by AI with partial credit and feedback. Typos don’t cost marks.' },
-  { icon: BadgeCheck, title: 'Get a verified score', text: 'Your score and rank go on your profile, so you never have to prove the same skill twice.' },
+  { icon: BadgeCheck, title: 'Get a score', text: 'Your score and rank go on your profile, so you never have to prove the same skill twice.' },
   { icon: Briefcase, title: 'Apply with it', text: 'Companies on Praxa hire on test results. Your score goes with every application.' },
 ];
 
@@ -144,7 +144,7 @@ export const VisitorHome: React.FC<VisitorHomeProps> = ({ audience, onAudienceCh
             </h1>
             <Reveal delay={0.45}>
               <p className="mt-6 text-lg text-slate-600 max-w-xl mx-auto lg:mx-0">
-                Take short skills tests instead of sending CVs. AI marks every answer in seconds, your verified score goes on your profile, and
+                Take short skills tests instead of sending CVs. AI marks every answer in seconds, your score goes on your profile, and
                 companies hire the people who score best.
               </p>
               <div className="mt-8 flex flex-col sm:flex-row justify-center lg:justify-start gap-3">
@@ -200,7 +200,7 @@ export const VisitorHome: React.FC<VisitorHomeProps> = ({ audience, onAudienceCh
           <Reveal className="flex items-end justify-between gap-4">
             <div>
               <h2 className="text-3xl sm:text-4xl font-semibold tracking-tighter text-slate-900">Good first tests</h2>
-              <p className="mt-2 text-slate-600">Where to start for the job you want. About 20 minutes, free; pass and the skill goes on your profile.</p>
+              <p className="mt-2 text-slate-600">Where to start for the job you want. About 20 minutes, free; your score goes on your profile.</p>
             </div>
             <button onClick={() => onGoTo('tests')} className="group shrink-0 inline-flex items-center gap-1 text-sm font-medium text-slate-900">
               All tests <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />

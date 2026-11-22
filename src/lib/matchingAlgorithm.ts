@@ -23,32 +23,14 @@ export function calculateCandidateJobMatch(candidate: User, job: JobPosting): Ca
     }
   });
 
+  // No pass marks: a skill counts by its score out of 100; a required one not taken yet counts as missing
   job.requirements.forEach((req) => {
-    const candidateScore = req.testId
-      ? getBestTestScore(candidate, req.testId) ?? 0
-      : skillMap.get(req.skillName.toLowerCase()) || 0;
-    const meetsThreshold = candidateScore >= req.minScore;
+    const score = req.testId ? getBestTestScore(candidate, req.testId) : skillMap.get(req.skillName.toLowerCase());
+    const taken = score !== undefined;
+    const candidateScore = score ?? 0;
+    if (req.importance === 'required' && !taken) meetsAllHardRequirements = false;
 
-    if (req.importance === 'required' && !meetsThreshold) {
-      meetsAllHardRequirements = false;
-    }
-
-    let scoreRatio = 0;
-    if (req.minScore > 0) {
-      if (candidateScore >= req.minScore) {
-        // Bonus for exceeding benchmark up to 110%
-        const exceedBonus = Math.min(0.1, (candidateScore - req.minScore) / 100);
-        scoreRatio = 1.0 + exceedBonus;
-      } else {
-        // Penalty if below threshold
-        const deficitRatio = candidateScore / req.minScore;
-        // Hard penalty if required vs milder for preferred
-        scoreRatio = req.importance === 'required' ? Math.pow(deficitRatio, 1.4) : deficitRatio;
-      }
-    } else {
-      scoreRatio = 1.0;
-    }
-
+    const scoreRatio = candidateScore / 100;
     const weightedContribution = scoreRatio * req.weight;
     totalWeightedScore += weightedContribution;
     totalWeight += req.weight;
@@ -56,9 +38,8 @@ export function calculateCandidateJobMatch(candidate: User, job: JobPosting): Ca
     breakdown.push({
       skillName: req.skillName,
       candidateScore,
-      requiredMinScore: req.minScore,
       importance: req.importance,
-      meetsThreshold,
+      taken,
       scoreRatio: Math.round(scoreRatio * 100) / 100,
       weightedContribution: Math.round(weightedContribution * 100) / 100,
     });
@@ -72,7 +53,7 @@ export function calculateCandidateJobMatch(candidate: User, job: JobPosting): Ca
     overallFitPercentage += 2;
   }
   if (!meetsAllHardRequirements) {
-    // If hard requirements not met, cap at 74%
+    // A required skill not taken yet: cap at 74%
     overallFitPercentage = Math.min(74, overallFitPercentage);
   }
 
@@ -88,10 +69,10 @@ export function calculateCandidateJobMatch(candidate: User, job: JobPosting): Ca
     matchTier = 'Borderline';
   }
 
-  // The job's tests: passed once every one is taken and the average reaches the pass mark
+  // The job's tests: completed once every one is taken
   const progress = jobTestProgress(job, candidate);
   const jobTestStatus: CandidateJobMatch['jobTestStatus'] =
-    job.testIds.length === 0 ? undefined : progress.status === 'passed' ? 'qualified' : progress.status === 'failed' ? 'test_taken_failed' : 'requires_test';
+    job.testIds.length === 0 ? undefined : progress.status === 'completed' ? 'completed' : 'requires_test';
 
   const isApplied = candidate.appliedJobIds?.includes(job.id);
 

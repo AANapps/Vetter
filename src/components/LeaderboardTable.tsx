@@ -3,7 +3,6 @@ import { Plus } from 'lucide-react';
 import { LeaderboardEntry } from '../lib/leaderboard';
 import { Pic } from './Pic';
 import { RankDisc } from './RankDisc';
-import { getBadgeTier } from './VerifiedSkillBadge';
 import { fitTone } from '../lib/fitReasons';
 import { User } from '../types';
 
@@ -17,7 +16,6 @@ export const formatDuration = (seconds?: number) => {
 interface LeaderboardTableProps {
   // The ranked rows to show, best first
   entries: LeaderboardEntry[];
-  passingScore?: number;
   viewerId?: string;
   // The board always shows at least this many places: the first empty one invites the viewer to claim it, the rest
   // read "Not yet ranked"
@@ -46,7 +44,6 @@ const COLS = {
 // are padded out so they never look empty: the next place is open for the viewer to take, the rest not yet ranked
 export const LeaderboardTable: React.FC<LeaderboardTableProps> = ({
   entries,
-  passingScore = 0,
   viewerId,
   slots = 0,
   pinned,
@@ -67,8 +64,6 @@ export const LeaderboardTable: React.FC<LeaderboardTableProps> = ({
 
   const row = (e: LeaderboardEntry) => {
     const isYou = !!viewerId && e.candidate.id === viewerId;
-    const passed = e.score >= passingScore;
-    const tier = getBadgeTier(e.score);
     return (
       <li key={e.candidate.id} className={`grid ${cols} items-center gap-3 ${pad} ${full ? 'py-3' : 'py-2'} transition-colors ${isYou ? 'bg-indigo-50/70' : 'hover:bg-slate-50/70'}`}>
         <span className="flex justify-center">
@@ -99,13 +94,13 @@ export const LeaderboardTable: React.FC<LeaderboardTableProps> = ({
           );
         })()}
         <span className="flex flex-col items-end gap-1">
-          <span className={`font-mono font-bold tabular-nums leading-none ${full ? 'text-base' : 'text-sm'} ${passed ? 'text-slate-900' : 'text-slate-400'}`}>
+          <span className={`font-mono font-bold tabular-nums leading-none ${full ? 'text-base' : 'text-sm'} text-slate-900`}>
             {e.score}
             {full && <span className="text-[10px] font-medium text-slate-400">/100</span>}
           </span>
           {full && (
             <span className="w-full max-w-[5rem] h-1 rounded-full bg-slate-100 overflow-hidden">
-              <span className={`block h-full rounded-full ${passed ? tier.barClass : 'bg-slate-300'}`} style={{ width: `${e.score}%` }} />
+              <span className="block h-full rounded-full bg-indigo-500" style={{ width: `${e.score}%` }} />
             </span>
           )}
         </span>

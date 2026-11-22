@@ -4,7 +4,6 @@ import React from 'react';
 import { AssessmentTest, CandidateJobMatch, JobPosting, User, isPublic } from '../types';
 import { getBestTestScore } from '../lib/matchingAlgorithm';
 import { SKILL_IDS } from '../data/seedCandidates';
-import { getBadgeTier } from './VerifiedSkillBadge';
 
 interface ProfileSidebarProps {
   candidate: User;
@@ -16,18 +15,12 @@ interface ProfileSidebarProps {
 }
 
 const LIMIT = 3;
-// Score needed to reach the next badge tier
-const NEXT_TIER = [
-  { min: 75, label: 'Bronze' },
-  { min: 88, label: 'Silver' },
-  { min: 95, label: 'Gold' },
-];
 
 // The right-hand column beside the profile: tests worth taking next and the jobs that fit best
 export const ProfileSidebar: React.FC<ProfileSidebarProps> = ({ candidate, tests, jobs, rankedJobs, onOpenTest, onOpenJob }) => {
   const activeJobs = jobs.filter((j) => j.status === 'active');
 
-  // Untaken tests first (most in demand from open jobs), then tests short of Gold (lowest score first)
+  // Untaken tests first (most in demand from open jobs), then their lowest scores, to improve
   const suggestedTests = tests
     .filter((t) => isPublic(t) && isMainVersion(t))
     .map((test) => {
@@ -53,11 +46,10 @@ export const ProfileSidebar: React.FC<ProfileSidebarProps> = ({ candidate, tests
       <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-4 shadow-xs">
         <h2 className="text-sm font-bold text-slate-900">Suggested tests</h2>
         {suggestedTests.length === 0 ? (
-          <p className="text-xs text-slate-500">You’ve reached Gold on every Praxa test.</p>
+          <p className="text-xs text-slate-500">You’ve scored 95+ on every Praxa test.</p>
         ) : (
           <ul className="space-y-3.5">
             {suggestedTests.map(({ test, best, jobsNeeding }) => {
-              const next = best === undefined ? undefined : NEXT_TIER.find((t) => t.min > best);
               return (
                 <li key={test.id} className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-md tier-solid tier-solid-silver flex items-center justify-center text-[10px] font-mono font-bold shrink-0">
@@ -75,7 +67,7 @@ export const ProfileSidebar: React.FC<ProfileSidebarProps> = ({ candidate, tests
                         ? jobsNeeding > 0
                           ? `Not taken · wanted by ${jobsNeeding} open ${jobsNeeding === 1 ? 'job' : 'jobs'}`
                           : `Not taken · ~${test.estimatedMinutes} min`
-                        : `Your best ${best} (${getBadgeTier(best).colorName}) · ${next ? `${next.min} for ${next.label}` : 'retake to improve'}`}
+                        : `Your best ${best} · retake to improve`}
                     </div>
                   </div>
                 </li>

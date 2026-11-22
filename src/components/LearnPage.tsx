@@ -49,7 +49,7 @@ const TRACKS: Record<
     label: 'Career switch',
     title: 'Switch to a career you want',
     intro:
-      "Bootcamps and courses for changing careers, whatever you do now: AI, sales, law, accounting, data, software, design and more. Most end in a Praxa test, so you finish with a verified score companies hire on, and you don't need the experience on your CV. Sign up for one and we'll contact you to talk it through.",
+      "Bootcamps and courses for changing careers, whatever you do now: AI, sales, law, accounting, data, software, design and more. Most end in a Praxa test, so you finish with a score companies hire on, and you don't need the experience on your CV. Sign up for one and we'll contact you to talk it through.",
     audience: 'career-switchers',
   },
   upskill: {
@@ -57,7 +57,7 @@ const TRACKS: Record<
     label: 'Upskill',
     title: 'Get better at the job you have',
     intro:
-      'Short courses for employees who want to grow in their role, take on more, or go for a promotion. Learn alongside work, a few hours a week, and prove it with a verified score.',
+      'Short courses for employees who want to grow in their role, take on more, or go for a promotion. Learn alongside work, a few hours a week, and prove it with a test score.',
     audience: 'employees',
   },
 };
@@ -92,7 +92,7 @@ export const CourseCard: React.FC<{ course: Course; progress: CourseProgress; on
         {course.testIds.length > 0 && (
           <span className="inline-flex items-center gap-1">
             <BadgeCheck className="w-3.5 h-3.5 text-emerald-600" />
-            {course.testIds.length} verified {course.testIds.length === 1 ? 'test' : 'tests'}
+            {course.testIds.length} Praxa {course.testIds.length === 1 ? 'test' : 'tests'}
           </span>
         )}
       </div>
@@ -203,7 +203,7 @@ export const LearnPage: React.FC<LearnPageProps> = ({ track, progress, onOpenCou
             <div>
               <h3 className="font-bold text-slate-900">No experience in the field? That's the point.</h3>
               <p className="mt-1 text-sm text-slate-600">
-                Companies on Praxa hire on test scores, not job history. Finish a course, take its tests, and your verified scores go with every
+                Companies on Praxa hire on test scores, not job history. Finish a course, take its tests, and your scores go with every
                 application.
               </p>
             </div>

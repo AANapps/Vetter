@@ -2,13 +2,12 @@ import React, { useMemo, useState } from 'react';
 import { ChevronRight, Search, Send } from 'lucide-react';
 import { User } from '../types';
 import { Pic } from './Pic';
-import { getBadgeTier } from './VerifiedSkillBadge';
 
 const STAGES = ['Any', 'Working', 'Graduate', 'Student'] as const;
 const WORK = ['Any', 'Remote', 'Hybrid', 'On-site'] as const;
-const SORTS = { best: 'Best score', skills: 'Most verified skills', tests: 'Most tests taken' } as const;
+const SORTS = { best: 'Best score', skills: 'Most Praxa test scores', tests: 'Most tests taken' } as const;
 const PAGE = 25;
-// The table's columns on wider screens: candidate, location, top skills, verified, tests, best score, arrow
+// The table's columns on wider screens: candidate, location, top scores, Praxa scores, tests, best score, arrow
 const COLS = 'grid-cols-[minmax(0,1.4fr)_minmax(0,0.9fr)_minmax(0,1.6fr)_3.5rem_3rem_3rem_1rem]';
 // Written out in full so Tailwind sees it: two columns on phones, the table's columns from md up
 const ROW_COLS = 'grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(0,1.4fr)_minmax(0,0.9fr)_minmax(0,1.6fr)_3.5rem_3rem_3rem_1rem]';
@@ -105,8 +104,8 @@ export const BrowseCandidates: React.FC<{ candidates: User[]; onOpenPerson: (per
           <div className={`hidden md:grid ${COLS} gap-4 px-5 py-2.5 bg-slate-50/80 border-b border-slate-200 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400 ${onInvite ? 'md:mr-24' : ''}`}>
             <span>Candidate</span>
             <span>Location</span>
-            <span>Top verified skills</span>
-            <span className="text-right">Verified</span>
+            <span>Top test scores</span>
+            <span className="text-right">Praxa scores</span>
             <span className="text-right">Tests</span>
             <span className="text-right">Best</span>
             <span />
@@ -150,7 +149,7 @@ export const BrowseCandidates: React.FC<{ candidates: User[]; onOpenPerson: (per
                     <span className="hidden md:block text-right text-xs font-mono tabular-nums text-slate-700">{c.verifiedSkills.length}</span>
                     <span className="hidden md:block text-right text-xs font-mono tabular-nums text-slate-700">{tests}</span>
                     <span className="flex items-center justify-end gap-2">
-                      <span className={`font-mono text-base font-bold tabular-nums ${best ? getBadgeTier(best.score).badgeTextColor : 'text-slate-300'}`}>{best ? best.score : '—'}</span>
+                      <span className={`font-mono text-base font-bold tabular-nums ${best ? 'text-slate-900' : 'text-slate-300'}`}>{best ? best.score : '—'}</span>
                     </span>
                     <ChevronRight className="hidden md:block w-4 h-4 text-slate-300 group-hover:text-slate-500 justify-self-end" />
                     {/* Phones: the top skills under the name */}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { BadgeCheck, CheckCircle2, ChevronRight, XCircle } from 'lucide-react';
+import { BadgeCheck, CheckCircle2, ChevronRight } from 'lucide-react';
 import { AssessmentTest, User } from '../types';
 import { LeadRow, stageInfo } from '../lib/leads';
 import { getLeaderboard } from '../lib/leaderboard';
@@ -8,7 +8,7 @@ import { IntegrityBadge } from './IntegrityBadge';
 
 /**
  * For one applicant on one of the company's jobs: the job's own tests (its skills tests, then its job simulation), each
- * with their best score or Not done, then other Praxa tests they've passed that check the same skills.
+ * with their best score or Not done, then other Praxa tests they've taken that check the same skills.
  */
 
 // The same skill, by name (ignoring case and spacing), so a job about SQL doesn't pull in every skill with "SQL" in it
@@ -34,7 +34,7 @@ export const ApplicantSummary: React.FC<{
       <div className="divide-y divide-slate-100">
         {rows.map((r) => {
           const jobTests = r.job.testIds.map((id) => tests.find((t) => t.id === id)).filter((t): t is AssessmentTest => !!t);
-          // Other Praxa tests they've passed that check exactly a skill the job's tests check
+          // Other Praxa tests they've taken that check exactly a skill the job's tests check
           const relevant = jobTests.flatMap((t) => t.skillsTested);
           const proven = person.verifiedSkills
             .filter((v) => !r.job.testIds.includes(v.testId) && relevant.some((n) => sameName(n, v.skillName)))
@@ -78,22 +78,18 @@ export const ApplicantSummary: React.FC<{
                           const best = results.length ? Math.max(...results.map((x) => x.score)) : undefined;
                           const left = unfinishedStarts(person, t.id);
                           const req = r.job.requirements.find((q) => q.testId === t.id);
-                          const pass = req?.minScore ?? t.passingScore;
-                          const passed = best !== undefined && best >= pass;
                           return (
                             <li key={t.id}>
                               <button onClick={() => onOpenTest(t.id)} className="w-full flex items-center gap-3 p-3 rounded-xl bg-slate-50 hover:bg-slate-100 text-left">
                                 {best === undefined ? (
                                   <span className="w-5 h-5 rounded-full border-2 border-dashed border-slate-300 shrink-0" />
-                                ) : passed ? (
-                                  <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
                                 ) : (
-                                  <XCircle className="w-5 h-5 text-rose-500 shrink-0" />
+                                  <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
                                 )}
                                 <span className="min-w-0 flex-1">
                                   <span className="block text-sm font-semibold text-slate-900 truncate">{t.title}</span>
                                   <span className="block text-[11px] text-slate-500">
-                                    {req?.importance === 'preferred' ? 'Preferred' : 'Required'} · pass {pass}
+                                    {req?.importance === 'preferred' ? 'Preferred' : 'Required'}
                                     {results.length > 1 && ` · attempts: ${results.map((x) => x.score).join(', ')}`}
                                     {left > 0 && <span className="text-amber-700"> · {left} left unfinished</span>}
                                   </span>
@@ -101,7 +97,7 @@ export const ApplicantSummary: React.FC<{
                                 {best === undefined ? (
                                   <span className="shrink-0 px-2 py-0.5 rounded-full bg-slate-200 text-[11px] font-semibold text-slate-600">Not done</span>
                                 ) : (
-                                  <span className={`font-mono text-xl font-bold tabular-nums ${passed ? 'text-slate-900' : 'text-rose-700'}`}>{best}</span>
+                                  <span className="font-mono text-xl font-bold tabular-nums text-slate-900">{best}</span>
                                 )}
                                 <ChevronRight className="w-4 h-4 text-slate-300" />
                               </button>
@@ -117,10 +113,10 @@ export const ApplicantSummary: React.FC<{
               <div className="space-y-2">
                 <h3 className="text-xs font-bold text-slate-800 inline-flex items-center gap-1.5">
                   <BadgeCheck className="w-3.5 h-3.5 text-indigo-600" />
-                  Also proven on Praxa
+                  Other Praxa test scores
                 </h3>
                 {proven.length === 0 ? (
-                  <p className="text-xs text-slate-500">No other Praxa test they've passed covers this job's skills.</p>
+                  <p className="text-xs text-slate-500">No other Praxa test they've taken covers this job's skills.</p>
                 ) : (
                   <ul className="flex flex-wrap gap-2">
                     {proven.map((v) => {
@@ -132,7 +128,7 @@ export const ApplicantSummary: React.FC<{
                             <span className="block text-xs font-semibold text-slate-900">
                               {v.skillName} <span className="font-mono">{v.score}</span>
                             </span>
-                            <span className="block text-[10px] text-slate-500">{rank ? `#${rank} of ${board.length}` : `${v.percentile}th percentile`}</span>
+                            <span className="block text-[10px] text-slate-500">{rank ? `#${rank} of ${board.length}` : 'Praxa test'}</span>
                           </button>
                         </li>
                       );

@@ -20,7 +20,7 @@ export interface Guide {
 
 export const GUIDE_AUDIENCES: { id: GuideAudience; label: string; intro: string }[] = [
   { id: 'companies', label: 'For companies', intro: 'Set up, build tests, invite candidates and hire from the results.' },
-  { id: 'candidates', label: 'For candidates', intro: 'Take tests, keep your verified scores and apply for jobs with them.' },
+  { id: 'candidates', label: 'For candidates', intro: 'Take tests, keep your scores and apply for jobs with them.' },
 ];
 
 export const GUIDES: Guide[] = [
@@ -110,7 +110,7 @@ export const GUIDES: Guide[] = [
     minutes: 3,
     steps: [
       { title: 'Create the job', text: 'From Jobs, add a job, or let the home chat post one for you. Add the title, location, salary and description.' },
-      { title: 'Attach the tests', text: 'Choose Add tests on the job. Set a pass mark, whether every test is required, and how many attempts a candidate gets.' },
+      { title: 'Attach the tests', text: 'Choose Add tests on the job. Set whether every test is required and how many attempts a candidate gets.' },
       { title: 'Share it', text: 'Your job is listed on your company page and Praxa’s job board, and given its own page that Google Jobs can list. Use Copy link to post it anywhere, or Email it to invite people directly.' },
       { title: 'Watch applications arrive', text: 'Every applicant takes the job’s tests before their application reaches you, so you only ever review people with a score.' },
     ],
@@ -193,14 +193,14 @@ export const GUIDES: Guide[] = [
   },
   {
     slug: 'verified-scores-and-applying',
-    title: 'Use your verified scores to apply for jobs',
+    title: 'Use your scores to apply for jobs',
     summary: 'Keep your best scores on your profile and apply for jobs with them, free.',
     audience: 'candidates',
     minutes: 2,
     steps: [
-      { title: 'Build your record', text: 'Every test you take is saved to your profile. Your scores show as verified skills companies can trust.' },
+      { title: 'Build your record', text: 'Every test you take is saved to your profile. Your scores show there for companies to see.' },
       { title: 'Find jobs that fit', text: 'Browse the job board. Each job lists the tests it asks for and the scores it needs.' },
-      { title: 'Apply with your scores', text: 'Take the job’s tests (or use the ones you already have) and your verified scores go straight to the company.' },
+      { title: 'Apply with your scores', text: 'Take the job’s tests (or use the ones you already have) and your scores go straight to the company.' },
       { title: 'Get found', text: 'Companies can search people who have already proved the skills they need, so a good score can bring jobs to you.' },
     ],
     tips: ['You can delete a test from your record if you’d rather it didn’t show.'],

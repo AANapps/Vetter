@@ -69,7 +69,7 @@ export const TopPerformers: React.FC<{
         </button>
 
         <div className="pb-3">
-          <LeaderboardTable entries={top} passingScore={board.test.passingScore} slots={3} variant="compact" />
+          <LeaderboardTable entries={top} slots={3} variant="compact" />
         </div>
       </div>
 

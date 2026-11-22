@@ -91,7 +91,7 @@ export const TeamPage: React.FC<TeamPageProps> = ({
   const testOf = (id: string) => tests.find((t) => t.id === id);
   const live = assignments.filter((a) => testOf(a.testId));
 
-  // What each person is good at: their best Praxa-verified skills, and the team work they passed
+  // What each person is good at: their best Praxa test scores, and the team work they passed
   const strengths = (m: TeamMember) => {
     const p = person(m);
     const verified = [...(p?.verifiedSkills ?? [])].sort((a, b) => b.score - a.score).map((v) => ({ name: v.skillName, score: v.score, from: 'Praxa' as const, testId: v.testId }));

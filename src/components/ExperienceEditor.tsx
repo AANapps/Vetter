@@ -12,7 +12,7 @@ const MAX_LINKS = 4;
 const thisMonth = () => new Date().toISOString().slice(0, 7);
 
 // A candidate's own account of their work: jobs they've had, how they want to work and links to more. Skills
-// aren't typed in here; Praxa's tests verify them
+// aren't typed in here; they come from Praxa's test scores
 export const ExperienceEditor: React.FC<{ candidate: User; onSave: (details: ExperienceDetails) => void; onClose: () => void }> = ({ candidate, onSave, onClose }) => {
   const [jobs, setJobs] = useState<WorkExperience[]>(() => sortExperience(candidate.experience ?? []));
   const [links, setLinks] = useState<ProfileLink[]>(candidate.links ?? []);

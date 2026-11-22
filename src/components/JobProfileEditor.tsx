@@ -16,7 +16,7 @@ interface JobProfileEditorProps {
 const inputClass =
   'w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500';
 
-// Create or change one job profile: what it's for, its headline and about, and which verified skills it shows
+// Create or change one job profile: what it's for, its headline and about, and which test scores it shows
 export const JobProfileEditor: React.FC<JobProfileEditorProps> = ({ profile, isNew, skills, onDelete, onSave, onClose }) => {
   const [draft, setDraft] = useState(profile);
 
@@ -90,9 +90,9 @@ export const JobProfileEditor: React.FC<JobProfileEditorProps> = ({ profile, isN
         </label>
 
         <fieldset className="space-y-2">
-          <legend className="text-xs font-semibold text-slate-700">Verified skills to show</legend>
+          <legend className="text-xs font-semibold text-slate-700">Test scores to show</legend>
           {skills.length === 0 ? (
-            <p className="text-xs text-slate-500">Take a test to earn verified skills you can show here.</p>
+            <p className="text-xs text-slate-500">Take a test to get scores you can show here.</p>
           ) : (
             <div className="space-y-1.5">
               {skills.map((s) => (

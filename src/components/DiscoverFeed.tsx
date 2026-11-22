@@ -322,7 +322,7 @@ const FeedCard: React.FC<FeedCardProps> = ({
       {item.kind === 'result' && (
         <div className="space-y-3">
           <p className="text-sm text-slate-700">
-            {item.improvedFrom !== undefined ? 'Set a new personal best on ' : 'Passed '}
+            {item.improvedFrom !== undefined ? 'Set a new personal best on ' : 'Took '}
             <button onClick={() => onOpenTest(item.test.id)} className="font-semibold text-slate-900 hover:text-indigo-700">
               {item.test.title}
             </button>

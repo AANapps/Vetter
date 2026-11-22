@@ -31,24 +31,15 @@ type Point = { tone: 'good' | 'gap' | 'neutral'; text: string };
 // The reasons behind a candidate's rank, strongest evidence first
 function suitabilityPoints(match: CandidateJobMatch, person: User, job: JobPosting): Point[] {
   const points: Point[] = [];
-  const missingRequired = match.breakdown.filter((b) => b.importance === 'required' && !b.meetsThreshold);
+  const missingRequired = match.breakdown.filter((b) => b.importance === 'required' && !b.taken);
 
   if (missingRequired.length === 0) {
-    points.push({ tone: 'good', text: 'Meets every required skill score' });
+    points.push({ tone: 'good', text: 'Has a score on every required skill' });
   } else {
-    missingRequired.forEach((b) =>
-      points.push({
-        tone: 'gap',
-        text: b.candidateScore
-          ? `${b.skillName}: ${b.requiredMinScore - b.candidateScore} points below the required ${b.requiredMinScore}`
-          : `${b.skillName}: not verified yet (required)`,
-      })
-    );
+    missingRequired.forEach((b) => points.push({ tone: 'gap', text: `${b.skillName}: no score yet (required)` }));
   }
 
-  if (match.jobTestStatus === 'qualified') points.push({ tone: 'good', text: `Passed the job's tests with ${match.jobTestScore}/100` });
-  if (match.jobTestStatus === 'test_taken_failed')
-    points.push({ tone: 'gap', text: `Scored ${match.jobTestScore}/100 on the job's tests, below the pass mark of ${job.testPassingScore}` });
+  if (match.jobTestStatus === 'completed') points.push({ tone: 'neutral', text: `Scored ${match.jobTestScore}/100 on the job's tests` });
   if (match.jobTestStatus === 'requires_test') points.push({ tone: 'neutral', text: "Hasn't taken all the job's tests" });
 
   const minYears = minYearsFor(job.experienceLevel);
@@ -184,19 +175,14 @@ export const JobCandidates: React.FC<JobCandidatesProps> = ({ job, allCandidates
                             </span>
                           </span>
                           <span className="font-mono tabular-nums text-slate-700 shrink-0">
-                            {b.candidateScore ? b.candidateScore : '—'}
-                            <span className="text-slate-400"> / min {b.requiredMinScore}</span>
+                            {b.taken ? b.candidateScore : '—'}
+                            <span className="text-slate-400"> / 100</span>
                           </span>
                         </div>
                         <div className="relative h-2 bg-slate-200 rounded-full">
                           <div
-                            className={`absolute inset-y-0 left-0 rounded-full ${b.meetsThreshold ? 'bg-indigo-500' : 'bg-amber-500'}`}
+                            className="absolute inset-y-0 left-0 rounded-full bg-indigo-500"
                             style={{ width: `${b.candidateScore}%` }}
-                          />
-                          <div
-                            className="absolute -top-0.5 -bottom-0.5 w-0.5 bg-slate-900"
-                            style={{ left: `${b.requiredMinScore}%` }}
-                            title={`Minimum ${b.requiredMinScore}`}
                           />
                         </div>
                       </div>
@@ -204,7 +190,7 @@ export const JobCandidates: React.FC<JobCandidatesProps> = ({ job, allCandidates
 
                     {otherSkills.length > 0 && (
                       <div className="pt-2">
-                        <div className="text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1.5">Also verified</div>
+                        <div className="text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1.5">Other test scores</div>
                         <div className="flex flex-wrap gap-1.5">
                           {otherSkills.map((s) => (
                             <span key={s.skillId} className="px-2 py-0.5 rounded bg-white border border-slate-200 text-[11px] text-slate-700">
@@ -232,7 +218,7 @@ export const JobCandidates: React.FC<JobCandidatesProps> = ({ job, allCandidates
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] text-slate-500 pt-1">
                         <span className="flex items-center gap-1.5">
                           <Award className="w-3.5 h-3.5 text-indigo-600" />
-                          {job.testIds.length} {job.testIds.length === 1 ? 'test' : 'tests'} for this job &middot; pass mark {job.testPassingScore}
+                          {job.testIds.length} {job.testIds.length === 1 ? 'test' : 'tests'} for this job
                         </span>
                         {person.testResults.some((r) => job.testIds.includes(r.testId)) && (
                           <button
@@ -302,7 +288,7 @@ export const JobCandidates: React.FC<JobCandidatesProps> = ({ job, allCandidates
               onChange={(e) => setMeetsRequiredOnly(e.target.checked)}
               className="accent-indigo-600"
             />
-            <span>Meets required scores</span>
+            <span>Scored on every required skill</span>
           </label>
         </div>
       </div>

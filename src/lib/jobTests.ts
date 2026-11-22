@@ -8,7 +8,7 @@ export interface JobTestProgress {
   total: number;
   // Average of the test scores, once every test is done
   score?: number;
-  status: 'not-started' | 'in-progress' | 'passed' | 'failed';
+  status: 'not-started' | 'in-progress' | 'completed';
   // Time spent on the counted attempts, and when the latest of them was finished
   seconds: number;
   lastActivity?: string;
@@ -64,7 +64,7 @@ export function jobTestProgress(job: JobPosting, candidate: User): JobTestProgre
   if (done < total || total === 0)
     return { scores, done, total, seconds, lastActivity, unsubmitted, status: done === 0 && !unsubmitted ? 'not-started' : 'in-progress' };
   const score = Math.round(taken.reduce((a, b) => a + b, 0) / total);
-  return { scores, done, total, score, seconds, lastActivity, unsubmitted, status: score >= job.testPassingScore ? 'passed' : 'failed' };
+  return { scores, done, total, score, seconds, lastActivity, unsubmitted, status: 'completed' };
 }
 
 // A start of one of the job's tests, recorded on the candidate's invitation
@@ -103,19 +103,17 @@ export function invitesFor(candidate: User, jobs: JobPosting[]) {
 export const STATUS_LABELS: Record<JobTestProgress['status'], string> = {
   'not-started': 'Not started',
   'in-progress': 'In progress',
-  passed: 'Passed',
-  failed: 'Below pass mark',
+  completed: 'Completed',
 };
 
 // Where one candidate is with a job's tests, as the company tracks it
-export type TrackingStatus = 'sent' | 'opened' | 'in-progress' | 'passed' | 'failed';
+export type TrackingStatus = 'sent' | 'opened' | 'in-progress' | 'completed';
 
 export const TRACKING_LABELS: Record<TrackingStatus, string> = {
   sent: 'Not opened',
   opened: 'Opened',
   'in-progress': 'In progress',
-  passed: 'Passed',
-  failed: 'Below pass mark',
+  completed: 'Completed',
 };
 
 export const VIA_LABELS: Record<NonNullable<JobInvitation['via']>, string> = {
@@ -125,7 +123,7 @@ export const VIA_LABELS: Record<NonNullable<JobInvitation['via']>, string> = {
 };
 
 export function trackingStatus(invitation: JobInvitation, progress: JobTestProgress): TrackingStatus {
-  if (progress.status === 'passed' || progress.status === 'failed') return progress.status;
+  if (progress.status === 'completed') return 'completed';
   if (progress.status === 'in-progress' || invitation.startedAt) return 'in-progress';
   // Coming in through the job's link is opening it
   return invitation.openedAt || invitation.via === 'link' ? 'opened' : 'sent';
@@ -147,15 +145,14 @@ export function jobTracking(job: JobPosting, candidates: User[]): TrackingRow[] 
   });
 }
 
-// How far people have got: sent the tests, opened the job, started, finished every test, passed
+// How far people have got: sent the tests, opened the job, started, finished every test
 export function jobFunnel(job: JobPosting, rows: TrackingRow[], candidates: User[]) {
   const accountEmails = new Set(candidates.map((c) => c.email.toLowerCase()));
   const emailedWithoutAccount = (job.invitedEmails ?? []).filter((e) => !accountEmails.has(e)).length;
   const opened = rows.filter((r) => r.status !== 'sent').length;
-  const started = rows.filter((r) => r.status === 'in-progress' || r.status === 'passed' || r.status === 'failed').length;
-  const completed = rows.filter((r) => r.status === 'passed' || r.status === 'failed').length;
-  const passed = rows.filter((r) => r.status === 'passed').length;
-  return { reached: rows.length + emailedWithoutAccount, opened, started, completed, passed };
+  const started = rows.filter((r) => r.status === 'in-progress' || r.status === 'completed').length;
+  const completed = rows.filter((r) => r.status === 'completed').length;
+  return { reached: rows.length + emailedWithoutAccount, opened, started, completed };
 }
 
 // Changes one person's invitation to a job's tests, adding it if they don't have one yet

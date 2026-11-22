@@ -15,7 +15,6 @@ const SLOTS = 5;
 
 interface TestLeaderboardProps {
   entries: LeaderboardEntry[];
-  passingScore: number;
   currentCandidateId?: string;
   // Starts the test, from the open place on the board
   onTakeTest?: () => void;
@@ -27,7 +26,7 @@ interface TestLeaderboardProps {
 
 // A test page's leaderboard: only the top ten are shown. A viewer ranked below them sees their own place underneath, in
 // the same format (e.g. #45), so nobody else's lower scores are on show
-export const TestLeaderboard: React.FC<TestLeaderboardProps> = ({ entries, passingScore, currentCandidateId, onTakeTest, testId = '', companyJobs = [], onOpenPerson }) => {
+export const TestLeaderboard: React.FC<TestLeaderboardProps> = ({ entries, currentCandidateId, onTakeTest, testId = '', companyJobs = [], onOpenPerson }) => {
   const [isOpen, setIsOpen] = useState(true);
   const [pickedJob, setPickedJob] = useState<string | null>(null);
   const fitJob = companyJobs.find((j) => j.id === pickedJob) ?? jobForTest(companyJobs, testId);
@@ -61,7 +60,6 @@ export const TestLeaderboard: React.FC<TestLeaderboardProps> = ({ entries, passi
         <div className="border-t border-slate-100">
           <LeaderboardTable
             entries={visible}
-            passingScore={passingScore}
             viewerId={currentCandidateId}
             slots={SLOTS}
             pinned={yourEntry}

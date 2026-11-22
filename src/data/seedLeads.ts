@@ -6,7 +6,7 @@ const PLAN: { stage: LeadStage; rating?: number; note?: string; archiveReason?: 
   { stage: 'screening', rating: 4, note: 'Strong SQL. Book a 20-minute call.', tags: ['Referral'] },
   { stage: 'interview', rating: 5, note: 'Panel interview with the hiring manager.', dueInDays: 3 },
   { stage: 'offer', rating: 5, note: 'Verbal yes, waiting on notice period.', dueInDays: 7, tags: ['Priority'] },
-  { stage: 'archived', rating: 2, archiveReason: 'Below pass mark' },
+  { stage: 'archived', rating: 2, archiveReason: 'Low score' },
   { stage: 'interview', rating: 3, dueInDays: 9, tags: ['Second round'] },
   { stage: 'hired', rating: 5, note: 'Starts on the 1st.' },
   { stage: 'screening', rating: 3 },

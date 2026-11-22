@@ -37,7 +37,8 @@ export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, dra
   const [description, setDescription] = useState(source?.description ?? '');
   const [category, setCategory] = useState<SkillCategory>(source?.category ?? 'Data Analysis');
   const [difficulty, setDifficulty] = useState(source?.difficulty ?? 'Junior');
-  const [passingScore, setPassingScore] = useState(source?.passingScore ?? 70);
+  // Kept as it was: only training uses a pass mark, and hiring tests just give a score
+  const passingScore = source?.passingScore ?? 70;
   const [skills, setSkills] = useState((source?.skillsTested ?? []).join(', '));
   const [roles, setRoles] = useState<TestRole[]>(source?.roles ?? []);
   // A copy of a library test is a test of its own from the start: its questions get new ids (questions about a task
@@ -308,20 +309,6 @@ export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, dra
                       ))}
                     </select>
                   </div>
-                  <div>
-                    <label htmlFor="tb-pass" className={labelClass}>
-                      Pass mark
-                    </label>
-                    <input
-                      id="tb-pass"
-                      type="number"
-                      min={0}
-                      max={100}
-                      value={passingScore}
-                      onChange={(e) => setPassingScore(Math.min(100, Math.max(0, Number(e.target.value))))}
-                      className={`${inputClass} font-mono`}
-                    />
-                  </div>
                 </div>
                 <div>
                   <label htmlFor="tb-skills" className={labelClass}>
@@ -453,7 +440,7 @@ export const TestBuilder: React.FC<TestBuilderProps> = ({ business, initial, dra
 
 
       {preview && (
-        <TestRunner test={preview} preview onClose={() => setPreview(null)} onComplete={() => setPreview(null)} getPercentileFor={() => 0} />
+        <TestRunner test={preview} preview onClose={() => setPreview(null)} onComplete={() => setPreview(null)} />
       )}
     </div>
   );

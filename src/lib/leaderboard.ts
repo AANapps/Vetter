@@ -41,27 +41,17 @@ export function getLeaderboard(testId: string, candidates: User[]): LeaderboardE
 export interface TestStats {
   candidatesRanked: number;
   averageScore: number;
-  passRate: number; // 0 - 100
   topScore: number;
 }
 
 export function getTestStats(test: AssessmentTest, candidates: User[]): TestStats {
   const board = getLeaderboard(test.id, candidates);
-  if (board.length === 0) return { candidatesRanked: 0, averageScore: 0, passRate: 0, topScore: 0 };
+  if (board.length === 0) return { candidatesRanked: 0, averageScore: 0, topScore: 0 };
   const scores = board.map((e) => e.score);
   return {
     candidatesRanked: board.length,
     averageScore: Math.round(scores.reduce((a, b) => a + b, 0) / scores.length),
-    passRate: Math.round((scores.filter((s) => s >= test.passingScore).length / scores.length) * 100),
     topScore: scores[0],
   };
 }
 
-// Share of other candidates' best scores that this score beats (ties count half)
-export function getPercentile(score: number, testId: string, candidates: User[], excludeCandidateId?: string): number {
-  const others = getLeaderboard(testId, candidates.filter((c) => c.id !== excludeCandidateId)).map((e) => e.score);
-  if (others.length === 0) return 100;
-  const below = others.filter((s) => s < score).length;
-  const equal = others.filter((s) => s === score).length;
-  return Math.round(((below + equal / 2) / others.length) * 1000) / 10;
-}

@@ -4,7 +4,7 @@ import { Pic } from './Pic';
 import { Assignment, AssessmentTest, JobPosting, TeamMember, User, isJobSim, isPublic } from '../types';
 import { activeProfileOf } from '../lib/jobProfiles';
 import { SectorId } from '../lib/sectors';
-import { PASS, useProfileProgress } from '../lib/profileProgress';
+import { useProfileProgress } from '../lib/profileProgress';
 import { getBestTestScore } from '../lib/matchingAlgorithm';
 import { invitesFor, jobTestProgress, jobTestsOf, totalMinutes } from '../lib/jobTests';
 import { isOverdue } from '../lib/work';
@@ -102,26 +102,26 @@ export const HomeNudges: React.FC<{
       key: 'next-test',
       icon: Sparkles,
       tone: 'bg-slate-900 text-white',
-      kicker: `Build your profile · ${progress.role} path ${progress.passedModules.length}/${progress.path.length}`,
-      title: m.best === undefined ? m.sec.label : `Retake ${m.sec.label}`,
-      body: `About ${m.test.estimatedMinutes} min · pass to add a verified skill companies see`,
-      cta: m.best === undefined ? 'Start' : 'Retake',
+      kicker: `Build your profile · ${progress.role} path ${progress.takenModules.length}/${progress.path.length}`,
+      title: m.sec.label,
+      body: `About ${m.test.estimatedMinutes} min · your score goes on your profile for companies to see`,
+      cta: 'Start',
       onClick: () => onOpenTest(m.test.id),
     });
   }
 
-  // 4. The job simulation for the job they're after: the strongest proof they can do it, until they've passed it
+  // 4. The job simulation for the job they're after: the strongest proof they can do it, until they've done it
   const sim = tests.find((t) => isJobSim(t) && isPublic(t) && !!progress.role && t.roles?.includes(progress.role));
   const simBest = sim ? getBestTestScore(candidate, sim.id) : undefined;
-  if (sim && (simBest ?? -1) < PASS)
+  if (sim && simBest === undefined)
     todos.push({
       key: 'job-sim',
       icon: Monitor,
       tone: 'bg-indigo-600 text-white',
       kicker: 'Prove you can do the job',
       title: `${progress.role} job simulation`,
-      body: `A real working day in the role, about ${sim.estimatedMinutes} min. Pass it and companies see proof you can do the job, not just a CV`,
-      cta: simBest === undefined ? 'Start the day' : 'Try again',
+      body: `A real working day in the role, about ${sim.estimatedMinutes} min. Companies see your score: proof you can do the job, not just a CV`,
+      cta: 'Start the day',
       onClick: () => onOpenTest(sim.id),
     });
 
@@ -136,7 +136,7 @@ export const HomeNudges: React.FC<{
         <div className="px-5 sm:px-6 pt-5 pb-4 bg-gradient-to-br from-indigo-50 via-white to-violet-50 border-b border-slate-100">
           <div className="text-[11px] font-semibold uppercase tracking-wider text-indigo-700">Start here</div>
           <h1 className="text-xl font-bold text-slate-900 tracking-tight">Welcome, {first}. What job do you want?</h1>
-          <p className="text-sm text-slate-600">Pick one and we'll show you the first test for it. Pass it and the skill goes on your profile for companies to see.</p>
+          <p className="text-sm text-slate-600">Pick one and we'll show you the first test for it. Your score goes on your profile for companies to see.</p>
         </div>
         <div className="px-5 sm:px-6 py-5 space-y-5">
           <div className="flex flex-wrap gap-2">

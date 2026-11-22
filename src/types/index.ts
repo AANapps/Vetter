@@ -66,12 +66,15 @@ export type TestRole =
   | 'Retail Assistant'
   | 'Any role';
 
+// A score on one of Praxa's tests, shown on the candidate's profile (named before pass marks went: there's no pass or
+// verification, just the best score). verifiedAt is when that best score was set
 export interface VerifiedSkill {
   skillId: string;
   skillName: string;
   category: SkillCategory;
   score: number; // 0 - 100
-  percentile: number; // e.g. 96th percentile
+  // No longer shown; kept so saved profiles still load
+  percentile?: number;
   verifiedAt: string;
   testId: string;
   level: 'Junior' | 'Mid' | 'Senior' | 'Staff / Lead';
@@ -116,14 +119,14 @@ export interface User {
   activeProfileId?: string;
   // The profile each application was sent with, by job id
   applicationProfiles?: Record<string, string>;
-  // What they've done, in their own words: jobs, most recent first. Skills aren't typed in; Praxa's tests verify them
+  // What they've done, in their own words: jobs, most recent first. Skills aren't typed in; they come from Praxa's test scores
   experience?: WorkExperience[];
-  // Skills they list themselves, in their own words; shown as their claim until a Praxa test verifies them
+  // Skills they list themselves, in their own words; shown as their claim, apart from their test scores
   skills?: string[];
   // Where to see more of them: LinkedIn, GitHub, a portfolio
   links?: ProfileLink[];
   // Their schooling and qualifications, most recent first, and certifications they hold (in their own words, unlike
-  // Praxa's verified skills)
+  // their Praxa test scores)
   education?: Education[];
   certifications?: Certification[];
 }
@@ -443,6 +446,7 @@ export interface AssessmentTest {
   publicStatus?: 'pending' | 'approved' | 'rejected';
   publicAskedAt?: string;
   publicNote?: string;
+  // Only training uses it (to mark someone done); hiring tests and Praxa's library just give a score
   passingScore: number;
   totalQuestions: number;
   questions: Question[];
@@ -477,7 +481,7 @@ export interface SubmissionResult {
   candidateName: string;
   submittedAt: string;
   overallScore: number;
-  percentile: number;
+  percentile?: number;
   durationSeconds: number;
   questionResults: {
     questionId: string;
@@ -524,7 +528,8 @@ export interface JobRequirement {
   // Set when the requirement is a test: candidates are scored by their best result on it
   testId?: string;
   skillName: string;
-  minScore: number; // e.g. 75
+  // No longer used (no pass marks); kept so saved jobs still load
+  minScore?: number;
   importance: 'required' | 'preferred';
   weight: number; // 0.1 to 1.0
 }
@@ -559,11 +564,11 @@ export interface JobPosting {
   // The job's tests, in order (Praxa-made or the company's own). Each is an ordinary test: a score on it counts here
   // however it was taken
   testIds: string[];
-  // Average score across the job's tests needed to pass
-  testPassingScore: number;
+  // No longer used (no pass marks: companies see the scores); kept so saved jobs still load
+  testPassingScore?: number;
   // How many times a candidate may start each of the job's tests; 0 or unset is no limit. Starts left unsubmitted count
   maxAttempts?: number;
-  // Candidates must pass the tests before they can apply
+  // Candidates must finish the tests before they can apply
   testsRequired: boolean;
   // Everyone the job's tests have been sent to, and addresses emailed that have no Praxa account yet
   invitations: JobInvitation[];
@@ -582,9 +587,9 @@ export const isListed = (job: Pick<JobPosting, 'visibility'>) => job.visibility 
 export interface SkillMatchBreakdown {
   skillName: string;
   candidateScore: number;
-  requiredMinScore: number;
   importance: 'required' | 'preferred';
-  meetsThreshold: boolean;
+  // Whether they've taken the test or have a score for the skill
+  taken: boolean;
   scoreRatio: number;
   weightedContribution: number;
 }
@@ -603,8 +608,8 @@ export interface CandidateJobMatch {
   overallFitPercentage: number; // 0 - 100
   meetsAllHardRequirements: boolean;
   breakdown: SkillMatchBreakdown[];
-  // How the candidate did on the job's tests: passed, still to take, or below the pass mark; the average once all are taken
-  jobTestStatus?: 'qualified' | 'requires_test' | 'test_taken_failed';
+  // Whether the candidate has taken all the job's tests; the average once all are taken
+  jobTestStatus?: 'completed' | 'requires_test';
   jobTestScore?: number;
   applicationStatus?: 'none' | 'applied' | 'reviewing' | 'interview' | 'offer' | 'rejected';
   matchTier: 'Top Match' | 'Strong Fit' | 'Borderline' | 'Needs Upskilling';
@@ -669,7 +674,7 @@ export interface AppNotification {
 // the rest are set by the company. Private to the company: candidates never see their stage
 export type LeadStage = 'invited' | 'applied' | 'screening' | 'interview' | 'offer' | 'hired' | 'archived';
 
-export type ArchiveReason = 'Not a fit' | 'Below pass mark' | 'Suspected cheating' | 'Withdrew' | 'No response' | 'Hired elsewhere' | 'Role filled' | 'Other';
+export type ArchiveReason = 'Not a fit' | 'Low score' | 'Suspected cheating' | 'Withdrew' | 'No response' | 'Hired elsewhere' | 'Role filled' | 'Other';
 
 // What the company has recorded about one candidate for one job; anyone without one is at their starting stage
 // A test still being written: kept only for its company (and the Praxa team) until it's saved as a test

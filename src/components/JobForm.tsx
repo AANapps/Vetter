@@ -78,8 +78,8 @@ export const JobForm: React.FC<JobFormProps> = ({
   const [employmentType, setEmploymentType] = useState<NonNullable<JobPosting['employmentType']>>(init?.employmentType ?? 'Full-time');
   const [experience, setExperience] = useState(init?.experienceLevel ?? EXPERIENCE_LEVELS[2]);
   const [description, setDescription] = useState(init?.description ?? '');
-  // The tests candidates are ranked on, by main version: the level picked, its minimum score and importance
-  type Pick = { testId: string; minScore: number; importance: 'required' | 'preferred' };
+  // The tests candidates are ranked on, by main version: the level picked and its importance
+  type Pick = { testId: string; importance: 'required' | 'preferred' };
   // Keyed by the test's main version, as the list below is
   // From a draft: each test as it was set (a test added since, e.g. by the AI builder, starts at the defaults)
   const [picked, setPicked] = useState<Record<string, Pick>>(() =>
@@ -87,7 +87,7 @@ export const JobForm: React.FC<JobFormProps> = ({
       [...initialTestIds, ...(init?.testIds ?? [])].flatMap((id) => {
         const t = tests.find((x) => x.id === id);
         const req = init?.requirements.find((r) => r.testId === id);
-        return t ? [[t.familyId ?? t.id, { testId: t.id, minScore: req?.minScore ?? 70, importance: req?.importance ?? ('required' as const) }]] : [];
+        return t ? [[t.familyId ?? t.id, { testId: t.id, importance: req?.importance ?? ('required' as const) }]] : [];
       })
     )
   );
@@ -104,7 +104,7 @@ export const JobForm: React.FC<JobFormProps> = ({
     setPickError(false);
     setPicked((prev) => {
       const { [testId]: wasPicked, ...rest } = prev;
-      return wasPicked ? rest : { ...prev, [testId]: { testId, minScore: 70, importance: 'required' } };
+      return wasPicked ? rest : { ...prev, [testId]: { testId, importance: 'required' } };
     });
   };
   const updatePick = (testId: string, change: Partial<Pick>) => {
@@ -116,7 +116,6 @@ export const JobForm: React.FC<JobFormProps> = ({
   const [include, setInclude] = useState<string[]>([]);
   const [askedFor, setAskedFor] = useState('');
   const [asking, setAsking] = useState(false);
-  const [passingScore, setPassingScore] = useState<number>(init?.testPassingScore ?? 70);
   const [requireTest, setRequireTest] = useState<boolean>(init?.testsRequired ?? true);
 
   const changeBusiness = (id: string) => {
@@ -170,7 +169,7 @@ export const JobForm: React.FC<JobFormProps> = ({
 
   // Adds the ticked suggestions to the job's tests, then posts it
   const answerSuggestions = (add: boolean) => {
-    const next = add ? { ...picked, ...Object.fromEntries(include.map((id) => [id, { testId: id, minScore: 70, importance: 'required' as const }])) } : picked;
+    const next = add ? { ...picked, ...Object.fromEntries(include.map((id) => [id, { testId: id, importance: 'required' as const }])) } : picked;
     setPicked(next);
     setSuggested(null);
     post(next);
@@ -213,12 +212,10 @@ export const JobForm: React.FC<JobFormProps> = ({
         skillId: t.id,
         testId: t.id,
         skillName: versionTitle(t),
-        minScore: pickFor(t.id).minScore,
         importance: pickFor(t.id).importance,
         weight: Math.round((1 / pickedTests.length) * 100) / 100,
       })),
       testIds: pickedTests.map((t) => t.id),
-      testPassingScore: passingScore,
       testsRequired: requireTest,
       invitations: init?.invitations ?? [],
       ...(init?.invitedEmails && { invitedEmails: init.invitedEmails }),
@@ -434,17 +431,6 @@ export const JobForm: React.FC<JobFormProps> = ({
                                   ))}
                                 </select>
                               )}
-                              <label className="flex items-center gap-1.5 text-slate-700">
-                                <span>Min score</span>
-                                <input
-                                  type="number"
-                                  min={0}
-                                  max={100}
-                                  value={pick.minScore}
-                                  onChange={(e) => updatePick(t.id, { minScore: Number(e.target.value) })}
-                                  className="w-16 px-2 py-1 bg-white border border-slate-300 rounded text-xs font-mono"
-                                />
-                              </label>
                               <select
                                 value={pick.importance}
                                 onChange={(e) => updatePick(t.id, { importance: e.target.value as 'required' | 'preferred' })}
@@ -500,19 +486,8 @@ export const JobForm: React.FC<JobFormProps> = ({
               </div>
             )}
 
-            {/* The picked tests are the job's tests: an average pass mark, and whether candidates must pass them to apply */}
+            {/* The picked tests are the job's tests: whether candidates must take them to apply. No pass mark: you see the scores */}
             <div className="flex flex-wrap items-end gap-4 pt-1">
-              <div className="w-28">
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">Pass mark{pickedTests.length > 1 ? ' (average)' : ''}</label>
-                <input
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={passingScore}
-                  onChange={(e) => setPassingScore(Number(e.target.value))}
-                  className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 font-mono"
-                />
-              </div>
               <label className="flex items-center gap-1.5 py-1.5 text-xs text-indigo-800 font-medium cursor-pointer">
                 <input type="checkbox" checked={requireTest} onChange={(e) => setRequireTest(e.target.checked)} className="accent-indigo-600" />
                 <span>Required to apply (otherwise recommended)</span>

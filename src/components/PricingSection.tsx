@@ -105,7 +105,7 @@ const COMPARISON: { group: string; rows: { label: string; cells: [Cell, Cell, Ce
 const FAQS = [
   {
     q: 'Do candidates pay anything?',
-    a: 'No. Praxa is free for candidates, always. They keep their verified scores and can use them for other jobs.',
+    a: 'No. Praxa is free for candidates, always. They keep their scores and can use them for other jobs.',
   },
   {
     q: 'What counts as an active job?',

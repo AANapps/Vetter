@@ -98,8 +98,7 @@ const STATUS_STYLES: Record<TrackingStatus, string> = {
   sent: 'bg-slate-100 text-slate-600',
   opened: 'bg-sky-50 text-sky-800',
   'in-progress': 'bg-indigo-50 text-slate-800',
-  passed: 'bg-emerald-50 text-emerald-800',
-  failed: 'bg-indigo-50 text-slate-800',
+  completed: 'bg-emerald-50 text-emerald-800',
 };
 
 const formatDay = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
@@ -217,10 +216,12 @@ const JobList: React.FC<BusinessJobsProps> = ({
     (acc, t) => ({
       reached: acc.reached + t.funnel.reached,
       completed: acc.completed + t.funnel.completed,
-      passed: acc.passed + t.funnel.passed,
     }),
-    { reached: 0, completed: 0, passed: 0 }
+    { reached: 0, completed: 0 }
   );
+  // Across everyone who finished a job's tests
+  const finishedScores = tracked.flatMap((t) => t.rows.flatMap((r) => (r.progress.score === undefined ? [] : [r.progress.score])));
+  const averageScore = finishedScores.length ? Math.round(finishedScores.reduce((a, b) => a + b, 0) / finishedScores.length) : undefined;
   // The latest finished tests across every job
   const activity = tracked
     .flatMap(({ job, rows }) =>
@@ -349,7 +350,7 @@ const JobList: React.FC<BusinessJobsProps> = ({
               { label: 'Open jobs', value: jobs.filter((j) => j.status === 'active').length },
               { label: 'Candidates sent tests', value: totals.reached },
               { label: 'Finished', value: totals.completed },
-              { label: 'Passed', value: totals.passed },
+              { label: 'Average score', value: averageScore ?? '–' },
             ].map((s) => (
               <div key={s.label} className="bg-white px-5 py-4">
                 <dt className="text-xs text-slate-500">{s.label}</dt>
@@ -385,7 +386,7 @@ const JobList: React.FC<BusinessJobsProps> = ({
                           {job.location} &middot; {job.workType} &middot;{' '}
                           {job.testIds.length === 0
                             ? 'no tests yet'
-                            : `${job.testIds.length} ${job.testIds.length === 1 ? 'test' : 'tests'} · ~${totalMinutes(job, tests)} min · pass ${job.testPassingScore}`}
+                            : `${job.testIds.length} ${job.testIds.length === 1 ? 'test' : 'tests'} · ~${totalMinutes(job, tests)} min`}
                         </div>
                       </div>
                       <div className="shrink-0 flex items-center gap-1">
@@ -423,7 +424,6 @@ const JobList: React.FC<BusinessJobsProps> = ({
                 <ul className="space-y-3">
                   {activity.map(({ job, row, testId, result }) => {
                     const test = tests.find((t) => t.id === testId);
-                    const pass = result.score >= job.testPassingScore;
                     return (
                       <li key={`${job.id}-${row.candidate.id}-${testId}-${result.completedTime ?? result.completedAt}`} className="flex items-start gap-2.5 text-xs">
                         <Pic src={row.candidate.avatarUrl} alt="" referrerPolicy="no-referrer" className="w-7 h-7 rounded-full object-cover bg-slate-100 shrink-0" />
@@ -435,7 +435,7 @@ const JobList: React.FC<BusinessJobsProps> = ({
                             {test ? test.title : testId} &middot; {job.title}
                           </div>
                         </div>
-                        <span className={`font-mono font-bold tabular-nums ${pass ? 'text-emerald-700' : 'text-rose-700'}`}>{result.score}</span>
+                        <span className="font-mono font-bold tabular-nums text-slate-900">{result.score}</span>
                       </li>
                     );
                   })}
@@ -489,11 +489,10 @@ const FunnelBar: React.FC<{ funnel: ReturnType<typeof jobFunnel>; compact?: bool
     { label: 'Opened', value: funnel.opened },
     { label: 'Started', value: funnel.started },
     { label: 'Finished', value: funnel.completed },
-    { label: 'Passed', value: funnel.passed },
   ];
   const max = Math.max(1, funnel.reached);
   return (
-    <div className={`grid grid-cols-5 ${compact ? 'gap-2' : 'gap-3'}`}>
+    <div className={`grid grid-cols-4 ${compact ? 'gap-2' : 'gap-3'}`}>
       {stages.map((s, i) => (
         <div key={s.label} className="min-w-0">
           <div className={`${compact ? 'h-1.5' : 'h-2'} bg-slate-100 rounded-full overflow-hidden`}>
@@ -517,8 +516,7 @@ const FILTERS: { id: TrackingStatus | 'all'; label: string }[] = [
   { id: 'sent', label: 'Not opened' },
   { id: 'opened', label: 'Opened' },
   { id: 'in-progress', label: 'In progress' },
-  { id: 'passed', label: 'Passed' },
-  { id: 'failed', label: 'Below pass mark' },
+  { id: 'completed', label: 'Completed' },
 ];
 
 // Finished first, best score first; then by how far they've got
@@ -712,8 +710,7 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
               )
             )}
             <span className="text-xs text-slate-500">
-              &middot; ~{totalMinutes(job, tests)} min &middot; pass mark {job.testPassingScore}
-              {jobTests.length > 1 ? ' average' : ''} &middot; {job.testsRequired ? 'required to apply' : 'optional'}
+              &middot; ~{totalMinutes(job, tests)} min &middot; {job.testsRequired ? 'required to apply' : 'optional'}
             </span>
           </div>
         )}
@@ -870,12 +867,24 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
                       </td>
                       {jobTests.map((t) => {
                         const s = r.progress.scores[t.id];
+                        // Every finished try, oldest first, so a best score after several goes reads as such
+                        const tries = r.candidate.testResults
+                          .filter((x) => x.testId === t.id)
+                          .sort((a, b) => (a.completedTime ?? a.completedAt).localeCompare(b.completedTime ?? b.completedAt))
+                          .map((x) => x.score);
                         return (
                           <td key={t.id} className="px-2 py-3 text-right font-mono tabular-nums">
                             {s === undefined ? (
                               <span className="text-slate-300">–</span>
                             ) : (
-                              <span className={s >= job.testPassingScore ? 'text-slate-900' : 'text-rose-700'}>{s}</span>
+                              <>
+                                <span className="text-slate-900">{s}</span>
+                                {tries.length > 1 && (
+                                  <span title={`Every try, oldest first: ${tries.join(', ')}`} className="block text-[10px] font-sans text-slate-500 whitespace-nowrap">
+                                    {tries.length} tries: {tries.join(', ')}
+                                  </span>
+                                )}
+                              </>
                             )}
                           </td>
                         );
@@ -885,7 +894,7 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
                           {r.progress.score === undefined ? (
                             <span className="text-slate-300 font-normal">–</span>
                           ) : (
-                            <span className={r.progress.score >= job.testPassingScore ? 'text-emerald-700' : 'text-rose-700'}>{r.progress.score}</span>
+                            <span className="text-slate-900">{r.progress.score}</span>
                           )}
                         </td>
                       )}
@@ -943,17 +952,17 @@ const SkillRanking: React.FC<{
   tests: AssessmentTest[];
 }> = ({ job, candidates, tests, onUpdateJobRequirements }) => {
   const [open, setOpen] = useState(false);
-  const setMin = (index: number, minScore: number) =>
+  const setImportance = (index: number, importance: 'required' | 'preferred') =>
     onUpdateJobRequirements(
       job.id,
-      job.requirements.map((r, i) => (i === index ? { ...r, minScore } : r))
+      job.requirements.map((r, i) => (i === index ? { ...r, importance } : r))
     );
   return (
     <section className="bg-white border border-slate-200 rounded-xl">
       <button onClick={() => setOpen(!open)} aria-expanded={open} className="w-full px-5 py-4 flex items-center justify-between text-left">
         <span>
           <span className="block text-sm font-bold text-slate-900">Skill scores and best matches</span>
-          <span className="block text-xs text-slate-500">The minimum scores this job asks for, and who on Praxa fits them best</span>
+          <span className="block text-xs text-slate-500">The skills this job asks for, and who on Praxa scores best on them</span>
         </span>
         <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
@@ -962,19 +971,16 @@ const SkillRanking: React.FC<{
           <div className="space-y-3">
             {job.requirements.map((req, i) => (
               <div key={req.skillName} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs">
-                <span className="sm:w-48 font-semibold text-slate-900">
-                  {req.skillName} <span className="font-normal text-slate-500">({req.importance})</span>
-                </span>
-                <input
-                  type="range"
-                  min={50}
-                  max={98}
-                  value={req.minScore}
-                  onChange={(e) => setMin(i, Number(e.target.value))}
-                  aria-label={`${req.skillName}: minimum score`}
-                  className="flex-1 accent-indigo-600"
-                />
-                <span className="font-mono tabular-nums text-slate-900 w-14 text-right">min {req.minScore}</span>
+                <span className="sm:flex-1 font-semibold text-slate-900">{req.skillName}</span>
+                <select
+                  value={req.importance}
+                  onChange={(e) => setImportance(i, e.target.value as 'required' | 'preferred')}
+                  aria-label={`${req.skillName}: required or preferred`}
+                  className="px-2 py-1 border border-slate-300 rounded-lg bg-white text-slate-800"
+                >
+                  <option value="required">Required</option>
+                  <option value="preferred">Preferred</option>
+                </select>
               </div>
             ))}
           </div>
@@ -1413,7 +1419,7 @@ const TeamTries: React.FC<{ job: JobPosting; jobTests: AssessmentTest[]; trials:
                 <tr key={t.id}>
                   <td className="py-1.5 text-slate-800">{t.takenByName}</td>
                   <td className="py-1.5 text-slate-600">{versionTitle(test)}</td>
-                  <td className={`py-1.5 text-right font-mono font-semibold ${t.score >= job.testPassingScore ? 'text-emerald-700' : 'text-amber-700'}`}>{t.score}/100</td>
+                  <td className="py-1.5 text-right font-mono font-semibold text-slate-900">{t.score}/100</td>
                   <td className="py-1.5 text-right text-slate-500">{formatDuration(t.durationSeconds)}</td>
                   <td className="py-1.5 text-right text-slate-500">{formatDay(t.completedAt)}</td>
                 </tr>

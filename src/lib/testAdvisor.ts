@@ -145,7 +145,7 @@ function matchPeople(asked: string, candidates: User[]) {
     .slice(0, 5)
     .map(({ c, best }) => ({
       candidateId: c.id,
-      reason: `${c.title || 'Candidate'}${best.length ? `, verified in ${best.map((s) => `${s.skillName} (${s.score})`).join(' and ')}` : ''}.`,
+      reason: `${c.title || 'Candidate'}${best.length ? `, scored ${best.map((s) => `${s.skillName} (${s.score})`).join(' and ')}` : ''}.`,
     }));
 }
 
@@ -201,8 +201,8 @@ export async function askAdvisor(turns: AdvisorTurn[], tests: AssessmentTest[], 
       return {
         role: 'assistant',
         text: people.length
-          ? "Praxa's AI isn't switched on here, so these are the candidates whose titles and verified skills match the words you used."
-          : "Praxa's AI isn't switched on here, and no candidate's title or verified skills match those words. Try naming the skills or the role.",
+          ? "Praxa's AI isn't switched on here, so these are the candidates whose titles and test scores match the words you used."
+          : "Praxa's AI isn't switched on here, and no candidate's title or test scores match those words. Try naming the skills or the role.",
         intent: 'candidates',
         people,
       };

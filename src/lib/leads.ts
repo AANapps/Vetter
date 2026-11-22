@@ -21,7 +21,7 @@ export const LEAD_STAGES: { id: LeadStage; label: string; dot: string; chip: str
 ];
 export const stageInfo = (stage: LeadStage) => LEAD_STAGES.find((s) => s.id === stage)!;
 
-export const ARCHIVE_REASONS: ArchiveReason[] = ['Not a fit', 'Below pass mark', 'Suspected cheating', 'Withdrew', 'No response', 'Hired elsewhere', 'Role filled', 'Other'];
+export const ARCHIVE_REASONS: ArchiveReason[] = ['Not a fit', 'Low score', 'Suspected cheating', 'Withdrew', 'No response', 'Hired elsewhere', 'Role filled', 'Other'];
 
 export type LeadSource = 'applied' | 'link' | 'email' | 'invite';
 export const SOURCE_LABELS: Record<LeadSource, string> = {
@@ -33,8 +33,7 @@ export const SOURCE_LABELS: Record<LeadSource, string> = {
 
 export type LeadTestStatus = JobTestProgress['status'] | 'no-tests';
 export const TEST_STATUS_LABELS: Record<LeadTestStatus, string> = {
-  passed: 'Passed tests',
-  failed: 'Below pass mark',
+  completed: 'Tests done',
   'in-progress': 'Tests in progress',
   'not-started': 'Not started',
   'no-tests': 'Job has no tests',

@@ -645,10 +645,9 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
             </div>
           ) : (
           <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-            <div className="hidden md:grid grid-cols-[minmax(0,1fr)_4.5rem_2.5rem_3.5rem_2.5rem_3.5rem] gap-3 px-5 py-2.5 bg-slate-50 border-b border-slate-200 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+            <div className="hidden md:grid grid-cols-[minmax(0,1fr)_4.5rem_3.5rem_2.5rem_3.5rem] gap-3 px-5 py-2.5 bg-slate-50 border-b border-slate-200 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
               <span>Test</span>
               <span>Length</span>
-              <span className="text-right">Pass</span>
               <span className="text-right">Ranked</span>
               <span className="text-right">Jobs</span>
               <span />
@@ -736,7 +735,7 @@ const TestRow: React.FC<{
   return (
     <li
       onClick={onOpen}
-      className="grid grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(0,1fr)_4.5rem_2.5rem_3.5rem_2.5rem_3.5rem] gap-x-3 gap-y-1 items-center px-5 py-3.5 cursor-pointer hover:bg-slate-50/80 transition-colors"
+      className="grid grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(0,1fr)_4.5rem_3.5rem_2.5rem_3.5rem] gap-x-3 gap-y-1 items-center px-5 py-3.5 cursor-pointer hover:bg-slate-50/80 transition-colors"
     >
       <div className="min-w-0">
         {/* The name in full, wrapping if it's long; the badges follow it */}
@@ -760,7 +759,7 @@ const TestRow: React.FC<{
           {!own && test.type === 'custom' && test.companyName && <> &middot; by {test.companyName}</>}
           <span className="md:hidden">
             {' '}
-            &middot; ~{test.estimatedMinutes} min &middot; pass {test.passingScore} &middot; {usedBy.length ? `on ${usedBy.length} ${usedBy.length === 1 ? 'job' : 'jobs'}` : 'not on a job'}
+            &middot; ~{test.estimatedMinutes} min &middot; {usedBy.length ? `on ${usedBy.length} ${usedBy.length === 1 ? 'job' : 'jobs'}` : 'not on a job'}
           </span>
         </div>
       </div>
@@ -770,7 +769,6 @@ const TestRow: React.FC<{
           {test.totalQuestions} {test.totalQuestions === 1 ? 'task' : 'tasks'}
         </div>
       </div>
-      <div className="hidden md:block text-right text-xs font-mono tabular-nums text-slate-700">{test.passingScore}</div>
       <div className="hidden md:block text-right text-xs font-mono tabular-nums text-slate-700">{ranked}</div>
       <div className="hidden md:block text-right text-xs min-w-0">
         {usedBy.length ? (

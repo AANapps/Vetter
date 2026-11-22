@@ -1101,8 +1101,8 @@ const PreviewDialog: React.FC<{ test: AssessmentTest; locked: boolean; onChange:
 const buildBrief = (t: AdvisorTurn) =>
   [t.brief, ...(t.custom?.length ? ['Include:', ...t.custom.map((c) => `- ${c.title}: ${c.brief}`)] : [])].join('\n');
 
-// Candidates the chat suggests, as a table that expands per row: who they are with their strongest verified scores, why they suit the role
-// and what isn't verified yet. A row expands to show the details, with View profile (a pop-up), sending a job's tests, or starting an
+// Candidates the chat suggests, as a table that expands per row: who they are with their strongest scores, why they suit the role
+// and what they have no score on yet. A row expands to show the details, with View profile (a pop-up), sending a job's tests, or starting an
 // AI test for the gaps
 const PeopleList: React.FC<{
   people: SuggestedPerson[];
@@ -1126,7 +1126,7 @@ const PeopleList: React.FC<{
           <span className="text-center">#</span>
           <span>Candidate</span>
           <span className="hidden sm:block">Top scores</span>
-          <span className="hidden sm:block">Not verified</span>
+          <span className="hidden sm:block">No score yet</span>
           <span />
         </div>
         <ol className="divide-y divide-slate-100">
@@ -1139,7 +1139,7 @@ const PeopleList: React.FC<{
   );
 };
 
-// Written out in full so Tailwind sees them: rank, candidate, top scores, not verified, expand
+// Written out in full so Tailwind sees them: rank, candidate, top scores, no score yet, expand
 const PEOPLE_COLS = 'grid-cols-[1.25rem_minmax(0,1fr)_1.5rem] sm:grid-cols-[1.25rem_minmax(0,1.4fr)_minmax(0,1.2fr)_5.5rem_1.5rem]';
 
 const PersonRow: React.FC<{
@@ -1208,7 +1208,7 @@ const PersonRow: React.FC<{
         <ChevronDown className={`w-4 h-4 justify-self-end text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
       </div>
 
-      {/* Details: why they fit, what isn't verified, and what to do next */}
+      {/* Details: why they fit, what has no score yet, and what to do next */}
       {open && (
         <div className="px-4 pb-4 sm:pl-[3.25rem] space-y-3">
           {top.length > 0 && (
@@ -1225,7 +1225,7 @@ const PersonRow: React.FC<{
             <p className="mt-1 text-[13px] text-slate-700 leading-relaxed">{p.reason}</p>
           </div>
           <div>
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Not verified</div>
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">No score yet</div>
             <div className="mt-1 flex flex-wrap gap-1.5">
               {gaps.length ? (
                 gaps.map((g) => (

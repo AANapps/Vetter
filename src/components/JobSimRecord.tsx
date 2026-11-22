@@ -1,11 +1,10 @@
 import React from 'react';
-import { ArrowRight, Check, Monitor, Play } from 'lucide-react';
+import { ArrowRight, Monitor, Play } from 'lucide-react';
 import { AssessmentTest, User, isJobSim, isPublic } from '../types';
-import { PASS } from '../lib/profileProgress';
 
 /**
  * A candidate's job simulations on their profile, apart from their skills tests: each day they've done, their best
- * score and whether they passed, the strongest proof on Praxa that someone can do the job. On their own profile, with
+ * score and how many tries, the strongest proof on Praxa that someone can do the job. On their own profile, with
  * none done yet, it invites them to do the one for the job they're after.
  */
 export const JobSimRecord: React.FC<{
@@ -22,7 +21,7 @@ export const JobSimRecord: React.FC<{
       const attempts = person.testResults.filter((r) => r.testId === test.id);
       if (!attempts.length) return [];
       const best = Math.max(...attempts.map((r) => r.score));
-      return [{ test, best, attempts: attempts.length, passed: best >= PASS }];
+      return [{ test, best, attempts: attempts.length }];
     })
     .sort((a, b) => b.best - a.best);
   const forRole = tests.find((t) => isJobSim(t) && isPublic(t) && !!person.targetRole && t.roles?.includes(person.targetRole)) ?? tests.find((t) => isJobSim(t) && isPublic(t));
@@ -42,13 +41,13 @@ export const JobSimRecord: React.FC<{
           {done.map((d) => (
             <li key={d.test.id}>
               <button onClick={() => onOpenTest(d.test.id)} className="w-full py-3 flex items-center gap-4 text-left group">
-                <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${d.passed ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
-                  {d.passed ? <Check className="w-5 h-5" strokeWidth={3} /> : <Monitor className="w-5 h-5" />}
+                <span className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-indigo-50 text-indigo-600">
+                  <Monitor className="w-5 h-5" />
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm font-bold text-slate-900 group-hover:text-indigo-700">{d.test.roles?.[0] ?? d.test.title}</span>
                   <span className="block text-xs text-slate-500 truncate">
-                    <span className={`font-semibold ${d.passed ? 'text-emerald-700' : 'text-amber-700'}`}>{d.passed ? 'Did the job' : 'Not passed yet'}</span> · {d.test.title.replace(/^.*?:\s*/, '')}
+                    {d.test.title.replace(/^.*?:\s*/, '')}
                     {d.attempts > 1 && ` · ${d.attempts} attempts`}
                   </span>
                 </span>
@@ -63,7 +62,7 @@ export const JobSimRecord: React.FC<{
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold text-slate-900">Show companies you can do the job</p>
               <p className="text-xs text-slate-600">
-                The {forRole.roles?.[0] ?? ''} job simulation is about {forRole.estimatedMinutes} minutes of the real work. Pass it ({PASS}+) and it shows here.
+                The {forRole.roles?.[0] ?? ''} job simulation is about {forRole.estimatedMinutes} minutes of the real work. Your score shows here.
               </p>
             </div>
             <button onClick={() => onOpenTest(forRole.id)} className="shrink-0 px-4 py-2 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold inline-flex items-center gap-1.5">

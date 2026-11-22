@@ -112,7 +112,7 @@ export const CoursePage: React.FC<CoursePageProps> = ({
                   <dd className="font-bold">{lessons.length}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-slate-500">Verified tests</dt>
+                  <dt className="text-xs text-slate-500">Praxa tests</dt>
                   <dd className="font-bold">{course.testIds.length}</dd>
                 </div>
               </dl>
@@ -188,7 +188,7 @@ export const CoursePage: React.FC<CoursePageProps> = ({
 
           {courseTests.length > 0 && (
             <section>
-              <h2 className="text-xl font-bold text-slate-900">Get verified</h2>
+              <h2 className="text-xl font-bold text-slate-900">Get scored</h2>
               <p className="mt-1 text-sm text-slate-600">
                 Finish with these Praxa tests. Your scores go on your profile and with your applications, and companies on Praxa hire on them.
               </p>
@@ -202,12 +202,12 @@ export const CoursePage: React.FC<CoursePageProps> = ({
                         <span className="flex-1 min-w-0">
                           <span className="block text-sm font-semibold text-slate-900">{t.title}</span>
                           <span className="block text-xs text-slate-500">
-                            <Clock className="inline w-3 h-3 -mt-0.5" /> {t.estimatedMinutes} min · pass at {t.passingScore}%
+                            <Clock className="inline w-3 h-3 -mt-0.5" /> {t.estimatedMinutes} min
                           </span>
                         </span>
                         {best !== null && best !== undefined ? (
-                          <span className={`inline-flex items-center gap-1 text-xs font-bold ${best >= t.passingScore ? 'text-emerald-700' : 'text-slate-500'}`}>
-                            <BadgeCheck className="w-4 h-4" /> {best}%
+                          <span className="inline-flex items-center gap-1 text-xs font-bold text-slate-900">
+                            <BadgeCheck className="w-4 h-4 text-indigo-600" /> {best}/100
                           </span>
                         ) : (
                           <span className="text-xs font-semibold text-indigo-700">Take test</span>

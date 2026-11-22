@@ -37,13 +37,8 @@ interface CandidateProfilePageProps {
 }
 
 
-// How good they are at a verified skill, from their score on the test: green strong, amber good, grey still developing
-const SKILL_BANDS = [
-  { min: 88, label: 'Strong', range: '88+', card: 'bg-emerald-50 border-emerald-200 hover:border-emerald-400', text: 'text-emerald-700', solid: 'bg-emerald-500', chip: 'bg-emerald-100 text-emerald-800', pill: 'bg-emerald-50 border-emerald-200 text-emerald-900 hover:border-emerald-400' },
-  { min: 75, label: 'Good', range: '75–87', card: 'bg-amber-50 border-amber-200 hover:border-amber-400', text: 'text-amber-700', solid: 'bg-amber-500', chip: 'bg-amber-100 text-amber-800', pill: 'bg-amber-50 border-amber-200 text-amber-900 hover:border-amber-400' },
-  { min: 0, label: 'Developing', range: 'under 75', card: 'bg-slate-100 border-slate-200 hover:border-slate-400', text: 'text-slate-600', solid: 'bg-slate-400', chip: 'bg-slate-200 text-slate-700', pill: 'bg-slate-100 border-slate-200 text-slate-800 hover:border-slate-400' },
-];
-const skillBand = (score: number) => SKILL_BANDS.find((b) => score >= b.min)!;
+// A score's look: one style for every score, no bands or medals (there's no pass mark, just the number)
+const SCORED = { label: '', card: 'bg-white border-slate-200 hover:border-indigo-300', text: 'text-slate-900', solid: 'bg-indigo-500', pill: 'bg-white border-slate-200 text-slate-900 hover:border-indigo-300' };
 const UNFINISHED = { label: 'Unfinished', card: 'bg-white border-dashed border-slate-300 hover:border-slate-400', text: 'text-slate-300', solid: 'bg-slate-200', chip: 'bg-slate-100 text-slate-500' };
 const HISTORY_SHOWN = 3;
 const sameText = (a = '', b = '') => a.trim().toLowerCase() === b.trim().toLowerCase();
@@ -111,14 +106,13 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
   const fitJob = business ? jobs.find((j) => j.id === fitJobId) ?? rows[0]?.job ?? jobs.find((j) => j.status === 'active') : undefined;
   const fit = fitJob ? fitSummary(person, fitJob, tests, candidates) : undefined;
   const scored = libraryCards.filter((c) => c.best !== null);
-  // Their three best Praxa tests at 75 or more, shown at the top
-  const strongest = scored.filter((c) => c.best! >= 75).slice(0, 3);
-  const passed = scored.filter((c) => c.best! >= c.test.passingScore).length;
+  // Their three best Praxa test scores, shown at the top
+  const strongest = scored.slice(0, 3);
   const average = scored.length ? Math.round(scored.reduce((n, c) => n + c.best!, 0) / scored.length) : null;
   const topRank = scored.filter((c) => c.rank).sort((a, b) => a.rank! / a.of - b.rank! / b.of)[0];
   const figures = [
-    { label: 'Praxa tests passed', value: scored.length ? `${passed} of ${scored.length}` : '—', note: scored.length ? 'at each test’s pass mark' : 'None taken yet' },
-    { label: 'Average score', value: average ?? '—', note: average !== null ? skillBand(average).label : undefined },
+    { label: 'Praxa tests taken', value: scored.length || '—', note: scored.length ? undefined : 'None taken yet' },
+    { label: 'Average score', value: average ?? '—', note: undefined },
     { label: 'Best score', value: scored[0]?.best ?? '—', note: scored[0]?.test.title },
     { label: 'Best ranking', value: topRank ? `#${topRank.rank}` : '—', note: topRank ? `of ${topRank.of} on ${topRank.test.title}` : undefined },
   ];
@@ -235,7 +229,7 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
               <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400 mb-2">Strongest on Praxa</h2>
               <ul className="flex flex-wrap gap-2">
                 {strongest.map((c) => {
-                  const band = skillBand(c.best!);
+                  const band = SCORED;
                   return (
                     <li key={c.test.id}>
                       <button onClick={() => onOpenTest(c.test.id)} className={`inline-flex items-center gap-2 pl-3 pr-1.5 py-1 rounded-full border text-xs font-semibold ${band.pill}`}>
@@ -250,7 +244,7 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
           )}
         </div>
 
-        {/* The figures: how many Praxa tests they've passed, their average, their best, and their best place on a board */}
+        {/* The figures: how many Praxa tests they've taken, their average, their best, and their best place on a board */}
         <dl className="grid grid-cols-2 lg:grid-cols-4 border-t border-slate-100 bg-slate-50/60">
           {figures.map((f, i) => (
             <div key={f.label} className={`px-5 sm:px-6 py-4 border-slate-100 ${i % 2 ? 'border-l' : ''} ${i >= 2 ? 'border-t lg:border-t-0' : ''} ${i === 2 ? 'lg:border-l' : ''}`}>
@@ -273,28 +267,20 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
           {/* The job simulations they've done, apart from their skills tests */}
           <JobSimRecord person={person} tests={tests} onOpenTest={onOpenTest} />
 
-          {/* Every Praxa skills test they've taken, as square cards coloured by score */}
+          {/* Every Praxa skills test they've taken, as square cards with the score */}
           <section className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-xs">
             <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
               <div>
                 <h2 className="text-base font-bold text-slate-900">Praxa skills tests</h2>
                 <p className="text-xs text-slate-500">Hands-on tests, marked by Praxa. Best score on each, strongest first.</p>
               </div>
-              <ul className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-600">
-                {SKILL_BANDS.map((b) => (
-                  <li key={b.label} className="inline-flex items-center gap-1.5">
-                    <span className={`w-2.5 h-2.5 rounded-full ${b.solid}`} />
-                    {b.label} <span className="text-slate-400">{b.range}</span>
-                  </li>
-                ))}
-              </ul>
             </div>
             {libraryCards.length === 0 ? (
               <p className="text-sm text-slate-500 rounded-xl border border-dashed border-slate-300 p-6 text-center">No Praxa skills tests taken yet.</p>
             ) : (
               <ul className="grid grid-cols-2 sm:grid-cols-3 gap-3 auto-rows-fr">
                 {libraryCards.map((c) => {
-                  const band = c.best === null ? UNFINISHED : skillBand(c.best);
+                  const band = c.best === null ? UNFINISHED : SCORED;
                   return (
                     <li key={c.test.id} className="flex">
                       <button
@@ -312,7 +298,7 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
                             <span className={`block h-full rounded-full ${band.solid}`} style={{ width: `${c.best ?? 0}%` }} />
                           </span>
                           <span className="mt-2 flex items-center justify-between gap-2 text-[11px]">
-                            <span className={`font-bold ${band.text === 'text-slate-300' ? 'text-slate-400' : band.text}`}>{band.label}</span>
+                            <span className="font-bold text-slate-400">{band.label}</span>
                             <span className="text-slate-500 truncate">
                             {[c.rank && `#${c.rank} of ${c.of}`, c.attempts > 1 && `${c.attempts} attempts`, c.unfinished > 0 && `${c.unfinished} unfinished`].filter(Boolean).join(' · ') || formatDay(c.last)}
                             </span>

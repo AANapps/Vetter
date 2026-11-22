@@ -82,7 +82,7 @@ const FEATURES = [
   {
     icon: Users,
     title: 'A pool of tested people',
-    text: 'Candidates keep their verified scores. Search people who have already proved the skills you need.',
+    text: 'Candidates keep their scores. Search people who have already proved the skills you need.',
   },
   {
     icon: Globe,
@@ -133,7 +133,7 @@ const FAQ = [
   },
   {
     q: 'Do candidates pay?',
-    a: 'Never. Praxa is free for candidates, and they keep their verified scores to use for other jobs.',
+    a: 'Never. Praxa is free for candidates, and they keep their scores to use for other jobs.',
   },
   {
     q: 'What does it cost?',

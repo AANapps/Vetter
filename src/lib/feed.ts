@@ -42,7 +42,6 @@ export function buildFeed(
       return attempts.flatMap((r, i) => {
         const previousBest = bestSoFar;
         bestSoFar = Math.max(bestSoFar ?? 0, r.score);
-        if (r.score < test.passingScore) return [];
         const entry = boards.get(test.id)?.find((e) => e.candidate.id === actor.id);
         const isBest = entry?.score === r.score && entry.completedAt === r.completedAt;
         return [

@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import { Pic } from './Pic';
 import { AssessmentTest, Business, User } from '../types';
-import { VerifiedSkillBadge } from './VerifiedSkillBadge';
 import { TestHistory } from './TestHistory';
 import { MapPin, X } from 'lucide-react';
 
@@ -23,7 +22,7 @@ interface PersonProfileModalProps {
   team?: { status: 'none' | 'invited' | 'member'; onInvite: () => void };
 }
 
-// Someone's profile: who they are, what they've verified and every test they've taken that the viewer may see
+// Someone's profile: who they are, their Praxa test scores and every test they've taken that the viewer may see
 export const PersonProfileModal: React.FC<PersonProfileModalProps> = ({
   person,
   isYou,
@@ -107,13 +106,16 @@ export const PersonProfileModal: React.FC<PersonProfileModalProps> = ({
         {person.bio && <p className="text-sm text-slate-600 leading-relaxed">{person.bio}</p>}
 
         <div className="space-y-2">
-          <h3 className="text-xs font-bold text-slate-900">Verified skills</h3>
+          <h3 className="text-xs font-bold text-slate-900">Test scores</h3>
           {skills.length === 0 ? (
-            <p className="text-xs text-slate-500">No verified skills yet.</p>
+            <p className="text-xs text-slate-500">No test scores yet.</p>
           ) : (
             <div className="flex flex-wrap gap-2">
               {skills.map((s) => (
-                <VerifiedSkillBadge key={s.skillId} skill={s} variant="compact" />
+                <span key={s.skillId} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white ring-1 ring-slate-200">
+                  <span className="text-xs font-semibold text-slate-800">{s.skillName}</span>
+                  <span className="text-xs font-bold font-mono tabular-nums text-slate-900">{s.score}</span>
+                </span>
               ))}
             </div>
           )}

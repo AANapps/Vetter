@@ -1,6 +1,5 @@
 import { seedIntegrity } from '../lib/integrity';
 import { AssessmentTest, TestResult, User, VerifiedSkill } from '../types';
-import { getPercentile } from '../lib/leaderboard';
 
 // Deterministic random numbers so the seeded leaderboards are the same on every load
 export function mulberry32(seed: number) {
@@ -86,7 +85,7 @@ export const levelForScore = (score: number): VerifiedSkill['level'] =>
 
 const isoDate = (d: Date) => d.toISOString().split('T')[0];
 
-// Verified skills mirror each candidate's best score on every Praxa-made test they've taken
+// Profile scores mirror each candidate's best score on every Praxa-made test they've taken
 export function deriveVerifiedSkills(results: TestResult[], tests: AssessmentTest[]): VerifiedSkill[] {
   return tests
     .filter((t) => t.type === 'standard')
@@ -100,7 +99,6 @@ export function deriveVerifiedSkills(results: TestResult[], tests: AssessmentTes
           skillName: test.skillsTested[0] || test.title,
           category: test.category,
           score: best.score,
-          percentile: 0, // filled in by withComputedPercentiles
           verifiedAt: best.completedAt,
           testId: test.id,
           level: levelForScore(best.score),
@@ -216,13 +214,3 @@ export function withSeedDurations(user: User, tests: AssessmentTest[]): User {
   };
 }
 
-// Percentiles come from the actual leaderboard, not a formula
-export function withComputedPercentiles(candidates: User[]): User[] {
-  return candidates.map((c) => ({
-    ...c,
-    verifiedSkills: c.verifiedSkills.map((s) => ({
-      ...s,
-      percentile: getPercentile(s.score, s.testId, candidates, c.id),
-    })),
-  }));
-}

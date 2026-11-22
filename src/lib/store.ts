@@ -12,7 +12,7 @@ import { SEED_SOCIAL } from '../data/seedSocial';
 import { SEED_JOB_TEST_RESULTS, SEED_NOTIFICATIONS } from '../data/seedInvitations';
 import { addTestResult } from './results';
 import { withFilterFields } from './jobFilters';
-import { buildSeedCandidates, withComputedPercentiles, withSeedDurations } from '../data/seedCandidates';
+import { buildSeedCandidates, withSeedDurations } from '../data/seedCandidates';
 
 /**
  * App data store. Persists to the browser's localStorage so results survive a
@@ -54,7 +54,7 @@ export function createSeedData(): AppData {
       return test ? addTestResult(acc, test, result) : acc;
     }, u)
   );
-  const everyone = withComputedPercentiles(withJobTestResults);
+  const everyone = withJobTestResults;
   return {
     candidate: everyone[0],
     otherCandidates: everyone.slice(1),
@@ -91,7 +91,6 @@ function withSavedExam(job: SavedJob, exams?: SavedExam[]): JobPosting {
   return {
     ...rest,
     testIds: exam?.testIds ?? (attachedTestId ? [attachedTestId] : []),
-    testPassingScore: exam?.passingScore ?? attachedTestPassingScore ?? 70,
     testsRequired: job.testsRequired ?? isAttachedTestMandatory ?? false,
     invitations: exam?.invitations ?? [],
     invitedEmails: exam?.invitedEmails,

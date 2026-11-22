@@ -1,7 +1,7 @@
 import { AssessmentTest, TestResult, User, VerifiedSkill, isPublic } from '../types';
 import { levelForScore } from '../data/seedCandidates';
 
-// Records a finished attempt. Only Praxa-made tests become verified skills; company tests are scored for their own jobs
+// Records a finished attempt. Praxa-made tests put their best score on the profile; company tests are scored for their own jobs
 export function addTestResult(user: User, test: AssessmentTest, result: TestResult): User {
   const testResults = [...user.testResults, result];
   if (!isPublic(test)) return { ...user, testResults };
@@ -32,7 +32,6 @@ export function addTestResult(user: User, test: AssessmentTest, result: TestResu
         skillName,
         category: test.category,
         score: bestScore,
-        percentile: 0,
         verifiedAt: result.completedAt,
         testId: test.id,
         level: levelForScore(bestScore),
@@ -43,7 +42,7 @@ export function addTestResult(user: User, test: AssessmentTest, result: TestResu
   return { ...user, testResults, verifiedSkills };
 }
 
-// Takes a test off the candidate's record: every attempt at it, and the verified skill it earned
+// Takes a test off the candidate's record: every attempt at it, and the score it put on the profile
 export function removeTestResults(user: User, testId: string): User {
   return {
     ...user,

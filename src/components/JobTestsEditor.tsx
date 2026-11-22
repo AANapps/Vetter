@@ -10,7 +10,7 @@ interface JobTestsEditorProps {
   tests: AssessmentTest[];
   // Tests to add, e.g. when sending one from its page
   addTestIds?: string[];
-  onSave: (jobId: string, change: Pick<JobPosting, 'testIds' | 'testPassingScore' | 'testsRequired' | 'maxAttempts'>) => void;
+  onSave: (jobId: string, change: Pick<JobPosting, 'testIds' | 'testsRequired' | 'maxAttempts'>) => void;
   onCancel: () => void;
 }
 
@@ -22,7 +22,7 @@ const STEPS = ['Pick tests', 'Details'] as const;
 // A job's attempts per test: what it's set to, or 2 for a job getting its first tests (0 is no limit)
 const attemptsFor = (job: JobPosting | undefined) => job?.maxAttempts ?? (job?.testIds.length ? 0 : 2);
 
-// Choosing a job's tests is two steps: pick them, then set the pass mark and whether they're needed to apply
+// Choosing a job's tests is two steps: pick them, then set whether they're needed to apply
 export const JobTestsEditor: React.FC<JobTestsEditorProps> = ({ jobs, tests: allTests, addTestIds = [], onSave, onCancel }) => {
   // Training is for a company's team, never a job's candidates
   const tests = allTests.filter((t) => t.purpose !== 'training');
@@ -38,14 +38,12 @@ export const JobTestsEditor: React.FC<JobTestsEditorProps> = ({ jobs, tests: all
   const [picked, setPicked] = useState<{ mainId: string; testId: string }[]>(() => pickedFor(job));
   const [testQuery, setTestQuery] = useState('');
   const pickedTests = picked.map((p) => tests.find((t) => t.id === p.testId)).filter((t): t is AssessmentTest => !!t);
-  const [passingScore, setPassingScore] = useState(() => job?.testPassingScore ?? 70);
   const [required, setRequired] = useState(() => job?.testsRequired ?? true);
   const [maxAttempts, setMaxAttempts] = useState(() => attemptsFor(job));
   const switchJob = (id: string) => {
     const next = jobs.find((j) => j.id === id);
     setJobId(id);
     setPicked(pickedFor(next));
-    setPassingScore(next?.testPassingScore ?? 70);
     setRequired(next?.testsRequired ?? true);
     setMaxAttempts(attemptsFor(next));
   };
@@ -65,7 +63,7 @@ export const JobTestsEditor: React.FC<JobTestsEditorProps> = ({ jobs, tests: all
   const save = (e: React.FormEvent) => {
     e.preventDefault();
     if (!job || pickedTests.length === 0) return;
-    onSave(job.id, { testIds: pickedTests.map((t) => t.id), testPassingScore: passingScore, testsRequired: required, maxAttempts });
+    onSave(job.id, { testIds: pickedTests.map((t) => t.id), testsRequired: required, maxAttempts });
   };
 
   return (
@@ -175,21 +173,7 @@ export const JobTestsEditor: React.FC<JobTestsEditorProps> = ({ jobs, tests: all
                   </span>{' '}
                   &middot; ~{minutes} min in total: {pickedTests.map((t) => t.title).join(', ')}
                 </div>
-                <div className="grid grid-cols-2 gap-3 items-end">
-                  <div>
-                    <label htmlFor="a-pass" className="block text-xs font-semibold text-slate-700 mb-1">
-                      Pass mark {pickedTests.length > 1 && <span className="font-normal text-slate-400">(average)</span>}
-                    </label>
-                    <input
-                      id="a-pass"
-                      type="number"
-                      min={0}
-                      max={100}
-                      value={passingScore}
-                      onChange={(e) => setPassingScore(Number(e.target.value))}
-                      className={`${inputClass} font-mono`}
-                    />
-                  </div>
+                <div>
                   <label className="flex items-center gap-2 py-2 text-sm text-slate-700 cursor-pointer">
                     <input type="checkbox" checked={required} onChange={(e) => setRequired(e.target.checked)} className="accent-indigo-600" />
                     Required to apply

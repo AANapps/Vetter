@@ -217,7 +217,7 @@ export const TestPage: React.FC<TestPageProps> = ({
           )}
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-6 border-t border-slate-200">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-6 pt-6 border-t border-slate-200">
           <div>
             <div className="text-xs text-slate-500">Candidates ranked</div>
             <div className="text-2xl font-bold text-slate-900 font-mono tabular-nums">{stats.candidatesRanked}</div>
@@ -230,10 +230,6 @@ export const TestPage: React.FC<TestPageProps> = ({
             </div>
           </div>
           <div>
-            <div className="text-xs text-slate-500">Pass rate (≥{test.passingScore})</div>
-            <div className="text-2xl font-bold text-slate-900 font-mono tabular-nums">{stats.passRate}%</div>
-          </div>
-          <div>
             <div className="text-xs text-slate-500">{viewerRole === 'candidate' ? 'Your best' : 'Top score'}</div>
             <div className="text-2xl font-bold text-indigo-700 font-mono tabular-nums">
               {viewerRole === 'candidate' ? (yourEntry ? `#${yourEntry.rank} · ${yourEntry.score}` : '—') : stats.topScore}
@@ -244,7 +240,6 @@ export const TestPage: React.FC<TestPageProps> = ({
 
       <TestLeaderboard
         entries={leaderboard}
-        passingScore={test.passingScore}
         currentCandidateId={currentCandidateId}
         onTakeTest={canStart && !retakeFrom && viewerRole === 'candidate' ? () => onStartTest(test) : undefined}
         testId={test.id}
@@ -333,10 +328,6 @@ export const TestPage: React.FC<TestPageProps> = ({
             <div className="flex justify-between gap-2">
               <dt className="text-slate-500">Time limit</dt>
               <dd className="font-mono text-slate-800">{timerOf(test) === null ? 'None' : `${timerOf(test)} min`}</dd>
-            </div>
-            <div className="flex justify-between gap-2">
-              <dt className="text-slate-500">Pass mark</dt>
-              <dd className="font-mono text-slate-800">{test.passingScore}/100</dd>
             </div>
             <div className="flex justify-between gap-2">
               <dt className="text-slate-500">Tasks</dt>

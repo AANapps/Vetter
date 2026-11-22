@@ -6,7 +6,6 @@ import {
   X,
   Play,
   CheckCircle2,
-  AlertTriangle,
   Award,
   ArrowRight,
   Check
@@ -45,15 +44,11 @@ export const JobApplicationModal: React.FC<JobApplicationModalProps> = ({
   // The job's tests (Praxa-made or the company's own) and how the candidate has done on them
   const jobTests = jobTestsOf(job, tests);
   const progress = jobTestProgress(job, candidate);
-  const passingScore = job.testPassingScore;
-  const hasPassed = progress.status === 'passed';
-  // The next to take, or once all are taken and the average is short, the weakest to retake
-  // Only tests with tries left can be taken again
+  const finished = progress.status === 'completed';
+  // The next not yet taken (only tests with tries left can be taken)
   const takeable = jobTests.filter((t) => attemptsAt(job, candidate, t.id).left !== 0);
-  const nextTest =
-    takeable.find((t) => progress.scores[t.id] === undefined) ??
-    (hasPassed ? undefined : [...takeable].sort((a, b) => (progress.scores[a.id] ?? 0) - (progress.scores[b.id] ?? 0))[0]);
-  const testBlocksApplication = jobTests.length > 0 && job.testsRequired && !hasPassed;
+  const nextTest = takeable.find((t) => progress.scores[t.id] === undefined);
+  const testBlocksApplication = jobTests.length > 0 && job.testsRequired && !finished;
   const isApplied = candidate.appliedJobIds?.includes(job.id);
 
   return (
@@ -73,7 +68,7 @@ export const JobApplicationModal: React.FC<JobApplicationModalProps> = ({
           <p className="text-xs text-slate-500">
             {jobTests.length > 0
               ? `${job.companyName} asks candidates to take ${jobTests.length === 1 ? 'a test' : `${jobTests.length} tests`} for this job.`
-              : 'Your verified skills are shared with the company when you apply.'}
+              : 'Your test scores are shared with the company when you apply.'}
           </p>
         </div>
 
@@ -150,10 +145,6 @@ export const JobApplicationModal: React.FC<JobApplicationModalProps> = ({
                 </span>
                 <h3 className="text-sm font-bold text-slate-900">Tests for this job</h3>
               </div>
-              <div className="text-right shrink-0">
-                <span className="text-[10px] font-mono text-slate-400">Pass mark{jobTests.length > 1 ? ' (average)' : ''}</span>
-                <div className="text-sm font-mono font-bold text-indigo-700">{passingScore}/100</div>
-              </div>
             </div>
 
             <ul className="divide-y divide-indigo-100 text-xs">
@@ -176,18 +167,11 @@ export const JobApplicationModal: React.FC<JobApplicationModalProps> = ({
             </ul>
 
             {/* Where the candidate stands */}
-            {hasPassed ? (
+            {finished ? (
               <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-2 text-xs text-emerald-900">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                 <div>
-                  <span className="font-bold">Passed:</span> you {jobTests.length > 1 ? 'averaged' : 'scored'} <strong>{progress.score}/100</strong>.
-                </div>
-              </div>
-            ) : progress.status === 'failed' ? (
-              <div className="p-3 bg-indigo-50 border border-slate-200 rounded-lg flex items-center gap-2 text-xs text-slate-800">
-                <AlertTriangle className="w-4 h-4 text-indigo-600 shrink-0" />
-                <div>
-                  <span className="font-bold">Below pass mark:</span> you {jobTests.length > 1 ? 'averaged' : 'scored'} {progress.score}/100.{takeable.length > 0 ? ` Retake a test to reach ${passingScore}.` : ' You have no attempts left.'}
+                  <span className="font-bold">Done:</span> you {jobTests.length > 1 ? 'averaged' : 'scored'} <strong>{progress.score}/100</strong>. {job.companyName} sees your score.
                 </div>
               </div>
             ) : (
@@ -197,7 +181,7 @@ export const JobApplicationModal: React.FC<JobApplicationModalProps> = ({
                   <span className="font-bold">
                     {progress.done} of {progress.total} taken.
                   </span>
-                  {job.testsRequired && ' Your application is sent automatically once you pass them.'}
+                  {job.testsRequired && ' Your application is sent with your score once you finish them.'}
                 </div>
               </div>
             )}

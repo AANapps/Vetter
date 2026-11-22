@@ -20,7 +20,6 @@ import {
 } from 'lucide-react';
 import { AssessmentTest, Business, CandidateJobMatch, JobPosting, JobProfile, TestRole, User } from '../types';
 import { Pic } from './Pic';
-import { getBadgeTier } from './VerifiedSkillBadge';
 import { CertificationList, EducationList, ExperienceList, ProfileLinks } from './ExperienceList';
 import { TestHistory } from './TestHistory';
 import { JobSimRecord } from './JobSimRecord';
@@ -29,13 +28,13 @@ import { stageOf } from '../lib/audience';
 import { sortExperience } from '../lib/experience';
 import { getLeaderboard } from '../lib/leaderboard';
 import { SectorId } from '../lib/sectors';
-import { PASS, SILVER, StepAction, useProfileProgress } from '../lib/profileProgress';
+import { StepAction, useProfileProgress } from '../lib/profileProgress';
 
 /**
  * The candidate's own profile, laid out like a LinkedIn profile: a cover and photo, their headline and links, then what
  * Praxa adds: how complete the profile is (and the one thing to do next), their progress through their role's tests,
- * their verified skills, then their experience, education, tests and applications. Proven skills only ever come from
- * passed tests, so most of the nudges here are tests.
+ * their test scores, then their experience, education, tests and applications. Skills only ever come from Praxa's
+ * tests (a score, no pass mark), so most of the nudges here are tests.
  */
 
 interface MyProfileProps {
@@ -110,7 +109,7 @@ const EditButton: React.FC<{ onClick: () => void; label: string }> = ({ onClick,
 
 export const MyProfile: React.FC<MyProfileProps> = (p) => {
   const { candidate, shown, tests, jobs, allCandidates } = p;
-  const { roles, role, setRole, path, passedModules, nextModule, pathPct, passedAny, steps, strength, level, todo, testFor } = useProfileProgress({
+  const { roles, role, setRole, path, takenModules, nextModule, pathPct, scoredAny, steps, strength, level, todo, testFor } = useProfileProgress({
     candidate,
     shown,
     activeProfile: p.activeProfile,
@@ -131,7 +130,7 @@ export const MyProfile: React.FC<MyProfileProps> = (p) => {
   const [showAllSteps, setShowAllSteps] = useState(false);
 
   // ---- Their numbers
-  const praxaPassed = new Set(candidate.verifiedSkills.map((s) => s.testId)).size;
+  const praxaTaken = new Set(candidate.verifiedSkills.map((s) => s.testId)).size;
   const ranks = candidate.verifiedSkills
     .map((v) => {
       const board = getLeaderboard(v.testId, allCandidates);
@@ -149,7 +148,6 @@ export const MyProfile: React.FC<MyProfileProps> = (p) => {
   const school = candidate.education?.[0];
   const skills = [...shown.verifiedSkills].sort((a, b) => b.score - a.score);
   const [allSkills, setAllSkills] = useState(false);
-  const bestTier = skills[0] ? getBadgeTier(skills[0].score) : undefined;
   const [naming, setNaming] = useState<string | null>(null);
 
   return (
@@ -231,12 +229,6 @@ export const MyProfile: React.FC<MyProfileProps> = (p) => {
                       )}
                     </>
                   )}
-                  {bestTier && bestTier.tierKey !== 'developing' && (
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[11px] font-semibold ${bestTier.badgeTextColor} border-slate-200 bg-white`}>
-                      <Award className="w-3.5 h-3.5" />
-                      {bestTier.label} verified
-                    </span>
-                  )}
                 </div>
                 {shown.title ? (
                   <p className="text-base text-slate-800 leading-snug">{shown.title}</p>
@@ -268,9 +260,9 @@ export const MyProfile: React.FC<MyProfileProps> = (p) => {
                   </button>
                 </p>
                 <button onClick={() => (bestRank ? p.onOpenTest(bestRank.testId) : p.onFindTests())} className="text-sm font-semibold text-indigo-700 hover:underline">
-                  {praxaPassed
-                    ? `${candidate.verifiedSkills.length} verified ${candidate.verifiedSkills.length === 1 ? 'skill' : 'skills'}${bestRank ? ` · #${bestRank.rank} of ${bestRank.of} on ${bestRank.name}` : ''}`
-                    : 'No verified skills yet. Take your first test'}
+                  {praxaTaken
+                    ? `${candidate.verifiedSkills.length} test ${candidate.verifiedSkills.length === 1 ? 'score' : 'scores'}${bestRank ? ` · #${bestRank.rank} of ${bestRank.of} on ${bestRank.name}` : ''}`
+                    : 'No test scores yet. Take your first test'}
                 </button>
               </div>
 
@@ -307,7 +299,7 @@ export const MyProfile: React.FC<MyProfileProps> = (p) => {
                 className="px-4 py-2 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold inline-flex items-center gap-1.5 shadow-xs"
               >
                 <Play className="w-3.5 h-3.5 fill-current" />
-                {passedAny ? 'Prove another skill' : 'Take your first test'}
+                {scoredAny ? 'Take another test' : 'Take your first test'}
               </button>
               <button
                 onClick={p.onFindJobs}
@@ -436,7 +428,7 @@ export const MyProfile: React.FC<MyProfileProps> = (p) => {
                 <div>
                   <h2 className="text-lg font-bold text-slate-900">Your {role} path</h2>
                   <p className="text-xs text-slate-500">
-                    {passedModules.length} of {path.length} passed. Each one you pass adds a verified skill companies can see.
+                    {takenModules.length} of {path.length} done. Each score goes on your profile for companies to see.
                   </p>
                 </div>
               </div>
@@ -466,7 +458,7 @@ export const MyProfile: React.FC<MyProfileProps> = (p) => {
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-[11px] font-semibold uppercase tracking-wide text-indigo-300">
-                    {nextModule.best === undefined ? 'Up next' : `Retake · your best ${nextModule.best}, ${PASS} to pass`}
+                    Up next
                   </span>
                   <span className="block text-sm font-bold">{nextModule.sec.label}</span>
                   <span className="block text-xs text-slate-300 truncate">{nextModule.sec.blurb}</span>
@@ -483,31 +475,30 @@ export const MyProfile: React.FC<MyProfileProps> = (p) => {
 
             <ol className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
               {path.map((m, i) => {
-                const passed = m.best !== undefined && m.best >= PASS;
-                const tier = m.best !== undefined ? getBadgeTier(m.best) : undefined;
+                const done = m.best !== undefined;
                 return (
                   <li key={m.sec.id}>
                     <button
                       onClick={() => p.onOpenTest(m.test.id)}
                       className={`w-full p-3 rounded-xl border text-left flex items-center gap-3 transition-colors ${
-                        passed ? 'border-emerald-200 bg-emerald-50/50 hover:border-emerald-300' : m.best !== undefined ? 'border-amber-200 bg-amber-50/40 hover:border-amber-300' : 'border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/30'
+                        done ? 'border-emerald-200 bg-emerald-50/50 hover:border-emerald-300' : 'border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/30'
                       }`}
                     >
                       <span
                         className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${
-                          passed ? 'bg-emerald-500 text-white' : m.best !== undefined ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-500'
+                          done ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-500'
                         }`}
                       >
-                        {passed ? <Check className="w-4 h-4" strokeWidth={3} /> : m.isSim ? <Briefcase className="w-4 h-4" /> : i + 1}
+                        {done ? <Check className="w-4 h-4" strokeWidth={3} /> : m.isSim ? <Briefcase className="w-4 h-4" /> : i + 1}
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block text-sm font-semibold text-slate-900 truncate">{m.sec.label}</span>
                         <span className="block text-[11px] text-slate-500">
-                          {m.best === undefined ? `Not started · ~${m.test.estimatedMinutes} min` : passed ? `${tier!.label} · verified` : `Best ${m.best} · ${PASS} to pass`}
+                          {m.best === undefined ? `Not started · ~${m.test.estimatedMinutes} min` : 'Your best score'}
                         </span>
                       </span>
                       {m.best !== undefined ? (
-                        <span className={`font-mono text-base font-bold tabular-nums ${passed ? tier!.badgeTextColor : 'text-amber-700'}`}>{m.best}</span>
+                        <span className="font-mono text-base font-bold tabular-nums text-slate-900">{m.best}</span>
                       ) : (
                         <span className="text-[11px] font-semibold text-indigo-700">Start</span>
                       )}
@@ -537,22 +528,22 @@ export const MyProfile: React.FC<MyProfileProps> = (p) => {
         {/* ---------- Job simulations: a working day in the role, kept apart from skills ---------- */}
         <JobSimRecord person={candidate} tests={tests} onOpenTest={p.onOpenTest} own />
 
-        {/* ---------- Verified skills: only ever from passed tests ---------- */}
+        {/* ---------- Test scores: only ever from Praxa's tests ---------- */}
         <Card className="p-5 sm:p-6">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h2 className="text-lg font-bold text-slate-900">Verified skills</h2>
-              <p className="text-xs text-slate-500">Proven on Praxa's tests. A score of {PASS} or more adds a skill; nothing here is self-listed.</p>
+              <h2 className="text-lg font-bold text-slate-900">Test scores</h2>
+              <p className="text-xs text-slate-500">Your best score on each Praxa test you've taken; nothing here is self-listed.</p>
             </div>
-            <button onClick={p.onFindTests} aria-label="Prove a skill" title="Prove a skill" className="w-9 h-9 shrink-0 rounded-full text-slate-500 hover:text-slate-900 hover:bg-slate-100 flex items-center justify-center">
+            <button onClick={p.onFindTests} aria-label="Take a test" title="Take a test" className="w-9 h-9 shrink-0 rounded-full text-slate-500 hover:text-slate-900 hover:bg-slate-100 flex items-center justify-center">
               <Plus className="w-5 h-5" />
             </button>
           </div>
           {skills.length === 0 ? (
             <div className="mt-4 p-5 rounded-xl border border-dashed border-slate-300 text-center space-y-2">
               <Award className="w-8 h-8 text-indigo-300 mx-auto" />
-              <p className="text-sm font-semibold text-slate-800">Nothing verified yet</p>
-              <p className="text-xs text-slate-500">Companies on Praxa hire on proven skills. Your first test takes about 20 minutes.</p>
+              <p className="text-sm font-semibold text-slate-800">No scores yet</p>
+              <p className="text-xs text-slate-500">Companies on Praxa hire on test scores. Your first test takes about 20 minutes.</p>
               <button onClick={() => (nextModule ? p.onOpenTest(nextModule.test.id) : p.onFindTests())} className="px-4 py-2 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold">
                 {nextModule ? `Start ${nextModule.sec.label}` : 'Find a test'}
               </button>
@@ -560,23 +551,22 @@ export const MyProfile: React.FC<MyProfileProps> = (p) => {
           ) : (
             <ul className="mt-3 divide-y divide-slate-100">
               {(allSkills ? skills : skills.slice(0, 4)).map((s) => {
-                const tier = getBadgeTier(s.score);
                 const r = ranks.find((x) => x.testId === s.testId);
                 return (
                   <li key={s.skillId}>
                     <button onClick={() => p.onOpenTest(s.testId)} className="w-full py-3 flex items-center gap-4 text-left group">
-                      <span className={`w-10 h-10 rounded-full tier-solid tier-solid-${tier.tierKey === 'developing' ? 'silver' : tier.tierKey} flex items-center justify-center shrink-0`}>
+                      <span className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
                         <Award className="w-5 h-5" />
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block text-sm font-bold text-slate-900 group-hover:text-indigo-700">{s.skillName}</span>
                         <span className="block text-xs text-slate-500">
-                          <span className={`font-semibold ${tier.badgeTextColor}`}>{tier.label}</span> · {s.level}
-                          {r ? ` · #${r.rank} of ${r.of}` : ` · ${s.percentile}th percentile`}
+                          {s.level}
+                          {r && ` · #${r.rank} of ${r.of}`}
                         </span>
                         <span className="mt-1.5 block h-1.5 rounded-full bg-slate-100 overflow-hidden max-w-xs">
                           <span
-                            className={`block h-full rounded-full ${s.score >= 95 ? 'bg-amber-400' : s.score >= SILVER ? 'bg-slate-400' : s.score >= PASS ? 'bg-orange-400' : 'bg-slate-300'}`}
+                            className="block h-full rounded-full bg-indigo-500"
                             style={{ width: `${s.score}%` }}
                           />
                         </span>
@@ -590,7 +580,7 @@ export const MyProfile: React.FC<MyProfileProps> = (p) => {
           )}
           {skills.length > 4 && (
             <button onClick={() => setAllSkills((v) => !v)} className="mt-1 w-full pt-3 border-t border-slate-100 text-sm font-semibold text-slate-600 hover:text-slate-900 inline-flex items-center justify-center gap-1">
-              {allSkills ? 'Show fewer' : `Show all ${skills.length} skills`}
+              {allSkills ? 'Show fewer' : `Show all ${skills.length} scores`}
               <ArrowRight className="w-4 h-4" />
             </button>
           )}
@@ -728,7 +718,7 @@ export const MyProfile: React.FC<MyProfileProps> = (p) => {
           {!candidate.links?.length && <p className="text-[11px] text-slate-500">Add LinkedIn, GitHub or a portfolio under Edit.</p>}
         </Card>
 
-        <ProfileSidebar candidate={candidate} tests={path.length ? path.filter((m) => !(m.best !== undefined && m.best >= PASS)).map((m) => m.test) : tests} jobs={jobs} rankedJobs={p.rankedJobs} onOpenTest={p.onOpenTest} onOpenJob={p.onPreviewJob} />
+        <ProfileSidebar candidate={candidate} tests={path.length ? path.filter((m) => m.best === undefined).map((m) => m.test) : tests} jobs={jobs} rankedJobs={p.rankedJobs} onOpenTest={p.onOpenTest} onOpenJob={p.onPreviewJob} />
       </div>
     </div>
   );

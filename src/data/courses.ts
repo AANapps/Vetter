@@ -1,6 +1,6 @@
 /**
  * Praxa Learn: courses and bootcamps for job seekers and for employees whose companies are training them.
- * Every course ends in one or more Praxa tests, so finishing it gets you a verified score rather than a certificate
+ * Every course ends in one or more Praxa tests, so finishing it gets you a score rather than a certificate
  * nobody checks.
  */
 

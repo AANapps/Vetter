@@ -159,7 +159,6 @@ export const BusinessesView: React.FC<BusinessesViewProps> = ({
                                   {j.testIds.length} {j.testIds.length === 1 ? 'test' : 'tests'}
                                 </span>
                               </span>
-                              <span className="text-slate-400 shrink-0 ml-2">≥{j.testPassingScore} pts</span>
                             </div>
                           )}
                         </div>

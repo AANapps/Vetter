@@ -8,8 +8,6 @@ import { SectorId, industryInSector, testInSector } from '../lib/sectors';
 import { getBestTestScore } from '../lib/matchingAlgorithm';
 import { getTestStats } from '../lib/leaderboard';
 import { jobsUsing } from '../lib/demand';
-import { PASS } from '../lib/profileProgress';
-import { getBadgeTier } from './VerifiedSkillBadge';
 import { LevelPicker } from './LevelPicker';
 
 /**
@@ -31,19 +29,19 @@ interface TestsBrowserProps {
   onStartTest: (test: AssessmentTest) => void;
 }
 
-type Status = 'all' | 'todo' | 'passed';
+type Status = 'all' | 'todo' | 'done';
 
 const levelLabel = (d: TestDifficulty | string) => (d === 'Junior' ? 'Beginner' : levelName(d));
 const isSim = (t: AssessmentTest, sec?: TestSection) => /simulation/i.test(sec?.label ?? '') || /simulation/i.test(t.title);
 
-// A small completion circle: the share of a role's tests passed, with the count in the middle
+// A small completion circle: the share of a role's tests taken, with the count in the middle
 const ProgressRing: React.FC<{ done: number; total: number }> = ({ done, total }) => {
   const r = 27;
   const c = 2 * Math.PI * r;
   const pct = total ? done / total : 0;
   const all = total > 0 && done === total;
   return (
-    <span className="relative w-16 h-16 shrink-0" aria-label={`${done} of ${total} passed`} role="img">
+    <span className="relative w-16 h-16 shrink-0" aria-label={`${done} of ${total} done`} role="img">
       <svg width="64" height="64" aria-hidden="true">
         <circle cx="32" cy="32" r={r} fill="none" className="stroke-slate-100" strokeWidth="6" />
         <circle cx="32" cy="32" r={r} fill="none" className={all ? 'stroke-emerald-500' : 'stroke-indigo-600'} strokeWidth="6" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - pct)} transform="rotate(-90 32 32)" />
@@ -74,7 +72,8 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
       .filter((s): s is number => s !== undefined);
     return scores.length ? Math.max(...scores) : undefined;
   };
-  const passed = (t: AssessmentTest) => (best(t) ?? -1) >= PASS;
+  // No pass marks: a test is done once it has a score
+  const passed = (t: AssessmentTest) => best(t) !== undefined;
   const easiest = (t: AssessmentTest) => Math.min(...levelsOf(t, tests).map((v) => TEST_DIFFICULTIES.indexOf(v.difficulty)));
   const availableLevels = TEST_DIFFICULTIES.filter((d) => library.some((t) => levelsOf(t, tests).some((v) => v.difficulty === d)));
 
@@ -90,7 +89,7 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
   const matches = (t: AssessmentTest) =>
     (!q.trim() || `${t.title} ${t.category} ${t.description} ${t.skillsTested.join(' ')}`.toLowerCase().includes(q.trim().toLowerCase())) &&
     (!levels.length || levelsOf(t, tests).some((v) => levels.includes(v.difficulty))) &&
-    (status === 'all' || (status === 'passed' ? passed(t) : !passed(t)));
+    (status === 'all' || (status === 'done' ? passed(t) : !passed(t)));
 
   const role = testField && testField.roles.length === 1 ? testField.roles[0] : null;
   const path = role ? pathFor(role) : [];
@@ -101,8 +100,7 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
     const t = versions.find((v) => v.id === cardLevels[main.id]) ?? versions.find((v) => levels.includes(v.difficulty)) ?? main;
     const score = getBestTestScore(candidate, t.id);
     const top = best(main);
-    const ok = top !== undefined && top >= PASS;
-    const tier = top !== undefined ? getBadgeTier(top) : undefined;
+    const ok = top !== undefined;
     const taken = getTestStats(t, allCandidates).candidatesRanked;
     const wanted = jobsUsing(main, tests, jobs);
     const sim = opts.sim ?? isSim(main);
@@ -127,9 +125,7 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
             {opts.next && !ok ? (
               <span className="shrink-0 px-2 py-0.5 rounded-full bg-indigo-600 text-white text-[11px] font-semibold">Up next</span>
             ) : top !== undefined ? (
-              <span className={`shrink-0 px-2 py-0.5 rounded-full text-[11px] font-semibold ${ok ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
-                {ok ? `${tier!.label} · ${top}` : `Best ${top} · ${PASS} to pass`}
-              </span>
+              <span className="shrink-0 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700">Best {top}</span>
             ) : null}
           </div>
 
@@ -221,7 +217,7 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
           [
             ['all', 'All'],
             ['todo', 'To do'],
-            ['passed', 'Passed'],
+            ['done', 'Done'],
           ] as const
         ).map(([id, label]) => (
           <button key={id} onClick={() => setStatus(id)} aria-pressed={status === id} className={`px-3 py-1.5 rounded-full ${status === id ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900'}`}>
@@ -272,7 +268,7 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
                 <div className="text-xs font-semibold uppercase tracking-wider text-indigo-200">Tests for</div>
                 <h1 className="text-3xl font-bold tracking-tight">{role}</h1>
                 <p className="mt-1 text-sm text-indigo-100">
-                  {path.length ? `${path.length} tests in order, about ${Math.round(minutes / 60)} hours in all.` : `${all.length} tests.`} Pass one ({PASS}+) and the skill goes on your profile.
+                  {path.length ? `${path.length} tests in order, about ${Math.round(minutes / 60)} hours in all.` : `${all.length} tests.`} Each score goes on your profile.
                 </p>
               </div>
               {next && (
@@ -385,7 +381,7 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
           Free · marked in seconds · retake any time
         </div>
         <h1 className="text-4xl font-bold tracking-tight text-slate-900">What job do you want?</h1>
-        <p className="text-slate-600">Pick a role and take its tests in order. Each one you pass ({PASS}+) adds a verified skill to your profile, which is what companies hire on.</p>
+        <p className="text-slate-600">Pick a role and take its tests in order. Each score goes on your profile, which is what companies hire on.</p>
         <div className="relative max-w-lg mx-auto">
           <Search className="w-5 h-5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
           <input
@@ -433,7 +429,7 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
                   <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Don't just say you can do the job. Show it.</h2>
                   <p className="mt-2 text-sm text-indigo-100">
                     Each one is a real working day in the role, about 40 minutes: emails to answer, the job's own software, and a curveball halfway through.
-                    Pass it ({PASS}+) and it goes on your profile as proof you've done the work, which counts for more with companies than any CV line.
+                    Your score goes on your profile as proof you've done the work, which counts for more with companies than any CV line.
                   </p>
                 </div>
               </div>
@@ -457,11 +453,11 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
                           <Clock className="w-3 h-3" />~{t.estimatedMinutes} min
                         </span>
                         <span className="px-2 py-0.5 rounded-full bg-slate-100">5 timed parts</span>
-                        {score !== undefined && <span className={`px-2 py-0.5 rounded-full font-semibold ${ok ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>{ok ? `Passed · ${score}` : `Best ${score}`}</span>}
+                        {score !== undefined && <span className="px-2 py-0.5 rounded-full font-semibold bg-emerald-50 text-emerald-700">Best {score}</span>}
                       </div>
                       <button onClick={() => onStartTest(t)} className={`mt-auto px-4 py-2 rounded-lg text-sm font-semibold inline-flex items-center justify-center gap-1.5 ${ok ? 'border border-slate-300 text-slate-700 hover:bg-slate-50' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}>
                         <Play className="w-3.5 h-3.5 fill-current" />
-                        {score === undefined ? 'Prove it: start the day' : ok ? 'Take it again' : 'Try again'}
+                        {score === undefined ? 'Prove it: start the day' : 'Take it again'}
                       </button>
                     </li>
                   );
@@ -497,13 +493,13 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
                           </span>
                           {done > 0 ? (
                             <span className="text-[11px] text-slate-500">
-                              {done} of {list.length} passed
+                              {done} of {list.length} done
                             </span>
                           ) : (
                             first && <span className="text-xs text-slate-500">Starts with <span className="font-semibold text-slate-700">{first}</span></span>
                           )}
                         </span>
-                        {/* How much of the role they've passed, down the card's right-hand side */}
+                        {/* How much of the role they've done, down the card's right-hand side */}
                         <ProgressRing done={done} total={list.length} />
                       </button>
                     </li>

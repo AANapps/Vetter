@@ -43,9 +43,6 @@ Kept up to date as work is asked for and finished. Newest items at the bottom of
 From a code read-through of both flows (not clicked through live).
 
 **Fix first (trust in results)**
-- Verified skills: code verifies any score though the UI says 75+ (src/lib/results.ts). Only verify at PASS (75).
-- Three pass marks: job testPassingScore (70), per-test minScore (70), profile PASS (75). Keep one per test.
-- Verified skill percentile is always 0: compute it or hide it.
 - The 5 sample candidates are mixed in with real ones live: label them or remove them.
 - The test AI chat (task assistant) has no login and Praxa pays: require sign-in and set a limit.
 - Firestore rules not deployed; Anthropic credit out (since 2026-11-18).
@@ -80,6 +77,8 @@ From a code read-through of both flows (not clicked through live).
 **Not tested live yet:** Stripe credits, CV import, AI-made job sims, full-screen rules, code runner.
 
 ## Done
+
+- 2026-11-22: No pass marks, "verified" or medals: candidates and companies see the score (and rank) on every test. Job pass marks and per-skill minimums are gone (finishing a job's required tests sends the application with the score); companies see every try's score; the percentile is gone. Training keeps its pass mark for certificates. Not clicked through in a browser yet.
 
 - 2026-11-12: Tests fit the job (no spreadsheets for trades/clinical), drawings labelled.
 - 2026-11-12: Library tests suggested when a job is posted, not while making a test.

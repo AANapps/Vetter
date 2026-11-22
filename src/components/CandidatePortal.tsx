@@ -188,7 +188,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
   const handleApply = (jobId: string, jobTitle: string, profileId: string) => {
     onApplyJob(jobId, profileId);
     const profileName = profiles.find((p) => p.id === profileId)?.name;
-    setAppliedNotification(`Application sent for "${jobTitle}" with your ${profileName ?? 'verified skills'} profile.`);
+    setAppliedNotification(`Application sent for "${jobTitle}" with your ${profileName ?? 'test scores'} profile.`);
     setTimeout(() => setAppliedNotification(null), 3500);
   };
 
@@ -244,7 +244,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
               {boardJobs.length === activeJobs.length
                 ? `${activeJobs.length} open ${sector === 'all' ? '' : `${sectorLabel(sector)} `}jobs.`
                 : `${boardJobs.length} of ${activeJobs.length} open ${sector === 'all' ? '' : `${sectorLabel(sector)} `}jobs match your search.`}{' '}
-              Your fit score is based on your verified skills.
+              Your fit score is based on your test scores.
             </p>
           </div>
 

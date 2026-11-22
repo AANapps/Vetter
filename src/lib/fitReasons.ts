@@ -27,13 +27,12 @@ export function fitSummary(person: User, job: JobPosting, tests: AssessmentTest[
   const reasons: string[] = [];
   const concerns: string[] = [];
 
-  // The job's own tests (its job simulation): their score against the pass mark, and where they stand
+  // The job's own tests (its job simulation): their score
   const progress = jobTestProgress(job, person);
   const jobTests = job.testIds.map((id) => tests.find((t) => t.id === id)).filter((t): t is AssessmentTest => !!t);
-  if (progress.status === 'passed' || progress.status === 'failed') {
+  if (progress.status === 'completed') {
     const sim = jobTests.length === 1 ? jobTests[0].title.replace(/:.*$/, '') : 'your tests';
-    if (progress.status === 'passed') reasons.push(`Scored ${progress.score} on ${sim}, above your pass mark of ${job.testPassingScore}.`);
-    else concerns.push(`Scored ${progress.score} on ${sim}, below your pass mark of ${job.testPassingScore}.`);
+    (progress.score! >= 70 ? reasons : concerns).push(`Scored ${progress.score}/100 on ${sim}.`);
   } else if (progress.done > 0) concerns.push(`Has taken ${progress.done} of ${progress.total} of your tests so far.`);
   else if (job.testIds.length) concerns.push('Hasn’t taken your job simulation yet.');
 

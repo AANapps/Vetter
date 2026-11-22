@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Pic } from './Pic';
 import { AssessmentTest, Business, JobPosting, User } from '../types';
 import { SectorId } from '../lib/sectors';
-import { PASS, useProfileProgress } from '../lib/profileProgress';
+import { useProfileProgress } from '../lib/profileProgress';
 import { STATUS_LABELS, invitesFor } from '../lib/jobTests';
 import { jobIdFromPath } from '../lib/jobSeo';
 import { activeProfileOf } from '../lib/jobProfiles';
@@ -61,7 +61,7 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, jobs, t
           <div className="h-14 bg-indigo-700" />
           <div className="px-5 pb-5 pt-4 space-y-3">
             <h1 className="text-lg font-bold text-slate-900 tracking-tight">Get hired on what you can do</h1>
-            <p className="text-sm text-slate-600">Take a free test, get a verified score, and apply to jobs that hire on skill rather than CVs.</p>
+            <p className="text-sm text-slate-600">Take a free test, get a score, and apply to jobs that hire on skill rather than CVs.</p>
             <button onClick={visitor.onJoin} className="w-full py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg">
               Join Praxa, it's free
             </button>
@@ -138,7 +138,7 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, jobs, t
 
           <dl className="grid grid-cols-3 gap-2 pt-3 border-t border-slate-100 text-center">
             {[
-              { label: 'Verified skills', value: candidate.verifiedSkills.length },
+              { label: 'Test scores', value: candidate.verifiedSkills.length },
               { label: 'Tests taken', value: new Set(candidate.testResults.map((r) => r.testId)).size },
               { label: 'Best score', value: bestScore ?? '–' },
             ].map((s) => (
@@ -160,7 +160,7 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, jobs, t
               <div className="text-sm font-bold text-slate-900 truncate">{progress.role}</div>
             </div>
             <span className="text-sm font-bold font-mono tabular-nums text-indigo-700">
-              {progress.passedModules.length}/{progress.path.length}
+              {progress.takenModules.length}/{progress.path.length}
             </span>
           </div>
           <div className="flex gap-1">
@@ -169,7 +169,7 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, jobs, t
                 key={m.sec.id}
                 onClick={() => onOpenTest(m.test.id)}
                 title={`${m.sec.label}: ${m.best === undefined ? 'not started' : m.best}`}
-                className={`h-2 flex-1 rounded-full ${m.best !== undefined && m.best >= PASS ? 'bg-emerald-500' : m.best !== undefined ? 'bg-amber-400' : 'bg-slate-200 hover:bg-indigo-300'}`}
+                className={`h-2 flex-1 rounded-full ${m.best !== undefined ? 'bg-emerald-500' : 'bg-slate-200 hover:bg-indigo-300'}`}
               />
             ))}
           </div>
@@ -223,10 +223,10 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, jobs, t
                     <span className="block text-sm font-semibold text-slate-900 truncate">{job.title}</span>
                     <span className="block text-xs text-slate-500">Sent to {job.companyName}</span>
                   </span>
-                  <span className={`text-sm font-bold font-mono tabular-nums ${progress.status === 'passed' ? 'text-emerald-700' : 'text-rose-700'}`}>
+                  <span className="text-sm font-bold font-mono tabular-nums text-slate-900">
                     {progress.score}
                   </span>
-                  <span className={`text-xs font-semibold w-28 text-right ${progress.status === 'passed' ? 'text-emerald-700' : 'text-rose-700'}`}>
+                  <span className="text-xs font-semibold w-28 text-right text-slate-600">
                     {STATUS_LABELS[progress.status]}
                   </span>
                 </button>

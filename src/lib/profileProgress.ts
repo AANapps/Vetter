@@ -9,13 +9,9 @@ import { jobsUsing } from './demand';
 
 /**
  * How far a candidate has got: their profile strength (the profile itself counts a little, proven skills most) and
- * their progress through the role they're working towards. Shared by their profile and their home page, so both
+ * their progress through the role they're working towards (a module counts once it has a score). Shared by their profile and their home page, so both
  * show the same numbers and the same next step.
  */
-
-// A score that verifies a skill, and Silver
-export const PASS = 75;
-export const SILVER = 88;
 
 export interface PathModule {
   sec: TestSection;
@@ -123,27 +119,26 @@ export function useProfileProgress(input: {
       return { sec, test, best: bestOnAnyLevel(candidate, test, tests), isSim: /simulation/i.test(sec.label), wanted: jobsUsing(test, tests, jobs) };
     })
     .filter((m): m is PathModule => !!m);
-  const passedModules = path.filter((m) => m.best !== undefined && m.best >= PASS);
-  // What to do next: a module not started (skills before the job simulation), else one not yet passed
-  const nextModule =
-    path.filter((m) => !m.isSim).find((m) => m.best === undefined) ?? path.find((m) => m.best === undefined) ?? path.find((m) => m.best !== undefined && m.best < PASS);
-  const pathPct = path.length ? Math.round((passedModules.length / path.length) * 100) : 0;
+  // No pass marks: a module counts once it has a score
+  const takenModules = path.filter((m) => m.best !== undefined);
+  // What to do next: a module not started, skills before the job simulation
+  const nextModule = path.filter((m) => !m.isSim).find((m) => m.best === undefined) ?? path.find((m) => m.best === undefined);
+  const pathPct = path.length ? Math.round((takenModules.length / path.length) * 100) : 0;
 
   // Profile strength
-  const passedAny = candidate.verifiedSkills.length > 0;
+  const scoredAny = candidate.verifiedSkills.length > 0;
   const simDone =
-    path.some((m) => m.isSim && m.best !== undefined && m.best >= PASS) ||
-    candidate.testResults.some((r) => r.score >= PASS && /simulation/i.test(tests.find((t) => t.id === r.testId)?.title ?? ''));
+    path.some((m) => m.isSim && m.best !== undefined) ||
+    candidate.testResults.some((r) => /simulation/i.test(tests.find((t) => t.id === r.testId)?.title ?? ''));
   const steps: StrengthStep[] = [
     { id: 'headline', label: 'Write a headline', hint: 'The line under your name, e.g. "Data Analyst · SQL and Power BI".', weight: 5, done: !!shown.title?.trim(), cta: 'Add', action: 'profile' },
     { id: 'about', label: 'Write your About', hint: 'Two or three sentences on what you do and want next.', weight: 5, done: (shown.bio?.trim().length ?? 0) >= 40, cta: 'Add', action: 'profile' },
     { id: 'experience', label: 'Add your experience', hint: 'Jobs, internships and placements. Or fill it in from your CV.', weight: 10, done: !!candidate.experience?.length, cta: 'Add', action: 'experience' },
     { id: 'education', label: 'Add your education', hint: 'Your degree, qualifications or certifications.', weight: 5, done: !!(candidate.education?.length || candidate.certifications?.length), cta: 'Add', action: 'education' },
     { id: 'links', label: 'Add a link', hint: 'LinkedIn, GitHub or a portfolio.', weight: 5, done: !!candidate.links?.length, cta: 'Add', action: 'details' },
-    { id: 'first', label: 'Prove your first skill', hint: `Score ${PASS}+ on any Praxa test and the skill goes on your profile, verified.`, weight: 25, done: passedAny, cta: 'Take a test', action: 'next-test', test: true },
-    { id: 'three', label: 'Verify 3 skills', hint: 'Companies shortlist candidates with several proven skills first.', weight: 20, done: candidate.verifiedSkills.length >= 3, cta: 'Next test', action: 'next-test', test: true },
-    { id: 'sim', label: 'Pass a job simulation', hint: 'A whole working day on a desktop. The strongest proof you can do the job.', weight: 15, done: simDone, cta: 'See it', action: 'sim', test: true },
-    { id: 'silver', label: `Reach Silver (${SILVER}+) on a test`, hint: 'Silver and Gold put you near the top of the test’s leaderboard.', weight: 10, done: candidate.verifiedSkills.some((s) => s.score >= SILVER), cta: 'Retake', action: 'retake-best', test: true },
+    { id: 'first', label: 'Take your first test', hint: 'Your score on any Praxa test goes on your profile.', weight: 25, done: scoredAny, cta: 'Take a test', action: 'next-test', test: true },
+    { id: 'three', label: 'Get scores on 3 tests', hint: 'Companies shortlist candidates with several test scores first.', weight: 30, done: candidate.verifiedSkills.length >= 3, cta: 'Next test', action: 'next-test', test: true },
+    { id: 'sim', label: 'Do a job simulation', hint: 'A whole working day on a desktop. The strongest proof you can do the job.', weight: 15, done: simDone, cta: 'See it', action: 'sim', test: true },
   ];
   const strength = steps.reduce((sum, s) => sum + (s.done ? s.weight : 0), 0);
   const level = strength >= 100 ? 'All-Star' : strength >= 70 ? 'Advanced' : strength >= 35 ? 'Intermediate' : 'Beginner';
@@ -158,5 +153,5 @@ export function useProfileProgress(input: {
     return undefined;
   };
 
-  return { roles, role, rolePicked, setRole, path, passedModules, nextModule, pathPct, passedAny, steps, strength, level, todo, testFor };
+  return { roles, role, rolePicked, setRole, path, takenModules, nextModule, pathPct, scoredAny, steps, strength, level, todo, testFor };
 }

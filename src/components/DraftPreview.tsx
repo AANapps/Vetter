@@ -148,7 +148,7 @@ export const DraftPreview: React.FC<DraftPreviewProps> = ({ test: given, onChang
               <div className="px-3 py-2 border-b border-slate-100">
                 <div className="text-sm font-bold text-slate-900">{test.title}</div>
                 <div className="text-[11px] text-slate-500">
-                  {levelName(test.difficulty)} &middot; {test.questions.filter((q) => q.type !== 'case').length} questions &middot; ~{test.estimatedMinutes} min &middot; pass {test.passingScore}%
+                  {levelName(test.difficulty)} &middot; {test.questions.filter((q) => q.type !== 'case').length} questions &middot; ~{test.estimatedMinutes} min
                 </div>
               </div>
               {test.blueprint && test.blueprint.length > 0 && (

@@ -65,7 +65,7 @@ const TEST_STATUSES = Object.keys(TEST_STATUS_LABELS) as LeadTestStatus[];
 
 // Ready-made views for the questions recruiters ask most
 const PRESETS: { id: string; label: string; filters: Partial<LeadFilters>; sort?: LeadSort }[] = [
-  { id: 'review', label: 'To review', filters: { stages: ['applied'], testStatuses: ['passed'] }, sort: 'score' },
+  { id: 'review', label: 'To review', filters: { stages: ['applied'], testStatuses: ['completed'] }, sort: 'score' },
   { id: 'interviews', label: 'Interviews', filters: { stages: ['interview'] }, sort: 'due' },
   { id: 'offers', label: 'Offers out', filters: { stages: ['offer'] }, sort: 'due' },
   { id: 'top', label: 'Top matches', filters: { tiers: ['Top Match'] }, sort: 'fit' },
@@ -117,7 +117,7 @@ const StageChip: React.FC<{ stage: LeadStage }> = ({ stage }) => {
 
 const ScoreText: React.FC<{ row: LeadRow }> = ({ row }) =>
   row.progress.score !== undefined ? (
-    <span className={`font-mono tabular-nums font-bold ${row.progress.score >= row.job.testPassingScore ? 'text-emerald-700' : 'text-rose-700'}`}>{row.progress.score}</span>
+    <span className="font-mono tabular-nums font-bold text-slate-900">{row.progress.score}</span>
   ) : row.testStatus === 'no-tests' ? (
     <span className="text-slate-300">–</span>
   ) : (

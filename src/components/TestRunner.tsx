@@ -24,7 +24,6 @@ import {
   Crown,
   Award,
 } from 'lucide-react';
-import { getBadgeTier } from './VerifiedSkillBadge';
 import { ChartPreview, parseChartSpec } from './ChartPreview';
 import { AnswerInput } from './AnswerInputs';
 import { groupQuestions, hasAnswer, isAnswerType, isWorkspaceType } from '../lib/questionTypes';
@@ -105,7 +104,6 @@ interface TestRunnerProps {
   onClose: () => void;
   // answers: what the candidate wrote and how each was marked, kept for the company the test was taken for
   onComplete: (testId: string, finalScore: number, durationSeconds: number, integrity?: IntegrityReport, breakdown?: ResultBreakdown, answers?: AnswerRecord[]) => void;
-  getPercentileFor: (score: number) => number;
   // Tried out from the test builder: nothing is saved
   preview?: boolean;
   // Where the score goes, when it isn't the candidate's profile: e.g. a company trying its own test
@@ -121,7 +119,7 @@ interface TestRunnerProps {
   // Called once the candidate has opened every question (every slide of every task): from then on, leaving locks the
   // test for retakeDays
   onSawAll?: () => void;
-  // Training for a company's team: no warnings for leaving the tab, no badge or percentile, and the worked answers at the end
+  // Training for a company's team: no warnings for leaving the tab, no leaderboard rank, and the worked answers at the end
   training?: boolean;
 }
 
@@ -147,7 +145,7 @@ export const TestRunner: React.FC<TestRunnerProps> = (props) => {
   return <TestRunnerInner {...props} test={own} />;
 };
 
-const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete, getPercentileFor, preview, savedNote, onBegin, attempt, training, getRankFor, retakeDays, onSawAll }) => {
+const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete, preview, savedNote, onBegin, attempt, training, getRankFor, retakeDays, onSawAll }) => {
   // Each hands-on task is shown with the questions about it; every other question on its own
   const groups = useMemo(() => groupQuestions(test.questions), [test.questions]);
   const ordered = useMemo(() => groups.flatMap((g) => g.questions), [groups]);
@@ -173,7 +171,6 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
   const [questionFeedback, setQuestionFeedback] = useState<Record<string, string[]>>({});
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [finalScore, setFinalScore] = useState(0);
-  const [finalPercentile, setFinalPercentile] = useState(0);
   const [finalRank, setFinalRank] = useState<{ rank: number; of: number } | null>(null);
   // Module tests: the score by level and by area, and the level reached
   const [breakdown, setBreakdown] = useState<ResultBreakdown | undefined>();
@@ -487,7 +484,6 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
     const levels = breakdownFor(test, perQuestion);
     const duration = Math.round((Date.now() - startedAtRef.current) / 1000);
     setBreakdown(levels);
-    setFinalPercentile(getPercentileFor(score));
     setFinalRank(getRankFor?.(score) ?? null);
     setFinalDuration(duration);
     setIsSubmitting(false);
@@ -1326,8 +1322,6 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
 
       {/* Completion Modal */}
       {showCompletionModal && (() => {
-        const earnedTier = getBadgeTier(finalScore);
-
         return (
           // The result can be taller than the screen (the breakdown, every task's feedback): it scrolls within the screen
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
@@ -1360,50 +1354,22 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
                 </div>
               ) : (
                 <>
-              {/* The badge this score earns */}
-              <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-white p-4">
-                <span className={`absolute inset-x-0 top-0 h-1 ${earnedTier.barClass}`} aria-hidden="true" />
+              {/* The score, and where it ranks on the test's leaderboard. No pass mark or badge: the score is the result */}
+              <div className={`grid ${finalRank ? 'grid-cols-2' : 'grid-cols-1'} gap-3 p-4 bg-slate-50 border border-slate-200 rounded-xl text-center`}>
                 <div>
-                  <div className="text-sm font-bold text-slate-900">
-                    {earnedTier.tierKey === 'developing'
-                      ? 'No badge this time'
-                      : `${earnedTier.label} badge${test.type === 'standard' ? ` · ${test.skillsTested[0] ?? test.title}` : ''}`}
-                  </div>
-                  <div className="text-xs text-slate-600">
-                    {earnedTier.tierKey === 'developing' ? 'Score 75 or more to earn a verified badge.' : earnedTier.sublabel}
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 p-4 bg-slate-50 border border-slate-200 rounded-xl text-center">
-                <div>
-                  <div className="text-xs text-slate-500 mb-1 font-medium">Verified Score</div>
-                  <div className={`text-3xl font-extrabold font-mono tabular-nums ${earnedTier.badgeTextColor}`}>
+                  <div className="text-xs text-slate-500 mb-1 font-medium">Your score</div>
+                  <div className="text-3xl font-extrabold font-mono tabular-nums text-slate-900">
                     {finalScore}
+                    <span className="text-sm font-medium text-slate-400">/100</span>
                   </div>
-                  {finalScore >= test.passingScore ? (
-                    <div className="text-[11px] text-emerald-700 mt-1 font-medium">Passed (pass mark {test.passingScore})</div>
-                  ) : (
-                    <div className="text-[11px] text-rose-700 mt-1 font-medium">Below pass mark of {test.passingScore}</div>
-                  )}
                 </div>
-                <div>
-                  {finalRank ? (
-                    <>
-                      <div className="text-xs text-slate-500 mb-1 font-medium">Your rank on this test</div>
-                      <div className="text-3xl font-extrabold text-slate-900 font-mono tabular-nums">#{finalRank.rank}</div>
-                      <div className="text-[11px] text-indigo-700 mt-1 font-medium">
-                        of {finalRank.of} worldwide · top {Math.max(1, Math.round((finalRank.rank / finalRank.of) * 100))}%
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="text-xs text-slate-500 mb-1 font-medium">Percentile on this test</div>
-                      <div className="text-3xl font-extrabold text-slate-900 font-mono tabular-nums">{finalPercentile}th</div>
-                      <div className="text-[11px] text-indigo-700 mt-1 font-medium">{earnedTier.sublabel}</div>
-                    </>
-                  )}
-                </div>
+                {finalRank && (
+                  <div>
+                    <div className="text-xs text-slate-500 mb-1 font-medium">Your rank on this test</div>
+                    <div className="text-3xl font-extrabold text-slate-900 font-mono tabular-nums">#{finalRank.rank}</div>
+                    <div className="text-[11px] text-indigo-700 mt-1 font-medium">of {finalRank.of}</div>
+                  </div>
+                )}
               </div>
 
                 </>

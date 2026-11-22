@@ -130,7 +130,7 @@ export const RankedPage: React.FC<{
                     </div>
                     {/* The top three, padded with the open place and not yet ranked when fewer have taken it */}
                     <div className="w-[calc(100%+2.5rem)] -mx-5 flex-1">
-                      <LeaderboardTable entries={b.entries.slice(0, 3)} passingScore={b.test.passingScore} viewerId={viewerId} slots={3} variant="compact" bare />
+                      <LeaderboardTable entries={b.entries.slice(0, 3)} viewerId={viewerId} slots={3} variant="compact" bare />
                     </div>
                     <div className="w-full flex items-center justify-between gap-2 text-[11px] text-slate-500 border-t border-slate-100 pt-3">
                       <span className="inline-flex items-center gap-1">
@@ -177,7 +177,7 @@ const TestBoard: React.FC<{
         <div className="min-w-0">
           <h2 className="text-lg font-bold text-slate-900">{board.test.title}</h2>
           <p className="text-xs text-slate-500">
-            {board.test.category} · {levelName(board.test.difficulty)} · pass mark {board.test.passingScore}
+            {board.test.category} · {levelName(board.test.difficulty)}
           </p>
         </div>
         <button
@@ -188,12 +188,11 @@ const TestBoard: React.FC<{
           <ArrowRight className="w-4 h-4" />
         </button>
         {board.entries.length > 0 && (
-          <dl className="w-full grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <dl className="w-full grid grid-cols-3 gap-2">
             {[
               ['Ranked', stats.candidatesRanked],
               ['Top score', stats.topScore],
               ['Average', stats.averageScore],
-              ['Pass rate', `${stats.passRate}%`],
             ].map(([label, value]) => (
               <div key={label} className="rounded-lg bg-slate-50 px-3 py-2">
                 <dt className="text-[11px] text-slate-500">{label}</dt>
@@ -232,7 +231,6 @@ const RankTable: React.FC<{ board: Board; viewerId: string; onClaim: () => void;
     <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
       <LeaderboardTable
         entries={board.entries.slice(0, TOP_COUNT)}
-        passingScore={board.test.passingScore}
         viewerId={viewerId}
         slots={SLOTS}
         pinned={yours}

@@ -8,8 +8,7 @@ import { CurrencyPicker } from './components/CurrencyPicker';
 import { User, UserRole, Assignment, Project, ProjectTask, TeamMember, AssessmentTest, JobPosting, Business, SocialState, AppNotification, JobInvitation, Lead, TestDraft, TestKind, TestRole, TrialResult, ResultBreakdown, hasAiTests, madeWithAI, isPublic, isListed } from './types';
 import { INITIAL_RECRUITER, INITIAL_BUSINESSES, STANDARD_ASSESSMENTS } from './data/mockData';
 import { loadData, saveData, clearData, createSeedData } from './lib/store';
-import { getPercentile } from './lib/leaderboard';
-import { initialsAvatar, withComputedPercentiles } from './data/seedCandidates';
+import { initialsAvatar } from './data/seedCandidates';
 import { buildSampleCandidates } from './data/sampleCandidates';
 import { RETAKE_DAYS, addTestResult, nextAttemptAt, removeTestResults } from './lib/results';
 import { getLeaderboard } from './lib/leaderboard';
@@ -375,8 +374,7 @@ export default function App() {
     let timer: ReturnType<typeof setTimeout>;
     const recordAttempt = (attempt: { candidateId: string; test: AssessmentTest; result: User['testResults'][number] }) => {
       const updated = othersRef.current.map((c) => (c.id === attempt.candidateId ? addTestResult(c, attempt.test, attempt.result) : c));
-      setOtherCandidates(withComputedPercentiles([candidateRef.current, ...updated]).slice(1));
-      setCandidate((prev) => withComputedPercentiles([prev, ...updated])[0]);
+      setOtherCandidates(updated);
     };
     const tick = () => {
       if (document.visibilityState === 'visible') {
@@ -884,7 +882,7 @@ export default function App() {
   const startTest = (test: AssessmentTest) =>
     activeRole !== 'candidate'
       ? setTrialTest({ test })
-      : requireAccount('Create a free account to take this test and get a verified score.', () => {
+      : requireAccount('Create a free account to take this test and get a score.', () => {
           // A library test can be taken again once the retake gap has passed since the last start
           const next = isPublic(test) ? nextAttemptAt(candidate, test.id) : null;
           if (next) return showToast(`You can take "${test.title}" again from ${next.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })}. Each library test can be taken once every ${RETAKE_DAYS} days.`);
@@ -1210,25 +1208,19 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
       }).catch((err) => console.error("Couldn't keep the answers for the company", err));
     }
 
-    // A new score shifts everyone's standing on this test
-    const everyone = withComputedPercentiles([updatedCandidate, ...otherCandidates]);
-    setCandidate(everyone[0]);
-    setOtherCandidates(everyone.slice(1));
+    setCandidate(updatedCandidate);
 
-    // Taken for a job: once every one of its tests is done, a pass sends the application (when the tests are required to apply)
+    // Taken for a job: once every one of its tests is done, the application is sent (when the tests are required to
+    // apply). No pass mark: the company sees the score
     if (job) {
       const progress = jobTestProgress(job, updatedCandidate);
       const applied = candidate.appliedJobIds?.includes(job.id);
-      if (progress.status === 'passed' && job.testsRequired && !applied) {
+      const scored = `${progress.total > 1 ? 'You averaged' : 'You scored'} ${progress.score}/100 on ${job.title}'s ${progress.total > 1 ? 'tests' : 'test'}`;
+      if (progress.status === 'completed' && job.testsRequired && !applied) {
         handleApplyJob(job.id);
-        showToast(`You passed ${job.title}'s tests with ${progress.score}/100. Your application to ${job.companyName} has been sent.`);
-      } else if (progress.status === 'passed') {
-        showToast(`You passed ${job.title}'s tests with ${progress.score}/100.`);
-      } else if (progress.status === 'failed') {
-        const canRetake = job.testIds.some((id) => attemptsAt(job, updatedCandidate, id).left !== 0);
-        showToast(
-          `You averaged ${progress.score}/100. ${job.title} needs ${job.testPassingScore}.${canRetake ? ' You can retake a test.' : ' You have no attempts left.'}`
-        );
+        showToast(`${scored}. Your application to ${job.companyName} has been sent with your score.`);
+      } else if (progress.status === 'completed') {
+        showToast(`${scored}. ${job.companyName} sees your score.`);
       } else {
         showToast(`You scored ${finalScore}/100. ${progress.done} of ${progress.total} of ${job.title}'s tests done.`);
       }
@@ -1496,7 +1488,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
     openBusinessJob(job.id);
   };
 
-  const handleSaveJobTests = (jobId: string, change: Pick<JobPosting, 'testIds' | 'testPassingScore' | 'testsRequired' | 'maxAttempts'>) => {
+  const handleSaveJobTests = (jobId: string, change: Pick<JobPosting, 'testIds' | 'testsRequired' | 'maxAttempts'>) => {
     setJobs((prev) => prev.map((j) => (j.id === jobId ? { ...j, ...change } : j)));
   };
 
@@ -1608,9 +1600,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
   };
 
   // With accounts on, standings are worked out from everyone's real results; visitors and companies aren't candidates
-  const allCandidates = firebaseEnabled
-    ? withComputedPercentiles(isCandidateAccount ? [candidate, ...otherCandidates] : otherCandidates)
-    : [candidate, ...otherCandidates];
+  const allCandidates = firebaseEnabled ? (isCandidateAccount ? [candidate, ...otherCandidates] : otherCandidates) : [candidate, ...otherCandidates];
   const testPageTest = testPageId ? tests.find((t) => t.id === testPageId) : undefined;
   const coursePage = COURSES.find((c) => c.id === coursePageId);
   // What the candidate's browsing pages list, in the sector picked
@@ -1945,7 +1935,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
               onTestFieldChange={setTestField}
               sector={sector}
               canApply={() => {
-                if (isVisitor) setAuthDialog({ mode: 'sign-up', reason: 'Create a free account to apply. Your verified scores go with your application.' });
+                if (isVisitor) setAuthDialog({ mode: 'sign-up', reason: 'Create a free account to apply. Your scores go with your application.' });
                 return !isVisitor;
               }}
               visitor={
@@ -2664,7 +2654,6 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
           onSawAll={!activeTestJobId && isPublic(activeTest) ? () => recordSawAll(activeTest) : undefined}
           attempt={activeAttempt ?? undefined}
           onComplete={handleCompleteTest}
-          getPercentileFor={(score) => getPercentile(score, activeTest.id, allCandidates, candidate.id)}
         />
       )}
 
@@ -2676,7 +2665,6 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
           onClose={() => setAssignmentRun(null)}
           onBegin={() => !assignmentRun.assignment.startedAt && updateAssignment(assignmentRun.assignment.id, { startedAt: new Date().toISOString() })}
           onComplete={(_testId, score, durationSeconds, _integrity, _breakdown, answers) => finishAssignment(assignmentRun.assignment, assignmentRun.test, score, durationSeconds, answers)}
-          getPercentileFor={(score) => getPercentile(score, assignmentRun.test.id, allCandidates, candidate.id)}
         />
       )}
 
@@ -2689,7 +2677,6 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
           onComplete={(testId, score, durationSeconds) => {
             saveTrial(testId, score, durationSeconds, trialTest.jobId);
           }}
-          getPercentileFor={(score) => getPercentile(score, trialTest.test.id, allCandidates, '')}
         />
       )}
 

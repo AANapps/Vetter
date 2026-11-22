@@ -71,7 +71,6 @@ export const TestHistory: React.FC<TestHistoryProps> = ({ person, tests, candida
   return (
     <ul className="divide-y divide-slate-100 border border-slate-200 rounded-xl bg-white">
       {rows.map(({ test, best, attempts, last, rank, of, sharedWith, sittings, reached, hidden, unfinished, scores }) => {
-        const passed = best >= test.passingScore;
         const Row = onOpenTest ? 'button' : 'div';
         return (
           <li key={test.id} className="flex items-center">
@@ -79,7 +78,7 @@ export const TestHistory: React.FC<TestHistoryProps> = ({ person, tests, candida
               {...(onOpenTest ? { onClick: () => onOpenTest(test.id) } : {})}
               className={`flex-1 min-w-0 text-left px-4 py-3 flex items-center gap-3 ${onOpenTest ? 'hover:bg-slate-50 group' : ''}`}
             >
-              {passed ? <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" /> : <XCircle className="w-5 h-5 text-slate-300 shrink-0" />}
+              {attempts > 0 ? <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" /> : <XCircle className="w-5 h-5 text-slate-300 shrink-0" />}
               <span className="min-w-0 flex-1">
                 <span className="block text-sm font-semibold text-slate-900 group-hover:text-indigo-700 truncate">{test.title}</span>
                 <span className="block text-xs text-slate-500">
@@ -98,8 +97,7 @@ export const TestHistory: React.FC<TestHistoryProps> = ({ person, tests, candida
                 </span>
               )}
               <span className="text-right shrink-0 w-14">
-                <span className={`block text-base font-bold font-mono tabular-nums ${attempts === 0 ? 'text-slate-400' : passed ? 'text-slate-900' : 'text-rose-700'}`}>{attempts === 0 ? '—' : best}</span>
-                <span className="block text-[10px] text-slate-400">pass {test.passingScore}</span>
+                <span className={`block text-base font-bold font-mono tabular-nums ${attempts === 0 ? 'text-slate-400' : 'text-slate-900'}`}>{attempts === 0 ? '—' : best}</span>
               </span>
               {onOpenTest && <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />}
             </Row>

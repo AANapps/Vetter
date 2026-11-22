@@ -200,11 +200,10 @@ export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose, on
                     <h2 className="mt-1 text-lg font-bold text-slate-900">{test.title}</h2>
                     <p className="mt-2">{test.description}</p>
                   </div>
-                  <dl className="grid grid-cols-2 sm:grid-cols-4 border border-slate-200 rounded-xl overflow-hidden divide-x divide-y sm:divide-y-0 divide-slate-200">
+                  <dl className="grid grid-cols-3 border border-slate-200 rounded-xl overflow-hidden divide-x divide-slate-200">
                     {[
                       ['Duration', limit === null ? `No limit (about ${test.estimatedMinutes} min)` : `${limit} minutes`],
                       ['Questions', `${answerable.length}`],
-                      ['Pass mark', `${test.passingScore} / 100`],
                       ['Attempt', attemptLabel],
                     ].map(([k, v]) => (
                       <div key={k} className="p-4">
