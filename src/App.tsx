@@ -750,7 +750,11 @@ export default function App() {
       : account.role === 'recruiter'
       ? 'recruiter'
       : account.role === 'admin'
-      ? 'admin'
+      ? // The Praxa team have a candidate profile too: a candidate-only page (Work mode opened in a new tab, their
+        // profile) opens in the candidate view, not the business one
+        window.location.pathname !== '/' && !SIDE_TABS.staff.includes(tabFromUrl('candidate')) && SIDE_TABS.candidate.includes(tabFromUrl('candidate'))
+        ? 'candidate'
+        : 'admin'
       : 'candidate';
     if (role !== activeRole) handleRoleChange(role);
     else syncPagesFromUrl();

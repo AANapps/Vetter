@@ -74,6 +74,7 @@ From a code read-through of both flows (not clicked through live).
 - 2026-11-22: Candidate Work mode opens on the company's Projects & CRM, monday-style (MemberBoards: the same boards, live; team members work on items, columns and views; making or deleting boards stays with the company), with "Work at <company>" at the top (a picker when on several teams) and the company on the Work mode button. Needs the Firestore rules deployed (onTeamOf on projects and projectTasks).
 - 2026-11-22: Work mode workspace has My work first (monday-style: every item on the company's boards they own, overdue/to do/done, status changed in place, plus the training and tests the company sent) and the company's teammates as people on the boards (teamMembers readable by teammates). Needs the rules deployed.
 - 2026-11-22: A team member's Work is the company's exact workspace (same page, full screen, same buttons: they can make boards and set up the CRM; only deleting a board stays with the company), with My work first and Training, Certificates, Teams and Settings in its sidebar; Work opens in a new tab from the name menu and Home. Rules: team members can create boards (deploy needed).
+- 2026-11-22: Work mode opened in a new tab by a Praxa admin (candidate view) no longer switches to the business view: candidate-only pages open as the candidate.
 
 - 2026-11-12: Tests fit the job (no spreadsheets for trades/clinical), drawings labelled.
 - 2026-11-12: Library tests suggested when a job is posted, not while making a test.
