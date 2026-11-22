@@ -121,6 +121,11 @@ interface TestRunnerProps {
   onSawAll?: () => void;
   // Training for a company's team: no warnings for leaving the tab, no leaderboard rank, and the worked answers at the end
   training?: boolean;
+  // The job simulation practice (with preview: nothing saved): a short start card instead of the intro, and full screen
+  // as in the real one so they see how it works
+  practice?: boolean;
+  // A job simulation's start screen offers the practice first
+  onPractice?: () => void;
 }
 
 // Every candidate gets their own numbers: the test's data is varied from a fresh seed before it opens (lib/variants.ts).
@@ -145,7 +150,7 @@ export const TestRunner: React.FC<TestRunnerProps> = (props) => {
   return <TestRunnerInner {...props} test={own} />;
 };
 
-const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete, preview, savedNote, onBegin, attempt, training, getRankFor, retakeDays, onSawAll }) => {
+const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete, preview, savedNote, onBegin, attempt, training, getRankFor, retakeDays, onSawAll, practice, onPractice }) => {
   // Each hands-on task is shown with the questions about it; every other question on its own
   const groups = useMemo(() => groupQuestions(test.questions), [test.questions]);
   const ordered = useMemo(() => groups.flatMap((g) => g.questions), [groups]);
@@ -197,7 +202,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
   const [flags, setFlags] = useState({ away: 0, pastes: 0, total: 0, fullscreen: 0 });
   // The test runs full screen, where the browser can (not on an iPhone, say); leaving it is recorded and the test is
   // covered until the candidate goes back. Not in a preview or training
-  const wantsFullscreen = !preview && !training && typeof document !== 'undefined' && !!document.fullscreenEnabled;
+  const wantsFullscreen = (!preview || !!practice) && !training && typeof document !== 'undefined' && !!document.fullscreenEnabled;
   const [outOfFullscreen, setOutOfFullscreen] = useState(false);
   const enterFullscreen = () => {
     if (wantsFullscreen && !document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {});
@@ -568,9 +573,44 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
       <strong>You&rsquo;ll have to retake the test</strong> from the start, with the full time.
     </>
   );
+  if (!hasStarted && practice) {
+    return (
+      <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm">
+        <div role="dialog" aria-modal="true" aria-labelledby="practice-title" className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+          <div>
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-indigo-700">Practice · about 3 minutes</div>
+            <h2 id="practice-title" className="text-lg font-bold text-slate-900">Try the job simulation desktop</h2>
+          </div>
+          <ul className="text-sm text-slate-700 space-y-1.5 list-disc pl-5">
+            <li>The same desktop as the real day: Mail, a Spreadsheet and Files.</li>
+            <li>Two short timed parts, each with its task at the top. A new email lands when the second starts.</li>
+            <li>It runs full screen, like the real one.</li>
+            <li>
+              <strong>Nothing is scored or saved.</strong> Do it as often as you like.
+            </li>
+          </ul>
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                enterFullscreen();
+                handleBegin();
+              }}
+              autoFocus
+              className="flex-1 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold"
+            >
+              Start the practice
+            </button>
+            <button onClick={onClose} className="px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900">
+              Not now
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
   if (!hasStarted) {
     return (
-      <TestIntro test={test} onBegin={handleBegin} onClose={onClose} onCommit={handleCommit} attempt={attempt} />
+      <TestIntro test={test} onBegin={handleBegin} onClose={onClose} onCommit={handleCommit} attempt={attempt} onPractice={onPractice} />
     );
   }
 
@@ -1355,9 +1395,11 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
                   <CheckCircle2 className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900">{preview ? 'Preview finished' : training ? 'Training complete' : 'Test complete!'}</h3>
+                  <h3 className="text-lg font-bold text-slate-900">{practice ? 'Practice done' : preview ? 'Preview finished' : training ? 'Training complete' : 'Test complete!'}</h3>
                   <p className="text-xs text-slate-500">
-                    {preview
+                    {practice
+                      ? 'Nothing was scored or saved. Below is what the checks found, so you can see how the real day is marked.'
+                      : preview
                       ? 'This is how candidates are scored. Nothing is saved.'
                       : savedNote
                       ? savedNote
@@ -1376,7 +1418,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
                     {finalScore >= test.passingScore ? 'Well done: you’ve got the hang of it' : `Worth another go: ${test.passingScore} shows you’ve got it`}
                   </div>
                 </div>
-              ) : (
+              ) : practice ? null : (
                 <>
               {/* The score, and where it ranks on the test's leaderboard. No pass mark or badge: the score is the result */}
               <div className={`grid ${finalRank ? 'grid-cols-2' : 'grid-cols-1'} gap-3 p-4 bg-slate-50 border border-slate-200 rounded-xl text-center`}>
@@ -1452,7 +1494,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
                 onClick={handleConfirmFinish}
                 className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-lg transition-colors flex items-center justify-center gap-2 shadow-xs"
               >
-                <span>{preview ? 'Back to the builder' : 'Done'}</span>
+                <span>{practice ? 'Back to the job simulation' : preview ? 'Back to the builder' : 'Done'}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>

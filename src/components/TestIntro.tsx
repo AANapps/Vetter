@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { BrandSparkle } from './Brand';
 import { BackButton } from './BackButton';
 import { AlertTriangle, ArrowLeft, ArrowRight, Check, Clock, FileText, Lock, ShieldCheck, X } from 'lucide-react';
-import { AssessmentTest, timerOf, levelName } from '../types';
+import { AssessmentTest, isJobSim, timerOf, levelName } from '../types';
 import { QUESTION_TYPE_LABELS, describeChecks } from '../lib/testRoles';
 import { groupQuestions, isAnswerType, isWorkspaceType } from '../lib/questionTypes';
 import { CaseBrief } from './CaseBrief';
@@ -38,6 +38,8 @@ interface TestIntroProps {
   onCommit?: () => void;
   // Taken for a job: which try this is, and how many the job allows (no limit when unset)
   attempt?: { number: number; limit?: number };
+  // A job simulation: a 3-minute practice on the desktop first, not scored or saved
+  onPractice?: () => void;
 }
 
 // A short, steady reference for this sitting, shown like an exam paper's number
@@ -79,7 +81,7 @@ const Label: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 );
 
 // Before the clock starts: the test read like an exam's front pages, one at a time, ending in a signed declaration
-export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose, onCommit, attempt }) => {
+export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose, onCommit, attempt, onPractice }) => {
   const isLastAttempt = attempt?.limit !== undefined && attempt.number >= attempt.limit;
   const attemptLabel = !attempt
     ? 'Timed, single sitting'
@@ -212,6 +214,17 @@ export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose, on
                       </div>
                     ))}
                   </dl>
+                  {onPractice && isJobSim(test) && (
+                    <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-slate-900">New to job simulations? Try a 3-minute practice first.</p>
+                        <p className="text-xs text-slate-600">The same desktop and timed parts with a tiny task. Not scored or saved, and it doesn&rsquo;t use an attempt.</p>
+                      </div>
+                      <button onClick={onPractice} className="shrink-0 px-4 py-2 rounded-full bg-white border border-indigo-300 text-indigo-700 hover:border-indigo-500 text-xs font-semibold">
+                        Try the practice
+                      </button>
+                    </div>
+                  )}
                   {test.scenario && <CaseBrief scenario={test.scenario} defaultOpen />}
                   <p className="border-l-4 border-indigo-600 pl-4 text-slate-800">
                     Read every section before you begin. The clock starts only when you press <strong>Begin the test</strong>, and it can&rsquo;t be

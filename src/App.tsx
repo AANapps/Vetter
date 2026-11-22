@@ -5,7 +5,7 @@ import { AnswerRecord, saveSubmission } from './lib/submissions';
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { BrandWordmark } from './components/Brand';
 import { CurrencyPicker } from './components/CurrencyPicker';
-import { User, UserRole, Assignment, Project, ProjectTask, TeamMember, AssessmentTest, JobPosting, Business, SocialState, AppNotification, JobInvitation, Lead, TestDraft, TestKind, TestRole, TrialResult, ResultBreakdown, hasAiTests, madeWithAI, isPublic, isListed } from './types';
+import { User, UserRole, Assignment, Project, ProjectTask, TeamMember, AssessmentTest, JobPosting, Business, SocialState, AppNotification, JobInvitation, Lead, TestDraft, TestKind, TestRole, TrialResult, ResultBreakdown, hasAiTests, madeWithAI, isPublic, isListed, isJobSim } from './types';
 import { INITIAL_RECRUITER, INITIAL_BUSINESSES, STANDARD_ASSESSMENTS } from './data/mockData';
 import { loadData, saveData, clearData, createSeedData } from './lib/store';
 import { initialsAvatar } from './data/seedCandidates';
@@ -31,6 +31,7 @@ import { backOr, pushPage, replacePage } from './lib/back';
 import { CandidateProfilePage } from './components/CandidateProfilePage';
 import { HomeNudges } from './components/HomeNudges';
 import { takeSignUpRole } from './lib/signUpRole';
+import { PRACTICE_SIM } from './data/practiceSim';
 import { WorkPage } from './components/WorkPage';
 import { BrowseCandidates } from './components/BrowseCandidates';
 import { BusinessJobs } from './components/BusinessJobs';
@@ -266,6 +267,8 @@ export default function App() {
   const [localJobs, setLocalJobs] = useState<JobPosting[]>(initialData.jobs);
   const [localTests, setLocalTests] = useState<AssessmentTest[]>(initialData.tests);
   const [localSocial, setLocalSocial] = useState<SocialState>(initialData.social);
+  // The job simulation practice is open (from a job simulation's start screen)
+  const [practiceOpen, setPracticeOpen] = useState(false);
   const [localNotifications, setLocalNotifications] = useState<AppNotification[]>(initialData.notifications);
   const [localLeads, setLocalLeads] = useState<Lead[]>(initialData.leads);
   const [localTestDrafts, setLocalTestDrafts] = useState<TestDraft[]>(initialData.testDrafts);
@@ -2665,7 +2668,13 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
           onSawAll={!activeTestJobId && isPublic(activeTest) ? () => recordSawAll(activeTest) : undefined}
           attempt={activeAttempt ?? undefined}
           onComplete={handleCompleteTest}
+          onPractice={isJobSim(activeTest) ? () => setPracticeOpen(true) : undefined}
         />
+      )}
+
+      {/* The job simulation practice, over the real one's start screen: nothing scored or saved */}
+      {practiceOpen && (
+        <TestRunner test={PRACTICE_SIM} preview practice onClose={() => setPracticeOpen(false)} onComplete={() => setPracticeOpen(false)} />
       )}
 
       {assignmentRun && (
