@@ -267,6 +267,8 @@ export default function App() {
   const [localJobs, setLocalJobs] = useState<JobPosting[]>(initialData.jobs);
   const [localTests, setLocalTests] = useState<AssessmentTest[]>(initialData.tests);
   const [localSocial, setLocalSocial] = useState<SocialState>(initialData.social);
+  // A test the Praxa team is trying (nothing saved)
+  const [adminRun, setAdminRun] = useState<AssessmentTest | null>(null);
   // The job simulation practice is open (from a job simulation's start screen)
   const [practiceOpen, setPracticeOpen] = useState(false);
   const [localNotifications, setLocalNotifications] = useState<AppNotification[]>(initialData.notifications);
@@ -882,8 +884,12 @@ export default function App() {
     ) : firebaseEnabled && user && (!user.emailVerified || !account || account.status !== 'active') ? (
       <AccountGate user={user} account={account} company={company} />
     ) : null;
+  // The Praxa team tries any test straight away: no intro, retake gap, attempt or saving (TestRunner's instant run)
+  const isPraxaAdmin = account?.role === 'admin' || (!firebaseEnabled && activeRole === 'admin');
   const startTest = (test: AssessmentTest) =>
-    activeRole !== 'candidate'
+    isPraxaAdmin
+      ? setAdminRun(test)
+      : activeRole !== 'candidate'
       ? setTrialTest({ test })
       : requireAccount('Create a free account to take this test and get a score.', () => {
           // A library test can be taken again once the retake gap has passed since the last start
@@ -1437,6 +1443,10 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
 
   // A candidate starting one of a job's tests from the job: the company sees them on the job from now
   const startJobTest = (test: AssessmentTest, jobId: string) => {
+    if (isPraxaAdmin) {
+      setAdminRun(test);
+      return;
+    }
     if (activeRole !== 'candidate') {
       setTrialTest({ test, jobId });
       return;
@@ -1854,6 +1864,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
               tests={tests}
               candidates={allCandidates}
               jobs={jobs}
+              adminRun={isPraxaAdmin}
               viewerRole={activeRole}
               viewerBusinessId={recruiterBusiness?.id}
               onOpenPerson={openPersonFor}
@@ -2671,6 +2682,8 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
           onPractice={isJobSim(activeTest) ? () => setPracticeOpen(true) : undefined}
         />
       )}
+
+      {adminRun && <TestRunner test={adminRun} preview instant onClose={() => setAdminRun(null)} onComplete={() => setAdminRun(null)} />}
 
       {/* The job simulation practice, over the real one's start screen: nothing scored or saved */}
       {practiceOpen && (

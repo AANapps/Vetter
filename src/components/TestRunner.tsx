@@ -126,6 +126,9 @@ interface TestRunnerProps {
   practice?: boolean;
   // A job simulation's start screen offers the practice first
   onPractice?: () => void;
+  // The Praxa team trying a test (with preview: nothing saved): straight in, with no intro, signing, countdown or
+  // full screen, and a note at the top saying so
+  instant?: boolean;
 }
 
 // Every candidate gets their own numbers: the test's data is varied from a fresh seed before it opens (lib/variants.ts).
@@ -150,7 +153,7 @@ export const TestRunner: React.FC<TestRunnerProps> = (props) => {
   return <TestRunnerInner {...props} test={own} />;
 };
 
-const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete, preview, savedNote, onBegin, attempt, training, getRankFor, retakeDays, onSawAll, practice, onPractice }) => {
+const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete, preview, savedNote, onBegin, attempt, training, getRankFor, retakeDays, onSawAll, practice, onPractice, instant }) => {
   // Each hands-on task is shown with the questions about it; every other question on its own
   const groups = useMemo(() => groupQuestions(test.questions), [test.questions]);
   const ordered = useMemo(() => groups.flatMap((g) => g.questions), [groups]);
@@ -186,7 +189,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
   const [aiMarked, setAiMarked] = useState<Record<string, AiMark>>({});
   const answersRef = useRef<AnswerRecord[] | undefined>(undefined);
   // The intro screen shows first; the clock and proctoring only begin once the candidate starts
-  const [hasStarted, setHasStarted] = useState(false);
+  const [hasStarted, setHasStarted] = useState(!!instant);
 
   // The timer's auto-submit runs inside a long-lived interval, so it reads the latest code from a ref
   const userCodesRef = useRef(userCodes);
@@ -202,7 +205,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
   const [flags, setFlags] = useState({ away: 0, pastes: 0, total: 0, fullscreen: 0 });
   // The test runs full screen, where the browser can (not on an iPhone, say); leaving it is recorded and the test is
   // covered until the candidate goes back. Not in a preview or training
-  const wantsFullscreen = (!preview || !!practice) && !training && typeof document !== 'undefined' && !!document.fullscreenEnabled;
+  const wantsFullscreen = (!preview || !!practice) && !training && !instant && typeof document !== 'undefined' && !!document.fullscreenEnabled;
   const [outOfFullscreen, setOutOfFullscreen] = useState(false);
   const enterFullscreen = () => {
     if (wantsFullscreen && !document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {});
@@ -629,6 +632,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
               <span>{levelName(test.difficulty)}</span>
               <span aria-hidden="true">&middot;</span>
               <span>{test.questions.length} Questions</span>
+              {instant && <span className="px-1.5 py-px rounded bg-amber-100 text-amber-800 text-[10px] font-bold uppercase tracking-wide">Admin run · not saved</span>}
             </div>
           </div>
         </div>
@@ -1395,9 +1399,11 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
                   <CheckCircle2 className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900">{practice ? 'Practice done' : preview ? 'Preview finished' : training ? 'Training complete' : 'Test complete!'}</h3>
+                  <h3 className="text-lg font-bold text-slate-900">{instant ? 'Test run finished' : practice ? 'Practice done' : preview ? 'Preview finished' : training ? 'Training complete' : 'Test complete!'}</h3>
                   <p className="text-xs text-slate-500">
-                    {practice
+                    {instant
+                      ? 'Admin test run: nothing was saved, recorded or put on a leaderboard.'
+                      : practice
                       ? 'Nothing was scored or saved. Below is what the checks found, so you can see how the real day is marked.'
                       : preview
                       ? 'This is how candidates are scored. Nothing is saved.'
@@ -1494,7 +1500,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
                 onClick={handleConfirmFinish}
                 className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-lg transition-colors flex items-center justify-center gap-2 shadow-xs"
               >
-                <span>{practice ? 'Back to the job simulation' : preview ? 'Back to the builder' : 'Done'}</span>
+                <span>{instant ? 'Done' : practice ? 'Back to the job simulation' : preview ? 'Back to the builder' : 'Done'}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>

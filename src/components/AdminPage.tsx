@@ -10,6 +10,7 @@ import { GoogleMark } from './AuthDialog';
 import { Pulse } from './Pulse';
 import { SimulationLibraryAdmin } from './SimulationLibraryAdmin';
 import { LibraryVisibilityAdmin } from './LibraryVisibilityAdmin';
+import { AdminTestLab } from './AdminTestLab';
 
 /**
  * /admin: the Praxa team's own page. Signed out, it's a sign-in screen; the panel only shows for an account whose
@@ -414,6 +415,7 @@ export const AdminPage: React.FC = () => {
               <ArrowRight className="w-4 h-4" />
             </a>
           </div>
+          <AdminTestLab />
           <div className="space-y-3">
             <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">Approvals</h2>
             <CompaniesQueue />

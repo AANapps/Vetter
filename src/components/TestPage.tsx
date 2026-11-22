@@ -14,6 +14,8 @@ import { demandFor, jobsUsing } from '../lib/demand';
 
 interface TestPageProps {
   test: AssessmentTest;
+  // The Praxa team: any test can be started at once, with no retake gap (an admin run, nothing saved)
+  adminRun?: boolean;
   // Every test, to find this one's other levels
   tests: AssessmentTest[];
   candidates: User[];
@@ -70,6 +72,7 @@ export const TestPage: React.FC<TestPageProps> = ({
   onOpenJob,
   onOpenTest,
   onBack,
+  adminRun,
 }) => {
   const versions = levelsOf(test, tests);
   const leaderboard = getLeaderboard(test.id, candidates);
@@ -77,14 +80,15 @@ export const TestPage: React.FC<TestPageProps> = ({
   const yourEntry = leaderboard.find((e) => e.candidate.id === currentCandidateId);
   // A library test can be taken once every RETAKE_DAYS days
   const you = candidates.find((c) => c.id === currentCandidateId);
-  const retakeFrom = viewerRole === 'candidate' && you && isPublic(test) ? nextAttemptAt(you, test.id) : null;
+  const retakeFrom = !adminRun && viewerRole === 'candidate' && you && isPublic(test) ? nextAttemptAt(you, test.id) : null;
   const usedByJobs = jobs.filter((j) => j.testIds.includes(test.id) && j.status === 'active');
   // Candidates take company tests through the jobs they're attached to, or the company's own link
   // Companies try Praxa's tests and their own (the Praxa team any test) as practice runs that aren't saved
   const canStart =
-    viewerRole === 'candidate'
+    adminRun ||
+    (viewerRole === 'candidate'
       ? isPublic(test) || referredByCompany?.id === test.businessId
-      : viewerRole === 'admin' || isPublic(test) || (!!viewerBusinessId && test.businessId === viewerBusinessId);
+      : viewerRole === 'admin' || isPublic(test) || (!!viewerBusinessId && test.businessId === viewerBusinessId));
 
   const aspectName = (id: string) => test.aspects?.find((a) => a.id === id)?.name ?? id;
   const levelsAsked = TEST_DIFFICULTIES.filter((t) => test.questions.some((q) => q.tier === t));
