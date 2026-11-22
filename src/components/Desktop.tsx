@@ -34,12 +34,13 @@ import { AiPanel } from './Workspace';
 import { AppWindow } from './AppWindow';
 import { CodeField } from './CodeField';
 import { DeskProject, TestRun, runDeskTests } from '../lib/deskCode';
-import { LayoutGrid, Check, ChevronDown, ChevronUp, Clock } from 'lucide-react';
+import { LayoutGrid, Check, ChevronDown, ChevronUp, Clock, Search, Square, Copy, Wifi, Volume2, BatteryMedium, Bell } from 'lucide-react';
 
 /**
- * The desktop a job simulation is worked on: a wallpaper with the computer's apps, each opening in its own window, and
- * a taskbar along the bottom to move between them (Mail with its unread count, Browser, Files, Spreadsheet, Database,
- * AI). Built from the question's desktop config, so every job simulation reuses it with its own emails, pages and files.
+ * The desktop a job simulation is worked on, made to feel like an everyday work computer: a wallpaper with shortcuts
+ * down the left (double-click to open), windows that stack, minimise, restore down and drag, and a taskbar along the
+ * bottom with Start (a searchable app menu), the apps in the middle (Mail with its unread count, Browser, Files,
+ * Spreadsheet, Database, AI) and a tray with the day's clock and notifications. Built from the question's desktop config, so every job simulation reuses it with its own emails, pages and files.
  * Everything the candidate does is kept as the answer (see src/lib/desktop.ts).
  */
 
@@ -108,13 +109,78 @@ export const Desktop: React.FC<{ question: Question; answer: string; onChange: (
   const files = filesOf(cfg, state);
   const unread = inbox.filter((m) => !state.read.includes(m.id)).length;
 
+  // Windows: minimised ones stay open (so nothing is lost) but hidden. Each opens windowed beside the desktop's
+  // shortcuts, cascading, and can be dragged by its title bar; maximised, it fills the screen above the taskbar
+  const [minimised, setMinimised] = useState<string[]>([]);
+  // Which is in front: kept apart from open so bringing a window forward never moves it in the page (an app in a frame
+  // would reload)
+  const [stack, setStack] = useState<string[]>(first ? [first] : []);
+  const [placed, setPlaced] = useState<Record<string, { x: number; y: number }>>({});
+  const [maxed, setMaxed] = useState<string[]>([]);
+  // Where a window opens: beside the shortcuts, each new one a step down and right
+  const spot = (n: number) => ({ x: 96 + 24 * (n % 3), y: 10 + 20 * (n % 3) });
+  const posOf = (app: string) => placed[app] ?? spot(Math.max(open.indexOf(app), 0));
+  const [selected, setSelected] = useState<string | null>(null);
+  const [startOpen, setStartOpen] = useState(false);
   const launch = (app: string) => {
     setOpen((prev) => (prev.includes(app) ? prev : [...prev, app]));
+    setStack((prev) => [...prev.filter((a) => a !== app), app]);
+    setMinimised((prev) => prev.filter((a) => a !== app));
     setActive(app);
+    setStartOpen(false);
+  };
+  const topmost = (except: string, stackNow = stack, minNow = minimised) => [...stackNow].reverse().find((a) => a !== except && !minNow.includes(a)) ?? null;
+  const minimise = (app: string) => {
+    const next = [...minimised.filter((a) => a !== app), app];
+    setMinimised(next);
+    if (active === app) setActive(topmost(app, stack, next));
   };
   const close = (app: string) => {
+    const next = stack.filter((a) => a !== app);
     setOpen((prev) => prev.filter((a) => a !== app));
-    if (active === app) setActive(null);
+    setStack(next);
+    setMinimised((prev) => prev.filter((a) => a !== app));
+    if (active === app) setActive(topmost(app, next));
+  };
+  const toggleMaximise = (app: string) => setMaxed((prev) => (prev.includes(app) ? prev.filter((a) => a !== app) : [...prev, app]));
+  // Dragging a restored window by its title bar
+  const screenRef = useRef<HTMLDivElement>(null);
+  const drag = (app: string, e: React.PointerEvent) => {
+    if (maxed.includes(app) || (e.target as HTMLElement).closest('button')) return;
+    const from = posOf(app);
+    const start = { x: e.clientX, y: e.clientY };
+    const box = screenRef.current?.getBoundingClientRect();
+    const move = (ev: PointerEvent) => {
+      const x = Math.max(-200, Math.min((box?.width ?? 1000) - 120, from.x + ev.clientX - start.x));
+      const y = Math.max(0, Math.min((box?.height ?? 600) - 40, from.y + ev.clientY - start.y));
+      setPlaced((prev) => ({ ...prev, [app]: { x, y } }));
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+  // The computer's clock: the day's start time (e.g. "Mon 09:00"), moving on in real time
+  const [mountedAt] = useState(() => Date.now());
+  const [tick, setTick] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setTick(Date.now()), 15000);
+    return () => clearInterval(t);
+  }, []);
+  const dayClock = (() => {
+    const m = cfg.time.match(/^(.*?)\s*(\d{1,2}):(\d{2})$/);
+    if (!m) return { time: cfg.time, day: '' };
+    const mins = Number(m[2]) * 60 + Number(m[3]) + Math.floor((tick - mountedAt) / 60000);
+    return { time: `${String(Math.floor(mins / 60) % 24).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`, day: m[1] };
+  })();
+  const titleOf = (app: string) => {
+    const label = appInfo(cfg, app).label;
+    if (app === 'mail') return `Inbox · ${cfg.user.email}`;
+    if (app === 'sheet') return `${cfg.workbookName ?? 'Book1'} · ${label}`;
+    if (app === 'sql') return `${cfg.databaseName ?? 'Database'} · ${label}`;
+    return label;
   };
 
   // Sending: the email is kept, and whoever it earns a reply from writes back a moment later
@@ -170,85 +236,224 @@ export const Desktop: React.FC<{ question: Question; answer: string; onChange: (
     }
   };
 
+  const visible = open.filter((a) => !minimised.includes(a));
   return (
     <div className="h-full flex flex-col rounded-lg overflow-hidden border border-slate-300 shadow-sm select-none" data-ref="desktop">
       {phases.length > 0 && !briefing && <PhaseBar phases={phases} at={phaseAt} left={phaseLeft} onNext={() => advance(phaseAt)} />}
-      {/* The screen: the wallpaper and its icons, with the open app's window over it */}
-      <div className="relative flex-1 min-h-0 bg-gradient-to-br from-slate-700 via-slate-800 to-indigo-950">
+      {/* The screen: a wallpaper with the computer's shortcuts, and the open windows over it */}
+      <div
+        ref={screenRef}
+        className="relative flex-1 min-h-0 overflow-hidden"
+        style={{
+          background:
+            'radial-gradient(ellipse at 70% 110%, rgba(56,189,248,0.55) 0, transparent 55%), radial-gradient(ellipse at 15% -10%, rgba(129,140,248,0.55) 0, transparent 50%), linear-gradient(160deg, #1e3a8a 0%, #2563eb 45%, #0ea5e9 100%)',
+        }}
+        onPointerDown={(e) => {
+          if (e.target === e.currentTarget) {
+            setSelected(null);
+            setStartOpen(false);
+          }
+        }}
+      >
         {briefing && <Briefing cfg={cfg} phases={phases} left={phaseLeft} onStart={() => advance(0)} />}
-        <div className="absolute inset-0 p-5 grid grid-flow-col auto-cols-max grid-rows-[repeat(auto-fill,92px)] gap-2 content-start">
+        {/* Shortcuts down the left, as on any desktop: click to select, double-click (or Enter) to open */}
+        <div className="absolute inset-y-0 left-0 p-2 flex flex-col flex-wrap content-start gap-1" onPointerDown={(e) => e.target === e.currentTarget && setSelected(null)}>
           {cfg.apps.map((app) => {
             const { label, Icon, tint } = appInfo(cfg, app);
             return (
-              <button key={app} onDoubleClick={() => launch(app)} onClick={() => launch(app)} className="w-[84px] h-[88px] flex flex-col items-center justify-center gap-1.5 rounded-lg text-white hover:bg-white/10 focus-visible:bg-white/15" data-ref={`icon-${app}`}>
-                <span className={`relative w-11 h-11 rounded-xl ${tint} grid place-items-center shadow-md`}>
-                  <Icon className="w-6 h-6" />
+              <button
+                key={app}
+                onClick={() => setSelected(app)}
+                onDoubleClick={() => launch(app)}
+                onKeyDown={(e) => e.key === 'Enter' && launch(app)}
+                title={`Double-click to open ${label}`}
+                className={`w-[76px] py-2 flex flex-col items-center gap-1 rounded border text-white ${
+                  selected === app ? 'bg-white/25 border-white/40' : 'border-transparent hover:bg-white/15'
+                }`}
+                data-ref={`icon-${app}`}
+              >
+                <span className={`relative w-10 h-10 rounded-lg ${tint} grid place-items-center shadow-md ring-1 ring-inset ring-white/25`}>
+                  <Icon className="w-5 h-5" />
                   {app === 'mail' && unread > 0 && <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-[10px] font-bold grid place-items-center">{unread}</span>}
                 </span>
-                <span className="text-[11.5px] font-medium drop-shadow">{label}</span>
+                <span className="text-[11px] leading-tight text-center [text-shadow:0_1px_2px_rgba(0,0,0,0.7)]">{label}</span>
               </button>
             );
           })}
         </div>
-        {active === null && open.length === 0 && (
-          <p className="absolute bottom-4 left-1/2 -translate-x-1/2 text-xs text-white/60">Open an app from the desktop or the taskbar to start. Your inbox is a good place to begin.</p>
+        {visible.length === 0 && !briefing && (
+          <p className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-black/25 text-xs text-white/90 backdrop-blur-sm">
+            Double-click an app on the desktop, or pick it on the taskbar. Your inbox is a good place to start.
+          </p>
         )}
-        {open.map((app) => (
-          <section
-            key={app}
-            aria-label={appInfo(cfg, app).label}
-            className={`absolute inset-2 sm:inset-3 bg-white rounded-lg shadow-2xl flex flex-col overflow-hidden select-text ${active === app ? '' : 'hidden'}`}
-          >
-            <header className="h-9 shrink-0 flex items-center gap-2 px-3 bg-slate-100 border-b border-slate-200">
-              {React.createElement(appInfo(cfg, app).Icon, { className: 'w-4 h-4 text-slate-600' })}
-              <span className="text-xs font-semibold text-slate-700">{appInfo(cfg, app).label}</span>
-              <span className="ml-auto flex items-center gap-1">
-                <button onClick={() => setActive(null)} aria-label={`Minimise ${appInfo(cfg, app).label}`} title="Minimise" className="w-7 h-7 grid place-items-center rounded hover:bg-slate-200 text-slate-600">
-                  <Minus className="w-4 h-4" />
-                </button>
-                <button onClick={() => close(app)} aria-label={`Close ${appInfo(cfg, app).label}`} title="Close" className="w-7 h-7 grid place-items-center rounded hover:bg-rose-500 hover:text-white text-slate-600">
-                  <X className="w-4 h-4" />
-                </button>
-              </span>
-            </header>
-            <div className="flex-1 min-h-0 overflow-hidden">{appWindow(app)}</div>
-          </section>
-        ))}
+        {open.map((app) => {
+          const info = appInfo(cfg, app);
+          // Small screens have no room for windows side by side: there every window fills the screen
+          const at = maxed.includes(app) || (screenRef.current?.clientWidth ?? 1000) < 700 ? null : posOf(app);
+          const focused = active === app;
+          return (
+            <section
+              key={app}
+              aria-label={info.label}
+              onPointerDown={() => !focused && launch(app)}
+              style={{ zIndex: 10 + stack.indexOf(app), ...(at && { left: at.x, top: at.y, width: 'calc(100% - 160px)', height: 'calc(100% - 66px)' }) }}
+              className={`absolute bg-white flex flex-col overflow-hidden select-text border ${at ? 'rounded-lg shadow-2xl' : 'inset-0'} ${
+                focused ? 'border-slate-400/70' : 'border-slate-300'
+              } ${minimised.includes(app) ? 'hidden' : ''}`}
+            >
+              <header
+                onPointerDown={(e) => drag(app, e)}
+                onDoubleClick={(e) => !(e.target as HTMLElement).closest('button') && toggleMaximise(app)}
+                className={`h-8 shrink-0 flex items-center gap-2 pl-3 select-none ${focused ? 'bg-slate-100' : 'bg-slate-50 text-slate-400'} ${at ? 'cursor-move' : ''}`}
+              >
+                {React.createElement(info.Icon, { className: `w-3.5 h-3.5 ${focused ? 'text-slate-600' : 'text-slate-400'}` })}
+                <span className={`text-xs truncate ${focused ? 'text-slate-700' : 'text-slate-400'}`}>{titleOf(app)}</span>
+                <span className="ml-auto flex items-stretch h-full">
+                  <button onClick={() => minimise(app)} aria-label={`Minimise ${info.label}`} title="Minimise" className="w-11 grid place-items-center hover:bg-slate-200 text-slate-600">
+                    <Minus className="w-3.5 h-3.5" />
+                  </button>
+                  <button onClick={() => toggleMaximise(app)} aria-label={at ? `Maximise ${info.label}` : `Restore ${info.label}`} title={at ? 'Maximise' : 'Restore down'} className="w-11 grid place-items-center hover:bg-slate-200 text-slate-600">
+                    {at ? <Square className="w-3 h-3" /> : <Copy className="w-3 h-3 -scale-x-100" />}
+                  </button>
+                  <button onClick={() => close(app)} aria-label={`Close ${info.label}`} title="Close" className="w-11 grid place-items-center hover:bg-rose-600 hover:text-white text-slate-600">
+                    <X className="w-4 h-4" />
+                  </button>
+                </span>
+              </header>
+              <div className="flex-1 min-h-0 overflow-hidden">{appWindow(app)}</div>
+            </section>
+          );
+        })}
+        {/* The Start menu: every app, and who's signed in */}
+        {startOpen && <StartMenu cfg={cfg} unread={unread} onLaunch={launch} onClose={() => setStartOpen(false)} />}
+        {/* Notifications pop up bottom right, like the computer's own */}
         {toast && (
-          <div role="status" className="absolute right-4 bottom-4 z-20 max-w-xs bg-slate-900 text-white text-xs px-3.5 py-2.5 rounded-lg shadow-xl">
-            {toast}
+          <div role="status" className="absolute right-3 bottom-3 z-[60] w-80 max-w-[calc(100%-1.5rem)] bg-white/95 backdrop-blur text-slate-800 rounded-lg shadow-2xl border border-slate-200 p-3 flex gap-3">
+            <span className="w-8 h-8 shrink-0 rounded-md bg-sky-600 text-white grid place-items-center">
+              <Mail className="w-4 h-4" />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-[11px] font-semibold text-slate-500">{cfg.company}</span>
+              <span className="block text-xs">{toast}</span>
+            </span>
           </div>
         )}
       </div>
-      {/* The taskbar */}
-      <nav aria-label="Taskbar" className="h-12 shrink-0 bg-slate-900/95 border-t border-white/10 flex items-center gap-1 px-2" data-ref="taskbar">
-        <span className="w-9 h-9 grid place-items-center rounded-md text-indigo-300 font-black text-sm" aria-hidden="true">
-          {cfg.company[0]}
+      {/* The taskbar: Start, search, the apps in the middle (a line under the ones open), and the tray with the clock */}
+      <nav aria-label="Taskbar" className="h-12 shrink-0 bg-slate-100/95 backdrop-blur border-t border-slate-300 grid grid-cols-[1fr_auto_1fr] items-center px-2" data-ref="taskbar">
+        <span />
+        <span className="flex items-center gap-1">
+          <button
+            onClick={() => setStartOpen((v) => !v)}
+            aria-expanded={startOpen}
+            aria-label="Start"
+            title="Start"
+            className={`w-10 h-10 grid place-items-center rounded-md ${startOpen ? 'bg-white shadow-sm' : 'hover:bg-white/80'}`}
+          >
+            <LayoutGrid className="w-5 h-5 text-sky-600" />
+          </button>
+          <button
+            onClick={() => setStartOpen(true)}
+            className="hidden lg:flex items-center gap-2 h-8 w-44 px-3 mr-1 rounded-full bg-white border border-slate-300 text-xs text-slate-400 hover:border-slate-400"
+          >
+            <Search className="w-3.5 h-3.5" />
+            Search
+          </button>
+          {cfg.apps.map((app) => {
+            const { label, Icon, tint } = appInfo(cfg, app);
+            const isOpen = open.includes(app);
+            const isActive = active === app && !minimised.includes(app);
+            return (
+              <button
+                key={app}
+                onClick={() => (isActive ? minimise(app) : launch(app))}
+                aria-pressed={isActive}
+                title={label}
+                aria-label={label}
+                data-ref={`taskbar-${app}`}
+                className={`relative w-10 h-10 grid place-items-center rounded-md transition-colors ${isActive ? 'bg-white shadow-sm' : 'hover:bg-white/80'}`}
+              >
+                <span className={`w-7 h-7 rounded-md ${tint} text-white grid place-items-center`}>
+                  <Icon className="w-4 h-4" />
+                </span>
+                {app === 'mail' && unread > 0 && (
+                  <span className="absolute top-0.5 right-0.5 min-w-[15px] h-[15px] px-1 rounded-full bg-rose-500 text-white text-[9px] font-bold grid place-items-center">{unread}</span>
+                )}
+                {isOpen && <span className={`absolute bottom-0.5 left-1/2 -translate-x-1/2 h-[3px] rounded-full ${isActive ? 'w-4 bg-sky-600' : 'w-1.5 bg-slate-400'}`} />}
+              </button>
+            );
+          })}
         </span>
-        {cfg.apps.map((app) => {
-          const { label, Icon } = appInfo(cfg, app);
-          const isOpen = open.includes(app);
-          return (
-            <button
-              key={app}
-              onClick={() => (active === app ? setActive(null) : launch(app))}
-              aria-pressed={active === app}
-              title={label}
-              data-ref={`taskbar-${app}`}
-              className={`relative h-9 px-3 rounded-md flex items-center gap-2 text-xs font-medium transition-colors ${active === app ? 'bg-white/15 text-white' : 'text-slate-300 hover:bg-white/10 hover:text-white'}`}
-            >
-              <Icon className="w-4 h-4" />
-              <span className="hidden md:inline">{label}</span>
-              {app === 'mail' && unread > 0 && <span className="min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold grid place-items-center">{unread}</span>}
-              {isOpen && <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded bg-indigo-400" />}
-            </button>
-          );
-        })}
-        <span className="ml-auto text-right text-[11px] leading-tight text-slate-300 pr-2">
-          <span className="block font-semibold text-white">{cfg.time}</span>
-          {cfg.user.name}
+        <span className="justify-self-end flex items-center gap-1 text-slate-700">
+          <span className="hidden sm:flex items-center gap-2 h-9 px-2 rounded-md hover:bg-white/80" aria-hidden="true">
+            <ChevronUp className="w-3.5 h-3.5" />
+            <Wifi className="w-4 h-4" />
+            <Volume2 className="w-4 h-4" />
+            <BatteryMedium className="w-4 h-4" />
+          </span>
+          <span className="h-9 px-2 rounded-md hover:bg-white/80 text-right text-[11px] leading-tight flex flex-col justify-center" title={cfg.user.name}>
+            <span className="font-medium tabular-nums">{dayClock.time}</span>
+            <span className="text-slate-500">{dayClock.day}</span>
+          </span>
+          <button onClick={() => launch('mail')} disabled={!cfg.apps.includes('mail')} aria-label={`Notifications${unread ? `: ${unread} unread emails` : ''}`} className="relative w-9 h-9 grid place-items-center rounded-md hover:bg-white/80 disabled:hover:bg-transparent">
+            <Bell className="w-4 h-4" />
+            {unread > 0 && <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500" />}
+          </button>
         </span>
       </nav>
+    </div>
+  );
+};
+
+// The Start menu: the computer's apps (searchable), and the person signed in
+const StartMenu: React.FC<{ cfg: DesktopConfig; unread: number; onLaunch: (app: string) => void; onClose: () => void }> = ({ cfg, unread, onLaunch, onClose }) => {
+  const [q, setQ] = useState('');
+  const apps = cfg.apps.filter((a) => appInfo(cfg, a).label.toLowerCase().includes(q.trim().toLowerCase()));
+  return (
+    <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-[70] w-[min(560px,calc(100%-1rem))] bg-white/95 backdrop-blur-xl rounded-xl shadow-2xl border border-slate-200 select-text" role="dialog" aria-label="Start">
+      <div className="p-5 space-y-4">
+        <label className="flex items-center gap-2 h-9 px-3 rounded-full bg-slate-100 border border-slate-200 focus-within:border-sky-500">
+          <Search className="w-4 h-4 text-slate-400" />
+          <input
+            autoFocus
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') onClose();
+              if (e.key === 'Enter' && apps[0]) onLaunch(apps[0]);
+            }}
+            placeholder="Search for apps"
+            className="flex-1 bg-transparent text-sm outline-none"
+          />
+        </label>
+        <div>
+          <div className="text-xs font-semibold text-slate-700 mb-2">Pinned</div>
+          <div className="grid grid-cols-4 sm:grid-cols-6 gap-1">
+            {apps.map((app) => {
+              const { label, Icon, tint } = appInfo(cfg, app);
+              return (
+                <button key={app} onClick={() => onLaunch(app)} className="py-2.5 rounded-md hover:bg-slate-100 flex flex-col items-center gap-1.5">
+                  <span className={`relative w-9 h-9 rounded-lg ${tint} text-white grid place-items-center`}>
+                    <Icon className="w-5 h-5" />
+                    {app === 'mail' && unread > 0 && <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-[9px] font-bold grid place-items-center">{unread}</span>}
+                  </span>
+                  <span className="text-[11px] text-slate-700 text-center leading-tight">{label}</span>
+                </button>
+              );
+            })}
+            {apps.length === 0 && <p className="col-span-full text-xs text-slate-500 py-3">No apps match.</p>}
+          </div>
+        </div>
+      </div>
+      <div className="px-5 py-3 border-t border-slate-200 bg-slate-50/80 rounded-b-xl flex items-center gap-2.5">
+        <span className="w-8 h-8 rounded-full bg-sky-600 text-white grid place-items-center text-xs font-bold">{cfg.user.name[0]}</span>
+        <span className="min-w-0">
+          <span className="block text-xs font-semibold text-slate-800 truncate">{cfg.user.name}</span>
+          <span className="block text-[11px] text-slate-500 truncate">
+            {cfg.user.role} · {cfg.company}
+          </span>
+        </span>
+      </div>
     </div>
   );
 };
@@ -259,7 +464,7 @@ const clock = (secs: number | null) => (secs === null ? '' : `${Math.floor(Math.
 
 // The briefing, over the desktop: who you are, where, for whom, with which tools, and how the day runs. Not marked
 const Briefing: React.FC<{ cfg: DesktopConfig; phases: DeskPhase[]; left: number | null; onStart: () => void }> = ({ cfg, phases, left, onStart }) => (
-  <div className="absolute inset-0 z-30 bg-slate-900/70 backdrop-blur-sm grid place-items-center p-4 overflow-y-auto select-text" data-ref="briefing">
+  <div className="absolute inset-0 z-[80] bg-slate-900/70 backdrop-blur-sm grid place-items-center p-4 overflow-y-auto select-text" data-ref="briefing">
     <div className="w-full max-w-xl bg-white rounded-xl shadow-2xl p-6 space-y-4">
       <div className="flex items-center gap-2">
         <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">{phases[0].title} · not marked</span>
