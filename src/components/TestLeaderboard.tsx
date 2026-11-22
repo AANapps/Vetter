@@ -4,6 +4,7 @@ import { LeaderboardEntry } from '../lib/leaderboard';
 import { LeaderboardTable } from './LeaderboardTable';
 import { JobPosting } from '../types';
 import { calculateCandidateJobMatch } from '../lib/matchingAlgorithm';
+import { jobTestProgress } from '../lib/jobTests';
 import { jobForTest } from '../lib/fitReasons';
 import { FitFor } from './FitFor';
 
@@ -64,7 +65,7 @@ export const TestLeaderboard: React.FC<TestLeaderboardProps> = ({ entries, curre
             slots={SLOTS}
             pinned={yourEntry}
             onClaim={onTakeTest}
-            {...(fitJob && { fitOf: (c) => calculateCandidateJobMatch(c, fitJob).overallFitPercentage })}
+            {...(fitJob && { fitOf: (c) => (jobTestProgress(fitJob, c).done ? calculateCandidateJobMatch(c, fitJob).overallFitPercentage : undefined) })}
             {...(onOpenPerson && { onOpenPerson: (id) => onOpenPerson(id, fitJob?.id) })}
           />
         </div>

@@ -17,7 +17,8 @@ interface JobApplicationModalProps {
   candidate: User;
   job: JobPosting;
   tests: AssessmentTest[];
-  overallFitPercentage: number;
+  // From the job's tests; left out until they've taken one
+  overallFitPercentage?: number;
   // The candidate's job profiles: the application is sent with one of them
   profiles: JobProfile[];
   onConfirmApply: (jobId: string, profileId: string) => void;
@@ -97,9 +98,11 @@ export const JobApplicationModal: React.FC<JobApplicationModalProps> = ({
               <div className="font-bold text-slate-900 text-sm flex items-center gap-2">
                 <span>{job.title}</span>
               </div>
-              <div className="text-xs font-mono font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded">
-                {overallFitPercentage}% Fit
-              </div>
+              {overallFitPercentage !== undefined && (
+                <div className="text-xs font-mono font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded">
+                  {overallFitPercentage}% Fit
+                </div>
+              )}
             </div>
             <div className="text-slate-500 text-[11px]">{job.department} &middot; {job.salaryRange}</div>
           </div>

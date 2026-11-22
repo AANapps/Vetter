@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { ArrowRight, ChevronLeft, ChevronRight, Search, Trophy, Users } from 'lucide-react';
 import { AssessmentTest, JobPosting, User, isPublic, levelName } from '../types';
 import { calculateCandidateJobMatch } from '../lib/matchingAlgorithm';
+import { jobTestProgress } from '../lib/jobTests';
 import { jobForTest } from '../lib/fitReasons';
 import { FitFor } from './FitFor';
 import { getLeaderboard, getTestStats } from '../lib/leaderboard';
@@ -212,7 +213,7 @@ const TestBoard: React.FC<{
         board={board}
         viewerId={viewerId}
         onClaim={() => onOpenTest(board.test.id)}
-        {...(fitJob && { fitOf: (c: User) => calculateCandidateJobMatch(c, fitJob).overallFitPercentage })}
+        {...(fitJob && { fitOf: (c: User) => (jobTestProgress(fitJob, c).done ? calculateCandidateJobMatch(c, fitJob).overallFitPercentage : undefined) })}
         {...(onOpenPerson && { onOpenPerson: (id: string) => onOpenPerson(id, fitJob?.id) })}
       />
     </div>

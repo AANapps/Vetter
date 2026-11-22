@@ -3,6 +3,7 @@ import { Pic } from './Pic';
 import React from 'react';
 import { AssessmentTest, CandidateJobMatch, JobPosting, User, isPublic } from '../types';
 import { getBestTestScore } from '../lib/matchingAlgorithm';
+import { fitKnown } from './JobDetails';
 import { SKILL_IDS } from '../data/seedCandidates';
 
 interface ProfileSidebarProps {
@@ -105,8 +106,14 @@ export const ProfileSidebar: React.FC<ProfileSidebarProps> = ({ candidate, tests
                     </div>
                   </div>
                   <div className="text-right shrink-0">
-                    <div className="text-sm font-bold font-mono tabular-nums text-indigo-700">{match.overallFitPercentage}%</div>
-                    <div className="text-[10px] text-slate-400">fit</div>
+                    {fitKnown(job, candidate) ? (
+                      <>
+                        <div className="text-sm font-bold font-mono tabular-nums text-indigo-700">{match.overallFitPercentage}%</div>
+                        <div className="text-[10px] text-slate-400">fit</div>
+                      </>
+                    ) : (
+                      <div className="text-[10px] text-slate-400 leading-tight">Take its {job.testIds.length === 1 ? 'test' : 'tests'}<br />for a fit</div>
+                    )}
                   </div>
                 </li>
               );

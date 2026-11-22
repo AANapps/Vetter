@@ -581,7 +581,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
           job={selectedJobForApplication}
           tests={tests}
           overallFitPercentage={
-            rankedJobs.find((m) => m.jobId === selectedJobForApplication.id)?.overallFitPercentage || 80
+            fitKnown(selectedJobForApplication, candidate) ? rankedJobs.find((m) => m.jobId === selectedJobForApplication.id)?.overallFitPercentage : undefined
           }
           profiles={profiles}
           onConfirmApply={(jobId, profileId) => {

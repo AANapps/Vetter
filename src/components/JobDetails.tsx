@@ -8,7 +8,8 @@ import { attemptsAt, jobTestProgress, jobTestsOf } from '../lib/jobTests';
 const DAY_MS = 86400000;
 
 // A fit is shown once they've taken one of the job's tests (or it has none): before that it's a guess that only discourages
-export const fitKnown = (job: JobPosting, candidate: User) => job.testIds.length === 0 || jobTestProgress(job, candidate).done > 0;
+// Fit comes only from the job's tests, so it's known once they've taken one of them
+export const fitKnown = (job: JobPosting, candidate: User) => job.testIds.length > 0 && jobTestProgress(job, candidate).done > 0;
 
 // "12 Oct 2026"
 const formatDate = (iso: string) =>

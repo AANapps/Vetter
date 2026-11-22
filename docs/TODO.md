@@ -79,6 +79,7 @@ From a code read-through of both flows (not clicked through live).
 ## Done
 
 - 2026-11-22: No pass marks, "verified" or medals: candidates and companies see the score (and rank) on every test. Job pass marks and per-skill minimums are gone (finishing a job's required tests sends the application with the score); companies see every try's score; the percentile is gone. Training keeps its pass mark for certificates. Not clicked through in a browser yet.
+- 2026-11-22: Fit for a job is only the average of the candidate's scores on that job's tests (a test not taken counts 0, attempt limits respected). No fit is shown until they've taken one of the job's tests; jobs without tests have no fit.
 
 - 2026-11-12: Tests fit the job (no spreadsheets for trades/clinical), drawings labelled.
 - 2026-11-12: Library tests suggested when a job is posted, not while making a test.

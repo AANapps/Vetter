@@ -7,72 +7,34 @@ export function getBestTestScore(candidate: User, testId: string): number | unde
   return scores.length > 0 ? Math.max(...scores) : undefined;
 }
 
+// Fit is the job's own tests and nothing else: the average of the candidate's scores on them (the scores the job counts,
+// so with an attempt limit only the first tries), a test not taken yet counting 0. A job with no tests has no fit
 export function calculateCandidateJobMatch(candidate: User, job: JobPosting): CandidateJobMatch {
-  const breakdown: SkillMatchBreakdown[] = [];
-  let totalWeightedScore = 0;
-  let totalWeight = 0;
-  let meetsAllHardRequirements = true;
-
-  // Build candidate skill map
-  const skillMap = new Map<string, number>();
-  candidate.verifiedSkills.forEach((vs) => {
-    skillMap.set(vs.skillName.toLowerCase(), vs.score);
-    // Also map aliases/categories
-    if (vs.category) {
-      skillMap.set(vs.category.toLowerCase(), vs.score);
-    }
-  });
-
-  // No pass marks: a skill counts by its score out of 100; a required one not taken yet counts as missing
-  job.requirements.forEach((req) => {
-    const score = req.testId ? getBestTestScore(candidate, req.testId) : skillMap.get(req.skillName.toLowerCase());
-    const taken = score !== undefined;
-    const candidateScore = score ?? 0;
-    if (req.importance === 'required' && !taken) meetsAllHardRequirements = false;
-
-    const scoreRatio = candidateScore / 100;
-    const weightedContribution = scoreRatio * req.weight;
-    totalWeightedScore += weightedContribution;
-    totalWeight += req.weight;
-
-    breakdown.push({
-      skillName: req.skillName,
-      candidateScore,
-      importance: req.importance,
-      taken,
+  const progress = jobTestProgress(job, candidate);
+  const total = job.testIds.length;
+  const breakdown: SkillMatchBreakdown[] = job.testIds.map((testId) => {
+    const score = progress.scores[testId];
+    const req = job.requirements.find((r) => r.testId === testId);
+    const scoreRatio = (score ?? 0) / 100;
+    return {
+      skillName: req?.skillName ?? testId,
+      candidateScore: score ?? 0,
+      importance: req?.importance ?? 'required',
+      taken: score !== undefined,
       scoreRatio: Math.round(scoreRatio * 100) / 100,
-      weightedContribution: Math.round(weightedContribution * 100) / 100,
-    });
+      weightedContribution: Math.round((scoreRatio / total) * 100) / 100,
+    };
   });
-
-  const rawFitRatio = totalWeight > 0 ? totalWeightedScore / totalWeight : 0.8;
-  let overallFitPercentage = Math.round(rawFitRatio * 100);
-
-  // Experience & Preference fine-tuning (up to +/- 5%)
-  if (candidate.workPreference === job.workType) {
-    overallFitPercentage += 2;
-  }
-  if (!meetsAllHardRequirements) {
-    // A required skill not taken yet: cap at 74%
-    overallFitPercentage = Math.min(74, overallFitPercentage);
-  }
-
-  // Constrain between 12% and 99%
-  overallFitPercentage = Math.max(15, Math.min(99, overallFitPercentage));
+  const overallFitPercentage = total ? Math.round(breakdown.reduce((sum, b) => sum + b.candidateScore, 0) / total) : 0;
+  // Every one of the job's tests taken
+  const meetsAllHardRequirements = total > 0 && progress.done === total;
 
   let matchTier: CandidateJobMatch['matchTier'] = 'Needs Upskilling';
-  if (overallFitPercentage >= 85 && meetsAllHardRequirements) {
-    matchTier = 'Top Match';
-  } else if (overallFitPercentage >= 75) {
-    matchTier = 'Strong Fit';
-  } else if (overallFitPercentage >= 60) {
-    matchTier = 'Borderline';
-  }
+  if (overallFitPercentage >= 85) matchTier = 'Top Match';
+  else if (overallFitPercentage >= 75) matchTier = 'Strong Fit';
+  else if (overallFitPercentage >= 60) matchTier = 'Borderline';
 
-  // The job's tests: completed once every one is taken
-  const progress = jobTestProgress(job, candidate);
-  const jobTestStatus: CandidateJobMatch['jobTestStatus'] =
-    job.testIds.length === 0 ? undefined : progress.status === 'completed' ? 'completed' : 'requires_test';
+  const jobTestStatus: CandidateJobMatch['jobTestStatus'] = total === 0 ? undefined : progress.status === 'completed' ? 'completed' : 'requires_test';
 
   const isApplied = candidate.appliedJobIds?.includes(job.id);
 
