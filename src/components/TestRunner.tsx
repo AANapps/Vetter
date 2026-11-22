@@ -23,6 +23,8 @@ import {
   ArrowRight,
   Crown,
   Award,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { ChartPreview, parseChartSpec } from './ChartPreview';
 import { AnswerInput } from './AnswerInputs';
@@ -98,6 +100,17 @@ const ResizeHandle: React.FC<{ onPointerDown: (e: React.PointerEvent) => void; o
 
 // In training, the worked answer is shown for questions whose solutionCode is written for a person to read
 const WORKED_ANSWER_TYPES: Question['type'][] = ['choice', 'multi', 'text', 'written', 'order', 'match', 'email', 'assistant', 'scenario'];
+
+// The page numbers to show in the footer: all of them when there are few, else the first, the last and the ones around
+// where you are, with gaps (null) between
+const pageWindow = (count: number, at: number): (number | null)[] => {
+  if (count <= 9) return Array.from({ length: count }, (_, i) => i);
+  const keep = new Set([0, count - 1, at - 1, at, at + 1].filter((i) => i >= 0 && i < count));
+  if (at <= 3) [1, 2, 3, 4].forEach((i) => keep.add(i));
+  if (at >= count - 4) [count - 5, count - 4, count - 3, count - 2].forEach((i) => keep.add(i));
+  const sorted = [...keep].sort((a, b) => a - b);
+  return sorted.flatMap((i, k) => (k > 0 && i - sorted[k - 1] > 1 ? [null, i] : [i]));
+};
 
 interface TestRunnerProps {
   test: AssessmentTest;
@@ -620,13 +633,13 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
   return (
     <div className="fixed inset-0 z-50 bg-slate-50 flex flex-col overflow-hidden text-slate-900 font-sans">
       {/* Top Header Bar */}
-      <div className="h-14 border-b border-slate-200 bg-white px-6 flex items-center justify-between shrink-0 shadow-xs">
-        <div className="flex items-center gap-4 min-w-0">
+      <div className="h-14 border-b border-slate-200 bg-white px-4 sm:px-6 flex items-center justify-between gap-4 shrink-0 shadow-xs">
+        <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
           <BackButton onClick={() => (preview ? onClose() : setConfirmingExit(true))}>Exit</BackButton>
-          <div className="h-4 w-px bg-slate-200" />
-          <div>
-            <h1 className="text-sm font-bold text-slate-900 tracking-tight truncate max-w-[22vw]">{test.title}</h1>
-            <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+          <div className="hidden sm:block h-4 w-px bg-slate-200" />
+          <div className="min-w-0">
+            <h1 className="text-sm font-bold text-slate-900 tracking-tight truncate max-w-[50vw]">{test.title}</h1>
+            <div className="hidden sm:flex items-center gap-2 text-xs text-slate-500 font-medium">
               <span>{test.category}</span>
               <span aria-hidden="true">&middot;</span>
               <span>{levelName(test.difficulty)}</span>
@@ -637,35 +650,8 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
           </div>
         </div>
 
-        {/* Center: Question Navigation */}
-        <div className="flex items-center gap-1 p-1 bg-white border border-slate-200 rounded-lg shadow-2xs min-w-0 overflow-x-auto mx-3">
-          {groups.map((g, idx) => {
-            // Answer-style questions count as done once answered; their result stays hidden until submit
-            const isCompleted = g.questions.every(isDone);
-            // Cases and tasks are numbered separately
-
-            return (
-              <button
-                key={g.questions[0].id}
-                onClick={() => goToGroup(idx)}
-                title={g.task ? `${g.task.title}: ${g.questions.length} ${g.questions.length === 1 ? 'part' : 'parts'}` : g.questions[0].title}
-                className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors flex items-center gap-1.5 ${
-                  groupIndex === idx
-                    ? 'bg-indigo-600 text-white shadow-xs'
-                    : g.task
-                    ? 'text-indigo-700 hover:text-indigo-900'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <span className="whitespace-nowrap">{groupLabel(idx)}</span>
-                {isCompleted && <CheckCircle className={`w-3 h-3 ${groupIndex === idx ? 'text-white' : 'text-emerald-600'}`} />}
-              </button>
-            );
-          })}
-        </div>
-
         {/* Right: Timer & Proctor Status */}
-        <div className="flex items-center gap-4 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-4 shrink-0">
           <div className="flex items-center gap-2 text-xs font-mono text-slate-700 bg-slate-50 px-3 py-1.5 rounded-md border border-slate-200 shadow-2xs">
             <Clock className="w-3.5 h-3.5 text-amber-600" />
             <span className="tabular-nums font-semibold" title={limitMinutes === null ? 'Time taken so far: this test has no time limit' : 'Time left'}>
@@ -683,7 +669,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
             title="Monitored: tab and window switches, resizing, copy and paste, and screens connected"
           >
             <Eye className="w-3 h-3 text-indigo-600" />
-            <span>{flags.total === 0 ? 'Monitored' : `Monitored · ${flags.total} recorded`}</span>
+            <span className="hidden sm:inline">{flags.total === 0 ? 'Monitored' : `Monitored · ${flags.total} recorded`}</span>
           </div>
 
           <button
@@ -1210,23 +1196,70 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
       {/* Moving through the test: back, where you are and how much is answered, then next (or submit on the last) */}
       <footer className="shrink-0 border-t border-slate-200 bg-white px-4 sm:px-6 py-3 flex items-center gap-4">
         {onSlide > 0 || groupIndex > 0 ? (
-          <BackButton onClick={() => (onSlide > 0 ? setSlide(onSlide - 1) : goToGroup(groupIndex - 1))} className="py-2.5">
+          <BackButton onClick={() => (onSlide > 0 ? setSlide(onSlide - 1) : goToGroup(groupIndex - 1))} className="py-2.5 hidden sm:flex">
             Previous
           </BackButton>
         ) : (
-          <span className="w-[7.5rem]" aria-hidden="true" />
+          <span className="hidden sm:block w-[7.5rem]" aria-hidden="true" />
         )}
-        <div className="flex-1 min-w-0 max-w-md mx-auto text-center space-y-1.5">
-          <div className="text-sm font-semibold text-slate-900">
-            {groupLabel(groupIndex)}
-            {slideCount > 1 && <span className="font-normal text-slate-700"> &middot; Question {partNo}.{onSlide + 1}</span>}
-            <span className="font-normal text-slate-500">
-              {' '}
-              &middot; {answeredCount} of {questionCount} answered
+        {/* Where you are: the pages of the test (each question, task or case), then the answered count and bar */}
+        <div className="flex-1 min-w-0 mx-auto max-w-2xl flex flex-col items-center gap-2">
+          <nav aria-label="Questions" className="flex items-center gap-1 max-w-full overflow-x-auto">
+            <button
+              onClick={() => groupIndex > 0 && goToGroup(groupIndex - 1)}
+              disabled={groupIndex === 0}
+              aria-label="Previous page"
+              className="w-8 h-8 shrink-0 grid place-items-center rounded-md text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            {pageWindow(groups.length, groupIndex).map((idx, k) =>
+              idx === null ? (
+                <span key={`gap-${k}`} className="hidden sm:block w-6 text-center text-xs text-slate-400" aria-hidden="true">
+                  …
+                </span>
+              ) : (
+                <button
+                  key={groups[idx].questions[0].id}
+                  onClick={() => goToGroup(idx)}
+                  aria-current={groupIndex === idx ? 'page' : undefined}
+                  aria-label={`${groupLabel(idx)}${groups[idx].questions.every(isDone) ? ', answered' : ''}`}
+                  title={groups[idx].task ? `${groups[idx].task!.title}: ${groups[idx].questions.length} ${groups[idx].questions.length === 1 ? 'part' : 'parts'}` : groups[idx].questions[0].title}
+                  className={`relative min-w-8 h-8 px-2 shrink-0 rounded-md text-xs font-semibold tabular-nums transition-colors ${groupIndex === idx ? '' : 'hidden sm:block'} ${
+                    groupIndex === idx
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : groups[idx].questions.every(isDone)
+                      ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                      : groups[idx].task
+                      ? 'text-indigo-700 hover:bg-indigo-50'
+                      : 'text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  {idx + 1}
+                </button>
+              )
+            )}
+            <span className="sm:hidden text-xs text-slate-500 tabular-nums px-1">of {groups.length}</span>
+            <button
+              onClick={() => groupIndex < groups.length - 1 && goToGroup(groupIndex + 1)}
+              disabled={groupIndex >= groups.length - 1}
+              aria-label="Next page"
+              className="w-8 h-8 shrink-0 grid place-items-center rounded-md text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </nav>
+          <div className="w-full max-w-md flex items-center gap-3">
+            <span className="hidden sm:inline text-xs text-slate-600 whitespace-nowrap truncate">
+              <span className="font-semibold text-slate-900">{groupLabel(groupIndex)}</span>
+              {slideCount > 1 && <> &middot; Question {partNo}.{onSlide + 1}</>}
             </span>
-          </div>
-          <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden" aria-hidden="true">
-            <div className="h-full bg-indigo-600 rounded-full transition-all" style={{ width: `${questionCount ? (answeredCount / questionCount) * 100 : 0}%` }} />
+            <span className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden" aria-hidden="true">
+              <span className="block h-full bg-indigo-600 rounded-full transition-all" style={{ width: `${questionCount ? (answeredCount / questionCount) * 100 : 0}%` }} />
+            </span>
+            <span className="text-xs text-slate-500 tabular-nums whitespace-nowrap">
+              {answeredCount}/{questionCount} answered
+            </span>
           </div>
         </div>
         {onSlide < slideCount - 1 ? (
