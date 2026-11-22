@@ -151,7 +151,7 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, jobs, t
             ))}
           </dl>
 
-          {/* Team members: Work mode, where their team's tasks and training are */}
+          {/* Team members: their team's tasks and training */}
           {work && work.companies.length > 0 && (
             <button
               onClick={() => onGoTo('work')}
@@ -159,7 +159,7 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, jobs, t
             >
               <Briefcase className="w-4 h-4 text-violet-700 shrink-0" />
               <span className="min-w-0 flex-1">
-                <span className="block text-sm font-semibold text-slate-900">Work mode</span>
+                <span className="block text-sm font-semibold text-slate-900">Your team</span>
                 <span className="block text-[11px] text-slate-600 truncate">
                   {work.companies.join(', ')} · {work.open ? `${work.open} ${work.open === 1 ? 'task' : 'tasks'} to do` : 'nothing to do right now'}
                 </span>

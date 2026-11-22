@@ -105,6 +105,8 @@ interface NavigationProps {
   onNewChat?: () => void;
   // Candidates: what their teams have sent them, shown on the Work mode switch
   work?: { open: number; late: number; companies?: string[] };
+  // Workspaces are in beta (src/lib/features.ts): without them there's no Work mode switch
+  workspaces?: boolean;
 }
 
 // The sparkle and the name in the brand's gradient: ✦ Praxa
@@ -130,15 +132,16 @@ export const Navigation: React.FC<NavigationProps> = ({
   renderSearch,
   onNewChat,
   work,
+  workspaces = true,
 }) => {
   const [isBellOpen, setIsBellOpen] = useState(false);
   const bellRef = useRef<HTMLDivElement>(null);
   const unread = notifications?.filter((n) => !n.read).length ?? 0;
   const tabs = NAV_TABS[activeRole === 'candidate' ? 'candidate' : 'recruiter'];
   // A candidate in Work mode: the bar shows the mode instead of the job-seeking tabs
-  const inWork = activeRole === 'candidate' && currentTab === 'work';
+  const inWork = workspaces && activeRole === 'candidate' && currentTab === 'work';
   // A company in Work mode (Projects & CRM): the menu shows only that
-  const staffWork = activeRole !== 'candidate' && currentTab === 'business-projects';
+  const staffWork = workspaces && activeRole !== 'candidate' && currentTab === 'business-projects';
   const [isMeOpen, setIsMeOpen] = useState(false);
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
@@ -179,7 +182,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                   </button>
                 )}
                 {/* A company's two modes: hiring, and Work (projects and the CRM), which opens in its own tab */}
-                {activeRole !== 'candidate' && (
+                {workspaces && activeRole !== 'candidate' && (
                   <div className="space-y-1">
                     <div className="px-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Mode</div>
                     {(
@@ -211,7 +214,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                   </div>
                 )}
                 {/* Two modes: looking for work, and Work (what their teams send them) */}
-                {activeRole === 'candidate' && (
+                {workspaces && activeRole === 'candidate' && (
                   <div className="space-y-1">
                     <div className="px-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Mode</div>
                     {(

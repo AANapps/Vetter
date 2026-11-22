@@ -89,7 +89,7 @@ export const HomeNudges: React.FC<{
       kicker: 'From your team',
       title: `${open.length} ${open.length === 1 ? 'task' : 'tasks'} to do`,
       body: late ? `${late} late · ${[...new Set(open.map((a) => a.companyName))].join(', ')}` : [...new Set(open.map((a) => a.companyName))].join(', '),
-      cta: 'Open Work',
+      cta: 'Open',
       onClick: () => onGoTo('work'),
       urgent: late > 0,
     });

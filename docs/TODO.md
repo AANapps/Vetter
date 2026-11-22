@@ -3,6 +3,7 @@
 Kept up to date as work is asked for and finished. Newest items at the bottom of each section.
 
 ## To do
+- **Workspaces manager (workspaces in beta since 2026-11-22).** Projects & CRM and candidates' Work mode on the company's boards are hidden from everyone but the Praxa team (`WORKSPACES_OPEN` in src/lib/features.ts). Companies keep Your team (Team, Training); candidates reach their team's invitations, work, training and certificates from Home (the team page, no boards). Build a workspaces manager, then set the flag to true.
 - **Deploy the Firestore rules (2026-11-22).** Team members' access to their company's boards (Work mode) needs `firebase deploy --only firestore:rules --project vetter-7b06f`; the CLI here needs `firebase login --reauth` first.
 - **Bug: menu opens white blank pages** (reported 2026-11-18). Clicking items in the company menu sometimes shows a blank white page. Not reproduced yet: find which items and whether it's the live site (Firebase on), then fix.
 - **Board permissions (Projects & CRM).** Each board gets who can see and edit it: everyone in the company and on the team by default, or invite only (pick people). Today the company's staff see every board and team members see nothing but tasks they own.

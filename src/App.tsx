@@ -69,6 +69,7 @@ import { useCourseProgress } from './lib/courseProgress';
 import { BusinessHome } from './components/BusinessHome';
 import { TeamPage } from './components/TeamPage';
 import { ProjectsPage } from './components/ProjectsPage';
+import { WORKSPACES_OPEN } from './lib/features';
 import { InviteToJobDialog } from './components/InviteToJobDialog';
 import { SendToStaffDialog } from './components/SendToStaffDialog';
 import { TrainingPage } from './components/TrainingPage';
@@ -891,6 +892,14 @@ export default function App() {
     ) : null;
   // The Praxa team tries any test straight away: no intro, retake gap, attempt or saving (TestRunner's instant run)
   const isPraxaAdmin = account?.role === 'admin' || (!firebaseEnabled && activeRole === 'admin');
+  // Workspaces are in beta: only the Praxa team sees them
+  const workspacesOn = WORKSPACES_OPEN || isPraxaAdmin;
+  // Home's way to their team: the workspace in a new tab, or (in beta) the team page here
+  const openWork = () => (workspacesOn ? window.open('/work/', '_blank', 'noopener') : goToTab('work'));
+  // An old link to the company's workspace goes to its home while workspaces are in beta
+  useEffect(() => {
+    if (!workspacesOn && activeRole !== 'candidate' && currentTab === 'business-projects') goToTab('business-home', true);
+  }, [workspacesOn, activeRole, currentTab]);
   const startTest = (test: AssessmentTest) =>
     isPraxaAdmin
       ? setAdminRun(test)
@@ -1769,6 +1778,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
         activeRole={activeRole}
         pending={navPending}
         onNewChat={() => setAdvisorTurns([])}
+        workspaces={workspacesOn}
         work={
           activeRole === 'candidate' && !isVisitor
             ? {
@@ -1888,6 +1898,8 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
                 { id: 'certificates', label: 'Certificates', icon: Award, count: myAssignments.filter((a) => a.certifiedAt).length, render: () => <WorkPage {...workProps} only="certificates" /> },
                 { id: 'settings', label: 'Settings', icon: Settings, render: () => <WorkPage {...workProps} only="settings" /> },
               ];
+              // Workspaces in beta: their team's invitations, work, training and certificates, without the boards
+              if (!workspacesOn) return <WorkPage {...workProps} />;
               // Not on a team yet (an invitation at most): the same workspace, without boards until they join one
               if (!myTeams.length)
                 return (
@@ -2109,7 +2121,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
                   teamWork={myAssignments}
                   onOpenTest={openTestPage}
                   onOpenJob={openJobPage}
-                  onGoTo={(tab) => (tab === 'work' ? window.open('/work/', '_blank', 'noopener') : goToTab(tab))}
+                  onGoTo={(tab) => (tab === 'work' ? openWork() : goToTab(tab))}
                   allTests={tests}
                   onStartJobTest={startJobTest}
                 />
@@ -2127,7 +2139,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
                 onOpenJob={openJobPage}
                 onStartTest={startTest}
                 onOpenTest={openTestPage}
-                onGoTo={(tab) => (tab === 'work' ? window.open('/work/', '_blank', 'noopener') : goToTab(tab))}
+                onGoTo={(tab) => (tab === 'work' ? openWork() : goToTab(tab))}
                 visitor={isVisitor ? { onJoin: () => setAuthDialog({ mode: 'sign-up' }), onSignIn: () => setAuthDialog({ mode: 'sign-in' }) } : undefined}
                 sector={sector}
                 work={myTeams.length ? { companies: [...new Set(myTeams.map((m) => m.companyName))], open: myAssignments.filter((a) => !a.completedAt).length } : undefined}
@@ -2155,7 +2167,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
                   teamWork={myAssignments}
                   onOpenTest={openTestPage}
                   onOpenJob={openJobPage}
-                  onGoTo={(tab) => (tab === 'work' ? window.open('/work/', '_blank', 'noopener') : goToTab(tab))}
+                  onGoTo={(tab) => (tab === 'work' ? openWork() : goToTab(tab))}
                   allTests={tests}
                   onStartJobTest={startJobTest}
                 />
@@ -2305,7 +2317,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
             </div>
           )}
 
-          {!detailPage && activeRole !== 'candidate' && currentTab === 'business-projects' && (
+          {!detailPage && activeRole !== 'candidate' && currentTab === 'business-projects' && workspacesOn && (
             // The workspace uses the whole screen, as a CRM does
             <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
               {recruiterBusiness ? (
