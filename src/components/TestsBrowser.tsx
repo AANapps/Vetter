@@ -34,25 +34,6 @@ type Status = 'all' | 'todo' | 'done';
 const levelLabel = (d: TestDifficulty | string) => (d === 'Junior' ? 'Beginner' : levelName(d));
 const isSim = (t: AssessmentTest, sec?: TestSection) => /simulation/i.test(sec?.label ?? '') || /simulation/i.test(t.title);
 
-// A small completion circle: the share of a role's tests taken, with the count in the middle
-const ProgressRing: React.FC<{ done: number; total: number }> = ({ done, total }) => {
-  const r = 27;
-  const c = 2 * Math.PI * r;
-  const pct = total ? done / total : 0;
-  const all = total > 0 && done === total;
-  return (
-    <span className="relative w-16 h-16 shrink-0" aria-label={`${done} of ${total} done`} role="img">
-      <svg width="64" height="64" aria-hidden="true">
-        <circle cx="32" cy="32" r={r} fill="none" className="stroke-slate-100" strokeWidth="6" />
-        <circle cx="32" cy="32" r={r} fill="none" className={all ? 'stroke-emerald-500' : 'stroke-indigo-600'} strokeWidth="6" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - pct)} transform="rotate(-90 32 32)" />
-      </svg>
-      <span className={`absolute inset-0 flex items-center justify-center text-sm font-bold font-mono ${all ? 'text-emerald-700' : 'text-slate-800'}`}>
-        {all ? <Check className="w-6 h-6" strokeWidth={3} /> : `${done}/${total}`}
-      </span>
-    </span>
-  );
-};
-
 export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandidates, tests, jobs, sector, testField, onTestFieldChange, onOpenTest, onStartTest }) => {
   const visibility = useLibraryVisibility();
   const [q, setQ] = useState('');
@@ -94,8 +75,8 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
   const role = testField && testField.roles.length === 1 ? testField.roles[0] : null;
   const path = role ? pathFor(role) : [];
 
-  // ---------- One test's card ----------
-  const card = (main: AssessmentTest, opts: { step?: number; label?: string; blurb?: string; next?: boolean; sim?: boolean } = {}) => {
+  // ---------- One test's card: the same frosted card everywhere on these pages ----------
+  const card = (main: AssessmentTest, opts: { step?: number; label?: string; blurb?: string; sim?: boolean } = {}) => {
     const versions = levelsOf(main, tests);
     const t = versions.find((v) => v.id === cardLevels[main.id]) ?? versions.find((v) => levels.includes(v.difficulty)) ?? main;
     const score = getBestTestScore(candidate, t.id);
@@ -106,47 +87,31 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
     const sim = opts.sim ?? isSim(main);
     return (
       <li key={main.id} id={`test-card-${main.id}`} className="scroll-mt-24">
-        <div
-          className={`h-full rounded-2xl bg-white border p-5 flex flex-col gap-3 transition-shadow hover:shadow-md ${
-            opts.next ? 'border-indigo-300 ring-2 ring-indigo-100' : ok ? 'border-emerald-200' : 'border-slate-200'
-          }`}
-        >
-          <div className="flex items-center justify-between gap-2">
-            <span className="flex items-center gap-2 min-w-0">
-              <span
-                className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${
-                  ok ? 'bg-emerald-500 text-white' : sim ? 'bg-violet-100 text-violet-700' : 'bg-indigo-50 text-indigo-700'
-                }`}
-              >
-                {ok ? <Check className="w-4 h-4" strokeWidth={3} /> : sim ? <Briefcase className="w-3.5 h-3.5" /> : opts.step ?? <ListChecks className="w-3.5 h-3.5" />}
-              </span>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 truncate">{opts.label ?? main.category}</span>
+        <div className="tl-glass tl-card h-full p-5 flex flex-col gap-4">
+          <div className="flex items-start gap-3">
+            <span className={`tl-tile ${ok ? 'tl-tile-done' : sim ? 'tl-tile-sim' : ''}`} aria-hidden="true">
+              {ok ? <Check className="w-5 h-5" strokeWidth={2.5} /> : sim ? <Monitor className="w-5 h-5" /> : opts.step ? <span className="text-sm font-bold">{opts.step}</span> : <ListChecks className="w-5 h-5" />}
             </span>
-            {opts.next && !ok ? (
-              <span className="shrink-0 px-2 py-0.5 rounded-full bg-indigo-600 text-white text-[11px] font-semibold">Up next</span>
-            ) : top !== undefined ? (
-              <span className="shrink-0 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700">Best {top}</span>
-            ) : null}
+            <button onClick={() => onOpenTest(t.id)} className="min-w-0 flex-1 text-left group">
+              <span className="block text-[11px] font-medium text-slate-500 truncate">{opts.label ?? main.category}</span>
+              <span className="block text-[15px] font-semibold text-slate-900 leading-snug group-hover:text-indigo-700">{main.title}</span>
+            </button>
+            {ok && <span className="shrink-0 tl-chip !text-emerald-700 !font-semibold">Best {top}</span>}
           </div>
 
-          <button onClick={() => onOpenTest(t.id)} className="text-left group">
-            <span className="block text-base font-bold text-slate-900 leading-snug group-hover:text-indigo-700">{main.title}</span>
-            <span className="mt-1 text-sm text-slate-600 leading-relaxed line-clamp-2">{opts.blurb ?? main.description}</span>
-          </button>
+          <p className="text-sm text-slate-600 leading-relaxed line-clamp-2">{opts.blurb ?? main.description}</p>
 
-          <div className="text-xs text-slate-500 flex flex-wrap items-center gap-x-3 gap-y-1">
-            <span className="inline-flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5" />
+          <div className="flex flex-wrap gap-1.5">
+            <span className="tl-chip">
+              <Clock className="w-3 h-3" />
               {t.estimatedMinutes} min
             </span>
-            <span>
-              {t.totalQuestions} {t.totalQuestions === 1 ? (sim ? 'day' : 'question') : 'questions'}
-            </span>
-            {taken > 0 && <span>{taken} taken</span>}
-            {wanted > 0 && <span className="text-indigo-700 font-medium">Used by {wanted} {wanted === 1 ? 'job' : 'jobs'}</span>}
+            <span className="tl-chip">{sim ? '5 timed parts' : `${t.totalQuestions} ${t.totalQuestions === 1 ? 'question' : 'questions'}`}</span>
+            {taken > 0 && <span className="tl-chip">{taken} taken</span>}
+            {wanted > 0 && <span className="tl-chip !text-indigo-700">Used by {wanted} {wanted === 1 ? 'job' : 'jobs'}</span>}
           </div>
 
-          <div className="mt-auto pt-3 border-t border-slate-100 flex items-center gap-2">
+          <div className="mt-auto pt-4 border-t border-slate-900/5 flex items-center gap-2">
             {versions.length > 1 ? (
               <LevelPicker
                 versions={versions}
@@ -158,17 +123,12 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
             ) : (
               <span className="text-xs font-medium text-slate-500">{levelLabel(t.difficulty)}</span>
             )}
-            <button onClick={() => onOpenTest(t.id)} className="ml-auto px-3 py-2 rounded-full text-xs font-semibold text-slate-600 hover:bg-slate-100">
+            <button onClick={() => onOpenTest(t.id)} className="ml-auto h-8 px-3 rounded-full text-xs font-semibold text-slate-600 hover:text-slate-900">
               Details
             </button>
-            <button
-              onClick={() => onStartTest(t)}
-              className={`px-4 py-2 rounded-full text-xs font-semibold inline-flex items-center gap-1.5 ${
-                score === undefined ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : 'border border-slate-300 text-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              <Play className="w-3.5 h-3.5 fill-current" />
-              {score === undefined ? 'Start' : 'Retake'}
+            <button onClick={() => onStartTest(t)} className={`h-8 px-4 rounded-full text-xs font-semibold inline-flex items-center gap-1.5 ${score === undefined ? 'tl-primary' : 'tl-ghost'}`}>
+              <Play className="w-3 h-3 fill-current" />
+              {score === undefined ? (sim ? 'Start the day' : 'Start') : 'Retake'}
             </button>
           </div>
         </div>
@@ -176,43 +136,39 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
     );
   };
 
-  // ---------- Filters: search, level, status ----------
+  // ---------- Filters: search, level, status, on one glass bar ----------
+  const segment = (on: boolean) => `h-8 px-3 rounded-full transition-colors ${on ? 'tl-seg-on' : 'text-slate-600 hover:text-slate-900'}`;
   const toolbar = (withSearch = true) => (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="tl-glass !rounded-full p-1.5 flex flex-wrap items-center gap-1.5">
       {withSearch && (
-      <div className="relative flex-1 min-w-[200px] max-w-sm">
-        <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Search tests and skills"
-          className="w-full h-10 pl-9 pr-8 rounded-full border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        />
-        {q && (
-          <button onClick={() => setQ('')} aria-label="Clear search" className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700">
-            <X className="w-4 h-4" />
-          </button>
-        )}
-      </div>
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search tests and skills"
+            className="w-full h-9 pl-9 pr-8 rounded-full bg-transparent text-sm placeholder:text-slate-400 focus:outline-none focus:bg-white/70"
+          />
+          {q && (
+            <button onClick={() => setQ('')} aria-label="Clear search" className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700">
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       )}
       {availableLevels.length > 1 && (
-        <div className="inline-flex rounded-full border border-slate-200 bg-white p-1 text-xs font-semibold">
+        <div className="tl-pill inline-flex rounded-full p-0.5 text-xs font-semibold">
           {availableLevels.map((d) => {
             const on = levels.includes(d);
             return (
-              <button
-                key={d}
-                onClick={() => setLevels((prev) => (on ? prev.filter((x) => x !== d) : [...prev, d]))}
-                aria-pressed={on}
-                className={`px-3 py-1.5 rounded-full ${on ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900'}`}
-              >
+              <button key={d} onClick={() => setLevels((prev) => (on ? prev.filter((x) => x !== d) : [...prev, d]))} aria-pressed={on} className={segment(on)}>
                 {levelLabel(d)}
               </button>
             );
           })}
         </div>
       )}
-      <div className="inline-flex rounded-full border border-slate-200 bg-white p-1 text-xs font-semibold">
+      <div className={`tl-pill inline-flex rounded-full p-0.5 text-xs font-semibold ${withSearch ? '' : 'ml-auto'}`}>
         {(
           [
             ['all', 'All'],
@@ -220,7 +176,7 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
             ['done', 'Done'],
           ] as const
         ).map(([id, label]) => (
-          <button key={id} onClick={() => setStatus(id)} aria-pressed={status === id} className={`px-3 py-1.5 rounded-full ${status === id ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900'}`}>
+          <button key={id} onClick={() => setStatus(id)} aria-pressed={status === id} className={segment(status === id)}>
             {label}
           </button>
         ))}
@@ -228,50 +184,78 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
     </div>
   );
 
-  const empty = <p className="p-8 text-center text-sm text-slate-500 rounded-2xl border border-dashed border-slate-300 bg-white">No tests match. Try another search or level.</p>;
+  const grid = 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4';
+  const empty = <p className="tl-glass p-10 text-center text-sm text-slate-500">No tests match. Try another search or level.</p>;
+  const back = (
+    <button onClick={() => onTestFieldChange(null)} className="tl-pill inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-xs font-semibold text-slate-600 hover:text-slate-900">
+      <ArrowLeft className="w-3.5 h-3.5" />
+      All roles
+    </button>
+  );
+  const sectionTitle = (title: string, sub?: string) => (
+    <div>
+      <h2 className="text-lg font-semibold tracking-tight text-slate-900">{title}</h2>
+      {sub && <p className="text-sm text-slate-500">{sub}</p>}
+    </div>
+  );
 
-  // ======================= A role: header, path, module cards =======================
+  // ======================= A role: header, its tests in order, then the rest =======================
   if (role) {
     const all = testsFor(role);
     const modules = path.filter((m) => matches(m.test));
     const extra = all.filter((t) => !path.some((m) => m.test.id === t.id)).filter(matches).sort((a, b) => easiest(a) - easiest(b));
     const minutes = (path.length ? path.map((m) => m.test) : all).reduce((s, t) => s + t.estimatedMinutes, 0);
+    const done = (path.length ? path.map((m) => m.test) : all).filter(passed).length;
+    const count = path.length || all.length;
     return (
-      <div className="space-y-6">
-        <button onClick={() => onTestFieldChange(null)} className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-slate-900">
-          <ArrowLeft className="w-4 h-4" />
-          All roles
-        </button>
+      <div className="tl-aurora space-y-6">
+        {back}
 
-        {/* Header: the role and its tests */}
-        <section className="rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-xs">
-          <div className="relative px-6 sm:px-8 py-7 text-white" style={{ background: 'radial-gradient(circle at 85% 90%, rgba(56,189,248,0.4) 0, transparent 45%), linear-gradient(120deg, #312e81 0%, #4f46e5 50%, #7c3aed 100%)' }}>
-            <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.7) 1px, transparent 1px)', backgroundSize: '18px 18px' }} />
-            <div className="relative flex flex-col md:flex-row md:items-center gap-6">
-              <div className="min-w-0 flex-1">
-                <div className="text-xs font-semibold uppercase tracking-wider text-indigo-200">Tests for</div>
-                <h1 className="text-3xl font-bold tracking-tight">{role}</h1>
-                <p className="mt-1 text-sm text-indigo-100">
-                  {path.length ? `${path.length} tests in order, about ${Math.round(minutes / 60)} hours in all.` : `${all.length} tests.`} Each score goes on your profile.
-                </p>
+        {/* Header: the role, what it takes, and its tests in order */}
+        <section className="tl-glass p-6 sm:p-8 space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-end gap-4">
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-medium text-indigo-700">Tests for</div>
+              <h1 className="mt-0.5 text-3xl sm:text-4xl font-semibold tracking-tight text-slate-900">{role}</h1>
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                <span className="tl-chip">{count} {count === 1 ? 'test' : 'tests'}{path.length ? ', in order' : ''}</span>
+                <span className="tl-chip">
+                  <Clock className="w-3 h-3" />
+                  about {minutes >= 90 ? `${Math.round(minutes / 60)} hours` : `${minutes} min`}
+                </span>
+                <span className="tl-chip">Each score goes on your profile</span>
               </div>
             </div>
+            {count > 0 && (
+              <div className="sm:w-48 space-y-1.5">
+                <div className="flex justify-between text-xs text-slate-500">
+                  <span>Taken</span>
+                  <span className="font-semibold text-slate-800 tabular-nums">
+                    {done} of {count}
+                  </span>
+                </div>
+                <div className="tl-bar">
+                  <span style={{ width: `${(done / count) * 100}%` }} />
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* The role's tests in order: a step for each, jumping to its card */}
           {path.length > 0 && (
-            <ol className="px-4 sm:px-6 py-4 flex gap-1 overflow-x-auto">
+            <ol className="flex gap-1.5 overflow-x-auto -mx-1 px-1 pb-1">
               {path.map((m, i) => {
+                const took = passed(m.test);
                 return (
-                  <li key={m.sec.id} className="flex items-center shrink-0">
+                  <li key={m.sec.id} className="shrink-0">
                     <button
                       onClick={() => document.getElementById(`test-card-${m.test.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
-                      className="flex items-center gap-2 px-2.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors text-slate-600 hover:bg-slate-50"
+                      className="tl-pill h-8 pl-1 pr-3 rounded-full flex items-center gap-2 text-xs font-medium whitespace-nowrap text-slate-700 hover:text-slate-900"
                     >
-                      <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold bg-slate-100 text-slate-500">{i + 1}</span>
+                      <span className={`w-6 h-6 rounded-full grid place-items-center text-[10px] font-bold ${took ? 'bg-emerald-500 text-white' : 'bg-slate-900/5 text-slate-500'}`}>
+                        {took ? <Check className="w-3 h-3" strokeWidth={3} /> : i + 1}
+                      </span>
                       {m.sec.label}
                     </button>
-                    {i < path.length - 1 && <ChevronRight className="w-3.5 h-3.5 text-slate-300 shrink-0" />}
                   </li>
                 );
               })}
@@ -282,21 +266,12 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
         {toolbar()}
 
         {modules.length > 0 && (
-          <ul className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {modules.map((m) =>
-              card(m.test, { step: path.indexOf(m) + 1, label: m.sec.label, blurb: m.sec.blurb, sim: isSim(m.test, m.sec) })
-            )}
-          </ul>
+          <ul className={grid}>{modules.map((m) => card(m.test, { step: path.indexOf(m) + 1, label: m.sec.label, blurb: m.sec.blurb, sim: isSim(m.test, m.sec) }))}</ul>
         )}
         {extra.length > 0 && (
-          <section className="space-y-3">
-            {path.length > 0 && (
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">More tests for {role}s</h2>
-                <p className="text-sm text-slate-500">Extra skills the role uses. Take them any time.</p>
-              </div>
-            )}
-            <ul className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">{extra.map((t) => card(t))}</ul>
+          <section className="space-y-3 pt-2">
+            {path.length > 0 && sectionTitle(`More tests for ${role}s`, 'Extra skills the role uses. Take them any time.')}
+            <ul className={grid}>{extra.map((t) => card(t))}</ul>
           </section>
         )}
         {!modules.length && !extra.length && empty}
@@ -308,26 +283,25 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
   if (testField) {
     const list = library.filter((t) => t.roles?.some((r) => testField.roles.includes(r))).filter(matches).sort((a, b) => easiest(a) - easiest(b));
     return (
-      <div className="space-y-6">
-        <button onClick={() => onTestFieldChange(null)} className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-slate-900">
-          <ArrowLeft className="w-4 h-4" />
-          All roles
-        </button>
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">{testField.label} tests</h1>
-          <p className="mt-1 text-sm text-slate-500">Or pick one role to follow its tests in order.</p>
-          <div className="mt-3 flex flex-wrap gap-2">
+      <div className="tl-aurora space-y-6">
+        {back}
+        <section className="tl-glass p-6 sm:p-8 space-y-4">
+          <div>
+            <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-slate-900">{testField.label} tests</h1>
+            <p className="mt-1 text-sm text-slate-500">Or pick one role to follow its tests in order.</p>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
             {testField.roles
               .filter((r) => library.some((t) => t.roles?.includes(r)))
               .map((r) => (
-                <button key={r} onClick={() => onTestFieldChange({ label: r, roles: [r] })} className="px-3.5 py-1.5 rounded-full border border-slate-300 bg-white text-sm font-semibold text-slate-700 hover:border-indigo-400 hover:text-indigo-700">
+                <button key={r} onClick={() => onTestFieldChange({ label: r, roles: [r] })} className="tl-ghost h-8 px-3.5 rounded-full text-xs font-semibold">
                   {r}
                 </button>
               ))}
           </div>
-        </div>
+        </section>
         {toolbar()}
-        {list.length ? <ul className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">{list.map((t) => card(t))}</ul> : empty}
+        {list.length ? <ul className={grid}>{list.map((t) => card(t))}</ul> : empty}
       </div>
     );
   }
@@ -338,21 +312,21 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
   const sims = library.filter(isJobSim).sort((a, b) => Number(!!b.roles?.includes(candidate.targetRole as TestRole)) - Number(!!a.roles?.includes(candidate.targetRole as TestRole)));
   const everything = library.filter(matches).sort((a, b) => easiest(a) - easiest(b));
   return (
-    <div className="space-y-8">
-      <section className="text-center max-w-2xl mx-auto pt-4 space-y-4">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs font-semibold">
-          <Sparkles className="w-3.5 h-3.5" />
+    <div className="tl-aurora space-y-10">
+      <section className="text-center max-w-2xl mx-auto pt-6 space-y-5">
+        <span className="tl-pill inline-flex items-center gap-1.5 h-7 px-3 rounded-full text-xs font-medium text-slate-600">
+          <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
           Free · marked in seconds · retake any time
-        </div>
-        <h1 className="text-4xl font-bold tracking-tight text-slate-900">What job do you want?</h1>
+        </span>
+        <h1 className="text-4xl sm:text-5xl font-semibold tracking-tight text-slate-900">What job do you want?</h1>
         <p className="text-slate-600">Pick a role and take its tests in order. Each score goes on your profile, which is what companies hire on.</p>
-        <div className="relative max-w-lg mx-auto">
+        <div className="tl-glass !rounded-full relative max-w-lg mx-auto">
           <Search className="w-5 h-5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Or search a test or skill, e.g. SQL, Excel, React"
-            className="w-full h-12 pl-12 pr-10 rounded-full border border-slate-300 bg-white text-sm shadow-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full h-12 pl-12 pr-10 rounded-full bg-transparent text-sm placeholder:text-slate-400 focus:outline-none"
           />
           {q && (
             <button onClick={() => setQ('')} aria-label="Clear search" className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700">
@@ -365,64 +339,57 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
       {searching ? (
         <section className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-bold text-slate-900">
-              {q.trim() ? `${everything.length} ${everything.length === 1 ? 'test' : 'tests'} for “${q.trim()}”` : `Every test (${everything.length})`}
-            </h2>
+            {sectionTitle(q.trim() ? `${everything.length} ${everything.length === 1 ? 'test' : 'tests'} for “${q.trim()}”` : `Every test (${everything.length})`)}
             <button
               onClick={() => {
                 setQ('');
                 setBrowseAll(false);
               }}
-              className="text-sm font-semibold text-indigo-700 hover:underline"
+              className="tl-pill inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-xs font-semibold text-slate-600 hover:text-slate-900"
             >
+              <ArrowLeft className="w-3.5 h-3.5" />
               Back to roles
             </button>
           </div>
           {toolbar(false)}
-          {everything.length ? <ul className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">{everything.map((t) => card(t))}</ul> : empty}
+          {everything.length ? <ul className={grid}>{everything.map((t) => card(t))}</ul> : empty}
         </section>
       ) : (
         <>
           {/* Job simulations first: the strongest proof a candidate can give that they can do the job */}
           {sims.length > 0 && (
-            <section className="rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-xs">
-              <div className="relative px-6 sm:px-8 py-7 text-white" style={{ background: 'radial-gradient(circle at 85% 90%, rgba(56,189,248,0.4) 0, transparent 45%), linear-gradient(120deg, #312e81 0%, #4f46e5 50%, #7c3aed 100%)' }}>
-                <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.7) 1px, transparent 1px)', backgroundSize: '18px 18px' }} />
-                <div className="relative max-w-2xl">
-                  <div className="text-xs font-semibold uppercase tracking-wider text-indigo-200">Job simulations</div>
-                  <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Don't just say you can do the job. Show it.</h2>
-                  <p className="mt-2 text-sm text-indigo-100">
-                    Each one is a real working day in the role, about 40 minutes: emails to answer, the job's own software, and a curveball halfway through.
-                    Your score goes on your profile as proof you've done the work, which counts for more with companies than any CV line.
-                  </p>
-                </div>
-              </div>
-              <ul className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-px bg-slate-100">
+            <section className="space-y-4">
+              {sectionTitle(
+                'Job simulations',
+                "A real working day in the role, about 40 minutes: emails, the job's own software and a curveball. The strongest proof you can do the job."
+              )}
+              <ul className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                 {sims.map((t) => {
                   const score = best(t);
-                  const ok = passed(t);
                   return (
-                    <li key={t.id} className="bg-white p-5 flex flex-col gap-3">
-                      <div className="flex items-start gap-3">
-                        <span className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center ${ok ? 'bg-emerald-50 text-emerald-600' : 'bg-indigo-50 text-indigo-600'}`} aria-hidden="true">
-                          {ok ? <Check className="w-5 h-5" strokeWidth={3} /> : <Monitor className="w-5 h-5" />}
-                        </span>
-                        <button onClick={() => onOpenTest(t.id)} className="min-w-0 text-left">
-                          <span className="block text-sm font-bold text-slate-900 hover:text-indigo-700">{t.roles?.[0] ?? t.title}</span>
-                          <span className="block text-xs text-slate-500">{t.title.replace(/^.*?:\s*/, '')}</span>
+                    <li key={t.id}>
+                      <div className="tl-glass tl-card h-full p-5 flex flex-col gap-4">
+                        <div className="flex items-start gap-3">
+                          <span className={`tl-tile ${score !== undefined ? 'tl-tile-done' : 'tl-tile-sim'}`} aria-hidden="true">
+                            {score !== undefined ? <Check className="w-5 h-5" strokeWidth={2.5} /> : <Monitor className="w-5 h-5" />}
+                          </span>
+                          <button onClick={() => onOpenTest(t.id)} className="min-w-0 text-left group">
+                            <span className="block text-[15px] font-semibold text-slate-900 group-hover:text-indigo-700">{t.roles?.[0] ?? t.title}</span>
+                            <span className="block text-xs text-slate-500">{t.title.replace(/^.*?:\s*/, '')}</span>
+                          </button>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          <span className="tl-chip">
+                            <Clock className="w-3 h-3" />~{t.estimatedMinutes} min
+                          </span>
+                          <span className="tl-chip">5 timed parts</span>
+                          {score !== undefined && <span className="tl-chip !text-emerald-700 !font-semibold">Best {score}</span>}
+                        </div>
+                        <button onClick={() => onStartTest(t)} className={`mt-auto h-9 rounded-full text-sm font-semibold inline-flex items-center justify-center gap-1.5 ${score === undefined ? 'tl-primary' : 'tl-ghost'}`}>
+                          <Play className="w-3.5 h-3.5 fill-current" />
+                          {score === undefined ? 'Start the day' : 'Take it again'}
                         </button>
                       </div>
-                      <div className="flex flex-wrap gap-1.5 text-[11px] text-slate-600">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100">
-                          <Clock className="w-3 h-3" />~{t.estimatedMinutes} min
-                        </span>
-                        <span className="px-2 py-0.5 rounded-full bg-slate-100">5 timed parts</span>
-                        {score !== undefined && <span className="px-2 py-0.5 rounded-full font-semibold bg-emerald-50 text-emerald-700">Best {score}</span>}
-                      </div>
-                      <button onClick={() => onStartTest(t)} className={`mt-auto px-4 py-2 rounded-lg text-sm font-semibold inline-flex items-center justify-center gap-1.5 ${ok ? 'border border-slate-300 text-slate-700 hover:bg-slate-50' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}>
-                        <Play className="w-3.5 h-3.5 fill-current" />
-                        {score === undefined ? 'Prove it: start the day' : 'Take it again'}
-                      </button>
                     </li>
                   );
                 })}
@@ -430,14 +397,15 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
             </section>
           )}
           {groups.map((g) => (
-            <section key={g.industry} className="space-y-3">
-              <button
-                onClick={() => onTestFieldChange({ label: g.industry, roles: g.roles })}
-                className="text-xs font-semibold uppercase tracking-wider text-slate-400 hover:text-indigo-700"
-              >
-                {g.industry}
-              </button>
-              <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <section key={g.industry} className="space-y-4">
+              <div className="flex items-end justify-between gap-3">
+                {sectionTitle(g.industry)}
+                <button onClick={() => onTestFieldChange({ label: g.industry, roles: g.roles })} className="text-xs font-semibold text-indigo-700 hover:underline inline-flex items-center gap-0.5">
+                  All {g.industry} tests
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {g.roles.map((r) => {
                   const p = pathFor(r);
                   const list = p.length ? p.map((m) => m.test) : testsFor(r);
@@ -446,25 +414,27 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
                   const first = p[0]?.sec.label;
                   return (
                     <li key={r}>
-                      <button
-                        onClick={() => onTestFieldChange({ label: r, roles: [r] })}
-                        className="group w-full h-full text-left p-5 rounded-2xl bg-white border border-slate-200 hover:border-indigo-300 hover:shadow-md transition-all flex items-center gap-4"
-                      >
-                        <span className="min-w-0 flex-1 flex flex-col gap-1.5">
-                          <span className="block text-base font-bold text-slate-900 group-hover:text-indigo-700">{r}</span>
-                          <span className="block text-xs text-slate-500">
-                            {list.length} {list.length === 1 ? 'test' : 'tests'} · about {mins >= 90 ? `${Math.round(mins / 60)} hours` : `${mins} min`}
+                      <button onClick={() => onTestFieldChange({ label: r, roles: [r] })} className="tl-glass tl-card group w-full h-full text-left p-5 flex flex-col gap-4">
+                        <span className="w-full flex items-start gap-3">
+                          <span className={`tl-tile ${done === list.length && done > 0 ? 'tl-tile-done' : ''}`} aria-hidden="true">
+                            <Briefcase className="w-5 h-5" />
                           </span>
-                          {done > 0 ? (
-                            <span className="text-[11px] text-slate-500">
-                              {done} of {list.length} done
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-[15px] font-semibold text-slate-900 group-hover:text-indigo-700">{r}</span>
+                            <span className="block text-xs text-slate-500">
+                              {list.length} {list.length === 1 ? 'test' : 'tests'} · about {mins >= 90 ? `${Math.round(mins / 60)} hours` : `${mins} min`}
                             </span>
-                          ) : (
-                            first && <span className="text-xs text-slate-500">Starts with <span className="font-semibold text-slate-700">{first}</span></span>
-                          )}
+                          </span>
+                          <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-indigo-500 shrink-0 mt-1" />
                         </span>
-                        {/* How much of the role they've done, down the card's right-hand side */}
-                        <ProgressRing done={done} total={list.length} />
+                        <span className="mt-auto w-full block space-y-1.5">
+                          <span className="flex justify-between text-[11px] text-slate-500">
+                            <span className="truncate">{done > 0 ? `${done} of ${list.length} taken` : first ? `Starts with ${first}` : 'Not started'}</span>
+                          </span>
+                          <span className="tl-bar block w-full">
+                            <span style={{ width: `${list.length ? (done / list.length) * 100 : 0}%` }} />
+                          </span>
+                        </span>
                       </button>
                     </li>
                   );
@@ -473,7 +443,7 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
             </section>
           ))}
           <div className="text-center">
-            <button onClick={() => setBrowseAll(true)} className="px-5 py-2.5 rounded-full border border-slate-300 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50">
+            <button onClick={() => setBrowseAll(true)} className="tl-ghost h-10 px-5 rounded-full text-sm font-semibold">
               Browse every test ({library.length})
             </button>
           </div>
