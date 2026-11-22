@@ -612,7 +612,7 @@ export interface CandidateJobMatch {
   jobTestStatus?: 'completed' | 'requires_test';
   jobTestScore?: number;
   applicationStatus?: 'none' | 'applied' | 'reviewing' | 'interview' | 'offer' | 'rejected';
-  matchTier: 'Top Match' | 'Strong Fit' | 'Borderline' | 'Needs Upskilling';
+  matchTier: 'Top match' | 'Strong fit' | 'Borderline' | 'Needs upskilling';
 }
 
 // Discovery feed: what candidates write, and how they react to each other's activity

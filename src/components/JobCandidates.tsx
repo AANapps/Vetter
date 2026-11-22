@@ -1,3 +1,4 @@
+import { LEAD_STAGES } from '../lib/leads';
 import React, { useState } from 'react';
 import { Pic } from './Pic';
 import { CandidateJobMatch, JobPosting, User } from '../types';
@@ -247,14 +248,16 @@ export const JobCandidates: React.FC<JobCandidatesProps> = ({ job, allCandidates
                       </label>
                       <select
                         id={`stage-${c.candidateId}`}
-                        value={statuses[c.candidateId] || 'review'}
+                        value={statuses[c.candidateId] || 'screening'}
                         onChange={(e) => setStatuses((prev) => ({ ...prev, [c.candidateId]: e.target.value }))}
                         className="px-2.5 py-1.5 text-xs bg-white border border-slate-300 text-slate-800 font-medium rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
                       >
-                        <option value="review">Screening</option>
-                        <option value="interview">Interviewing</option>
-                        <option value="offer">Offer Extended</option>
-                        <option value="archived">Archived</option>
+                        {/* The same stages, and names, as the hiring pipeline */}
+                        {LEAD_STAGES.filter((st) => st.id !== 'invited' && st.id !== 'applied').map((st) => (
+                          <option key={st.id} value={st.id}>
+                            {st.label}
+                          </option>
+                        ))}
                       </select>
                     </div>
                   </div>

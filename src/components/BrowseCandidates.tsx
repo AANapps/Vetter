@@ -43,7 +43,7 @@ export const BrowseCandidates: React.FC<{ candidates: User[]; onOpenPerson: (per
   return (
     <div className="space-y-4">
       <div className="space-y-1">
-        <h2 className="text-base font-bold text-slate-900">All candidates</h2>
+        <h2 className="text-base font-bold text-slate-900">Everyone on Praxa</h2>
         <p className="text-sm text-slate-500">Everyone on Praxa. Search by name, title or skill and open a profile to see their full record.</p>
       </div>
 

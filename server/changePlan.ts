@@ -39,15 +39,15 @@ const schema = {
 };
 
 const COMMON = `Read the company's latest message and plan exactly what it asks, nothing more and nothing else. Nothing is
-changed yet: your plan is shown to the company as a checklist with a Build button.
+changed yet: your plan is shown to the company as a checklist with an Apply changes button.
 
 action:
 - "answer": a question, or nothing to change. reply answers it plainly from THE DRAFT. If they report something wrong
   (a blank screen, something missing) and THE APPS show nothing wrong, say what you checked and what you found (e.g.
   "Every app loads and works for me"), suggest refreshing the page, and ask them to say which screen and what they
   see. Never plan a rewrite for a problem you can't find.
-- "change": reply is one or two sentences saying what will change once they press Build ("OK: the background will be
-  blue."). steps is the checklist: one short line per change, in the company's terms ("Make Deskly's background
+- "change": reply is one or two sentences saying what will change once they press Apply changes ("The background will
+  be blue."). steps is the checklist: one short line per change, in the company's terms ("Make Deskly's background
   blue"), at most 6.
 
 Do exactly what they ask: a look change (a colour, a font, a size) or a fix is only that, never a rewrite of anything

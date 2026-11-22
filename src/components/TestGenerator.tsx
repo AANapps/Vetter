@@ -278,7 +278,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
 
   // build: the Build button under a planned change (and Try again after a build that failed), which makes the change
   const send = async (text: string, again = false, build = false) => {
-    const message = build ? 'Build' : text.trim();
+    const message = build ? 'Apply changes' : text.trim();
     if (!message || working) return;
     if (!again && !build) setInput('');
     setWorking(true);
@@ -436,8 +436,8 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
   const editDraft = (test: AssessmentTest) => setChat((c) => ({ ...c, draft: test }));
   const unfinished = draft && keepNew ? draftProblems(draft) : 0;
   const addCount = chosen.length + (draft && keepNew ? 1 : 0);
-  // A new job simulation is saved one of two ways, which the company picks: to send to candidates (it's theirs for
-  // hiring, and they go on to a job for it) or as a test in their library. On a job it's for that job's candidates
+  // A new job simulation is saved for hiring (to send to candidates for a job) unless the company picks its test library
+  // instead. On a job it's for that job's candidates
   const asksHowToSave = !!draft && !original && !job && isJobSimDraft(draft) && kind !== 'training';
   const [saveMenu, setSaveMenu] = useState(false);
   const finish = (as?: 'hiring' | 'library') => {
@@ -458,15 +458,15 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
     onClose();
     if (as === 'hiring' && saved && onSendTest) onSendTest(saved);
   };
+  // Hiring is the default (it's what a job simulation is for); the test library is the other way, offered quietly
   const saveChoice = (
-    <div className="flex flex-wrap gap-2">
-      <button onClick={() => finish('hiring')} disabled={working || unfinished > 0} className="px-3.5 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 rounded-lg text-left">
-        Save as a job simulation
-        <span className="block text-xs font-normal text-indigo-100">Send it to candidates for a job</span>
+    <div className="flex flex-wrap items-center gap-3">
+      <button onClick={() => finish('hiring')} disabled={working || unfinished > 0} className="px-3.5 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 rounded-lg inline-flex items-center gap-1.5">
+        <Check className="w-4 h-4" />
+        Save for hiring
       </button>
-      <button onClick={() => finish('library')} disabled={working || unfinished > 0} className="px-3.5 py-2 text-sm font-semibold text-slate-800 bg-white border border-slate-300 hover:border-indigo-400 disabled:opacity-40 rounded-lg text-left">
-        Save as a test
-        <span className="block text-xs font-normal text-slate-500">Keep it in your test library</span>
+      <button onClick={() => finish('library')} disabled={working || unfinished > 0} className="text-xs font-semibold text-slate-500 hover:text-indigo-700 disabled:opacity-40">
+        or keep it in your test library instead
       </button>
     </div>
   );
@@ -550,16 +550,20 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                 {addCount === 0 ? 'Nothing picked yet' : `Add ${addCount} ${addCount === 1 ? 'test' : 'tests'} to the job`}
               </button>
             ) : asksHowToSave ? (
-              <div className="relative">
-                <button onClick={() => setSaveMenu((o) => !o)} disabled={working || unfinished > 0} aria-expanded={saveMenu} title={unfinished ? 'Finish the questions marked under Structure first' : undefined} className="px-3 sm:px-4 py-1.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 rounded-lg flex items-center gap-1.5">
+              <div className="relative flex">
+                <button onClick={() => finish('hiring')} disabled={working || unfinished > 0} title={unfinished ? 'Finish the questions marked under Structure first' : 'Save it to send to candidates for a job'} className="pl-3 sm:pl-4 pr-3 py-1.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 rounded-l-lg flex items-center gap-1.5">
                   <Check className="w-4 h-4" />
-                  Save
+                  Save for hiring
+                </button>
+                <button onClick={() => setSaveMenu((o) => !o)} disabled={working || unfinished > 0} aria-expanded={saveMenu} aria-label="Other ways to save" className="px-1.5 py-1.5 text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 rounded-r-lg border-l border-indigo-400">
                   <ChevronDown className="w-4 h-4" />
                 </button>
                 {saveMenu && (
-                  <div className="menu-panel absolute right-0 mt-2 z-20 w-72 p-3 bg-white border border-slate-200 rounded-xl shadow-xl space-y-2">
-                    <p className="text-xs text-slate-500">How do you want to save it?</p>
-                    {saveChoice}
+                  <div className="menu-panel absolute right-0 top-full mt-2 z-20 w-64 p-1.5 bg-white border border-slate-200 rounded-xl shadow-xl">
+                    <button onClick={() => finish('library')} className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-50">
+                      <span className="block text-sm font-semibold text-slate-800">Save to your test library</span>
+                      <span className="block text-xs text-slate-500">Kept with your tests instead of for a job</span>
+                    </button>
                   </div>
                 )}
               </div>
@@ -688,7 +692,8 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                     <div className="max-w-[85%] min-w-0">
                       <div className="px-3.5 py-2 rounded-2xl rounded-tl-md bg-slate-100 text-slate-800 text-sm leading-relaxed whitespace-pre-wrap">{m.text}</div>
                       {m.proposal && (
-                        <div className="mt-2 rounded-xl border border-slate-200 bg-white p-3">
+                        <div className={`mt-2 rounded-xl border bg-white p-3 ${m.proposal.built ? 'border-slate-200' : 'border-indigo-200 ring-2 ring-indigo-50'}`}>
+                          <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">{m.proposal.built ? 'Changes applied' : 'Changes to apply'}</div>
                           <ul className="space-y-1.5">
                             {m.proposal.steps.map((step, k) => (
                               <li key={k} className="flex items-start gap-2 text-sm text-slate-800">
@@ -699,10 +704,11 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                           </ul>
                           {!m.proposal.built && i === chat.messages.length - 1 && !working && (
                             <div className="mt-3 flex items-center gap-2">
-                              <button onClick={() => send('', false, true)} className="px-4 py-1.5 rounded-lg text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700">
-                                Build
+                              <button onClick={() => send('', false, true)} className="px-4 py-1.5 rounded-lg text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 inline-flex items-center gap-1.5">
+                                <Check className="w-4 h-4" />
+                                Apply changes
                               </button>
-                              <span className="text-xs text-slate-500">or tell me what to change in the list</span>
+                              <span className="text-xs text-slate-500">or say what to change in the list</span>
                             </div>
                           )}
                         </div>
@@ -714,12 +720,21 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                       )}
                       {m.failed && i === chat.messages.length - 1 && !working && chat.messages[i - 1]?.role === 'user' && (
                         <button
-                          onClick={() => (m.needsCredit ? setTopUpOpen(true) : send(chat.messages[i - 1].text, true, chat.messages[i - 1].text === 'Build' && chat.messages.some((x) => x.proposal)))}
+                          onClick={() => (m.needsCredit ? setTopUpOpen(true) : send(chat.messages[i - 1].text, true, (chat.messages[i - 1].text === 'Apply changes' || chat.messages[i - 1].text === 'Build') && chat.messages.some((x) => x.proposal)))}
                           className={`mt-1.5 px-3 py-1 rounded-full text-sm font-semibold disabled:opacity-40 ${
                             m.needsCredit ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'border border-indigo-300 text-indigo-700 hover:bg-indigo-50'
                           }`}
                         >
                           {m.needsCredit ? 'Top up and carry on' : 'Try again'}
+                        </button>
+                      )}
+                      {/* A plain answer to a message about the draft: if they meant it as a change, one click plans it */}
+                      {!m.proposal && !m.failed && draft && i === chat.messages.length - 1 && i > 0 && chat.messages[i - 1]?.role === 'user' && chat.messages[i - 1].text !== 'Build' && chat.messages[i - 1].text !== 'Apply changes' && !working && (
+                        <button
+                          onClick={() => send(`${chat.messages[i - 1].text}\n\nPlease plan this as a change to the test.`)}
+                          className="mt-1.5 px-3 py-1 rounded-full text-xs font-semibold border border-indigo-300 text-indigo-700 hover:bg-indigo-50"
+                        >
+                          I meant it as a change: plan it
                         </button>
                       )}
                       {m.note && (
@@ -729,7 +744,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
                         </p>
                       )}
                       {m.cost !== undefined && m.cost > 0 && <p className="mt-1 text-xs text-slate-400 tabular-nums">Used {pounds(m.cost)} of credit</p>}
-                      {/* A built job simulation: how to save it, under the latest reply (unless a change is waiting on Build) */}
+                      {/* A built job simulation: how to save it, under the latest reply (unless a change is waiting to be applied) */}
                       {asksHowToSave && i === chat.messages.length - 1 && !working && !(m.proposal && !m.proposal.built) && <div className="mt-2">{saveChoice}</div>}
                     </div>
                   </div>

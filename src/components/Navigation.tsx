@@ -4,7 +4,7 @@ import { ThemeToggle } from './ThemeToggle';
 import { Pic } from './Pic';
 import { UserRole } from '../types';
 import { ArrowLeftRight,
-  BookOpen, Building2, LogOut, Menu, ShieldCheck, Trophy, X, Bell, Briefcase, ChevronDown, ClipboardCheck, GraduationCap, House, UsersRound, FolderKanban, Repeat, Search, Users, ListTodo, UserRound, MoreHorizontal } from 'lucide-react';
+  BookOpen, Building2, LogOut, Menu, ShieldCheck, Trophy, X, Bell, Briefcase, ChevronDown, ClipboardCheck, GraduationCap, House, UsersRound, FolderKanban, Repeat, Search, Users, ListTodo, UserRound, MoreHorizontal, ExternalLink } from 'lucide-react';
 
 export type AppTab =
   | 'home'
@@ -41,17 +41,20 @@ export const NAV_TABS: Record<'candidate' | 'recruiter', { id: AppTab; label: st
     { id: 'profile', label: 'Profile', icon: UserRound },
   ],
   // The first is the AI chat (Create with AI); then two groups kept apart: hiring (jobs, candidates and the tests they
-  // take) and the Project Manager for the company's own people (projects, the team, training)
+  // take) and the company's own people (the team, training). Projects & CRM is a mode of its own (Work), opened from
+  // the name menu in a new tab (STAFF_WORK_TAB)
   recruiter: [
     { id: 'business-home', label: 'Home', icon: House },
     { id: 'business-jobs', label: 'Jobs', icon: Briefcase, group: 'Hiring' },
     { id: 'business-candidates', label: 'Candidates', icon: Users, group: 'Hiring' },
     { id: 'business-tests', label: 'Tests', icon: ClipboardCheck, group: 'Hiring' },
-    { id: 'business-projects', label: 'Projects & CRM', icon: FolderKanban, group: 'Project Manager' },
-    { id: 'business-team', label: 'Team', icon: UsersRound, group: 'Project Manager' },
-    { id: 'business-training', label: 'Training', icon: GraduationCap, group: 'Project Manager' },
+    { id: 'business-team', label: 'Team', icon: UsersRound, group: 'Your team' },
+    { id: 'business-training', label: 'Training', icon: GraduationCap, group: 'Your team' },
   ],
 };
+
+// A company's Work mode: its projects and CRM, kept apart from hiring
+const STAFF_WORK_TAB: { id: AppTab; label: string; icon: TabIcon; group?: string } = { id: 'business-projects', label: 'Projects & CRM', icon: FolderKanban };
 
 // A candidate's other pages, under More: still a click away, never in the way
 export const MORE_TABS: { id: AppTab; label: string; icon: TabIcon; blurb: string }[] = [
@@ -134,6 +137,8 @@ export const Navigation: React.FC<NavigationProps> = ({
   const tabs = NAV_TABS[activeRole === 'candidate' ? 'candidate' : 'recruiter'];
   // A candidate in Work mode: the bar shows the mode instead of the job-seeking tabs
   const inWork = activeRole === 'candidate' && currentTab === 'work';
+  // A company in Work mode (Projects & CRM): the menu shows only that
+  const staffWork = activeRole !== 'candidate' && currentTab === 'business-projects';
   const [isMeOpen, setIsMeOpen] = useState(false);
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
@@ -172,6 +177,38 @@ export const Navigation: React.FC<NavigationProps> = ({
                   >
                     View profile
                   </button>
+                )}
+                {/* A company's two modes: hiring, and Work (projects and the CRM), which opens in its own tab */}
+                {activeRole !== 'candidate' && (
+                  <div className="space-y-1">
+                    <div className="px-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Mode</div>
+                    {(
+                      [
+                        { id: 'hiring', label: 'Hiring', blurb: 'Jobs, candidates, tests and your team', icon: Briefcase, active: !staffWork },
+                        { id: 'work', label: 'Work', blurb: 'Projects and CRM, in a new tab', icon: FolderKanban, active: staffWork },
+                      ] as const
+                    ).map((m) => (
+                      <button
+                        key={m.id}
+                        role="menuitemradio"
+                        aria-checked={m.active}
+                        onClick={() => {
+                          setIsMeOpen(false);
+                          if (m.active) return;
+                          if (m.id === 'work') window.open('/business/projects/', '_blank', 'noopener');
+                          else onTabChange('business-home');
+                        }}
+                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-left border ${m.active ? 'border-indigo-300 bg-indigo-50' : 'border-transparent hover:bg-slate-100'}`}
+                      >
+                        <m.icon className={`w-4 h-4 shrink-0 ${m.active ? 'text-indigo-600' : 'text-slate-400'}`} />
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-sm font-semibold text-slate-900">{m.label}</span>
+                          <span className="block text-[11px] text-slate-500">{m.blurb}</span>
+                        </span>
+                        {m.active ? <span className="w-2 h-2 rounded-full bg-indigo-600" /> : m.id === 'work' && <ExternalLink className="w-3.5 h-3.5 text-slate-400" />}
+                      </button>
+                    ))}
+                  </div>
                 )}
                 {/* Two modes: looking for work, and Work (what their teams send them) */}
                 {activeRole === 'candidate' && (
@@ -269,7 +306,7 @@ export const Navigation: React.FC<NavigationProps> = ({
   if (!pending && !visitor && activeRole !== 'candidate')
     return (
       <StaffNav
-        tabs={tabs}
+        tabs={staffWork ? [STAFF_WORK_TAB] : tabs}
         currentTab={currentTab}
         onTabChange={onTabChange}
         onNewChat={onNewChat}

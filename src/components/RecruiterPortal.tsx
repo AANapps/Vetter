@@ -304,9 +304,9 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
         <div role="tablist" aria-label="Candidates" className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1 text-xs font-semibold">
           {(
             [
-              ...(leads ? [['leads', 'Leads'] as const] : []),
-              ...(browse ? [['browse', 'All candidates'] as const] : []),
-              ['ranked', 'Ranked by job'] as const,
+              ...(leads ? [['leads', 'Your pipeline'] as const] : []),
+              ...(browse ? [['browse', 'Everyone on Praxa'] as const] : []),
+              ['ranked', 'Best fit for a job'] as const,
             ] as const
           ).map(([id, label]) => (
             <button
@@ -323,6 +323,16 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
           ))}
         </div>
       )}
+      {/* What each view is: the company's own people across its jobs, everyone on Praxa, or everyone ranked for one job */}
+      {section === 'candidates' && (
+        <p className="text-xs text-slate-500 -mt-1">
+          {candidatesView === 'leads' && leads
+            ? 'Everyone in your hiring, across all your jobs: who applied, who you sent tests to, and the stage they’re at. Each job’s page has just its own.'
+            : candidatesView === 'browse' && browse
+            ? 'Every candidate on Praxa, whether or not they’ve applied to you. Send any of them a job’s tests.'
+            : 'Everyone on Praxa ranked for one of your jobs by their scores on its tests, applied or not.'}
+        </p>
+      )}
       {section === 'candidates' && leads && candidatesView === 'leads' && leads}
       {section === 'candidates' && browse && candidatesView === 'browse' && browse}
       {showRanked && !selectedJob && (
@@ -331,7 +341,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
       {showRanked && selectedJob && (
         <div className="space-y-4">
           <div className="space-y-2">
-            <h2 className="text-base font-bold text-slate-900">Candidates by Job</h2>
+            <h2 className="text-base font-bold text-slate-900">Best fit for a job</h2>
             <select
               value={selectedJob.id}
               onChange={(e) => setSelectedJobId(e.target.value)}

@@ -1269,7 +1269,7 @@ function daySummary(draft: AssessmentTest): string {
 }
 
 // A message about a draft already written: a cheap first step reads it with a summary of the draft and how each app
-// loads right now, and either answers or plans the change as a checklist. Nothing changes until Build
+// loads right now, and either answers or plans the change as a checklist. Nothing changes until Apply changes
 async function proposeChange(state: ChatState, messages: ChatMessage[], ctx: ChatContext, progress: Progress): Promise<ChatState> {
   const draft = state.draft!;
   const jobsim = isJobSimDraft(draft);
@@ -1302,7 +1302,7 @@ async function proposeChange(state: ChatState, messages: ChatMessage[], ctx: Cha
   const change = out.action === 'change' && steps.length && (!jobsim || edits.length || rewrite);
   if (!change) return { ...state, messages: [...messages, { role: 'assistant', text: reply || "I couldn't tell what to change. Say which part, and what you'd like different." }] };
   const proposal: ChangeProposal = { kind: jobsim ? 'jobsim' : 'test', steps, request: messages[messages.length - 1].text, ...(edits.length && { edits }), ...(rewrite && { rewrite }) };
-  return { ...state, messages: [...messages, { role: 'assistant', text: reply || 'Here’s what I’ll change. Press Build to make it.', proposal }] };
+  return { ...state, messages: [...messages, { role: 'assistant', text: reply || 'Here’s what I’ll change. Press Apply changes to make it.', proposal }] };
 }
 
 // Edits to apps on a job simulation's desktop, each as small edits to its page and tried out after
@@ -1330,7 +1330,7 @@ async function editDayApps(draft: AssessmentTest, edits: { app: string; change: 
   return { ...(next !== apps && { test: { ...draft, questions: [{ ...q, desktop: { ...desk, customApps: next } }, ...draft.questions.slice(1)] } }), done, failed };
 }
 
-// Build pressed on the latest proposal: the change is made as planned, and the reply says what was done
+// Apply changes pressed on the latest proposal: the change is made as planned, and the reply says what was done
 export async function buildChange(state: ChatState, ctx: ChatContext, progress: Progress = () => {}): Promise<ChatState> {
   const at = state.messages.map((m) => !!m.proposal && !m.proposal.built).lastIndexOf(true);
   const proposal = state.messages[at]?.proposal;
@@ -1339,10 +1339,10 @@ export async function buildChange(state: ChatState, ctx: ChatContext, progress: 
   const agreed = `${proposal.request}\n\nMake exactly these changes, nothing else:\n${proposal.steps.map((x) => `- ${x}`).join('\n')}`;
   if (proposal.kind === 'test') {
     // The test's writer makes it, from the company's message and the agreed checklist
-    const after = await runTurn({ ...state, messages: pressed }, 'Build', ctx, progress, agreed);
+    const after = await runTurn({ ...state, messages: pressed }, 'Apply changes', ctx, progress, agreed);
     return after;
   }
-  const messages: ChatMessage[] = [...pressed, { role: 'user', text: 'Build' }];
+  const messages: ChatMessage[] = [...pressed, { role: 'user', text: 'Apply changes' }];
   let draft = state.draft;
   const notes: string[] = [];
   const said: string[] = [];

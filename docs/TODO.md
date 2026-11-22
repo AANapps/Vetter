@@ -50,14 +50,7 @@ From a code read-through of both flows (not clicked through live).
 **Candidate side**
 
 **Company side**
-- Home chat has too many starter buttons: cut to about 3 main actions.
-- Candidates page vs each job's candidates: make clear which is everyone and which is one job's pipeline.
-- Job sim save question: default to hiring, library as an option.
-- "Project Manager" holds Team and Training: rename the group (e.g. "Your team").
-- Projects & CRM pulls focus from hiring: hide behind a setting for now.
-- Pipeline stages capitalised inconsistently ("Offer Extended" vs "Screening").
 - Show the credit cost before Build.
-- Builder chat answers either plainly or with "OK: …" + Build: always show a clear "Apply changes" step.
 
 **Speed and cost**
 - Test builds with simulations take ~5 min, near Vercel's 300s limit: build in the background with progress.
@@ -76,6 +69,7 @@ From a code read-through of both flows (not clicked through live).
 - 2026-11-22: Job simulation practice (src/data/practiceSim.ts): a job simulation's start screen offers a 3-minute practice on the same desktop (Mail, Spreadsheet, Files; two timed parts, an email landing in the second), full screen, not scored or saved, no attempt used, no AI marking. Not clicked through in a browser yet.
 - 2026-11-22: Admins try tests instantly: in the app any test an admin starts runs straight in (no intro, signing, countdown, full screen, retake gap or saving). /admin has a Test lab: run any test or job simulation, open the desktop with every app (built-in ones filled from the job sims, library apps with sample data) or start on one app, open a job sim's own desktop untimed, open each library app alone, and the job sim practice.
 - 2026-11-22: Admin app editor (/admin): open any app (library, waiting for review, or inside a company's saved test), try it, and change it by chatting with the AI (small checked edits via /api/edit-app, undo, then Save: library apps save as their next version, submissions keep waiting, company tests get the new page). Untested against the real AI (credit out).
+- 2026-11-22: Company flow: home chat has 3 starters (job simulation, create a job and its tests, find candidates); Candidates tabs renamed Your pipeline / Everyone on Praxa / Best fit for a job with a line on what each is, and a job's page says "This job's pipeline"; a job simulation saves for hiring by default (library in the menu); "Project Manager" is "Your team" (Team, Training); Projects & CRM is Work mode, opened from the name menu in a new tab; stage and match names in sentence case; the builder chat's plan has a titled card and an Apply changes button, and a plain answer offers "I meant it as a change: plan it".
 
 - 2026-11-12: Tests fit the job (no spreadsheets for trades/clinical), drawings labelled.
 - 2026-11-12: Library tests suggested when a job is posted, not while making a test.

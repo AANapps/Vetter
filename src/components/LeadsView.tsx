@@ -58,7 +58,7 @@ const shortName = (name: string) => {
   const last = rest[rest.length - 1];
   return last ? `${first} ${last[0].toUpperCase()}.` : first;
 };
-const TIERS = ['Top Match', 'Strong Fit', 'Borderline', 'Needs Upskilling'];
+const TIERS = ['Top match', 'Strong fit', 'Borderline', 'Needs upskilling'];
 const WORK_PREFS = ['Remote', 'Hybrid', 'On-site'] as const;
 const SOURCES = Object.keys(SOURCE_LABELS) as LeadSource[];
 const TEST_STATUSES = Object.keys(TEST_STATUS_LABELS) as LeadTestStatus[];
@@ -68,7 +68,7 @@ const PRESETS: { id: string; label: string; filters: Partial<LeadFilters>; sort?
   { id: 'review', label: 'To review', filters: { stages: ['applied'], testStatuses: ['completed'] }, sort: 'score' },
   { id: 'interviews', label: 'Interviews', filters: { stages: ['interview'] }, sort: 'due' },
   { id: 'offers', label: 'Offers out', filters: { stages: ['offer'] }, sort: 'due' },
-  { id: 'top', label: 'Top matches', filters: { tiers: ['Top Match'] }, sort: 'fit' },
+  { id: 'top', label: 'Top matches', filters: { tiers: ['Top match'] }, sort: 'fit' },
   { id: 'starred', label: '4+ stars', filters: { minRating: 4 }, sort: 'rating' },
   { id: 'quiet', label: 'Gone quiet', filters: { idleFor: 14, stages: ['invited', 'applied', 'screening', 'interview', 'offer'] }, sort: 'activity' },
   { id: 'archived', label: 'Archived', filters: { stages: ['archived'] }, sort: 'activity' },

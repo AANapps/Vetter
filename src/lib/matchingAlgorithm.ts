@@ -29,9 +29,9 @@ export function calculateCandidateJobMatch(candidate: User, job: JobPosting): Ca
   // Every one of the job's tests taken
   const meetsAllHardRequirements = total > 0 && progress.done === total;
 
-  let matchTier: CandidateJobMatch['matchTier'] = 'Needs Upskilling';
-  if (overallFitPercentage >= 85) matchTier = 'Top Match';
-  else if (overallFitPercentage >= 75) matchTier = 'Strong Fit';
+  let matchTier: CandidateJobMatch['matchTier'] = 'Needs upskilling';
+  if (overallFitPercentage >= 85) matchTier = 'Top match';
+  else if (overallFitPercentage >= 75) matchTier = 'Strong fit';
   else if (overallFitPercentage >= 60) matchTier = 'Borderline';
 
   const jobTestStatus: CandidateJobMatch['jobTestStatus'] = total === 0 ? undefined : progress.status === 'completed' ? 'completed' : 'requires_test';

@@ -746,8 +746,11 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
 
       <section id="job-leads" className="scroll-mt-20 space-y-3">
         <div>
-          <h2 className="text-base font-bold text-slate-900">Hiring pipeline</h2>
-          <p className="text-xs text-slate-500">Where everyone for this job is: drag them between stages, or open one to rate it, add a date and notes.</p>
+          <h2 className="text-base font-bold text-slate-900">This job&rsquo;s pipeline</h2>
+          <p className="text-xs text-slate-500">
+            Only the people for this job: drag them between stages, or open one to rate it, add a date and notes. Everyone across your jobs is on{' '}
+            <span className="font-semibold text-slate-700">Candidates</span>.
+          </p>
         </div>
         <LeadsView
           key={job.id}
@@ -762,8 +765,8 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
       <section className="bg-white border border-slate-200 rounded-xl overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center gap-3">
           <div>
-            <h2 className="text-base font-bold text-slate-900">Candidates</h2>
-            <p className="text-[11px] text-slate-500">In tiers by overall score: the top quarter, the next two, then the rest.</p>
+            <h2 className="text-base font-bold text-slate-900">This job&rsquo;s test results</h2>
+            <p className="text-[11px] text-slate-500">Everyone sent this job&rsquo;s tests, best score first, with every try.</p>
           </div>
           <div className="flex flex-wrap gap-1.5 sm:ml-4">
             {FILTERS.map((f) => {
