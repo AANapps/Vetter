@@ -1,5 +1,5 @@
 import React from 'react';
-import { Business, Project, ProjectTask } from '../types';
+import { Business, Project, ProjectTask, TeamMember } from '../types';
 import { firebaseEnabled } from '../lib/firebase';
 import { useMemberBoards } from '../lib/memberBoards';
 import { ProjectsPage } from './ProjectsPage';
@@ -17,14 +17,27 @@ export const MemberBoards: React.FC<{
   // them), named from their public profiles
   personOf: (uid: string) => BoardPerson | undefined;
   // The demo's boards and how it saves them (unused with accounts)
-  local: { projects: Project[]; tasks: ProjectTask[]; saveProject: (p: Project) => void; saveTask: (t: ProjectTask) => void; deleteTask: (t: ProjectTask) => void };
-}> = ({ business, me, personOf, local }) => {
+  local: { projects: Project[]; tasks: ProjectTask[]; team: TeamMember[]; saveProject: (p: Project) => void; saveTask: (t: ProjectTask) => void; deleteTask: (t: ProjectTask) => void };
+  // The training and tests the company sent them, shown in My work under their board items
+  myWork?: { extra?: React.ReactNode; extraCount?: number };
+}> = ({ business, me, personOf, local, myWork }) => {
   const live = useMemberBoards(firebaseEnabled ? business.id : null);
   const src = firebaseEnabled
     ? live
-    : { projects: local.projects.filter((p) => p.businessId === business.id), tasks: local.tasks.filter((t) => t.businessId === business.id), error: null, saveProject: local.saveProject, saveTask: local.saveTask, deleteTask: local.deleteTask };
-  const uids = [...new Set(src.tasks.flatMap((t) => t.ownerUids))].filter((u) => u !== me.uid);
-  const people = [{ ...me, name: `${me.name} (you)` }, ...uids.map((u) => personOf(u) ?? { uid: u, name: 'Someone on the team' })];
+    : {
+        projects: local.projects.filter((p) => p.businessId === business.id),
+        tasks: local.tasks.filter((t) => t.businessId === business.id),
+        team: local.team.filter((m) => m.businessId === business.id && m.status === 'active'),
+        error: null,
+        saveProject: local.saveProject,
+        saveTask: local.saveTask,
+        deleteTask: local.deleteTask,
+      };
+  // Their teammates (everyone who's joined), then anyone else who owns an item (the company's own staff)
+  const teammates = src.team.filter((m) => m.uid && m.uid !== me.uid).map((m) => ({ uid: m.uid!, name: personOf(m.uid!)?.name ?? m.name, pic: personOf(m.uid!)?.pic }));
+  const known = new Set([me.uid, ...teammates.map((p) => p.uid)]);
+  const others = [...new Set(src.tasks.flatMap((t) => t.ownerUids))].filter((u) => !known.has(u)).map((u) => personOf(u) ?? { uid: u, name: `Someone at ${business.name}` });
+  const people = [{ ...me, name: `${me.name} (you)` }, ...teammates, ...others];
   return (
     <div className="space-y-3">
       {src.error && (
@@ -43,6 +56,7 @@ export const MemberBoards: React.FC<{
         onSaveTask={src.saveTask}
         onDeleteTask={src.deleteTask}
         member
+        myWork={myWork ?? {}}
       />
     </div>
   );

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { collection, deleteDoc, doc, onSnapshot, query, setDoc, where } from 'firebase/firestore';
 import { db, firebaseEnabled } from './firebase';
-import { Project, ProjectTask } from '../types';
+import { Project, ProjectTask, TeamMember } from '../types';
 
 /**
  * A company's projects and CRM boards, as someone on its team sees them in Work mode: every board of the company, live,
@@ -12,11 +12,13 @@ import { Project, ProjectTask } from '../types';
 export function useMemberBoards(businessId: string | null) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<ProjectTask[]>([]);
+  const [team, setTeam] = useState<TeamMember[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setProjects([]);
     setTasks([]);
+    setTeam([]);
     setError(null);
     if (!firebaseEnabled || !businessId) return;
     const fail = (err: unknown) => setError(err instanceof Error ? err.message : String(err));
@@ -30,9 +32,16 @@ export function useMemberBoards(businessId: string | null) {
       (snap) => setTasks(snap.docs.map((d) => ({ ...(d.data() as ProjectTask), id: d.id })).sort((a, b) => a.createdAt.localeCompare(b.createdAt))),
       fail
     );
+    // Their teammates: everyone who's joined the company's team
+    const offTeam = onSnapshot(
+      query(collection(db(), 'teamMembers'), where('businessId', '==', businessId)),
+      (snap) => setTeam(snap.docs.map((d) => d.data() as TeamMember).filter((m) => m.status === 'active')),
+      fail
+    );
     return () => {
       offProjects();
       offTasks();
+      offTeam();
     };
   }, [businessId]);
 
@@ -40,6 +49,7 @@ export function useMemberBoards(businessId: string | null) {
   return {
     projects,
     tasks,
+    team,
     error,
     saveProject: (p: Project) => write('projects', p),
     saveTask: (t: ProjectTask) => write('projectTasks', t),

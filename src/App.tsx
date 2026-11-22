@@ -1854,12 +1854,13 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
               onLeave={(m) => (setTeam((prev) => prev.filter((x) => x.id !== m.id)), showToast(`You've left ${m.companyName}'s team.`))}
               onStart={(assignment, test) => setAssignmentRun({ assignment, test })}
               onFindTests={() => goToTab('tests')}
-              renderBoards={(businessId) => {
+              renderBoards={(businessId, myWork) => {
                 const biz = businesses.find((b) => b.id === businessId) ?? ({ id: businessId, name: myTeams.find((m) => m.businessId === businessId)?.companyName ?? 'Your company' } as Business);
                 return (
                   <MemberBoards
                     key={businessId}
                     business={biz}
+                    myWork={myWork}
                     me={{ uid: candidate.id, name: candidate.name, pic: candidate.avatarUrl }}
                     personOf={(uid) => {
                       const p = allCandidates.find((c) => c.id === uid);
@@ -1868,6 +1869,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
                     local={{
                       projects,
                       tasks: projectTasks,
+                      team,
                       saveProject: (pr) => setProjects((prev) => (prev.some((x) => x.id === pr.id) ? prev.map((x) => (x.id === pr.id ? pr : x)) : [...prev, pr])),
                       saveTask: (t) => setProjectTasks((prev) => (prev.some((x) => x.id === t.id) ? prev.map((x) => (x.id === t.id ? t : x)) : [...prev, t])),
                       deleteTask: (t) => setProjectTasks((prev) => prev.filter((x) => x.id !== t.id)),

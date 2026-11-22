@@ -169,7 +169,8 @@ service cloud.firestore {
         || (verified() && data.get('email', null) == request.auth.token.email.lower()));
     }
     match /teamMembers/{memberId} {
-      allow read: if signedIn() && (isAdmin() || worksAt(resource.data.businessId) || invitedPerson(resource.data));
+      // The company, the person, and (once they've joined) their teammates, who see who's on the team in Work mode
+      allow read: if signedIn() && (isAdmin() || worksAt(resource.data.businessId) || invitedPerson(resource.data) || onTeamOf(resource.data.businessId));
       allow create: if (isAdmin() || worksAt(request.resource.data.businessId))
         && request.resource.data.id == memberId && request.resource.data.status == 'invited'
         && memberId == request.resource.data.businessId + '__' + request.resource.data.get('uid', request.resource.data.get('email', ''))

@@ -43,7 +43,7 @@ interface WorkPageProps {
   onStart: (assignment: Assignment, test: AssessmentTest) => void;
   onFindTests: () => void;
   // The company's projects and CRM boards (monday-style), for one of the companies whose team they're on
-  renderBoards?: (businessId: string) => React.ReactNode;
+  renderBoards?: (businessId: string, myWork: { extra?: React.ReactNode; extraCount?: number }) => React.ReactNode;
 }
 
 const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
@@ -196,7 +196,38 @@ export const WorkPage: React.FC<WorkPageProps> = ({ invitations, memberships, as
 
         <main className="min-w-0 space-y-5">
           {/* ---------- The company's boards, as it sees them ---------- */}
-          {section === 'boards' && boardCompany && renderBoards?.(boardCompany[0])}
+          {section === 'boards' &&
+            boardCompany &&
+            (() => {
+              // What the company sent them (training, job simulations, tests), in My work under their board items
+              const sent = assignments.filter((a) => a.businessId === boardCompany[0] && !a.completedAt).sort(byUrgency);
+              const extra = sent.length ? (
+                <section className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                  <h3 className="px-4 py-2.5 text-sm font-bold text-slate-800 border-b border-slate-100">
+                    Training and tests from {boardCompany[1]} <span className="font-normal text-slate-400 tabular-nums">{sent.length}</span>
+                  </h3>
+                  <ul className="divide-y divide-slate-100">
+                    {sent.map((a) => {
+                      const t = testOf(a);
+                      if (!t) return null;
+                      return (
+                        <li key={a.id} className="px-4 py-2.5 flex flex-wrap items-center gap-3">
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-sm font-semibold text-slate-900 truncate">{t.title}</span>
+                            <span className={`block text-[11px] ${isOverdue(a) ? 'text-rose-700 font-semibold' : 'text-slate-500'}`}>
+                              {isTraining(a) ? 'Training' : 'Test'}
+                              {a.dueDate ? ` · ${dueLabel(a)}` : ''}
+                            </span>
+                          </span>
+                          {action(a, t, true)}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
+              ) : undefined;
+              return renderBoards?.(boardCompany[0], { extra, extraCount: sent.length });
+            })()}
 
           {/* ---------- My tasks ---------- */}
           {section === 'tasks' && (
