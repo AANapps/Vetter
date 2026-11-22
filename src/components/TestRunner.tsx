@@ -25,6 +25,10 @@ import {
   Award,
   ChevronLeft,
   ChevronRight,
+  Maximize2,
+  Minimize2,
+  Minus,
+  FileText,
 } from 'lucide-react';
 import { ChartPreview, parseChartSpec } from './ChartPreview';
 import { AnswerInput } from './AnswerInputs';
@@ -203,6 +207,8 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
   const answersRef = useRef<AnswerRecord[] | undefined>(undefined);
   // The intro screen shows first; the clock and proctoring only begin once the candidate starts
   const [hasStarted, setHasStarted] = useState(!!instant);
+  // A job simulation's brief over the desktop: minimised (the default: the desktop shows each part's brief), open or wide
+  const [briefView, setBriefView] = useState<'min' | 'open' | 'wide'>('min');
 
   // The timer's auto-submit runs inside a long-lived interval, so it reads the latest code from a ref
   const userCodesRef = useRef(userCodes);
@@ -589,6 +595,97 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
       <strong>You&rsquo;ll have to retake the test</strong> from the start, with the full time.
     </>
   );
+  // A hands-on task's brief and its questions: beside the work, or for a job simulation's desktop, in a panel over it
+  const onDesktop = !!currentGroup?.task && currentQ?.type === 'desktop';
+  const taskPanel = !currentGroup?.task ? null : (
+    <>
+              {test.scenario && <CaseBrief scenario={test.scenario} />}
+              <div>
+                <div className="text-xs text-slate-500 font-medium mb-1">
+                  {currentQ.type === 'case' ? (currentQ.section ? 'Section' : 'Case study') : 'Task'} &middot;{' '}
+                  {(() => {
+                    // A task in numbered questions counts those (and any questions about it after)
+                    const n = slideCount;
+                    return `${n} ${n === 1 ? 'question' : 'questions'}`;
+                  })()}{' '}
+                  &middot; Weight: {currentGroup.questions.reduce((n, q) => n + q.weight, 0)}%
+                </div>
+                <h2 className="text-lg font-bold text-slate-900 tracking-tight">
+                  {`${partNo}. ${currentQ.title}`}
+                </h2>
+              </div>
+              {/* One question per slide: jump to any, or use Next below once done */}
+              {slideCount > 1 && (
+                <nav aria-label="Questions in this task" className="flex flex-wrap gap-1.5">
+                  {Array.from({ length: slideCount }, (_, i) => {
+                    const fq = i >= promptSlides ? followUps[i - promptSlides] : undefined;
+                    return (
+                      <button
+                        key={i}
+                        onClick={() => setSlide(i)}
+                        aria-current={i === onSlide ? 'step' : undefined}
+                        aria-label={`Question ${partNo}.${i + 1}${fq && isDone(fq) ? ', answered' : ''}`}
+                        className={`min-w-[2.75rem] h-8 px-2 rounded-full text-xs font-semibold tabular-nums transition-colors ${
+                          i === onSlide ? 'bg-indigo-600 text-white' : fq && isDone(fq) ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                      >
+                        {partNo}.{i + 1}
+                      </button>
+                    );
+                  })}
+                </nav>
+              )}
+              {onSlide < promptSlides ? (
+                <>
+                  <TaskPrompt text={currentQ.prompt} checks={currentQ.testCases} only={taskParts.length ? onSlide : undefined} prefix={partNo} className="text-sm leading-relaxed text-slate-800" />
+                  {currentQ.testCases.length > 0 && (
+                    <div className="space-y-2">
+                      {/* A task in numbered questions lists each question's checks under it instead */}
+                      {taskParts.length === 0 && (
+                        <>
+                          <div className="text-xs font-bold text-slate-800">What&rsquo;s marked ({currentQ.testCases.length} checks)</div>
+                          <ul className="space-y-1.5">
+                            {currentQ.testCases.map((tc) => (
+                              <li key={tc.id} className="flex items-start gap-2 text-xs text-slate-700">
+                                <CheckCircle2 className="w-3.5 h-3.5 mt-px shrink-0 text-slate-300" />
+                                <span>{tc.description}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </>
+                      )}
+                      <p className="text-[11px] text-slate-500">
+                        Marked when you submit, on the {currentQ.type === 'sheet' ? 'workbook' : currentQ.type === 'app' ? 'simulation' : currentQ.type === 'desktop' ? 'desktop (emails sent, files and workbook)' : 'database'} as you leave it. Your work is kept if you move to another question or task.
+                      </p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                (() => {
+                  const q = followUps[onSlide - promptSlides];
+                  return (
+                    <section key={q.id} className="rounded-lg border border-slate-200 bg-white p-4 space-y-3 shadow-2xs" aria-labelledby={`slide-${q.id}`}>
+                      {currentQ.type === 'case' && onSlide === 0 && (
+                        <p className="text-sm text-slate-500">{currentQ.section ? 'Use what’s on the left to answer each question.' : 'Read the material on the left, then answer each question. You can go back to it as often as you like.'}</p>
+                      )}
+                      <div className="flex items-start justify-between gap-2">
+                        <h3 id={`slide-${q.id}`} className="flex items-center gap-2 text-sm font-bold text-slate-900">
+                          <span className="inline-flex items-center justify-center min-w-[2.25rem] h-6 px-1.5 rounded-full bg-indigo-50 text-indigo-700 text-xs tabular-nums">
+                            {partNo}.{onSlide + 1}
+                          </span>
+                          {q.title}
+                        </h3>
+                        {isDone(q) && <CheckCircle className="w-3.5 h-3.5 mt-1 shrink-0 text-emerald-600" />}
+                      </div>
+                      <RichText text={q.prompt} className="text-sm leading-relaxed text-slate-800" />
+                      <AnswerInput question={q} answer={userCodes[q.id] ?? ''} onChange={(val) => setAnswer(q.id, val)} company={test.scenario?.company ?? test.companyName} />
+                    </section>
+                  );
+                })()
+              )}
+    </>
+  );
+
   if (!hasStarted && practice) {
     return (
       <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm">
@@ -763,7 +860,27 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
                   files={test.scenario?.files}
                 />
               ) : currentQ.type === 'desktop' ? (
-                <Desktop key={currentQ.id} question={currentQ} answer={currentCode} onChange={handleCodeChange} company={test.scenario?.company ?? test.companyName} />
+                <div className="relative h-full">
+                  <Desktop key={currentQ.id} question={currentQ} answer={currentCode} onChange={handleCodeChange} company={test.scenario?.company ?? test.companyName} />
+                  {/* The brief and what's marked, over the desktop: opened from the footer, wider or minimised as needed */}
+                  {briefView !== 'min' && (
+                    <aside
+                      aria-label="Your brief"
+                      className={`absolute right-3 top-24 bottom-14 z-[75] flex flex-col bg-white/95 backdrop-blur-md rounded-xl shadow-2xl ring-1 ring-slate-900/10 overflow-hidden ${briefView === 'wide' ? 'w-[min(720px,calc(100%-1.5rem))]' : 'w-[min(380px,calc(100%-1.5rem))]'}`}
+                    >
+                      <div className="h-10 shrink-0 flex items-center gap-1 pl-4 pr-1.5 border-b border-slate-200">
+                        <span className="text-xs font-semibold text-slate-700 flex-1 truncate">Your brief and what&rsquo;s marked</span>
+                        <button onClick={() => setBriefView(briefView === 'wide' ? 'open' : 'wide')} title={briefView === 'wide' ? 'Make narrower' : 'Make wider'} aria-label={briefView === 'wide' ? 'Make narrower' : 'Make wider'} className="w-8 h-8 grid place-items-center rounded-md text-slate-500 hover:bg-slate-100">
+                          {briefView === 'wide' ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                        </button>
+                        <button onClick={() => setBriefView('min')} title="Minimise" aria-label="Minimise the brief" className="w-8 h-8 grid place-items-center rounded-md text-slate-500 hover:bg-slate-100">
+                          <Minus className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div className="flex-1 min-h-0 overflow-y-auto p-5 space-y-5">{taskPanel}</div>
+                    </aside>
+                  )}
+                </div>
               ) : currentQ.type === 'database' ? (
                 <DatabaseWindow
                   key={currentQ.id}
@@ -777,97 +894,18 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
                 <AppWindow key={currentQ.id} value={currentCode} onChange={handleCodeChange} html={currentQ.appHtml ?? ''} appName={currentQ.contextData || currentQ.title} callouts={currentQ.callouts} />
               )}
             </div>
-            <ResizeHandle
-              dragging={taskSplit.dragging}
-              onPointerDown={taskSplit.start((x, rect) => clamp(rect.right - x, 320, rect.width * 0.65))}
-              onNudge={(by) => taskSplit.setSize((w) => clamp(w - by * 24, 320, 900))}
-            />
-            <aside style={{ width: taskSplit.size }} className="shrink-0 bg-white overflow-y-auto p-6 space-y-5">
-              {test.scenario && <CaseBrief scenario={test.scenario} />}
-              <div>
-                <div className="text-xs text-slate-500 font-medium mb-1">
-                  {currentQ.type === 'case' ? (currentQ.section ? 'Section' : 'Case study') : 'Task'} &middot;{' '}
-                  {(() => {
-                    // A task in numbered questions counts those (and any questions about it after)
-                    const n = slideCount;
-                    return `${n} ${n === 1 ? 'question' : 'questions'}`;
-                  })()}{' '}
-                  &middot; Weight: {currentGroup.questions.reduce((n, q) => n + q.weight, 0)}%
-                </div>
-                <h2 className="text-lg font-bold text-slate-900 tracking-tight">
-                  {`${partNo}. ${currentQ.title}`}
-                </h2>
-              </div>
-              {/* One question per slide: jump to any, or use Next below once done */}
-              {slideCount > 1 && (
-                <nav aria-label="Questions in this task" className="flex flex-wrap gap-1.5">
-                  {Array.from({ length: slideCount }, (_, i) => {
-                    const fq = i >= promptSlides ? followUps[i - promptSlides] : undefined;
-                    return (
-                      <button
-                        key={i}
-                        onClick={() => setSlide(i)}
-                        aria-current={i === onSlide ? 'step' : undefined}
-                        aria-label={`Question ${partNo}.${i + 1}${fq && isDone(fq) ? ', answered' : ''}`}
-                        className={`min-w-[2.75rem] h-8 px-2 rounded-full text-xs font-semibold tabular-nums transition-colors ${
-                          i === onSlide ? 'bg-indigo-600 text-white' : fq && isDone(fq) ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                        }`}
-                      >
-                        {partNo}.{i + 1}
-                      </button>
-                    );
-                  })}
-                </nav>
-              )}
-              {onSlide < promptSlides ? (
-                <>
-                  <TaskPrompt text={currentQ.prompt} checks={currentQ.testCases} only={taskParts.length ? onSlide : undefined} prefix={partNo} className="text-sm leading-relaxed text-slate-800" />
-                  {currentQ.testCases.length > 0 && (
-                    <div className="space-y-2">
-                      {/* A task in numbered questions lists each question's checks under it instead */}
-                      {taskParts.length === 0 && (
-                        <>
-                          <div className="text-xs font-bold text-slate-800">What&rsquo;s marked ({currentQ.testCases.length} checks)</div>
-                          <ul className="space-y-1.5">
-                            {currentQ.testCases.map((tc) => (
-                              <li key={tc.id} className="flex items-start gap-2 text-xs text-slate-700">
-                                <CheckCircle2 className="w-3.5 h-3.5 mt-px shrink-0 text-slate-300" />
-                                <span>{tc.description}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </>
-                      )}
-                      <p className="text-[11px] text-slate-500">
-                        Marked when you submit, on the {currentQ.type === 'sheet' ? 'workbook' : currentQ.type === 'app' ? 'simulation' : currentQ.type === 'desktop' ? 'desktop (emails sent, files and workbook)' : 'database'} as you leave it. Your work is kept if you move to another question or task.
-                      </p>
-                    </div>
-                  )}
-                </>
-              ) : (
-                (() => {
-                  const q = followUps[onSlide - promptSlides];
-                  return (
-                    <section key={q.id} className="rounded-lg border border-slate-200 bg-white p-4 space-y-3 shadow-2xs" aria-labelledby={`slide-${q.id}`}>
-                      {currentQ.type === 'case' && onSlide === 0 && (
-                        <p className="text-sm text-slate-500">{currentQ.section ? 'Use what’s on the left to answer each question.' : 'Read the material on the left, then answer each question. You can go back to it as often as you like.'}</p>
-                      )}
-                      <div className="flex items-start justify-between gap-2">
-                        <h3 id={`slide-${q.id}`} className="flex items-center gap-2 text-sm font-bold text-slate-900">
-                          <span className="inline-flex items-center justify-center min-w-[2.25rem] h-6 px-1.5 rounded-full bg-indigo-50 text-indigo-700 text-xs tabular-nums">
-                            {partNo}.{onSlide + 1}
-                          </span>
-                          {q.title}
-                        </h3>
-                        {isDone(q) && <CheckCircle className="w-3.5 h-3.5 mt-1 shrink-0 text-emerald-600" />}
-                      </div>
-                      <RichText text={q.prompt} className="text-sm leading-relaxed text-slate-800" />
-                      <AnswerInput question={q} answer={userCodes[q.id] ?? ''} onChange={(val) => setAnswer(q.id, val)} company={test.scenario?.company ?? test.companyName} />
-                    </section>
-                  );
-                })()
-              )}
-            </aside>
+            {!onDesktop && (
+              <ResizeHandle
+                dragging={taskSplit.dragging}
+                onPointerDown={taskSplit.start((x, rect) => clamp(rect.right - x, 320, rect.width * 0.65))}
+                onNudge={(by) => taskSplit.setSize((w) => clamp(w - by * 24, 320, 900))}
+              />
+            )}
+            {!onDesktop && (
+              <aside style={{ width: taskSplit.size }} className="shrink-0 bg-white overflow-y-auto p-6 space-y-5">
+                {taskPanel}
+              </aside>
+            )}
           </>
         ) : isAnswerType(currentQ.type) ? (
           // A question to answer on its own: one column, the question first and large, the answers under it
@@ -1199,6 +1237,15 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
           <BackButton onClick={() => (onSlide > 0 ? setSlide(onSlide - 1) : goToGroup(groupIndex - 1))} className="py-2.5 hidden sm:flex">
             Previous
           </BackButton>
+        ) : onDesktop ? (
+          <button
+            onClick={() => setBriefView(briefView === 'min' ? 'open' : 'min')}
+            aria-pressed={briefView !== 'min'}
+            className={`px-3.5 py-2.5 rounded-lg text-sm font-semibold inline-flex items-center gap-1.5 border ${briefView !== 'min' ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-slate-300 text-slate-700 hover:border-slate-400'}`}
+          >
+            <FileText className="w-4 h-4" />
+            {briefView === 'min' ? 'Brief & checks' : 'Hide brief'}
+          </button>
         ) : (
           <span className="hidden sm:block w-[7.5rem]" aria-hidden="true" />
         )}
