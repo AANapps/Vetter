@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { CreditCard, ExternalLink, X } from 'lucide-react';
 import { PricingSection } from './PricingSection';
 import { PLANS, PlanAccess, PlanId, billingPortal, buyJobPass, subscribeTo } from '../lib/plan';
@@ -21,6 +21,13 @@ export const PlansDialog: React.FC<{ reason: string; access: PlanAccess; onClose
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
   const [blockedUrl, setBlockedUrl] = useState('');
+  const box = useRef<HTMLDivElement>(null);
+  // A message is shown at the top, so bring it into view from wherever the plan was clicked
+  useEffect(() => {
+    if (note || error || blockedUrl) box.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [note, error, blockedUrl]);
+  // Read the plan again on opening, so a failed first read can recover (and its reason shows below)
+  useEffect(() => access.refresh(), []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -59,6 +66,7 @@ export const PlansDialog: React.FC<{ reason: string; access: PlanAccess; onClose
       return onClose();
     }
     if (id === 'free') return;
+    if (!status.billing && access.loadError) return setError(`Couldn’t load your plan: ${access.loadError}`);
     if (!status.billing) return setNote(`Online payment isn’t switched on yet. Ask the Praxa team to set your company to ${PLANS[id as PlanId].name}.`);
     if (id === 'per-job') return open(id, buyJobPass);
     if (status.plan !== 'free' && status.plan !== 'per-job' && !window.confirm(`Switch to ${PLANS[id as PlanId].name}? The difference for this month is charged or credited now.`)) return;
@@ -68,7 +76,7 @@ export const PlansDialog: React.FC<{ reason: string; access: PlanAccess; onClose
   const left = Math.max(0, status.ai.allowance - status.ai.used);
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/60 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Plans">
-      <div className="bg-white sm:rounded-2xl rounded-t-2xl max-w-6xl w-full max-h-[calc(100vh-2rem)] overflow-y-auto shadow-2xl">
+      <div ref={box} className="bg-white sm:rounded-2xl rounded-t-2xl max-w-6xl w-full max-h-[calc(100vh-2rem)] overflow-y-auto shadow-2xl">
         <div className="sticky top-0 z-10 bg-white px-6 py-4 border-b border-slate-200 flex items-start justify-between gap-4">
           <div className="space-y-1">
             <h2 className="text-lg font-bold text-slate-900">{reason || 'Plans and billing'}</h2>
@@ -80,6 +88,7 @@ export const PlansDialog: React.FC<{ reason: string; access: PlanAccess; onClose
                 {` · AI: ${pounds(left)} of ${pounds(status.ai.allowance)} included left${status.ai.credit > 0 ? `, plus ${pounds(status.ai.credit)} credit` : ''}`}
               </p>
             )}
+            {!status.billing && access.loadError && <p className="text-xs font-semibold text-amber-700">Couldn&rsquo;t load your plan: {access.loadError}</p>}
             {status.pastDue && <p className="text-xs font-semibold text-amber-700">Your last payment didn&rsquo;t go through. Update your card in Manage billing to keep your plan.</p>}
           </div>
           <div className="flex items-center gap-3 shrink-0">

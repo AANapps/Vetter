@@ -44,6 +44,8 @@ export interface PlanAccess {
   // Opens the plans, saying why
   upgrade: (reason?: string) => void;
   refresh: () => void;
+  // Why the plan couldn't be read (the plans dialog shows it); everything stays unlocked meanwhile
+  loadError?: string;
   // Candidates waiting behind the plan's applicant limit, by job id
   lockedApplicants?: Record<string, number>;
   // Their lead ids (jobId__candidateId)
@@ -112,10 +114,14 @@ export const previewStatus = (p: PlanPreview): PlanStatus => ({
 // signed-in company's id (null for anyone else: everything unlocked). onUpgrade opens the plans dialog
 export function useCompanyPlan(company: string | null, onUpgrade: (reason?: string) => void, preview?: PlanPreview | null): PlanAccess {
   const [status, setStatus] = useState<PlanStatus>(OFF);
+  const [loadError, setLoadError] = useState('');
   const refresh = useCallback(
     (fresh = false) => {
       if (!company) return setStatus(OFF);
-      loadPlan(fresh).then((s) => !s.error && setStatus(s));
+      loadPlan(fresh).then((s) => {
+        setLoadError(s.error ?? '');
+        if (!s.error) setStatus(s);
+      });
     },
     [company]
   );
@@ -132,7 +138,7 @@ export function useCompanyPlan(company: string | null, onUpgrade: (reason?: stri
   }
   return company && status.billing
     ? { status, info: PLANS[status.plan], can: (f) => hasFeature(status.plan, f), upgrade: onUpgrade, refresh: () => refresh(true) }
-    : { ...UNLOCKED, refresh: () => refresh(true) };
+    : { ...UNLOCKED, loadError: company ? loadError : undefined, refresh: () => refresh(true) };
 }
 
 export const PlanScope: React.FC<{ value: PlanAccess; children: React.ReactNode }> = ({ value, children }) => <PlanContext.Provider value={value}>{children}</PlanContext.Provider>;
