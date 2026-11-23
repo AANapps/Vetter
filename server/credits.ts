@@ -88,7 +88,9 @@ export type Customer = { id: string; balance: number; metadata?: Record<string, 
 export async function customerFor(env: Env, companyId: string): Promise<Customer> {
   const found = await stripe<{ data: Customer[] }>(env, 'GET', '/customers/search', { query: `metadata['companyId']:'${companyId.replace(/'/g, "\\'")}'` });
   if (found.data[0]) return found.data[0];
-  return stripe<Customer>(env, 'POST', '/customers', { name: companyId, 'metadata[companyId]': companyId }, `vetter-company-${companyId}`);
+  // The idempotent create hands back the customer as first made, so its balance would read £0 until search catches up
+  const made = await stripe<Customer>(env, 'POST', '/customers', { name: companyId, 'metadata[companyId]': companyId }, `vetter-company-${companyId}`);
+  return stripe<Customer>(env, 'GET', `/customers/${made.id}`);
 }
 
 // Credit is a negative customer balance (money Stripe owes the customer), in pence
