@@ -92,5 +92,5 @@ Sources: [G2 – TestGorilla pricing](https://www.g2.com/products/testgorilla/pr
 - Added: **Plan and billing** in a company's name menu (not for admins, who are never charged). Before, Plans only opened from a paywall.
 
 **Left to do:** cancel in the portal for `checkout-test-1` (didn't register on the first try; get a fresh link with
-`status`, as portal links expire in minutes); confirm the Vercel variables; the same flow on the live site with a non-admin
+`status`, as portal links expire in minutes); ~~confirm the Vercel variables~~ (done: live site https://vetter-three.vercel.app has the key); the same flow on the live site with a non-admin
 company account; then `sk_live_`.
