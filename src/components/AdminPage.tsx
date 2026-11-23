@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowRight, CheckCircle2, Globe, GraduationCap, LogOut, RefreshCw, ShieldCheck, X } from 'lucide-react';
+import { AppWindow, ArrowRight, CheckCircle2, CreditCard, FlaskConical, Globe, GraduationCap, Library, LogOut, RefreshCw, ShieldCheck, X } from 'lucide-react';
 import { collection, deleteField, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import { db, firebaseEnabled } from '../lib/firebase';
 import { AssessmentTest, levelName } from '../types';
@@ -367,8 +367,53 @@ const CourseSignups: React.FC = () => {
   );
 };
 
+// The panel's sections, one tab each. Every tab stays mounted (just hidden) so switching never loses unsaved work;
+// the open tab is kept in the address (/admin#plans) so a refresh or shared link lands on it
+const TABS = [
+  { id: 'approvals', label: 'Approvals', icon: CheckCircle2 },
+  { id: 'testlab', label: 'Test lab', icon: FlaskConical },
+  { id: 'apps', label: 'App editor', icon: AppWindow },
+  { id: 'plans', label: 'Plans and billing', icon: CreditCard },
+  { id: 'library', label: 'Library', icon: Library },
+  { id: 'signups', label: 'Sign-ups', icon: GraduationCap },
+] as const;
+type AdminTab = (typeof TABS)[number]['id'];
+const tabFromHash = (): AdminTab => {
+  const h = window.location.hash.replace('#', '');
+  return (TABS.find((t) => t.id === h)?.id ?? 'approvals') as AdminTab;
+};
+
+const AdminTabs: React.FC<{ tab: AdminTab; onTab: (t: AdminTab) => void }> = ({ tab, onTab }) => (
+  <nav role="tablist" aria-label="Admin sections" className="flex gap-1 overflow-x-auto border-b border-slate-200 -mx-4 px-4 sm:mx-0 sm:px-0">
+    {TABS.map(({ id, label, icon: Icon }) => (
+      <button
+        key={id}
+        role="tab"
+        aria-selected={tab === id}
+        onClick={() => onTab(id)}
+        className={`shrink-0 px-3 py-2 text-sm font-semibold flex items-center gap-1.5 border-b-2 -mb-px ${
+          tab === id ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-600 hover:text-slate-900'
+        }`}
+      >
+        <Icon className="w-4 h-4" />
+        {label}
+      </button>
+    ))}
+  </nav>
+);
+
 export const AdminPage: React.FC = () => {
   const { loading, user, account } = useAccount();
+  const [tab, setTabState] = useState<AdminTab>(tabFromHash);
+  const setTab = (t: AdminTab) => {
+    setTabState(t);
+    history.replaceState(null, '', `#${t}`);
+  };
+  useEffect(() => {
+    const onHash = () => setTabState(tabFromHash());
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
 
   useEffect(() => {
     document.title = 'Praxa admin';
@@ -417,22 +462,29 @@ export const AdminPage: React.FC = () => {
               <ArrowRight className="w-4 h-4" />
             </a>
           </div>
-          <AdminTestLab />
-          <AdminAppEditor />
-          <div className="space-y-3">
-            <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">Approvals</h2>
+          <AdminTabs tab={tab} onTab={setTab} />
+          <div hidden={tab !== 'approvals'} className="space-y-3">
             <CompaniesQueue />
             <TestsQueue />
             <SimulationLibraryAdmin />
           </div>
-          <div className="space-y-3">
-            <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">Plans and billing</h2>
+          <div hidden={tab !== 'testlab'}>
+            <AdminTestLab />
+          </div>
+          <div hidden={tab !== 'apps'}>
+            <AdminAppEditor />
+          </div>
+          <div hidden={tab !== 'plans'} className="space-y-3">
             <PlanTiersAdmin />
             <CompanyPlansAdmin />
             <p className="text-xs text-slate-500">To see the company side as any plan, open the Praxa team view as a company and use Preview a plan (bottom left).</p>
           </div>
-          <LibraryVisibilityAdmin />
-          <CourseSignups />
+          <div hidden={tab !== 'library'}>
+            <LibraryVisibilityAdmin />
+          </div>
+          <div hidden={tab !== 'signups'}>
+            <CourseSignups />
+          </div>
         </div>
       )}
     </Shell>
