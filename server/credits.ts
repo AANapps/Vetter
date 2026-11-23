@@ -87,7 +87,10 @@ export type Customer = { id: string; balance: number; metadata?: Record<string, 
 // for a day the idempotency key hands back the same one, so a company never gets two
 export async function customerFor(env: Env, companyId: string): Promise<Customer> {
   const found = await stripe<{ data: Customer[] }>(env, 'GET', '/customers/search', { query: `metadata['companyId']:'${companyId.replace(/'/g, "\\'")}'` });
-  if (found.data[0]) return found.data[0];
+  // The company's subscription customer (billing.ts) carries the companyId too: credit must never land on it, or
+  // Stripe would spend it on the subscription's next invoice
+  const credit = found.data.find((c) => !c.metadata?.praxaBilling);
+  if (credit) return credit;
   // The idempotent create hands back the customer as first made, so its balance would read £0 until search catches up
   const made = await stripe<Customer>(env, 'POST', '/customers', { name: companyId, 'metadata[companyId]': companyId }, `vetter-company-${companyId}`);
   return stripe<Customer>(env, 'GET', `/customers/${made.id}`);
