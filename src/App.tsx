@@ -1845,6 +1845,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
             : undefined
         }
         onRoleChange={handleRoleChange}
+        onPlans={activeRole === 'recruiter' && recruiterBusiness && !adminAsCompany ? () => setPlansOpen(true) : undefined}
         accounts={
           firebaseEnabled
             ? {

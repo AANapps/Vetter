@@ -4,7 +4,7 @@ import { ThemeToggle } from './ThemeToggle';
 import { Pic } from './Pic';
 import { UserRole } from '../types';
 import { ArrowLeftRight,
-  BookOpen, Building2, LogOut, Menu, ShieldCheck, Trophy, X, Bell, Briefcase, ChevronDown, ClipboardCheck, GraduationCap, House, UsersRound, FolderKanban, Repeat, Search, Users, ListTodo, UserRound, MoreHorizontal, ExternalLink } from 'lucide-react';
+  BookOpen, Building2, LogOut, Menu, ShieldCheck, Trophy, X, Bell, Briefcase, ChevronDown, ClipboardCheck, GraduationCap, House, UsersRound, FolderKanban, Repeat, Search, Users, ListTodo, UserRound, MoreHorizontal, ExternalLink, CreditCard } from 'lucide-react';
 
 export type AppTab =
   | 'home'
@@ -82,6 +82,8 @@ interface NavigationProps {
   // Who's looking isn't known yet: just the logo, so the wrong menu never flashes up
   pending?: boolean;
   onRoleChange: (role: UserRole) => void;
+  // A company's plan, billing and cancelling (the plans dialog); absent for everyone else
+  onPlans?: () => void;
   // With accounts: sign in and out, and the view switcher only for the Praxa team. Without, the demo's view switcher
   accounts?: {
     signedIn: boolean;
@@ -122,6 +124,7 @@ export const Navigation: React.FC<NavigationProps> = ({
   activeRole,
   pending,
   onRoleChange,
+  onPlans,
   accounts,
   userAvatar,
   userName,
@@ -263,6 +266,19 @@ export const Navigation: React.FC<NavigationProps> = ({
                   <BookOpen className="w-3.5 h-3.5 text-indigo-600" />
                   <span>How-to guides</span>
                 </button>
+                {onPlans && (
+                  <button
+                    role="menuitem"
+                    onClick={() => {
+                      setIsMeOpen(false);
+                      onPlans();
+                    }}
+                    className="w-full flex items-center justify-center gap-2 py-1.5 text-xs font-semibold text-slate-700 bg-white rounded-full"
+                  >
+                    <CreditCard className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>Plan and billing</span>
+                  </button>
+                )}
                 <ThemeToggle />
                 {accounts?.email && <div className="text-[11px] text-slate-500 truncate -mt-1">{accounts.email}</div>}
                 {/* The Praxa team's admin page */}
