@@ -74,7 +74,8 @@ import { InviteToJobDialog } from './components/InviteToJobDialog';
 import { SendToStaffDialog } from './components/SendToStaffDialog';
 import { TrainingPage } from './components/TrainingPage';
 import { PlansDialog } from './components/PlansDialog';
-import { Locked, PlanScope, useCompanyPlan, usePlanPreview, useTiers } from './lib/plan';
+import { PaidCelebration } from './components/PaidCelebration';
+import { Locked, PlanScope, useCompanyPlan, usePlanPreview, useTiers, type PlanId } from './lib/plan';
 import { PlanPreviewBar } from './components/PlanPreviewBar';
 import { TrainingBuilder } from './components/TrainingBuilder';
 import { TrainingRunner } from './components/TrainingRunner';
@@ -990,6 +991,8 @@ export default function App() {
       )
     );
   }, [user?.uid]);
+  // The congratulations screen after paying: the plan bought (or 'paid' when it isn't known)
+  const [celebrate, setCelebrate] = useState<PlanId | 'paid' | null>(null);
   // Back from paying for a plan or a job pass (also in its own tab): the plan is read again from Stripe
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -997,9 +1000,10 @@ export default function App() {
     if (!status || (firebaseEnabled && !user)) return;
     const url = new URL(window.location.href);
     url.searchParams.delete('billing');
+    url.searchParams.delete('plan');
     window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
     planAccess.refresh();
-    if (status === 'paid') showToast('Thanks, your plan is updated. Close this tab and carry on where you were.', 10000);
+    if (status === 'paid') setCelebrate((params.get('plan') as PlanId) || 'paid');
     else if (status === 'cancelled') showToast('Payment cancelled. Nothing was charged.');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.uid]);
@@ -2602,6 +2606,16 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
 
       {authDialog && <AuthDialog initialMode={authDialog.mode} reason={authDialog.reason} initialRole={authDialog.role} onClose={() => setAuthDialog(null)} />}
 
+      {celebrate && (
+        <PaidCelebration
+          plan={celebrate === 'paid' ? null : celebrate}
+          onClose={() => setCelebrate(null)}
+          onGoToJobs={() => {
+            setCelebrate(null);
+            goToTab('business-jobs');
+          }}
+        />
+      )}
       {plansReason !== null && <PlansDialog reason={plansReason} access={planAccess} onClose={() => setPlansReason(null)} onDone={(text) => showToast(text)}
         {...(previewing && { onPreview: (plan) => setPlanPreview({ plan, used: 0, credit: planPreview?.credit ?? 0 }) })} />}
 

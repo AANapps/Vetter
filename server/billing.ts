@@ -247,7 +247,7 @@ export async function subscribe(env: Env, companyId: string, b: Billing, plan: P
     'tax_id_collection[enabled]': 'true',
     'customer_update[name]': 'auto',
     'customer_update[address]': 'auto',
-    success_url: `${back}/?billing=paid`,
+    success_url: `${back}/?billing=paid&plan=${plan}`,
     cancel_url: `${back}/?billing=cancelled`,
   });
   forget(companyId);
@@ -271,7 +271,7 @@ export async function buyPass(env: Env, companyId: string, b: Billing, origin: s
     'tax_id_collection[enabled]': 'true',
     'customer_update[name]': 'auto',
     'customer_update[address]': 'auto',
-    success_url: `${back}/?billing=paid`,
+    success_url: `${back}/?billing=paid&plan=per-job`,
     cancel_url: `${back}/?billing=cancelled`,
   });
   forget(companyId);
