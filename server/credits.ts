@@ -33,7 +33,7 @@ export const billingOn = (env: Env) => !!env.STRIPE_SECRET_KEY;
 export type Caller =
   | { kind: 'company'; uid: string; companyId: string; token: string }
   // The Praxa team isn't charged
-  | { kind: 'admin'; uid: string }
+  | { kind: 'admin'; uid: string; token: string }
   | { kind: 'none'; reason: string };
 
 const projectOf = (env: Env) => env.FIREBASE_PROJECT_ID || env.VITE_FIREBASE_PROJECT_ID || '';
@@ -57,7 +57,7 @@ export async function whoIsAsking(authorization: string | undefined, env: Env): 
   if (!res.ok) return { kind: 'none', reason: 'Your account couldn’t be found. Refresh the page and try again.' };
   const fields = ((await res.json()) as { fields?: Record<string, { stringValue?: string }> }).fields ?? {};
   const field = (name: string) => fields[name]?.stringValue ?? '';
-  if (field('role') === 'admin') return { kind: 'admin', uid };
+  if (field('role') === 'admin') return { kind: 'admin', uid, token };
   if (field('role') === 'recruiter' && field('status') === 'active' && field('companyId')) return { kind: 'company', uid, companyId: field('companyId'), token };
   return { kind: 'none', reason: 'Praxa’s AI is for company accounts. Finish setting up your company first.' };
 }
@@ -198,8 +198,29 @@ export async function ledger(env: Env, companyId: string, since = 0): Promise<Tr
 }
 
 // What the plan's allowance has paid for in a period
+// (the Praxa team's adjustments are negative or positive entries in the same period)
 export const allowanceUsed = (entries: Transaction[], period: string) =>
-  entries.filter((t) => t.amount > 0 && t.metadata?.allowance === period).reduce((sum, t) => sum + t.amount, 0);
+  Math.max(0, entries.filter((t) => t.metadata?.allowance === period).reduce((sum, t) => sum + t.amount, 0));
+
+// The Praxa team giving a company credit, or setting how much of this period's allowance is used (to test the levels):
+// both in the same ledger, the usage change as a pair that leaves the balance as it was
+export async function grantCredit(env: Env, companyId: string, pence: number, note: string): Promise<void> {
+  const customer = await customerFor(env, companyId);
+  await stripe(env, 'POST', `/customers/${customer.id}/balance_transactions`, {
+    amount: -pence,
+    currency: 'gbp',
+    description: `Praxa AI credit from the Praxa team${note ? ` (${note})` : ''}`.slice(0, 350),
+    'metadata[granted]': 'true',
+  });
+}
+export async function adjustAllowance(env: Env, companyId: string, delta: number, period: string): Promise<void> {
+  if (!delta) return;
+  const customer = await customerFor(env, companyId);
+  const add = (amount: number, meta: Record<string, string>) =>
+    stripe(env, 'POST', `/customers/${customer.id}/balance_transactions`, { amount, currency: 'gbp', description: 'Usage adjusted by the Praxa team', ...meta });
+  await add(delta, { 'metadata[allowance]': period, 'metadata[adjust]': 'true' });
+  await add(-delta, { 'metadata[planCover]': period, 'metadata[adjust]': 'true' });
+}
 
 export interface UsageEntry {
   // Pence: positive for credit used, negative for credit bought
@@ -216,12 +237,12 @@ export interface UsageEntry {
 export async function usageFor(env: Env, companyId: string): Promise<UsageEntry[]> {
   const list = await ledger(env, companyId);
   return list
-    .filter((t) => !t.metadata?.planCover)
+    .filter((t) => !t.metadata?.planCover && !t.metadata?.adjust)
     .slice(0, 100)
     .map((t) => ({
       amount: t.amount,
       at: new Date(t.created * 1000).toISOString(),
-      step: t.amount < 0 ? 'Credit bought' : STEP_NAMES[t.metadata?.step ?? ''] ?? 'Praxa AI',
+      step: t.metadata?.granted ? 'Credit from Praxa' : t.amount < 0 ? 'Credit bought' : STEP_NAMES[t.metadata?.step ?? ''] ?? 'Praxa AI',
       for: t.metadata?.for ?? '',
       ...(t.metadata?.allowance && { covered: true }),
     }));

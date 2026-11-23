@@ -62,3 +62,17 @@ Sources: [G2 – TestGorilla pricing](https://www.g2.com/products/testgorilla/pr
 [Rework – TestGorilla alternatives](https://resources.rework.com/tools/recruiting-ats/best-testgorilla-alternatives),
 [Capterra – Vervoe](https://www.capterra.com/p/156174/Vervoe/pricing/),
 [Stripe – customer balance](https://docs.stripe.com/billing/customer/balance)
+
+## Admin controls (2026-11-23)
+
+- **Plan preview** (company view, bottom left, admins only): switch between unsubscribed and subscribed, pick any
+  plan, set AI used this month (slider, 0/50/90%/used up) and bought credit. Every paywall and limit acts as that plan.
+  AI requests send the preview to the server (`X-Praxa-Preview`), which refuses them as that plan would once the AI is
+  used up, and never charges. Works without Stripe set up.
+- **Plan tiers** (admin page → Plans and billing): edit each tier's price, open jobs, candidates per job, seats, AI
+  allowance and which features it unlocks. Saved in `settings/plans`; the site follows at once, the server within a
+  minute. A price change applies to new subscribers only.
+- **Companies: plans and credit** (admin page): for any company, see its plan and AI as Stripe has them, give it a
+  plan (the record's `plan`, the higher of that and what it pays for wins), give AI credit (shows to them as "Credit
+  from Praxa"), and set this period's AI usage (reset, 50%, used up, or any amount). Credit and usage need Stripe set up.
+- Saving tiers and plans needs the Firestore rules for `settings` and `companies` deployed (both are admin-only writes).

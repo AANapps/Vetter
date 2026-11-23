@@ -2,7 +2,7 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
-import { API_ROUTES, purposeOf } from './server/routes';
+import { API_ROUTES, previewOf, purposeOf } from './server/routes';
 
 /**
  * Production server: serves the built site from dist (each job's pre-rendered page included), answers the AI
@@ -23,6 +23,7 @@ for (const [route, handle] of Object.entries(API_ROUTES)) {
       authorization: req.headers.authorization,
       origin: req.headers.origin,
       purpose: purposeOf(req.headers['x-praxa-for']),
+      preview: previewOf(req.headers['x-praxa-preview']),
     });
     res.status(status).json(json);
   });

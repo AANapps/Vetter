@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'http';
-import { API_ROUTES, purposeOf } from '../server/routes.js';
+import { API_ROUTES, previewOf, purposeOf } from '../server/routes.js';
 
 /**
  * The AI endpoints on Vercel (/api/generate-test, /api/test-chat, /api/grade-answers), the same handlers server.ts
@@ -15,6 +15,7 @@ export default async function handler(req: Request, res: ServerResponse) {
     authorization: req.headers.authorization,
     origin: req.headers.origin,
     purpose: purposeOf(req.headers['x-praxa-for']),
+    preview: previewOf(req.headers['x-praxa-preview']),
   });
   send(res, status, json);
 }

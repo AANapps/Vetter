@@ -12,6 +12,7 @@ import { SimulationLibraryAdmin } from './SimulationLibraryAdmin';
 import { LibraryVisibilityAdmin } from './LibraryVisibilityAdmin';
 import { AdminTestLab } from './AdminTestLab';
 import { AdminAppEditor } from './AdminAppEditor';
+import { CompanyPlansAdmin, PlanTiersAdmin } from './PlansAdmin';
 
 /**
  * /admin: the Praxa team's own page. Signed out, it's a sign-in screen; the panel only shows for an account whose
@@ -423,6 +424,12 @@ export const AdminPage: React.FC = () => {
             <CompaniesQueue />
             <TestsQueue />
             <SimulationLibraryAdmin />
+          </div>
+          <div className="space-y-3">
+            <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">Plans and billing</h2>
+            <PlanTiersAdmin />
+            <CompanyPlansAdmin />
+            <p className="text-xs text-slate-500">To see the company side as any plan, open the Praxa team view as a company and use Preview a plan (bottom left).</p>
           </div>
           <LibraryVisibilityAdmin />
           <CourseSignups />

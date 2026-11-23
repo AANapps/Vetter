@@ -1,5 +1,5 @@
 import { Env, allowanceUsed, balanceFor, billingOn, ledger, stripe } from './credits.js';
-import { Interval, PASS_DAYS, PLANS, PlanId, PlanStatus, RANK, SUBSCRIPTIONS, hasFeature, higher, planFromRecord, pricePence } from './plans.js';
+import { Interval, PASS_DAYS, PLANS, PlanId, PlanStatus, RANK, SUBSCRIPTIONS, TierSettings, applyTiers, hasFeature, higher, planFromRecord, pricePence } from './plans.js';
 
 /**
  * Plans paid online with Stripe: Starter, Growth and Scale as subscriptions, Per job as a one-off 30-day pass.
@@ -101,12 +101,35 @@ export interface Billing extends PlanStatus {
   customer: Customer;
 }
 
+// The Praxa team's changes to the tiers (settings/plans, readable by anyone), a minute at a time
+let tiersAt = 0;
+type Value = { stringValue?: string; integerValue?: string; doubleValue?: number; nullValue?: null; booleanValue?: boolean; arrayValue?: { values?: Value[] }; mapValue?: { fields?: Record<string, Value> } };
+const decode = (v: Value): unknown =>
+  v.mapValue ? Object.fromEntries(Object.entries(v.mapValue.fields ?? {}).map(([k, x]) => [k, decode(x)]))
+  : v.arrayValue ? (v.arrayValue.values ?? []).map(decode)
+  : v.integerValue !== undefined ? Number(v.integerValue)
+  : v.doubleValue !== undefined ? Number(v.doubleValue)
+  : v.stringValue ?? v.booleanValue ?? null;
+export async function loadTiers(env: Env, fresh = false) {
+  if (!fresh && Date.now() - tiersAt < 60_000) return;
+  const project = env.FIREBASE_PROJECT_ID || env.VITE_FIREBASE_PROJECT_ID || '';
+  try {
+    const res = await fetch(`https://firestore.googleapis.com/v1/projects/${project}/databases/(default)/documents/settings/plans`);
+    const fields = res.ok ? (((await res.json()) as { fields?: Record<string, Value> }).fields ?? {}) : {};
+    applyTiers(fields.tiers ? (decode(fields.tiers) as TierSettings) : null);
+    tiersAt = Date.now();
+  } catch (err) {
+    console.error('[billing] couldn’t read the tier settings', err);
+  }
+}
+
 // A few seconds' memory per company: one test makes a dozen AI requests, each checking the plan
 const cache = new Map<string, { at: number; value: Billing }>();
 const CACHE_MS = 20_000;
 export const forget = (companyId: string) => cache.delete(companyId);
 
 export async function billingFor(env: Env, companyId: string, token: string): Promise<Billing> {
+  await loadTiers(env);
   const hit = cache.get(companyId);
   if (hit && Date.now() - hit.at < CACHE_MS) return hit.value;
   const record = await recordOf(env, token, companyId);

@@ -8,7 +8,14 @@ const date = (iso?: string) => (iso ? new Date(iso).toLocaleDateString(undefined
 
 // The company's plan and every plan it can move to. reason: what it just tried that its plan leaves out. Paying opens
 // Stripe in a new tab, so whatever was open behind this stays; the plan is read again when the tab comes back
-export const PlansDialog: React.FC<{ reason: string; access: PlanAccess; onClose: () => void; onDone: (text: string) => void }> = ({ reason, access, onClose, onDone }) => {
+// onPreview: an admin previewing a plan; picking one switches the preview instead of paying
+export const PlansDialog: React.FC<{ reason: string; access: PlanAccess; onClose: () => void; onDone: (text: string) => void; onPreview?: (plan: PlanId) => void }> = ({
+  reason,
+  access,
+  onClose,
+  onDone,
+  onPreview,
+}) => {
   const { status, info } = access;
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState('');
@@ -46,6 +53,11 @@ export const PlansDialog: React.FC<{ reason: string; access: PlanAccess; onClose
 
   const choose = (id: string, interval: 'month' | 'year') => {
     if (id === 'enterprise') return setNote('Email the Praxa team about Enterprise and we’ll set it up for you.');
+    if (onPreview && id !== 'enterprise') {
+      onPreview(id as PlanId);
+      onDone(`Previewing ${PLANS[id as PlanId].name}. Nothing was charged.`);
+      return onClose();
+    }
     if (id === 'free') return;
     if (!status.billing) return setNote(`Online payment isn’t switched on yet. Ask the Praxa team to set your company to ${PLANS[id as PlanId].name}.`);
     if (id === 'per-job') return open(id, buyJobPass);

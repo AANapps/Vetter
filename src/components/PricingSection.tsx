@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Check, Minus, Sparkles } from 'lucide-react';
 import { useCurrency } from '../lib/currency';
 import { CurrencyPicker } from './CurrencyPicker';
-import { PASS_DAYS, PLANS as PRICES, PlanId } from '../../server/plans';
+import { Feature, PASS_DAYS, PLANS as PRICES, PlanId, hasFeature } from '../../server/plans';
 
 type Billing = 'monthly' | 'annual';
 
@@ -27,71 +27,101 @@ const priced = (id: PlanId) => {
 };
 const ai = (id: PlanId) => `£${PRICES[id].aiAllowance / 100} of AI test building ${id === 'free' ? 'to try' : 'a month'}`;
 
-const PLANS: Plan[] = [
+// What each card lists, from the tier as it is now: its limits, then what it adds over the plan before it
+const SHORT: Record<Feature, string> = {
+  'full-reports': 'Full candidate reports',
+  'library-job-sims': 'Praxa’s ready-made job simulations',
+  'pool-search': 'Search and invite tested candidates',
+  'csv-export': 'CSV export',
+  branding: 'Your branding on tests',
+  'ai-top-ups': 'Top up AI any time',
+};
+const ORDER: PlanId[] = ['free', 'starter', 'growth', 'scale'];
+const count = (n: number, one: string, many: string) => (Number.isFinite(n) ? `${n} ${n === 1 ? one : many}` : `Unlimited ${many}`);
+function highlights(id: PlanId): string[] {
+  const t = PRICES[id];
+  const before = ORDER[ORDER.indexOf(id) - 1];
+  const added = t.features.filter((f) => !before || !hasFeature(before, f)).map((f) => SHORT[f]);
+  return [
+    count(t.jobs, 'open job', 'open jobs'),
+    Number.isFinite(t.applicantsPerJob) ? `First ${t.applicantsPerJob} candidates per job` : 'Unlimited candidates',
+    ...(id === 'free' ? ['Praxa’s library of skills tests', 'Ranked by score'] : []),
+    ...added,
+    count(t.seats, 'team seat', 'team seats'),
+    ai(id),
+    ...(id === 'scale' ? ['Priority support'] : []),
+  ];
+}
+
+// Built when drawn, so the Praxa team's changes to the tiers (settings/plans) show
+const plansNow = (): Plan[] => [
   {
     id: 'free',
     name: 'Free',
     tagline: 'Try Praxa on a real role',
     ...priced('free'),
     unit: 'forever',
+    highlights: highlights('free'),
     cta: 'Start free',
-    highlights: ['1 open job', `First ${PRICES.free.applicantsPerJob} candidates per job`, 'Praxa’s library of skills tests', 'Ranked by score', ai('free')],
-  },
+      },
   {
     id: 'starter',
     name: 'Starter',
     tagline: 'For small teams hiring now and then',
     ...priced('starter'),
+    highlights: highlights('starter'),
     unit: 'per month',
     cta: 'Start with Starter',
-    highlights: [`${PRICES.starter.jobs} open jobs`, 'Unlimited candidates', 'Full candidate reports', `${PRICES.starter.seats} team seats`, ai('starter')],
-  },
+      },
   {
     id: 'growth',
     name: 'Growth',
     tagline: 'For teams hiring every month',
     ...priced('growth'),
+    highlights: highlights('growth'),
     unit: 'per month',
     cta: 'Start with Growth',
     popular: true,
-    highlights: [`${PRICES.growth.jobs} open jobs`, 'Praxa’s ready-made job simulations', 'Search and invite tested candidates', `${PRICES.growth.seats} team seats`, ai('growth')],
-  },
+      },
   {
     id: 'scale',
     name: 'Scale',
     tagline: 'For busy hiring teams',
     ...priced('scale'),
+    highlights: highlights('scale'),
     unit: 'per month',
     cta: 'Start with Scale',
-    highlights: ['Unlimited jobs and seats', 'CSV export', 'Your branding on tests', 'Priority support', ai('scale')],
-  },
+      },
 ];
 
 // The comparison table: true is a tick, false a dash, text is shown as is. Columns follow PLANS
 type Cell = boolean | string;
 const money = (p: number) => `£${p / 100}`;
-const COMPARISON: { group: string; rows: { label: string; cells: [Cell, Cell, Cell, Cell] }[] }[] = [
+const COLUMNS: PlanId[] = ['free', 'starter', 'growth', 'scale'];
+const has = (f: Feature) => COLUMNS.map((id) => hasFeature(id, f)) as [Cell, Cell, Cell, Cell];
+const lim = (n: number) => (Number.isFinite(n) ? String(n) : 'Unlimited');
+const comparisonNow = (): { group: string; rows: { label: string; cells: [Cell, Cell, Cell, Cell] }[] }[] => [
   {
     group: 'Hiring',
     rows: [
-      { label: 'Open jobs', cells: ['1', String(PRICES.starter.jobs), String(PRICES.growth.jobs), 'Unlimited'] },
-      { label: 'Candidates per job', cells: [String(PRICES.free.applicantsPerJob), 'Unlimited', 'Unlimited', 'Unlimited'] },
+      { label: 'Open jobs', cells: COLUMNS.map((id) => lim(PRICES[id].jobs)) as [Cell, Cell, Cell, Cell] },
+      { label: 'Candidates per job', cells: COLUMNS.map((id) => lim(PRICES[id].applicantsPerJob)) as [Cell, Cell, Cell, Cell] },
       { label: 'Job listed on Praxa and Google Jobs', cells: [true, true, true, true] },
       { label: 'Invite candidates by email or link', cells: [true, true, true, true] },
-      { label: 'Search and invite Praxa’s tested candidates', cells: [false, false, true, true] },
+      { label: 'Search and invite Praxa’s tested candidates', cells: has('pool-search') },
     ],
   },
   {
     group: 'Tests',
     rows: [
       { label: 'Praxa’s library of skills tests', cells: [true, true, true, true] },
-      { label: 'Praxa’s ready-made job simulations', cells: [false, false, true, true] },
+      { label: 'Praxa’s ready-made job simulations', cells: has('library-job-sims') },
       { label: 'AI-built tests and job simulations', cells: ['Trial', true, true, true] },
       {
         label: 'AI included',
         cells: [`${money(PRICES.free.aiAllowance)} once`, `${money(PRICES.starter.aiAllowance)}/mo`, `${money(PRICES.growth.aiAllowance)}/mo`, `${money(PRICES.scale.aiAllowance)}/mo`],
       },
-      { label: 'Top up AI credit any time', cells: [false, true, true, true] },
+      { label: 'Top up AI credit any time', cells: has('ai-top-ups') },
       { label: 'Write and edit your own tests', cells: [true, true, true, true] },
     ],
   },
@@ -99,23 +129,23 @@ const COMPARISON: { group: string; rows: { label: string; cells: [Cell, Cell, Ce
     group: 'Results',
     rows: [
       { label: 'Scores and ranking', cells: [true, true, true, true] },
-      { label: 'Integrity report', cells: [false, true, true, true] },
-      { label: 'Answer-by-answer review and job simulation replay', cells: [false, true, true, true] },
-      { label: 'Why each candidate fits', cells: [false, true, true, true] },
-      { label: 'CSV export', cells: [false, false, false, true] },
+      { label: 'Integrity report', cells: has('full-reports') },
+      { label: 'Answer-by-answer review and job simulation replay', cells: has('full-reports') },
+      { label: 'Why each candidate fits', cells: has('full-reports') },
+      { label: 'CSV export', cells: has('csv-export') },
     ],
   },
   {
     group: 'Team and support',
     rows: [
-      { label: 'Team seats', cells: ['1', String(PRICES.starter.seats), String(PRICES.growth.seats), 'Unlimited'] },
-      { label: 'Your branding on tests', cells: [false, false, false, true] },
+      { label: 'Team seats', cells: COLUMNS.map((id) => lim(PRICES[id].seats)) as [Cell, Cell, Cell, Cell] },
+      { label: 'Your branding on tests', cells: has('branding') },
       { label: 'Support', cells: ['Email', 'Email', 'Email', 'Priority'] },
     ],
   },
 ];
 
-const FAQS = [
+const faqsNow = () => [
   {
     q: 'Do candidates pay anything?',
     a: 'No. Praxa is free for candidates, always. They keep their scores and can use them for other jobs.',
@@ -158,6 +188,9 @@ export const PricingSection: React.FC<{ onChoosePlan: (planId: string, interval:
   busy,
 }) => {
   const [billing, setBilling] = useState<Billing>('annual');
+  const PLANS = plansNow();
+  const COMPARISON = comparisonNow();
+  const FAQS = faqsNow();
   // Plans are priced in pounds and shown in the visitor's currency
   const { code, money } = useCurrency();
   const formatPrice = (n: number) => money(n);

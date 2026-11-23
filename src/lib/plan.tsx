@@ -1,6 +1,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { aiFetch } from './aiRequest';
-import { Feature, Interval, PLANS, PlanId, PlanInfo, PlanStatus, cheapestWith, hasFeature } from '../../server/plans';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { aiFetch, setAiPreview } from './aiRequest';
+import { db, firebaseEnabled } from './firebase';
+import { Feature, Interval, PLANS, PlanId, PlanInfo, PlanPreview, PlanStatus, TierSettings, applyTiers, cheapestWith, hasFeature } from '../../server/plans';
 
 /**
  * The signed-in company's plan, as the server reads it from Stripe (server/billing.ts), and every paywall's check.
@@ -9,7 +11,7 @@ import { Feature, Interval, PLANS, PlanId, PlanInfo, PlanStatus, cheapestWith, h
  * only a company on a plan that leaves a feature out sees it locked, with a button to upgrade.
  */
 
-export type { Feature, Interval, PlanId, PlanStatus };
+export type { Feature, Interval, PlanId, PlanPreview, PlanStatus };
 export { PLANS, cheapestWith };
 
 const OFF: PlanStatus = { billing: false, plan: 'scale', passes: [], jobLimit: Infinity, ai: { allowance: 0, used: 0, credit: 0 } };
@@ -52,9 +54,63 @@ const UNLOCKED: PlanAccess = { status: OFF, info: PLANS.scale, can: () => true, 
 const PlanContext = createContext<PlanAccess>(UNLOCKED);
 export const usePlan = () => useContext(PlanContext);
 
+// The Praxa team's changes to the tiers (settings/plans), applied to PLANS as they come; the number changes each time
+// so App draws again with them
+export function useTiers(): number {
+  const [version, setVersion] = useState(0);
+  useEffect(() => {
+    if (!firebaseEnabled) return;
+    return onSnapshot(
+      doc(db(), 'settings', 'plans'),
+      (snap) => {
+        applyTiers((snap.data()?.tiers as TierSettings | undefined) ?? null);
+        setVersion((v) => v + 1);
+      },
+      () => {}
+    );
+  }, []);
+  return version;
+}
+
+// An admin's plan preview, kept in this browser: null is the Praxa team (everything open)
+const PREVIEW_KEY = 'praxa.planPreview';
+export function usePlanPreview(enabled: boolean): [PlanPreview | null, (p: PlanPreview | null) => void] {
+  const [preview, setPreview] = useState<PlanPreview | null>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(PREVIEW_KEY) ?? 'null');
+    } catch {
+      return null;
+    }
+  });
+  const active = enabled ? preview : null;
+  useEffect(() => {
+    setAiPreview(active);
+  }, [active?.plan, active?.used, active?.credit]);
+  const set = (p: PlanPreview | null) => {
+    setPreview(p);
+    try {
+      if (p) localStorage.setItem(PREVIEW_KEY, JSON.stringify(p));
+      else localStorage.removeItem(PREVIEW_KEY);
+    } catch {
+      // Private windows can refuse storage; the preview lasts for the visit
+    }
+  };
+  return [active, set];
+}
+
+// What a previewed plan looks like, as the server would answer
+export const previewStatus = (p: PlanPreview): PlanStatus => ({
+  billing: true,
+  plan: p.plan,
+  ...(p.plan !== 'free' && p.plan !== 'per-job' && { interval: 'month' as const, renewsAt: new Date(Date.now() + 30 * 86400000).toISOString() }),
+  passes: p.plan === 'per-job' ? [{ id: 'preview', endsAt: new Date(Date.now() + 30 * 86400000).toISOString() }] : [],
+  jobLimit: p.plan === 'per-job' ? PLANS.free.jobs + 1 : PLANS[p.plan].jobs,
+  ai: { allowance: PLANS[p.plan].aiAllowance, used: p.used, credit: p.credit },
+});
+
 // The plan as App reads it, to enforce limits itself and hand to every paywall below it (PlanScope). company: the
 // signed-in company's id (null for anyone else: everything unlocked). onUpgrade opens the plans dialog
-export function useCompanyPlan(company: string | null, onUpgrade: (reason?: string) => void): PlanAccess {
+export function useCompanyPlan(company: string | null, onUpgrade: (reason?: string) => void, preview?: PlanPreview | null): PlanAccess {
   const [status, setStatus] = useState<PlanStatus>(OFF);
   const refresh = useCallback(
     (fresh = false) => {
@@ -70,6 +126,10 @@ export function useCompanyPlan(company: string | null, onUpgrade: (reason?: stri
     document.addEventListener('visibilitychange', back);
     return () => document.removeEventListener('visibilitychange', back);
   }, [refresh]);
+  if (preview) {
+    const s = previewStatus(preview);
+    return { status: s, info: PLANS[s.plan], can: (f) => hasFeature(s.plan, f), upgrade: onUpgrade, refresh: () => {} };
+  }
   return company && status.billing
     ? { status, info: PLANS[status.plan], can: (f) => hasFeature(status.plan, f), upgrade: onUpgrade, refresh: () => refresh(true) }
     : { ...UNLOCKED, refresh: () => refresh(true) };

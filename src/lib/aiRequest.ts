@@ -13,6 +13,10 @@ export const startAiRun = () => (run = new AbortController());
 export const stopAiRun = () => run.abort();
 export const aiStopped = () => run.signal.aborted;
 
+// An admin trying a plan (src/lib/plan.tsx): sent with every AI request so the server acts as that plan would
+let preview = '';
+export const setAiPreview = (value: object | null) => (preview = value ? JSON.stringify(value) : '');
+
 export async function aiFetch(path: string, payload: unknown): Promise<Response> {
   const signal = run.signal;
   if (signal.aborted) throw new DOMException('Stopped', 'AbortError');
@@ -24,6 +28,7 @@ export async function aiFetch(path: string, payload: unknown): Promise<Response>
       'Content-Type': 'application/json',
       ...(token && { Authorization: `Bearer ${token}` }),
       ...(purpose && { 'X-Praxa-For': encodeURIComponent(purpose) }),
+      ...(preview && { 'X-Praxa-Preview': preview }),
     },
     body: JSON.stringify(payload),
     signal,

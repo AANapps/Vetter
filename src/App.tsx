@@ -74,7 +74,8 @@ import { InviteToJobDialog } from './components/InviteToJobDialog';
 import { SendToStaffDialog } from './components/SendToStaffDialog';
 import { TrainingPage } from './components/TrainingPage';
 import { PlansDialog } from './components/PlansDialog';
-import { Locked, PlanScope, useCompanyPlan } from './lib/plan';
+import { Locked, PlanScope, useCompanyPlan, usePlanPreview, useTiers } from './lib/plan';
+import { PlanPreviewBar } from './components/PlanPreviewBar';
 import { lockedByJob, withinApplicantLimit } from './lib/leads';
 import { AdvisorTurn, HomeBuild, testOutline } from './lib/testAdvisor';
 import type { ChatState, TestPlan as AgreedPlan } from './lib/testChat';
@@ -600,7 +601,11 @@ export default function App() {
     ? businesses.find((b) => b.id === adminCompanyId) ?? businesses.find((b) => b.id === recruiter.businessId) ?? businesses[0]
     : businesses.find((b) => b.id === recruiter.businessId);
   // The company's plan, read from Stripe by the server: its limits are kept here and its paywalls below (src/lib/plan.tsx)
-  const planAccess = useCompanyPlan(activeRole === 'recruiter' && !adminAsCompany ? recruiterBusiness?.id ?? null : null, (reason) => setPlansReason(reason ?? ''));
+  // The Praxa team's changes to the tiers, and an admin previewing the company side as any plan
+  useTiers();
+  const previewing = adminAsCompany && activeRole === 'recruiter';
+  const [planPreview, setPlanPreview] = usePlanPreview(previewing);
+  const planAccess = useCompanyPlan(activeRole === 'recruiter' && !adminAsCompany ? recruiterBusiness?.id ?? null : null, (reason) => setPlansReason(reason ?? ''), planPreview);
   // Praxa's ready-made job simulations come with Growth and above; ones already on a job stay
   const libraryJobSimHit = (testIds: string[], before: string[] = []) => {
     if (planAccess.can('library-job-sims')) return false;
@@ -2590,7 +2595,8 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
 
       {authDialog && <AuthDialog initialMode={authDialog.mode} reason={authDialog.reason} initialRole={authDialog.role} onClose={() => setAuthDialog(null)} />}
 
-      {plansReason !== null && <PlansDialog reason={plansReason} access={planAccess} onClose={() => setPlansReason(null)} onDone={(text) => showToast(text)} />}
+      {plansReason !== null && <PlansDialog reason={plansReason} access={planAccess} onClose={() => setPlansReason(null)} onDone={(text) => showToast(text)}
+        {...(previewing && { onPreview: (plan) => setPlanPreview({ plan, used: 0, credit: planPreview?.credit ?? 0 }) })} />}
 
       {editingTests && (
         <JobTestsEditor
@@ -2935,6 +2941,8 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
           onOpenTest={openTestPage}
         />
       )}
+
+      {previewing && <PlanPreviewBar preview={planPreview} onChange={setPlanPreview} />}
 
       {toast && (
         <div className={`fixed bottom-6 right-6 left-6 sm:left-auto z-50 p-4 bg-slate-900 border border-slate-800 text-white rounded-xl shadow-2xl flex items-center gap-3 max-w-md`}>

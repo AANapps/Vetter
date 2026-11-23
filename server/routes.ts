@@ -19,9 +19,9 @@ import { changePlan } from './changePlan.js';
 import { runCode } from './runCode.js';
 import { matchEnvironment } from './matchEnvironment.js';
 import { metered } from './meter.js';
-import { PACKS, billingOn, charge, confirmTopUp, hasEnough, penceFor, startTopUp, usageFor, whoIsAsking } from './credits.js';
-import { aiLeft, billingFor, buyPass, canTopUp, forget, portal, publicStatus, spent, subscribe } from './billing.js';
-import { PlanId, SUBSCRIPTIONS } from './plans.js';
+import { PACKS, adjustAllowance, billingOn, charge, confirmTopUp, grantCredit, hasEnough, penceFor, startTopUp, usageFor, whoIsAsking } from './credits.js';
+import { aiLeft, billingFor, buyPass, canTopUp, forget, loadTiers, portal, publicStatus, spent, subscribe } from './billing.js';
+import { PLANS, PlanId, PlanPreview, RANK, SUBSCRIPTIONS, hasFeature } from './plans.js';
 
 // The AI endpoints, answered by server.ts in production and the Vite dev server in development
 type Env = Record<string, string | undefined>;
@@ -37,7 +37,18 @@ export interface RequestMeta {
   origin?: string;
   // The test a request is for (the X-Praxa-For header), named in the company's usage
   purpose?: string;
+  // An admin trying a plan (the X-Praxa-Preview header): AI requests act as that plan would, and nothing is charged
+  preview?: PlanPreview;
 }
+
+export const previewOf = (header: string | string[] | undefined): PlanPreview | undefined => {
+  try {
+    const v = JSON.parse(String(Array.isArray(header) ? header[0] : header ?? ''));
+    return (RANK as string[]).includes(v?.plan) ? { plan: v.plan, used: Number(v.used) || 0, credit: Number(v.credit) || 0 } : undefined;
+  } catch {
+    return undefined;
+  }
+};
 
 // The X-Praxa-For header as sent (URI-encoded, so any title fits in a header)
 export const purposeOf = (header: string | string[] | undefined) => {
@@ -65,6 +76,17 @@ const logged =
 const billed =
   (name: string, handler: Handler): Handler =>
   async (body, env, meta) => {
+    // An admin trying a plan: refused as that plan would be once its AI is used up, never charged
+    if (meta?.preview) {
+      const caller = await whoIsAsking(meta.authorization, env);
+      if (caller.kind === 'admin') {
+        await loadTiers(env);
+        const p = meta.preview;
+        const left = Math.max(0, PLANS[p.plan].aiAllowance - p.used) + Math.max(0, p.credit);
+        if (!hasEnough(left)) return { status: 402, json: { error: 'no-credit', balance: left, plan: p.plan, canTopUp: hasFeature(p.plan, 'ai-top-ups') } };
+        return handler(body, env, meta);
+      }
+    }
     if (!billingOn(env)) return handler(body, env, meta);
     const caller = await whoIsAsking(meta?.authorization, env);
     if (caller.kind === 'none') return { status: 401, json: { error: caller.reason } };
@@ -126,10 +148,13 @@ async function credits(body: unknown, env: Env, meta?: RequestMeta): Promise<{ s
 // The company's plan: what it has, and paying for one (a subscription, a job pass, Stripe's billing page). Only the
 // company's owner can pay or change it
 async function billing(body: unknown, env: Env, meta?: RequestMeta): Promise<{ status: number; json: unknown }> {
-  if (!billingOn(env)) return { status: 200, json: { billing: false } };
-  const req = (body ?? {}) as { action?: string; plan?: string; interval?: string };
+  if (!billingOn(env))
+    return (body as { action?: string })?.action?.startsWith('admin-')
+      ? { status: 400, json: { error: 'Stripe isn’t set up on this server (STRIPE_SECRET_KEY), so there’s no plan or credit to change.' } }
+      : { status: 200, json: { billing: false } };
+  const req = (body ?? {}) as { action?: string; plan?: string; interval?: string; companyId?: string; pence?: number; used?: number; note?: string };
   const caller = await whoIsAsking(meta?.authorization, env);
-  if (caller.kind === 'admin') return { status: 200, json: { billing: false } };
+  if (caller.kind === 'admin') return req.action?.startsWith('admin-') ? adminBilling(req, env, caller.token) : { status: 200, json: { billing: false } };
   if (caller.kind === 'none') return { status: 401, json: { error: caller.reason } };
   try {
     if (req.action === 'refresh') forget(caller.companyId);
@@ -148,6 +173,37 @@ async function billing(body: unknown, env: Env, meta?: RequestMeta): Promise<{ s
   } catch (err) {
     console.error('[billing]', err);
     return { status: 502, json: { error: "Couldn't reach the payment service. Try again in a moment." } };
+  }
+}
+
+// The Praxa team, for any company: its plan and AI as Stripe has them, credit given, and this period's AI usage set
+// (to try a company at different levels)
+async function adminBilling(
+  req: { action?: string; companyId?: string; pence?: number; used?: number; note?: string },
+  env: Env,
+  token: string
+): Promise<{ status: number; json: unknown }> {
+  const companyId = String(req.companyId ?? '');
+  if (!companyId) return { status: 400, json: { error: 'Pick a company.' } };
+  try {
+    if (req.action === 'admin-grant') {
+      const pence = Math.round(Number(req.pence));
+      if (!(pence > 0 && pence <= 100000)) return { status: 400, json: { error: 'Give between 1p and £1,000.' } };
+      await grantCredit(env, companyId, pence, String(req.note ?? '').slice(0, 100));
+      forget(companyId);
+    }
+    if (req.action === 'admin-usage') {
+      const plan = await billingFor(env, companyId, token);
+      const used = Math.max(0, Math.round(Number(req.used) || 0));
+      await adjustAllowance(env, companyId, used - plan.ai.used, plan.period);
+      forget(companyId);
+    }
+    if (req.action === 'admin-refresh-tiers') await loadTiers(env, true);
+    forget(companyId);
+    return { status: 200, json: publicStatus(await billingFor(env, companyId, token)) };
+  } catch (err) {
+    console.error('[billing admin]', err);
+    return { status: 502, json: { error: err instanceof Error ? err.message : "Couldn't reach Stripe." } };
   }
 }
 

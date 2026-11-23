@@ -76,6 +76,7 @@ nothing is locked.
   plan. A plan the Praxa team sets on the company record (`plan`, e.g. `enterprise`) counts too, whichever is higher.
 - Each plan includes AI each month (Free: £2 once). It's spent before bought credit; free companies can't top up.
 - Only the company's owner can pay or change the plan.
+- Admins: plan preview in the company view, tier editor and per-company plan, credit and usage on /admin (docs/payments.md).
 - **Set up in the Stripe dashboard once:** switch on the customer portal (Settings → Billing → Customer portal), used by
   Manage billing for cards, invoices and cancelling. Optional: Stripe Tax, if Praxa charges VAT.
 - Job, applicant, seat and feature limits are checked in the browser (Firestore can't see Stripe); AI spending is
