@@ -52,6 +52,8 @@ type Subscription = {
   id: string;
   status: string;
   cancel_at_period_end: boolean;
+  // When it's set to end: Stripe's billing page cancels this way now (cancel_at_period_end stays false)
+  cancel_at?: number | null;
   metadata?: Record<string, string>;
   current_period_start?: number;
   current_period_end?: number;
@@ -174,8 +176,8 @@ export async function billingFor(env: Env, companyId: string, token: string): Pr
     plan,
     ...(subscription && {
       interval: subscription.items.data[0]?.price.recurring?.interval ?? 'month',
-      renewsAt: new Date(period!.end * 1000).toISOString(),
-      cancelsAtEnd: subscription.cancel_at_period_end,
+      renewsAt: new Date((subscription.cancel_at || period!.end) * 1000).toISOString(),
+      cancelsAtEnd: subscription.cancel_at_period_end || !!subscription.cancel_at,
       pastDue: subscription.status === 'past_due',
     }),
     passes: passes.map((p) => ({ id: p.id, endsAt: new Date(p.endsAt * 1000).toISOString() })),
@@ -227,7 +229,8 @@ export async function subscribe(env: Env, companyId: string, b: Billing, plan: P
       'items[0][id]': b.subscription.items.data[0].id,
       'items[0][price]': price,
       proration_behavior: 'always_invoice',
-      cancel_at_period_end: 'false',
+      // Choosing a plan undoes a cancellation, whichever way it was made (Stripe takes only one of the two at once)
+      ...(b.subscription.cancel_at ? { cancel_at: '' } : { cancel_at_period_end: 'false' }),
       'metadata[plan]': plan,
     });
     forget(companyId);
