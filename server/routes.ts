@@ -16,6 +16,7 @@ import { writeFormula } from './writeFormula.js';
 import { fitApp } from './fitApp.js';
 import { editApp } from './editApp.js';
 import { changePlan } from './changePlan.js';
+import { writeTraining } from './writeTraining.js';
 import { runCode } from './runCode.js';
 import { matchEnvironment } from './matchEnvironment.js';
 import { metered } from './meter.js';
@@ -233,6 +234,8 @@ export const API_ROUTES: Record<string, Handler> = {
   '/api/edit-app': logged('edit-app', billed('edit-app', (body, env) => editApp(body, env.ANTHROPIC_API_KEY, testModel(env)))),
   // The first step of a message about a written draft: an answer, or a checklist of changes made only once the company
   // presses Build
+  // Guided training (not a test): the lessons, their steps and the spec of the app to build them in
+  '/api/write-training': logged('write-training', billed('write-training', (body, env) => writeTraining(body, env.ANTHROPIC_API_KEY, testModel(env)))),
   '/api/change-plan': logged('change-plan', billed('change-plan', (body, env) => changePlan(body, env.ANTHROPIC_API_KEY, env.ADVISOR_MODEL || 'claude-sonnet-5-5'))),
   // Each interactive page of a test, built in its own request so a long test fits the host's time limit
   '/api/build-app': logged('build-app', billed('build-app', (body, env) => buildApp(body, env.ANTHROPIC_API_KEY, testModel(env)))),

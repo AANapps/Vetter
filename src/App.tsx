@@ -76,6 +76,8 @@ import { TrainingPage } from './components/TrainingPage';
 import { PlansDialog } from './components/PlansDialog';
 import { Locked, PlanScope, useCompanyPlan, usePlanPreview, useTiers } from './lib/plan';
 import { PlanPreviewBar } from './components/PlanPreviewBar';
+import { TrainingBuilder } from './components/TrainingBuilder';
+import { TrainingRunner } from './components/TrainingRunner';
 import { lockedByJob, withinApplicantLimit } from './lib/leads';
 import { AdvisorTurn, HomeBuild, testOutline } from './lib/testAdvisor';
 import type { ChatState, TestPlan as AgreedPlan } from './lib/testChat';
@@ -554,6 +556,8 @@ export default function App() {
   const [homeSeed, setHomeSeed] = useState<{ text: string; jobId?: string } | undefined>(undefined);
   // Plans, shown when something the company's plan leaves out is asked for; the reason heads the dialog ('' for none)
   const [plansReason, setPlansReason] = useState<string | null>(null);
+  // Guided training being made (or changed) in its own builder
+  const [trainingBuild, setTrainingBuild] = useState<{ brief: string; existing?: AssessmentTest } | null>(null);
   const setPlansOpen = (open: boolean) => setPlansReason(open ? '' : null);
   // What the candidate's Tests page is narrowed to, e.g. a field picked on Home
   const [testField, setTestField] = useState<TestField | null>(null);
@@ -675,6 +679,7 @@ export default function App() {
   const editOwnTest = (testId: string, jobId?: string) => {
     const test = tests.find((t) => t.id === testId);
     if (!test) return;
+    if (test.guide) return aiAllowed ? setTrainingBuild({ brief: test.description, existing: test }) : setPlansOpen(true);
     if (aiAllowed && madeWithAI(test)) return enhanceTest(testId, jobId);
     setDraftBuilder({ draft: test, jobId, alsoAdd: [] });
   };
@@ -2284,6 +2289,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
                 openGenerator({ plan, planChat: chat, kind, ...(jobId && { jobId }), fromHome: true, background: homeChatSummary(advisorTurns) })
               }
               onEditWithAI={(testId) => enhanceTest(testId)}
+              onCreateTraining={(brief) => (aiAllowed ? setTrainingBuild({ brief }) : setPlansOpen(true))}
               onSendTest={sendTest}
               onUpdateTest={(test) => {
                 // A change keeps the saved test's place: its id, owner, level family and kind
@@ -2853,7 +2859,15 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
         <TestRunner test={PRACTICE_SIM} preview practice onClose={() => setPracticeOpen(false)} onComplete={() => setPracticeOpen(false)} />
       )}
 
-      {assignmentRun && (
+      {assignmentRun?.test.guide && (
+        <TrainingRunner
+          test={assignmentRun.test}
+          onClose={() => setAssignmentRun(null)}
+          onBegin={() => !assignmentRun.assignment.startedAt && updateAssignment(assignmentRun.assignment.id, { startedAt: new Date().toISOString() })}
+          onFinish={(score, seconds) => finishAssignment(assignmentRun.assignment, assignmentRun.test, score, seconds)}
+        />
+      )}
+      {assignmentRun && !assignmentRun.test.guide && (
         <TestRunner
           test={assignmentRun.test}
           training={assignmentRun.test.purpose === 'training'}
@@ -2864,7 +2878,8 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
         />
       )}
 
-      {trialTest && (
+      {trialTest?.test.guide && <TrainingRunner test={trialTest.test} preview onClose={() => setTrialTest(null)} />}
+      {trialTest && !trialTest.test.guide && (
         <TestRunner
           test={trialTest.test}
           training={trialTest.test.purpose === 'training'}
@@ -2939,6 +2954,23 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
           }
           showIntegrity={activeRole === 'recruiter' || activeRole === 'admin'}
           onOpenTest={openTestPage}
+        />
+      )}
+
+      {trainingBuild && (
+        <TrainingBuilder
+          brief={trainingBuild.brief}
+          business={recruiterBusiness}
+          existing={trainingBuild.existing}
+          onClose={() => setTrainingBuild(null)}
+          onNeedCredit={() => setPlansReason('Keep building with Praxa’s AI')}
+          onSaved={(test) => {
+            if (tests.some((t) => t.id === test.id)) handleUpdateTest(test);
+            else handleCreateTest(test);
+            setTrainingBuild(null);
+            goToTab('business-training');
+            showToast(`"${test.title}" saved to your Training. Send it to your team from there.`);
+          }}
         />
       )}
 

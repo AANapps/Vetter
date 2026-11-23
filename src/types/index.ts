@@ -416,9 +416,39 @@ export const TEST_DIFFICULTIES: TestDifficulty[] = ['Junior', 'Professional', 'S
 // The name a level is shown by: Professional is called Mid-level
 export const levelName = (level: TestDifficulty | string) => (level === 'Professional' ? 'Mid-level' : level);
 
+// Guided training (since 2026-11-23): not a test. The learner works in a copy of the app (the test's one app question)
+// while a coach walks them through lessons, step by step; each step glows on a control (data-ref) and ticks itself off
+// when the app's saved state shows it's done (path holds expected)
+export interface TrainingStep {
+  id: string;
+  instruction: string;
+  why: string;
+  ref: string;
+  path: string;
+  expected: string;
+  hint: string;
+}
+export interface TrainingLesson {
+  id: string;
+  title: string;
+  intro: string;
+  steps: TrainingStep[];
+}
+export interface TrainingGuide {
+  summary: string;
+  appName: string;
+  product?: string;
+  lessons: TrainingLesson[];
+  wrapUp: string;
+  // The spec the app was built from, kept so the training can be changed and rebuilt
+  appBrief: string;
+}
+
 export interface AssessmentTest {
   id: string;
   title: string;
+  // Guided training: the lessons the coach walks through (purpose is 'training')
+  guide?: TrainingGuide;
   // A module made for one field: its skill and the field (Excel for Data Analysis, Ticket Support for Customer Support).
   // The same skill can have a version for another field (Excel for Finance), and a module can join other roles' tracks
   module?: { skill: string; field: string };

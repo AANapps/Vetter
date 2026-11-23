@@ -52,6 +52,8 @@ interface BusinessHomeProps {
   onBuildIdea: (idea: CustomIdea, picked: AssessmentTest[], others: CustomIdea[]) => void;
   onEditCopy: (test: AssessmentTest) => void;
   onBuildWithAI: (brief: string, kind?: TestKind) => void;
+  // Guided training is made in its own builder, not planned as a test
+  onCreateTraining: (brief: string) => void;
   onCreateOwn: () => void;
   onSeePlans: () => void;
   onOpenTest: (testId: string) => void;
@@ -109,6 +111,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
   onBuildIdea,
   onEditCopy,
   onBuildWithAI,
+  onCreateTraining,
   onCreateOwn,
   onSeePlans,
   onOpenTest,
@@ -202,6 +205,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
     if (!aiAllowed) return onSeePlans();
     if (working) return;
     if (said) onTurns((prev) => [...prev, { role: 'user', text: said }]);
+    if (kind === 'training') return onCreateTraining(brief);
     runPlan(brief, kind, { messages: [], existing: [] });
   };
   // Build: the AI test builder opens on the plan the company agreed and builds it there
@@ -254,8 +258,9 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
     setThinking(false);
     inputRef.current?.focus();
     // Once the chat knows what to make, Praxa plans it straight away and lists every question
-    if (aiAllowed && !reply.error && reply.brief && (reply.intent === 'test' || reply.intent === 'both' || reply.intent === 'training'))
-      runPlan(reply.intent === 'training' ? reply.brief : buildBrief(reply), reply.intent === 'training' ? 'training' : 'simulation', { messages: [], existing: [] });
+    if (aiAllowed && !reply.error && reply.brief && reply.intent === 'training') onCreateTraining(reply.brief);
+    else if (aiAllowed && !reply.error && reply.brief && (reply.intent === 'test' || reply.intent === 'both'))
+      runPlan(buildBrief(reply), 'simulation', { messages: [], existing: [] });
   };
 
   // Started from elsewhere: the seed goes in as the company's first message
@@ -593,16 +598,23 @@ const AdvisorReply: React.FC<{
       {turn.brief && turn.intent === 'training' && (
         <div className="p-4 bg-white border border-slate-200 rounded-xl flex flex-col sm:flex-row sm:items-center gap-3">
           <div className="min-w-0 flex-1">
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Your training simulation</div>
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Your guided training</div>
             <p className="mt-1 text-sm text-slate-700 leading-relaxed">{turn.brief}</p>
           </div>
-          {!aiAllowed && (
+          {!aiAllowed ? (
             <button
               onClick={onSeePlans}
               className="create-border shrink-0 self-start sm:self-center px-4 py-2 text-sm font-semibold text-indigo-700 hover:text-indigo-900 rounded-lg inline-flex items-center gap-1.5"
             >
               <Lock className="w-3.5 h-3.5" />
               Create training
+            </button>
+          ) : (
+            <button
+              onClick={() => onBuildWithAI(turn.brief!, 'training')}
+              className="shrink-0 self-start sm:self-center px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg"
+            >
+              Open the training builder
             </button>
           )}
         </div>

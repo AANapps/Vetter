@@ -336,7 +336,7 @@ export async function fitLibraryApp(base: LibraryBase, ask: FitAsk, step: Progre
   return usable;
 }
 
-async function buildAppPage(item: RawQuestion, research?: string, mode: PageMode = {}, step: Progress = () => {}, who: PageOwner = {}): Promise<RawQuestion> {
+export async function buildAppPage(item: RawQuestion, research?: string, mode: PageMode = {}, step: Progress = () => {}, who: PageOwner = {}): Promise<RawQuestion> {
   let design: string | undefined;
   const request = (fix?: { html: string; problems: string[] }, quick?: boolean) =>
     aiFetch('/api/build-app', {
