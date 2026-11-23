@@ -76,3 +76,21 @@ Sources: [G2 – TestGorilla pricing](https://www.g2.com/products/testgorilla/pr
   plan (the record's `plan`, the higher of that and what it pays for wins), give AI credit (shows to them as "Credit
   from Praxa"), and set this period's AI usage (reset, 50%, used up, or any amount). Credit and usage need Stripe set up.
 - Saving tiers and plans needs the Firestore rules for `settings` and `companies` deployed (both are admin-only writes).
+
+## Test run 2026-11-23 (paused)
+
+- Firestore rules deployed (121/121 rule tests passed first).
+- `STRIPE_SECRET_KEY` (sk_test) in `.env.local`; Stripe customer portal is on (cancel at period end, card and invoices).
+- `scripts/stripe-check.ts` (how to run is at its top): `auto` ran 16/16 checks against real Stripe test mode: £2 trial counted
+  and used up, Praxa credit, Starter £99 limits, allowance before credit, switch to Growth charged the difference, AI credit
+  never pays the subscription, portal link, cancel at period end, pass and top-up links, usage list.
+- Real Checkout, paid with 4242 on test company `checkout-test-1`: Starter ✅, job pass ✅ (jobs 3→4), £10 top-up ✅ after fix 2.
+  Without `SITE_URL` locally, Checkout returns to localhost:3000 (expected).
+- Fixed: (1) a new company's credit read £0 for about a minute (idempotent create returned the customer as first made);
+  (2) AI credit lookups could find the subscription customer (both carry `companyId`), hiding top-ups and putting AI
+  charges where Stripe would take them off the next subscription invoice.
+- Added: **Plan and billing** in a company's name menu (not for admins, who are never charged). Before, Plans only opened from a paywall.
+
+**Left to do:** cancel in the portal for `checkout-test-1` (didn't register on the first try; get a fresh link with
+`status`, as portal links expire in minutes); confirm the Vercel variables; the same flow on the live site with a non-admin
+company account; then `sk_live_`.
