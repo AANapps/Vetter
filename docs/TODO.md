@@ -43,6 +43,8 @@ Kept up to date as work is asked for and finished. Newest items at the bottom of
 
 - **Try the five-part job simulations live.** Data Analyst, Customer Support, Software Developer and Frontend now run as Briefing, Core task, Curveball, Juggling and judgement, Report back (40 min, src/data/modules/jobSimKit.ts). Not clicked through in a browser yet: check the part timers, the emails that land mid-day, and that 40 minutes is enough. The other Tech roles' job simulations must be built with jobSimulation() too.
 
+- **AI agents: connect Praxa (planned 2026-11-23, see docs/ai-agents.md).** Build a remote MCP server with OAuth (`find_test`, `send_assessment`, `get_result`, `search_candidates`), a "Connect your AI" page, then list it in MCP registries, the Claude and ChatGPT directories and ATS partner marketplaces. Start read-only: `find_test` + `get_result`.
+
 ## Platform review (2026-11-21)
 From a code read-through of both flows (not clicked through live).
 
