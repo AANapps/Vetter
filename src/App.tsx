@@ -294,7 +294,7 @@ export default function App() {
     firebaseEnabled && user?.emailVerified && account?.status === 'active'
       ? { uid: account.uid, role: account.role, companyId: companyBusiness?.id, email: account.email }
       : null;
-  const reportCloudError = (err: unknown) => showToast(`Couldn't save or load: ${accountError(err)}`);
+  const reportCloudError = (err: unknown, what?: string) => showToast(`Couldn't ${what ?? 'save or load'}: ${accountError(err)}`);
   const cloud = useCloudData(viewer, firebaseEnabled && !accountLoading, reportCloudError);
   // Every job loaded; what this viewer may see of them is `jobs`, below
   const allJobs = cloud ? cloud.jobs : localJobs;

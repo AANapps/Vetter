@@ -122,7 +122,7 @@ function hydrateDraft(d: TestDraft): TestDraft {
 
 // Live data for whoever is looking: everyone sees jobs, tests, profiles, companies and the feed; candidates also
 // see their own applications, invitations and notifications, and companies those for their own jobs
-export function useCloudData(viewer: Viewer | null, enabled: boolean, onError: (err: unknown) => void): CloudData | null {
+export function useCloudData(viewer: Viewer | null, enabled: boolean, onError: (err: unknown, what?: string) => void): CloudData | null {
   const [parts, setParts] = useState<Record<string, unknown[]>>({});
   const [following, setFollowing] = useState<string[]>([]);
   // Library apps' code arriving for tests stored by reference (src/lib/appRefs.ts): shown once it's here
@@ -147,7 +147,7 @@ export function useCloudData(viewer: Viewer | null, enabled: boolean, onError: (
           (err) => {
             console.error(`Loading ${name} failed`, err);
             setParts((p) => ({ ...p, [name]: p[name] ?? [] }));
-            onError(err);
+            onError(err, `load ${name}`);
           }
         )
       );
@@ -188,7 +188,7 @@ export function useCloudData(viewer: Viewer | null, enabled: boolean, onError: (
         onSnapshot(
           doc(d, 'follows', viewer.uid),
           (snap) => setFollowing((snap.data()?.following as string[]) ?? []),
-          (err) => onError(err)
+          (err) => onError(err, 'load follows')
         )
       );
     }
@@ -253,10 +253,15 @@ export function useCloudData(viewer: Viewer | null, enabled: boolean, onError: (
 }
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
-const run = (writes: Promise<unknown>[], onError: (err: unknown) => void) => Promise.all(writes).catch(onError);
+// Writes, each named after its collection, so a refusal says which one
+const run = (writes: Promise<unknown>[], onError: (err: unknown, what?: string) => void, what = 'save') =>
+  Promise.all(writes).catch((err) => {
+    console.error(`Couldn't ${what}`, err);
+    onError(err, what);
+  });
 
 // Jobs: new ones and changed details, who they were sent to, and the addresses they were emailed to
-export function syncJobs(prev: JobPosting[], next: JobPosting[], onError: (err: unknown) => void) {
+export function syncJobs(prev: JobPosting[], next: JobPosting[], onError: (err: unknown, what?: string) => void) {
   const d = db();
   const writes: Promise<unknown>[] = [];
   for (const job of next) {
@@ -290,27 +295,27 @@ export function syncJobs(prev: JobPosting[], next: JobPosting[], onError: (err: 
       deleteDoc(doc(d, 'jobs', job.id, 'invitations', inv.candidateId)).catch((err) => console.warn('Removing an invitation failed', err));
     for (const email of job.invitedEmails ?? []) writes.push(deleteDoc(doc(d, 'jobs', job.id, 'emailInvites', email)));
   }
-  return run(writes, onError);
+  return run(writes, onError, 'save jobs');
 }
 
-export function syncTests(prev: AssessmentTest[], next: AssessmentTest[], onError: (err: unknown) => void) {
+export function syncTests(prev: AssessmentTest[], next: AssessmentTest[], onError: (err: unknown, what?: string) => void) {
   const changed = next.filter((t) => prev.find((p) => p.id === t.id) !== t);
   const gone = prev.filter((p) => !next.some((t) => t.id === p.id));
-  return run([...changed.map((t) => setDoc(doc(db(), 'tests', t.id), toFirestore(compactTest(t)))), ...gone.map((t) => deleteDoc(doc(db(), 'tests', t.id)))], onError);
+  return run([...changed.map((t) => setDoc(doc(db(), 'tests', t.id), toFirestore(compactTest(t)))), ...gone.map((t) => deleteDoc(doc(db(), 'tests', t.id)))], onError, 'save tests');
 }
 
-export function syncNotifications(prev: AppNotification[], next: AppNotification[], onError: (err: unknown) => void) {
+export function syncNotifications(prev: AppNotification[], next: AppNotification[], onError: (err: unknown, what?: string) => void) {
   const writes = next.flatMap((n) => {
     const old = prev.find((p) => p.id === n.id);
     if (old === n) return [];
     if (!old) return [setDoc(doc(db(), 'notifications', n.id), n)];
     return old.read !== n.read ? [updateDoc(doc(db(), 'notifications', n.id), { read: n.read })] : [];
   });
-  return run(writes, onError);
+  return run(writes, onError, 'save notifications');
 }
 
 // The feed: posts written or deleted, comments added, kudos given or taken back, and who they follow
-export function syncSocial(prev: SocialState, next: SocialState, uid: string, onError: (err: unknown) => void) {
+export function syncSocial(prev: SocialState, next: SocialState, uid: string, onError: (err: unknown, what?: string) => void) {
   const d = db();
   const writes: Promise<unknown>[] = [];
   for (const post of next.posts) if (!prev.posts.some((p) => p.id === post.id)) writes.push(setDoc(doc(d, 'posts', post.id), post));
@@ -321,7 +326,7 @@ export function syncSocial(prev: SocialState, next: SocialState, uid: string, on
     if (!prev.kudosGiven.includes(itemId)) writes.push(setDoc(doc(d, 'kudos', kudosId(itemId, uid)), { itemId, uid }));
   for (const itemId of prev.kudosGiven) if (!next.kudosGiven.includes(itemId)) writes.push(deleteDoc(doc(d, 'kudos', kudosId(itemId, uid))));
   if (!same(prev.following, next.following)) writes.push(setDoc(doc(d, 'follows', uid), { following: next.following }));
-  return run(writes, onError);
+  return run(writes, onError, 'save social');
 }
 
 // Applying: the application, which the company sees, and one more on the job's applicant count
@@ -351,54 +356,54 @@ export async function putTestDraft(draft: TestDraft) {
 }
 
 // Test drafts saved, changed or thrown away
-export function syncTestDrafts(prev: TestDraft[], next: TestDraft[], onError: (err: unknown) => void) {
+export function syncTestDrafts(prev: TestDraft[], next: TestDraft[], onError: (err: unknown, what?: string) => void) {
   const d = db();
   const writes = [
     ...next.filter((t) => !same(prev.find((p) => p.id === t.id), t)).map((t) => setDoc(doc(d, 'testDrafts', t.id), toFirestore(JSON.parse(JSON.stringify(compactDraft(t)))))),
     ...prev.filter((p) => !next.some((t) => t.id === p.id)).map((p) => deleteDoc(doc(d, 'testDrafts', p.id))),
   ];
-  return run(writes, onError);
+  return run(writes, onError, 'save test drafts');
 }
 
 // A company's own try at a test, saved for its team
-export function putTrial(trial: TrialResult, onError: (err: unknown) => void) {
-  return run([setDoc(doc(db(), 'trials', trial.id), JSON.parse(JSON.stringify(trial)))], onError);
+export function putTrial(trial: TrialResult, onError: (err: unknown, what?: string) => void) {
+  return run([setDoc(doc(db(), 'trials', trial.id), JSON.parse(JSON.stringify(trial)))], onError, 'save trial');
 }
 
 // Leads a company moved on or changed. Firestore refuses undefined, so cleared fields are left out
-export function syncLeads(prev: Lead[], next: Lead[], onError: (err: unknown) => void) {
+export function syncLeads(prev: Lead[], next: Lead[], onError: (err: unknown, what?: string) => void) {
   const changed = next.filter((l) => !same(prev.find((p) => p.id === l.id), l));
-  return run(changed.map((l) => setDoc(doc(db(), 'leads', l.id), JSON.parse(JSON.stringify(l)))), onError);
+  return run(changed.map((l) => setDoc(doc(db(), 'leads', l.id), JSON.parse(JSON.stringify(l)))), onError, 'save leads');
 }
 
 // Team invitations sent, answered or taken back, and people leaving a team
-export function syncTeam(prev: TeamMember[], next: TeamMember[], onError: (err: unknown) => void) {
+export function syncTeam(prev: TeamMember[], next: TeamMember[], onError: (err: unknown, what?: string) => void) {
   const d = db();
   const writes = [
     ...next.filter((m) => !same(prev.find((p) => p.id === m.id), m)).map((m) => setDoc(doc(d, 'teamMembers', m.id), JSON.parse(JSON.stringify(m)))),
     ...prev.filter((p) => !next.some((m) => m.id === p.id)).map((p) => deleteDoc(doc(d, 'teamMembers', p.id))),
   ];
-  return run(writes, onError);
+  return run(writes, onError, 'save team');
 }
 
 // Work given to the team, and each person's progress on it
-export function syncAssignments(prev: Assignment[], next: Assignment[], onError: (err: unknown) => void) {
+export function syncAssignments(prev: Assignment[], next: Assignment[], onError: (err: unknown, what?: string) => void) {
   const d = db();
   const writes = [
     ...next.filter((a) => !same(prev.find((p) => p.id === a.id), a)).map((a) => setDoc(doc(d, 'assignments', a.id), JSON.parse(JSON.stringify(a)))),
     ...prev.filter((p) => !next.some((a) => a.id === p.id)).map((p) => deleteDoc(doc(d, 'assignments', p.id))),
   ];
-  return run(writes, onError);
+  return run(writes, onError, 'save assignments');
 }
 
 // A company's projects, and tasks added, changed or deleted on them
-const syncById = <T extends { id: string }>(name: string) => (prev: T[], next: T[], onError: (err: unknown) => void) => {
+const syncById = <T extends { id: string }>(name: string) => (prev: T[], next: T[], onError: (err: unknown, what?: string) => void) => {
   const d = db();
   const writes = [
     ...next.filter((x) => !same(prev.find((p) => p.id === x.id), x)).map((x) => setDoc(doc(d, name, x.id), JSON.parse(JSON.stringify(x)))),
     ...prev.filter((p) => !next.some((x) => x.id === p.id)).map((p) => deleteDoc(doc(d, name, p.id))),
   ];
-  return run(writes, onError);
+  return run(writes, onError, `save ${name}`);
 };
 export const syncProjects = syncById<Project>('projects');
 export const syncProjectTasks = syncById<ProjectTask>('projectTasks');
