@@ -63,7 +63,7 @@ Agreed as the direction to build towards. Supersedes the "Plans" table above onc
 - Paid: AI builder + AI job sims (allowance, top-ups beyond), library job sims (Growth+), full candidate reports
   (integrity, answers, sim replay, why they fit; free shows score only), candidate pool search + invites, more jobs and
   seats, branding/CSV (Scale), ATS/SSO (Enterprise).
-- Project Manager (Projects & CRM, Team, Training): £99/mo add-on or Scale only. Live training bookings charged per booking.
+- Project Manager (Projects & CRM, Team, Training): ~~£99/mo add-on or Scale only~~ replaced 2026-11-23: free CRM, dashboards and AI tasks in the paid plans (see "Free CRM, paid dashboards and AI (2026-11-23)"). Live training bookings charged per booking.
 - Per job priced above Starter on purpose: one-off income isn't MRR.
 - Annual = 2 months free.
 - Path to £10k: e.g. 30 Starter + 20 Growth + 4 Scale ≈ £10.1k, about 55 paying companies.
@@ -165,6 +165,39 @@ Every check runs off one number: the credit on the company's Stripe customer.
    used up" before offering a top-up.
 
 Recommended first: 1 and the banner from 2. Not built yet.
+
+## Free CRM, paid dashboards and AI (2026-11-23, agreed, not built)
+
+The Projects & CRM side (boards, tasks, CRM) is free, including Claude and ChatGPT connected to it. Dashboards and
+Praxa's own AI are in the paid plans. Replaces the £99 Project Manager add-on.
+
+| | Free | Starter | Growth | Scale |
+|---|---|---|---|---|
+| Boards, CRM, connector (read, create, update, delete) | ✔ capped | ✔ | ✔ | ✔ |
+| Basic "my week" view | ✔ | ✔ | ✔ | ✔ |
+| Saved dashboards made by AI | – | 3 | 10 | Unlimited |
+| Weekly summaries (email) | – | Numbers | Numbers + AI text | Numbers + AI text |
+| Praxa's own AI tasks | £2 trial | Allowance | Allowance | Allowance |
+
+- **Free caps** (to set): e.g. 3 boards, 500 CRM records, 5 members, a daily limit on connector calls (AI tools can
+  make hundreds).
+- **Why free is affordable:** in Claude or ChatGPT the person's own subscription pays for the AI; Praxa pays only for
+  the server and database.
+- **AI tasks = Praxa-side AI only** (Ask AI, written summaries, auto-filling records), charged to the plan's AI
+  allowance like tests. What someone's own Claude does through the connector is free and not blocked.
+- **Always free:** the bin and undo for deletions (30 days), and "Hire for this" from a board, which leads into paid hiring.
+- **Dashboards:** the AI sends a description (charts, source board, grouping, filters), never code; Praxa stores it and
+  draws it from live data, so no AI cost to keep it current. Weekly summaries run on a schedule in Praxa (Claude and
+  ChatGPT can't push on a timer); numbers cost nothing, AI-written text comes out of the allowance.
+- **The moat isn't the CRM** (monday, Asana, Notion, Linear already have Claude connectors). It's the link to
+  Praxa's skills: real work next to test scores (which scores predict good work), hiring from a board, training from
+  the work, and verified work history on candidates' profiles. Present it as "where your team's work and skills live".
+
+**Before building:** (1) Firebase admin key and server permission checks (also anti-cheat step 1), (2) finish
+workspaces (permissions, rules deploy, workspaces manager, `WORKSPACES_OPEN`), (3) sign-in for the connector (OAuth;
+Firebase sign-in doesn't provide it), (4) privacy policy and data terms (CRM contacts go to OpenAI and Anthropic).
+**Order:** read-only connector → write tools with the bin → saved dashboards → weekly summaries → hiring hooks,
+in-chat widget, directory listings. See `docs/ai-agents.md` for the hiring connector.
 
 ## Principles
 
