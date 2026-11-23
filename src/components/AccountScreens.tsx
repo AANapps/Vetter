@@ -22,6 +22,7 @@ import {
   watchMemberRequests,
 } from '../lib/accounts';
 import { Pulse } from './Pulse';
+import { usePlan } from '../lib/plan';
 
 // What a signed-in person sees before they can use Praxa: verify their email, then (for companies) wait while
 // their company is set up, a colleague approves them, or Praxa's team reviews them
@@ -241,6 +242,15 @@ export const TeamRequests: React.FC<{ company: Company }> = ({ company }) => {
   const [error, setError] = useState<string | null>(null);
   useEffect(() => watchMemberRequests(company.id, setRequests), [company.id]);
   const pending = requests.filter((r) => r.status === 'pending-approval');
+  const plan = usePlan();
+  const seatsUsed = 1 + requests.filter((r) => r.status === 'active').length;
+  const approve = (uid: string) => {
+    if (plan.status.billing && seatsUsed >= plan.info.seats)
+      return plan.upgrade(
+        `Your ${plan.info.name} plan has ${plan.info.seats} seat${plan.info.seats === 1 ? '' : 's'}, and ${seatsUsed === 1 ? 'yours is' : 'all are'} in use. Upgrade to add colleagues.`
+      );
+    decideMember(company.id, uid, true).catch((err) => setError(accountError(err)));
+  };
   if (pending.length === 0) return null;
   return (
     <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-6">
@@ -257,7 +267,7 @@ export const TeamRequests: React.FC<{ company: Company }> = ({ company }) => {
               </span>
               <span className="flex gap-2">
                 <button
-                  onClick={() => decideMember(company.id, r.uid, true).catch((err) => setError(accountError(err)))}
+                  onClick={() => approve(r.uid)}
                   className="px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg"
                 >
                   Approve

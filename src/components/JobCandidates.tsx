@@ -1,5 +1,6 @@
 import { LEAD_STAGES } from '../lib/leads';
 import React, { useState } from 'react';
+import { Locked, usePlan } from '../lib/plan';
 import { Pic } from './Pic';
 import { CandidateJobMatch, JobPosting, User } from '../types';
 import { rankCandidatesForJob } from '../lib/matchingAlgorithm';
@@ -95,7 +96,11 @@ export const JobCandidates: React.FC<JobCandidatesProps> = ({ job, allCandidates
 
   const people = new Map(allCandidates.map((c) => [c.id, c]));
   const hasApplied = (id: string) => !!people.get(id)?.appliedJobIds?.includes(job.id);
-  const ranked = rankCandidatesForJob(allCandidates, job);
+  const plan = usePlan();
+  const poolOpen = plan.can('pool-search');
+  const everyone = rankCandidatesForJob(allCandidates, job);
+  // Applicants past the plan's limit stay hidden here as in the pipeline; others from the pool need pool search
+  const ranked = everyone.filter((c) => (hasApplied(c.candidateId) ? !plan.hiddenLeads?.has(`${job.id}__${c.candidateId}`) : poolOpen));
   const applicants = ranked.filter((c) => hasApplied(c.candidateId)).length;
   const filtered = ranked.filter((c) => (!appliedOnly || hasApplied(c.candidateId)) && (!meetsRequiredOnly || c.meetsAllHardRequirements));
   const sittings = new Map(filtered.map((c) => [c.candidateId, sittingsFor(people.get(c.candidateId)!, job, testTitles)]));

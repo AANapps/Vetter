@@ -519,7 +519,7 @@ export interface Business {
   hiddenTests?: string[];
 }
 
-export type BusinessPlan = 'free' | 'per-job' | 'growth' | 'scale';
+export type BusinessPlan = 'free' | 'per-job' | 'starter' | 'growth' | 'scale' | 'enterprise';
 // AI-written tests and simulations come with any paid plan
 export const hasAiTests = (business?: Business) => !!business?.plan && business.plan !== 'free';
 

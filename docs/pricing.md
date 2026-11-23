@@ -67,8 +67,22 @@ Agreed as the direction to build towards. Supersedes the "Plans" table above onc
 - Per job priced above Starter on purpose: one-off income isn't MRR.
 - Annual = 2 months free.
 - Path to £10k: e.g. 30 Starter + 20 Growth + 4 Scale ≈ £10.1k, about 55 paying companies.
-- Before charging: fix the verified-skill/pass-mark issues (docs/TODO.md platform review), Stripe subscriptions,
-  build the monthly AI allowance, turn off `AI_TESTS_FOR_ALL`.
+- Built 2026-11-23: Stripe subscriptions, the job pass and the monthly AI allowance (README "Plans and paywalls").
+  `AI_TESTS_FOR_ALL` stays on: every company can use AI, and the server stops it when the allowance and credit run out.
+
+### How it's charged (2026-11-23)
+
+- **Subscriptions, not per-test charges.** Monthly recurring revenue is the goal, and per-test prices put companies
+  off the feature that sets Praxa apart. AI is metered only as an allowance so heavy users can't cost more than they pay.
+- **The free plan sells the upgrade.** It's useful (a real job, real scores) but stops where value shows: candidates
+  past 15 are counted but hidden, and the full report (integrity, answers, replay, fit) is shown locked with an
+  Upgrade button. Locked features are visible, not hidden, so companies see what they'd get.
+- **Every paywall names the plan that unlocks it** and opens the plans dialog with the reason at the top.
+- **Upgrades take effect at once** with the difference charged now (prorated); cancelling runs to the end of the period.
+- **Annual = 10 months**, shown as the default on the pricing page, for cash up front and lower churn.
+- **Per job is priced above Starter** (£149 v £99) so anyone hiring twice is nudged to subscribe.
+- Competitors for reference (November 2026, third-party figures, check before quoting): TestGorilla from about
+  $1,600–1,700/year; HackerRank paid plans reported from about $100–165/month; Vervoe mostly quote-only.
 
 ## AI credit and plans (November 2026)
 

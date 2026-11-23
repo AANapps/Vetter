@@ -62,7 +62,7 @@ export interface Company {
   // The sector it hires in, picked at sign-up and changed on Your jobs
   sector?: SectorId;
   // The plan it pays for, set by the Praxa team
-  plan?: 'free' | 'per-job' | 'growth' | 'scale';
+  plan?: 'free' | 'per-job' | 'starter' | 'growth' | 'scale' | 'enterprise';
 }
 
 export interface MemberRequest {

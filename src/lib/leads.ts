@@ -277,3 +277,24 @@ export function leadsCsv(rows: LeadRow[]) {
   ]);
   return [header, ...lines].map((l) => l.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
 }
+
+// The candidates a company's plan lets it see on each job: the first ones, by when they joined it. limit is per job
+export function withinApplicantLimit(rows: LeadRow[], limit: number): LeadRow[] {
+  if (!Number.isFinite(limit)) return rows;
+  const byJob = new Map<string, LeadRow[]>();
+  for (const r of rows) byJob.set(r.job.id, [...(byJob.get(r.job.id) ?? []), r]);
+  const shown = new Set(
+    [...byJob.values()].flatMap((list) =>
+      [...list].sort((a, b) => a.addedAt.localeCompare(b.addedAt) || a.candidate.id.localeCompare(b.candidate.id)).slice(0, limit).map((r) => r.id)
+    )
+  );
+  return rows.filter((r) => shown.has(r.id));
+}
+
+// How many wait behind the limit on each job
+export function lockedByJob(all: LeadRow[], shown: LeadRow[]): Record<string, number> {
+  const ids = new Set(shown.map((r) => r.id));
+  const out: Record<string, number> = {};
+  for (const r of all) if (!ids.has(r.id)) out[r.job.id] = (out[r.job.id] ?? 0) + 1;
+  return out;
+}

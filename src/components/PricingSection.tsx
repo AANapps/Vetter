@@ -2,15 +2,16 @@ import React, { useState } from 'react';
 import { Check, Minus, Sparkles } from 'lucide-react';
 import { useCurrency } from '../lib/currency';
 import { CurrencyPicker } from './CurrencyPicker';
+import { PASS_DAYS, PLANS as PRICES, PlanId } from '../../server/plans';
 
 type Billing = 'monthly' | 'annual';
 
 interface Plan {
-  id: string;
+  id: PlanId;
   name: string;
   tagline: string;
-  // Price per month (or per job); annual plans show the monthly equivalent and the yearly total
-  price: { monthly: number; annual: number } | null;
+  // Price per month; annual plans show the monthly equivalent and the yearly total
+  price: { monthly: number; annual: number };
   // What an annual plan costs for the year: ten months' price
   billedYearly?: number;
   unit: string;
@@ -19,83 +20,95 @@ interface Plan {
   popular?: boolean;
 }
 
+// Prices and limits come from server/plans.ts, the list Stripe charges from
+const priced = (id: PlanId) => {
+  const m = PRICES[id].monthly;
+  return { price: { monthly: m, annual: Math.round((m * 10) / 12) }, ...(m && { billedYearly: m * 10 }) };
+};
+const ai = (id: PlanId) => `£${PRICES[id].aiAllowance / 100} of AI test building ${id === 'free' ? 'to try' : 'a month'}`;
+
 const PLANS: Plan[] = [
   {
     id: 'free',
     name: 'Free',
     tagline: 'Try Praxa on a real role',
-    price: { monthly: 0, annual: 0 },
+    ...priced('free'),
     unit: 'forever',
     cta: 'Start free',
-    highlights: ['1 active job', 'Up to 25 candidates', 'Praxa’s library of tests', 'Ranked leaderboard'],
+    highlights: ['1 open job', `First ${PRICES.free.applicantsPerJob} candidates per job`, 'Praxa’s library of skills tests', 'Ranked by score', ai('free')],
   },
   {
-    id: 'per-job',
-    name: 'Per job',
-    tagline: 'For the odd hire, with no subscription',
-    price: { monthly: 79, annual: 79 },
-    unit: 'per job',
-    cta: 'Post a job',
-    highlights: ['1 job, open for 30 days', 'Unlimited candidates', 'AI-written tests and simulations', 'AI marking of code and SQL'],
+    id: 'starter',
+    name: 'Starter',
+    tagline: 'For small teams hiring now and then',
+    ...priced('starter'),
+    unit: 'per month',
+    cta: 'Start with Starter',
+    highlights: [`${PRICES.starter.jobs} open jobs`, 'Unlimited candidates', 'Full candidate reports', `${PRICES.starter.seats} team seats`, ai('starter')],
   },
   {
     id: 'growth',
     name: 'Growth',
     tagline: 'For teams hiring every month',
-    price: { monthly: 149, annual: 124 },
-    billedYearly: 1490,
+    ...priced('growth'),
     unit: 'per month',
     cta: 'Start with Growth',
     popular: true,
-    highlights: ['Up to 5 active jobs', 'Everything in Per job', '3 team seats', 'CSV export of results'],
+    highlights: [`${PRICES.growth.jobs} open jobs`, 'Praxa’s ready-made job simulations', 'Search and invite tested candidates', `${PRICES.growth.seats} team seats`, ai('growth')],
   },
   {
     id: 'scale',
     name: 'Scale',
     tagline: 'For busy hiring teams',
-    price: { monthly: 349, annual: 291 },
-    billedYearly: 3490,
+    ...priced('scale'),
     unit: 'per month',
     cta: 'Start with Scale',
-    highlights: ['Unlimited jobs', 'Unlimited team seats', 'Your branding on tests', 'Priority support'],
+    highlights: ['Unlimited jobs and seats', 'CSV export', 'Your branding on tests', 'Priority support', ai('scale')],
   },
 ];
 
 // The comparison table: true is a tick, false a dash, text is shown as is. Columns follow PLANS
 type Cell = boolean | string;
+const money = (p: number) => `£${p / 100}`;
 const COMPARISON: { group: string; rows: { label: string; cells: [Cell, Cell, Cell, Cell] }[] }[] = [
   {
     group: 'Hiring',
     rows: [
-      { label: 'Active jobs', cells: ['1', '1 per purchase', 'Up to 5', 'Unlimited'] },
-      { label: 'Candidates per job', cells: ['25', 'Unlimited', 'Unlimited', 'Unlimited'] },
+      { label: 'Open jobs', cells: ['1', String(PRICES.starter.jobs), String(PRICES.growth.jobs), 'Unlimited'] },
+      { label: 'Candidates per job', cells: [String(PRICES.free.applicantsPerJob), 'Unlimited', 'Unlimited', 'Unlimited'] },
       { label: 'Job listed on Praxa and Google Jobs', cells: [true, true, true, true] },
       { label: 'Invite candidates by email or link', cells: [true, true, true, true] },
+      { label: 'Search and invite Praxa’s tested candidates', cells: [false, false, true, true] },
     ],
   },
   {
     group: 'Tests',
     rows: [
-      { label: 'Praxa’s library of tests', cells: [true, true, true, true] },
-      { label: 'AI-written tests for your role', cells: [false, true, true, true] },
-      { label: '15-minute job simulations', cells: [false, true, true, true] },
-      { label: 'AI marking with partial credit', cells: [false, true, true, true] },
-      { label: 'Edit and build your own tests', cells: [false, true, true, true] },
+      { label: 'Praxa’s library of skills tests', cells: [true, true, true, true] },
+      { label: 'Praxa’s ready-made job simulations', cells: [false, false, true, true] },
+      { label: 'AI-built tests and job simulations', cells: ['Trial', true, true, true] },
+      {
+        label: 'AI included',
+        cells: [`${money(PRICES.free.aiAllowance)} once`, `${money(PRICES.starter.aiAllowance)}/mo`, `${money(PRICES.growth.aiAllowance)}/mo`, `${money(PRICES.scale.aiAllowance)}/mo`],
+      },
+      { label: 'Top up AI credit any time', cells: [false, true, true, true] },
+      { label: 'Write and edit your own tests', cells: [true, true, true, true] },
     ],
   },
   {
     group: 'Results',
     rows: [
-      { label: 'Ranked leaderboard per job', cells: [true, true, true, true] },
-      { label: 'Answer-by-answer review', cells: [true, true, true, true] },
-      { label: 'CSV export', cells: [false, false, true, true] },
-      { label: 'Search Praxa’s pool of tested candidates', cells: [false, false, true, true] },
+      { label: 'Scores and ranking', cells: [true, true, true, true] },
+      { label: 'Integrity report', cells: [false, true, true, true] },
+      { label: 'Answer-by-answer review and job simulation replay', cells: [false, true, true, true] },
+      { label: 'Why each candidate fits', cells: [false, true, true, true] },
+      { label: 'CSV export', cells: [false, false, false, true] },
     ],
   },
   {
     group: 'Team and support',
     rows: [
-      { label: 'Team seats', cells: ['1', '1', '3', 'Unlimited'] },
+      { label: 'Team seats', cells: ['1', String(PRICES.starter.seats), String(PRICES.growth.seats), 'Unlimited'] },
       { label: 'Your branding on tests', cells: [false, false, false, true] },
       { label: 'Support', cells: ['Email', 'Email', 'Email', 'Priority'] },
     ],
@@ -108,19 +121,26 @@ const FAQS = [
     a: 'No. Praxa is free for candidates, always. They keep their scores and can use them for other jobs.',
   },
   {
-    q: 'What counts as an active job?',
+    q: 'What counts as an open job?',
     a: 'A job that is open to applicants. Close a job and it stops counting, and its results stay for you to look back on.',
   },
   {
     q: 'Can I change plans later?',
-    a: 'Yes, at any time. Upgrades take effect straight away; downgrades take effect at the end of the billing period.',
+    a: 'Yes, at any time. You pay or are credited the difference for the rest of the month, and can cancel whenever you like.',
   },
   {
-    q: 'What happens after my 30-day job ends?',
-    a: 'It closes to new applicants and you keep every result. You can reopen it for another 30 days by buying another job.',
+    q: 'What is the AI allowance?',
+    a: 'Building tests and job simulations with Praxa’s AI uses it. A full test is usually £1–£4. It resets each month; if you run out you can top up, and bought credit never expires.',
+  },
+  {
+    q: 'Hiring just once?',
+    a: `Buy a job pass for ${'£'}${PRICES['per-job'].monthly}: one more open job for ${PASS_DAYS} days with unlimited candidates, full reports and £${PRICES['per-job'].aiAllowance / 100} of AI. No subscription.`,
+  },
+  {
+    q: 'Do you add VAT?',
+    a: 'Prices are in pounds sterling. Enter your VAT number at checkout and it appears on every invoice.',
   },
 ];
-
 
 const CellMark: React.FC<{ value: Cell }> = ({ value }) =>
   value === true ? (
@@ -131,8 +151,12 @@ const CellMark: React.FC<{ value: Cell }> = ({ value }) =>
     <span className="text-slate-700">{value}</span>
   );
 
-// Pricing for companies, on the business landing page: plan cards, a monthly/annual switch, a full comparison and common questions
-export const PricingSection: React.FC<{ onChoosePlan: (planId: string) => void }> = ({ onChoosePlan }) => {
+// current: the company's plan, when it's signed in (its card says so); busy: the plan being opened for payment
+export const PricingSection: React.FC<{ onChoosePlan: (planId: string, interval: 'month' | 'year') => void; current?: PlanId; busy?: string | null }> = ({
+  onChoosePlan,
+  current,
+  busy,
+}) => {
   const [billing, setBilling] = useState<Billing>('annual');
   // Plans are priced in pounds and shown in the visitor's currency
   const { code, money } = useCurrency();
@@ -192,12 +216,13 @@ export const PricingSection: React.FC<{ onChoosePlan: (planId: string) => void }
                 {yearly ? `${formatPrice(yearly)} billed yearly` : plan.unit === 'forever' ? 'No card needed' : plan.unit === 'per job' ? 'Pay once, no subscription' : 'Billed monthly'}
               </p>
               <button
-                onClick={() => onChoosePlan(plan.id)}
-                className={`mt-6 w-full py-2.5 rounded-full text-sm font-semibold transition-colors ${
+                onClick={() => onChoosePlan(plan.id, billing === 'annual' ? 'year' : 'month')}
+                disabled={current === plan.id || !!busy || (!!current && plan.id === 'free')}
+                className={`mt-6 w-full py-2.5 rounded-full text-sm font-semibold transition-colors disabled:opacity-60 ${
                   plan.popular ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-slate-900 text-white hover:bg-slate-700'
                 }`}
               >
-                {plan.cta}
+                {current === plan.id ? 'Your plan' : busy === plan.id ? 'Opening…' : current && plan.id === 'free' ? 'Cancel from Manage billing' : current && current !== 'free' ? `Switch to ${plan.name}` : plan.cta}
               </button>
               <ul className="mt-6 space-y-2.5 text-sm text-slate-700">
                 {plan.highlights.map((h) => (
@@ -212,6 +237,25 @@ export const PricingSection: React.FC<{ onChoosePlan: (planId: string) => void }
         })}
       </div>
 
+      {/* Per job */}
+      <div className="mt-4 rounded-2xl border border-slate-200 p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8">
+        <div className="flex-1">
+          <h2 className="text-lg font-bold text-slate-900">
+            Per job <span className="text-slate-500 font-semibold tabular-nums">{formatPrice(PRICES['per-job'].monthly)}</span>
+          </h2>
+          <p className="mt-1 text-sm text-slate-600">
+            Hiring just once? One more open job for {PASS_DAYS} days, with unlimited candidates, full reports and £{PRICES['per-job'].aiAllowance / 100} of AI. Pay once, no subscription.
+          </p>
+        </div>
+        <button
+          onClick={() => onChoosePlan('per-job', 'month')}
+          disabled={!!busy}
+          className="shrink-0 px-5 py-2.5 rounded-full bg-slate-900 text-white text-sm font-semibold text-center hover:bg-slate-700 disabled:opacity-60"
+        >
+          {busy === 'per-job' ? 'Opening…' : 'Buy a job pass'}
+        </button>
+      </div>
+
       {/* Enterprise */}
       <div className="mt-4 rounded-2xl bg-slate-900 text-white p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8">
         <div className="flex-1">
@@ -221,7 +265,7 @@ export const PricingSection: React.FC<{ onChoosePlan: (planId: string) => void }
           </p>
         </div>
         <button
-          onClick={() => onChoosePlan('enterprise')}
+          onClick={() => onChoosePlan('enterprise', 'month')}
           className="shrink-0 px-5 py-2.5 rounded-full bg-white text-slate-900 text-sm font-semibold text-center hover:bg-slate-100"
         >
           Talk to us
@@ -285,7 +329,7 @@ export const PricingSection: React.FC<{ onChoosePlan: (planId: string) => void }
       <section className="mt-20 text-center">
         <h2 className="text-2xl font-extrabold tracking-tight text-slate-900">Your first job is free</h2>
         <p className="mt-2 text-slate-600">Post it, send the tests, and see your candidates ranked by what they can do.</p>
-        <button onClick={() => onChoosePlan('free')} className="mt-6 px-6 py-3 rounded-full bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700">
+        <button onClick={() => onChoosePlan('free', 'month')} className="mt-6 px-6 py-3 rounded-full bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700">
           Create a company account
         </button>
       </section>

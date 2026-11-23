@@ -1,6 +1,7 @@
 import { RichText } from './RichText';
 import React, { useEffect, useState } from 'react';
 import { AlertCircle, CheckCircle2, ChevronDown, Loader2, X, XCircle } from 'lucide-react';
+import { usePlan } from '../lib/plan';
 import { AnswerRecord, Submission, loadSubmissions } from '../lib/submissions';
 import { QUESTION_STYLES } from '../lib/questionTypes';
 
@@ -25,8 +26,16 @@ export const AnswersDialog: React.FC<AnswersDialogProps> = ({ businessId, candid
   const [subs, setSubs] = useState<Submission[] | null>(null);
   const [error, setError] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
+  const { can, upgrade } = usePlan();
+  const allowed = can('full-reports');
+  useEffect(() => {
+    if (allowed) return;
+    upgrade('Answer-by-answer review comes with every paid plan. The free plan shows each candidate’s score.');
+    onClose();
+  }, [allowed]);
 
   useEffect(() => {
+    if (!allowed) return;
     loadSubmissions(businessId, candidateId)
       .then((all) => {
         const shown = testIds ? all.filter((s) => testIds.includes(s.testId)) : all;

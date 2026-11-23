@@ -19,7 +19,9 @@ import { changePlan } from './changePlan.js';
 import { runCode } from './runCode.js';
 import { matchEnvironment } from './matchEnvironment.js';
 import { metered } from './meter.js';
-import { PACKS, balanceFor, billingOn, charge, confirmTopUp, hasEnough, penceFor, startTopUp, usageFor, whoIsAsking } from './credits.js';
+import { PACKS, billingOn, charge, confirmTopUp, hasEnough, penceFor, startTopUp, usageFor, whoIsAsking } from './credits.js';
+import { aiLeft, billingFor, buyPass, canTopUp, forget, portal, publicStatus, spent, subscribe } from './billing.js';
+import { PlanId, SUBSCRIPTIONS } from './plans.js';
 
 // The AI endpoints, answered by server.ts in production and the Vite dev server in development
 type Env = Record<string, string | undefined>;
@@ -67,18 +69,25 @@ const billed =
     const caller = await whoIsAsking(meta?.authorization, env);
     if (caller.kind === 'none') return { status: 401, json: { error: caller.reason } };
     if (caller.kind === 'admin') return handler(body, env, meta);
+    // The plan's included AI is spent first (server/billing.ts), then bought credit
+    let period = '';
+    let included = 0;
     try {
-      const balance = await balanceFor(env, caller.companyId);
-      if (!hasEnough(balance)) return { status: 402, json: { error: 'no-credit', balance } };
+      const plan = await billingFor(env, caller.companyId, caller.token);
+      const left = aiLeft(plan);
+      if (!hasEnough(left)) return { status: 402, json: { error: 'no-credit', balance: left, plan: plan.plan, canTopUp: canTopUp(plan) } };
+      period = plan.period;
+      included = Math.max(0, plan.ai.allowance - plan.ai.used);
     } catch (err) {
-      console.error(`[${name}] couldn't read the credit balance`, err);
+      console.error(`[${name}] couldn't read the plan or credit`, err);
       return { status: 503, json: { error: BUSY } };
     }
     const { result, usd } = await metered(() => handler(body, env, meta));
     const pence = penceFor(usd, env);
     try {
-      await charge(env, caller.companyId, pence, name, meta?.purpose ?? '');
-      console.log(`[${name}] ${caller.companyId} charged ${pence}p ($${usd.toFixed(3)} at cost)`);
+      await charge(env, caller.companyId, pence, name, meta?.purpose ?? '', { pence: included, period });
+      spent(caller.companyId, pence);
+      console.log(`[${name}] ${caller.companyId} charged ${pence}p (${Math.min(pence, included)}p included; $${usd.toFixed(3)} at cost)`);
     } catch (err) {
       console.error(`[${name}] couldn't charge ${caller.companyId} ${pence}p`, err);
     }
@@ -94,22 +103,57 @@ async function credits(body: unknown, env: Env, meta?: RequestMeta): Promise<{ s
   if (caller.kind === 'none') return { status: 401, json: { error: caller.reason } };
   try {
     if (req.action === 'top-up') {
+      if (!canTopUp(await billingFor(env, caller.companyId, caller.token)))
+        return { status: 403, json: { error: 'Buying AI credit comes with a paid plan. The free plan includes a £2 trial.' } };
       const pence = Number(req.pence);
       if (!PACKS.includes(pence)) return { status: 400, json: { error: 'Pick one of the credit packs.' } };
       return { status: 200, json: { url: await startTopUp(env, caller.companyId, pence, meta?.origin ?? '') } };
     }
     if (req.action === 'usage') return { status: 200, json: { billing: true, usage: await usageFor(env, caller.companyId) } };
-    if (req.action === 'confirm' && req.sessionId)
+    if (req.action === 'confirm' && req.sessionId) {
+      forget(caller.companyId);
       return { status: 200, json: { billing: true, packs: PACKS, ...(await confirmTopUp(env, caller.companyId, req.sessionId)) } };
-    return { status: 200, json: { billing: true, packs: PACKS, balance: await balanceFor(env, caller.companyId) } };
+    }
+    // What's left to spend: the plan's included AI, then bought credit
+    const plan = await billingFor(env, caller.companyId, caller.token);
+    return { status: 200, json: { billing: true, packs: PACKS, balance: aiLeft(plan), credit: plan.ai.credit, included: Math.max(0, plan.ai.allowance - plan.ai.used) } };
   } catch (err) {
     console.error('[credits]', err);
     return { status: 502, json: { error: "Couldn't reach the payment service. Try again in a moment." } };
   }
 }
 
+// The company's plan: what it has, and paying for one (a subscription, a job pass, Stripe's billing page). Only the
+// company's owner can pay or change it
+async function billing(body: unknown, env: Env, meta?: RequestMeta): Promise<{ status: number; json: unknown }> {
+  if (!billingOn(env)) return { status: 200, json: { billing: false } };
+  const req = (body ?? {}) as { action?: string; plan?: string; interval?: string };
+  const caller = await whoIsAsking(meta?.authorization, env);
+  if (caller.kind === 'admin') return { status: 200, json: { billing: false } };
+  if (caller.kind === 'none') return { status: 401, json: { error: caller.reason } };
+  try {
+    if (req.action === 'refresh') forget(caller.companyId);
+    const plan = await billingFor(env, caller.companyId, caller.token);
+    if (['subscribe', 'pass', 'portal'].includes(req.action ?? '') && plan.ownerUid && plan.ownerUid !== caller.uid)
+      return { status: 403, json: { error: 'Only the person who set up your company’s account can change its plan. Ask them to do it.' } };
+    const origin = meta?.origin ?? '';
+    if (req.action === 'subscribe') {
+      if (!(SUBSCRIPTIONS as string[]).includes(req.plan ?? '')) return { status: 400, json: { error: 'Pick one of the plans.' } };
+      const out = await subscribe(env, caller.companyId, plan, req.plan as PlanId, req.interval === 'year' ? 'year' : 'month', origin);
+      return { status: 200, json: out.switched ? { switched: true, ...publicStatus(await billingFor(env, caller.companyId, caller.token)) } : out };
+    }
+    if (req.action === 'pass') return { status: 200, json: { url: await buyPass(env, caller.companyId, plan, origin) } };
+    if (req.action === 'portal') return { status: 200, json: { url: await portal(env, plan, origin) } };
+    return { status: 200, json: publicStatus(plan) };
+  } catch (err) {
+    console.error('[billing]', err);
+    return { status: 502, json: { error: "Couldn't reach the payment service. Try again in a moment." } };
+  }
+}
+
 export const API_ROUTES: Record<string, Handler> = {
   '/api/credits': logged('credits', credits),
+  '/api/billing': logged('billing', billing),
   '/api/generate-test': logged('generate-test', billed('generate-test', (body, env) => generateTest(body, env.ANTHROPIC_API_KEY, testModel(env)))),
   '/api/test-chat': logged('test-chat', billed('test-chat', (body, env) => testChat(body, env.ANTHROPIC_API_KEY, testModel(env)))),
   // A new test in stages, each request short enough for the host's time limit: the plan, then every section written in

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ShieldAlert, ShieldCheck, X } from 'lucide-react';
+import { Locked, usePlan } from '../lib/plan';
 import { IntegrityEvent, IntegrityEventType, IntegritySitting, LEVELS, integrityOf, levelFor, suspicionPoints, suspicionScore } from '../lib/integrity';
 
 export type { IntegritySitting };
@@ -28,6 +29,8 @@ const duration = (secs: number) => (secs < 60 ? `${secs}s` : `${Math.floor(secs 
 // A coloured label, green clean to red highly suspicious, that opens to every count behind it
 export const IntegrityBadge: React.FC<{ sittings: IntegritySitting[]; size?: 'sm' | 'md' }> = ({ sittings, size = 'sm' }) => {
   const [open, setOpen] = useState(false);
+  // The integrity report is part of the full report, on paid plans
+  if (!usePlan().can('full-reports')) return <Locked compact feature="full-reports" title="Integrity report" />;
   if (sittings.length === 0)
     return (
       <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-500 bg-slate-50 border border-slate-200 rounded-full px-2 py-0.5" title="No monitoring data for these results">

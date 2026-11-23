@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Check, CreditCard, ExternalLink, X } from 'lucide-react';
 import { Credit, UsageEntry, loadCredit, loadUsage, pounds, topUpUrl, usageLines } from '../lib/aiRequest';
+import { PLANS, usePlan } from '../lib/plan';
 
 interface CreditsDialogProps {
   credit: Credit;
@@ -60,6 +61,9 @@ export const CreditsDialog: React.FC<CreditsDialogProps> = ({ credit, onUpdated,
   };
 
   const packs = credit.packs?.length ? credit.packs : DEFAULT_PACKS;
+  // Buying credit comes with a paid plan; the free plan's trial ends in a choice of plan instead
+  const plan = usePlan();
+  const mustUpgrade = plan.status.billing && !plan.can('ai-top-ups');
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
       <div role="dialog" aria-modal="true" aria-label="AI credit" className="bg-white rounded-2xl max-w-md w-full max-h-[calc(100dvh-2rem)] overflow-y-auto shadow-2xl">
@@ -84,6 +88,22 @@ export const CreditsDialog: React.FC<CreditsDialogProps> = ({ credit, onUpdated,
               </p>
               <button onClick={onClose} className="w-full px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg">
                 Carry on
+              </button>
+            </div>
+          ) : mustUpgrade ? (
+            <div className="space-y-3">
+              <p className="text-sm text-slate-600">
+                The free plan includes {pounds(PLANS.free.aiAllowance)} of AI to try Praxa. Choose a plan to keep building tests and job simulations: Starter includes{' '}
+                {pounds(PLANS.starter.aiAllowance)} a month, Growth {pounds(PLANS.growth.aiAllowance)}, and you can top up any time.
+              </p>
+              <button
+                onClick={() => {
+                  onClose();
+                  plan.upgrade('Keep building with Praxa’s AI');
+                }}
+                className="w-full px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg"
+              >
+                See plans
               </button>
             </div>
           ) : paying !== null ? (

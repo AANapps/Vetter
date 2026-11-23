@@ -1196,7 +1196,7 @@ export async function proposePlan(
   if (failure) {
     const text =
       failure === 'no-credit'
-        ? "You've used up your AI credit. Top up to carry on: this conversation is kept, and I'll pick up right here."
+        ? "You've used the AI included in your plan and any credit. Top up or upgrade to carry on: this conversation is kept, and I'll pick up right here."
         : failure === 'not-configured'
         ? NOT_CONFIGURED
         : failure;
@@ -1291,7 +1291,7 @@ async function proposeChange(state: ChatState, messages: ChatMessage[], ctx: Cha
   list.finish();
   if (res.failure) {
     if (res.failure === 'no-credit')
-      return { ...state, messages: [...messages, { role: 'assistant', text: "You've used up your AI credit. Top up to carry on: your test and this conversation are kept, and I'll pick up right here.", failed: true, needsCredit: true }] };
+      return { ...state, messages: [...messages, { role: 'assistant', text: "You've used the AI included in your plan and any credit. Top up or upgrade to carry on: your test and this conversation are kept, and I'll pick up right here.", failed: true, needsCredit: true }] };
     return { ...state, messages: [...messages, { role: 'assistant', text: res.failure === 'not-configured' ? NOT_CONFIGURED : res.failure, failed: true }] };
   }
   const out = res.body as { action?: string; reply?: string; steps?: string[]; edits?: { app: string; change: string }[]; rewrite?: string };
@@ -1435,7 +1435,7 @@ async function runTurn(state: ChatState, text: string, ctx: ChatContext, progres
     if (failure === 'no-credit')
       return {
         ...state,
-        messages: [...messages, { role: 'assistant', text: "You've used up your AI credit. Top up to carry on: your test and this conversation are kept, and I'll pick up right here.", failed: true, needsCredit: true }],
+        messages: [...messages, { role: 'assistant', text: "You've used the AI included in your plan and any credit. Top up or upgrade to carry on: your test and this conversation are kept, and I'll pick up right here.", failed: true, needsCredit: true }],
       };
     return { ...state, messages: [...messages, { role: 'assistant', text: reply, failed: true }] };
   }

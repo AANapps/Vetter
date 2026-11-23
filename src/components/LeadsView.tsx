@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Locked, PLANS, usePlan } from '../lib/plan';
 import { Pic } from './Pic';
 import {
   Archive,
@@ -164,6 +165,11 @@ export const LeadsView: React.FC<LeadsViewProps> = ({ rows, jobs, fixedJob, onUp
   const [openId, setOpenId] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropStage, setDropStage] = useState<LeadStage | null>(null);
+  const plan = usePlan();
+  // Candidates the plan doesn't show yet, on the jobs in view
+  const waiting = Object.entries(plan.lockedApplicants ?? {})
+    .filter(([jobId]) => (fixedJob ? jobId === fixedJob.id : jobs.some((j) => j.id === jobId)))
+    .reduce((sum, [, n]) => sum + n, 0);
 
   useEffect(() => {
     try {
@@ -494,12 +500,19 @@ export const LeadsView: React.FC<LeadsViewProps> = ({ rows, jobs, fixedJob, onUp
         <span>
           Showing <span className="font-semibold text-slate-900">{shown.length}</span> of {rows.length} leads
         </span>
-        {shown.length > 0 && (
+        {shown.length > 0 && !plan.can('csv-export') && <Locked compact feature="csv-export" title="CSV export" />}
+        {shown.length > 0 && plan.can('csv-export') && (
           <button onClick={downloadCsv} className="font-semibold text-slate-600 hover:text-indigo-700 inline-flex items-center gap-1.5">
             <Download className="w-3.5 h-3.5" /> Download CSV
           </button>
         )}
       </div>
+
+      {waiting > 0 && (
+        <Locked feature="full-reports" title={`${waiting} more ${waiting === 1 ? 'candidate is' : 'candidates are'} waiting`}>
+          The free plan shows the first {PLANS.free.applicantsPerJob} candidates on each job. Upgrade to see everyone, with their full reports.
+        </Locked>
+      )}
 
       {rows.length === 0 ? (
         <p className="rounded-xl border border-dashed border-slate-300 px-5 py-10 text-sm text-slate-500 text-center">

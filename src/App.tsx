@@ -74,6 +74,8 @@ import { InviteToJobDialog } from './components/InviteToJobDialog';
 import { SendToStaffDialog } from './components/SendToStaffDialog';
 import { TrainingPage } from './components/TrainingPage';
 import { PlansDialog } from './components/PlansDialog';
+import { Locked, PlanScope, useCompanyPlan } from './lib/plan';
+import { lockedByJob, withinApplicantLimit } from './lib/leads';
 import { AdvisorTurn, HomeBuild, testOutline } from './lib/testAdvisor';
 import type { ChatState, TestPlan as AgreedPlan } from './lib/testChat';
 import { jobBrief } from './lib/testGeneration';
@@ -549,8 +551,9 @@ export default function App() {
   // The test the home chat is building or changing, and something to start the chat with from elsewhere
   const [homeBuild, setHomeBuild] = useState<HomeBuild | null>(null);
   const [homeSeed, setHomeSeed] = useState<{ text: string; jobId?: string } | undefined>(undefined);
-  // Plans, shown when AI test creation is asked for without one
-  const [plansOpen, setPlansOpen] = useState(false);
+  // Plans, shown when something the company's plan leaves out is asked for; the reason heads the dialog ('' for none)
+  const [plansReason, setPlansReason] = useState<string | null>(null);
+  const setPlansOpen = (open: boolean) => setPlansReason(open ? '' : null);
   // What the candidate's Tests page is narrowed to, e.g. a field picked on Home
   const [testField, setTestField] = useState<TestField | null>(null);
   // Praxa's tests each company took off its own lists, kept in this browser too, so it works before the rule allowing
@@ -596,6 +599,27 @@ export default function App() {
   const recruiterBusiness: Business | undefined = adminAsCompany
     ? businesses.find((b) => b.id === adminCompanyId) ?? businesses.find((b) => b.id === recruiter.businessId) ?? businesses[0]
     : businesses.find((b) => b.id === recruiter.businessId);
+  // The company's plan, read from Stripe by the server: its limits are kept here and its paywalls below (src/lib/plan.tsx)
+  const planAccess = useCompanyPlan(activeRole === 'recruiter' && !adminAsCompany ? recruiterBusiness?.id ?? null : null, (reason) => setPlansReason(reason ?? ''));
+  // Praxa's ready-made job simulations come with Growth and above; ones already on a job stay
+  const libraryJobSimHit = (testIds: string[], before: string[] = []) => {
+    if (planAccess.can('library-job-sims')) return false;
+    const added = testIds.filter((id) => !before.includes(id)).map((id) => tests.find((t) => t.id === id));
+    const sim = added.find((t) => t && t.type === 'standard' && isJobSim(t));
+    if (!sim) return false;
+    setPlansReason(`${sim.title} is one of Praxa’s ready-made job simulations, which come with Growth and above. Your own AI-built simulations work on every plan.`);
+    return true;
+  };
+  // Jobs open at once, against the plan's limit; editing one already open never counts twice
+  const jobLimitHit = (jobId?: string) => {
+    if (!planAccess.status.billing || activeRole !== 'recruiter' || !recruiterBusiness) return false;
+    const open = allJobs.filter((j) => j.businessId === recruiterBusiness.id && j.status === 'active' && j.id !== jobId).length;
+    if (open < planAccess.status.jobLimit) return false;
+    setPlansReason(
+      `Your ${planAccess.info.name} plan has room for ${planAccess.status.jobLimit} open job${planAccess.status.jobLimit === 1 ? '' : 's'}. Close one, buy a 30-day job pass or upgrade to post this one.`
+    );
+    return true;
+  };
   // The jobs this viewer sees. Invite-only jobs are for the company that posted them, the Praxa team, people invited
   // to them or who applied, and whoever opens one's link (the open job page)
   const jobs = allJobs.filter(
@@ -635,8 +659,9 @@ export default function App() {
       // Private windows can refuse storage; the chat then lasts for this visit
     }
   }, [advisorTurns, homeChatKey]);
-  // Tests written by AI come with a paid plan; the Praxa team always has them. Everything else is free
-  // For now every company gets AI test creation, whatever its plan; set to false to put it back behind paid plans
+  // Tests written by AI: the Praxa team always has them; companies spend their plan's AI allowance
+  // Every company can build with AI: the server spends the plan's AI allowance (a £2 trial on Free), then bought credit,
+  // and asks for a plan or a top-up when it's gone (server/billing.ts)
   const AI_TESTS_FOR_ALL = true;
   const aiAllowed = AI_TESTS_FOR_ALL || activeRole === 'admin' || hasAiTests(recruiterBusiness);
   // A company's own test made with Praxa's AI is edited in the test chat (asking, editing by hand, the full builder);
@@ -954,6 +979,19 @@ export default function App() {
         10000
       )
     );
+  }, [user?.uid]);
+  // Back from paying for a plan or a job pass (also in its own tab): the plan is read again from Stripe
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get('billing');
+    if (!status || (firebaseEnabled && !user)) return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete('billing');
+    window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
+    planAccess.refresh();
+    if (status === 'paid') showToast('Thanks, your plan is updated. Close this tab and carry on where you were.', 10000);
+    else if (status === 'cancelled') showToast('Payment cancelled. Nothing was charged.');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.uid]);
 
   const goToTab = (tab: AppTab, replace = false) => {
@@ -1535,6 +1573,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
     openGenerator({ jobId: job.id, seed: `Create a test for this job:\n\n${jobBrief(job)}`, autoSend: true, returnToJob: job.id });
   };
   const publishJob = (job: JobPosting) => {
+    if (jobLimitHit(job.id) || libraryJobSimHit(job.testIds, allJobs.find((j) => j.id === job.id)?.testIds)) return saveJobDraft(job);
     upsertJob({ ...job, status: 'active', postedDate: new Date().toISOString().split('T')[0] });
     setJobFormDraftId(null);
     setShareJobId(job.id);
@@ -1543,6 +1582,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
   };
 
   const handleSaveJobTests = (jobId: string, change: Pick<JobPosting, 'testIds' | 'testsRequired' | 'maxAttempts'>) => {
+    if (libraryJobSimHit(change.testIds, allJobs.find((j) => j.id === jobId)?.testIds)) return;
     setJobs((prev) => prev.map((j) => (j.id === jobId ? { ...j, ...change } : j)));
   };
 
@@ -1723,10 +1763,15 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
   const leadsBusiness = activeRole === 'admin' ? undefined : recruiterBusiness;
   const leadsJobs = leadsBusiness ? jobs.filter((j) => j.businessId === leadsBusiness.id) : jobs;
   // A company (or the Praxa team as one) can invite candidates to its jobs
-  const canInviteToJobs = activeRole !== 'candidate' && !!recruiterBusiness;
+  const canInviteToJobs = activeRole !== 'candidate' && !!recruiterBusiness && planAccess.can('pool-search');
   const invitePerson = inviteFor ? allCandidates.find((c) => c.id === inviteFor) : undefined;
   const inviteJobPerson = inviteJobFor ? allCandidates.find((c) => c.id === inviteJobFor) : undefined;
-  const leadRows = activeRole === 'candidate' ? [] : buildLeadRows(leadsJobs, allCandidates, leads, Object.fromEntries(tests.map((t) => [t.id, t.title])));
+  // Applicants past the plan's limit on a job wait unseen until the company upgrades (the first to apply are shown)
+  const allLeadRows = activeRole === 'candidate' ? [] : buildLeadRows(leadsJobs, allCandidates, leads, Object.fromEntries(tests.map((t) => [t.id, t.title])));
+  const leadRows = withinApplicantLimit(allLeadRows, planAccess.info.applicantsPerJob);
+  const lockedApplicants = lockedByJob(allLeadRows, leadRows);
+  const shownLeads = new Set(leadRows.map((r) => r.id));
+  const hiddenLeads = new Set(allLeadRows.filter((r) => !shownLeads.has(r.id)).map((r) => r.id));
   const openJobLeads = (jobId: string) => {
     openBusinessJob(jobId);
     // Once the job's page is drawn, jump to its pipeline
@@ -1766,6 +1811,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
   ) : null;
 
   return (
+    <PlanScope value={{ ...planAccess, lockedApplicants, hiddenLeads }}>
     <div className={`min-h-screen bg-white text-slate-900 flex flex-col font-sans selection:bg-indigo-600 selection:text-white ${staffLayout ? 'lg:pl-16' : ''}`}>
       <Navigation
         currentTab={currentTab}
@@ -2218,6 +2264,8 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
               planName={
                 activeRole === 'admin'
                   ? 'Praxa team'
+                  : planAccess.status.billing
+                  ? `${planAccess.info.name} plan`
                   : hasAiTests(recruiterBusiness)
                   ? `${recruiterBusiness!.plan!.replace('-', ' ').replace(/^./, (c) => c.toUpperCase())} plan`
                   : 'Free plan'
@@ -2374,6 +2422,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
               onShareOpened={() => setShareJobId(null)}
               onSelect={openBusinessJob}
               onCreateJob={(job) => {
+                if (job.status === 'active' && (jobLimitHit(job.id) || libraryJobSimHit(job.testIds, allJobs.find((j) => j.id === job.id)?.testIds))) return saveJobDraft(job);
                 upsertJob(job);
                 // Posted: straight on to sending it
                 setShareJobId(job.id);
@@ -2484,7 +2533,15 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
                 const test = tests.find((t) => t.id === testId);
                 if (test) setDraftBuilder({ draft: test, alsoAdd: [] });
               }}
-              browse={<BrowseCandidates candidates={allCandidates} onOpenPerson={openPerson} onInvite={canInviteToJobs ? setInviteFor : undefined} />}
+              browse={
+                planAccess.can('pool-search') ? (
+                  <BrowseCandidates candidates={allCandidates} onOpenPerson={openPerson} onInvite={canInviteToJobs ? setInviteFor : undefined} />
+                ) : (
+                  <Locked feature="pool-search" title="Search Praxa’s pool of tested candidates">
+                    Find people who already scored well on the tests your role needs, and invite them to apply.
+                  </Locked>
+                )
+              }
               leads={
                 <LeadsPage
                   business={leadsBusiness}
@@ -2533,7 +2590,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
 
       {authDialog && <AuthDialog initialMode={authDialog.mode} reason={authDialog.reason} initialRole={authDialog.role} onClose={() => setAuthDialog(null)} />}
 
-      {plansOpen && <PlansDialog onClose={() => setPlansOpen(false)} />}
+      {plansReason !== null && <PlansDialog reason={plansReason} access={planAccess} onClose={() => setPlansReason(null)} onDone={(text) => showToast(text)} />}
 
       {editingTests && (
         <JobTestsEditor
@@ -2886,5 +2943,6 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
         </div>
       )}
     </div>
+    </PlanScope>
   );
 }

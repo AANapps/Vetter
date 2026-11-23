@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowLeft, Award, Briefcase, Check, ChevronDown, ExternalLink, GraduationCap, Link2, MapPin, X, Send } from 'lucide-react';
+import { Locked, usePlan } from '../lib/plan';
 import { AssessmentTest, Business, JobPosting, User, isPublic, isJobSim } from '../types';
 import { getLeaderboard } from '../lib/leaderboard';
 import { unfinishedStarts } from '../lib/results';
@@ -105,6 +106,7 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
   // Why they fit: the job it was opened from, else the first of the company's jobs they're on, else its newest open job
   const fitJob = business ? jobs.find((j) => j.id === fitJobId) ?? rows[0]?.job ?? jobs.find((j) => j.status === 'active') : undefined;
   const fit = fitJob ? fitSummary(person, fitJob, tests, candidates) : undefined;
+  const fullReports = usePlan().can('full-reports');
   const scored = libraryCards.filter((c) => c.best !== null);
   // Their three best Praxa test scores, shown at the top
   const strongest = scored.slice(0, 3);
@@ -259,13 +261,21 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_22rem] gap-6 items-start">
         <div className="space-y-6 min-w-0">
           {/* For the company looking: why they fit its job, in a few lines */}
-          {fit && <FitPanel summary={fit} onOpenJob={onOpenJob} />}
+          {fit && (fullReports ? <FitPanel summary={fit} onOpenJob={onOpenJob} /> : <Locked feature="full-reports" title="Why they fit your job">The reasons behind their fit, from their results against what the job asks for.</Locked>)}
 
           {/* Then what concerns the company: the tests it sent them and the jobs of its they applied to */}
           <ApplicantSummary person={person} rows={rows} tests={tests} candidates={candidates} onOpenTest={onOpenTest} onOpenJob={onOpenJob} />
 
           {/* The job simulations they've done, apart from their skills tests */}
-          <JobSimRecord person={person} tests={tests} onOpenTest={onOpenTest} />
+          {fullReports ? (
+            <JobSimRecord person={person} tests={tests} onOpenTest={onOpenTest} />
+          ) : (
+            person.testResults.length > 0 && (
+              <Locked feature="full-reports" title="Job simulation replay">
+                Step through what they did in each job simulation: every email, file and answer, in order.
+              </Locked>
+            )
+          )}
 
           {/* Every Praxa skills test they've taken, as square cards with the score */}
           <section className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-xs">

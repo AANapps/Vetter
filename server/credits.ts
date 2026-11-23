@@ -31,7 +31,7 @@ export const billingOn = (env: Env) => !!env.STRIPE_SECRET_KEY;
 // --- Who's asking ---
 
 export type Caller =
-  | { kind: 'company'; uid: string; companyId: string }
+  | { kind: 'company'; uid: string; companyId: string; token: string }
   // The Praxa team isn't charged
   | { kind: 'admin'; uid: string }
   | { kind: 'none'; reason: string };
@@ -58,7 +58,7 @@ export async function whoIsAsking(authorization: string | undefined, env: Env): 
   const fields = ((await res.json()) as { fields?: Record<string, { stringValue?: string }> }).fields ?? {};
   const field = (name: string) => fields[name]?.stringValue ?? '';
   if (field('role') === 'admin') return { kind: 'admin', uid };
-  if (field('role') === 'recruiter' && field('status') === 'active' && field('companyId')) return { kind: 'company', uid, companyId: field('companyId') };
+  if (field('role') === 'recruiter' && field('status') === 'active' && field('companyId')) return { kind: 'company', uid, companyId: field('companyId'), token };
   return { kind: 'none', reason: 'Praxa’s AI is for company accounts. Finish setting up your company first.' };
 }
 
@@ -66,7 +66,7 @@ export async function whoIsAsking(authorization: string | undefined, env: Env): 
 
 const form = (data: Record<string, string | number>) => new URLSearchParams(Object.entries(data).map(([k, v]) => [k, String(v)])).toString();
 
-async function stripe<T = any>(env: Env, method: 'GET' | 'POST', path: string, data?: Record<string, string | number>, idempotencyKey?: string): Promise<T> {
+export async function stripe<T = any>(env: Env, method: 'GET' | 'POST', path: string, data?: Record<string, string | number>, idempotencyKey?: string): Promise<T> {
   const res = await fetch(`${STRIPE}${path}${method === 'GET' && data ? `?${form(data)}` : ''}`, {
     method,
     headers: {
@@ -81,11 +81,11 @@ async function stripe<T = any>(env: Env, method: 'GET' | 'POST', path: string, d
   return json as T;
 }
 
-type Customer = { id: string; balance: number };
+export type Customer = { id: string; balance: number; metadata?: Record<string, string> };
 
 // The company's Stripe customer, made the first time it's needed. Search can lag a minute behind a new customer, and
 // for a day the idempotency key hands back the same one, so a company never gets two
-async function customerFor(env: Env, companyId: string): Promise<Customer> {
+export async function customerFor(env: Env, companyId: string): Promise<Customer> {
   const found = await stripe<{ data: Customer[] }>(env, 'GET', '/customers/search', { query: `metadata['companyId']:'${companyId.replace(/'/g, "\\'")}'` });
   if (found.data[0]) return found.data[0];
   return stripe<Customer>(env, 'POST', '/customers', { name: companyId, 'metadata[companyId]': companyId }, `vetter-company-${companyId}`);
@@ -149,18 +149,57 @@ export const STEP_NAMES: Record<string, string> = {
   'design-app': 'Designing an interactive task',
 };
 
-// step: the route; purpose: the test it was for, as the browser named it
-export async function charge(env: Env, companyId: string, pence: number, step: string, purpose: string): Promise<void> {
+// step: the route; purpose: the test it was for, as the browser named it. covered: the part the plan's AI allowance
+// pays for, under its period: recorded as the charge and the plan paying it back, so the balance is untouched but the
+// usage (and what's left of the allowance) is in one ledger that parallel requests can't overwrite
+export async function charge(env: Env, companyId: string, pence: number, step: string, purpose: string, covered?: { pence: number; period: string }): Promise<void> {
   if (pence <= 0) return;
   const customer = await customerFor(env, companyId);
+  const description = `Praxa AI: ${STEP_NAMES[step] ?? step}${purpose ? ` (${purpose})` : ''}`.slice(0, 350);
+  const plan = Math.min(pence, covered?.pence ?? 0);
+  if (plan > 0 && covered) {
+    const meta = { 'metadata[step]': step, 'metadata[for]': purpose.slice(0, 200), 'metadata[allowance]': covered.period };
+    await stripe(env, 'POST', `/customers/${customer.id}/balance_transactions`, { amount: plan, currency: 'gbp', description, ...meta });
+    await stripe(env, 'POST', `/customers/${customer.id}/balance_transactions`, {
+      amount: -plan,
+      currency: 'gbp',
+      description: 'Included in your plan',
+      'metadata[planCover]': covered.period,
+    });
+  }
+  if (pence - plan <= 0) return;
   await stripe(env, 'POST', `/customers/${customer.id}/balance_transactions`, {
-    amount: pence,
+    amount: pence - plan,
     currency: 'gbp',
-    description: `Praxa AI: ${STEP_NAMES[step] ?? step}${purpose ? ` (${purpose})` : ''}`.slice(0, 350),
+    description,
     'metadata[step]': step,
     'metadata[for]': purpose.slice(0, 200),
   });
 }
+
+type Transaction = { id: string; amount: number; created: number; metadata?: Record<string, string> };
+
+// The company's ledger, newest first, back to since (unix seconds) or a few hundred entries
+export async function ledger(env: Env, companyId: string, since = 0): Promise<Transaction[]> {
+  const customer = await customerFor(env, companyId);
+  const all: Transaction[] = [];
+  let after = '';
+  for (let page = 0; page < 5; page++) {
+    const list = await stripe<{ data: Transaction[]; has_more: boolean }>(env, 'GET', `/customers/${customer.id}/balance_transactions`, {
+      limit: 100,
+      ...(after && { starting_after: after }),
+    });
+    all.push(...list.data);
+    const last = list.data[list.data.length - 1];
+    if (!list.has_more || !last || last.created < since) break;
+    after = last.id;
+  }
+  return all.filter((t) => t.created >= since);
+}
+
+// What the plan's allowance has paid for in a period
+export const allowanceUsed = (entries: Transaction[], period: string) =>
+  entries.filter((t) => t.amount > 0 && t.metadata?.allowance === period).reduce((sum, t) => sum + t.amount, 0);
 
 export interface UsageEntry {
   // Pence: positive for credit used, negative for credit bought
@@ -168,18 +207,24 @@ export interface UsageEntry {
   at: string;
   step: string;
   for: string;
+  // Paid by the plan's included AI credit
+  covered?: boolean;
 }
 
-// The company's last charges and top-ups, newest first
+// The company's last charges and top-ups, newest first. Work the plan included is shown with covered set, and the
+// plan paying it back isn't a line of its own
 export async function usageFor(env: Env, companyId: string): Promise<UsageEntry[]> {
-  const customer = await customerFor(env, companyId);
-  const list = await stripe<{ data: { amount: number; created: number; metadata?: Record<string, string> }[] }>(env, 'GET', `/customers/${customer.id}/balance_transactions`, { limit: 100 });
-  return list.data.map((t) => ({
-    amount: t.amount,
-    at: new Date(t.created * 1000).toISOString(),
-    step: t.amount < 0 ? 'Credit bought' : STEP_NAMES[t.metadata?.step ?? ''] ?? 'Praxa AI',
-    for: t.metadata?.for ?? '',
-  }));
+  const list = await ledger(env, companyId);
+  return list
+    .filter((t) => !t.metadata?.planCover)
+    .slice(0, 100)
+    .map((t) => ({
+      amount: t.amount,
+      at: new Date(t.created * 1000).toISOString(),
+      step: t.amount < 0 ? 'Credit bought' : STEP_NAMES[t.metadata?.step ?? ''] ?? 'Praxa AI',
+      for: t.metadata?.for ?? '',
+      ...(t.metadata?.allowance && { covered: true }),
+    }));
 }
 
 // A Stripe Checkout page to buy one of the packs; it comes back to the site, which confirms it

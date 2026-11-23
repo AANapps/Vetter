@@ -61,6 +61,26 @@ pay for writing and changing tests with credit they buy in advance. Without it, 
 - Keep the Anthropic account topped up (turn on auto-reload in the Anthropic Console): companies' credit pays you,
   but every request still runs on Praxa's own Anthropic balance.
 
+### Plans and paywalls
+
+The same `STRIPE_SECRET_KEY` turns on paid plans. Prices, limits and features are in one file, `server/plans.ts`
+(Free, Starter £99, Growth £249, Scale £549 a month, Per job £149 for 30 days; a year is ten months). Without the key
+nothing is locked.
+
+- Subscriptions are sold with Stripe Checkout (`/api/billing`); plan changes happen in place, with the difference
+  charged or credited at once. Stripe products and prices are made automatically the first time a plan is sold (lookup
+  key `praxa_<plan>_<month|year>`); changing a price in `plans.ts` makes a new one for new subscribers.
+- Subscriptions are on a second Stripe customer per company (`metadata.praxaBilling`), apart from the AI credit one:
+  Stripe always spends a customer's credit on its next invoice, which would let bought AI credit pay the subscription.
+- The plan is read from Stripe on each request (cached 20s), so there's no webhook, and companies can't set their own
+  plan. A plan the Praxa team sets on the company record (`plan`, e.g. `enterprise`) counts too, whichever is higher.
+- Each plan includes AI each month (Free: £2 once). It's spent before bought credit; free companies can't top up.
+- Only the company's owner can pay or change the plan.
+- **Set up in the Stripe dashboard once:** switch on the customer portal (Settings → Billing → Customer portal), used by
+  Manage billing for cards, invoices and cancelling. Optional: Stripe Tax, if Praxa charges VAT.
+- Job, applicant, seat and feature limits are checked in the browser (Firestore can't see Stripe); AI spending is
+  enforced on the server. Server-side checks for the rest need the Firebase admin key (anti-cheat step 1).
+
 ### Coding tasks in any language
 
 Coding tasks can be set in 35 languages, or left open for the candidate to pick theirs. Each test case's input goes to

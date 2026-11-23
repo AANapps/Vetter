@@ -3,6 +3,7 @@
 Kept up to date as work is asked for and finished. Newest items at the bottom of each section.
 
 ## To do
+- **Payments: test end to end in Stripe test mode (built 2026-11-23).** Set `STRIPE_SECRET_KEY=sk_test_...` and `SITE_URL` in Vercel, switch on the Stripe customer portal, then: subscribe to Starter, switch to Growth, buy a job pass, run out of the free £2 trial, top up on a paid plan, cancel in Manage billing. Then decide: Project Manager £99 add-on (workspaces are in beta, not built), branding on tests for Scale (sold but not built yet), VAT (Stripe Tax), and an admin control to set a company's plan (today: the `plan` field in the Firestore console). Later, with the Firebase admin key: enforce job/applicant/seat limits on the server too.
 - **Workspaces manager (workspaces in beta since 2026-11-22).** Projects & CRM and candidates' Work mode on the company's boards are hidden from everyone but the Praxa team (`WORKSPACES_OPEN` in src/lib/features.ts). Companies keep Your team (Team, Training); candidates reach their team's invitations, work, training and certificates from Home (the team page, no boards). Build a workspaces manager, then set the flag to true.
 - **Deploy the Firestore rules (2026-11-22).** Team members' access to their company's boards (Work mode) needs `firebase deploy --only firestore:rules --project vetter-7b06f`; the CLI here needs `firebase login --reauth` first.
 - **Bug: menu opens white blank pages** (reported 2026-11-18). Clicking items in the company menu sometimes shows a blank white page. Not reproduced yet: find which items and whether it's the live site (Firebase on), then fix.
@@ -64,6 +65,8 @@ From a code read-through of both flows (not clicked through live).
 **Not tested live yet:** Stripe credits, CV import, AI-made job sims, full-screen rules, code runner.
 
 ## Done
+
+- 2026-11-23: Payments and paywalls (server/plans.ts, server/billing.ts, src/lib/plan.tsx). Stripe subscriptions for Starter/Growth/Scale, a £149 30-day job pass, monthly AI allowance spent before bought credit (free: £2 once, no top-ups), plans dialog with real checkout and Manage billing, pricing page on the new prices. Locked by plan: open jobs, candidates per job (free sees the first 15), integrity report / answers / job sim replay / why they fit (paid), pool search and invites + library job sims (Growth+), CSV export (Scale), seats. Checked against a fake Stripe; not run on real Stripe yet.
 
 - 2026-11-22: No pass marks, "verified" or medals: candidates and companies see the score (and rank) on every test. Job pass marks and per-skill minimums are gone (finishing a job's required tests sends the application with the score); companies see every try's score; the percentile is gone. Training keeps its pass mark for certificates. Not clicked through in a browser yet.
 - 2026-11-22: Fit for a job is only the average of the candidate's scores on that job's tests (a test not taken counts 0, attempt limits respected). No fit is shown until they've taken one of the job's tests; jobs without tests have no fit.
