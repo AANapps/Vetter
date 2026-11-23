@@ -1,18 +1,47 @@
-import React, { useEffect, useState } from 'react';
-import { AppWindow, ArrowRight, CheckCircle2, CreditCard, FlaskConical, Globe, GraduationCap, Library, LogOut, RefreshCw, ShieldCheck, X } from 'lucide-react';
-import { collection, deleteField, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
-import { db, firebaseEnabled } from '../lib/firebase';
-import { AssessmentTest, levelName } from '../types';
-import { useAccount } from '../lib/useAccount';
-import { ReviewCompany, accountError, companiesInReview, continueWithGoogle, decideCompany, signIn, signOut } from '../lib/accounts';
-import { CourseSignup, listCourseSignups } from '../lib/courseSignups';
-import { GoogleMark } from './AuthDialog';
-import { Pulse } from './Pulse';
-import { SimulationLibraryAdmin } from './SimulationLibraryAdmin';
-import { LibraryVisibilityAdmin } from './LibraryVisibilityAdmin';
-import { AdminTestLab } from './AdminTestLab';
-import { AdminAppEditor } from './AdminAppEditor';
-import { CompanyPlansAdmin, PlanTiersAdmin } from './PlansAdmin';
+import React, { useEffect, useState } from "react";
+import {
+  AppWindow,
+  ArrowRight,
+  CheckCircle2,
+  CreditCard,
+  FlaskConical,
+  Globe,
+  GraduationCap,
+  Library,
+  LogOut,
+  RefreshCw,
+  ShieldCheck,
+  X,
+} from "lucide-react";
+import {
+  collection,
+  deleteField,
+  doc,
+  getDocs,
+  query,
+  updateDoc,
+  where,
+} from "firebase/firestore";
+import { db, firebaseEnabled } from "../lib/firebase";
+import { AssessmentTest, levelName } from "../types";
+import { useAccount } from "../lib/useAccount";
+import {
+  ReviewCompany,
+  accountError,
+  companiesInReview,
+  continueWithGoogle,
+  decideCompany,
+  signIn,
+  signOut,
+} from "../lib/accounts";
+import { CourseSignup, listCourseSignups } from "../lib/courseSignups";
+import { GoogleMark } from "./AuthDialog";
+import { Pulse } from "./Pulse";
+import { SimulationLibraryAdmin } from "./SimulationLibraryAdmin";
+import { LibraryVisibilityAdmin } from "./LibraryVisibilityAdmin";
+import { AdminTestLab } from "./AdminTestLab";
+import { AdminAppEditor } from "./AdminAppEditor";
+import { CompanyPlansAdmin, PlanTiersAdmin } from "./PlansAdmin";
 
 /**
  * /admin: the Praxa team's own page. Signed out, it's a sign-in screen; the panel only shows for an account whose
@@ -20,18 +49,32 @@ import { CompanyPlansAdmin, PlanTiersAdmin } from './PlansAdmin';
  * Anyone else is told they're not an admin, and nothing more.
  */
 
-const Shell: React.FC<{ children: React.ReactNode; onSignOut?: () => void; email?: string | null }> = ({ children, onSignOut, email }) => (
+const Shell: React.FC<{
+  children: React.ReactNode;
+  onSignOut?: () => void;
+  email?: string | null;
+}> = ({ children, onSignOut, email }) => (
   <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
     <header className="bg-white border-b border-slate-200">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
-        <a href="/" className="font-bold text-slate-900 flex items-center gap-2">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
+        <a
+          href="/"
+          className="font-bold text-slate-900 flex items-center gap-2"
+        >
           <ShieldCheck className="w-5 h-5 text-indigo-600" />
           Praxa admin
         </a>
         {onSignOut && (
           <div className="flex items-center gap-3 min-w-0">
-            {email && <span className="text-xs text-slate-500 truncate hidden sm:inline">{email}</span>}
-            <button onClick={onSignOut} className="text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1">
+            {email && (
+              <span className="text-xs text-slate-500 truncate hidden sm:inline">
+                {email}
+              </span>
+            )}
+            <button
+              onClick={onSignOut}
+              className="text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1"
+            >
               <LogOut className="w-3.5 h-3.5" />
               Sign out
             </button>
@@ -39,13 +82,13 @@ const Shell: React.FC<{ children: React.ReactNode; onSignOut?: () => void; email
         )}
       </div>
     </header>
-    <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8">{children}</main>
+    <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8">{children}</main>
   </div>
 );
 
 const SignInForm: React.FC = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const run = async (action: () => Promise<unknown>) => {
@@ -104,7 +147,11 @@ const SignInForm: React.FC = () => {
           onChange={(e) => setPassword(e.target.value)}
           className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg"
         />
-        <button type="submit" disabled={busy} className="w-full py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 rounded-lg">
+        <button
+          type="submit"
+          disabled={busy}
+          className="w-full py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 rounded-lg"
+        >
           Sign in
         </button>
       </form>
@@ -117,8 +164,13 @@ const SignInForm: React.FC = () => {
 const NotAdmin: React.FC = () => (
   <div className="max-w-sm mx-auto bg-white border border-slate-200 rounded-2xl p-6 space-y-3 text-center">
     <h1 className="text-lg font-bold">Not an admin</h1>
-    <p className="text-sm text-slate-600">This account doesn't have the admin role.</p>
-    <button onClick={() => signOut()} className="w-full py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg">
+    <p className="text-sm text-slate-600">
+      This account doesn't have the admin role.
+    </p>
+    <button
+      onClick={() => signOut()}
+      className="w-full py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg"
+    >
       Sign in with another account
     </button>
   </div>
@@ -147,28 +199,41 @@ const CompaniesQueue: React.FC = () => {
       <div className="flex items-center justify-between gap-2">
         <h3 className="font-bold flex items-center gap-2">
           <ShieldCheck className="w-4 h-4 text-indigo-600" />
-          Companies{queue && queue.length > 0 ? ` (${queue.length})` : ''}
+          Companies{queue && queue.length > 0 ? ` (${queue.length})` : ""}
         </h3>
-        <button onClick={load} className="text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1">
+        <button
+          onClick={load}
+          className="text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1"
+        >
           <RefreshCw className="w-3.5 h-3.5" />
           Refresh
         </button>
       </div>
       <p className="text-xs text-slate-500">
-        Signed up without a work email (Gmail, Outlook and so on). Check the website is real and that the person works there before approving.
+        Signed up without a work email (Gmail, Outlook and so on). Check the
+        website is real and that the person works there before approving.
       </p>
       {error && <p className="text-sm text-red-700">{error}</p>}
       {!queue && !error && <p className="text-sm text-slate-500">Loading…</p>}
-      {queue && queue.length === 0 && <p className="text-sm text-slate-600">Nothing to check right now.</p>}
+      {queue && queue.length === 0 && (
+        <p className="text-sm text-slate-600">Nothing to check right now.</p>
+      )}
       {queue && queue.length > 0 && (
         <ul className="divide-y divide-slate-100">
           {queue.map((c) => (
-            <li key={c.id} className="py-3 flex flex-wrap items-center justify-between gap-3 text-sm">
+            <li
+              key={c.id}
+              className="py-3 flex flex-wrap items-center justify-between gap-3 text-sm"
+            >
               <span className="min-w-0">
                 <span className="font-semibold">{c.name}</span>
                 {c.website && (
                   <a
-                    href={/^https?:/.test(c.website) ? c.website : `https://${c.website}`}
+                    href={
+                      /^https?:/.test(c.website)
+                        ? c.website
+                        : `https://${c.website}`
+                    }
                     target="_blank"
                     rel="noreferrer noopener"
                     className="ml-2 text-indigo-700 hover:underline break-all"
@@ -177,12 +242,12 @@ const CompaniesQueue: React.FC = () => {
                   </a>
                 )}
                 <span className="block text-xs text-slate-600">
-                  {c.ownerName} · {c.ownerEmail ?? 'no email on record'}
+                  {c.ownerName} · {c.ownerEmail ?? "no email on record"}
                 </span>
                 {c.needsFix && (
                   <span className="block text-xs text-amber-700">
-                    {c.needsFix === 'missing-company'
-                      ? 'Their company record is missing; deciding creates it.'
+                    {c.needsFix === "missing-company"
+                      ? "Their company record is missing; deciding creates it."
                       : `Their company record says "${c.status}" while they wait; deciding brings both in line.`}
                   </span>
                 )}
@@ -219,17 +284,21 @@ const TestsQueue: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [declining, setDeclining] = useState<string | null>(null);
-  const [note, setNote] = useState('');
+  const [note, setNote] = useState("");
   const load = () => {
     setError(null);
-    getDocs(query(collection(db(), 'tests'), where('publicStatus', '==', 'pending')))
+    getDocs(
+      query(collection(db(), "tests"), where("publicStatus", "==", "pending")),
+    )
       .then((snap) =>
         setQueue(
           snap.docs
             .map((d) => ({ ...(d.data() as AssessmentTest), id: d.id }))
-            .filter((t) => t.type === 'custom')
-            .sort((a, b) => (a.publicAskedAt ?? '').localeCompare(b.publicAskedAt ?? ''))
-        )
+            .filter((t) => t.type === "custom")
+            .sort((a, b) =>
+              (a.publicAskedAt ?? "").localeCompare(b.publicAskedAt ?? ""),
+            ),
+        ),
       )
       .catch((err) => setError(accountError(err)));
   };
@@ -237,13 +306,13 @@ const TestsQueue: React.FC = () => {
   const decide = (t: AssessmentTest, approve: boolean) => {
     setBusyId(t.id);
     const reason = note.trim();
-    updateDoc(doc(db(), 'tests', t.id), {
-      publicStatus: approve ? 'approved' : 'rejected',
+    updateDoc(doc(db(), "tests", t.id), {
+      publicStatus: approve ? "approved" : "rejected",
       publicNote: approve || !reason ? deleteField() : reason,
     })
       .then(() => {
         setDeclining(null);
-        setNote('');
+        setNote("");
         load();
       })
       .catch((err) => setError(accountError(err)))
@@ -254,27 +323,54 @@ const TestsQueue: React.FC = () => {
       <div className="flex items-center justify-between gap-2">
         <h3 className="font-bold flex items-center gap-2">
           <Globe className="w-4 h-4 text-indigo-600" />
-          Tests for the public library{queue && queue.length > 0 ? ` (${queue.length})` : ''}
+          Tests for the public library
+          {queue && queue.length > 0 ? ` (${queue.length})` : ""}
         </h3>
-        <button onClick={load} className="text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1">
+        <button
+          onClick={load}
+          className="text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1"
+        >
           <RefreshCw className="w-3.5 h-3.5" />
           Refresh
         </button>
       </div>
-      <p className="text-xs text-slate-500">Open each to read and try it. Approved, every company can add it to a job and every candidate can take it.</p>
+      <p className="text-xs text-slate-500">
+        Open each to read and try it. Approved, every company can add it to a
+        job and every candidate can take it.
+      </p>
       {error && <p className="text-sm text-red-700">{error}</p>}
       {!queue && !error && <p className="text-sm text-slate-500">Loading…</p>}
-      {queue && queue.length === 0 && <p className="text-sm text-slate-600">Nothing to check right now.</p>}
+      {queue && queue.length === 0 && (
+        <p className="text-sm text-slate-600">Nothing to check right now.</p>
+      )}
       {queue && queue.length > 0 && (
         <ul className="divide-y divide-slate-100">
           {queue.map((t) => (
             <li key={t.id} className="py-3 space-y-2">
               <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-                <a href={`/#/tests/${encodeURIComponent(t.id)}`} target="_blank" rel="noreferrer" className="min-w-0 group">
-                  <span className="font-semibold group-hover:text-indigo-700 group-hover:underline">{t.title}</span>
+                <a
+                  href={`/#/tests/${encodeURIComponent(t.id)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="min-w-0 group"
+                >
+                  <span className="font-semibold group-hover:text-indigo-700 group-hover:underline">
+                    {t.title}
+                  </span>
                   <span className="block text-xs text-slate-600">
-                    {t.companyName} · {t.category} · {levelName(t.difficulty)} · {t.totalQuestions} {t.totalQuestions === 1 ? 'question' : 'questions'}
-                    {t.publicAskedAt && <> · asked {new Date(t.publicAskedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</>}
+                    {t.companyName} · {t.category} · {levelName(t.difficulty)} ·{" "}
+                    {t.totalQuestions}{" "}
+                    {t.totalQuestions === 1 ? "question" : "questions"}
+                    {t.publicAskedAt && (
+                      <>
+                        {" "}
+                        · asked{" "}
+                        {new Date(t.publicAskedAt).toLocaleDateString(
+                          undefined,
+                          { day: "numeric", month: "short" },
+                        )}
+                      </>
+                    )}
                   </span>
                 </a>
                 <span className="flex gap-2">
@@ -288,7 +384,10 @@ const TestsQueue: React.FC = () => {
                   </button>
                   <button
                     disabled={busyId === t.id}
-                    onClick={() => (setDeclining(declining === t.id ? null : t.id), setNote(''))}
+                    onClick={() => (
+                      setDeclining(declining === t.id ? null : t.id),
+                      setNote("")
+                    )}
                     aria-expanded={declining === t.id}
                     className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 disabled:opacity-50 rounded-lg flex items-center gap-1"
                   >
@@ -313,7 +412,11 @@ const TestsQueue: React.FC = () => {
                     aria-label="Why it was turned down"
                     className="flex-1 px-3 py-1.5 text-xs border border-slate-300 rounded-lg"
                   />
-                  <button type="submit" disabled={busyId === t.id} className="px-3 py-1.5 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 disabled:opacity-50 rounded-lg">
+                  <button
+                    type="submit"
+                    disabled={busyId === t.id}
+                    className="px-3 py-1.5 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 disabled:opacity-50 rounded-lg"
+                  >
                     Turn it down
                   </button>
                 </form>
@@ -327,7 +430,9 @@ const TestsQueue: React.FC = () => {
 };
 
 const CourseSignups: React.FC = () => {
-  const [rows, setRows] = useState<(CourseSignup & { id: string; createdAt?: Date })[] | null>(null);
+  const [rows, setRows] = useState<
+    (CourseSignup & { id: string; createdAt?: Date })[] | null
+  >(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     listCourseSignups()
@@ -342,21 +447,34 @@ const CourseSignups: React.FC = () => {
       </h2>
       {error && <p className="text-sm text-red-700">{error}</p>}
       {!rows && !error && <p className="text-sm text-slate-500">Loading…</p>}
-      {rows && rows.length === 0 && <p className="text-sm text-slate-600">No sign-ups yet.</p>}
+      {rows && rows.length === 0 && (
+        <p className="text-sm text-slate-600">No sign-ups yet.</p>
+      )}
       {rows && rows.length > 0 && (
         <ul className="divide-y divide-slate-100">
           {rows.map((r) => (
             <li key={r.id} className="py-3 text-sm space-y-0.5">
               <div className="flex flex-wrap justify-between gap-2">
                 <span className="font-semibold">{r.name}</span>
-                <span className="text-xs text-slate-500">{r.createdAt?.toLocaleDateString() ?? ''}</span>
+                <span className="text-xs text-slate-500">
+                  {r.createdAt?.toLocaleDateString() ?? ""}
+                </span>
               </div>
               <div className="text-slate-700">{r.courseTitle}</div>
               <div className="text-xs text-slate-600 break-all">
-                <a href={`mailto:${r.email}`} className="text-indigo-700 hover:underline">
+                <a
+                  href={`mailto:${r.email}`}
+                  className="text-indigo-700 hover:underline"
+                >
                   {r.email}
-                </a>{' '}
-                · <a href={`tel:${r.phone}`} className="text-indigo-700 hover:underline">{r.phone}</a>
+                </a>{" "}
+                ·{" "}
+                <a
+                  href={`tel:${r.phone}`}
+                  className="text-indigo-700 hover:underline"
+                >
+                  {r.phone}
+                </a>
               </div>
               {r.note && <div className="text-xs text-slate-500">{r.note}</div>}
             </li>
@@ -370,29 +488,39 @@ const CourseSignups: React.FC = () => {
 // The panel's sections, one tab each. Every tab stays mounted (just hidden) so switching never loses unsaved work;
 // the open tab is kept in the address (/admin#plans) so a refresh or shared link lands on it
 const TABS = [
-  { id: 'approvals', label: 'Approvals', icon: CheckCircle2 },
-  { id: 'testlab', label: 'Test lab', icon: FlaskConical },
-  { id: 'apps', label: 'App editor', icon: AppWindow },
-  { id: 'plans', label: 'Plans and billing', icon: CreditCard },
-  { id: 'library', label: 'Library', icon: Library },
-  { id: 'signups', label: 'Sign-ups', icon: GraduationCap },
+  { id: "approvals", label: "Approvals", icon: CheckCircle2 },
+  { id: "testlab", label: "Test lab", icon: FlaskConical },
+  { id: "apps", label: "App editor", icon: AppWindow },
+  { id: "plans", label: "Plans and billing", icon: CreditCard },
+  { id: "library", label: "Library", icon: Library },
+  { id: "signups", label: "Sign-ups", icon: GraduationCap },
 ] as const;
-type AdminTab = (typeof TABS)[number]['id'];
+type AdminTab = (typeof TABS)[number]["id"];
 const tabFromHash = (): AdminTab => {
-  const h = window.location.hash.replace('#', '');
-  return (TABS.find((t) => t.id === h)?.id ?? 'approvals') as AdminTab;
+  const h = window.location.hash.replace("#", "");
+  return (TABS.find((t) => t.id === h)?.id ?? "approvals") as AdminTab;
 };
 
-const AdminTabs: React.FC<{ tab: AdminTab; onTab: (t: AdminTab) => void }> = ({ tab, onTab }) => (
-  <nav role="tablist" aria-label="Admin sections" className="flex gap-1 overflow-x-auto border-b border-slate-200 -mx-4 px-4 sm:mx-0 sm:px-0">
+const AdminTabs: React.FC<{ tab: AdminTab; onTab: (t: AdminTab) => void }> = ({
+  tab,
+  onTab,
+}) => (
+  <nav
+    role="tablist"
+    aria-label="Admin sections"
+    aria-orientation="vertical"
+    className="flex md:flex-col gap-1 overflow-x-auto md:overflow-visible border-b md:border-b-0 border-slate-200 -mx-4 px-4 md:mx-0 md:px-0 md:w-52 md:shrink-0 md:sticky md:top-6 md:self-start"
+  >
     {TABS.map(({ id, label, icon: Icon }) => (
       <button
         key={id}
         role="tab"
         aria-selected={tab === id}
         onClick={() => onTab(id)}
-        className={`shrink-0 px-3 py-2 text-sm font-semibold flex items-center gap-1.5 border-b-2 -mb-px ${
-          tab === id ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-600 hover:text-slate-900'
+        className={`shrink-0 px-3 py-2 text-sm font-semibold flex items-center gap-2 text-left border-b-2 -mb-px md:mb-0 md:border-b-0 md:rounded-lg ${
+          tab === id
+            ? "border-indigo-600 text-indigo-700 md:bg-indigo-50"
+            : "border-transparent text-slate-600 hover:text-slate-900 md:hover:bg-slate-100"
         }`}
       >
         <Icon className="w-4 h-4" />
@@ -407,19 +535,19 @@ export const AdminPage: React.FC = () => {
   const [tab, setTabState] = useState<AdminTab>(tabFromHash);
   const setTab = (t: AdminTab) => {
     setTabState(t);
-    history.replaceState(null, '', `#${t}`);
+    history.replaceState(null, "", `#${t}`);
   };
   useEffect(() => {
     const onHash = () => setTabState(tabFromHash());
-    window.addEventListener('hashchange', onHash);
-    return () => window.removeEventListener('hashchange', onHash);
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
   }, []);
 
   useEffect(() => {
-    document.title = 'Praxa admin';
-    const meta = document.createElement('meta');
-    meta.name = 'robots';
-    meta.content = 'noindex';
+    document.title = "Praxa admin";
+    const meta = document.createElement("meta");
+    meta.name = "robots";
+    meta.content = "noindex";
     document.head.appendChild(meta);
     return () => meta.remove();
   }, []);
@@ -427,7 +555,10 @@ export const AdminPage: React.FC = () => {
   if (!firebaseEnabled)
     return (
       <Shell>
-        <p className="text-sm text-slate-600 text-center">Accounts aren't set up on this site (demo mode), so there's no admin panel.</p>
+        <p className="text-sm text-slate-600 text-center">
+          Accounts aren't set up on this site (demo mode), so there's no admin
+          panel.
+        </p>
       </Shell>
     );
   if (loading)
@@ -445,7 +576,7 @@ export const AdminPage: React.FC = () => {
       </Shell>
     );
 
-  const isAdmin = account?.role === 'admin' && account.status === 'active';
+  const isAdmin = account?.role === "admin" && account.status === "active";
   return (
     <Shell onSignOut={() => signOut()} email={user.email}>
       {!isAdmin ? (
@@ -455,35 +586,47 @@ export const AdminPage: React.FC = () => {
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <h1 className="text-xl font-bold">Admin panel</h1>
-              <p className="text-sm text-slate-600">Signed in as {account.name || user.email}.</p>
+              <p className="text-sm text-slate-600">
+                Signed in as {account.name || user.email}.
+              </p>
             </div>
-            <a href="/" className="text-sm font-semibold text-indigo-700 hover:underline flex items-center gap-1">
+            <a
+              href="/"
+              className="text-sm font-semibold text-indigo-700 hover:underline flex items-center gap-1"
+            >
               Open the Praxa team view
               <ArrowRight className="w-4 h-4" />
             </a>
           </div>
-          <AdminTabs tab={tab} onTab={setTab} />
-          <div hidden={tab !== 'approvals'} className="space-y-3">
-            <CompaniesQueue />
-            <TestsQueue />
-            <SimulationLibraryAdmin />
-          </div>
-          <div hidden={tab !== 'testlab'}>
-            <AdminTestLab />
-          </div>
-          <div hidden={tab !== 'apps'}>
-            <AdminAppEditor />
-          </div>
-          <div hidden={tab !== 'plans'} className="space-y-3">
-            <PlanTiersAdmin />
-            <CompanyPlansAdmin />
-            <p className="text-xs text-slate-500">To see the company side as any plan, open the Praxa team view as a company and use Preview a plan (bottom left).</p>
-          </div>
-          <div hidden={tab !== 'library'}>
-            <LibraryVisibilityAdmin />
-          </div>
-          <div hidden={tab !== 'signups'}>
-            <CourseSignups />
+          <div className="flex flex-col md:flex-row gap-6">
+            <AdminTabs tab={tab} onTab={setTab} />
+            <div className="flex-1 min-w-0">
+              <div hidden={tab !== "approvals"} className="space-y-3">
+                <CompaniesQueue />
+                <TestsQueue />
+                <SimulationLibraryAdmin />
+              </div>
+              <div hidden={tab !== "testlab"}>
+                <AdminTestLab />
+              </div>
+              <div hidden={tab !== "apps"}>
+                <AdminAppEditor />
+              </div>
+              <div hidden={tab !== "plans"} className="space-y-3">
+                <PlanTiersAdmin />
+                <CompanyPlansAdmin />
+                <p className="text-xs text-slate-500">
+                  To see the company side as any plan, open the Praxa team view
+                  as a company and use Preview a plan (bottom left).
+                </p>
+              </div>
+              <div hidden={tab !== "library"}>
+                <LibraryVisibilityAdmin />
+              </div>
+              <div hidden={tab !== "signups"}>
+                <CourseSignups />
+              </div>
+            </div>
           </div>
         </div>
       )}
