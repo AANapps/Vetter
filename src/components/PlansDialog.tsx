@@ -102,6 +102,16 @@ export const PlansDialog: React.FC<{ reason: string; access: PlanAccess; onClose
             </button>
           </div>
         </div>
+        {status.billing && status.cancelsAtEnd && status.renewsAt && (
+          <div role="alert" className="mx-6 mt-4 p-3 rounded-lg border border-amber-300 bg-amber-50 text-amber-950 text-sm flex flex-wrap items-center justify-between gap-3">
+            <span>
+              Your {info.name} subscription is cancelled and ends on <b>{date(status.renewsAt)}</b>. You keep everything until then, and you won&rsquo;t be charged again.
+            </span>
+            <button onClick={() => open('portal', billingPortal)} disabled={!!busy} className="shrink-0 px-3 py-1.5 rounded-full bg-amber-900 text-white text-xs font-semibold hover:bg-amber-800 disabled:opacity-60">
+              {busy === 'portal' ? 'Opening…' : 'Keep my plan'}
+            </button>
+          </div>
+        )}
         {(note || error || blockedUrl) && (
           <div className={`mx-6 mt-4 p-3 rounded-lg text-xs border ${error ? 'bg-amber-50 border-amber-200 text-amber-950' : 'bg-indigo-50 border-indigo-200 text-indigo-950'}`}>
             {error || note}
