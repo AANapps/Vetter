@@ -1,3 +1,4 @@
+import { WORK_APP_CHECKS, WORK_APP_FORMATS } from './deskAppRules.js';
 import Anthropic from '@anthropic-ai/sdk';
 import { streamJson } from './streamJson.js';
 import { meter } from './meter.js';
@@ -37,7 +38,7 @@ export const questionSchema = {
     // A hands-on task's own label (e.g. "t1"), and on a question about a task, that task's label
     ref: { type: 'string' },
     taskRef: { type: 'string' },
-    type: { type: 'string', enum: ['choice', 'multi', 'text', 'written', 'order', 'match', 'email', 'assistant', 'case', 'code', 'sql', 'sheet', 'database', 'app'] },
+    type: { type: 'string', enum: ['choice', 'multi', 'text', 'written', 'order', 'match', 'email', 'assistant', 'case', 'code', 'sql', 'sheet', 'database', 'app', 'desktop'] },
     title: { type: 'string' },
     prompt: { type: 'string' },
     // A sheet's file name, a database's name
@@ -70,12 +71,14 @@ export const questionSchema = {
     },
     // Database tasks: the tables the database starts with, as CSV with a header row
     dataTables: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' }, csv: { type: 'string' } }, required: ['name', 'csv'], additionalProperties: false } },
+    // Desktop tasks: the built-in work apps' data, as one JSON text (a schema for each app would make the grammar too large)
+    work: { type: 'string' },
     timeLimitMinutes: { type: 'integer' },
     points: { type: 'integer' },
   },
   // Every field is asked for, empty where a style doesn't use it: optional fields make the output grammar too large to
   // compile, and testCases can't be skipped where it's needed
-  required: ['keep', 'ref', 'taskRef', 'type', 'title', 'prompt', 'contextData', 'options', 'correctOption', 'correctOptions', 'acceptedAnswers', 'items', 'pairs', 'starterCode', 'solutionCode', 'testCases', 'tables', 'appHtml', 'workbook', 'solutionCells', 'dataTables', 'timeLimitMinutes', 'points'],
+  required: ['keep', 'ref', 'taskRef', 'type', 'title', 'prompt', 'contextData', 'options', 'correctOption', 'correctOptions', 'acceptedAnswers', 'items', 'pairs', 'starterCode', 'solutionCode', 'testCases', 'tables', 'appHtml', 'workbook', 'solutionCells', 'dataTables', 'work', 'timeLimitMinutes', 'points'],
   additionalProperties: false,
 };
 
@@ -122,7 +125,27 @@ export const WORKSPACE_RULES = `
   prompt: what to build, e.g. a view with named columns, or rows to fix with UPDATE/DELETE; numbered steps each on its own line.
   starterCode: a short SQL comment naming the tables, then the start of the statement. solutionCode: SQLite that does the task
   (CREATE VIEW ..., UPDATE ...). testCases: 2 to 4 checks; input is a SELECT run afterwards (e.g. "SELECT * FROM
-  monthly_revenue ORDER BY month"), expectedOutput "" (it's worked out from solutionCode).`;
+  monthly_revenue ORDER BY month"), expectedOutput "" (it's worked out from solutionCode).
+- desktop: a task on Praxa's built-in work apps, on a desktop with Files: chat (Slack/Teams), helpdesk (Zendesk-style
+  tickets), crm (contacts, accounts, deals), docs (Word-style documents), bi (charts from CSV files), forms, calendar,
+  kb (a knowledge base) and board (monday.com or Jira). Use it for support, sales, account, operations, project, admin,
+  marketing and reporting work done in that kind of software. It is ready-made and reliable, so prefer it to an app
+  simulation of the same kind of software; use app only for software the built-in apps can't stand in for. One or two
+  apps per task; the best tasks carry work between them (a ticket's facts into the CRM, a CSV charted in BI and the
+  chart's finding posted in chat, a KB article used to answer a ticket).
+  prompt: the task in 2 to 5 numbered steps, each on its own line, naming the tickets, records, channels or items involved.
+  work: ONE JSON text (valid JSON, double quotes) with a key per built-in app the task uses, plus "company" (an invented
+  company's name) and "people" ([{"name":"...","role":"...","email":"..."}], everyone in the data). Plant the issues the
+  task turns on in the data (a duplicate, a wrong priority, an SLA about to breach, a clash, a figure that doesn't add
+  up), never pointed out. Each app's data, with every "phase" "":
+${WORK_APP_FORMATS}
+  Records, tickets and items: 5 to 20 each, realistic and consistent with each other.
+  workbook: the CSV files handed over in Files (bi needs at least one), each {name: "x.csv", csv}; otherwise [].
+  testCases: 3 to 6 checks on what the candidate leaves in the apps; input is one of:
+${WORK_APP_CHECKS}
+  expectedOutput: the value once done right ("a|b" for several); none may already hold at the start. A check that reads
+  writing has expectedOutput "RUBRIC: " then 2 to 4 points a strong answer makes, joined with " ; ".
+  contextData, starterCode, solutionCode and appHtml are "". Every other style has work "".`;
 
 // What an app question can be: the three kinds of interactive page
 export const APP_KINDS = `
@@ -522,13 +545,13 @@ SECTIONS: unless the company asks otherwise, the test builds up through these, i
 2. In a job simulation, the inbox: 1 or 2 email tasks, plus a question on who to contact, escalate to or hand over to.
    (A skills test leaves this section out.)
 3. Case studies: 1 or 2 cases, each followed by 3 to 5 sub-questions mixing fast formats with at least one written.
-4. Hands-on tasks: 2 or 3 of sheet, database or app (or code for developers), and an AI-assisted task where the job
+4. Hands-on tasks: 2 or 3 of sheet, database, desktop or app (or code for developers), and an AI-assisted task where the job
    uses AI, each followed by 2 to 4 sub-questions
    about what the candidate found or did in it, including an email reply about it where it fits (the customer or
    manager who asked for the work) or a written one (what they'd tell the customer or
    manager, why it happened, what they'd check next).
 Size: 20 to 32 questions counting sub-questions, 45 to 75 minutes in all, never more than 45 questions.
-Sub-questions (an email can be one): give each case and each sheet, database or app task a short ref ("c1", "t1"...) and set taskRef on the
+Sub-questions (an email can be one): give each case and each sheet, database, desktop or app task a short ref ("c1", "t1"...) and set taskRef on the
 questions about it; they're answered beside it, so they may rely on what it shows. Every other question has taskRef "",
 and every question that isn't a case or task has ref "". A kept case or task's ref is its id.`;
 

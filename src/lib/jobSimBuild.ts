@@ -408,3 +408,62 @@ export function finishJobSim(test: AssessmentTest, raw: RawJobSim, business: Bus
 
 // Whether a test is a job simulation written this way (one desktop day), so a change to it rewrites the day
 export const isJobSimDraft = (test?: AssessmentTest) => !!test && test.questions.length === 1 && test.questions[0].type === 'desktop' && !!test.questions[0].desktop?.phases?.length;
+
+// A skills test's task on the built-in work apps (server/generateTest.ts WORKSPACE_RULES, type "desktop"): the AI's
+// work JSON, the CSV files handed over and its checks, made into the task's own desktop. Checks Praxa can't mark, or
+// that already pass before the candidate does anything, are dropped; with fewer than two left the task goes
+export interface RawDesktopTask {
+  work?: string;
+  workbook?: { name: string; csv: string }[];
+  testCases?: { description: string; input: string; expectedOutput: string }[];
+}
+export function desktopTask(raw: RawDesktopTask, role = 'Candidate'): { desktop: DesktopConfig; testCases: { description: string; input: string; expectedOutput: string; rubric?: string[] }[] } | null {
+  let parsed: Record<string, unknown> = {};
+  try {
+    const v = JSON.parse(raw.work || '');
+    if (v && typeof v === 'object' && !Array.isArray(v)) parsed = v;
+  } catch {
+    return null;
+  }
+  // In the order the AI listed them, so the task opens at its main app
+  const apps = Object.keys(parsed).filter((a): a is DeskWorkApp => (WORK_APPS as string[]).includes(a));
+  if (!apps.length) return null;
+  const files = (raw.workbook ?? []).filter((f) => String(f.name ?? '').trim() && String(f.csv ?? '').trim()).map((f) => ({ name: f.name.trim(), content: f.csv }));
+  const shape = { apps, work: raw.work, files, tables: [], inbox: [] } as unknown as RawJobSim;
+  const work = workOf(shape);
+  if (workProblems(shape, work).length) return null;
+  const company = typeof parsed.company === 'string' && parsed.company.trim() ? parsed.company.trim() : 'Your company';
+  const domain = `${slug(company)}.example`;
+  const people = (Array.isArray(parsed.people) ? parsed.people : []) as { name?: string; role?: string; email?: string }[];
+  const desktop: DesktopConfig = {
+    user: { name: 'You', email: `you@${domain}`, role },
+    company,
+    time: 'Mon 09:00',
+    apps: [...apps, 'files'],
+    contacts: people.filter((p) => p?.email?.trim()).map((p) => ({ name: String(p.name ?? p.email), role: String(p.role ?? ''), email: lower(p.email ?? '') })),
+    inbox: [],
+    ...(files.length && { files }),
+    work,
+  };
+  const start = emptyDesktop(desktop);
+  const testCases = (raw.testCases ?? []).flatMap((tc) => {
+    const input = String(tc.input ?? '').trim();
+    const at = input.indexOf(':');
+    const kind = at < 0 ? input : input.slice(0, at);
+    const rest = at < 0 ? '' : input.slice(at + 1);
+    if (!WORK_CHECKS.includes(kind)) return [];
+    const app = WORK_APP_OF[kind];
+    if (app && !apps.includes(app)) return [];
+    const want = String(tc.expectedOutput ?? '').trim();
+    // A check on writing gives its marking points as "RUBRIC: point ; point"
+    const rubricText = want.match(/^RUBRIC:\s*([\s\S]*)$/i)?.[1];
+    if (rubricText !== undefined) {
+      const rubric = rubricText.split(/\s*;\s*/).map((p) => p.trim()).filter(Boolean).slice(0, 5);
+      if (!rubric.length || !writingCheck(kind, rest)) return [];
+      return [{ description: tc.description, input, expectedOutput: '', rubric }];
+    }
+    if (!want || matchesExpected(desktopValue(desktop, start, input), want)) return [];
+    return [{ description: tc.description, input, expectedOutput: want }];
+  });
+  return testCases.length >= 2 ? { desktop, testCases } : null;
+}

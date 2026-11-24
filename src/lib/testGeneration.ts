@@ -10,6 +10,7 @@ import { categoriesFor, companySector, inCompanySector, rolesFor } from './secto
 import { ROLE_GROUPS } from './testRoles';
 import { isAnswerType, isGroupType, orderedQuestions, questionProblems } from './questionTypes';
 import { probeApp } from './appSimulation';
+import { desktopTask } from './jobSimBuild';
 import { checkSheet, parseAddr, cellAddr, setCells, shiftFormula, workbookStarter, parseWorkbook } from './spreadsheet';
 import { databaseStarter } from './databaseWork';
 import { openTaskDatabase, queryRows } from './sqlEngine';
@@ -199,6 +200,8 @@ export type RawQuestion = Omit<Partial<Question>, 'tables'> & {
   workbook?: { name: string; csv: string }[];
   solutionCells?: { sheet: string; cells: string; value: string }[];
   dataTables?: { name: string; csv: string }[];
+  // Desktop tasks: the built-in work apps' data as JSON text
+  work?: string;
 };
 
 // CSV as rows of fields: quoted fields may hold commas, line breaks and doubled quotes
@@ -272,7 +275,7 @@ export const uid = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${M
 // One AI-written question made into a real one, or null if it doesn't hold up
 export async function checkQuestion(raw: RawQuestion): Promise<Question | null> {
   const type = raw.type as QuestionType;
-  if (!['choice', 'multi', 'text', 'written', 'order', 'match', 'case', 'code', 'sql', 'sheet', 'database', 'app', 'email', 'assistant'].includes(type)) return null;
+  if (!['choice', 'multi', 'text', 'written', 'order', 'match', 'case', 'code', 'sql', 'sheet', 'database', 'app', 'desktop', 'email', 'assistant'].includes(type)) return null;
   const q: Question = {
     id: uid('q'),
     title: String(raw.title ?? '').trim(),
@@ -410,6 +413,15 @@ export async function checkQuestion(raw: RawQuestion): Promise<Question | null> 
     q.contextData = raw.contextData?.trim() || 'TaskDatabase';
     q.starterCode = databaseStarter(raw.starterCode?.trim() || `-- Tables: ${tables.map((t) => t.name).join(', ')}\n`);
     q.testCases = checks.map((tc, i) => ({ id: uid('tc'), description: tc.description || `Check ${i + 1}`, input: tc.input.trim(), expectedOutput: '' }));
+    return q.title && q.prompt ? q : null;
+  }
+  // A task on Praxa's built-in work apps (help desk, CRM, chat, docs, BI…), on its own desktop
+  if (type === 'desktop') {
+    const task = desktopTask(raw);
+    if (!task) return null;
+    q.desktop = task.desktop;
+    q.starterCode = '';
+    q.testCases = task.testCases.map((tc, i) => ({ id: uid('tc'), description: tc.description || `Check ${i + 1}`, input: tc.input, expectedOutput: tc.expectedOutput, ...(tc.rubric && { rubric: tc.rubric }) }));
     return q.title && q.prompt ? q : null;
   }
   if (type === 'app') {

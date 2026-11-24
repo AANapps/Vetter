@@ -227,11 +227,12 @@ export const QUESTION_STYLES: { type: QuestionType; label: string; hint: string 
   { type: 'sql', label: 'SQL query', hint: 'Query sample tables, checked against your solution' },
   { type: 'sheet', label: 'Spreadsheet task', hint: 'Work in an Excel-style spreadsheet, checked by formulas on the finished workbook' },
   { type: 'database', label: 'Database task', hint: 'Work in a SQL workbench on its own tables, checked against the solution' },
+  { type: 'desktop', label: 'Work apps task', hint: 'A task on the desktop in built-in work apps: help desk, CRM, chat, docs, BI, forms, calendar, knowledge base or a project board' },
   { type: 'app', label: 'App simulation', hint: 'An interactive page built by the AI: the software the job uses, a device to work on, or any format that suits the skill' },
 ];
 
 // Styles only the AI can write; the builder edits their wording but doesn't offer them as blank questions
-export const AI_ONLY_TYPES: QuestionType[] = ['sheet', 'database', 'app'];
+export const AI_ONLY_TYPES: QuestionType[] = ['sheet', 'database', 'app', 'desktop'];
 
 export function blankQuestion(type: QuestionType): Question {
   const base: Question = {

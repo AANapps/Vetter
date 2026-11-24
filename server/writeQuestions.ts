@@ -72,7 +72,7 @@ export async function writeQuestions(body: unknown, apiKey: string | undefined, 
     .filter(Boolean)
     .join('\n\n');
 
-  const hands = req.plan.items.some((i) => wanted.has(i.ref) && ['app', 'sheet', 'database', 'code'].includes(i.type));
+  const hands = req.plan.items.some((i) => wanted.has(i.ref) && ['app', 'sheet', 'database', 'code', 'desktop'].includes(i.type));
   const model = req.plan.items.some((i) => wanted.has(i.ref) && i.type === 'app') ? specModel : testModel;
   const client = new Anthropic({ apiKey });
   try {

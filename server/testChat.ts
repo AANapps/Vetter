@@ -148,7 +148,7 @@ export function styleGuide(req: GuideRequest): string {
   return `${sim ? simulationRules(req.company, req.jobTitle) : SKILLS_TEST_RULES}${req.kind === 'training' ? TRAINING_RULES : ''}${req.kind === 'simulation' ? GAMIFIED_TEST_RULES : ''}${sectorSimulationRules(req.company?.sector)}
 - Every question must be answerable from its prompt alone, and check what the job really needs, not trivia.${QUALITY_RULES}
 - Styles: choice, multi, text, written, order, match for any job; email for replying to work email; case for a case
-  study with sub-questions; sheet, database and app are hands-on tasks in a working window.
+  study with sub-questions; sheet, database, desktop and app are hands-on tasks in a working window.
 ${
     sim
       ? `  Unless told otherwise, a desk job's simulation has 2 to 4 email tasks, some standing alone and some about a hands-on
@@ -160,8 +160,9 @@ ${
   working with AI; otherwise a skills test sticks to the other styles.`
   }
   Unless told otherwise, every test has hands-on tasks that match how the job is really done (JOB FIT above decides which
-  fit): sheet for Excel work (finance, ops, analysts; never for trades, clinical or floor jobs), database for SQL work, app for any other software the job names (a CRM, helpdesk, design
-  tool, accounting package...), app for physical and trade work (a mock-up of the device or equipment, e.g. a specific
+  fit): sheet for Excel work (finance, ops, analysts; never for trades, clinical or floor jobs), database for SQL work, desktop for work done in a help desk, CRM, team chat, documents, BI, forms,
+  calendar, knowledge base or a monday/Jira board (Praxa's built-in apps, ready and cheap), app for any other software the job names (a design
+  tool, accounting package, EPOS till...), app for physical and trade work (a mock-up of the device or equipment, e.g. a specific
   phone for a repair technician), code for developers, and an app of your own design (kind (c) below) for any other
   skill best shown by doing it. Fast formats for the basics, hands-on for the hardest work.
   Prefer database to sql (sql is a single query on a fixed sample database).

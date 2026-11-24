@@ -14,12 +14,12 @@ import { ChatRequest, backgroundNote, levelPick, styleGuide, stylesNote } from '
 const MAX_TURNS = 24;
 const MAX_TEXT = 4000;
 
-const ITEM_TYPES = ['part', 'choice', 'multi', 'text', 'written', 'order', 'match', 'email', 'assistant', 'case', 'code', 'sql', 'sheet', 'database', 'app'];
+const ITEM_TYPES = ['part', 'choice', 'multi', 'text', 'written', 'order', 'match', 'email', 'assistant', 'case', 'code', 'sql', 'sheet', 'database', 'app', 'desktop'];
 
 // The plan's item types are held to the styles the company picked (a case or task needs its own style picked too)
 const schemaFor = (styles?: string[], jobSim = false) => {
   const types = ITEM_TYPES.filter((t) => t !== 'part');
-  const allowed = jobSim ? ['part'] : styles?.length ? types.filter((t) => styles.includes(t)) : types;
+  const allowed = jobSim ? ['part'] : styles?.length ? types.filter((t) => styles.includes(t) || (t === 'desktop' && styles.includes('app'))) : types;
   const plan = schema.properties.plan;
   return {
     ...schema,
