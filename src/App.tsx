@@ -43,7 +43,7 @@ import { TestPlan, TestPlanDialog } from './components/TestPlanDialog';
 import { JobForm } from './components/JobForm';
 import { CustomIdea } from './lib/testAdvisor';
 import { TestBuilder } from './components/TestBuilder';
-import { attemptsAt, jobTestProgress, withAttemptFinished, withAttemptStarted, withInvitation } from './lib/jobTests';
+import { attemptsAt, jobTestProgress, simHasAi, withAttemptFinished, withAttemptStarted, withInvitation, withJobAi } from './lib/jobTests';
 import { CandidateHome } from './components/CandidateHome';
 import { Award, CheckCircle2, GraduationCap, Settings, Users } from 'lucide-react';
 import { firebaseEnabled } from './lib/firebase';
@@ -1299,6 +1299,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
         testId,
         testTitle: completedTest.title,
         score: finalScore,
+        ...(isJobSim(completedTest) && { aiAssistant: simHasAi(completedTest) }),
         completedAt,
         answers,
       }).catch((err) => console.error("Couldn't keep the answers for the company", err));
@@ -1549,7 +1550,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
       showToast(`You've used all ${limit} ${limit === 1 ? 'attempt' : 'attempts'} ${job.companyName} allows at "${test.title}".`);
       return;
     }
-    setActiveTest(test);
+    setActiveTest(withJobAi(test, job));
     setActiveTestJobId(jobId);
     setActiveAttempt({ number: used + 1, limit });
   };
@@ -1595,7 +1596,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
     openBusinessJob(job.id);
   };
 
-  const handleSaveJobTests = (jobId: string, change: Pick<JobPosting, 'testIds' | 'testsRequired' | 'maxAttempts'>) => {
+  const handleSaveJobTests = (jobId: string, change: Pick<JobPosting, 'testIds' | 'testsRequired' | 'maxAttempts' | 'aiInSimulations'>) => {
     if (libraryJobSimHit(change.testIds, allJobs.find((j) => j.id === jobId)?.testIds)) return;
     setJobs((prev) => prev.map((j) => (j.id === jobId ? { ...j, ...change } : j)));
   };

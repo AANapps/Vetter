@@ -125,6 +125,10 @@ export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose, on
     has((q) => isWorkspaceType(q.type)) &&
       'Spreadsheet, database and app tasks open a working copy of the tool. Do the work there and leave it: it’s marked as you leave it.',
     has((q) => q.type === 'case') && 'Case studies give you material to read, with questions about it beside it.',
+    has((q) => q.type === 'desktop' && !!q.desktop?.phases?.length) &&
+      (has((q) => q.type === 'desktop' && !!q.desktop?.apps.includes('ai'))
+        ? 'The desktop has an AI assistant. Use it as you would at work, to draft, check and speed things up: it can be wrong, so check what it gives you. The company sees your conversation with it.'
+        : 'The company has turned off the AI assistant for this simulation: do the work on your own.'),
     has((q) => q.type === 'assistant') && 'AI-assisted tasks give you an AI assistant to work with. Use it as you would at work: it can be wrong, and how you use it is marked as well as what you hand in.',
     has((q) => q.type === 'email') && 'Email tasks put a thread in your inbox. Reply as you would at work: who you send it to and copy in is marked, as well as what you say.',
     has((q) => q.type === 'written') && 'Written answers are marked on the points a strong answer makes, not on length or polish.',
@@ -340,7 +344,7 @@ export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose, on
                   <p>This assessment is monitored. By beginning it you agree to the following rules.</p>
                   <ol className="space-y-2.5">
                     {INTEGRITY_RULES.map((r) =>
-                      test.questions.some((q) => q.aiAllowed) && r.startsWith('Work alone.')
+                      test.questions.some((q) => q.aiAllowed || (q.type === 'desktop' && !!q.desktop?.apps.includes('ai'))) && r.startsWith('Work alone.')
                         ? 'Work alone. No help from other people, and no outside AI, code generators or web searches. Where the company allows AI, use the AI assistant tab in the test.'
                         : r
                     ).map((rule, i) => (

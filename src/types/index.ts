@@ -600,6 +600,9 @@ export interface JobPosting {
   maxAttempts?: number;
   // Candidates must finish the tests before they can apply
   testsRequired: boolean;
+  // Whether candidates get the AI assistant in the job's simulations (the desktop's AI app). On unless the company turns
+  // it off: AI is part of everyday work, so the simulation shows how well they use it
+  aiInSimulations?: boolean;
   // Everyone the job's tests have been sent to, and addresses emailed that have no Praxa account yet
   invitations: JobInvitation[];
   invitedEmails?: string[];

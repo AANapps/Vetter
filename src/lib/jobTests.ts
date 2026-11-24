@@ -29,6 +29,14 @@ function attemptLog(job: JobPosting, candidate: User, testId: string) {
   return [...finished, ...unsubmitted].sort((a, b) => a.at.localeCompare(b.at));
 }
 
+// A job simulation as the job's candidates take it: without the AI assistant when the company turned it off
+export function withJobAi(test: AssessmentTest, job: JobPosting): AssessmentTest {
+  if (job.aiInSimulations !== false || !test.questions.some((q) => q.type === 'desktop' && q.desktop)) return test;
+  return { ...test, questions: test.questions.map((q) => (q.type === 'desktop' && q.desktop ? { ...q, desktop: { ...q.desktop, apps: q.desktop.apps.filter((a) => a !== 'ai') } } : q)) };
+}
+// Whether a test's simulation had the AI assistant on its desktop
+export const simHasAi = (test: AssessmentTest) => test.questions.some((q) => q.type === 'desktop' && !!q.desktop?.apps.includes('ai'));
+
 // The job's attempt limit per test, or undefined for none
 export const attemptLimit = (job: JobPosting) => job.maxAttempts || undefined;
 

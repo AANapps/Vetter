@@ -47,6 +47,8 @@ export interface Submission {
   testId: string;
   testTitle: string;
   score: number;
+  // A job simulation: whether the AI assistant was on the desktop when it was taken
+  aiAssistant?: boolean;
   completedAt: string;
   answers: AnswerRecord[];
 }

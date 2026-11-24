@@ -103,6 +103,7 @@ export const AnswersDialog: React.FC<AnswersDialogProps> = ({ businessId, candid
                       <div className="text-xs text-slate-500">
                         {when(s.completedAt)}
                         {attempt.length > 1 && ` · attempt ${attempt.length - attempt.indexOf(s)} of ${attempt.length}`}
+                        {s.aiAssistant !== undefined && ` · AI assistant ${s.aiAssistant ? 'allowed' : 'off'}`}
                       </div>
                     </div>
                     <span className="font-mono font-bold tabular-nums text-slate-900">{s.score}/100</span>
