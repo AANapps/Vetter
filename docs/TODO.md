@@ -2,6 +2,30 @@
 
 Kept up to date as work is asked for and finished. Newest items at the bottom of each section.
 
+## Launch to-do list (agreed 2026-11-24)
+
+The user confirmed on 2026-11-24 that the Firestore rules are deployed (latest) and the Anthropic credit is topped up: older notes below saying "deploy the rules" or "credit out" are out of date. The user chose to set aside for now: the 5 sample candidates, test answers being public (anti-cheat step 1) and similar trust items.
+
+**Done 2026-11-24**
+- The test AI assistant (`/api/task-assistant`) needs sign-in and is limited to 120 messages an hour per person (in memory per server instance).
+- Scale plan "Your branding on tests": the hiring company's name and logo on the test start screen and header for its job's candidates (no brand colour: that would need a new field in the companies rule).
+- SEO/AI pages: resources articles, test library pages, pricing, About, llms.txt, llms-full.txt, robots.txt, sitemap (seoPages.ts, src/data/articles.ts).
+
+**To do before selling**
+- Payments: finish the live test (cancel on `checkout-test-1`), decide VAT (Stripe Tax), then switch Stripe to `sk_live_`.
+- Enforce plan limits (jobs, candidates per job, seats) on the server, not only in the browser.
+- Click through live as a candidate and a company: the five-part job simulations, the new Excel test, Open their desktop, full screen, AI on/off per job, branding.
+- Try the AI builders with the real AI: a skills test with a work-apps task, an AI-made job simulation, guided training.
+- The "menu opens blank pages" bug (not reproduced yet).
+- Privacy policy, terms of service and candidate-data terms (need legal review), and a proper domain.
+- Run a free pilot with 3 to 5 companies hiring now, then start charging.
+
+**SEO and AI recommendations: the user's part**
+1. Set `SITE_URL` in Vercel once the domain is live (until then pages point to the Vercel address).
+2. Add the site to Google Search Console and Bing Webmaster Tools and submit `/sitemap.xml`.
+3. Get mentioned elsewhere: honest reviews on G2/Capterra, "best skills assessment tools" lists, HR/recruitment press, the Claude and ChatGPT directories (needs the connector), all using the same description: "Praxa is a job simulation and skills testing platform for hiring…".
+4. Publish original data once there are real results (e.g. what many support simulations showed), never invented figures.
+
 ## To do
 - **Anti-cheat step 1: hide answers and mark on the server (fix first; confirmed live 2026-11-23).** A public request with no sign-in downloads any test with its answers (`correctOption(s)`, `expectedOutput`, `testCases`, `solutionCode`), because `tests` has `allow read: if true` and marking runs in the browser (`src/lib/grading.ts`). Candidates also write their own scores to their profile. Fix: split each test into questions (public) and an answer key only the server reads; mark every attempt on the server and save results from there; move existing tests' answers once; then simulation checks. Blocked on a server identity: a Firebase service account key (blocked by an org policy) or Option B, a keyless server login (a Firebase Auth user whose email and password go in Vercel as `VETTER_SERVER_EMAIL` / `VETTER_SERVER_PASSWORD`). Must come before the Claude/ChatGPT connector.
 - **Guided training: try it with the real AI (built 2026-11-23).** Ask the home chat for training (e.g. "train my support team on Zendesk refunds"): the training builder plans lessons and steps, builds the app (library app when there is one), Try it, Save to Training. Check the app marks each step's control with data-ref and that steps tick off. The app goes to the admin app-library review queue (owner "<company> (training)"). Old AI-written trainings (made as tests, before this) still run as tests.
@@ -55,8 +79,8 @@ From a code read-through of both flows (not clicked through live).
 
 **Fix first (trust in results)**
 - The 5 sample candidates are mixed in with real ones live: label them or remove them.
-- The test AI chat (task assistant) has no login and Praxa pays: require sign-in and set a limit.
-- Anthropic credit out (since 2026-11-18).
+- ~~The test AI chat (task assistant) has no login and Praxa pays~~: sign-in and a per-hour limit added 2026-11-24.
+- ~~Anthropic credit out (since 2026-11-18)~~: topped up (user, 2026-11-24).
 
 **Candidate side**
 
