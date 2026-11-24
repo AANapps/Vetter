@@ -1221,7 +1221,6 @@ export const SpreadsheetWindow: React.FC<SpreadsheetWindowProps> = ({ value, onC
             const cells: { row: string; col: string; n: number | null; filled: boolean }[] = [];
             const labelOf = (v: string) => v || '(blank)';
             for (let r = 1; r < used.rows; r++) {
-              if (hiddenRows.has(r)) continue;
               const v = calc.value(sheet, r, valueCol);
               cells.push({
                 row: labelOf(toText(calc.value(sheet, r, rowsCol))),
@@ -1554,7 +1553,7 @@ const PivotDialog: React.FC<{
         </>
       }
     >
-      <p className="text-slate-600">Summarises the data on this sheet (row 1 as headers, rows a filter hides left out) on a new sheet. The result is values: it won't update if the data changes.</p>
+      <p className="text-slate-600">Summarises the data on this sheet (row 1 as headers) on a new sheet. The result is values: it won't update if the data changes.</p>
       <label className="block space-y-1">
         <span className="text-slate-600">Rows</span>
         <select value={rowsCol} onChange={(e) => setRowsCol(Number(e.target.value))} className={fieldClass}>

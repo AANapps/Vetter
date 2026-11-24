@@ -55,8 +55,15 @@ function options(example: string, i: number, row: string[]): { piece: Piece; len
       });
     }
   });
-  // Longer matches first, so the simplest programs are found first
-  return out.sort((a, b) => b.len - a.len);
+  // Longer matches first, so the simplest programs are found first; then the change of case the example itself shows
+  // (an example typed "Asha" means capitalise, even when the source happened to be typed that way)
+  const styleOf = (t: string): Case => (t.length > 1 && t === t.toUpperCase() ? 'upper' : t === t.toLowerCase() ? 'lower' : t === withCase(t, 'proper') ? 'proper' : 'same');
+  const rank = (o: { piece: Piece; len: number }) => {
+    const mode = o.piece.kind === 'lit' ? 'same' : o.piece.mode;
+    const style = styleOf(example.slice(i, i + o.len));
+    return mode === style ? 0 : mode === 'same' ? 1 : 2;
+  };
+  return out.sort((a, b) => b.len - a.len || rank(a) - rank(b));
 }
 
 function programsFor(example: string, row: string[], limit = 400): Piece[][] {

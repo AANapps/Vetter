@@ -391,6 +391,8 @@ type Node =
   | { k: 'err'; v: string }
   | { k: 'ref'; v: RefToken }
   | { k: 'sref'; v: TableRef }
+  // A value already worked out (one cell of a range a function is applied across)
+  | { k: 'val'; v: CellValue }
   | { k: 'fn'; name: string; args: Node[] }
   | { k: 'neg'; a: Node }
   | { k: 'pct'; a: Node }
@@ -1064,6 +1066,8 @@ export class Calc {
         return this.range(node.v, sheet);
       case 'sref':
         return this.tableRange(node.v);
+      case 'val':
+        return node.v;
       case 'neg': {
         const a = this.eval(node.a, sheet);
         if (this.isMulti(a)) return new Arr(this.mat(a).map((row) => row.map((v) => this.binary('*', v, -1))));
@@ -1147,6 +1151,21 @@ export class Calc {
   }
 
   private call(name: string, argNodes: Node[], sheet: number): Evaluated {
+    // A function of single values given a range or array works cell by cell and returns an array, as in Excel 365
+    if (LIFTED.has(name)) {
+      const evaluated = argNodes.map((n) => this.eval(n, sheet));
+      if (evaluated.some((v) => this.isMulti(v))) {
+        const ms = evaluated.map((v) => this.mat(v));
+        const rows = Math.max(...ms.map((m) => m.length));
+        const cols = Math.max(...ms.map((m) => m[0]?.length ?? 1));
+        const at = (m: CellValue[][], i: number, j: number): CellValue => m[m.length === 1 ? 0 : i]?.[(m[0]?.length ?? 1) === 1 ? 0 : j] ?? err('#N/A');
+        return new Arr(
+          Array.from({ length: rows }, (_, i) =>
+            Array.from({ length: cols }, (_, j) => this.single(this.call(name, ms.map((m) => ({ k: 'val' as const, v: at(m, i, j) })), sheet)))
+          )
+        );
+      }
+    }
     const arg = (i: number) => (i < argNodes.length ? this.eval(argNodes[i], sheet) : null);
     const one = (i: number) => this.single(arg(i));
     const all = () => argNodes.map((n) => this.eval(n, sheet));
@@ -1736,6 +1755,9 @@ export class Calc {
 }
 
 // ---------- Showing values ----------
+
+// Functions of single values, applied cell by cell when given a range
+const LIFTED = new Set(['LEN', 'TRIM', 'CLEAN', 'UPPER', 'LOWER', 'PROPER', 'LEFT', 'RIGHT', 'MID', 'FIND', 'SEARCH', 'SUBSTITUTE', 'VALUE', 'DATEVALUE', 'TEXT', 'EXACT', 'ISNUMBER', 'ISTEXT', 'ISBLANK', 'ISERROR', 'ISNA', 'ROUND', 'ROUNDUP', 'ROUNDDOWN', 'ABS', 'INT', 'SQRT', 'MOD', 'YEAR', 'MONTH', 'DAY', 'IF', 'IFERROR', 'IFNA', 'NOT']);
 
 // A date typed any common way, as Praxa holds dates (YYYY-MM-DD): 14/03/2026, 14-03-2026, 14 Mar 2026, Mar 14 2026,
 // 2026-03-14, 14.03.26
