@@ -137,7 +137,12 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   const [testSource, setTestSource] = useState<'all' | 'yours' | 'vetter' | 'on-jobs'>('all');
   const [testField, setTestField] = useState<{ label: string; roles: TestRole[] } | null>(null);
   const usedByOf = (t: AssessmentTest) => jobs.filter((j) => j.testIds.includes(t.id));
-  const allTests = [...companyTests, ...vetterTests];
+  // Skills tests and job simulations are kept apart: two tabs, each with its own lists and drafts
+  const [kindTab, setKindTab] = useState<'tests' | 'sims'>(() => (new URLSearchParams(window.location.search).get('show') === 'simulations' ? 'sims' : 'tests'));
+  const allTests = [...companyTests, ...vetterTests.filter((t) => !isSim(t))];
+  const draftIsSim = (d: TestDraft) => d.kind === 'simulation' || isSim(d.test);
+  const shownDrafts = drafts.filter((d) => (kindTab === 'sims' ? draftIsSim(d) : !draftIsSim(d)));
+  const simCount = companySims.length + praxaSims.length;
   const sourceTabs = (
     isPraxa
       ? [
@@ -364,13 +369,19 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
             <div className="space-y-1">
-              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Tests</h1>
+              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Tests and job simulations</h1>
               <p className="text-sm text-slate-500 max-w-xl">
                 {isPraxa
                   ? 'The Praxa library. Tests you write join it for every candidate.'
-                  : `Tests ${business.name} wrote and Praxa's library, together. Add any of them to a job from the job.`}
+                  : `Yours and Praxa's library. Add any of them to a job from the job.`}
               </p>
             </div>
+            {kindTab === 'sims' ? (
+              <button onClick={() => onGenerateTest('I want to create a job simulation.')} className="create-border self-start px-4 py-2.5 text-sm font-semibold text-indigo-700 hover:text-indigo-900 rounded-lg flex items-center gap-2">
+                <Sparkles className="w-4 h-4" />
+                Create a job simulation
+              </button>
+            ) : (
             <div className="flex flex-wrap gap-2 self-start">
               <button
                 onClick={() => onGenerateTest()}
@@ -386,6 +397,39 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                 Create a test
               </button>
             </div>
+            )}
+          </div>
+
+          {/* Two kinds, clearly apart: skills tests (one skill, about 20 minutes) and job simulations (a whole working day) */}
+          <div role="tablist" aria-label="Tests or job simulations" className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {(
+              [
+                ['tests', 'Skills tests', allTests.length, 'One skill at a time, about 20 minutes: hands-on tasks in the tool, such as a spreadsheet, SQL or code.', FileText],
+                ['sims', 'Job simulations', simCount, 'A whole working day, about 40 minutes: the inbox, the job’s software and a curveball, in five timed parts.', Monitor],
+              ] as const
+            ).map(([id, label, count, blurb, Icon]) => {
+              const on = kindTab === id;
+              return (
+                <button
+                  key={id}
+                  role="tab"
+                  aria-selected={on}
+                  onClick={() => setKindTab(id)}
+                  className={`text-left p-4 rounded-xl border-2 transition-colors flex gap-3 ${on ? 'border-indigo-600 bg-indigo-50/60' : 'border-slate-200 bg-white hover:border-slate-300'}`}
+                >
+                  <span className={`w-10 h-10 shrink-0 rounded-lg flex items-center justify-center ${on ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                    <Icon className="w-5 h-5" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="flex items-center gap-2">
+                      <span className={`text-base font-bold ${on ? 'text-indigo-900' : 'text-slate-900'}`}>{label}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold tabular-nums ${on ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'}`}>{count}</span>
+                    </span>
+                    <span className="block mt-0.5 text-xs text-slate-600">{blurb}</span>
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
           {/* The Praxa team in the company view sees the page as one company, picked here */}
@@ -408,20 +452,12 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
 
           {/* Job simulations, under their own label: a timed day doing the job rather than a test. The company's own (made
               to send to candidates) and Praxa's ready-made ones, each ready to send */}
+          {kindTab === 'sims' && (
           <section aria-labelledby="job-sims" className="space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
-              <div>
-                <h2 id="job-sims" className="text-lg font-bold text-slate-900 inline-flex items-center gap-2">
-                  <Monitor className="w-5 h-5 text-indigo-600" />
-                  Job simulations <span className="font-normal text-slate-400 tabular-nums">{companySims.length + praxaSims.length}</span>
-                </h2>
-                <p className="text-xs text-slate-500 max-w-xl">A 40-minute day doing the job: the inbox, the job's own software and a curveball, in five timed parts. Send one to a job's candidates to see who can do the work.</p>
-              </div>
-              <button onClick={() => onGenerateTest('I want to create a job simulation.')} className="create-border shrink-0 px-3 py-2 text-xs font-semibold text-indigo-700 hover:text-indigo-900 rounded-lg inline-flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5" />
-                Create a job simulation
-              </button>
-            </div>
+            <h2 id="job-sims" className="sr-only">Job simulations</h2>
+            {simCount === 0 && (
+              <div className="bg-white border border-dashed border-slate-300 rounded-xl px-5 py-8 text-center text-sm text-slate-500">No job simulations yet. Use Create a job simulation above.</div>
+            )}
             <ul className="bg-white border border-slate-200 rounded-xl divide-y divide-slate-100 overflow-hidden">
               {[...companySims]
                 .sort((a, b) => madeAt(b) - madeAt(a))
@@ -433,9 +469,10 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
               ))}
             </ul>
           </section>
+          )}
 
           {/* The company's own tests first, each ready to change by asking Praxa or by hand */}
-          {!isPraxa && (
+          {kindTab === 'tests' && !isPraxa && (
             <section aria-labelledby="your-tests" className="space-y-3">
               <h2 id="your-tests" className="text-lg font-bold text-slate-900">
                 Your tests <span className="font-normal text-slate-400 tabular-nums">{companyTests.length}</span>
@@ -478,12 +515,13 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
             </div>
           )}
 
+          {kindTab === 'tests' && (
           <dl className="grid grid-cols-2 md:grid-cols-4 gap-px bg-slate-200 rounded-xl overflow-hidden border border-slate-200">
             {[
               { label: 'Tests', value: allTests.length },
               { label: isPraxa ? 'Written in the builder' : 'Written by you', value: isPraxa ? vetterTests.filter(isEditable).length : companyTests.length },
               { label: isPraxa ? 'On a job' : 'On your jobs', value: allTests.filter((t) => usedByOf(t).length > 0).length },
-              { label: 'Drafts', value: drafts.length },
+              { label: 'Drafts', value: shownDrafts.length },
             ].map((st) => (
               <div key={st.label} className="bg-white px-5 py-4">
                 <dt className="text-xs text-slate-500">{st.label}</dt>
@@ -491,16 +529,17 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
               </div>
             ))}
           </dl>
+          )}
 
           {/* Tests still being written */}
-          {drafts.length > 0 && (
+          {shownDrafts.length > 0 && (
             <div className="space-y-3">
               <div>
                 <h2 className="text-sm font-bold text-slate-900">Drafts</h2>
                 <p className="text-xs text-slate-500">Only {business ? 'your company' : 'the Praxa team'} can see these. Candidates can't take them until they're saved.</p>
               </div>
               <ul className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {drafts.map((d) => (
+                {shownDrafts.map((d) => (
                   <DraftCard
                     key={d.id}
                     draft={d}
@@ -515,6 +554,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
             </div>
           )}
 
+          {kindTab === 'tests' && (<>
           <div className="pt-2">
             <h2 className="text-lg font-bold text-slate-900">{isPraxa ? "Praxa's library" : 'All tests'}</h2>
             <p className="text-xs text-slate-500">{isPraxa ? 'The tests every candidate can take.' : "Yours and Praxa's library together, to add to any job."}</p>
@@ -701,6 +741,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
           )}
           </div>
           </div>
+          </>)}
         </div>
       )}
 
