@@ -79,16 +79,39 @@ const APPS: Record<DeskApp, { label: string; Icon: React.ComponentType<{ classNa
 const REPLY_DELAY_MS = 2500;
 
 // A custom app's look on the desktop and taskbar
-const appInfo = (cfg: DesktopConfig, app: string) =>
+const baseAppInfo = (cfg: DesktopConfig, app: string) =>
   (APPS as Record<string, (typeof APPS)[DeskApp]>)[app] ?? { label: cfg.customApps?.find((c) => c.id === app)?.label ?? app, Icon: LayoutGrid, tint: 'bg-teal-600' };
 
-export const Desktop: React.FC<{ question: Question; answer: string; onChange: (answer: string) => void; company?: string; startApp?: string }> = ({ question: q, answer, onChange, company, startApp }) => {
+// An app whose window the page supplies, for a skills test's task: its own spreadsheet, database, code editor or app
+// simulation, kept in the task's own answer, on the desktop beside Files, Mail and the rest
+export interface DeskSlot {
+  id: string;
+  label: string;
+  // A built-in app whose icon it borrows
+  look?: DeskApp;
+  render: (ctx: DeskCtx) => React.ReactNode;
+}
+
+export const Desktop: React.FC<{ question: Question; answer: string; onChange: (answer: string) => void; company?: string; startApp?: string; slot?: DeskSlot; readOnly?: boolean }> = ({
+  question: q,
+  answer,
+  onChange,
+  company,
+  startApp,
+  slot,
+  readOnly,
+}) => {
   const cfg = q.desktop!;
+  const appInfo = (c: DesktopConfig, app: string) => (slot && app === slot.id ? { ...(APPS[slot.look ?? 'code'] ?? APPS.code), label: slot.label } : baseAppInfo(c, app));
   const state = useMemo(() => parseDesktop(answer, cfg), [answer, cfg]);
   // The latest state, for replies that arrive after the candidate has done more
   const latest = useRef(state);
   latest.current = state;
-  const save = (change: Partial<DesktopState>) => onChange(JSON.stringify({ ...latest.current, ...change }));
+  // Read only (a company looking at a candidate's finished work): everything opens, nothing changes
+  const save = (change: Partial<DesktopState>) => {
+    if (readOnly) return;
+    onChange(JSON.stringify({ ...latest.current, ...change }));
+  };
   // The day starts in the inbox when there is one
   const first = startApp ?? (cfg.apps.includes('mail') ? 'mail' : null);
   const [open, setOpen] = useState<string[]>(first ? [first] : []);
@@ -266,6 +289,7 @@ export const Desktop: React.FC<{ question: Question; answer: string; onChange: (
   const work = cfg.work ?? {};
 
   const appWindow = (app: string) => {
+    if (slot && app === slot.id) return slot.render(ctx);
     const custom = cfg.customApps?.find((c) => c.id === app);
     if (custom)
       return (
@@ -429,7 +453,7 @@ export const Desktop: React.FC<{ question: Question; answer: string; onChange: (
           );
         })}
         {/* The Start menu: every app, and who's signed in */}
-        {startOpen && <StartMenu cfg={cfg} unread={unread} onLaunch={launch} onClose={() => setStartOpen(false)} />}
+        {startOpen && <StartMenu cfg={cfg} unread={unread} onLaunch={launch} onClose={() => setStartOpen(false)} appInfo={appInfo} />}
         {/* Notifications pop up bottom right, like the computer's own */}
         {toast && (
           <div role="status" className="absolute right-3 bottom-3 z-[60] w-80 max-w-[calc(100%-1.5rem)] bg-white/95 backdrop-blur text-slate-800 rounded-lg shadow-2xl border border-slate-200 p-3 flex gap-3">
@@ -510,7 +534,7 @@ export const Desktop: React.FC<{ question: Question; answer: string; onChange: (
 };
 
 // The Start menu: the computer's apps (searchable), and the person signed in
-const StartMenu: React.FC<{ cfg: DesktopConfig; unread: number; onLaunch: (app: string) => void; onClose: () => void }> = ({ cfg, unread, onLaunch, onClose }) => {
+const StartMenu: React.FC<{ cfg: DesktopConfig; unread: number; onLaunch: (app: string) => void; onClose: () => void; appInfo: typeof baseAppInfo }> = ({ cfg, unread, onLaunch, onClose, appInfo }) => {
   const [q, setQ] = useState('');
   const apps = cfg.apps.filter((a) => appInfo(cfg, a).label.toLowerCase().includes(q.trim().toLowerCase()));
   return (

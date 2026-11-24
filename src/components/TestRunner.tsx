@@ -1,9 +1,10 @@
 import { RichText, TaskPrompt, splitParts } from './RichText';
 import { Desktop } from './Desktop';
+import { firstWorkApp, taskDesktop, taskSlot } from '../lib/taskDesktop';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { AnswerRecord, answerRecords } from '../lib/submissions';
 import { BackButton } from './BackButton';
-import { AssessmentTest, Question, ResultBreakdown, timerOf, isPublic, levelName } from '../types';
+import { AssessmentTest, CaseFile, Question, ResultBreakdown, timerOf, isPublic, levelName } from '../types';
 import { breakdownFor } from '../lib/modules';
 import { ResultBreakdownPanel } from './ResultBreakdownPanel';
 import { MOCK_DATABASE } from '../lib/sqlEngine';
@@ -281,6 +282,9 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
   const [view, setView] = useState<WorkspaceView>('task');
   const [readMail, setReadMail] = useState<Set<number>>(() => new Set());
   const [aiChats, setAiChats] = useState<Record<string, AiTurn[]>>({});
+  // The desktop the test's tasks are worked on: its files, mail and the rest, shared by every task (the tasks' own work
+  // stays in their answers)
+  const [taskDesk, setTaskDesk] = useState('');
   const aiChatsRef = useRef(aiChats);
   aiChatsRef.current = aiChats;
   const inboxItems: InboxItem[] = useMemo(
@@ -596,7 +600,60 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
     </>
   );
   // A hands-on task's brief and its questions: beside the work, or for a job simulation's desktop, in a panel over it
-  const onDesktop = !!currentGroup?.task && currentQ?.type === 'desktop';
+  // Every hands-on task is on the desktop: a job simulation's or desktop task's own, or the test's desktop with the
+  // task's app open (a spreadsheet, a database, an app simulation, a code editor)
+  const shellTask = !!currentGroup?.task && ['sheet', 'database', 'app'].includes(currentQ?.type);
+  const codeOnDesk = !currentGroup?.task && (currentQ?.type === 'code' || currentQ?.type === 'sql');
+  const onDesktop = (!!currentGroup?.task && currentQ?.type === 'desktop') || shellTask || codeOnDesk;
+  // A skills task's brief opens over the desktop as the task starts (a job simulation's day has its own briefing)
+  useEffect(() => {
+    if (shellTask || (currentQ?.type === 'desktop' && !currentQ.desktop?.phases?.length)) setBriefView('open');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentQ?.id]);
+  const shellDesktop = (render: () => React.ReactNode) => {
+    const slot = taskSlot(currentQ);
+    const cfg = taskDesktop(test, currentQ, aiHere);
+    return (
+      <Desktop
+        key={`shell-${currentQ.id}`}
+        question={{ ...currentQ, desktop: cfg }}
+        answer={taskDesk}
+        onChange={setTaskDesk}
+        company={cfg.company}
+        startApp={slot.id}
+        slot={{ ...slot, render: () => render() }}
+      />
+    );
+  };
+  // A skills task's own window, inside the desktop: its files are the desktop's, and exports are saved there
+  const deskFiles = () => {
+    const st = (() => {
+      try {
+        return JSON.parse(taskDesk || '{}');
+      } catch {
+        return {};
+      }
+    })();
+    return [...(st.myFiles ?? []), ...(test.scenario?.files ?? [])].filter((f, i, all) => all.findIndex((x) => x.name === f.name) === i);
+  };
+  const saveDeskFile = (f: CaseFile) => {
+    let st: Record<string, unknown> = {};
+    try {
+      st = JSON.parse(taskDesk || '{}');
+    } catch {
+      /* a fresh desktop */
+    }
+    const mine = ((st.myFiles as CaseFile[]) ?? []).filter((x) => x.name !== f.name);
+    setTaskDesk(JSON.stringify({ ...st, myFiles: [...mine, f] }));
+  };
+  const taskWindow = () =>
+    currentQ.type === 'sheet' ? (
+      <SpreadsheetWindow key={currentQ.id} value={currentCode || currentQ.starterCode} onChange={handleCodeChange} fileName={currentQ.contextData || `${currentQ.title}.xlsx`} files={deskFiles().filter((f) => /\.(csv|tsv|txt)$/i.test(f.name))} onSaveFile={saveDeskFile} />
+    ) : currentQ.type === 'database' ? (
+      <DatabaseWindow key={currentQ.id} value={currentCode || currentQ.starterCode} onChange={handleCodeChange} tables={currentQ.tables ?? []} databaseName={currentQ.contextData || 'Database'} files={deskFiles().filter((f) => /\.(csv|tsv)$/i.test(f.name))} onSaveFile={saveDeskFile} />
+    ) : (
+      <AppWindow key={currentQ.id} value={currentCode} onChange={handleCodeChange} html={currentQ.appHtml ?? ''} appName={currentQ.contextData || currentQ.title} callouts={currentQ.callouts} />
+    );
   const taskPanel = !currentGroup?.task ? null : (
     <>
               {test.scenario && <CaseBrief scenario={test.scenario} />}
@@ -810,7 +867,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
         </div>
       )}
 
-      {showWorkspace && (
+      {showWorkspace && !onDesktop && (
         <WorkspaceTabs
           view={view}
           onView={setView}
@@ -824,7 +881,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
       )}
 
       {/* Main Split Workstation */}
-      <div ref={currentGroup.task ? taskSplit.containerRef : codeSplit.containerRef} className="relative flex-1 flex overflow-hidden">
+      <div ref={currentGroup.task ? taskSplit.containerRef : codeOnDesk ? undefined : codeSplit.containerRef} className="relative flex-1 flex overflow-hidden">
         {/* The workspace's other tabs open over the task, which stays as it was underneath */}
         {view !== 'task' && (
           <div className="absolute inset-0 z-30 bg-white">
@@ -851,17 +908,13 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
             <div className="flex-1 min-w-0 p-3 bg-slate-100">
               {currentQ.type === 'case' ? (
                 <CaseMaterial key={currentQ.id} question={currentQ} />
-              ) : currentQ.type === 'sheet' ? (
-                <SpreadsheetWindow
-                  key={currentQ.id}
-                  value={currentCode || currentQ.starterCode}
-                  onChange={handleCodeChange}
-                  fileName={currentQ.contextData || `${currentQ.title}.xlsx`}
-                  files={test.scenario?.files}
-                />
-              ) : currentQ.type === 'desktop' ? (
+              ) : onDesktop ? (
                 <div className="relative h-full">
-                  <Desktop key={currentQ.id} question={currentQ} answer={currentCode} onChange={handleCodeChange} company={test.scenario?.company ?? test.companyName} />
+                  {currentQ.type === 'desktop' ? (
+                    <Desktop key={currentQ.id} question={currentQ} answer={currentCode} onChange={handleCodeChange} company={test.scenario?.company ?? test.companyName} startApp={currentQ.desktop?.phases?.length ? undefined : firstWorkApp(currentQ.desktop!)} />
+                  ) : (
+                    shellDesktop(() => taskWindow())
+                  )}
                   {/* The brief and what's marked, over the desktop: opened from the footer, wider or minimised as needed */}
                   {briefView !== 'min' && (
                     <aside
@@ -881,18 +934,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
                     </aside>
                   )}
                 </div>
-              ) : currentQ.type === 'database' ? (
-                <DatabaseWindow
-                  key={currentQ.id}
-                  value={currentCode || currentQ.starterCode}
-                  onChange={handleCodeChange}
-                  tables={currentQ.tables ?? []}
-                  databaseName={currentQ.contextData || 'Database'}
-                  files={test.scenario?.files}
-                />
-              ) : (
-                <AppWindow key={currentQ.id} value={currentCode} onChange={handleCodeChange} html={currentQ.appHtml ?? ''} appName={currentQ.contextData || currentQ.title} callouts={currentQ.callouts} />
-              )}
+              ) : null}
             </div>
             {!onDesktop && (
               <ResizeHandle
@@ -931,7 +973,9 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
             </div>
           </div>
         ) : (
-        <>
+        <div className="flex-1 min-w-0 p-3 bg-slate-100">
+        {shellDesktop(() => (
+        <div ref={codeSplit.containerRef} className="relative h-full flex overflow-hidden bg-white">
         {/* Left Pane: Problem Description & Context */}
         <div style={{ width: `${codeSplit.size}%` }} className="shrink-0 flex flex-col bg-white overflow-hidden">
           <div className="p-6 overflow-y-auto space-y-5 flex-1">
@@ -1227,17 +1271,15 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
             </div>
           </div>
         </div>
-        </>
+        </div>
+        ))}
+        </div>
         )}
       </div>
 
       {/* Moving through the test: back, where you are and how much is answered, then next (or submit on the last) */}
       <footer className="shrink-0 border-t border-slate-200 bg-white px-4 sm:px-6 py-3 flex items-center gap-4">
-        {onSlide > 0 || groupIndex > 0 ? (
-          <BackButton onClick={() => (onSlide > 0 ? setSlide(onSlide - 1) : goToGroup(groupIndex - 1))} className="py-2.5 hidden sm:flex">
-            Previous
-          </BackButton>
-        ) : onDesktop ? (
+        {onDesktop && !codeOnDesk && (
           <button
             onClick={() => setBriefView(briefView === 'min' ? 'open' : 'min')}
             aria-pressed={briefView !== 'min'}
@@ -1246,7 +1288,12 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
             <FileText className="w-4 h-4" />
             {briefView === 'min' ? 'Brief & checks' : 'Hide brief'}
           </button>
-        ) : (
+        )}
+        {onSlide > 0 || groupIndex > 0 ? (
+          <BackButton onClick={() => (onSlide > 0 ? setSlide(onSlide - 1) : goToGroup(groupIndex - 1))} className="py-2.5 hidden sm:flex">
+            Previous
+          </BackButton>
+        ) : onDesktop ? null : (
           <span className="hidden sm:block w-[7.5rem]" aria-hidden="true" />
         )}
         {/* Where you are: the pages of the test (each question, task or case), then the answered count and bar */}
