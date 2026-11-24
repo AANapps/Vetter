@@ -767,6 +767,7 @@ const TestRow: React.FC<{
           {test.category} &middot; {levelName(test.difficulty)}
           {/* Another company's test from the public library says whose it is */}
           {!own && test.type === 'custom' && test.companyName && <> &middot; by {test.companyName}</>}
+          {createdLabel(test) && <> &middot; {createdLabel(test)}</>}
           <span className="md:hidden">
             {' '}
             &middot; ~{test.estimatedMinutes} min &middot; {usedBy.length ? `on ${usedBy.length} ${usedBy.length === 1 ? 'job' : 'jobs'}` : 'not on a job'}
@@ -807,6 +808,13 @@ const TestRow: React.FC<{
 
 // When a company's test was made, from its id (test-custom-<ms>); 0 when the id doesn't say
 const madeAt = (t: AssessmentTest) => Number(t.id.match(/-(\d{12,})$/)?.[1] ?? 0);
+// "Created 24 Nov 2026, 14:32" for a test the company (or the Praxa team) made in the app; Praxa's built-in tests say so
+const createdLabel = (t: AssessmentTest) => {
+  const ms = madeAt(t);
+  if (!ms) return t.type === 'standard' ? 'Praxa library' : null;
+  const d = new Date(ms);
+  return `Created ${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}, ${d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`;
+};
 
 // One of the company's own tests: its name and a line on what it is, with Edit with AI first and quieter by-hand
 // edit and delete beside it
@@ -832,6 +840,7 @@ const SimRow: React.FC<{
       </span>
       <span className="block text-xs text-slate-500 truncate">
         {test.roles?.[0] ?? test.category} &middot; ~{test.estimatedMinutes} min &middot; {usedBy.length ? (usedBy.length === 1 ? `On ${usedBy[0].title}` : `On ${usedBy.length} jobs`) : 'Not on a job yet'}
+        {createdLabel(test) && <> &middot; {createdLabel(test)}</>}
       </span>
     </button>
     {onSend && (
@@ -866,6 +875,7 @@ const YourTestRow: React.FC<{
       <span className="block text-xs text-slate-500 truncate">
         {madeWithAI(test) ? 'Made with AI' : 'Made by hand'} &middot; {levelName(test.difficulty)} &middot; ~{test.estimatedMinutes} min &middot;{' '}
         {usedBy.length ? (usedBy.length === 1 ? usedBy[0].title : `${usedBy.length} jobs`) : 'Not on a job'}
+        {createdLabel(test) && <> &middot; {createdLabel(test)}</>}
       </span>
     </button>
     <button
