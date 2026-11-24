@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { BrandSparkle } from './Brand';
+import { Pic } from './Pic';
 import { BackButton } from './BackButton';
 import { AlertTriangle, ArrowLeft, ArrowRight, Check, Clock, FileText, Lock, ShieldCheck, X } from 'lucide-react';
 import { AssessmentTest, isJobSim, timerOf, levelName } from '../types';
@@ -40,6 +41,8 @@ interface TestIntroProps {
   attempt?: { number: number; limit?: number };
   // A job simulation: a 3-minute practice on the desktop first, not scored or saved
   onPractice?: () => void;
+  // The hiring company's own name and logo on the test (Scale plan), in place of Praxa's
+  brand?: { name: string; logo?: string };
 }
 
 // A short, steady reference for this sitting, shown like an exam paper's number
@@ -81,7 +84,7 @@ const Label: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 );
 
 // Before the clock starts: the test read like an exam's front pages, one at a time, ending in a signed declaration
-export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose, onCommit, attempt, onPractice }) => {
+export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose, onCommit, attempt, onPractice, brand }) => {
   const isLastAttempt = attempt?.limit !== undefined && attempt.number >= attempt.limit;
   const attemptLabel = !attempt
     ? 'Timed, single sitting'
@@ -142,9 +145,13 @@ export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose, on
       {/* Exam header */}
       <header className="shrink-0 bg-white border-b border-slate-200">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-3">
-          <BrandSparkle className="w-8 h-8" />
+          {brand?.logo ? (
+            <Pic src={brand.logo} alt="" referrerPolicy="no-referrer" className="w-8 h-8 rounded-lg object-cover border border-slate-200" />
+          ) : (
+            <BrandSparkle className="w-8 h-8" />
+          )}
           <div className="min-w-0">
-            <div className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Praxa assessment</div>
+            <div className="text-[10px] uppercase tracking-[0.2em] text-slate-500">{brand ? `${brand.name} assessment` : 'Praxa assessment'}</div>
             <div className="text-sm font-bold text-slate-900 truncate">{test.title}</div>
           </div>
           <div className="ml-auto hidden sm:block text-right">

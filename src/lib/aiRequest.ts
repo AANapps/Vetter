@@ -17,6 +17,13 @@ export const aiStopped = () => run.signal.aborted;
 let preview = '';
 export const setAiPreview = (value: object | null) => (preview = value ? JSON.stringify(value) : '');
 
+// The signed-in person's token, for AI calls made outside a build (the test's AI assistant)
+export async function signedInHeaders(): Promise<Record<string, string>> {
+  const user = firebaseEnabled ? auth().currentUser : null;
+  const token = user ? await user.getIdToken().catch(() => '') : '';
+  return { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) };
+}
+
 export async function aiFetch(path: string, payload: unknown): Promise<Response> {
   const signal = run.signal;
   if (signal.aborted) throw new DOMException('Stopped', 'AbortError');

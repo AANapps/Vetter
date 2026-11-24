@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ArrowUp, ClipboardCopy, FileText, Loader2, Sparkles } from 'lucide-react';
 import { Question } from '../types';
 import { ASSISTANT_PROMPTS, AssistantTurn, assistantAnswer } from '../lib/questionTypes';
+import { signedInHeaders } from '../lib/aiRequest';
 
 // An AI-assisted task as the candidate meets it: what they're handed, a chat with an AI assistant to get the work done,
 // and the work they hand in. The whole conversation is kept with the answer, since how they used the AI is marked too
@@ -31,7 +32,7 @@ export const AssistantTask: React.FC<{ question: Question; answer: string; onCha
     try {
       const res = await fetch('/api/task-assistant', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await signedInHeaders(),
         body: JSON.stringify({ company, task: q.prompt, material: q.assistant?.material ?? '', brief: q.assistant?.brief ?? '', messages: chat }),
       });
       const body = await res.json().catch(() => ({}));

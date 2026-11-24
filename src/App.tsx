@@ -1,3 +1,4 @@
+import { hasFeature } from '../server/plans';
 import { TrainingCatalogue } from './components/TrainingCatalogue';
 import type { IntegrityReport } from './lib/integrity';
 import { PublicTestReview } from './components/PublicTestReview';
@@ -2853,6 +2854,11 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
       {activeTest && (
         <TestRunner
           test={activeTest}
+          brand={(() => {
+            // A job's company on the Scale plan puts its own name and logo on the test
+            const biz = activeTestJobId ? businesses.find((b) => b.id === jobs.find((j) => j.id === activeTestJobId)?.businessId) : undefined;
+            return biz?.plan && biz.plan !== 'free' && hasFeature(biz.plan, 'branding') ? { name: biz.name, ...(biz.logo && { logo: biz.logo }) } : undefined;
+          })()}
           onClose={() => {
             setActiveTest(null);
             setActiveTestJobId(null);

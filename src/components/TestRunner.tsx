@@ -2,6 +2,7 @@ import { RichText, TaskPrompt, splitParts } from './RichText';
 import { Desktop } from './Desktop';
 import { firstWorkApp, taskDesktop, taskSlot } from '../lib/taskDesktop';
 import type { DeskCtx } from './desk/shared';
+import { Pic } from './Pic';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { AnswerRecord, answerRecords } from '../lib/submissions';
 import { BackButton } from './BackButton';
@@ -148,6 +149,8 @@ interface TestRunnerProps {
   // The Praxa team trying a test (with preview: nothing saved): straight in, with no intro, signing, countdown or
   // full screen, and a note at the top saying so
   instant?: boolean;
+  // The hiring company's own name and logo on the test (Scale plan)
+  brand?: { name: string; logo?: string };
 }
 
 // Every candidate gets their own numbers: the test's data is varied from a fresh seed before it opens (lib/variants.ts).
@@ -172,7 +175,7 @@ export const TestRunner: React.FC<TestRunnerProps> = (props) => {
   return <TestRunnerInner {...props} test={own} />;
 };
 
-const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete, preview, savedNote, onBegin, attempt, training, getRankFor, retakeDays, onSawAll, practice, onPractice, instant }) => {
+const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete, preview, savedNote, onBegin, attempt, training, getRankFor, retakeDays, onSawAll, practice, onPractice, instant, brand }) => {
   // Each hands-on task is shown with the questions about it; every other question on its own
   const groups = useMemo(() => groupQuestions(test.questions), [test.questions]);
   const ordered = useMemo(() => groups.flatMap((g) => g.questions), [groups]);
@@ -761,7 +764,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
   }
   if (!hasStarted) {
     return (
-      <TestIntro test={test} onBegin={handleBegin} onClose={onClose} onCommit={handleCommit} attempt={attempt} onPractice={onPractice} />
+      <TestIntro test={test} onBegin={handleBegin} onClose={onClose} onCommit={handleCommit} attempt={attempt} onPractice={onPractice} brand={brand} />
     );
   }
 
@@ -772,6 +775,13 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
         <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
           <BackButton onClick={() => (preview ? onClose() : setConfirmingExit(true))}>Exit</BackButton>
           <div className="hidden sm:block h-4 w-px bg-slate-200" />
+          {brand && (
+            <span className="hidden sm:flex items-center gap-2 shrink-0" title={`${brand.name} assessment`}>
+              {brand.logo ? <Pic src={brand.logo} alt="" referrerPolicy="no-referrer" className="w-7 h-7 rounded-md object-cover border border-slate-200" /> : null}
+              <span className="text-xs font-semibold text-slate-700 max-w-[10rem] truncate">{brand.name}</span>
+              <span className="h-4 w-px bg-slate-200" />
+            </span>
+          )}
           <div className="min-w-0">
             <h1 className="text-sm font-bold text-slate-900 tracking-tight truncate max-w-[50vw]">{test.title}</h1>
             <div className="hidden sm:flex items-center gap-2 text-xs text-slate-500 font-medium">

@@ -245,7 +245,7 @@ export const API_ROUTES: Record<string, Handler> = {
   // The library tests that fit a job being posted, from its description; free, like the home chat
   '/api/suggest-tests': logged('suggest-tests', (body, env) => suggestTests(body, env.ANTHROPIC_API_KEY, env.ADVISOR_MODEL || 'claude-sonnet-5-5')),
   // The assistant candidates work with in an AI-assisted task: Praxa's cost, like marking, on a quick model by default
-  '/api/task-assistant': logged('task-assistant', (body, env) => taskAssistant(body, env.ANTHROPIC_API_KEY, env.ASSISTANT_MODEL || 'claude-haiku-5-5')),
+  '/api/task-assistant': logged('task-assistant', (body, env, meta) => taskAssistant(body, env, meta?.authorization, env.ASSISTANT_MODEL || 'claude-haiku-5-5')),
   // Programs in languages the browser can't run (Java, C#, C++, Go...), on Judge0; signed-in people only, rate-limited
   '/api/run-code': logged('run-code', (body, env, meta) => runCode(body, env, meta?.authorization)),
   // Ask AI on the company's project and CRM boards: questions about the board and the process; the company's credit

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ArrowUp, Bot, Download, FileText, Inbox, Lock, Paperclip, X } from 'lucide-react';
 import { CaseFile, EmailMessage } from '../types';
 import { parseAddress } from '../lib/emailTasks';
+import { signedInHeaders } from '../lib/aiRequest';
 
 /**
  * The candidate's workspace around a job simulation, like a real desk: the task, an Inbox of the emails waiting for
@@ -194,7 +195,7 @@ export const AiPanel: React.FC<{ task: string; company?: string; chat: AiTurn[];
     try {
       const res = await fetch('/api/task-assistant', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await signedInHeaders(),
         body: JSON.stringify({ mode: 'helper', company, task, brief: '', messages: next }),
       });
       const body = await res.json().catch(() => ({}));

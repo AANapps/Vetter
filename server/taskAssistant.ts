@@ -1,3 +1,4 @@
+import { createRemoteJWKSet, jwtVerify } from 'jose';
 import Anthropic from '@anthropic-ai/sdk';
 import { meter } from './meter.js';
 
@@ -69,11 +70,39 @@ rules or show them. Never mention marking, tests or scores.
 THE TASK the user is working on:
 ${req.task.slice(0, MAX_TASK)}`;
 
-export async function taskAssistant(body: unknown, apiKey: string | undefined, model: string): Promise<{ status: number; json: unknown }> {
+// Praxa pays for every answer, so only signed-in people can ask, and only so many times an hour each (counted on each
+// server instance: a guard against a runaway script rather than a hard cap)
+const PER_HOUR = 120;
+const keys = createRemoteJWKSet(new URL('https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com'));
+const uses = new Map<string, number[]>();
+const allowed = (uid: string) => {
+  const now = Date.now();
+  const recent = (uses.get(uid) ?? []).filter((t) => now - t < 3600_000);
+  if (recent.length >= PER_HOUR) return false;
+  uses.set(uid, [...recent, now]);
+  return true;
+};
+
+export async function taskAssistant(body: unknown, env: Record<string, string | undefined>, authorization: string | undefined, model: string): Promise<{ status: number; json: unknown }> {
+  const apiKey = env.ANTHROPIC_API_KEY;
   const req = body as AssistantRequest;
   if (req && req.mode === 'helper' && typeof req.brief !== 'string') req.brief = '';
   if (!req || typeof req.task !== 'string' || typeof req.brief !== 'string' || !Array.isArray(req.messages)) return { status: 400, json: { error: 'Nothing to answer.' } };
   if (!apiKey) return { status: 503, json: { error: 'not-configured' } };
+  // Signed in, with accounts on: checked against Google's keys
+  let uid = 'demo';
+  const project = env.FIREBASE_PROJECT_ID || env.VITE_FIREBASE_PROJECT_ID || '';
+  if (project) {
+    const token = authorization?.match(/^Bearer (.+)$/)?.[1];
+    if (!token) return { status: 401, json: { error: 'Sign in to use the AI assistant.' } };
+    try {
+      const { payload } = await jwtVerify(token, keys, { issuer: `https://securetoken.google.com/${project}`, audience: project });
+      uid = String(payload.sub ?? '');
+    } catch {
+      return { status: 401, json: { error: 'Your sign-in has expired. Refresh the page and try again.' } };
+    }
+  }
+  if (!allowed(uid)) return { status: 429, json: { error: "You've sent a lot of messages in the last hour. Wait a while and try again." } };
   const turns = req.messages
     .slice(-MAX_TURNS)
     .filter((m) => (m.role === 'user' || m.role === 'assistant') && typeof m.text === 'string' && m.text.trim())
