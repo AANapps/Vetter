@@ -4,6 +4,7 @@ import { CaseFile } from '../../types';
 import { cleanHtml, copyGrid, fileGrid, fileKind, freeName } from '../../lib/deskData';
 import { downloadFile, readTextFile } from '../../lib/csv';
 import { DeskCtx, btn } from './shared';
+import { hasApp } from '../../lib/desktop';
 
 export type Folder = 'all' | 'mine' | 'shared' | 'attachments' | 'downloads';
 
@@ -48,7 +49,7 @@ export const FilesApp: React.FC<{ ctx: DeskCtx; focus: string | null; origin: (f
         <FolderOpen className="w-4 h-4 text-amber-500" />
         <span className="text-xs text-slate-600">This PC › {folders.find((f) => f.id === folder)!.label}</span>
         <span className="ml-auto flex gap-1.5">
-          {ctx.cfg.apps.includes('docs') && (
+          {hasApp(ctx.cfg, 'docs') && (
             <button
               className={btn}
               onClick={() => {
@@ -114,7 +115,7 @@ export const FilesApp: React.FC<{ ctx: DeskCtx; focus: string | null; origin: (f
                   <input name="n" autoFocus defaultValue={f.name.replace(/\.[^.]+$/, '')} onBlur={(e) => e.currentTarget.form?.requestSubmit()} className="w-full h-7 px-2 border border-sky-500 rounded text-xs" />
                 </form>
               ) : (
-                <button onClick={() => setSel(f.name)} onDoubleClick={() => ctx.openFile(f.name, OPENERS.find((o) => o.kinds.includes(fileKind(f.name)) && ctx.cfg.apps.includes(o.app))?.app)} className={`w-full text-left px-3 py-2 flex items-center gap-2 border-b border-slate-100 ${sel === f.name ? 'bg-amber-50' : 'hover:bg-slate-50'}`}>
+                <button onClick={() => setSel(f.name)} onDoubleClick={() => ctx.openFile(f.name, OPENERS.find((o) => o.kinds.includes(fileKind(f.name)) && hasApp(ctx.cfg, o.app))?.app)} className={`w-full text-left px-3 py-2 flex items-center gap-2 border-b border-slate-100 ${sel === f.name ? 'bg-amber-50' : 'hover:bg-slate-50'}`}>
                   {icon(f.name)}
                   <span className="truncate text-[13px]">{f.name}</span>
                 </button>
@@ -127,7 +128,7 @@ export const FilesApp: React.FC<{ ctx: DeskCtx; focus: string | null; origin: (f
             <>
               <div className="shrink-0 flex flex-wrap items-center gap-1.5 px-3 py-2 border-b border-slate-200">
                 <span className="text-xs font-semibold text-slate-700 truncate mr-1">{file.name}</span>
-                {OPENERS.filter((o) => o.kinds.includes(kind) && ctx.cfg.apps.includes(o.app)).map((o) => (
+                {OPENERS.filter((o) => o.kinds.includes(kind) && hasApp(ctx.cfg, o.app)).map((o) => (
                   <button key={o.app} className={btn} onClick={() => ctx.openFile(file.name, o.app)} data-ref={`open-in-${o.app}`}>
                     Open in {o.label}
                   </button>

@@ -1,5 +1,5 @@
 import { AssessmentTest, Question } from '../types';
-import { DeskApp, DesktopConfig } from './desktop';
+import { DeskApp, DesktopConfig, desktopApps } from './desktop';
 
 /**
  * Skills tests are worked on the same desktop as job simulations: each hands-on task (a spreadsheet, a database, code,
@@ -42,7 +42,7 @@ export function taskDesktop(test: AssessmentTest, q: Question, aiHere: boolean):
     user: { name: 'You', email: me, role: test.scenario?.role ?? 'Candidate' },
     company,
     time: 'Mon 09:00',
-    apps: [slot.id, 'files', ...(inbox.length ? ['mail'] : []), ...(aiHere ? ['ai'] : [])],
+    apps: desktopApps([slot.id], aiHere),
     contacts: test.scenario?.people ?? [],
     inbox,
     files: test.scenario?.files ?? [],

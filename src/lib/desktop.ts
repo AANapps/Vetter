@@ -93,6 +93,17 @@ export interface DeskPage {
 
 export type DeskApp = 'mail' | 'browser' | 'files' | 'sheet' | 'sql' | 'ai' | 'code' | DeskWorkApp;
 
+// Every desktop has the basic apps (Mail and Files, and the AI assistant where the test allows it); beyond them, the
+// taskbar shows only the apps that test uses
+export const BASIC_DESK_APPS: DeskApp[] = ['mail', 'files', 'ai'];
+// Whether the desktop has an app, on the taskbar or only in the Start menu
+export const hasApp = (cfg: { apps: (DeskApp | string)[]; more?: (DeskApp | string)[] }, app: string) => cfg.apps.includes(app) || !!cfg.more?.includes(app);
+
+export function desktopApps(apps: (DeskApp | string)[], ai: boolean): (DeskApp | string)[] {
+  const work = [...new Set(apps.filter((a) => !(BASIC_DESK_APPS as string[]).includes(a)))];
+  return ['mail', ...work, 'files', ...(ai ? ['ai'] : [])];
+}
+
 // A job's own software on the desktop (a help desk, a CRM, a till): a hand-built app page that saves its state with
 // praxa.save, kept in the desktop's state under its id and checked with app:<id>:<path>
 export interface DeskCustomApp {
@@ -110,8 +121,10 @@ export interface DesktopConfig {
   company: string;
   // The time the day starts, as shown on the taskbar clock
   time: string;
-  // The taskbar's apps, in order: the built-in ones and the ids of custom apps
+  // The taskbar's apps, in order: the basic ones and the apps the test uses (built-in ids and custom apps' ids)
   apps: (DeskApp | string)[];
+  // Apps only in the Start menu, on the taskbar only while open (the admin test lab's every app)
+  more?: (DeskApp | string)[];
   customApps?: DeskCustomApp[];
   contacts: EmailContact[];
   inbox: DeskEmail[];

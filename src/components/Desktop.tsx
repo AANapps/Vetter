@@ -25,7 +25,7 @@ import {
   Play,
 } from 'lucide-react';
 import { CaseFile, Question } from '../types';
-import { DeskApp, DeskBlock, DeskEmail, DeskPhase, DesktopConfig, DesktopState, SentEmail, filesOf, inboxOf, landingIn, parseDesktop, repliesFor } from '../lib/desktop';
+import { DeskApp, DeskBlock, DeskEmail, DeskPhase, DesktopConfig, DesktopState, SentEmail, filesOf, inboxOf, landingIn, parseDesktop, repliesFor, desktopApps, hasApp } from '../lib/desktop';
 import { parseAddress } from '../lib/emailTasks';
 import { parseCsv } from '../lib/csv';
 import { SpreadsheetWindow } from './SpreadsheetWindow';
@@ -101,7 +101,8 @@ export const Desktop: React.FC<{ question: Question; answer: string; onChange: (
   slot,
   readOnly,
 }) => {
-  const cfg = q.desktop!;
+  // The basic apps are always there; the AI assistant only where the desktop has it
+  const cfg = useMemo(() => ({ ...q.desktop!, apps: desktopApps(q.desktop!.apps, q.desktop!.apps.includes('ai')) }), [q.desktop]);
   const appInfo = (c: DesktopConfig, app: string) => (slot && app === slot.id ? { ...(APPS[slot.look ?? 'code'] ?? APPS.code), label: slot.label } : baseAppInfo(c, app));
   const state = useMemo(() => parseDesktop(answer, cfg), [answer, cfg]);
   // The latest state, for replies that arrive after the candidate has done more
@@ -267,7 +268,7 @@ export const Desktop: React.FC<{ question: Question; answer: string; onChange: (
   const [incoming, setIncoming] = useState<{ app: string; name: string; content: string; key: number } | null>(null);
   const openFile = (name: string, app?: string) => {
     const f = files.find((x) => x.name === name);
-    if (!app || !cfg.apps.includes(app) || !f) {
+    if (!app || !hasApp(cfg, app) || !f) {
       setFocusFile(name);
       return launch('files');
     }
@@ -507,7 +508,7 @@ export const Desktop: React.FC<{ question: Question; answer: string; onChange: (
             <Search className="w-3.5 h-3.5" />
             Search
           </button>
-          {cfg.apps.map((app) => {
+          {[...cfg.apps, ...open.filter((a) => cfg.more?.includes(a) && !cfg.apps.includes(a))].map((app) => {
             const { label, Icon, tint } = appInfo(cfg, app);
             const isOpen = open.includes(app);
             const isActive = active === app && !minimised.includes(app);
@@ -556,7 +557,7 @@ export const Desktop: React.FC<{ question: Question; answer: string; onChange: (
 // The Start menu: the computer's apps (searchable), and the person signed in
 const StartMenu: React.FC<{ cfg: DesktopConfig; unread: number; onLaunch: (app: string) => void; onClose: () => void; appInfo: typeof baseAppInfo }> = ({ cfg, unread, onLaunch, onClose, appInfo }) => {
   const [q, setQ] = useState('');
-  const apps = cfg.apps.filter((a) => appInfo(cfg, a).label.toLowerCase().includes(q.trim().toLowerCase()));
+  const apps = [...cfg.apps, ...(cfg.more ?? []).filter((a) => !cfg.apps.includes(a))].filter((a) => appInfo(cfg, a).label.toLowerCase().includes(q.trim().toLowerCase()));
   return (
     <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-[70] w-[min(560px,calc(100%-1rem))] bg-white/95 backdrop-blur-xl rounded-xl shadow-2xl border border-slate-200 select-text" role="dialog" aria-label="Start">
       <div className="p-5 space-y-4">
@@ -805,7 +806,7 @@ const Composer: React.FC<{
   onSend: (m: Omit<SentEmail, 'at'>) => void;
 }> = ({ cfg, files, draft, onDraft, onCancel, onSend }) => {
   const [error, setError] = useState('');
-  const workbook = cfg.apps.includes('sheet') ? cfg.workbookName ?? 'Book1.xlsx' : null;
+  const workbook = hasApp(cfg, 'sheet') ? cfg.workbookName ?? 'Book1.xlsx' : null;
   const attachable = [...(workbook ? [workbook] : []), ...files.map((f) => f.name)];
   const list = (s: string) =>
     s

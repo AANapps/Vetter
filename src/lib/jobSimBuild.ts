@@ -1,5 +1,5 @@
 import { AssessmentTest, Business, SkillCategory, TEST_DIFFICULTIES, TestDifficulty } from '../types';
-import { DeskBlock, DeskPage, DesktopConfig, desktopValue, emptyDesktop } from './desktop';
+import { DeskBlock, DeskPage, DesktopConfig, desktopApps, desktopValue, emptyDesktop } from './desktop';
 import type { BoardConfig, CalendarConfig, ChatConfig, CrmConfig, DeskAppsConfig, DeskWorkApp, FormsConfig, HelpdeskConfig, KbConfig, Ticket } from './deskApps';
 import { checkSheet, parseWorkbook, workbookStarter } from './spreadsheet';
 import { JobSimCheck, JobSimPart, jobSimulation } from '../data/modules/jobSimKit';
@@ -124,7 +124,7 @@ function desktopOf(raw: RawJobSim): Omit<DesktopConfig, 'phases'> {
     user: { name: raw.user?.name || 'You', email: me, role: raw.user?.role || raw.role },
     company: raw.company,
     time: raw.time || 'Mon 09:00',
-    apps: ['mail', ...work, 'files', 'ai'],
+    apps: desktopApps(work, true),
     ...(custom.length && { customApps: custom.map((a) => ({ id: a.id, label: a.label || a.id, html: withData(a.html!, a.data), ...(a.envId && a.version > 0 && { libraryApp: { id: a.envId, version: a.version } }) })) }),
     contacts: (raw.contacts ?? []).filter((c) => c.email?.trim()).map((c) => ({ name: c.name, role: c.role, email: lower(c.email) })),
     inbox: (raw.inbox ?? []).map((m, i) => ({
@@ -439,7 +439,7 @@ export function desktopTask(raw: RawDesktopTask, role = 'Candidate'): { desktop:
     user: { name: 'You', email: `you@${domain}`, role },
     company,
     time: 'Mon 09:00',
-    apps: [...apps, 'files'],
+    apps: desktopApps(apps, false),
     contacts: people.filter((p) => p?.email?.trim()).map((p) => ({ name: String(p.name ?? p.email), role: String(p.role ?? ''), email: lower(p.email ?? '') })),
     inbox: [],
     ...(files.length && { files }),

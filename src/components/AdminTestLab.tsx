@@ -53,7 +53,9 @@ function sandboxDesktop(sims: AssessmentTest[]): DesktopConfig {
     user: { name: 'Praxa Admin', email: 'admin@praxa.test', role: 'Admin' },
     company: 'Praxa test lab',
     time: 'Mon 09:00',
-    apps: [...BUILT_IN.map((a) => a.id), ...Object.keys(LIBRARY_APPS)],
+    // The basic apps on the taskbar; every other app in the Start menu, joining the taskbar while open
+    apps: ['mail', 'files', 'ai'],
+    more: [...BUILT_IN.map((a) => a.id), ...Object.keys(LIBRARY_APPS)].filter((a) => !['mail', 'files', 'ai'].includes(a)),
     customApps: Object.values(LIBRARY_APPS).map((a) => ({ id: a.manifest.id, label: a.manifest.name, html: libraryPage(a.manifest.id, a.sample) })),
     contacts: unique([...SAMPLE_CONTACTS, ...desks.flatMap((d) => d.contacts)], (c) => c.email).slice(0, 15),
     inbox: [

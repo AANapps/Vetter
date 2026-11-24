@@ -892,7 +892,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
               ) : onDesktop ? (
                 <div className="relative h-full">
                   {currentQ.type === 'desktop' ? (
-                    <Desktop key={currentQ.id} question={currentQ} answer={currentCode} onChange={handleCodeChange} company={test.scenario?.company ?? test.companyName} startApp={currentQ.desktop?.phases?.length ? undefined : firstWorkApp(currentQ.desktop!)} />
+                    <Desktop key={currentQ.id} question={currentQ.desktop?.phases?.length || !aiHere ? currentQ : { ...currentQ, desktop: { ...currentQ.desktop!, apps: [...currentQ.desktop!.apps, 'ai'] } }} answer={currentCode} onChange={handleCodeChange} company={test.scenario?.company ?? test.companyName} startApp={currentQ.desktop?.phases?.length ? undefined : firstWorkApp(currentQ.desktop!)} />
                   ) : (
                     shellDesktop((ctx) => taskWindow(ctx))
                   )}
