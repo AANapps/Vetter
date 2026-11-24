@@ -2,7 +2,7 @@ import { LEAD_STAGES } from '../lib/leads';
 import React, { useState } from 'react';
 import { Locked, usePlan } from '../lib/plan';
 import { Pic } from './Pic';
-import { CandidateJobMatch, JobPosting, User } from '../types';
+import { AssessmentTest, CandidateJobMatch, JobPosting, User } from '../types';
 import { rankCandidatesForJob } from '../lib/matchingAlgorithm';
 import { applicationProfileOf } from '../lib/jobProfiles';
 import { distanceMiles } from '../lib/geo';
@@ -16,6 +16,8 @@ interface JobCandidatesProps {
   allCandidates: User[];
   // Test titles for the integrity details
   testTitles?: Record<string, string>;
+  // The job's tests, so the company can open a candidate's desktop as they left it
+  tests?: AssessmentTest[];
 }
 
 const sittingsFor = (person: User, job: JobPosting, testTitles: Record<string, string>) => jobSittings(person.testResults, job, testTitles);
@@ -85,7 +87,7 @@ const PointIcon: React.FC<{ tone: Point['tone'] }> = ({ tone }) =>
 const fitColour = (fit: number) => (fit >= 85 ? 'text-indigo-600' : fit >= 75 ? 'text-violet-600' : 'text-amber-600');
 
 // A job's candidates, best fit first; each one opens to show why they suit the job (or don't)
-export const JobCandidates: React.FC<JobCandidatesProps> = ({ job, allCandidates, testTitles = {} }) => {
+export const JobCandidates: React.FC<JobCandidatesProps> = ({ job, allCandidates, testTitles = {}, tests }) => {
   const [appliedOnly, setAppliedOnly] = useState(false);
   const [meetsRequiredOnly, setMeetsRequiredOnly] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -275,7 +277,7 @@ export const JobCandidates: React.FC<JobCandidatesProps> = ({ job, allCandidates
   return (
     <div className="space-y-3">
       {answersFor && job.businessId && (
-        <AnswersDialog businessId={job.businessId} candidateId={answersFor.id} candidateName={answersFor.name} testIds={job.testIds} onClose={() => setAnswersFor(null)} />
+        <AnswersDialog businessId={job.businessId} candidateId={answersFor.id} candidateName={answersFor.name} testIds={job.testIds} tests={tests} onClose={() => setAnswersFor(null)} />
       )}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>

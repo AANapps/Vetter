@@ -1,6 +1,9 @@
 import { RichText } from './RichText';
 import React, { useEffect, useState } from 'react';
-import { AlertCircle, CheckCircle2, ChevronDown, Loader2, X, XCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ChevronDown, Loader2, Monitor, X, XCircle } from 'lucide-react';
+import { AssessmentTest, Question } from '../types';
+import { hydrateTest } from '../lib/appRefs';
+import { Desktop } from './Desktop';
 import { usePlan } from '../lib/plan';
 import { AnswerRecord, Submission, loadSubmissions } from '../lib/submissions';
 import { QUESTION_STYLES } from '../lib/questionTypes';
@@ -11,6 +14,8 @@ interface AnswersDialogProps {
   candidateName: string;
   // Only answers on these tests (a job's), when given
   testIds?: string[];
+  // The tests themselves, so a desktop can be opened as the candidate left it
+  tests?: AssessmentTest[];
   onClose: () => void;
 }
 
@@ -22,7 +27,8 @@ const scoreTone = (score: number) => (score === 100 ? 'text-emerald-700' : score
 
 // A candidate's answers on the company's tests, question by question, with how each was marked, so the company can
 // see the work behind a score and check the marking
-export const AnswersDialog: React.FC<AnswersDialogProps> = ({ businessId, candidateId, candidateName, testIds, onClose }) => {
+export const AnswersDialog: React.FC<AnswersDialogProps> = ({ businessId, candidateId, candidateName, testIds, tests, onClose }) => {
+  const [replay, setReplay] = useState<{ question: Question; answer: string; company?: string } | null>(null);
   const [subs, setSubs] = useState<Submission[] | null>(null);
   const [error, setError] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -46,10 +52,10 @@ export const AnswersDialog: React.FC<AnswersDialogProps> = ({ businessId, candid
   }, [businessId, candidateId]);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && (replay ? setReplay(null) : onClose());
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [onClose, replay]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/60 backdrop-blur-sm" onClick={onClose}>
@@ -104,9 +110,12 @@ export const AnswersDialog: React.FC<AnswersDialogProps> = ({ businessId, candid
                   </button>
                   {open && (
                     <ol className="border-t border-slate-100 divide-y divide-slate-100">
-                      {s.answers.map((a) => (
-                        <Answer key={a.id} a={a} />
-                      ))}
+                      {s.answers.map((a) => {
+                        const test = tests?.find((t) => t.id === s.testId);
+                        const question = a.type === 'desktop' && test ? hydrateTest(test).questions.find((q) => q.id === a.id && q.desktop) : undefined;
+                        const canOpen = !!question && opens(a.answer);
+                        return <Answer key={a.id} a={a} onOpenDesktop={canOpen ? () => setReplay({ question: question!, answer: a.answer, company: test?.scenario?.company ?? test?.companyName }) : undefined} />;
+                      })}
                     </ol>
                   )}
                 </section>
@@ -115,11 +124,45 @@ export const AnswersDialog: React.FC<AnswersDialogProps> = ({ businessId, candid
           )}
         </div>
       </div>
+      {replay && <DesktopReplay {...replay} name={candidateName} onClose={() => setReplay(null)} />}
     </div>
   );
 };
 
-const Answer: React.FC<{ a: AnswerRecord }> = ({ a }) => {
+// Their desktop as they left it: every app opens on their work, nothing can be changed and nothing is sent
+const DesktopReplay: React.FC<{ question: Question; answer: string; company?: string; name: string; onClose: () => void }> = ({ question, answer, company, name, onClose }) => (
+  <div className="fixed inset-0 z-[60] flex flex-col bg-slate-900/80 backdrop-blur-sm p-2 sm:p-4" onClick={onClose}>
+    <div role="dialog" aria-modal="true" aria-label={`${name}'s desktop`} onClick={(e) => e.stopPropagation()} className="flex-1 min-h-0 flex flex-col bg-white rounded-2xl shadow-2xl overflow-hidden">
+      <div className="px-4 py-2.5 border-b border-slate-200 flex items-center gap-3">
+        <Monitor className="w-4 h-4 text-indigo-600 shrink-0" />
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-bold text-slate-900 truncate">
+            {name}&rsquo;s desktop: {question.title}
+          </div>
+          <div className="text-xs text-slate-500">As they left it when they submitted. Open any app to see their work; nothing here can be changed.</div>
+        </div>
+        <button onClick={onClose} aria-label="Close their desktop" className="p-1 text-slate-400 hover:text-slate-700">
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+      <div className="flex-1 min-h-0 p-2 bg-slate-100">
+        <Desktop question={question} answer={answer} onChange={() => {}} company={company} readOnly />
+      </div>
+    </div>
+  </div>
+);
+
+// A saved desktop that can be opened (not cut short or dropped for size)
+const opens = (text: string) => {
+  try {
+    const v = JSON.parse(text);
+    return !!v && typeof v === 'object';
+  } catch {
+    return false;
+  }
+};
+
+const Answer: React.FC<{ a: AnswerRecord; onOpenDesktop?: () => void }> = ({ a, onOpenDesktop }) => {
   const [showRaw, setShowRaw] = useState(false);
   return (
     <li className="px-4 py-4 space-y-2.5">
@@ -180,6 +223,13 @@ const Answer: React.FC<{ a: AnswerRecord }> = ({ a }) => {
             <li key={f}>{f}</li>
           ))}
         </ul>
+      )}
+
+      {onOpenDesktop && (
+        <button onClick={onOpenDesktop} className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700">
+          <Monitor className="w-3.5 h-3.5" />
+          Open their desktop
+        </button>
       )}
 
       {isHandsOn(a.type) && a.answer && (

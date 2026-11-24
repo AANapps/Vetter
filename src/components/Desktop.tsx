@@ -137,18 +137,20 @@ export const Desktop: React.FC<{ question: Question; answer: string; onChange: (
   }, [phases.length]);
   const advance = (from: number) => {
     const cur = latest.current;
+    if (readOnly) return;
     if ((cur.phase ?? 0) !== from || from >= phases.length - 1) return;
     const next = from + 1;
     const landing = landingIn(cfg, next);
     save({ phase: next, phaseStartedAt: Date.now(), received: [...cur.received, ...landing.map((m) => `@${m.id}`).filter((k) => !cur.received.includes(k))] });
     setToast(landing.length ? `${phases[next].title}: new email from ${parseAddress(landing[0].from).name || 'a colleague'}` : `Now: ${phases[next].title}`);
   };
-  const phaseLeft = phases.length && state.phaseStartedAt != null ? phases[phaseAt].minutes * 60 - Math.floor((now - state.phaseStartedAt) / 1000) : null;
+  // Read only, the day stays at the part the candidate reached, with no clock
+  const phaseLeft = !readOnly && phases.length && state.phaseStartedAt != null ? phases[phaseAt].minutes * 60 - Math.floor((now - state.phaseStartedAt) / 1000) : null;
   useEffect(() => {
     if (phaseLeft !== null && phaseLeft <= 0) advance(phaseAt);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phaseLeft !== null && phaseLeft <= 0, phaseAt]);
-  const briefing = phases.length > 0 && phaseAt === 0 && !phases[0].scored;
+  const briefing = !readOnly && phases.length > 0 && phaseAt === 0 && !phases[0].scored;
 
   const inbox = inboxOf(cfg, state);
   const files = filesOf(cfg, state);
@@ -362,6 +364,22 @@ export const Desktop: React.FC<{ question: Question; answer: string; onChange: (
       case 'code':
         return cfg.project ? <CodeApp project={cfg.project} files={state.code ?? {}} onFiles={(code) => save({ code: { ...(latest.current.code ?? {}), ...code } })} /> : null;
       case 'ai':
+        // Read only: their conversation with the assistant, without asking it anything new
+        if (readOnly)
+          return (
+            <div className="h-full overflow-y-auto p-4 space-y-2 bg-white text-sm select-text">
+              {state.ai.length ? (
+                state.ai.map((t, i) => (
+                  <div key={i} className={`rounded-lg px-3 py-2 whitespace-pre-wrap ${t.role === 'user' ? 'bg-indigo-50 text-indigo-950 ml-8' : 'bg-slate-100 text-slate-800 mr-8'}`}>
+                    <div className="text-[10px] font-bold uppercase tracking-wider opacity-60">{t.role === 'user' ? 'Candidate' : 'Assistant'}</div>
+                    {t.text}
+                  </div>
+                ))
+              ) : (
+                <p className="text-slate-500">They didn&rsquo;t use the AI assistant.</p>
+              )}
+            </div>
+          );
         return <AiPanel task={`${cfg.user.role} at ${cfg.company}. ${q.prompt}`.slice(0, 4000)} company={company ?? cfg.company} chat={state.ai} onChat={(ai) => save({ ai })} />;
     }
   };

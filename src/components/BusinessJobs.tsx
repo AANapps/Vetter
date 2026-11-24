@@ -987,7 +987,7 @@ const SkillRanking: React.FC<{
               </div>
             ))}
           </div>
-          <JobCandidates key={job.id} job={job} allCandidates={candidates} testTitles={Object.fromEntries(tests.map((t) => [t.id, t.title]))} />
+          <JobCandidates key={job.id} job={job} allCandidates={candidates} testTitles={Object.fromEntries(tests.map((t) => [t.id, t.title]))} tests={tests} />
         </div>
       )}
     </section>

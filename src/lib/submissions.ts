@@ -54,6 +54,7 @@ export interface Submission {
 // Firestore refuses a document over 1 MiB; a hands-on task's saved state can be big, so each part is capped
 const MAX_FIELD = 20_000;
 const MAX_DOC = 900_000;
+const MAX_DESKTOP = 600_000;
 const cap = (text: string, max = MAX_FIELD) => (text.length > max ? `${text.slice(0, max)}\n… (cut short: ${text.length - max} more characters)` : text);
 
 const lettered = (options: string[] = [], picked: number[]) => picked.map((i) => `${String.fromCharCode(65 + i)}. ${options[i] ?? '(unknown option)'}`).join('\n');
@@ -143,7 +144,8 @@ export function answerRecords(
         weight: q.weight,
         score: scores[q.id] ?? 0,
         ...(aiMarked[q.id] !== undefined && { aiMarked: true }),
-        answer: cap(answer),
+        // A desktop's whole saved state is kept, so the company can open their desktop as they left it
+        answer: q.type === 'desktop' ? cap(answer, MAX_DESKTOP) : cap(answer),
         ...(correct && { correct: cap(correct, 4000) }),
         feedback: feedback[q.id] ?? [],
         ...(run && 'testCaseResults' in run && run.testCaseResults.length > 0 && {
@@ -160,6 +162,8 @@ function fitted(sub: Submission): Submission {
   const size = () => new Blob([JSON.stringify(sub)]).size;
   if (size() <= MAX_DOC) return sub;
   sub = { ...sub, answers: sub.answers.map((a) => (['app', 'sheet', 'database'].includes(a.type) ? { ...a, answer: '(too large to keep)' } : a)) };
+  if (size() <= MAX_DOC) return sub;
+  sub = { ...sub, answers: sub.answers.map((a) => (a.type === 'desktop' ? { ...a, answer: '(too large to keep)' } : a)) };
   if (size() <= MAX_DOC) return sub;
   return { ...sub, answers: sub.answers.map((a) => ({ ...a, answer: cap(a.answer, 2000) })) };
 }
