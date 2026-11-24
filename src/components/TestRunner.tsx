@@ -151,6 +151,8 @@ interface TestRunnerProps {
   instant?: boolean;
   // The hiring company's own name and logo on the test (Scale plan)
   brand?: { name: string; logo?: string };
+  // With instant: the note at the top instead of "Admin run · not saved" (e.g. a company previewing its draft)
+  runLabel?: string;
 }
 
 // Every candidate gets their own numbers: the test's data is varied from a fresh seed before it opens (lib/variants.ts).
@@ -175,7 +177,7 @@ export const TestRunner: React.FC<TestRunnerProps> = (props) => {
   return <TestRunnerInner {...props} test={own} />;
 };
 
-const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete, preview, savedNote, onBegin, attempt, training, getRankFor, retakeDays, onSawAll, practice, onPractice, instant, brand }) => {
+const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete, preview, savedNote, onBegin, attempt, training, getRankFor, retakeDays, onSawAll, practice, onPractice, instant, brand, runLabel }) => {
   // Each hands-on task is shown with the questions about it; every other question on its own
   const groups = useMemo(() => groupQuestions(test.questions), [test.questions]);
   const ordered = useMemo(() => groups.flatMap((g) => g.questions), [groups]);
@@ -790,7 +792,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
               <span>{levelName(test.difficulty)}</span>
               <span aria-hidden="true">&middot;</span>
               <span>{test.questions.length} Questions</span>
-              {instant && <span className="px-1.5 py-px rounded bg-amber-100 text-amber-800 text-[10px] font-bold uppercase tracking-wide">Admin run · not saved</span>}
+              {instant && <span className="px-1.5 py-px rounded bg-amber-100 text-amber-800 text-[10px] font-bold uppercase tracking-wide">{runLabel ?? 'Admin run · not saved'}</span>}
             </div>
           </div>
         </div>
@@ -1520,7 +1522,9 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
                   <h3 className="text-lg font-bold text-slate-900">{instant ? 'Test run finished' : practice ? 'Practice done' : preview ? 'Preview finished' : training ? 'Training complete' : 'Test complete!'}</h3>
                   <p className="text-xs text-slate-500">
                     {instant
-                      ? 'Admin test run: nothing was saved, recorded or put on a leaderboard.'
+                      ? runLabel
+                        ? 'Preview: nothing was saved, recorded or sent to anyone. This is how candidates are scored.'
+                        : 'Admin test run: nothing was saved, recorded or put on a leaderboard.'
                       : practice
                       ? 'Nothing was scored or saved. Below is what the checks found, so you can see how the real day is marked.'
                       : preview

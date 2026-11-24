@@ -1,9 +1,10 @@
 import { RichText } from './RichText';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, ChevronDown, ChevronLeft, ChevronRight, Eye, ListTree, Pencil, Plus, Trash2 } from 'lucide-react';
+import { AlertCircle, ChevronDown, ChevronLeft, ChevronRight, Eye, ListTree, Maximize2, Pencil, Plus, Trash2 } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import { AssessmentTest, Question, QuestionType, levelName } from '../types';
 import { QUESTION_STYLES, blankQuestion, groupQuestions, isAnswerType, isGroupType, isWorkspaceType, questionProblems, tidyQuestion } from '../lib/questionTypes';
-import { CaseMaterial } from './TestRunner';
+import { CaseMaterial, TestRunner } from './TestRunner';
 import { AnswerInput } from './AnswerInputs';
 import { AppWindow } from './AppWindow';
 import { CaseBrief } from './CaseBrief';
@@ -63,6 +64,8 @@ export const DraftPreview: React.FC<DraftPreviewProps> = ({ test: given, onChang
   const [mode, setMode] = useState<'preview' | 'edit'>('preview');
   // Answers tried out in the preview; nothing is kept
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  // The whole test as a candidate takes it, in a popup the size of the window
+  const [running, setRunning] = useState(false);
   const body = useRef<HTMLDivElement>(null);
 
   const at = Math.min(index, groups.length - 1);
@@ -207,6 +210,25 @@ export const DraftPreview: React.FC<DraftPreviewProps> = ({ test: given, onChang
           )}
         </Dropdown>
         {toolbarExtra}
+        <button
+          onClick={() => setRunning(true)}
+          disabled={locked || !test.questions.length}
+          title="Take the whole test as a candidate would, every question, task and simulation. Nothing is saved."
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold disabled:opacity-40"
+        >
+          <Maximize2 className="w-3.5 h-3.5" />
+          Preview whole test
+        </button>
+        {running &&
+          createPortal(
+            // The transform makes the runner's full-window layout fill this box instead, so it's a popup, not full screen
+            <div className="fixed inset-0 z-[200] bg-slate-900/70 backdrop-blur-sm p-2 sm:p-4" role="dialog" aria-modal="true" aria-label={`Preview: ${test.title}`}>
+              <div className="relative h-full w-full rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/10 bg-slate-50" style={{ transform: 'translateZ(0)' }}>
+                <TestRunner test={test} preview instant runLabel="Preview · nothing saved" onClose={() => setRunning(false)} onComplete={() => setRunning(false)} />
+              </div>
+            </div>,
+            document.body
+          )}
 
         <div className="flex items-center gap-1 ml-auto">
           <button onClick={() => go(at - 1)} disabled={at === 0} aria-label="Previous" className="p-1 rounded text-slate-500 hover:bg-slate-100 disabled:opacity-30">
