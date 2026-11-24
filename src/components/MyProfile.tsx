@@ -153,46 +153,19 @@ export const MyProfile: React.FC<MyProfileProps> = (p) => {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-6 items-start">
       <div className="min-w-0 space-y-4">
-        {/* ---------- Header: cover, photo with the strength ring, headline ---------- */}
+        {/* ---------- Header: photo with the strength ring, who they are, and their numbers at a glance ---------- */}
         <Card className="overflow-hidden">
-          <div
-            className="h-32 sm:h-44 relative"
-            style={{
-              background:
-                'radial-gradient(circle at 18% 30%, rgba(255,255,255,0.22) 0, transparent 38%), radial-gradient(circle at 85% 80%, rgba(56,189,248,0.45) 0, transparent 45%), linear-gradient(120deg, #312e81 0%, #4f46e5 45%, #7c3aed 100%)',
-            }}
-          >
-            <div
-              className="absolute inset-0 opacity-20"
-              style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.7) 1px, transparent 1px)', backgroundSize: '18px 18px' }}
-            />
-            {p.onPreview && (
-              <button
-                onClick={p.onPreview}
-                className="absolute top-3 right-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur text-xs font-semibold text-white"
-              >
-                <Eye className="w-3.5 h-3.5" />
-                Preview as a company
-              </button>
-            )}
-          </div>
-
-          <div className="px-5 sm:px-8 pb-6">
-            <div className="flex items-end justify-between gap-3 -mt-14 sm:-mt-16">
-              <div className="relative w-28 h-28 sm:w-36 sm:h-36 shrink-0" title={`Profile strength: ${strength}%`}>
-                <Ring value={strength} size={144} stroke={5} className="absolute inset-0 w-full h-full text-emerald-500" />
-                <div className="absolute inset-[7px] rounded-full overflow-hidden ring-4 ring-white bg-slate-100">
+          <div className="h-1.5 bg-gradient-to-r from-indigo-600 via-violet-500 to-sky-400" />
+          <div className="px-5 sm:px-7 pt-5 pb-6">
+            <div className="flex items-start gap-4 sm:gap-6">
+              <div className="relative w-20 h-20 sm:w-24 sm:h-24 shrink-0" title={`Profile strength: ${strength}%`}>
+                <Ring value={strength} size={96} stroke={4} className="absolute inset-0 w-full h-full text-emerald-500" />
+                <div className="absolute inset-[6px] rounded-full overflow-hidden bg-slate-100">
                   <Pic src={candidate.avatarUrl} alt={candidate.name} referrerPolicy="no-referrer" className="w-full h-full object-cover" />
                 </div>
-                <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-bold tabular-nums shadow">
-                  {strength}%
-                </span>
               </div>
-              <EditButton onClick={p.onEditProfile} label="Edit headline and about" />
-            </div>
 
-            <div className="mt-4 grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_auto] gap-4">
-              <div className="min-w-0 space-y-1.5">
+              <div className="min-w-0 flex-1 space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
                   {naming !== null && p.onRename ? (
                     <form
@@ -247,6 +220,18 @@ export const MyProfile: React.FC<MyProfileProps> = (p) => {
                     ),
                     candidate.workPreference && <span key="work">{candidate.workPreference}</span>,
                     candidate.yearsExperience > 0 && <span key="yrs">{candidate.yearsExperience} yrs experience</span>,
+                    current && (
+                      <span key="now" className="inline-flex items-center gap-1">
+                        <Briefcase className="w-3.5 h-3.5" />
+                        {current.company}
+                      </span>
+                    ),
+                    (school || candidate.university) && (
+                      <span key="edu" className="inline-flex items-center gap-1">
+                        <GraduationCap className="w-3.5 h-3.5" />
+                        {school?.school ?? candidate.university}
+                      </span>
+                    ),
                   ]
                     .filter(Boolean)
                     .map((el, i) => (
@@ -259,33 +244,83 @@ export const MyProfile: React.FC<MyProfileProps> = (p) => {
                     Contact info
                   </button>
                 </p>
-                <button onClick={() => (bestRank ? p.onOpenTest(bestRank.testId) : p.onFindTests())} className="text-sm font-semibold text-indigo-700 hover:underline">
-                  {praxaTaken
-                    ? `${candidate.verifiedSkills.length} test ${candidate.verifiedSkills.length === 1 ? 'score' : 'scores'}${bestRank ? ` · #${bestRank.rank} of ${bestRank.of} on ${bestRank.name}` : ''}`
-                    : 'No test scores yet. Take your first test'}
-                </button>
               </div>
 
-              {/* Where they work and studied, as on LinkedIn */}
-              <div className="space-y-2 sm:max-w-[220px]">
-                {current && (
-                  <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-                    <span className="w-8 h-8 rounded-md bg-slate-100 flex items-center justify-center shrink-0">
-                      <Briefcase className="w-4 h-4 text-slate-500" />
-                    </span>
-                    <span className="truncate">{current.company}</span>
-                  </div>
+              <div className="flex items-center gap-1 shrink-0">
+                {p.onPreview && (
+                  <button onClick={p.onPreview} title="View as a company" className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700">
+                    <Eye className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">View as a company</span>
+                  </button>
                 )}
-                {(school || candidate.university) && (
-                  <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-                    <span className="w-8 h-8 rounded-md bg-slate-100 flex items-center justify-center shrink-0">
-                      <GraduationCap className="w-4 h-4 text-slate-500" />
-                    </span>
-                    <span className="truncate">{school?.school ?? candidate.university}</span>
-                  </div>
-                )}
+                <EditButton onClick={p.onEditProfile} label="Edit headline and about" />
               </div>
             </div>
+
+            {/* Their numbers: each one a way in to what it counts */}
+            <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {[
+                {
+                  label: 'Test scores',
+                  value: String(praxaTaken),
+                  sub: skills[0] ? `Best: ${skills[0].score} in ${skills[0].skillName}` : 'Take your first test',
+                  icon: <Award className="w-4 h-4" />,
+                  tone: 'text-indigo-600 bg-indigo-50',
+                  onClick: () => (skills[0] ? p.onOpenTest(skills[0].testId) : p.onFindTests()),
+                },
+                {
+                  label: 'Best rank',
+                  value: bestRank ? `#${bestRank.rank}` : '–',
+                  sub: bestRank ? `of ${bestRank.of} on ${bestRank.name}` : 'Ranked once you take a test',
+                  icon: <Target className="w-4 h-4" />,
+                  tone: 'text-amber-600 bg-amber-50',
+                  onClick: () => (bestRank ? p.onOpenTest(bestRank.testId) : p.onFindTests()),
+                },
+                {
+                  label: 'Strong job fits',
+                  value: String(strongFits),
+                  sub: strongFits ? '80%+ match on your scores' : 'Scores unlock matches',
+                  icon: <Briefcase className="w-4 h-4" />,
+                  tone: 'text-sky-600 bg-sky-50',
+                  onClick: p.onFindJobs,
+                },
+                {
+                  label: 'Profile strength',
+                  value: `${strength}%`,
+                  sub: level,
+                  icon: <Sparkles className="w-4 h-4" />,
+                  tone: 'text-emerald-600 bg-emerald-50',
+                  onClick: () => (todo[0] ? run(todo[0].action) : p.onEditProfile()),
+                },
+              ].map((t) => (
+                <button key={t.label} onClick={t.onClick} className="text-left p-3 rounded-xl border border-slate-200 hover:border-indigo-300 hover:shadow-sm transition-all group">
+                  <span className="flex items-center gap-2">
+                    <span className={`w-7 h-7 rounded-lg flex items-center justify-center ${t.tone}`}>{t.icon}</span>
+                    <span className="text-xl font-bold text-slate-900 tabular-nums">{t.value}</span>
+                  </span>
+                  <span className="block mt-1.5 text-xs font-semibold text-slate-700">{t.label}</span>
+                  <span className="block text-[11px] text-slate-500 truncate">{t.sub}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Their strongest proven skills, straight away */}
+            {skills.length > 0 && (
+              <div className="mt-4 flex flex-wrap items-center gap-1.5">
+                <span className="text-xs font-semibold text-slate-500 mr-1">Proven skills</span>
+                {skills.slice(0, 5).map((sk) => (
+                  <button
+                    key={sk.skillId + sk.testId}
+                    onClick={() => p.onOpenTest(sk.testId)}
+                    className="inline-flex items-center gap-1.5 pl-2.5 pr-1 py-0.5 rounded-full bg-slate-50 border border-slate-200 hover:border-indigo-300 text-xs font-medium text-slate-800"
+                  >
+                    {sk.skillName}
+                    <span className={`px-1.5 rounded-full text-[10px] font-bold tabular-nums ${sk.score >= 80 ? 'bg-emerald-100 text-emerald-800' : sk.score >= 60 ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-200 text-slate-700'}`}>{sk.score}</span>
+                  </button>
+                ))}
+                {skills.length > 5 && <span className="text-xs text-slate-500">+{skills.length - 5} more below</span>}
+              </div>
+            )}
 
             {candidate.links?.length ? (
               <div className="mt-3">
