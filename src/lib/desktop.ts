@@ -3,6 +3,7 @@ import { checkSheet, parseWorkbook } from './spreadsheet';
 import { matchesExpected, parseAppState, readPath } from './appSimulation';
 import { roughWrittenMark } from './questionTypes';
 import type { DeskProject } from './deskCode';
+import { DeskAppsConfig, DeskAppsState, DeskWorkApp, chatChannels, deskAppValue } from './deskApps';
 
 /**
  * A desktop for job simulations: a computer like the candidate's own at work, with a taskbar of apps (Mail, Browser,
@@ -32,6 +33,8 @@ import type { DeskProject } from './deskCode';
  *   test:<check id>           one of Praxa's tests, run on the Code app's files when marked
  *   filehas:<file>:<pattern>  whether a Code app file contains a pattern (a regular expression)
  *   state:<path>              any other part of the state
+ * and the work apps' checks (file:, chat:, ticket:, record:, event:, form:, kbviewed:, item:, chart: …), listed in
+ * src/lib/deskApps.ts.
  */
 
 export interface DeskEmail {
@@ -88,7 +91,7 @@ export interface DeskPage {
   blocks: DeskBlock[];
 }
 
-export type DeskApp = 'mail' | 'browser' | 'files' | 'sheet' | 'sql' | 'ai' | 'code';
+export type DeskApp = 'mail' | 'browser' | 'files' | 'sheet' | 'sql' | 'ai' | 'code' | DeskWorkApp;
 
 // A job's own software on the desktop (a help desk, a CRM, a till): a hand-built app page that saves its state with
 // praxa.save, kept in the desktop's state under its id and checked with app:<id>:<path>
@@ -125,6 +128,8 @@ export interface DesktopConfig {
   project?: DeskProject;
   // A timed day in phases; without them the whole day is there from the start
   phases?: DeskPhase[];
+  // The work apps' starting data (chat, help desk, CRM, docs, BI, forms, calendar, knowledge base, board): see deskApps.ts
+  work?: DeskAppsConfig;
 }
 
 export interface SentEmail {
@@ -151,6 +156,11 @@ export interface DesktopState {
   appStates: Record<string, string>;
   // The Code app's files as the candidate left them, by name
   code: Record<string, string>;
+  // Files the candidate saved on the computer: exports, documents, uploads. A file saved under a name already on the
+  // computer replaces it there (an edited document, a re-exported CSV)
+  myFiles?: CaseFile[];
+  // The work apps' state (see deskApps.ts)
+  desk?: DeskAppsState;
   // The phase the day has reached (an index into the config's phases) and when it started (ms since 1970)
   phase?: number;
   phaseStartedAt?: number;
@@ -237,9 +247,13 @@ export function repliesFor(cfg: DesktopConfig, state: DesktopState, m: SentEmail
   return out;
 }
 
-// Every file on the computer: handed over at the start, attached to emails received, and downloaded
+// Every file on the computer: the candidate's own (saved, exported, edited), handed over at the start, attached to
+// emails received, shared in chat, downloaded, and the documents the day starts with
 export function filesOf(cfg: DesktopConfig, state: DesktopState): CaseFile[] {
-  const all = [...(cfg.files ?? []), ...inboxOf(cfg, state).flatMap((m) => m.attachments ?? []), ...state.downloads];
+  const reached = (phase?: string) => arrived(cfg, state, { phase } as DeskEmail);
+  const chat = cfg.work?.chat ? chatChannels(cfg.work.chat, state.desk?.chat, cfg.user.email, reached).flatMap((c) => c.all.filter((m) => !m.mine).flatMap((m) => m.attachments ?? [])) : [];
+  const docs = (cfg.work?.docs?.templates ?? []).map((t) => ({ name: t.name, content: t.html }));
+  const all = [...(state.myFiles ?? []), ...(cfg.files ?? []), ...inboxOf(cfg, state).flatMap((m) => m.attachments ?? []), ...chat, ...state.downloads, ...docs];
   const seen = new Set<string>();
   return all.filter((f) => (seen.has(f.name) ? false : (seen.add(f.name), true)));
 }
@@ -247,8 +261,10 @@ export function filesOf(cfg: DesktopConfig, state: DesktopState): CaseFile[] {
 // A check on the desktop: its value, read as the check's kind says
 export function desktopValue(cfg: DesktopConfig, state: DesktopState, input: string): unknown {
   const at = input.indexOf(':');
-  const kind = input.slice(0, at);
-  const rest = input.slice(at + 1);
+  const kind = at < 0 ? input : input.slice(0, at);
+  const rest = at < 0 ? '' : input.slice(at + 1);
+  const work = deskAppValue(cfg.work ?? {}, state.desk ?? {}, { files: filesOf(cfg, state), reached: (phase) => arrived(cfg, state, { phase } as DeskEmail) }, kind, rest);
+  if (work.known) return work.value;
   switch (kind) {
     case 'sent':
       return state.sent.some((m) => recipients(m).includes(lower(rest)));

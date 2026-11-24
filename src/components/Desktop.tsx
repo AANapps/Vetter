@@ -34,6 +34,19 @@ import { AiPanel } from './Workspace';
 import { AppWindow } from './AppWindow';
 import { CodeField } from './CodeField';
 import { DeskProject, TestRun, runDeskTests } from '../lib/deskCode';
+import { BarChart3, BookOpen, CalendarDays, ClipboardList, FileType2, Headphones, KanbanSquare, MessagesSquare, Users } from 'lucide-react';
+import { DeskCtx } from './desk/shared';
+import { FilesApp, Folder } from './desk/FilesApp';
+import { ChatApp } from './desk/ChatApp';
+import { HelpdeskApp } from './desk/HelpdeskApp';
+import { CrmApp } from './desk/CrmApp';
+import { DocsApp } from './desk/DocsApp';
+import { BiApp } from './desk/BiApp';
+import { FormsApp } from './desk/FormsApp';
+import { CalendarApp } from './desk/CalendarApp';
+import { KbApp } from './desk/KbApp';
+import { BoardApp } from './desk/BoardApp';
+import { freeName, gridFromClipboard, gridToText } from '../lib/deskData';
 import { LayoutGrid, Check, ChevronDown, ChevronUp, Clock, Search, Square, Copy, Wifi, Volume2, BatteryMedium, Bell } from 'lucide-react';
 
 /**
@@ -52,6 +65,15 @@ const APPS: Record<DeskApp, { label: string; Icon: React.ComponentType<{ classNa
   sql: { label: 'Database', Icon: Database, tint: 'bg-indigo-600' },
   ai: { label: 'AI assistant', Icon: Bot, tint: 'bg-violet-600' },
   code: { label: 'Code', Icon: Code2, tint: 'bg-slate-900' },
+  chat: { label: 'Chat', Icon: MessagesSquare, tint: 'bg-[#4a154b]' },
+  helpdesk: { label: 'Help desk', Icon: Headphones, tint: 'bg-emerald-700' },
+  crm: { label: 'CRM', Icon: Users, tint: 'bg-[#0176d3]' },
+  docs: { label: 'Docs', Icon: FileType2, tint: 'bg-blue-700' },
+  bi: { label: 'BI reports', Icon: BarChart3, tint: 'bg-yellow-500' },
+  forms: { label: 'Forms', Icon: ClipboardList, tint: 'bg-violet-600' },
+  calendar: { label: 'Calendar', Icon: CalendarDays, tint: 'bg-sky-700' },
+  kb: { label: 'Knowledge base', Icon: BookOpen, tint: 'bg-teal-700' },
+  board: { label: 'Projects', Icon: KanbanSquare, tint: 'bg-rose-500' },
 };
 
 const REPLY_DELAY_MS = 2500;
@@ -198,6 +220,51 @@ export const Desktop: React.FC<{ question: Question; answer: string; onChange: (
       }, REPLY_DELAY_MS);
   };
 
+  // Files: the candidate's own replace any of the same name; a renamed file leaves its old name
+  const saveFile = (given: CaseFile, note?: string, renamedFrom?: string) => {
+    // An export never overwrites a file the candidate was given (an attachment, a download): it takes a free name
+    const own = latest.current.myFiles ?? [];
+    const f = !renamedFrom && !own.some((x) => x.name === given.name) && files.some((x) => x.name === given.name) ? { ...given, name: freeName(given.name, files.map((x) => x.name)) } : given;
+    const mine = own.filter((x) => x.name !== f.name && x.name !== renamedFrom);
+    save({ myFiles: [...mine, f] });
+    if (note !== '') setToast(note ?? `${f.name} saved to Files`);
+  };
+  // Where a file came from, for the Files app's folders
+  const origin = (f: CaseFile): Folder =>
+    (latest.current.myFiles ?? []).some((x) => x.name === f.name)
+      ? 'mine'
+      : (cfg.files ?? []).some((x) => x.name === f.name)
+        ? 'shared'
+        : latest.current.downloads.some((x) => x.name === f.name)
+          ? 'downloads'
+          : 'attachments';
+  // A file handed to the app that opens it: Spreadsheet and Database import it, Docs opens it, Files shows it
+  const [incoming, setIncoming] = useState<{ app: string; name: string; content: string; key: number } | null>(null);
+  const openFile = (name: string, app?: string) => {
+    const f = files.find((x) => x.name === name);
+    if (!app || !cfg.apps.includes(app) || !f) {
+      setFocusFile(name);
+      return launch('files');
+    }
+    if (app === 'docs') setFocusFile(name);
+    setIncoming({ app, name, content: f.content, key: Date.now() });
+    launch(app);
+  };
+  const reached = (phase?: string) => !phase || !phases.length || (latest.current.phase ?? 0) >= phases.findIndex((p) => p.id === phase);
+  const ctx: DeskCtx = {
+    cfg,
+    state,
+    files,
+    saveFile,
+    removeFile: (name) => (save({ myFiles: (latest.current.myFiles ?? []).filter((x) => x.name !== name) }), setToast(`${name} deleted`)),
+    openFile,
+    toast: setToast,
+    setWork: (app, next) => save({ desk: { ...(latest.current.desk ?? {}), [app]: next } }),
+    reached,
+    me: { name: cfg.user.name, email: cfg.user.email },
+  };
+  const work = cfg.work ?? {};
+
   const appWindow = (app: string) => {
     const custom = cfg.customApps?.find((c) => c.id === app);
     if (custom)
@@ -224,11 +291,48 @@ export const Desktop: React.FC<{ question: Question; answer: string; onChange: (
           />
         );
       case 'files':
-        return <FilesApp files={files} focus={focusFile} />;
+        return <FilesApp ctx={ctx} focus={focusFile} origin={origin} />;
       case 'sheet':
-        return <SpreadsheetWindow value={state.workbook} onChange={(wb) => save({ workbook: wb })} fileName={cfg.workbookName ?? 'Book1.xlsx'} files={files.filter((f) => /\.(csv|txt)$/i.test(f.name))} />;
+        return (
+          <SpreadsheetWindow
+            value={state.workbook}
+            onChange={(wb) => save({ workbook: wb })}
+            fileName={cfg.workbookName ?? 'Book1.xlsx'}
+            files={files.filter((f) => /\.(csv|tsv|txt)$/i.test(f.name))}
+            onSaveFile={saveFile}
+            incoming={incoming?.app === 'sheet' ? incoming : undefined}
+          />
+        );
       case 'sql':
-        return <DatabaseWindow value={state.database} onChange={(db) => save({ database: db })} tables={cfg.tables ?? []} databaseName={cfg.databaseName ?? 'Database'} files={files.filter((f) => /\.csv$/i.test(f.name))} />;
+        return (
+          <DatabaseWindow
+            value={state.database}
+            onChange={(db) => save({ database: db })}
+            tables={cfg.tables ?? []}
+            databaseName={cfg.databaseName ?? 'Database'}
+            files={files.filter((f) => /\.(csv|tsv)$/i.test(f.name))}
+            onSaveFile={saveFile}
+            incoming={incoming?.app === 'sql' ? incoming : undefined}
+          />
+        );
+      case 'chat':
+        return work.chat ? <ChatApp ctx={ctx} cfg={work.chat} /> : null;
+      case 'helpdesk':
+        return work.helpdesk ? <HelpdeskApp ctx={ctx} cfg={work.helpdesk} /> : null;
+      case 'crm':
+        return work.crm ? <CrmApp ctx={ctx} cfg={work.crm} /> : null;
+      case 'docs':
+        return <DocsApp ctx={ctx} focus={incoming?.app === 'docs' ? incoming.name : null} />;
+      case 'bi':
+        return <BiApp ctx={ctx} cfg={work.bi ?? {}} />;
+      case 'forms':
+        return work.forms ? <FormsApp ctx={ctx} cfg={work.forms} /> : null;
+      case 'calendar':
+        return work.calendar ? <CalendarApp ctx={ctx} cfg={work.calendar} /> : null;
+      case 'kb':
+        return work.kb ? <KbApp ctx={ctx} cfg={work.kb} /> : null;
+      case 'board':
+        return work.board ? <BoardApp ctx={ctx} cfg={work.board} /> : null;
       case 'code':
         return cfg.project ? <CodeApp project={cfg.project} files={state.code ?? {}} onFiles={(code) => save({ code: { ...(latest.current.code ?? {}), ...code } })} /> : null;
       case 'ai':
@@ -708,7 +812,21 @@ const Composer: React.FC<{
           ))}
         </ul>
       </details>
-      <textarea value={draft.body} onChange={(e) => onDraft({ ...draft, body: e.target.value })} rows={12} className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm leading-relaxed focus:outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20" data-ref="mail-body" />
+      <textarea
+        value={draft.body}
+        onChange={(e) => onDraft({ ...draft, body: e.target.value })}
+        onPaste={(e) => {
+          // A table copied from Spreadsheet, a report or a page comes in lined up in columns
+          const html = e.clipboardData.getData('text/html');
+          const text = e.clipboardData.getData('text/plain');
+          const g = (text.includes('\t') || /<table/i.test(html)) && gridFromClipboard(text, html);
+          if (!g) return;
+          e.preventDefault();
+          const el = e.currentTarget;
+          const at = el.selectionStart ?? draft.body.length;
+          onDraft({ ...draft, body: `${draft.body.slice(0, at)}${gridToText(g)}\n${draft.body.slice(el.selectionEnd ?? at)}` });
+        }}
+        rows={12} className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm leading-relaxed focus:outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20" data-ref="mail-body" />
       <div className="flex flex-wrap items-center gap-2">
         <label className="h-8 pl-2 pr-1 rounded-md border border-slate-200 flex items-center gap-1.5 text-xs text-slate-600">
           <Paperclip className="w-3.5 h-3.5" />
@@ -836,56 +954,6 @@ const BrowserApp: React.FC<{ cfg: DesktopConfig; onVisit: (url: string) => void;
               <p className="text-sm text-slate-500 mt-1">Check the address for a typo: {url}</p>
             </div>
           </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-// ---------- Files ----------
-
-const FilesApp: React.FC<{ files: CaseFile[]; focus: string | null }> = ({ files, focus }) => {
-  const [sel, setSel] = useState<string | null>(focus ?? files[0]?.name ?? null);
-  useEffect(() => {
-    if (focus) setSel(focus);
-  }, [focus]);
-  const file = files.find((f) => f.name === sel);
-  const rows = file && /\.csv$/i.test(file.name) ? parseCsv(file.content) : null;
-  return (
-    <div className="h-full flex text-sm" data-ref="files">
-      <ul className="w-64 shrink-0 border-r border-slate-200 overflow-y-auto">
-        {files.length === 0 && <li className="p-4 text-xs text-slate-500">No files yet. Attachments you receive and files you download appear here.</li>}
-        {files.map((f) => (
-          <li key={f.name}>
-            <button onClick={() => setSel(f.name)} className={`w-full text-left px-3 py-2 flex items-center gap-2 border-b border-slate-100 ${sel === f.name ? 'bg-amber-50' : 'hover:bg-slate-50'}`}>
-              <FileText className="w-4 h-4 text-slate-500 shrink-0" />
-              <span className="truncate">{f.name}</span>
-            </button>
-          </li>
-        ))}
-      </ul>
-      <div className="flex-1 min-w-0 overflow-auto p-4">
-        {file ? (
-          <>
-            <div className="mb-2 text-xs text-slate-500">
-              {file.name} · To use it in the spreadsheet, open Spreadsheet and choose Import CSV.
-            </div>
-            {rows ? (
-              <table className="text-[12.5px] border border-slate-200 select-text">
-                <tbody>
-                  {rows.slice(0, 200).map((r, i) => (
-                    <tr key={i} className={i === 0 ? 'bg-slate-50 font-semibold' : ''}>
-                      {r.map((c, j) => <td key={j} className="px-2 py-1 border border-slate-100 whitespace-nowrap">{c}</td>)}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <pre className="text-[12.5px] whitespace-pre-wrap font-mono text-slate-800 select-text">{file.content}</pre>
-            )}
-          </>
-        ) : (
-          <p className="text-xs text-slate-400">Select a file to preview it.</p>
         )}
       </div>
     </div>

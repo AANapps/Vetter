@@ -7,6 +7,7 @@ import { LIBRARY_APPS, libraryPage } from '../lib/libraryApps';
 import { workbookStarter } from '../lib/spreadsheet';
 import { STANDARD_ASSESSMENTS } from '../data/mockData';
 import { PRACTICE_SIM } from '../data/practiceSim';
+import { SAMPLE_CONTACTS, SAMPLE_FILES, SAMPLE_WORK } from '../data/deskSamples';
 import { Desktop } from './Desktop';
 import { AppWindow } from './AppWindow';
 import { TestRunner } from './TestRunner';
@@ -25,6 +26,15 @@ const BUILT_IN: { id: string; label: string }[] = [
   { id: 'sql', label: 'Database' },
   { id: 'code', label: 'Code' },
   { id: 'ai', label: 'AI assistant' },
+  { id: 'chat', label: 'Chat' },
+  { id: 'helpdesk', label: 'Help desk' },
+  { id: 'crm', label: 'CRM' },
+  { id: 'docs', label: 'Docs' },
+  { id: 'bi', label: 'BI reports' },
+  { id: 'forms', label: 'Forms' },
+  { id: 'calendar', label: 'Calendar' },
+  { id: 'kb', label: 'Knowledge base' },
+  { id: 'board', label: 'Projects (monday/Jira)' },
 ];
 
 // A job simulation's desktop, untimed: the whole day's email is there from the start
@@ -45,7 +55,7 @@ function sandboxDesktop(sims: AssessmentTest[]): DesktopConfig {
     time: 'Mon 09:00',
     apps: [...BUILT_IN.map((a) => a.id), ...Object.keys(LIBRARY_APPS)],
     customApps: Object.values(LIBRARY_APPS).map((a) => ({ id: a.manifest.id, label: a.manifest.name, html: libraryPage(a.manifest.id, a.sample) })),
-    contacts: unique(desks.flatMap((d) => d.contacts), (c) => c.email).slice(0, 12),
+    contacts: unique([...SAMPLE_CONTACTS, ...desks.flatMap((d) => d.contacts)], (c) => c.email).slice(0, 15),
     inbox: [
       {
         id: 'lab-welcome',
@@ -60,7 +70,8 @@ function sandboxDesktop(sims: AssessmentTest[]): DesktopConfig {
     replies: unique(desks.flatMap((d) => d.replies ?? []), (r) => r.id),
     pages: withPages?.pages,
     homepage: withPages?.homepage,
-    files: unique(desks.flatMap((d) => d.files ?? []), (f) => f.name),
+    files: unique([...SAMPLE_FILES, ...desks.flatMap((d) => d.files ?? [])], (f) => f.name),
+    work: SAMPLE_WORK,
     workbook: pick('workbook') ?? workbookStarter([{ name: 'Sheet1', rows: [['A', 'B'], [1, 2]] }]),
     workbookName: pick('workbookName') ?? 'Book1',
     tables: pick('tables'),

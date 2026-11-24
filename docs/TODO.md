@@ -47,6 +47,8 @@ Kept up to date as work is asked for and finished. Newest items at the bottom of
 
 - **AI agents: connect Praxa (planned 2026-11-23, see docs/ai-agents.md).** Build a remote MCP server with OAuth (`find_test`, `send_assessment`, `get_result`, `search_candidates`), a "Connect your AI" page, then list it in MCP registries, the Claude and ChatGPT directories and ATS partner marketplaces. Start read-only: `find_test` + `get_result`.
 
+- **Desktop work apps: next steps (built 2026-11-24).** Built on the job-sim desktop (src/lib/deskApps.ts, src/lib/deskData.ts, src/components/desk/): Chat, Help desk, CRM, Docs, BI reports, Forms, Calendar, Knowledge base, Projects (monday table + Jira kanban), and a new Files app. Every table leaves as a CSV in Files or a copied table; Spreadsheet, Database, CRM, BI, Board, Docs, Mail and Chat all take CSV, tab-separated (Excel) and HTML tables. Spreadsheet/Database exports now save to the desktop's Files (were real downloads, so couldn't be attached). Try them in Admin → Test lab (sample data: src/data/deskSamples.ts). Still to do: (1) let the AI job-sim writer (server/writeJobSim.ts, src/lib/jobSimBuild.ts) fill these apps: its schema only allows sheet/browser/sql/code; (2) the company's replay (JobSimRecord) showing work in the new apps; (3) Chat colleagues answer by rule only, not AI; (4) library HTML apps (Deskly) can't read or write Files yet; (5) decide whether skill tests move from question formats to single-app tasks on these apps (asked 2026-11-24, not decided).
+
 ## Platform review (2026-11-21)
 From a code read-through of both flows (not clicked through live).
 

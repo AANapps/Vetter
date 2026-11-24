@@ -37,6 +37,7 @@ import {
   usedSize,
 } from '../lib/spreadsheet';
 import { downloadFile, parseCsv, readTextFile, toCsv } from '../lib/csv';
+import { gridFromClipboard, parseTsv } from '../lib/deskData';
 
 interface Pos {
   r: number;
@@ -88,9 +89,12 @@ interface SpreadsheetWindowProps {
   onChange: (json: string) => void;
   fileName: string;
   files?: CaseFile[];
+  // On a desktop: exports are saved to its Files, and a file opened from Files arrives here to import
+  onSaveFile?: (f: CaseFile) => void;
+  incoming?: { name: string; content: string; key: number };
 }
 
-export const SpreadsheetWindow: React.FC<SpreadsheetWindowProps> = ({ value, onChange, fileName, files = [] }) => {
+export const SpreadsheetWindow: React.FC<SpreadsheetWindowProps> = ({ value, onChange, fileName, files = [], onSaveFile, incoming }) => {
   const [wb, setWb] = useState<Workbook>(() => parseWorkbook(value));
   const [sheet, setSheet] = useState(0);
   const [active, setActive] = useState<Pos>({ r: 0, c: 0 });
@@ -349,8 +353,11 @@ export const SpreadsheetWindow: React.FC<SpreadsheetWindowProps> = ({ value, onC
       if (clip.cut) setClip(null);
       return;
     }
-    const rows = text.replace(/\r/g, '').replace(/\n$/, '').split('\n').map((line) => line.split('\t'));
-    pasteGrid(rows);
+    // Cells from another spreadsheet (tab-separated), a table from a page, document or report (HTML), or a CSV's lines
+    // all land a value a cell; anything else goes in as lines down the column
+    const grid = gridFromClipboard(text, e.clipboardData.getData('text/html'));
+    if (grid && !text.includes('\t')) flash(`Pasted ${grid.length} rows split into ${grid[0]?.length ?? 1} columns.`);
+    pasteGrid(grid ?? text.replace(/\r/g, '').replace(/\n$/, '').split('\n').map((line) => [line]));
   };
 
   const pasteValues = () => {
@@ -396,12 +403,13 @@ export const SpreadsheetWindow: React.FC<SpreadsheetWindowProps> = ({ value, onC
 
   const exportCsv = () => {
     const rows = Array.from({ length: used.rows }, (_, r) => Array.from({ length: used.cols }, (_, c) => toText(calc.value(sheet, r, c))));
-    downloadFile(`${current.name}.csv`, toCsv(rows));
+    if (onSaveFile) onSaveFile({ name: `${current.name}.csv`, content: toCsv(rows) });
+    else downloadFile(`${current.name}.csv`, toCsv(rows));
   };
 
   const importCsv = (name: string, text: string) => {
-    const rows = parseCsv(text);
-    const sheetName = freeSheetName(wb, name.replace(/\.csv$/i, ''));
+    const rows = /\.tsv$/i.test(name) ? parseTsv(text) : parseCsv(text);
+    const sheetName = freeSheetName(wb, name.replace(/\.(csv|tsv|txt)$/i, ''));
     const next = { sheets: [...wb.sheets, sheetFromRows(sheetName, rows)] };
     commit(next);
     setSheet(next.sheets.length - 1);
@@ -410,6 +418,15 @@ export const SpreadsheetWindow: React.FC<SpreadsheetWindowProps> = ({ value, onC
     flash(`Imported ${name}: ${Math.max(rows.length - 1, 0)} rows into the sheet "${sheetName}".`);
     focusGrid();
   };
+
+  // A file opened from Files comes in as a new sheet, once per opening
+  const took = useRef(0);
+  useEffect(() => {
+    if (!incoming || took.current === incoming.key) return;
+    took.current = incoming.key;
+    importCsv(incoming.name, incoming.content);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [incoming?.key]);
 
   const addSheet = () => {
     const next = { sheets: [...wb.sheets, { name: freeSheetName(wb, `Sheet${wb.sheets.length + 1}`), cells: {} }] };
@@ -641,7 +658,7 @@ export const SpreadsheetWindow: React.FC<SpreadsheetWindowProps> = ({ value, onC
         </RibbonGroup>
         <RibbonGroup label="File">
           <RibbonButton icon={<FileUp className="w-3.5 h-3.5" />} label="Import CSV" onClick={() => setDialog('import')} />
-          <RibbonButton icon={<Download className="w-3.5 h-3.5" />} label="Export CSV" title="Download this sheet as a CSV file" onClick={exportCsv} />
+          <RibbonButton icon={<Download className="w-3.5 h-3.5" />} label="Export CSV" title={onSaveFile ? 'Save this sheet to Files as a CSV' : 'Download this sheet as a CSV file'} onClick={exportCsv} />
         </RibbonGroup>
       </div>
 

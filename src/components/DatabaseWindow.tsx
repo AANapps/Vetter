@@ -5,6 +5,7 @@ import { CaseFile, DataTable } from '../types';
 import { BatchResult, describeDatabase, importStatements, openTaskDatabase, runBatch, sqlIdent } from '../lib/sqlEngine';
 import { parseDatabaseWork } from '../lib/databaseWork';
 import { downloadFile, parseCsv, toCsv } from '../lib/csv';
+import { parseTsv } from '../lib/deskData';
 import { DialogShell, ImportDialog, RibbonButton } from './SpreadsheetWindow';
 import { Pulse } from './Pulse';
 
@@ -16,11 +17,14 @@ interface DatabaseWindowProps {
   tables: DataTable[];
   databaseName: string;
   files?: CaseFile[];
+  // On a desktop: results are saved to its Files, and a CSV opened from Files arrives here to import as a table
+  onSaveFile?: (f: CaseFile) => void;
+  incoming?: { name: string; content: string; key: number };
 }
 
 type DbObject = ReturnType<typeof describeDatabase>[number];
 
-export const DatabaseWindow: React.FC<DatabaseWindowProps> = ({ value, onChange, tables, databaseName, files = [] }) => {
+export const DatabaseWindow: React.FC<DatabaseWindowProps> = ({ value, onChange, tables, databaseName, files = [], onSaveFile, incoming }) => {
   const initial = useRef(parseDatabaseWork(value));
   const [script, setScript] = useState(initial.current.script);
   const changes = useRef<string[]>(initial.current.changes);
@@ -35,6 +39,15 @@ export const DatabaseWindow: React.FC<DatabaseWindowProps> = ({ value, onChange,
   const [picking, setPicking] = useState(false);
   const editorRef = useRef<HTMLTextAreaElement>(null);
   const gutterRef = useRef<HTMLDivElement>(null);
+
+  // A CSV opened from Files goes straight to Import flat file
+  const took = useRef(0);
+  useEffect(() => {
+    if (!incoming || took.current === incoming.key) return;
+    took.current = incoming.key;
+    setImporting({ name: incoming.name.replace(/\.(csv|tsv)$/i, '').replace(/[^\w]+/g, '_'), text: /\.tsv$/i.test(incoming.name) ? toCsv(parseTsv(incoming.content)) : incoming.content });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [incoming?.key]);
 
   const save = (nextScript = script) => onChange(JSON.stringify({ script: nextScript, changes: changes.current }));
   const refresh = () => dbRef.current && setObjects(describeDatabase(dbRef.current));
@@ -154,11 +167,13 @@ export const DatabaseWindow: React.FC<DatabaseWindowProps> = ({ value, onChange,
         <RibbonButton
           icon={<Download className="w-3.5 h-3.5" />}
           label="Save results as CSV"
-          title="Download the last result set"
+          title={onSaveFile ? 'Save the last result set to Files' : 'Download the last result set'}
           disabled={!result?.resultSets.length}
           onClick={() => {
             const set = result?.resultSets[result.resultSets.length - 1];
-            if (set) downloadFile('results.csv', toCsv([set.columns, ...set.rows]));
+            if (!set) return;
+            if (onSaveFile) onSaveFile({ name: 'results.csv', content: toCsv([set.columns, ...set.rows]) });
+            else downloadFile('results.csv', toCsv([set.columns, ...set.rows]));
           }}
         />
         <RibbonButton icon={<RotateCcw className="w-3.5 h-3.5" />} label="Reset database" title="Undo every change made to the database" onClick={reset} />
