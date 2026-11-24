@@ -41,6 +41,30 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
   const [status, setStatus] = useState<Status>('all');
   const [cardLevels, setCardLevels] = useState<Record<string, string>>({});
   const [browseAll, setBrowseAll] = useState(false);
+  // Skills tests and job simulations are two different things, kept on separate tabs
+  const [kind, setKind] = useState<'tests' | 'sims'>('tests');
+  const simOf = (t: AssessmentTest) => isJobSim(t) || isSim(t);
+  // A list split in two, each half under its own heading
+  const splitList = (list: AssessmentTest[], render: (t: AssessmentTest) => React.ReactNode) => {
+    const skills = list.filter((t) => !simOf(t));
+    const days = list.filter(simOf);
+    return (
+      <div className="space-y-8">
+        {skills.length > 0 && (
+          <section className="space-y-3">
+            {sectionTitle(`Skills tests (${skills.length})`, 'One skill at a time, about 20 minutes, hands-on in the tool.')}
+            <ul className={grid}>{skills.map(render)}</ul>
+          </section>
+        )}
+        {days.length > 0 && (
+          <section className="space-y-3">
+            {sectionTitle(`Job simulations (${days.length})`, 'A whole working day in the role, about 40 minutes.')}
+            <ul className={grid}>{days.map(render)}</ul>
+          </section>
+        )}
+      </div>
+    );
+  };
 
   // Praxa's tests in the sector shown, each once (its levels are picked on its card)
   const library = useMemo(
@@ -218,7 +242,18 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
               <div className="text-xs font-medium text-indigo-700">Tests for</div>
               <h1 className="mt-0.5 text-3xl sm:text-4xl font-semibold tracking-tight text-slate-900">{role}</h1>
               <div className="mt-3 flex flex-wrap gap-1.5">
-                <span className="tl-chip">{count} {count === 1 ? 'test' : 'tests'}{path.length ? ', in order' : ''}</span>
+                {(() => {
+                  const inRole = path.length ? path.map((m) => m.test) : all;
+                  const days = inRole.filter(simOf).length;
+                  const skills = inRole.length - days;
+                  return (
+                    <span className="tl-chip">
+                      {skills} skills {skills === 1 ? 'test' : 'tests'}
+                      {days > 0 && ` + ${days} job ${days === 1 ? 'simulation' : 'simulations'}`}
+                      {path.length ? ', in order' : ''}
+                    </span>
+                  );
+                })()}
                 <span className="tl-chip">
                   <Clock className="w-3 h-3" />
                   about {minutes >= 90 ? `${Math.round(minutes / 60)} hours` : `${minutes} min`}
@@ -265,13 +300,27 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
 
         {toolbar()}
 
-        {modules.length > 0 && (
-          <ul className={grid}>{modules.map((m) => card(m.test, { step: path.indexOf(m) + 1, label: m.sec.label, blurb: m.sec.blurb, sim: isSim(m.test, m.sec) }))}</ul>
+        {modules.some((m) => !isSim(m.test, m.sec)) && (
+          <section className="space-y-3">
+            {sectionTitle('Skills tests', 'One skill at a time, about 20 minutes each, hands-on in the tool. Take them in order.')}
+            <ul className={grid}>
+              {modules.filter((m) => !isSim(m.test, m.sec)).map((m) => card(m.test, { step: path.indexOf(m) + 1, label: m.sec.label, blurb: m.sec.blurb }))}
+            </ul>
+          </section>
         )}
-        {extra.length > 0 && (
+        {(modules.some((m) => isSim(m.test, m.sec)) || extra.some(simOf)) && (
           <section className="space-y-3 pt-2">
-            {path.length > 0 && sectionTitle(`More tests for ${role}s`, 'Extra skills the role uses. Take them any time.')}
-            <ul className={grid}>{extra.map((t) => card(t))}</ul>
+            {sectionTitle('Job simulation', `A whole working day as a ${role}, about 40 minutes: emails, the job's own software and a curveball. The strongest proof you can do the job.`)}
+            <ul className={grid}>
+              {modules.filter((m) => isSim(m.test, m.sec)).map((m) => card(m.test, { step: path.indexOf(m) + 1, label: m.sec.label, blurb: m.sec.blurb, sim: true }))}
+              {extra.filter(simOf).map((t) => card(t, { sim: true }))}
+            </ul>
+          </section>
+        )}
+        {extra.some((t) => !simOf(t)) && (
+          <section className="space-y-3 pt-2">
+            {sectionTitle(path.length > 0 ? `More skills tests for ${role}s` : 'Skills tests', 'Extra skills the role uses. Take them any time.')}
+            <ul className={grid}>{extra.filter((t) => !simOf(t)).map((t) => card(t))}</ul>
           </section>
         )}
         {!modules.length && !extra.length && empty}
@@ -301,7 +350,7 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
           </div>
         </section>
         {toolbar()}
-        {list.length ? <ul className={grid}>{list.map((t) => card(t))}</ul> : empty}
+        {list.length ? splitList(list, (t) => card(t, simOf(t) ? { sim: true } : undefined)) : empty}
       </div>
     );
   }
@@ -352,12 +401,44 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
             </button>
           </div>
           {toolbar(false)}
-          {everything.length ? <ul className={grid}>{everything.map((t) => card(t))}</ul> : empty}
+          {everything.length ? splitList(everything, (t) => card(t, simOf(t) ? { sim: true } : undefined)) : empty}
         </section>
       ) : (
         <>
-          {/* Job simulations first: the strongest proof a candidate can give that they can do the job */}
-          {sims.length > 0 && (
+          {/* Two kinds, clearly apart: skills tests and job simulations */}
+          <div role="tablist" aria-label="Skills tests or job simulations" className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-3xl mx-auto">
+            {(
+              [
+                ['tests', 'Skills tests', library.filter((t) => !simOf(t)).length, 'One skill at a time, about 20 minutes: hands-on tasks in a spreadsheet, SQL, code and more.', Briefcase],
+                ['sims', 'Job simulations', sims.length, 'A whole working day in the role, about 40 minutes, in five timed parts.', Monitor],
+              ] as const
+            ).map(([id, label, n, blurb, Icon]) => {
+              const on = kind === id;
+              return (
+                <button
+                  key={id}
+                  role="tab"
+                  aria-selected={on}
+                  onClick={() => setKind(id)}
+                  className={`tl-glass text-left p-4 flex gap-3 border-2 transition-colors ${on ? '!border-indigo-500' : '!border-transparent hover:!border-slate-200'}`}
+                >
+                  <span className={`tl-tile ${id === 'sims' ? 'tl-tile-sim' : ''}`} aria-hidden="true">
+                    <Icon className="w-5 h-5" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="flex items-center gap-2">
+                      <span className={`text-base font-semibold ${on ? 'text-indigo-800' : 'text-slate-900'}`}>{label}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold tabular-nums ${on ? 'bg-indigo-600 text-white' : 'bg-slate-900/5 text-slate-600'}`}>{n}</span>
+                    </span>
+                    <span className="block mt-0.5 text-xs text-slate-600">{blurb}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          {kind === 'sims' && sims.length === 0 && <p className="text-center text-sm text-slate-500">No job simulations yet for this field.</p>}
+          {/* Job simulations: the strongest proof a candidate can give that they can do the job */}
+          {kind === 'sims' && sims.length > 0 && (
             <section className="space-y-4">
               {sectionTitle(
                 'Job simulations',
@@ -396,7 +477,7 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
               </ul>
             </section>
           )}
-          {groups.map((g) => (
+          {kind === 'tests' && groups.map((g) => (
             <section key={g.industry} className="space-y-4">
               <div className="flex items-end justify-between gap-3">
                 {sectionTitle(g.industry)}
@@ -442,11 +523,13 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
               </ul>
             </section>
           ))}
-          <div className="text-center">
-            <button onClick={() => setBrowseAll(true)} className="tl-ghost h-10 px-5 rounded-full text-sm font-semibold">
-              Browse every test ({library.length})
-            </button>
-          </div>
+          {kind === 'tests' && (
+            <div className="text-center">
+              <button onClick={() => setBrowseAll(true)} className="tl-ghost h-10 px-5 rounded-full text-sm font-semibold">
+                Browse every test ({library.length})
+              </button>
+            </div>
+          )}
         </>
       )}
     </div>
