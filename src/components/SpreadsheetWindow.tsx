@@ -20,9 +20,13 @@ import {
   SlidersHorizontal,
   Sparkles,
   Grid3x3,
+  Database,
+  RefreshCw,
 } from 'lucide-react';
 import { ChartBox, CondFormatDialog, FilterMenu, PickDialog, STYLE_CLASS, SlicerBox, TABLE_STYLE, TableDialog, columnValues } from './SheetExtras';
 import { flashFill } from '../lib/flashFill';
+import { PowerQueryEditor } from './PowerQueryEditor';
+import { queryRows, runQuery } from '../lib/powerQuery';
 import { CaseFile } from '../types';
 import {
   Calc,
@@ -74,7 +78,7 @@ interface Clip {
   cut: boolean;
 }
 
-type Dialog = 'find' | 'dupes' | 'pivot' | 'import' | 'table' | 'cf' | 'slicer' | null;
+type Dialog = 'find' | 'dupes' | 'pivot' | 'import' | 'table' | 'cf' | 'slicer' | 'query' | null;
 
 const DEFAULT_WIDTH = 96;
 const ROW_HEIGHT = 22;
@@ -259,6 +263,40 @@ export const SpreadsheetWindow: React.FC<SpreadsheetWindowProps> = ({ value, onC
     if (!Object.keys(updates).length) return flash('Flash Fill had nothing left to fill.');
     commit(setCells(wb, sheet, updates));
     flash(`Flash Fill filled ${Object.keys(updates).length} cells.`);
+  };
+
+  // Power Query: each query loads to its own sheet as a table named after it; Refresh runs them all again
+  const loadQueries = (queries: NonNullable<typeof wb.queries>, base = wb) => {
+    let sheets = [...base.sheets];
+    const out: typeof queries = [];
+    const problems: string[] = [];
+    for (const q of queries) {
+      const t = runQuery(q, files, queries);
+      if (typeof t === 'string') {
+        problems.push(`${q.name}: ${t}`);
+        out.push(q);
+        continue;
+      }
+      const rows = queryRows(t);
+      const loaded = sheetFromRows('', rows);
+      const ref = rangeText({ r1: 0, c1: 0, r2: Math.max(rows.length - 1, 1), c2: Math.max(t.headers.length - 1, 0) });
+      const name = q.loadTo && sheets.some((x) => x.name.toLowerCase() === q.loadTo!.toLowerCase()) ? q.loadTo : freeSheetName({ sheets }, q.name);
+      const i = sheets.findIndex((x) => x.name.toLowerCase() === name.toLowerCase());
+      const tableName = q.name.replace(/[^A-Za-z0-9_]/g, '_');
+      const takenElsewhere = sheets.some((x, j) => j !== i && (x.tables ?? []).some((tb) => tb.name.toLowerCase() === tableName.toLowerCase()));
+      const tables = takenElsewhere ? [] : [{ name: tableName, ref, style: 'green' as const }];
+      const sh = { ...(i >= 0 ? sheets[i] : {}), name, cells: loaded.cells, tables, filter: { ref, criteria: {} } };
+      if (i >= 0) sheets[i] = sh;
+      else sheets = [...sheets, sh];
+      out.push({ ...q, loadTo: name });
+    }
+    commit({ ...base, sheets, queries: out });
+    return problems;
+  };
+  const refreshAll = () => {
+    if (!wb.queries?.length) return flash('There are no queries to refresh. Use Get data first.');
+    const problems = loadQueries(wb.queries);
+    flash(problems.length ? `Refreshed with problems: ${problems.join('; ')}` : `Refreshed ${wb.queries.length} ${wb.queries.length === 1 ? 'query' : 'queries'}.`);
   };
 
   const doUndo = () => {
@@ -832,6 +870,10 @@ export const SpreadsheetWindow: React.FC<SpreadsheetWindowProps> = ({ value, onC
           <RibbonButton icon={<Filter className="w-3.5 h-3.5" />} label={current.filter ? 'Clear filter' : 'Filter'} title="Filter buttons on the headers (Ctrl+Shift+L)" onClick={toggleFilter} />
           <RibbonButton icon={<Sparkles className="w-3.5 h-3.5" />} label="Flash Fill" title="Fill the column from the examples you typed (Ctrl+E)" onClick={doFlashFill} />
         </RibbonGroup>
+        <RibbonGroup label="Get & transform">
+          <RibbonButton icon={<Database className="w-3.5 h-3.5" />} label="Get data" title="Power Query: load, clean and combine files" onClick={() => setDialog('query')} />
+          <RibbonButton icon={<RefreshCw className="w-3.5 h-3.5" />} label="Refresh all" title="Run every query again on the files" onClick={refreshAll} disabled={!wb.queries?.length} />
+        </RibbonGroup>
         <RibbonGroup label="Insert">
           <RibbonButton icon={<Grid3x3 className="w-3.5 h-3.5" />} label="Table" title="Format as Table (Ctrl+T)" onClick={() => setDialog('table')} />
           <RibbonButton icon={<Table2 className="w-3.5 h-3.5" />} label="PivotTable" onClick={() => setDialog('pivot')} />
@@ -1220,6 +1262,23 @@ export const SpreadsheetWindow: React.FC<SpreadsheetWindowProps> = ({ value, onC
             select({ r: 0, c: 0 });
             setDialog(null);
             flash(`PivotTable added on the sheet "${name}".`);
+            focusGrid();
+          }}
+        />
+      )}
+
+      {dialog === 'query' && (
+        <PowerQueryEditor
+          files={files}
+          queries={wb.queries ?? []}
+          onClose={() => {
+            setDialog(null);
+            focusGrid();
+          }}
+          onLoad={(queries) => {
+            const problems = loadQueries(queries);
+            setDialog(null);
+            flash(problems.length ? `Loaded with problems: ${problems.join('; ')}` : `Loaded ${queries.length} ${queries.length === 1 ? 'query' : 'queries'} to ${queries.length === 1 ? 'a sheet' : 'sheets'}.`);
             focusGrid();
           }}
         />
