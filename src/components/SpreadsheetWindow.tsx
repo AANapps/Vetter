@@ -372,7 +372,7 @@ export const SpreadsheetWindow: React.FC<SpreadsheetWindowProps> = ({ value, onC
         if (format === 'general') delete formats[cellAddr(r, c)];
         else formats[cellAddr(r, c)] = format;
       }
-    commit({ sheets: wb.sheets.map((s, i) => (i === sheet ? { ...s, formats } : s)) });
+    commit({ ...wb, sheets: wb.sheets.map((s, i) => (i === sheet ? { ...s, formats } : s)) });
   };
 
   const insertOrDelete = (axis: 'row' | 'col', insert: boolean) => {
@@ -410,7 +410,7 @@ export const SpreadsheetWindow: React.FC<SpreadsheetWindowProps> = ({ value, onC
   const importCsv = (name: string, text: string) => {
     const rows = /\.tsv$/i.test(name) ? parseTsv(text) : parseCsv(text);
     const sheetName = freeSheetName(wb, name.replace(/\.(csv|tsv|txt)$/i, ''));
-    const next = { sheets: [...wb.sheets, sheetFromRows(sheetName, rows)] };
+    const next = { ...wb, sheets: [...wb.sheets, sheetFromRows(sheetName, rows)] };
     commit(next);
     setSheet(next.sheets.length - 1);
     select({ r: 0, c: 0 });
@@ -429,7 +429,7 @@ export const SpreadsheetWindow: React.FC<SpreadsheetWindowProps> = ({ value, onC
   }, [incoming?.key]);
 
   const addSheet = () => {
-    const next = { sheets: [...wb.sheets, { name: freeSheetName(wb, `Sheet${wb.sheets.length + 1}`), cells: {} }] };
+    const next = { ...wb, sheets: [...wb.sheets, { name: freeSheetName(wb, `Sheet${wb.sheets.length + 1}`), cells: {} }] };
     commit(next);
     setSheet(next.sheets.length - 1);
     select({ r: 0, c: 0 });
@@ -440,13 +440,13 @@ export const SpreadsheetWindow: React.FC<SpreadsheetWindowProps> = ({ value, onC
     const clean = name.trim();
     if (!clean || clean === wb.sheets[i].name) return;
     if (wb.sheets.some((s, j) => j !== i && s.name.toLowerCase() === clean.toLowerCase())) return flash(`There's already a sheet called "${clean}".`);
-    commit({ sheets: wb.sheets.map((s, j) => (j === i ? { ...s, name: clean } : s)) });
+    commit({ ...wb, sheets: wb.sheets.map((s, j) => (j === i ? { ...s, name: clean } : s)) });
   };
 
   const deleteSheet = (i: number) => {
     if (wb.sheets.length < 2) return;
     if (!window.confirm(`Delete the sheet "${wb.sheets[i].name}"? Formulas that use it will show #REF!.`)) return;
-    commit({ sheets: wb.sheets.filter((_, j) => j !== i) });
+    commit({ ...wb, sheets: wb.sheets.filter((_, j) => j !== i) });
     setSheet(Math.max(0, i - 1));
   };
 
@@ -955,7 +955,7 @@ export const SpreadsheetWindow: React.FC<SpreadsheetWindowProps> = ({ value, onC
               ['Grand Total', Number(summarise(all, ordered.reduce((n, g) => n + g.count, 0)).toFixed(10))],
             ];
             const name = freeSheetName(wb, 'Pivot');
-            const next = { sheets: [...wb.sheets, sheetFromRows(name, rows)] };
+            const next = { ...wb, sheets: [...wb.sheets, sheetFromRows(name, rows)] };
             commit(next);
             setSheet(next.sheets.length - 1);
             select({ r: 0, c: 0 });

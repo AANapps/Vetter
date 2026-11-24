@@ -6,15 +6,90 @@
 
 export type CellFormat = 'general' | 'number' | 'currency' | 'percent';
 
+// An Excel Table (Format as Table): a named range whose first row is the headers. Formulas can use structured
+// references (Orders[Qty], Orders[@Qty], [@Qty]) that follow the table as it grows
+export interface SheetTable {
+  name: string;
+  ref: string;
+  style?: 'blue' | 'green' | 'orange' | 'gray';
+}
+
+// AutoFilter on a range (its first row the headers): per column, the values kept or a condition
+export interface FilterCriterion {
+  values?: string[];
+  op?: '>' | '<' | '>=' | '<=' | '=' | '<>' | 'contains' | 'top' | 'bottom' | 'blank' | 'nonblank';
+  value?: string;
+}
+export interface SheetFilter {
+  ref: string;
+  // Keyed by the column's offset in the range (0 = its first column)
+  criteria: Record<string, FilterCriterion>;
+}
+
+// Conditional formatting: a rule on a range and the colour cells that meet it are shown in
+export type CondRule = 'greater' | 'less' | 'between' | 'equal' | 'contains' | 'duplicate' | 'unique' | 'top' | 'bottom' | 'above' | 'below' | 'blank' | 'scale';
+export interface CondFormat {
+  ref: string;
+  rule: CondRule;
+  value?: string;
+  value2?: string;
+  style: 'red' | 'green' | 'yellow' | 'bold';
+}
+
+// A chart over a range: its first column the categories, the other columns the series, headers in its first row
+export interface SheetChart {
+  id: string;
+  kind: 'column' | 'bar' | 'line' | 'pie';
+  ref: string;
+  title: string;
+}
+
+// A slicer: buttons for one column of a table; the values picked filter the table (none picked shows all)
+export interface SheetSlicer {
+  id: string;
+  table: string;
+  column: string;
+  selected: string[];
+}
+
 export interface Sheet {
   name: string;
   // What was typed in each cell, by address ("B2"): a value, or a formula starting with "="
   cells: Record<string, string>;
   formats?: Record<string, CellFormat>;
+  tables?: SheetTable[];
+  filter?: SheetFilter;
+  conditional?: CondFormat[];
+  charts?: SheetChart[];
+  slicers?: SheetSlicer[];
+}
+
+// A Power Query query: where its data comes from (files on the desktop, appended), the steps applied in order, and
+// the sheet it loads to. Refresh runs it again on the files as they are now
+export type QueryStep =
+  | { kind: 'promote' }
+  | { kind: 'remove-columns'; columns: string[] }
+  | { kind: 'keep-columns'; columns: string[] }
+  | { kind: 'rename'; column: string; to: string }
+  | { kind: 'trim'; columns: string[] }
+  | { kind: 'clean-case'; columns: string[]; mode: 'proper' | 'upper' | 'lower' }
+  | { kind: 'replace'; column: string; find: string; with: string }
+  | { kind: 'type'; column: string; to: 'number' | 'text' | 'date' }
+  | { kind: 'remove-blank-rows' }
+  | { kind: 'remove-duplicates'; columns: string[] }
+  | { kind: 'filter'; column: string; op: '=' | '<>' | '>' | '<' | 'contains' | 'nonblank'; value: string }
+  | { kind: 'split'; column: string; by: string; into: string[] }
+  | { kind: 'merge'; query: string; on: string; otherOn: string; columns: string[] };
+export interface Query {
+  name: string;
+  sources: string[];
+  steps: QueryStep[];
+  loadTo?: string;
 }
 
 export interface Workbook {
   sheets: Sheet[];
+  queries?: Query[];
 }
 
 export class SheetError {
@@ -125,6 +200,16 @@ interface RefToken {
   sheet?: string; // as written, without quotes
   a: RefPart;
   b?: RefPart;
+  // A2#: the whole range a dynamic array formula in A2 spills into
+  spill?: boolean;
+}
+
+// A structured reference to an Excel Table: Orders[Qty], Orders[@Qty], Orders[#All], [@Qty] inside the table
+interface TableRef {
+  table?: string;
+  part: 'data' | 'all' | 'headers' | 'this';
+  c1?: string;
+  c2?: string;
 }
 
 type Token =
@@ -135,7 +220,8 @@ type Token =
   | { t: 'ref'; v: RefToken; pos: number; end: number }
   | { t: 'func'; v: string; pos: number; end: number }
   | { t: 'op'; v: string; pos: number; end: number }
-  | { t: 'name'; v: string; pos: number; end: number };
+  | { t: 'name'; v: string; pos: number; end: number }
+  | { t: 'sref'; v: TableRef; pos: number; end: number };
 
 const SHEET_PREFIX = /(?:'((?:[^']|'')+)'|([A-Za-z_][\w.]*))!/y;
 const CELL_PART = /(\$?)([A-Za-z]{1,3})(\$?)(\d+)/y;
@@ -165,6 +251,7 @@ function refAt(s: string, i: number): { v: RefToken; end: number } | null {
         return { v: { sheet, a, b }, end: CELL_PART.lastIndex };
       }
     }
+    if (s[end] === '#') return { v: { sheet, a, spill: true }, end: end + 1 };
     return { v: { sheet, a }, end };
   }
   // A whole column, which only counts as a range: A:A, $B:$D
@@ -179,6 +266,40 @@ function refAt(s: string, i: number): { v: RefToken; end: number } | null {
     }
   }
   return null;
+}
+
+// Orders[Qty], Orders[@Qty], Orders[@[Unit Price]], Orders[[#All],[Qty]], Orders[[Qty]:[Price]], Orders[#All], Orders[],
+// and [@Qty] inside a table
+function tableRefAt(s: string, i: number): { v: TableRef; end: number } | null {
+  const name = matchAt(/([A-Za-z_][\w.]*)?\[/y, s, i);
+  if (!name) return null;
+  let depth = 0;
+  let j = i + (name[1]?.length ?? 0);
+  const start = j;
+  for (; j < s.length; j++) {
+    if (s[j] === '[') depth++;
+    else if (s[j] === ']' && --depth === 0) break;
+  }
+  if (depth !== 0) return null;
+  const inner = s.slice(start + 1, j).trim();
+  const v: TableRef = { ...(name[1] && { table: name[1] }), part: 'data' };
+  const items = inner.startsWith('[') ? [...inner.matchAll(/\[([^\]]*)\]/g)].map((m) => m[1].trim()) : inner.startsWith('@') ? ['@', inner.slice(1).replace(/^\[|\]$/g, '').trim()] : inner ? [inner] : [];
+  const cols: string[] = [];
+  for (const it of items) {
+    const low = it.toLowerCase();
+    if (low === '#all') v.part = 'all';
+    else if (low === '#headers') v.part = 'headers';
+    else if (low === '#data') v.part = 'data';
+    else if (low === '#this row' || low === '@') v.part = 'this';
+    else if (it.startsWith('@')) {
+      v.part = 'this';
+      if (it.slice(1).trim()) cols.push(it.slice(1).trim());
+    } else if (it) cols.push(it);
+  }
+  // [[Qty]:[Price]] is written as two items with a colon between them
+  if (cols.length) v.c1 = cols[0];
+  if (cols.length > 1) v.c2 = cols[cols.length - 1];
+  return { v, end: j + 1 };
 }
 
 const OPERATORS = ['<=', '>=', '<>', '+', '-', '*', '/', '^', '&', '=', '<', '>', '(', ')', ',', '%', ':'];
@@ -225,6 +346,12 @@ export function tokenize(formula: string): Token[] {
         continue;
       }
     }
+    const sref = tableRefAt(s, i);
+    if (sref) {
+      tokens.push({ t: 'sref', v: sref.v, pos: i, end: sref.end });
+      i = sref.end;
+      continue;
+    }
     if (/[A-Za-z_'$]/.test(ch)) {
       const fn = matchAt(/([A-Za-z][A-Za-z0-9.]*)\s*\(/y, s, i);
       if (fn) {
@@ -263,6 +390,7 @@ type Node =
   | { k: 'bool'; v: boolean }
   | { k: 'err'; v: string }
   | { k: 'ref'; v: RefToken }
+  | { k: 'sref'; v: TableRef }
   | { k: 'fn'; name: string; args: Node[] }
   | { k: 'neg'; a: Node }
   | { k: 'pct'; a: Node }
@@ -301,6 +429,8 @@ function parseFormula(body: string): Node {
         return { k: 'err', v: tok.v };
       case 'ref':
         return { k: 'ref', v: tok.v };
+      case 'sref':
+        return { k: 'sref', v: tok.v };
       case 'name':
         return { k: 'err', v: '#NAME?' };
       case 'func': {
@@ -359,7 +489,7 @@ function writePart(part: RefPart) {
   return `${part.absC ? '$' : ''}${colName(part.c)}${part.r === null ? '' : `${part.absR ? '$' : ''}${part.r + 1}`}`;
 }
 function writeRef(ref: RefToken) {
-  return `${ref.sheet !== undefined ? `${quoteSheet(ref.sheet)}!` : ''}${writePart(ref.a)}${ref.b ? `:${writePart(ref.b)}` : ''}`;
+  return `${ref.sheet !== undefined ? `${quoteSheet(ref.sheet)}!` : ''}${writePart(ref.a)}${ref.b ? `:${writePart(ref.b)}` : ''}${ref.spill ? '#' : ''}`;
 }
 
 // Rewrites every reference in a formula; returning null for one makes it #REF!. Plain values pass through.
@@ -411,7 +541,28 @@ class Range {
   }
 }
 
-type Evaluated = CellValue | Range;
+// A dynamic array's result (FILTER, UNIQUE, SORT, a calculation over ranges): it spills into the cells below and right
+class Arr {
+  constructor(public v: CellValue[][]) {}
+  get rows() {
+    return this.v.length;
+  }
+  get cols() {
+    return this.v[0]?.length ?? 0;
+  }
+}
+
+type Evaluated = CellValue | Range | Arr;
+
+// A range written as A1:F41 (or one cell), on no sheet in particular
+export function parseRange(ref: string): { r1: number; c1: number; r2: number; c2: number } | null {
+  const [a, b = a] = ref.replace(/^.*!/, '').split(':');
+  const p = parseAddr(a ?? '');
+  const q = parseAddr(b ?? '');
+  if (!p || !q) return null;
+  return { r1: Math.min(p.r, q.r), c1: Math.min(p.c, q.c), r2: Math.max(p.r, q.r), c2: Math.max(p.c, q.c) };
+}
+export const rangeText = (r: { r1: number; c1: number; r2: number; c2: number }) => `${cellAddr(r.r1, r.c1)}:${cellAddr(r.r2, r.c2)}`;
 
 export function formatGeneral(n: number): string {
   if (!Number.isFinite(n)) return '#NUM!';
@@ -539,9 +690,42 @@ export class Calc {
   private visiting = new Set<string>();
   private parsed = new Map<string, Node | SheetError>();
   private sizes: { rows: number; cols: number }[];
+  // The cell being worked out (for [@Column] references), and dynamic arrays' spilled cells and sizes
+  private here: { sheet: number; r: number; c: number } | null = null;
+  private spilled = new Map<string, CellValue>();
+  private spillSize = new Map<string, { rows: number; cols: number }>();
+  private spillState: 'none' | 'running' | 'done' = 'none';
 
   constructor(private wb: Workbook) {
     this.sizes = wb.sheets.map(usedSize);
+  }
+
+  // Every formula worked out once so each dynamic array's spill is known, then again with the spills in place
+  private ensureSpills() {
+    if (this.spillState !== 'none') return;
+    this.spillState = 'running';
+    for (let pass = 0; pass < 2; pass++) {
+      if (pass) this.cache.clear();
+      this.wb.sheets.forEach((sh, i) => {
+        for (const [a, raw] of Object.entries(sh.cells)) {
+          if (!raw.startsWith('=')) continue;
+          const p = parseAddr(a);
+          if (p) this.value(i, p.r, p.c);
+        }
+      });
+    }
+    this.spillState = 'done';
+  }
+
+  // The size of the array a cell's formula spills (1 × 1 when it doesn't)
+  spillOf(sheet: number, r: number, c: number): { rows: number; cols: number } | null {
+    this.ensureSpills();
+    return this.spillSize.get(`${sheet}:${r}:${c}`) ?? null;
+  }
+  // Whether a cell shows part of another cell's spilled array
+  isSpilled(sheet: number, r: number, c: number): boolean {
+    this.ensureSpills();
+    return this.spilled.has(`${sheet}:${r}:${c}`);
   }
 
   sheetIndex(name: string | undefined, current: number): number {
@@ -557,6 +741,12 @@ export class Calc {
     const key = `${sheet}:${r}:${c}`;
     if (this.cache.has(key)) return this.cache.get(key)!;
     const raw = this.raw(sheet, r, c);
+    if (raw === '') {
+      this.ensureSpills();
+      const v = this.spilled.get(key) ?? null;
+      if (this.spillState === 'done') this.cache.set(key, v);
+      return v;
+    }
     if (!raw.startsWith('=') || raw.length === 1) {
       const v = literal(raw);
       this.cache.set(key, v);
@@ -564,10 +754,40 @@ export class Calc {
     }
     if (this.visiting.has(key)) return err('#CIRC!');
     this.visiting.add(key);
-    const v = this.single(this.evalFormula(raw, sheet));
+    const before = this.here;
+    this.here = { sheet, r, c };
+    const res = this.evalFormula(raw, sheet);
+    this.here = before;
+    const v = this.isMulti(res) ? this.spill(sheet, r, c, this.mat(res)) : this.single(res);
     this.visiting.delete(key);
     this.cache.set(key, v);
     return v;
+  }
+
+  // A dynamic array spills from its cell into those below and right, unless one of them already holds something
+  private spill(sheet: number, r: number, c: number, m: CellValue[][]): CellValue {
+    const key = `${sheet}:${r}:${c}`;
+    for (let i = 0; i < m.length; i++)
+      for (let j = 0; j < m[i].length; j++) {
+        if ((i || j) && this.raw(sheet, r + i, c + j) !== '') {
+          this.spillSize.delete(key);
+          return err('#SPILL!');
+        }
+      }
+    for (let i = 0; i < m.length; i++) for (let j = 0; j < m[i].length; j++) if (i || j) this.spilled.set(`${sheet}:${r + i}:${c + j}`, m[i][j]);
+    this.spillSize.set(key, { rows: m.length, cols: m[0]?.length ?? 1 });
+    return m[0]?.[0] ?? null;
+  }
+
+  private isMulti(v: Evaluated): v is Range | Arr {
+    return (v instanceof Range || v instanceof Arr) && (v.rows !== 1 || v.cols !== 1);
+  }
+
+  // Any value as a grid: a range's cells, an array, or one value
+  private mat(v: Evaluated): CellValue[][] {
+    if (v instanceof Range) return this.grid(v);
+    if (v instanceof Arr) return v.v;
+    return [[v]];
   }
 
   // Works out a formula ("=...") as if it sat on the given sheet
@@ -592,6 +812,7 @@ export class Calc {
 
   // A range used where one value is wanted: its only cell, otherwise #VALUE!
   private single(v: Evaluated): CellValue {
+    if (v instanceof Arr) return v.rows === 1 && v.cols === 1 ? v.v[0][0] : err('#VALUE!');
     if (!(v instanceof Range)) return v;
     if (v.rows === 1 && v.cols === 1) return this.value(v.sheet, v.r1, v.c1);
     return err('#VALUE!');
@@ -600,12 +821,219 @@ export class Calc {
   private range(ref: RefToken, current: number): Range | SheetError {
     const sheet = this.sheetIndex(ref.sheet, current);
     if (sheet < 0) return err('#REF!');
+    if (ref.spill && ref.a.r !== null) {
+      this.value(sheet, ref.a.r, ref.a.c);
+      const size = this.spillSize.get(`${sheet}:${ref.a.r}:${ref.a.c}`) ?? { rows: 1, cols: 1 };
+      return new Range(sheet, ref.a.r, ref.a.c, ref.a.r + size.rows - 1, ref.a.c + size.cols - 1);
+    }
     const b = ref.b ?? ref.a;
     // Whole columns stop at the last row in use
     const lastRow = Math.max(this.sizes[sheet].rows - 1, 0);
     const r1 = ref.a.r ?? 0;
     const r2 = b.r ?? lastRow;
     return new Range(sheet, Math.min(r1, r2), Math.min(ref.a.c, b.c), Math.max(r1, r2), Math.max(ref.a.c, b.c));
+  }
+
+  // ---------- Filters, slicers, conditional formatting and charts, as shown and as marked ----------
+
+  private hiddenCache = new Map<number, Set<number>>();
+  // The rows a sheet's filter and slicers hide
+  hiddenRows(sheet: number): Set<number> {
+    const cached = this.hiddenCache.get(sheet);
+    if (cached) return cached;
+    const hidden = new Set<number>();
+    const sh = this.wb.sheets[sheet];
+    const shownText = (v: CellValue) => (v === null ? '' : toText(v));
+    const f = sh?.filter;
+    const area = f ? parseRange(f.ref) : null;
+    if (f && area) {
+      for (const [off, crit] of Object.entries(f.criteria)) {
+        const c = area.c1 + Number(off);
+        const col: CellValue[] = [];
+        for (let r = area.r1 + 1; r <= area.r2; r++) col.push(this.value(sheet, r, c));
+        const nums = col.filter((v): v is number => typeof v === 'number').sort((x, y) => x - y);
+        const n = Number(crit.value ?? 10);
+        const cut = crit.op === 'top' ? nums[Math.max(nums.length - n, 0)] : crit.op === 'bottom' ? nums[Math.min(n, nums.length) - 1] : undefined;
+        col.forEach((v, i) => {
+          const r = area.r1 + 1 + i;
+          let keep = true;
+          if (crit.values) keep = crit.values.some((x) => x.toLowerCase() === shownText(v).toLowerCase());
+          else if (crit.op === 'blank') keep = v === null || v === '';
+          else if (crit.op === 'nonblank') keep = !(v === null || v === '');
+          else if (crit.op === 'contains') keep = shownText(v).toLowerCase().includes(String(crit.value ?? '').toLowerCase());
+          else if (crit.op === 'top') keep = typeof v === 'number' && cut !== undefined && v >= cut;
+          else if (crit.op === 'bottom') keep = typeof v === 'number' && cut !== undefined && v <= cut;
+          else if (crit.op) {
+            const want = literal(String(crit.value ?? ''));
+            const d = compare(v, want);
+            const comparable = typeof want === 'number' ? typeof v === 'number' : true;
+            keep = comparable && (crit.op === '>' ? d > 0 : crit.op === '<' ? d < 0 : crit.op === '>=' ? d >= 0 : crit.op === '<=' ? d <= 0 : crit.op === '=' ? d === 0 : d !== 0);
+          }
+          if (!keep) hidden.add(r);
+        });
+      }
+    }
+    for (const sl of sh?.slicers ?? []) {
+      if (!sl.selected.length) continue;
+      const t = this.table(sl.table);
+      if (!t || t.sheet !== sheet) continue;
+      let c = -1;
+      for (let j = t.r.c1; j <= t.r.c2; j++) if (toText(this.value(sheet, t.r.r1, j)).toLowerCase() === sl.column.toLowerCase()) c = j;
+      if (c < 0) continue;
+      for (let r = t.r.r1 + 1; r <= t.r.r2; r++) if (!sl.selected.some((x) => x.toLowerCase() === shownText(this.value(sheet, r, c)).toLowerCase())) hidden.add(r);
+    }
+    this.hiddenCache.set(sheet, hidden);
+    return hidden;
+  }
+
+  filterText(sheet: number): string {
+    const sh = this.wb.sheets[sheet];
+    const area = sh?.filter ? parseRange(sh.filter.ref) : null;
+    if (!sh?.filter || !area) return '';
+    return Object.entries(sh.filter.criteria)
+      .map(([off, c]) => {
+        const head = toText(this.value(sheet, area.r1, area.c1 + Number(off)));
+        if (c.values) return `${head}=${c.values.join(',')}`;
+        if (c.op === 'blank' || c.op === 'nonblank') return `${head} ${c.op}`;
+        return `${head}${c.op === 'contains' || c.op === 'top' || c.op === 'bottom' ? ` ${c.op} ` : c.op}${c.value ?? ''}`;
+      })
+      .join('; ');
+  }
+
+  private ruleStats = new Map<CondFormat, { nums: number[]; counts: Map<string, number> }>();
+  // The colour a cell is shown in by the sheet's conditional formatting (the first rule it meets), and for a colour
+  // scale how far along it is (0 to 1)
+  condStyle(sheet: number, r: number, c: number): { style: CondFormat['style']; scale?: number } | null {
+    for (const f of this.wb.sheets[sheet]?.conditional ?? []) {
+      const area = parseRange(f.ref);
+      if (!area || r < area.r1 || r > area.r2 || c < area.c1 || c > area.c2) continue;
+      const v = this.value(sheet, r, c);
+      let stats = this.ruleStats.get(f);
+      if (!stats) {
+        const all: CellValue[] = [];
+        for (let i = area.r1; i <= area.r2; i++) for (let j = area.c1; j <= area.c2; j++) all.push(this.value(sheet, i, j));
+        const counts = new Map<string, number>();
+        for (const x of all) if (x !== null && x !== '') counts.set(toText(x).toLowerCase(), (counts.get(toText(x).toLowerCase()) ?? 0) + 1);
+        stats = { nums: all.filter((x): x is number => typeof x === 'number').sort((a, b) => a - b), counts };
+        this.ruleStats.set(f, stats);
+      }
+      const n = typeof v === 'number' ? v : null;
+      const a = parseNumber(f.value ?? '');
+      const b = parseNumber(f.value2 ?? '');
+      const k = Math.max(1, Math.round(a ?? 10));
+      const mean = stats.nums.length ? stats.nums.reduce((x, y) => x + y, 0) / stats.nums.length : 0;
+      let hit = false;
+      switch (f.rule) {
+        case 'greater':
+          hit = n !== null && a !== null && n > a;
+          break;
+        case 'less':
+          hit = n !== null && a !== null && n < a;
+          break;
+        case 'between':
+          hit = n !== null && a !== null && b !== null && n >= Math.min(a, b) && n <= Math.max(a, b);
+          break;
+        case 'equal':
+          hit = a !== null ? n === a : v !== null && toText(v).toLowerCase() === String(f.value ?? '').toLowerCase();
+          break;
+        case 'contains':
+          hit = v !== null && toText(v).toLowerCase().includes(String(f.value ?? '').toLowerCase());
+          break;
+        case 'duplicate':
+          hit = v !== null && v !== '' && (stats.counts.get(toText(v).toLowerCase()) ?? 0) > 1;
+          break;
+        case 'unique':
+          hit = v !== null && v !== '' && stats.counts.get(toText(v).toLowerCase()) === 1;
+          break;
+        case 'top':
+          hit = n !== null && n >= stats.nums[Math.max(stats.nums.length - k, 0)];
+          break;
+        case 'bottom':
+          hit = n !== null && n <= stats.nums[Math.min(k, stats.nums.length) - 1];
+          break;
+        case 'above':
+          hit = n !== null && n > mean;
+          break;
+        case 'below':
+          hit = n !== null && n < mean;
+          break;
+        case 'blank':
+          hit = v === null || v === '';
+          break;
+        case 'scale': {
+          if (n === null || !stats.nums.length) break;
+          const lo = stats.nums[0];
+          const hi = stats.nums[stats.nums.length - 1];
+          return { style: f.style, scale: hi === lo ? 1 : (n - lo) / (hi - lo) };
+        }
+      }
+      if (hit) return { style: f.style };
+    }
+    return null;
+  }
+
+  // A chart's categories and series, read from its range
+  chartData(sheet: number, ch: SheetChart): { categories: string[]; series: { name: string; values: number[] }[] } | null {
+    const r = parseRange(ch.ref);
+    if (!r) return null;
+    const hidden = this.hiddenRows(sheet);
+    const rows: number[] = [];
+    for (let i = r.r1 + 1; i <= r.r2; i++) if (!hidden.has(i)) rows.push(i);
+    const categories = rows.map((i) => toText(this.value(sheet, i, r.c1)));
+    const series = [];
+    for (let j = r.c1 + 1; j <= r.c2; j++)
+      series.push({
+        name: toText(this.value(sheet, r.r1, j)),
+        values: rows.map((i) => {
+          const v = this.value(sheet, i, j);
+          return typeof v === 'number' ? v : parseNumber(toText(v)) ?? 0;
+        }),
+      });
+    return { categories, series };
+  }
+
+  chartText(sheet: number, ch: SheetChart): string {
+    const r = parseRange(ch.ref);
+    if (!r) return ch.kind;
+    const cat = toText(this.value(sheet, r.r1, r.c1));
+    const series: string[] = [];
+    for (let j = r.c1 + 1; j <= r.c2; j++) series.push(toText(this.value(sheet, r.r1, j)));
+    return `${ch.kind} ${cat} by ${series.join(', ')}${ch.title ? ` "${ch.title}"` : ''}`.toLowerCase();
+  }
+
+  // A table by name, on any sheet, or the table the cell being worked out sits in
+  table(name?: string): { sheet: number; t: SheetTable; r: { r1: number; c1: number; r2: number; c2: number } } | null {
+    for (let i = 0; i < this.wb.sheets.length; i++)
+      for (const t of this.wb.sheets[i].tables ?? []) {
+        const r = parseRange(t.ref);
+        if (!r) continue;
+        if (name ? t.name.toLowerCase() === name.toLowerCase() : this.here && this.here.sheet === i && this.here.r >= r.r1 && this.here.r <= r.r2 && this.here.c >= r.c1 && this.here.c <= r.c2)
+          return { sheet: i, t, r };
+      }
+    return null;
+  }
+
+  private tableRange(ref: TableRef): Range | SheetError {
+    const found = this.table(ref.table);
+    if (!found) return err('#REF!');
+    const { sheet, r } = found;
+    const colOf = (name?: string) => {
+      if (name === undefined) return null;
+      for (let c = r.c1; c <= r.c2; c++) if (toText(literal(this.raw(sheet, r.r1, c))).trim().toLowerCase() === name.trim().toLowerCase()) return c;
+      return -1;
+    };
+    const a = colOf(ref.c1);
+    const b = ref.c2 !== undefined ? colOf(ref.c2) : a;
+    if (a === -1 || b === -1) return err('#REF!');
+    const c1 = a ?? r.c1;
+    const c2 = b ?? r.c2;
+    if (ref.part === 'this') {
+      if (!this.here || this.here.sheet !== sheet || this.here.r <= r.r1 || this.here.r > r.r2) return err('#VALUE!');
+      return new Range(sheet, this.here.r, Math.min(c1, c2), this.here.r, Math.max(c1, c2));
+    }
+    const r1 = ref.part === 'data' ? r.r1 + 1 : r.r1;
+    const r2 = ref.part === 'headers' ? r.r1 : r.r2;
+    return new Range(sheet, r1, Math.min(c1, c2), Math.max(r1, r2), Math.max(c1, c2));
   }
 
   private grid(r: Range): CellValue[][] {
@@ -634,16 +1062,36 @@ export class Calc {
         return err(node.v);
       case 'ref':
         return this.range(node.v, sheet);
+      case 'sref':
+        return this.tableRange(node.v);
       case 'neg': {
-        const n = toNumber(this.single(this.eval(node.a, sheet)));
+        const a = this.eval(node.a, sheet);
+        if (this.isMulti(a)) return new Arr(this.mat(a).map((row) => row.map((v) => this.binary('*', v, -1))));
+        const n = toNumber(this.single(a));
         return isErr(n) ? n : -n;
       }
       case 'pct': {
         const n = toNumber(this.single(this.eval(node.a, sheet)));
         return isErr(n) ? n : n / 100;
       }
-      case 'bin':
-        return this.binary(node.op, this.single(this.eval(node.a, sheet)), this.single(this.eval(node.b, sheet)));
+      case 'bin': {
+        const a = this.eval(node.a, sheet);
+        const b = this.eval(node.b, sheet);
+        // Over ranges or arrays, cell by cell (a single value goes with every cell), as Excel's dynamic arrays do
+        if (this.isMulti(a) || this.isMulti(b)) {
+          const x = this.mat(a);
+          const y = this.mat(b);
+          const rows = Math.max(x.length, y.length);
+          const cols = Math.max(x[0]?.length ?? 1, y[0]?.length ?? 1);
+          const at = (m: CellValue[][], i: number, j: number): CellValue => {
+            const ii = m.length === 1 ? 0 : i;
+            const jj = (m[0]?.length ?? 1) === 1 ? 0 : j;
+            return m[ii]?.[jj] === undefined ? err('#N/A') : m[ii][jj];
+          };
+          return new Arr(Array.from({ length: rows }, (_, i) => Array.from({ length: cols }, (_, j) => this.binary(node.op, at(x, i, j), at(y, i, j)))));
+        }
+        return this.binary(node.op, this.single(a), this.single(b));
+      }
       case 'fn':
         return this.call(node.name, node.args, sheet);
     }
@@ -680,8 +1128,8 @@ export class Calc {
   private numbers(args: Evaluated[]): number[] | SheetError {
     const out: number[] = [];
     for (const a of args) {
-      if (a instanceof Range) {
-        for (const v of this.cells(a)) {
+      if (a instanceof Range || a instanceof Arr) {
+        for (const v of this.mat(a).flat()) {
           if (isErr(v)) return v;
           if (typeof v === 'number') out.push(v);
         }
@@ -695,7 +1143,7 @@ export class Calc {
   }
 
   private values(a: Evaluated): CellValue[] {
-    return a instanceof Range ? this.cells(a) : [a];
+    return a instanceof Range || a instanceof Arr ? this.mat(a).flat() : [a];
   }
 
   private call(name: string, argNodes: Node[], sheet: number): Evaluated {
@@ -720,7 +1168,7 @@ export class Calc {
       case 'STDEV.S':
       case 'PRODUCT': {
         if (name === 'COUNT') {
-          return all().reduce<number>((n, a) => n + this.values(a).filter((v) => typeof v === 'number' || (!(a instanceof Range) && parseNumber(toText(v)) !== null)).length, 0);
+          return all().reduce<number>((n, a) => n + this.values(a).filter((v) => typeof v === 'number' || (!(a instanceof Range || a instanceof Arr) && parseNumber(toText(v)) !== null)).length, 0);
         }
         const ns = this.numbers(all());
         if (isErr(ns)) return ns;
@@ -1088,8 +1536,175 @@ export class Calc {
       case 'ROWS':
       case 'COLUMNS': {
         const r = arg(0);
-        if (!(r instanceof Range)) return 1;
+        if (!(r instanceof Range || r instanceof Arr)) return 1;
         return name === 'ROWS' ? r.rows : r.cols;
+      }
+      // ---------- Dynamic arrays ----------
+      case 'FILTER': {
+        if (!need(2, 3)) return err('#N/A');
+        const m = this.mat(arg(0));
+        const inc = this.mat(arg(1));
+        const byRow = inc.length === m.length && (inc[0]?.length ?? 0) === 1;
+        const byCol = !byRow && inc.length === 1 && (inc[0]?.length ?? 0) === (m[0]?.length ?? 0);
+        if (!byRow && !byCol) return err('#VALUE!');
+        const keep = (v: CellValue) => {
+          if (isErr(v)) return v;
+          const b = typeof v === 'string' ? parseNumber(v) ?? toBool(v) : toBool(v);
+          return isErr(b) ? false : !!b;
+        };
+        const flags = byRow ? inc.map((row) => keep(row[0])) : inc[0].map(keep);
+        const bad = flags.find(isErr);
+        if (bad) return bad as SheetError;
+        const out = byRow ? m.filter((_, i) => flags[i]) : m.map((row) => row.filter((_, j) => flags[j]));
+        if (!out.length || !out[0].length) return argNodes.length > 2 ? one(2) : err('#CALC!');
+        return new Arr(out);
+      }
+      case 'UNIQUE': {
+        const m = this.mat(arg(0));
+        const byCol = argNodes.length > 1 ? toBool(one(1)) : false;
+        const once = argNodes.length > 2 ? toBool(one(2)) : false;
+        if (isErr(byCol)) return byCol;
+        if (isErr(once)) return once;
+        const lines = byCol ? m[0].map((_, j) => m.map((row) => row[j])) : m;
+        const keyOf = (line: CellValue[]) => line.map((v) => toText(v).toLowerCase()).join('\u0001');
+        const counts = new Map<string, number>();
+        for (const l of lines) counts.set(keyOf(l), (counts.get(keyOf(l)) ?? 0) + 1);
+        const seen = new Set<string>();
+        const kept = lines.filter((l) => {
+          const k = keyOf(l);
+          if (seen.has(k) || (once && counts.get(k)! > 1)) return false;
+          seen.add(k);
+          return true;
+        });
+        if (!kept.length) return err('#CALC!');
+        return new Arr(byCol ? kept[0].map((_, i) => kept.map((l) => l[i])) : kept);
+      }
+      case 'SORT': {
+        const m = this.mat(arg(0));
+        const idx = num(1, 1);
+        const order = num(2, 1);
+        const byCol = argNodes.length > 3 ? toBool(one(3)) : false;
+        if (isErr(idx)) return idx;
+        if (isErr(order)) return order;
+        if (isErr(byCol)) return byCol;
+        const lines = byCol ? m[0].map((_, j) => m.map((row) => row[j])) : m;
+        if (idx < 1 || idx > (lines[0]?.length ?? 0)) return err('#VALUE!');
+        const sorted = [...lines].sort((a, b) => compare(a[idx - 1], b[idx - 1]) * (order < 0 ? -1 : 1));
+        return new Arr(byCol ? sorted[0].map((_, i) => sorted.map((l) => l[i])) : sorted);
+      }
+      case 'SORTBY': {
+        const m = this.mat(arg(0));
+        const keys: { col: CellValue[]; dir: number }[] = [];
+        for (let i = 1; i < argNodes.length; i += 2) {
+          const k = this.mat(arg(i)).map((row) => row[0]);
+          const d = i + 1 < argNodes.length ? num(i + 1) : 1;
+          if (isErr(d)) return d;
+          if (k.length !== m.length) return err('#VALUE!');
+          keys.push({ col: k, dir: d < 0 ? -1 : 1 });
+        }
+        const order = m.map((_, i) => i).sort((a, b) => {
+          for (const k of keys) {
+            const d = compare(k.col[a], k.col[b]) * k.dir;
+            if (d) return d;
+          }
+          return a - b;
+        });
+        return new Arr(order.map((i) => m[i]));
+      }
+      case 'SEQUENCE': {
+        const rows = num(0);
+        const cols = num(1, 1);
+        const start = num(2, 1);
+        const step = num(3, 1);
+        for (const n of [rows, cols, start, step]) if (isErr(n)) return n;
+        const [R, C, S, T] = [rows, cols, start, step] as number[];
+        if (R < 1 || C < 1) return err('#CALC!');
+        return new Arr(Array.from({ length: R }, (_, i) => Array.from({ length: C }, (_, j) => S + (i * C + j) * T)));
+      }
+      case 'SUMPRODUCT': {
+        const ms = all().map((a) => this.mat(a));
+        if (!ms.length) return err('#VALUE!');
+        const rows = ms[0].length;
+        const cols = ms[0][0]?.length ?? 0;
+        if (ms.some((m) => m.length !== rows || (m[0]?.length ?? 0) !== cols)) return err('#VALUE!');
+        let total = 0;
+        for (let i = 0; i < rows; i++)
+          for (let j = 0; j < cols; j++) {
+            let prod = 1;
+            for (const m of ms) {
+              const v = m[i][j];
+              if (isErr(v)) return v;
+              prod *= typeof v === 'number' ? v : typeof v === 'boolean' ? Number(v) : 0;
+            }
+            total += prod;
+          }
+        return total;
+      }
+      case 'DATEVALUE': {
+        const t = text(0);
+        if (isErr(t)) return t;
+        const iso = dateText(t);
+        return iso ?? err('#VALUE!');
+      }
+      // ---------- Praxa's marking: what the candidate built besides cells ----------
+      case 'PRAXA.TABLE': {
+        const t = text(0);
+        if (isErr(t)) return t;
+        const found = this.table(t);
+        return found ? `${this.wb.sheets[found.sheet].name}!${rangeText(found.r)}` : err('#N/A');
+      }
+      case 'PRAXA.TABLES':
+        return this.wb.sheets.reduce((n, sh) => n + (sh.tables?.length ?? 0), 0);
+      case 'PRAXA.CHARTS':
+        return this.wb.sheets
+          .flatMap((sh, i) => (sh.charts ?? []).map((ch) => this.chartText(i, ch)))
+          .join(' | ');
+      case 'PRAXA.CF': {
+        const t = text(0);
+        if (isErr(t)) return t;
+        const i = this.sheetIndex(t, sheet);
+        if (i < 0) return err('#REF!');
+        return (this.wb.sheets[i].conditional ?? []).map((f) => `${f.rule}${f.value !== undefined && f.value !== '' ? ` ${f.value}` : ''}${f.value2 ? ` ${f.value2}` : ''} on ${f.ref}`).join(' | ');
+      }
+      case 'PRAXA.CFCOUNT': {
+        // How many cells of a range a sheet's rules colour
+        const node = argNodes[0];
+        if (node?.k !== 'ref') return err('#VALUE!');
+        const r = this.range(node.v, sheet);
+        if (isErr(r)) return r;
+        let n = 0;
+        for (let i = r.r1; i <= r.r2; i++) for (let j = r.c1; j <= r.c2; j++) if (this.condStyle(r.sheet, i, j)) n++;
+        return n;
+      }
+      case 'PRAXA.FILTER': {
+        const t = text(0);
+        if (isErr(t)) return t;
+        const i = this.sheetIndex(t, sheet);
+        if (i < 0) return err('#REF!');
+        return this.filterText(i);
+      }
+      case 'PRAXA.VISIBLE': {
+        const t = text(0);
+        if (isErr(t)) return t;
+        const i = this.sheetIndex(t, sheet);
+        if (i < 0) return err('#REF!');
+        const sh = this.wb.sheets[i];
+        const area = parseRange(sh.filter?.ref ?? sh.tables?.[0]?.ref ?? '') ?? { r1: 0, r2: Math.max(this.sizes[i].rows - 1, 0) };
+        const hidden = this.hiddenRows(i);
+        let n = 0;
+        for (let r = area.r1 + 1; r <= area.r2; r++) if (!hidden.has(r)) n++;
+        return n;
+      }
+      case 'PRAXA.SLICERS':
+        return this.wb.sheets.flatMap((sh) => (sh.slicers ?? []).map((sl) => `${sl.table}.${sl.column}${sl.selected.length ? `=${sl.selected.join(',')}` : ''}`)).join(' | ');
+      case 'PRAXA.QUERIES':
+        return (this.wb.queries ?? []).map((q) => `${q.name}: ${q.sources.join('+')} -> ${q.steps.map((st) => st.kind).join(', ')}${q.loadTo ? ` -> ${q.loadTo}` : ''}`).join(' | ');
+      case 'PRAXA.FORMAT': {
+        const node = argNodes[0];
+        if (node?.k !== 'ref') return err('#VALUE!');
+        const r = this.range(node.v, sheet);
+        if (isErr(r)) return r;
+        return this.wb.sheets[r.sheet].formats?.[cellAddr(r.r1, r.c1)] ?? 'general';
       }
     }
     return err('#NAME?');
@@ -1097,6 +1712,27 @@ export class Calc {
 }
 
 // ---------- Showing values ----------
+
+// A date typed any common way, as Praxa holds dates (YYYY-MM-DD): 14/03/2026, 14-03-2026, 14 Mar 2026, Mar 14 2026,
+// 2026-03-14, 14.03.26
+export function dateText(text: string): string | null {
+  const t = text.trim();
+  const mon = (m: string) => MONTHS.findIndex((x) => x.toLowerCase() === m.slice(0, 3).toLowerCase()) + 1;
+  const iso = (y: number, m: number, d: number) => {
+    if (y < 100) y += 2000;
+    const dt = new Date(Date.UTC(y, m - 1, d));
+    return m >= 1 && m <= 12 && dt.getUTCDate() === d ? dt.toISOString().slice(0, 10) : null;
+  };
+  let m = /^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/.exec(t);
+  if (m) return iso(+m[1], +m[2], +m[3]);
+  m = /^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})$/.exec(t);
+  if (m) return iso(+m[3], +m[2], +m[1]);
+  m = /^(\d{1,2})[\s-]+([A-Za-z]{3,9})[\s-,]+(\d{2,4})$/.exec(t);
+  if (m && mon(m[2])) return iso(+m[3], mon(m[2]), +m[1]);
+  m = /^([A-Za-z]{3,9})\s+(\d{1,2}),?\s+(\d{2,4})$/.exec(t);
+  if (m && mon(m[1])) return iso(+m[3], mon(m[1]), +m[2]);
+  return null;
+}
 
 export function displayValue(v: CellValue, format: CellFormat = 'general'): string {
   if (isErr(v)) return v.code;
@@ -1139,7 +1775,7 @@ export function setCells(wb: Workbook, sheet: number, updates: Record<string, st
     if (raw === '') delete cells[a];
     else cells[a] = raw;
   }
-  return { sheets: wb.sheets.map((s, i) => (i === sheet ? { ...s, cells } : s)) };
+  return { ...wb, sheets: wb.sheets.map((s, i) => (i === sheet ? { ...s, cells } : s)) };
 }
 
 // Rows or columns inserted (count > 0) or deleted (count < 0) on one sheet. Cells move, and every formula in the
@@ -1174,8 +1810,26 @@ export function shiftCells(wb: Workbook, sheet: number, axis: 'row' | 'col', at:
       return { ...ref, a: { ...ref.a, [key]: span[0] }, b: { ...ref.b, [key]: span[1] } };
     });
 
+  // A range on the changed sheet (a table, filter, rule or chart) stretches or shrinks with the rows or columns
+  const fixRange = (ref: string): string | null => {
+    const r = parseRange(ref);
+    if (!r) return ref;
+    const [p1, p2] = axis === 'row' ? [r.r1, r.r2] : [r.c1, r.c2];
+    const span = moveSpan(p1, p2);
+    if (!span) return null;
+    return rangeText(axis === 'row' ? { ...r, r1: span[0], r2: span[1] } : { ...r, c1: span[0], c2: span[1] });
+  };
+  const keep = <T extends { ref: string }>(xs: T[] | undefined) => xs?.flatMap((x) => {
+    const ref = fixRange(x.ref);
+    return ref ? [{ ...x, ref }] : [];
+  });
   return {
+    ...wb,
     sheets: wb.sheets.map((s, i) => {
+      if (i === sheet) {
+        const filterRef = s.filter ? fixRange(s.filter.ref) : null;
+        s = { ...s, tables: keep(s.tables), conditional: keep(s.conditional), charts: keep(s.charts), filter: s.filter && filterRef ? { ...s.filter, ref: filterRef } : undefined };
+      }
       const cells: Record<string, string> = {};
       for (const [a, raw] of Object.entries(s.cells)) {
         const fixed = fixFormula(raw, i);
@@ -1229,7 +1883,7 @@ export function reorderRows(wb: Workbook, sheet: number, from: number, order: nu
       if (p.r === from + src) formats[cellAddr(from + i, p.c)] = f;
     }
   });
-  return { sheets: wb.sheets.map((x, i) => (i === sheet ? { ...x, cells, formats } : x)) };
+  return { ...wb, sheets: wb.sheets.map((x, i) => (i === sheet ? { ...x, cells, formats } : x)) };
 }
 
 // A sheet name that isn't taken yet: "Pivot", "Pivot (2)"...
