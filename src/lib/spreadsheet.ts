@@ -1539,6 +1539,30 @@ export class Calc {
         if (!(r instanceof Range || r instanceof Arr)) return 1;
         return name === 'ROWS' ? r.rows : r.cols;
       }
+      // SUBTOTAL leaves out rows a filter hides (and, from 101 up, rows hidden by hand too)
+      case 'SUBTOTAL': {
+        const fnNum = num(0);
+        if (isErr(fnNum)) return fnNum;
+        const kind = [, 'AVERAGE', 'COUNT', 'COUNTA', 'MAX', 'MIN', 'PRODUCT', 'STDEV', , , , 'SUM'][Math.trunc(fnNum) % 100 === 9 ? 11 : Math.trunc(fnNum) % 100];
+        if (!kind) return err('#VALUE!');
+        const visible: CellValue[] = [];
+        for (const a of argNodes.slice(1).map((n) => this.eval(n, sheet))) {
+          if (!(a instanceof Range)) return err('#VALUE!');
+          const hidden = this.hiddenRows(a.sheet);
+          for (let i = a.r1; i <= a.r2; i++) if (!hidden.has(i)) for (let j = a.c1; j <= a.c2; j++) visible.push(this.value(a.sheet, i, j));
+        }
+        const ns = visible.filter((v): v is number => typeof v === 'number');
+        if (kind === 'COUNT') return ns.length;
+        if (kind === 'COUNTA') return visible.filter((v) => v !== null && v !== '').length;
+        if (kind === 'SUM') return ns.reduce((x, y) => x + y, 0);
+        if (kind === 'PRODUCT') return ns.reduce((x, y) => x * y, 1);
+        if (kind === 'MAX') return ns.length ? Math.max(...ns) : 0;
+        if (kind === 'MIN') return ns.length ? Math.min(...ns) : 0;
+        if (!ns.length) return err('#DIV/0!');
+        const mean = ns.reduce((x, y) => x + y, 0) / ns.length;
+        if (kind === 'AVERAGE') return mean;
+        return ns.length < 2 ? err('#DIV/0!') : Math.sqrt(ns.reduce((x, y) => x + (y - mean) ** 2, 0) / (ns.length - 1));
+      }
       // ---------- Dynamic arrays ----------
       case 'FILTER': {
         if (!need(2, 3)) return err('#N/A');

@@ -14,7 +14,15 @@ import {
   Table2,
   Undo2,
   X,
+  BarChart3,
+  Filter,
+  Paintbrush,
+  SlidersHorizontal,
+  Sparkles,
+  Grid3x3,
 } from 'lucide-react';
+import { ChartBox, CondFormatDialog, FilterMenu, PickDialog, STYLE_CLASS, SlicerBox, TABLE_STYLE, TableDialog, columnValues } from './SheetExtras';
+import { flashFill } from '../lib/flashFill';
 import { CaseFile } from '../types';
 import {
   Calc,
@@ -28,6 +36,9 @@ import {
   parseAddr,
   parseNumber,
   parseWorkbook,
+  parseRange,
+  rangeText,
+  Sheet,
   reorderRows,
   setCells,
   sheetFromRows,
@@ -63,7 +74,7 @@ interface Clip {
   cut: boolean;
 }
 
-type Dialog = 'find' | 'dupes' | 'pivot' | 'import' | null;
+type Dialog = 'find' | 'dupes' | 'pivot' | 'import' | 'table' | 'cf' | 'slicer' | null;
 
 const DEFAULT_WIDTH = 96;
 const ROW_HEIGHT = 22;
@@ -108,6 +119,8 @@ export const SpreadsheetWindow: React.FC<SpreadsheetWindowProps> = ({ value, onC
   const [widths, setWidths] = useState<Record<string, number>>({});
   const [renaming, setRenaming] = useState<number | null>(null);
   const [fillTo, setFillTo] = useState<Pos | null>(null);
+  // The column whose filter menu is open (its offset in the filtered range)
+  const [filterMenu, setFilterMenu] = useState<number | null>(null);
 
   const gridRef = useRef<HTMLDivElement>(null);
   const cellInputRef = useRef<HTMLInputElement>(null);
@@ -137,6 +150,115 @@ export const SpreadsheetWindow: React.FC<SpreadsheetWindowProps> = ({ value, onC
     setRedo([]);
     setWb(next);
     onChange(JSON.stringify(next));
+  };
+
+  // A change to the sheet on show (its tables, filter, rules, charts, slicers)
+  const updateSheet = (fn: (s: Sheet) => Sheet, base = wb) => commit({ ...base, sheets: base.sheets.map((s, i) => (i === sheet ? fn(s) : s)) });
+
+  // The block of data around a cell, as Excel picks it for a table or a chart: every touching filled row and column
+  const currentRegion = (p: Pos) => {
+    let r1 = p.r;
+    let r2 = p.r;
+    let c1 = p.c;
+    let c2 = p.c;
+    const filledRow = (r: number) => Array.from({ length: c2 - c1 + 3 }, (_, j) => c1 - 1 + j).some((c) => c >= 0 && rawAt(r, c) !== '');
+    const filledCol = (c: number) => Array.from({ length: r2 - r1 + 3 }, (_, i) => r1 - 1 + i).some((r) => r >= 0 && rawAt(r, c) !== '');
+    for (let grown = true; grown; ) {
+      grown = false;
+      if (r1 > 0 && filledRow(r1 - 1)) (r1--, (grown = true));
+      if (filledRow(r2 + 1)) (r2++, (grown = true));
+      if (c1 > 0 && filledCol(c1 - 1)) (c1--, (grown = true));
+      if (filledCol(c2 + 1)) (c2++, (grown = true));
+    }
+    return { r1, c1, r2, c2 };
+  };
+  const tableAt = (p: Pos, s: Sheet = current) =>
+    (s.tables ?? []).find((t) => {
+      const r = parseRange(t.ref);
+      return r && p.r >= r.r1 && p.r <= r.r2 && p.c >= r.c1 && p.c <= r.c2;
+    });
+  const selectionOrRegion = () => (multi ? range : currentRegion(active));
+
+  const allTables = wb.sheets.flatMap((s) => s.tables ?? []);
+  const makeTable = (name: string, ref: string, style: 'blue' | 'green' | 'orange' | 'gray') => {
+    updateSheet((s) => ({ ...s, tables: [...(s.tables ?? []), { name, ref, style }], filter: s.filter ?? { ref, criteria: {} } }));
+    setDialog(null);
+    flash(`Table ${name} made from ${ref}. Use ${name}[Column] in formulas.`);
+    focusGrid();
+  };
+
+  const toggleFilter = () => {
+    if (current.filter) {
+      updateSheet((s) => ({ ...s, filter: undefined }));
+      flash('Filter removed.');
+      return;
+    }
+    const t = tableAt(active);
+    const ref = t?.ref ?? rangeText(selectionOrRegion());
+    updateSheet((s) => ({ ...s, filter: { ref, criteria: {} } }));
+    flash(`Filter on ${ref}: use the ▾ buttons on the headers.`);
+  };
+
+  const filterArea = current.filter ? parseRange(current.filter.ref) : null;
+
+  // Sorts the rows of a block (its first row the headers) by one of its columns
+  const sortArea = (area: { r1: number; r2: number }, col: number, descending: boolean) => {
+    const total = area.r2 - area.r1;
+    if (total < 2) return;
+    const order = Array.from({ length: total }, (_, i) => i).sort((a, b) => {
+      const x = calc.value(sheet, area.r1 + 1 + a, col);
+      const y = calc.value(sheet, area.r1 + 1 + b, col);
+      const blank = (v: unknown) => v === null || v === '';
+      if (blank(x) !== blank(y)) return blank(x) ? 1 : -1;
+      const nx = typeof x === 'number' ? x : null;
+      const ny = typeof y === 'number' ? y : null;
+      let d = nx !== null && ny !== null ? nx - ny : nx !== null ? -1 : ny !== null ? 1 : toText(x).toLowerCase().localeCompare(toText(y).toLowerCase());
+      if (descending) d = -d;
+      return d || a - b;
+    });
+    commit(reorderRows(wb, sheet, area.r1 + 1, order, total));
+    flash(`Sorted ${total} rows by ${toText(calc.value(sheet, area.r1, col)) || `column ${colName(col)}`}, ${descending ? 'largest or Z first' : 'smallest or A first'}.`);
+  };
+
+  const addChart = () => {
+    const area = selectionOrRegion();
+    if (area.r2 <= area.r1 || area.c2 <= area.c1) return flash('Select the data for the chart first: a column of labels and at least one column of numbers, with headers.');
+    const ref = rangeText(area);
+    const header = toText(calc.value(sheet, area.r1, area.c1 + 1));
+    updateSheet((s) => ({ ...s, charts: [...(s.charts ?? []), { id: `chart-${Date.now().toString(36)}`, kind: 'column', ref, title: header ? `${header} by ${toText(calc.value(sheet, area.r1, area.c1))}` : 'Chart' }] }));
+    flash(`Chart added from ${ref}. Change its type or title on the chart.`);
+  };
+
+  const addSlicer = (column: string) => {
+    const t = tableAt(active)!;
+    updateSheet((s) => ({ ...s, slicers: [...(s.slicers ?? []), { id: `slicer-${Date.now().toString(36)}`, table: t.name, column, selected: [] }] }));
+    setDialog(null);
+    flash(`Slicer for ${column} added: click a value to filter ${t.name}.`);
+    focusGrid();
+  };
+
+  // Flash Fill: the column is filled from the examples typed at its top
+  const doFlashFill = () => {
+    const c = active.c;
+    const t = tableAt(active);
+    const area = t ? parseRange(t.ref)! : { r1: 0, r2: Math.max(used.rows - 1, 0), c1: 0, c2: Math.max(used.cols - 1, 0) };
+    const first = area.r1 + 1;
+    const rows: string[][] = [];
+    const examples: Record<number, string> = {};
+    for (let r = first; r <= area.r2; r++) {
+      rows.push(Array.from({ length: Math.max(area.c2 + 1, used.cols) }, (_, j) => (j === c ? '' : toText(calc.value(sheet, r, j)))));
+      const typed = rawAt(r, c);
+      if (typed && !typed.startsWith('=')) examples[r - first] = typed;
+    }
+    const filled = flashFill(rows, examples);
+    if (!filled) return flash("Flash Fill couldn't see a pattern. Type one or two more examples in this column, then try again (Ctrl+E).");
+    const updates: Record<string, string> = {};
+    filled.forEach((v, i) => {
+      if (!rawAt(first + i, c) && v) updates[cellAddr(first + i, c)] = v;
+    });
+    if (!Object.keys(updates).length) return flash('Flash Fill had nothing left to fill.');
+    commit(setCells(wb, sheet, updates));
+    flash(`Flash Fill filled ${Object.keys(updates).length} cells.`);
   };
 
   const doUndo = () => {
@@ -219,7 +341,37 @@ export const SpreadsheetWindow: React.FC<SpreadsheetWindowProps> = ({ value, onC
   const commitEdit = (move: 'down' | 'right' | 'up' | 'left' | 'none' = 'down') => {
     if (!edit) return;
     const raw = closeBrackets(edit.draft);
-    if (raw !== rawAt(edit.r, edit.c, edit.sheet)) commit(setCells(wb, edit.sheet, { [cellAddr(edit.r, edit.c)]: raw }));
+    if (raw !== rawAt(edit.r, edit.c, edit.sheet)) {
+      let next = setCells(wb, edit.sheet, { [cellAddr(edit.r, edit.c)]: raw });
+      const sh = next.sheets[edit.sheet];
+      // A table grows to take in a row typed just below it or a column typed just right of it
+      const grow = (sh.tables ?? []).map((t) => {
+        const r = parseRange(t.ref)!;
+        if (raw && edit.r === r.r2 + 1 && edit.c >= r.c1 && edit.c <= r.c2) return { t, to: rangeText({ ...r, r2: r.r2 + 1 }) };
+        if (raw && edit.c === r.c2 + 1 && edit.r >= r.r1 && edit.r <= r.r2) return { t, to: rangeText({ ...r, c2: r.c2 + 1 }) };
+        return null;
+      }).find(Boolean);
+      if (grow) {
+        next = {
+          ...next,
+          sheets: next.sheets.map((x, i) =>
+            i === edit.sheet ? { ...x, tables: x.tables!.map((t) => (t === grow.t ? { ...t, ref: grow.to } : t)), filter: x.filter && x.filter.ref === grow.t.ref ? { ...x.filter, ref: grow.to } : x.filter } : x
+          ),
+        };
+      }
+      // A formula typed in an empty table column fills the whole column (a calculated column)
+      const t = tableAt({ r: edit.r, c: edit.c }, next.sheets[edit.sheet]);
+      const tr = t && parseRange(t.ref);
+      if (tr && raw.startsWith('=') && edit.r > tr.r1) {
+        const others = Array.from({ length: tr.r2 - tr.r1 }, (_, i) => tr.r1 + 1 + i).filter((r) => r !== edit.r);
+        if (others.every((r) => !(next.sheets[edit.sheet].cells[cellAddr(r, edit.c)] ?? ''))) {
+          const fillUp: Record<string, string> = {};
+          for (const r of others) fillUp[cellAddr(r, edit.c)] = shiftFormula(raw, r - edit.r, 0);
+          next = setCells(next, edit.sheet, fillUp);
+        }
+      }
+      commit(next);
+    }
     setSheet(edit.sheet);
     const next = {
       r: edit.r + (move === 'down' ? 1 : move === 'up' ? -1 : 0),
@@ -383,6 +535,9 @@ export const SpreadsheetWindow: React.FC<SpreadsheetWindowProps> = ({ value, onC
 
   // Sorts the rows under the header row by the active cell's column, as Excel's sort with headers does
   const sortBy = (descending: boolean) => {
+    const t = tableAt(active);
+    const area = t ? parseRange(t.ref) : filterArea && active.r >= filterArea.r1 && active.r <= filterArea.r2 ? filterArea : null;
+    if (area) return sortArea(area, active.c, descending);
     const total = used.rows - 1;
     if (total < 2) return;
     const col = active.c;
@@ -502,6 +657,15 @@ export const SpreadsheetWindow: React.FC<SpreadsheetWindowProps> = ({ value, onC
       } else if (k === 'f' || k === 'h') {
         e.preventDefault();
         setDialog('find');
+      } else if (k === 'e') {
+        e.preventDefault();
+        doFlashFill();
+      } else if (k === 't') {
+        e.preventDefault();
+        setDialog('table');
+      } else if (k === 'l' && e.shiftKey) {
+        e.preventDefault();
+        toggleFilter();
       }
       return;
     }
@@ -591,6 +755,17 @@ export const SpreadsheetWindow: React.FC<SpreadsheetWindowProps> = ({ value, onC
   }, [calc, sheet, range.r1, range.r2, range.c1, range.c2, multi]);
 
   const headers = Array.from({ length: Math.max(used.cols, 1) }, (_, c) => ({ c, label: toText(calc.value(sheet, 0, c)) || `Column ${colName(c)}` }));
+  const hiddenRows = calc.hiddenRows(sheet);
+  // Each table's look: its header row and banded rows
+  const tableLook = new Map<string, string>();
+  for (const t of current.tables ?? []) {
+    const r = parseRange(t.ref);
+    if (!r) continue;
+    const look = TABLE_STYLE[t.style ?? 'blue'];
+    for (let i = r.r1; i <= r.r2; i++) for (let j = r.c1; j <= r.c2; j++) tableLook.set(`${i}:${j}`, i === r.r1 ? look.head : (i - r.r1) % 2 === 0 ? look.band : '');
+  }
+  // Charts and slicers sit to the right of the data
+  const besideData = 40 + Array.from({ length: used.cols + 1 }, (_, c) => widthOf(c)).reduce((a, b) => a + b, 0) + 12;
   const activeRaw = rawAt(active.r, active.c);
   const barValue = edit ? edit.draft : activeRaw;
   const mode = edit ? (pointable(edit) ? 'Point' : 'Edit') : 'Ready';
@@ -654,7 +829,22 @@ export const SpreadsheetWindow: React.FC<SpreadsheetWindowProps> = ({ value, onC
           <RibbonButton icon={<ArrowUpZA className="w-3.5 h-3.5" />} label="Sort Z–A" title="Sort the rows under the header by this column, largest first" onClick={() => sortBy(true)} />
           <RibbonButton icon={<Rows3 className="w-3.5 h-3.5" />} label="Remove duplicates" onClick={() => setDialog('dupes')} />
           <RibbonButton icon={<Replace className="w-3.5 h-3.5" />} label="Find & replace" title="Find and replace (Ctrl+H)" onClick={() => setDialog('find')} />
+          <RibbonButton icon={<Filter className="w-3.5 h-3.5" />} label={current.filter ? 'Clear filter' : 'Filter'} title="Filter buttons on the headers (Ctrl+Shift+L)" onClick={toggleFilter} />
+          <RibbonButton icon={<Sparkles className="w-3.5 h-3.5" />} label="Flash Fill" title="Fill the column from the examples you typed (Ctrl+E)" onClick={doFlashFill} />
+        </RibbonGroup>
+        <RibbonGroup label="Insert">
+          <RibbonButton icon={<Grid3x3 className="w-3.5 h-3.5" />} label="Table" title="Format as Table (Ctrl+T)" onClick={() => setDialog('table')} />
           <RibbonButton icon={<Table2 className="w-3.5 h-3.5" />} label="PivotTable" onClick={() => setDialog('pivot')} />
+          <RibbonButton icon={<BarChart3 className="w-3.5 h-3.5" />} label="Chart" title="A chart of the selected data (labels in the first column)" onClick={addChart} />
+          <RibbonButton
+            icon={<SlidersHorizontal className="w-3.5 h-3.5" />}
+            label="Slicer"
+            title="Buttons that filter a table by one column"
+            onClick={() => (tableAt(active) ? setDialog('slicer') : flash('Click a cell in a table first (Insert > Table), then add a slicer.'))}
+          />
+        </RibbonGroup>
+        <RibbonGroup label="Styles">
+          <RibbonButton icon={<Paintbrush className="w-3.5 h-3.5" />} label="Conditional formatting" title="Colour cells by a rule" onClick={() => setDialog('cf')} />
         </RibbonGroup>
         <RibbonGroup label="File">
           <RibbonButton icon={<FileUp className="w-3.5 h-3.5" />} label="Import CSV" onClick={() => setDialog('import')} />
@@ -732,7 +922,7 @@ export const SpreadsheetWindow: React.FC<SpreadsheetWindowProps> = ({ value, onC
             </tr>
           </thead>
           <tbody>
-            {Array.from({ length: rowCount }, (_, r) => (
+            {Array.from({ length: rowCount }, (_, r) => r).filter((r) => !hiddenRows.has(r)).map((r) => (
               <tr key={r} style={{ height: ROW_HEIGHT }}>
                 <td
                   onMouseDown={(e) => {
@@ -744,7 +934,7 @@ export const SpreadsheetWindow: React.FC<SpreadsheetWindowProps> = ({ value, onC
                   }}
                   className={`sticky left-0 z-10 border-r border-b border-slate-300 text-center text-[11px] ${
                     r >= range.r1 && r <= range.r2 ? 'bg-emerald-100 text-emerald-900 font-semibold' : 'bg-slate-100 text-slate-500'
-                  }`}
+                  } ${hiddenRows.has(r + 1) || (r > 0 && hiddenRows.has(r - 1)) ? 'text-sky-700' : ''}`}
                 >
                   {r + 1}
                 </td>
@@ -758,6 +948,10 @@ export const SpreadsheetWindow: React.FC<SpreadsheetWindowProps> = ({ value, onC
                   const text = editingHere ? '' : displayValue(v, current.formats?.[cellAddr(r, c)]);
                   const numeric = typeof v === 'number';
                   const isErrorValue = isError(v);
+                  const cond = editingHere ? null : calc.condStyle(sheet, r, c);
+                  const look = tableLook.get(`${r}:${c}`) ?? '';
+                  const filterCol = filterArea && r === filterArea.r1 && c >= filterArea.c1 && c <= filterArea.c2 ? c - filterArea.c1 : null;
+                  const filtered = filterCol !== null && !!current.filter?.criteria[String(filterCol)];
                   return (
                     <td
                       key={c}
@@ -767,10 +961,10 @@ export const SpreadsheetWindow: React.FC<SpreadsheetWindowProps> = ({ value, onC
                       onDoubleClick={() => {
                         if (!edit) startEdit();
                       }}
-                      className={`relative border-r border-b border-slate-200 px-1 overflow-hidden whitespace-nowrap ${numeric ? 'text-right tabular-nums' : 'text-left'} ${
-                        inRange && !isActive ? 'bg-emerald-50' : ''
-                      } ${inFill ? 'bg-emerald-50/70' : ''} ${isErrorValue ? 'text-rose-700' : ''}`}
-                      style={{ maxWidth: widthOf(c) }}
+                      className={`relative border-r border-b border-slate-200 px-1 overflow-hidden whitespace-nowrap ${numeric ? 'text-right tabular-nums' : 'text-left'} ${look} ${
+                        cond && cond.scale === undefined ? STYLE_CLASS[cond.style] : ''
+                      } ${inRange && !isActive ? 'bg-emerald-50 text-slate-900' : ''} ${inFill ? 'bg-emerald-50/70' : ''} ${isErrorValue ? 'text-rose-700' : ''} ${filterCol !== null ? 'pr-5' : ''}`}
+                      style={{ maxWidth: widthOf(c), ...(cond?.scale !== undefined && !inRange && { background: `rgba(16,185,129,${0.1 + 0.55 * cond.scale})` }) }}
                     >
                       {editingHere ? (
                         <input
@@ -783,6 +977,19 @@ export const SpreadsheetWindow: React.FC<SpreadsheetWindowProps> = ({ value, onC
                         />
                       ) : (
                         text
+                      )}
+                      {filterCol !== null && !editingHere && (
+                        <button
+                          onMouseDown={(e) => e.stopPropagation()}
+                          onClick={() => setFilterMenu(filterCol)}
+                          title={filtered ? 'Filtered: click to change' : 'Filter or sort this column'}
+                          aria-label={`Filter ${text}`}
+                          className={`absolute right-0.5 top-1/2 -translate-y-1/2 w-4 h-4 grid place-items-center rounded-sm border text-[9px] leading-none z-[5] ${
+                            filtered ? 'bg-sky-600 border-sky-700 text-white' : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-100'
+                          }`}
+                        >
+                          {filtered ? <Filter className="w-2.5 h-2.5" /> : '▾'}
+                        </button>
                       )}
                       {isActive && !editingHere && <span className="pointer-events-none absolute inset-0 border-2 border-emerald-600" />}
                       {inClip && <span className="pointer-events-none absolute inset-0 border border-dashed border-emerald-500" />}
@@ -808,6 +1015,40 @@ export const SpreadsheetWindow: React.FC<SpreadsheetWindowProps> = ({ value, onC
             ))}
           </tbody>
         </table>
+        {/* Charts and slicers, beside the data */}
+        {((current.charts?.length ?? 0) > 0 || (current.slicers?.length ?? 0) > 0) && (
+          <div className="absolute top-7 flex flex-col gap-3 z-20" style={{ left: besideData }}>
+            {(current.slicers ?? []).length > 0 && (
+              <div className="flex gap-2">
+                {(current.slicers ?? []).map((sl) => {
+                  const t = (current.tables ?? []).find((x) => x.name.toLowerCase() === sl.table.toLowerCase());
+                  const tr = t && parseRange(t.ref);
+                  const col = tr ? Array.from({ length: tr.c2 - tr.c1 + 1 }, (_, j) => tr.c1 + j).find((j) => toText(calc.value(sheet, tr.r1, j)).toLowerCase() === sl.column.toLowerCase()) : undefined;
+                  const vals = tr && col !== undefined ? [...new Set(columnValues(calc, sheet, tr.r1 + 1, tr.r2, col))].sort() : [];
+                  return (
+                    <SlicerBox
+                      key={sl.id}
+                      slicer={sl}
+                      values={vals}
+                      onChange={(next) => updateSheet((x) => ({ ...x, slicers: x.slicers!.map((y) => (y.id === sl.id ? next : y)) }))}
+                      onDelete={() => updateSheet((x) => ({ ...x, slicers: x.slicers!.filter((y) => y.id !== sl.id) }))}
+                    />
+                  );
+                })}
+              </div>
+            )}
+            {(current.charts ?? []).map((ch) => (
+              <ChartBox
+                key={ch.id}
+                calc={calc}
+                sheet={sheet}
+                chart={ch}
+                onChange={(next) => updateSheet((x) => ({ ...x, charts: x.charts!.map((y) => (y.id === ch.id ? next : y)) }))}
+                onDelete={() => updateSheet((x) => ({ ...x, charts: x.charts!.filter((y) => y.id !== ch.id) }))}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Sheet tabs */}
@@ -933,27 +1174,45 @@ export const SpreadsheetWindow: React.FC<SpreadsheetWindowProps> = ({ value, onC
             setDialog(null);
             focusGrid();
           }}
-          onCreate={(rowsCol, valueCol, how) => {
-            const groups = new Map<string, { label: string; values: number[]; count: number }>();
+          onCreate={(rowsCol, valueCol, how, colsCol) => {
+            // Each data row's group (and column group), its value, and whether it counts
+            const cells: { row: string; col: string; n: number | null; filled: boolean }[] = [];
+            const labelOf = (v: string) => v || '(blank)';
             for (let r = 1; r < used.rows; r++) {
-              const label = toText(calc.value(sheet, r, rowsCol));
-              const key = label.toLowerCase();
-              if (!groups.has(key)) groups.set(key, { label: label || '(blank)', values: [], count: 0 });
-              const g = groups.get(key)!;
+              if (hiddenRows.has(r)) continue;
               const v = calc.value(sheet, r, valueCol);
-              if (v !== null && v !== '') g.count++;
-              const n = typeof v === 'number' ? v : typeof v === 'string' ? parseNumber(v) : null;
-              if (n !== null) g.values.push(n);
+              cells.push({
+                row: labelOf(toText(calc.value(sheet, r, rowsCol))),
+                col: colsCol === null ? '' : labelOf(toText(calc.value(sheet, r, colsCol))),
+                n: typeof v === 'number' ? v : typeof v === 'string' ? parseNumber(v) : null,
+                filled: v !== null && v !== '',
+              });
             }
-            const summarise = (values: number[], count: number) =>
-              how === 'Count' ? count : how === 'Sum' ? values.reduce((a, b) => a + b, 0) : values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
-            const ordered = [...groups.values()].sort((a, b) => a.label.localeCompare(b.label));
-            const all = ordered.flatMap((g) => g.values);
-            const rows: (string | number)[][] = [
-              [headers[rowsCol].label, `${how} of ${headers[valueCol].label}`],
-              ...ordered.map((g) => [g.label, Number(summarise(g.values, g.count).toFixed(10))]),
-              ['Grand Total', Number(summarise(all, ordered.reduce((n, g) => n + g.count, 0)).toFixed(10))],
-            ];
+            const summarise = (xs: typeof cells) => {
+              const ns = xs.map((x) => x.n).filter((n): n is number => n !== null);
+              const v = how === 'Count' ? xs.filter((x) => x.filled).length : how === 'Sum' ? ns.reduce((a, b) => a + b, 0) : how === 'Max' ? (ns.length ? Math.max(...ns) : 0) : how === 'Min' ? (ns.length ? Math.min(...ns) : 0) : ns.length ? ns.reduce((a, b) => a + b, 0) / ns.length : 0;
+              return Number(v.toFixed(10));
+            };
+            const distinct = (key: 'row' | 'col') => {
+              const seen = new Map<string, string>();
+              for (const x of cells) if (!seen.has(x[key].toLowerCase())) seen.set(x[key].toLowerCase(), x[key]);
+              return [...seen.values()].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+            };
+            const rowKeys = distinct('row');
+            const colKeys = colsCol === null ? [] : distinct('col');
+            const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
+            const rows: (string | number)[][] =
+              colsCol === null
+                ? [
+                    [headers[rowsCol].label, `${how} of ${headers[valueCol].label}`],
+                    ...rowKeys.map((k) => [k, summarise(cells.filter((x) => same(x.row, k)))]),
+                    ['Grand Total', summarise(cells)],
+                  ]
+                : [
+                    [`${how} of ${headers[valueCol].label}`, ...colKeys, 'Grand Total'],
+                    ...rowKeys.map((k) => [k, ...colKeys.map((ck) => summarise(cells.filter((x) => same(x.row, k) && same(x.col, ck)))), summarise(cells.filter((x) => same(x.row, k)))]),
+                    ['Grand Total', ...colKeys.map((ck) => summarise(cells.filter((x) => same(x.col, ck)))), summarise(cells)],
+                  ];
             const name = freeSheetName(wb, 'Pivot');
             const next = { ...wb, sheets: [...wb.sheets, sheetFromRows(name, rows)] };
             commit(next);
@@ -963,6 +1222,79 @@ export const SpreadsheetWindow: React.FC<SpreadsheetWindowProps> = ({ value, onC
             flash(`PivotTable added on the sheet "${name}".`);
             focusGrid();
           }}
+        />
+      )}
+
+      {dialog === 'table' && (
+        <TableDialog
+          title="Create table"
+          range={rangeText(selectionOrRegion())}
+          name={(() => {
+            for (let i = 1; ; i++) if (!allTables.some((t) => t.name.toLowerCase() === `table${i}`)) return `Table${i}`;
+          })()}
+          taken={allTables.map((t) => t.name)}
+          onSave={makeTable}
+          onClose={() => {
+            setDialog(null);
+            focusGrid();
+          }}
+        />
+      )}
+
+      {dialog === 'slicer' && tableAt(active) && (
+        <PickDialog
+          title={`Insert slicer: ${tableAt(active)!.name}`}
+          label="Filter the table by"
+          options={(() => {
+            const r = parseRange(tableAt(active)!.ref)!;
+            return Array.from({ length: r.c2 - r.c1 + 1 }, (_, j) => toText(calc.value(sheet, r.r1, r.c1 + j))).filter(Boolean);
+          })()}
+          onPick={addSlicer}
+          onClose={() => {
+            setDialog(null);
+            focusGrid();
+          }}
+        />
+      )}
+
+      {dialog === 'cf' && (
+        <CondFormatDialog
+          range={rangeText(range)}
+          rules={current.conditional ?? []}
+          onAdd={(f) => {
+            updateSheet((x) => ({ ...x, conditional: [...(x.conditional ?? []), f] }));
+            flash(`Rule added to ${f.ref}.`);
+          }}
+          onRemove={(i) => updateSheet((x) => ({ ...x, conditional: (x.conditional ?? []).filter((_, j) => j !== i) }))}
+          onClose={() => {
+            setDialog(null);
+            focusGrid();
+          }}
+        />
+      )}
+
+      {filterMenu !== null && filterArea && current.filter && (
+        <FilterMenu
+          header={toText(calc.value(sheet, filterArea.r1, filterArea.c1 + filterMenu)) || colName(filterArea.c1 + filterMenu)}
+          values={columnValues(calc, sheet, filterArea.r1 + 1, filterArea.r2, filterArea.c1 + filterMenu)}
+          numeric={Array.from({ length: filterArea.r2 - filterArea.r1 }, (_, i) => calc.value(sheet, filterArea.r1 + 1 + i, filterArea.c1 + filterMenu)).some((v) => typeof v === 'number')}
+          current={current.filter.criteria[String(filterMenu)]}
+          onSort={(desc) => {
+            sortArea(filterArea, filterArea.c1 + filterMenu, desc);
+            setFilterMenu(null);
+          }}
+          onApply={(crit) => {
+            const off = String(filterMenu);
+            updateSheet((x) => {
+              const criteria = { ...(x.filter?.criteria ?? {}) };
+              if (crit) criteria[off] = crit;
+              else delete criteria[off];
+              return { ...x, filter: { ref: x.filter!.ref, criteria } };
+            });
+            setFilterMenu(null);
+            focusGrid();
+          }}
+          onClose={() => setFilterMenu(null)}
         />
       )}
 
@@ -1137,14 +1469,17 @@ const DuplicatesDialog: React.FC<{ headers: { c: number; label: string }[]; onCl
   );
 };
 
+type PivotHow = 'Sum' | 'Count' | 'Average' | 'Max' | 'Min';
+
 const PivotDialog: React.FC<{
   headers: { c: number; label: string }[];
   onClose: () => void;
-  onCreate: (rowsCol: number, valueCol: number, how: 'Sum' | 'Count' | 'Average') => void;
+  onCreate: (rowsCol: number, valueCol: number, how: PivotHow, colsCol: number | null) => void;
 }> = ({ headers, onClose, onCreate }) => {
   const [rowsCol, setRowsCol] = useState(headers[0]?.c ?? 0);
+  const [colsCol, setColsCol] = useState<number | null>(null);
   const [valueCol, setValueCol] = useState(headers[headers.length - 1]?.c ?? 0);
-  const [how, setHow] = useState<'Sum' | 'Count' | 'Average'>('Sum');
+  const [how, setHow] = useState<PivotHow>('Sum');
   return (
     <DialogShell
       title="Create PivotTable"
@@ -1154,16 +1489,27 @@ const PivotDialog: React.FC<{
           <button className={secondaryBtn} onClick={onClose}>
             Cancel
           </button>
-          <button className={primaryBtn} onClick={() => onCreate(rowsCol, valueCol, how)}>
+          <button className={primaryBtn} onClick={() => onCreate(rowsCol, valueCol, how, colsCol)}>
             Create
           </button>
         </>
       }
     >
-      <p className="text-slate-600">Summarises the data on this sheet (row 1 as headers) on a new sheet. The result is values: it won't update if the data changes.</p>
+      <p className="text-slate-600">Summarises the data on this sheet (row 1 as headers, rows a filter hides left out) on a new sheet. The result is values: it won't update if the data changes.</p>
       <label className="block space-y-1">
         <span className="text-slate-600">Rows</span>
         <select value={rowsCol} onChange={(e) => setRowsCol(Number(e.target.value))} className={fieldClass}>
+          {headers.map((h) => (
+            <option key={h.c} value={h.c}>
+              {h.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="block space-y-1">
+        <span className="text-slate-600">Columns (optional)</span>
+        <select value={colsCol ?? ''} onChange={(e) => setColsCol(e.target.value === '' ? null : Number(e.target.value))} className={fieldClass}>
+          <option value="">(none)</option>
           {headers.map((h) => (
             <option key={h.c} value={h.c}>
               {h.label}
@@ -1183,10 +1529,12 @@ const PivotDialog: React.FC<{
       </label>
       <label className="block space-y-1">
         <span className="text-slate-600">Summarise values by</span>
-        <select value={how} onChange={(e) => setHow(e.target.value as 'Sum' | 'Count' | 'Average')} className={fieldClass}>
+        <select value={how} onChange={(e) => setHow(e.target.value as PivotHow)} className={fieldClass}>
           <option>Sum</option>
           <option>Count</option>
           <option>Average</option>
+          <option>Max</option>
+          <option>Min</option>
         </select>
       </label>
     </DialogShell>
