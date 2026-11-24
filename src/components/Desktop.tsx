@@ -298,6 +298,8 @@ export const Desktop: React.FC<{ question: Question; answer: string; onChange: (
           onChange={(json) => save({ appStates: { ...(latest.current.appStates ?? {}), [app]: json } })}
           html={custom.html ?? ''}
           appName={custom.label}
+          files={files}
+          onSaveFile={(f) => saveFile(f)}
         />
       );
     switch (app) {

@@ -17,7 +17,8 @@
     "Extra ticket fields with set options",
     "Issue a refund (order, amount, method, reason)",
     "Create an engineering issue (title, steps, expected, actual, severity)",
-    "Live chat with a customer, asked from a question library, with a cause to pick"
+    "Live chat with a customer, asked from a question library, with a cause to pick",
+    "Export the current view to the desktop's Files as a CSV (praxa.saveFile)"
   ],
   "data": "HelpdeskConfig in src/data/modules/helpdeskApp.ts: { product, company, agent, now, groups[], tagOptions[], macros?[{name, body, tags?}], slaPolicy?[], kb?[{title, body}], tickets[{id, subject, requester, email, plan?, channel, received, ageMins, slaMins?, messages[{from: customer|agent|note, name, at, body}], priority?, type?, group?, status?, tags?, customer?{since, location?, orders?[{id, item, date, total, status}], otherTickets?, note?}}], extraFields?[{key, label, options[]}], refunds?{methods[], reasons[]}, issues?{severities[]}, chat?{customer, topic, opening[], questions[{id, text, reply}], causes[]} }",
   "state": "{ tickets: { <id>: { priority, type, group, status, tags[], tagSet{<tag>: true}, replies[{public, text, status}], replied, noted, macros[], fields{}, refund{order, amount, method, reason} | null, issue{title, steps, expected, actual, severity} | null, lastPublic, lastNote } }, opened[ids], read[article titles], replyOrder[ids], chat{messages, asked[], askedSet{}, cause, lastAgent} }. Marked with checks like app:deskly:tickets.9001.status"

@@ -218,6 +218,10 @@ export const APP_PAGE_RULES = `  For every kind, appHtml is ONE self-contained H
     (e.g. steps: ["power_off", "heat_screen", ...]), what is attached or removed, and any damage done. On load, start from
     window.praxaSaved when it isn't null (the candidate coming back to the task), otherwise from the starting state. Call
     praxa.save(state) once on load and again after every change. Never show which values are checked or what they should be.
+  • IT SHARES FILES WITH THE DESKTOP like real software: where the real product imports or exports (a CSV of a list or
+    report, a document), read the computer's files from praxa.files (an array of { name, content }; praxa.onFiles(fn)
+    is called with it as it changes) and export with praxa.saveFile(name, text), CSV for tables (a header row, commas,
+    quotes around values with commas). Never a real download link.
   • VERY CLEAR TO USE: a simple game anyone understands in seconds, without help. A one-line "How it works" bar says how
     to interact (e.g. "Drag parts onto the board. Click two terminals to connect them. Click a dial to turn it.").
     Every part, port, terminal, control and tool is labelled with its real name. Draggable things look grabbable (a

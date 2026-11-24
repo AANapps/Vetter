@@ -16,6 +16,10 @@ library-apps/<id>/
   or answers written into it.
 - **State out:** it saves what the candidate does with `praxa.save(state)` (and starts from `window.praxaSaved` when
   the candidate comes back). Tests mark that state with checks like `app:deskly:tickets.101.status`.
+- **Files:** on a desktop the app can use the computer's files like real software: `praxa.files` (a list of
+  `{ name, content }`, kept up to date) and `praxa.onFiles(fn)` to import (CSV for tables), and
+  `praxa.saveFile(name, content)` to export a CSV, report or document to Files, where it can be attached to an email or
+  opened in Spreadsheet, BI or another app. Never a real download.
 - Runs in Praxa's sandboxed frame (src/lib/appSimulation.ts): no network, no Praxa access.
 
 In code, `libraryPage('<id>', data)` (src/lib/libraryApps.ts) gives the page filled with a test's data.

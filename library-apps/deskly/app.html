@@ -176,7 +176,7 @@ function viewsPanel(){var h='<aside class="views"><h2>Views</h2><div class="vlis
 function sortBtn(k,l){var on=ui.sort===k;return '<button data-sort="'+k+'" class="'+(on?'on':'')+'">'+l+(on?ic('sort','sm'):'')+'</button>';}
 function list(){var v=VIEWS.filter(function(x){return x.id===ui.view;})[0];var rows=inView(v).slice();
  rows.sort(function(a,b){var sa=S.tickets[a.id],sb=S.tickets[b.id],d=0;if(ui.sort==='sla'){var x=slaOf(a),y=slaOf(b);d=(x?x.v:1e9)-(y?y.v:1e9);}else if(ui.sort==='age')d=b.ageMins-a.ageMins;else if(ui.sort==='priority')d=PR[sb.priority]-PR[sa.priority];return d*ui.dir;});
- var h='<section class="list"><div class="lh"><h1>'+esc(v.name)+'</h1><span class="n num">'+rows.length+' tickets</span></div><div class="card" data-ref="ticket-table">';
+ var h='<section class="list"><div class="lh"><h1>'+esc(v.name)+'</h1><span class="n num">'+rows.length+' tickets</span>'+(window.praxa&&praxa.saveFile?'<button class="btn" style="margin-left:auto" data-act="export" data-ref="export-view" title="Save this view to Files as a CSV">'+ic('down','sm')+'Export CSV</button>':'')+'</div><div class="card" data-ref="ticket-table">';
  if(!rows.length)return h+'<div class="empty">No tickets in this view.</div></div></section>';
  h+='<table><thead><tr><th>Status</th><th>Subject</th><th>'+sortBtn('priority','Priority')+'</th><th>Group</th><th>'+sortBtn('sla','Next SLA breach')+'</th><th>Requester</th><th>'+sortBtn('age','Requested')+'</th></tr></thead><tbody>';
  rows.forEach(function(t){var s=S.tickets[t.id],sl=slaOf(t);h+='<tr data-open="'+t.id+'"><td><span class="pill st-'+s.status+'">'+s.status+'</span></td><td class="subj"><b>'+esc(t.subject)+'</b><span>#'+esc(t.id)+' · '+esc(t.channel)+'</span></td><td><span class="pr pr-'+(s.priority||'none')+'">'+(s.priority||'<span class="muted">–</span>')+'</span></td><td>'+(s.group?esc(s.group):'<span class="muted">–</span>')+'</td><td>'+(sl?'<span class="slab '+sl.cls+'">'+sl.txt+'</span>':'<span class="muted">–</span>')+'</td><td>'+esc(t.requester)+'</td><td class="num muted">'+esc(t.received)+'</td></tr>';});
@@ -236,6 +236,7 @@ function addTag(id,g){g=g.trim().toLowerCase().replace(/\s+/g,'_');if(!g)return;
 document.addEventListener('click',function(e){var b=e.target.closest('button,tr[data-open]');if(!b||b.disabled)return;var d=b.dataset;
  if(d.menu){ui.menu=ui.menu===d.menu?'':d.menu;render();return;}
  if(ui.menu&&!b.closest('.menu')){ui.menu='';}
+ if(d.act==='export'){var v=VIEWS.filter(function(x){return x.id===ui.view;})[0];var q=function(x){x=x==null?'':String(x);return /[",\n]/.test(x)?'"'+x.replace(/"/g,'""')+'"':x;};var lines=[['id','subject','requester','channel','status','priority','group','type','tags','received'].join(',')];inView(v).forEach(function(t){var s=S.tickets[t.id];lines.push([t.id,t.subject,t.requester,t.channel,s.status,s.priority,s.group,s.type,(s.tags||[]).join('; '),t.received].map(q).join(','));});praxa.saveFile(v.name.replace(/[^\w ]+/g,'').trim()+'.csv',lines.join('\n')+'\n');toast('Saved to Files');return;}
  if(d.act==='views'){ui.tab='views';render();return;}
  if(d.act==='kb'){ui.tab='kb';render();return;}
  if(d.act==='chat'){ui.tab='chat';render();return;}

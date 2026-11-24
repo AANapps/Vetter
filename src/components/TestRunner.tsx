@@ -1,6 +1,7 @@
 import { RichText, TaskPrompt, splitParts } from './RichText';
 import { Desktop } from './Desktop';
 import { firstWorkApp, taskDesktop, taskSlot } from '../lib/taskDesktop';
+import type { DeskCtx } from './desk/shared';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { AnswerRecord, answerRecords } from '../lib/submissions';
 import { BackButton } from './BackButton';
@@ -610,7 +611,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
     if (shellTask || (currentQ?.type === 'desktop' && !currentQ.desktop?.phases?.length)) setBriefView('open');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentQ?.id]);
-  const shellDesktop = (render: () => React.ReactNode) => {
+  const shellDesktop = (render: (ctx: DeskCtx) => React.ReactNode) => {
     const slot = taskSlot(currentQ);
     const cfg = taskDesktop(test, currentQ, aiHere);
     return (
@@ -621,38 +622,18 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
         onChange={setTaskDesk}
         company={cfg.company}
         startApp={slot.id}
-        slot={{ ...slot, render: () => render() }}
+        slot={{ ...slot, render }}
       />
     );
   };
   // A skills task's own window, inside the desktop: its files are the desktop's, and exports are saved there
-  const deskFiles = () => {
-    const st = (() => {
-      try {
-        return JSON.parse(taskDesk || '{}');
-      } catch {
-        return {};
-      }
-    })();
-    return [...(st.myFiles ?? []), ...(test.scenario?.files ?? [])].filter((f, i, all) => all.findIndex((x) => x.name === f.name) === i);
-  };
-  const saveDeskFile = (f: CaseFile) => {
-    let st: Record<string, unknown> = {};
-    try {
-      st = JSON.parse(taskDesk || '{}');
-    } catch {
-      /* a fresh desktop */
-    }
-    const mine = ((st.myFiles as CaseFile[]) ?? []).filter((x) => x.name !== f.name);
-    setTaskDesk(JSON.stringify({ ...st, myFiles: [...mine, f] }));
-  };
-  const taskWindow = () =>
+  const taskWindow = (ctx: DeskCtx) =>
     currentQ.type === 'sheet' ? (
-      <SpreadsheetWindow key={currentQ.id} value={currentCode || currentQ.starterCode} onChange={handleCodeChange} fileName={currentQ.contextData || `${currentQ.title}.xlsx`} files={deskFiles().filter((f) => /\.(csv|tsv|txt)$/i.test(f.name))} onSaveFile={saveDeskFile} />
+      <SpreadsheetWindow key={currentQ.id} value={currentCode || currentQ.starterCode} onChange={handleCodeChange} fileName={currentQ.contextData || `${currentQ.title}.xlsx`} files={ctx.files.filter((f) => /\.(csv|tsv|txt)$/i.test(f.name))} onSaveFile={(f) => ctx.saveFile(f)} />
     ) : currentQ.type === 'database' ? (
-      <DatabaseWindow key={currentQ.id} value={currentCode || currentQ.starterCode} onChange={handleCodeChange} tables={currentQ.tables ?? []} databaseName={currentQ.contextData || 'Database'} files={deskFiles().filter((f) => /\.(csv|tsv)$/i.test(f.name))} onSaveFile={saveDeskFile} />
+      <DatabaseWindow key={currentQ.id} value={currentCode || currentQ.starterCode} onChange={handleCodeChange} tables={currentQ.tables ?? []} databaseName={currentQ.contextData || 'Database'} files={ctx.files.filter((f) => /\.(csv|tsv)$/i.test(f.name))} onSaveFile={(f) => ctx.saveFile(f)} />
     ) : (
-      <AppWindow key={currentQ.id} value={currentCode} onChange={handleCodeChange} html={currentQ.appHtml ?? ''} appName={currentQ.contextData || currentQ.title} callouts={currentQ.callouts} />
+      <AppWindow key={currentQ.id} value={currentCode} onChange={handleCodeChange} html={currentQ.appHtml ?? ''} appName={currentQ.contextData || currentQ.title} callouts={currentQ.callouts} files={ctx.files} onSaveFile={(f) => ctx.saveFile(f)} />
     );
   const taskPanel = !currentGroup?.task ? null : (
     <>
@@ -913,7 +894,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
                   {currentQ.type === 'desktop' ? (
                     <Desktop key={currentQ.id} question={currentQ} answer={currentCode} onChange={handleCodeChange} company={test.scenario?.company ?? test.companyName} startApp={currentQ.desktop?.phases?.length ? undefined : firstWorkApp(currentQ.desktop!)} />
                   ) : (
-                    shellDesktop(() => taskWindow())
+                    shellDesktop((ctx) => taskWindow(ctx))
                   )}
                   {/* The brief and what's marked, over the desktop: opened from the footer, wider or minimised as needed */}
                   {briefView !== 'min' && (

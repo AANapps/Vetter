@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AlertTriangle, Lightbulb, Lock, Maximize2, Minimize2, RotateCcw } from 'lucide-react';
-import { AppCallout } from '../types';
+import { AppCallout, CaseFile } from '../types';
 import { appDocument, parseAppState, readAppMessage } from '../lib/appSimulation';
 
 interface AppWindowProps {
@@ -10,11 +10,14 @@ interface AppWindowProps {
   appName: string;
   // Tips pinned to parts of the app, shown as glowing pop-ups
   callouts?: AppCallout[];
+  // On a desktop: its files, which the app can read (praxa.files), and where the app's exports are saved
+  files?: CaseFile[];
+  onSaveFile?: (f: CaseFile) => void;
 }
 
 // A simulated product the candidate works in, framed like a browser window. Its state is saved as they go, and the
 // app resumes from it when they come back to the task
-export const AppWindow: React.FC<AppWindowProps> = ({ value, onChange, html, appName, callouts }) => {
+export const AppWindow: React.FC<AppWindowProps> = ({ value, onChange, html, appName, callouts, files, onSaveFile }) => {
   const frameRef = useRef<HTMLIFrameElement>(null);
   const boxRef = useRef<HTMLDivElement>(null);
   // Full screen: the browser's own where it has one, otherwise the window fills the page (e.g. iPhone Safari)
@@ -26,6 +29,15 @@ export const AppWindow: React.FC<AppWindowProps> = ({ value, onChange, html, app
   const [loads, setLoads] = useState(0);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+  const onSaveRef = useRef(onSaveFile);
+  onSaveRef.current = onSaveFile;
+  // The desktop's files go to the app as it loads and whenever they change
+  const filesKey = (files ?? []).map((f) => `${f.name}:${f.content.length}`).join('|');
+  const sendFiles = () => files && frameRef.current?.contentWindow?.postMessage({ source: 'vetter-files', files: files.map((f) => ({ name: f.name, content: f.content })) }, '*');
+  useEffect(() => {
+    sendFiles();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filesKey]);
   // A test stored with a library app by reference may open before the app's code has loaded: it starts once it's here
   const started = useRef(!!html);
   useEffect(() => {
@@ -39,6 +51,7 @@ export const AppWindow: React.FC<AppWindowProps> = ({ value, onChange, html, app
     const onMessage = (e: MessageEvent) => {
       const msg = readAppMessage(e, frameRef.current);
       if (msg?.state) onChangeRef.current(JSON.stringify(msg.state));
+      if (msg?.saveFile) onSaveRef.current?.(msg.saveFile);
       if (msg?.error) setError(msg.error);
     };
     window.addEventListener('message', onMessage);
@@ -131,7 +144,7 @@ export const AppWindow: React.FC<AppWindowProps> = ({ value, onChange, html, app
       )}
       {/* No same-origin, forms, popups or navigation: the app can run its own code and nothing else */}
       {html ? (
-        <iframe key={loads} ref={frameRef} title={appName} srcDoc={doc} sandbox="allow-scripts" className="flex-1 w-full border-0 bg-white" />
+        <iframe key={loads} ref={frameRef} title={appName} srcDoc={doc} sandbox="allow-scripts" onLoad={sendFiles} className="flex-1 w-full border-0 bg-white" />
       ) : (
         <div className="flex-1 grid place-items-center text-sm text-slate-500" role="status">
           Loading {appName}…

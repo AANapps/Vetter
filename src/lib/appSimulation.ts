@@ -167,6 +167,17 @@ window.vetter = { saved: window.vetterSaved, save: function (state) { parent.pos
 // The same hook under Praxa's name; pages written before the rename call vetter.save, and both keep working
 window.praxaSaved = window.vetterSaved;
 window.praxa = window.vetter;
+// Files on the desktop the app is on: praxa.files is the list ({ name, content }), kept up to date, and praxa.onFiles(fn)
+// is told when it changes. praxa.saveFile(name, content) saves a file there (an export, a report), so it can be
+// attached to an email, imported into the spreadsheet or used in another app. CSV is the format tables travel in.
+window.vetter.files = [];
+window.vetter.onFiles = function (fn) { window.__praxaFileListeners = (window.__praxaFileListeners || []).concat(fn); try { fn(window.vetter.files); } catch (e) {} };
+window.vetter.saveFile = function (name, content) { parent.postMessage({ source: 'vetter-app', saveFile: { name: String(name), content: String(content) } }, '*'); };
+window.addEventListener('message', function (e) {
+  if (!e.data || e.data.source !== 'vetter-files' || !Array.isArray(e.data.files)) return;
+  window.vetter.files = e.data.files;
+  (window.__praxaFileListeners || []).forEach(function (fn) { try { fn(e.data.files); } catch (err) {} });
+});
 window.addEventListener('error', function (e) { parent.postMessage({ source: 'vetter-app', error: String(e.message || e) }, '*'); });
 // A link never takes the frame away from the page: in a frame made from text, even href="#" would load Praxa itself.
 // In-page links still move the #fragment, and download links still download
@@ -270,13 +281,19 @@ export function appDocument(html: string, saved?: unknown, audit = false, tips?:
 }
 
 export type AppAudit = { checked: number; dead: string[]; errors?: string[]; labels?: string[] };
-export type AppMessage = { state?: Record<string, unknown>; error?: string; audit?: AppAudit };
+export type AppMessage = { state?: Record<string, unknown>; error?: string; audit?: AppAudit; saveFile?: { name: string; content: string } };
 
 // A message from an app frame, or null for anything else posted to the window
 export function readAppMessage(e: MessageEvent, frame: HTMLIFrameElement | null): AppMessage | null {
   if (!frame || e.source !== frame.contentWindow || e.data?.source !== 'vetter-app') return null;
   const audit = e.data.audit && Array.isArray(e.data.audit.dead) ? (e.data.audit as AppAudit) : undefined;
-  return { state: e.data.state && typeof e.data.state === 'object' ? e.data.state : undefined, error: e.data.error, audit };
+  // A file the app saves to the desktop: a plain name (no folders) and at most 2MB of text
+  const f = e.data.saveFile;
+  const saveFile =
+    f && typeof f.name === 'string' && typeof f.content === 'string' && f.content.length <= 2_000_000
+      ? { name: f.name.replace(/[\\/:*?"<>|]+/g, '_').trim().slice(0, 120) || 'export.csv', content: f.content }
+      : undefined;
+  return { state: e.data.state && typeof e.data.state === 'object' ? e.data.state : undefined, error: e.data.error, audit, saveFile };
 }
 
 export function parseAppState(answer: string): Record<string, unknown> | null {
