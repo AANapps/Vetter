@@ -29,7 +29,7 @@ export interface LibraryApp {
   sample: unknown;
 }
 
-import { SavedEnvironment, loadEnvironmentPage, loadEnvironments, loadVersion } from './environments';
+import { SavedEnvironment, loadEnvironmentPage, loadEnvironments, loadSubmissionPage, loadSubmissions, loadVersion } from './environments';
 import { rememberAppCode } from './appRefs';
 
 const pages = import.meta.glob('/library-apps/*/app.html', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
@@ -126,6 +126,15 @@ export async function reusableApps(): Promise<ReusableApp[]> {
   const out = new Map<string, ReusableApp>();
   for (const e of saved)
     out.set(e.id, { id: e.id, name: e.app || e.name, product: e.product, summary: e.summary, features: e.features, version: e.version, data: e.data ?? '', state: e.state ?? '', ...(e.game && { game: e.game }) });
+  // Apps this company had built that are waiting for the Praxa team's review: theirs to reuse straight away (as
+  // "sub:<id>"), and everyone's once approved. An app already in the library under the same name is used instead
+  const names = new Set(saved.map((e) => (e.app || e.name).trim().toLowerCase()));
+  const mine = await loadSubmissions(false).catch(() => []);
+  for (const sub of mine)
+    if (sub.status === 'pending' && sub.dataDriven && !sub.envId && !names.has(sub.app.trim().toLowerCase())) {
+      names.add(sub.app.trim().toLowerCase());
+      out.set(`sub:${sub.id}`, { id: `sub:${sub.id}`, name: sub.app || sub.name, product: sub.product, summary: sub.summary, features: [...sub.features, ...sub.added], version: 0, data: sub.data ?? '', state: sub.state ?? '' , ...(sub.game && { game: sub.game }) });
+    }
   for (const { manifest: m, sample } of Object.values(LIBRARY_APPS)) {
     const there = out.get(m.id);
     if (!there || there.version < m.version) out.set(m.id, { id: m.id, name: m.name, product: m.product, summary: m.summary, features: m.features, version: m.version, data: m.data, state: m.state, sample });
@@ -137,6 +146,10 @@ export async function reusableApps(): Promise<ReusableApp[]> {
 // A reusable app's code at the version listed: the repo's copy when that's the one, then that version as kept in the
 // library (which candidates can load too, so tests built on it store only a reference), otherwise the library's page
 export async function reusableAppCode(app: ReusableApp): Promise<string | null> {
+  if (app.id.startsWith('sub:')) {
+    const page = await loadSubmissionPage(app.id.slice(4));
+    return page?.html ? splitData(page.html).app : null;
+  }
   const repo = LIBRARY_APPS[app.id];
   if (repo && repo.manifest.version >= app.version) return repo.html;
   const kept = await loadVersion(app.id, app.version);

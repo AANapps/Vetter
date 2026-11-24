@@ -68,7 +68,7 @@ export const jobSimSchema = {
     briefs: { type: 'object', properties: { core: str, curveball: str, juggling: str, report: str }, required: ['core', 'curveball', 'juggling', 'report'], additionalProperties: false },
     user: { type: 'object', properties: { name: str, role: str }, required: ['name', 'role'], additionalProperties: false },
     time: str,
-    apps: { type: 'array', items: { type: 'string', enum: ['sheet', 'browser', 'sql', 'code'] } },
+    apps: { type: 'array', items: { type: 'string', enum: ['sheet', 'browser', 'sql', 'code', 'chat', 'helpdesk', 'crm', 'docs', 'bi', 'forms', 'calendar', 'kb', 'board'] } },
     contacts: { type: 'array', items: { type: 'object', properties: { name: str, role: str, email: str }, required: ['name', 'role', 'email'], additionalProperties: false } },
     workbookName: str,
     sheets: { type: 'array', items: { type: 'object', properties: { name: str, rows: { type: 'array', items: strs } }, required: ['name', 'rows'], additionalProperties: false } },
@@ -98,6 +98,8 @@ export const jobSimSchema = {
       },
     },
     files,
+    // The built-in work apps' data, as one JSON text (a schema for each would make the reply shape too large to hold to)
+    work: str,
     project: {
       type: 'object',
       properties: {
@@ -132,7 +134,7 @@ export const jobSimSchema = {
       },
     },
   },
-  required: ['reply', 'role', 'company', 'domain', 'day', 'description', 'category', 'skillsTested', 'scenario', 'briefing', 'briefs', 'user', 'time', 'apps', 'contacts', 'workbookName', 'sheets', 'databaseName', 'tables', 'homepage', 'pages', 'files', 'project', 'inbox', 'replies', 'checks'],
+  required: ['reply', 'role', 'company', 'domain', 'day', 'description', 'category', 'skillsTested', 'scenario', 'briefing', 'briefs', 'user', 'time', 'apps', 'contacts', 'workbookName', 'sheets', 'databaseName', 'tables', 'homepage', 'pages', 'files', 'work', 'project', 'inbox', 'replies', 'checks'],
   additionalProperties: false,
 };
 
@@ -147,7 +149,7 @@ const pick = (keys: string[], extra: Record<string, unknown> = {}) => ({
 // exactly (a 400, "The compiled grammar is too large"). First the setting (who, where, which apps, what's planted),
 // then the desk: the data, pages, files and project on the computer, written to it
 const WORLD_KEYS = ['role', 'company', 'domain', 'day', 'description', 'category', 'skillsTested', 'scenario', 'briefing', 'user', 'time', 'apps', 'contacts'];
-const DESK_KEYS = ['workbookName', 'sheets', 'databaseName', 'tables', 'homepage', 'pages', 'files', 'project'];
+const DESK_KEYS = ['workbookName', 'sheets', 'databaseName', 'tables', 'homepage', 'pages', 'files', 'work', 'project'];
 const SCRIPT_KEYS = ['reply', 'briefs', 'inbox', 'replies', 'checks'];
 // planted: for the script's writer, each issue in the data and where it is, and the facts and figures the day turns on
 // libraryApps: apps from the library on the desktop, each with what it must hold for the day; newApp: software the job
@@ -166,7 +168,7 @@ and checks, all against what you write now). The company, the role, the cast, th
 and any new app for the day the plan describes, and the plan of what's planted. planted: one line each for every issue
 to plant and exactly where it will be (sheet and rows, table, page, file, function, app record), the curveball's
 change, the judgement call, and the key figures and names the data, emails and checks will need.`,
-  desk: `WRITE NOW: THE COMPUTER'S CONTENTS ONLY (the second of three steps): the sheets, tables, pages, files and project
+  desk: `WRITE NOW: THE COMPUTER'S CONTENTS ONLY (the second of three steps): the sheets, tables, pages, files, work and project
 pre-loaded for THE SETTING above, for exactly its apps (an app it doesn't list stays empty: "" or []), with its cast,
 company and figures. Build every planted issue into the data exactly where THE SETTING says, and prepare the curveball
 (e.g. the draft figure is what's in the data; the corrected one comes later by email). planted: THE SETTING's lines,
@@ -215,7 +217,18 @@ MADE FOR THIS COMPANY AND THIS JOB
 - Pick the other environments from the tools the job really uses: sheet (Spreadsheet: Excel-style, formulas), browser (an
   intranet, a client portal, a supplier site, documentation: pages with text, tables, links and downloads), sql (a
   database to query with SQL; data only, its results reach the marks through the sheet or emails), code (a small
-  JavaScript project with tests).
+  JavaScript project with tests), and Praxa's BUILT-IN work apps: chat (Slack/Teams), helpdesk (Zendesk-style tickets),
+  crm (Salesforce/HubSpot-style records), docs (Word/Google Docs), bi (Power BI-style report from any CSV or table),
+  forms (internal forms: refunds, incidents), calendar (meetings and invites), kb (help centre or policies, read only),
+  board (monday.com or Jira project board). PREFER A BUILT-IN APP over libraryApps or newApp whenever the job's software
+  is one of those kinds (they're ready, cost nothing to build and share data with every other app); use libraryApps or
+  newApp only for software of another kind (an ads manager, a till, a booking system) or when the plan names a library
+  app id.
+- THE APPS WORK TOGETHER like real ones: every table can be saved from one app as a CSV in Files (Spreadsheet Export CSV,
+  Database Save results, the help desk, CRM, board and forms' Save as CSV, BI's Save data) and opened, imported, attached
+  or pasted in another (Spreadsheet Import CSV, Database Import flat file, CRM and board Import, BI Get data, Mail and
+  Chat attachments, Docs paste as a table). A good day makes the candidate carry work across apps (e.g. export the
+  tickets, analyse them in the spreadsheet, chart them in BI, attach the chart to the report).
 - The cast: the candidate (user; their email is first.last@domain, made by Praxa) and 3 to 6 colleagues in contacts,
   each "First Last", their role and first.last@domain. Everyone who writes or is written to is in contacts.
 - The figures must be consistent everywhere: emails, pages, files and data say the same thing.
@@ -244,7 +257,40 @@ THE DESKTOP'S CONTENT
   test("name", () => { expect(fn(1)).toBe(2); })), checks: Praxa's hidden tests, each a test body using the project's
   functions with expect(x).toBe / toEqual / toBeCloseTo / toThrow, that FAIL on the code as given and pass once the
   work is done right. Otherwise {"name":"","files":[],"testFile":"","checks":[]}.
-- files: anything else handed over at the start (often []).
+- files: anything else handed over at the start (often []). A Word document handed over is a file named "*.docx"
+  whose content is simple HTML (<h1>, <p>, <ul><li>, <table>).
+- work (when apps has a built-in work app; otherwise "{}"): ONE JSON text (valid JSON, double quotes) with a key per
+  built-in app in apps, each holding that app's data for the day, with the planted issues in it:
+  "chat": {"channels":[{"id":"ops","name":"ops","kind":"channel","topic":"","messages":[{"id":"c1","from":"<email>",
+    "text":"...","time":"08:41","phase":""}]},{"id":"dm-ana","name":"Ana Lee","kind":"dm","with":"<email>","messages":[]}],
+    "replies":[{"id":"r-ana","channel":"dm-ana","mustMention":[["refund","credit"]],"mustShare":"",
+    "reply":{"from":"<email>","text":"..."},"otherwise":{"from":"<email>","text":"..."}}]}
+    (a message may carry "attachments":[{"name":"x.csv","content":"..."}]; phase "" or a part, like emails)
+  "helpdesk": {"name":"<product name>","agents":["<names>"],"sla":{"urgent":1,"high":4,"normal":24,"low":48},
+    "macros":[{"name":"...","body":"Hi {{requester.first_name}}, ...","status":"pending","tags":["delay"]}],
+    "tickets":[{"id":"4471","subject":"...","requester":"Name <email>","status":"new|open|pending|on-hold|solved",
+    "priority":"low|normal|high|urgent","tags":[],"assignee":"","created":"Today 08:12","channel":"email|chat|phone|web",
+    "fields":{"Order":"1005"},"thread":[{"from":"Name <email>","body":"...","time":"08:12","internal":false}],"phase":""}]}
+  "crm": {"name":"...","objects":[{"id":"contacts","label":"Contacts","fields":[{"key":"name","label":"Name"},
+    {"key":"email","label":"Email","type":"email"},{"key":"account","label":"Account","type":"link","object":"accounts"},
+    {"key":"stage","label":"Stage","type":"select","options":["..."]},{"key":"amount","label":"Amount","type":"money"}],
+    "records":[{"id":"con-1","name":"...","email":"..."}]}]} (field types: text number money date email phone select
+    textarea link; every record has an id and a "name" or "title" field)
+  "docs": {"templates":[{"name":"Board update.docx","html":"<h1>...</h1><p>...</p>"}]}
+  "bi": {"name":"<report name>"} (its data is the day's CSV files and database tables)
+  "forms": {"name":"...","forms":[{"id":"refund","title":"Refund request","description":"...","fields":[{"key":"order",
+    "label":"Order number","type":"text|textarea|number|money|date|select|radio|checkbox|email","options":[],
+    "required":true,"help":""}],"entries":[]}]}
+  "calendar": {"weekOf":"<a Monday, YYYY-MM-DD>","today":"YYYY-MM-DD","events":[{"id":"e1","title":"...","date":"YYYY-MM-DD",
+    "start":"09:30","end":"10:00","attendees":["<emails, the user's too>"],"location":"","notes":""},
+    {"id":"e2","title":"Busy","date":"...","start":"11:00","end":"12:00","owner":"<a colleague's email: their own busy time>"}]}
+  "kb": {"name":"...","articles":[{"id":"kb-refunds","title":"...","category":"...","body":"paragraphs, blank lines between,
+    - bullet lines","updated":"1 Nov 2026"}]}
+  "board": {"boards":[{"id":"launch","name":"...","style":"monday|jira","key":"WEB","statuses":["To Do","In Progress","Done"],
+    "groups":["This week"],"people":["<names>"],"items":[{"id":"WEB-12","title":"...","status":"To Do","group":"",
+    "owner":"","due":"YYYY-MM-DD","priority":"Low|Medium|High|Critical","type":"Story|Task|Bug","points":"3",
+    "description":"","phase":""}]}]}
+  Records, tickets and items: 5 to 25 each, realistic, consistent with the emails and files.
 
 THE CHECKS (how the day is marked; each has part, description, input, expected, rubric)
 Every marked part (core, curveball, juggling, report) has 2 to 5 checks; 10 to 16 in all. description is what it looks
@@ -262,6 +308,25 @@ for, short ("Q1 sales are right for every store"). input is one of:
                           "Team Leads"; several right answers "a|b", a list as a JSON array. It must NOT already have
                           that value at the start
   test:<project check id> one of the project's checks passes (expected "passes")
+  The built-in apps (ids as written in work):
+  file:<file name>        the text of a file the candidate saved (a Docs document, an exported CSV); rubric, or expected
+  filerows:<file name>    how many data rows a CSV the candidate saved has
+  chat:<channel id>       the candidate's last message there, marked against rubric
+  chatreceived:<rule id>  that colleague answered in chat (expected "true")
+  ticket:<id>:<field>     status, priority, assignee, tags (comma-joined), or reply / note (the last public reply or
+                          internal note, marked against rubric), e.g. ticket:4471:status expected "pending|solved"
+  tickets:<status>        how many tickets have that status
+  record:<object>:<id>:<field>   a CRM record's field; recordwhere:<object>:<field>=<value>:<field> for a record the
+                          candidate creates; records:<object> the count; crmnote:<object>:<id> notes logged (rubric)
+  event:<words>           they made a meeting with those words in its title (expected "true"); eventwith:<email> it
+                          invites that person; eventat:<words> its "YYYY-MM-DD HH:MM"; response:<event id> yes|no|maybe
+  form:<form id>:<field>  a field of their last entry; formcount:<form id> how many they submitted
+  kbviewed:<article id>   they opened the article (expected "true")
+  item:<board>:<item id>:<field>  status, owner, due, priority, points, title, or comments (rubric);
+                          itemwhere:<board>:<field>=<value>:<field>; items:<board>:<status> a count
+  chart:<words in its title>  "<kind> <x> by <agg> <y>" e.g. "bar region by sum revenue"; charts: how many
+  A check that reads writing (chat:, file: of a document, ticket:…:reply or note, crmnote:, item:…:comments) may have a
+  rubric instead of an expected value.
 expected: for sheet checks, the right value; when it depends on the data, write it as a formula starting with "="
   on the pre-loaded workbook (a value from the curveball's email written in as a number), e.g.
   =SUMIF(q1_sales!A:A,"S01",q1_sales!D:D)&" / "&SUMIF(q1_sales!A:A,"S02",q1_sales!D:D): Praxa works it out, so never

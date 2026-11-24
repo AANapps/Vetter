@@ -444,8 +444,12 @@ interface Remembered {
   stateShape?: string;
 }
 async function remember(page: RawQuestion, r: Remembered): Promise<void> {
-  const { catalog, base, mode, owner = 'Praxa' } = r;
-  if (base) void markEnvironmentUsed(base.id);
+  const { catalog, mode, owner = 'Praxa' } = r;
+  let base = r.base;
+  // An app still waiting for review (sub:<id>) isn't in the library yet: what's built on it goes for review as that
+  // app again (matched by its name when approved)
+  if (base?.id.startsWith('sub:')) base = { ...base, id: '', version: 0 };
+  if (base?.id) void markEnvironmentUsed(base.id);
   if (!page.appHtml) return;
   const list = (l?: string[]) => (l ?? []).map((f) => String(f).trim().slice(0, 120)).filter(Boolean).slice(0, 80);
   // Built on the library: only what its edits added is new. Nothing added, nothing to review
@@ -457,7 +461,7 @@ async function remember(page: RawQuestion, r: Remembered): Promise<void> {
   const features = base ? [...base.features, ...added] : added;
   await submitEnvironment(
     {
-      ...(base && { envId: base.id, baseVersion: base.version }),
+      ...(base?.id && { envId: base.id, baseVersion: base.version }),
       app: (base?.name ?? catalog?.app ?? '').trim().slice(0, 80),
       name: String(base?.name ?? catalog?.name ?? catalog?.app).trim().slice(0, 100),
       product: String(base?.product ?? catalog?.product ?? '').trim().slice(0, 60) || 'Simulation',

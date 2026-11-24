@@ -1,5 +1,6 @@
 import { AssessmentTest, Business, SkillCategory, TEST_DIFFICULTIES, TestDifficulty } from '../types';
-import { DeskBlock, DeskPage, DesktopConfig } from './desktop';
+import { DeskBlock, DeskPage, DesktopConfig, desktopValue, emptyDesktop } from './desktop';
+import type { BoardConfig, CalendarConfig, ChatConfig, CrmConfig, DeskAppsConfig, DeskWorkApp, FormsConfig, HelpdeskConfig, KbConfig, Ticket } from './deskApps';
 import { checkSheet, parseWorkbook, workbookStarter } from './spreadsheet';
 import { JobSimCheck, JobSimPart, jobSimulation } from '../data/modules/jobSimKit';
 import { categoriesFor, companySector } from './sectors';
@@ -50,6 +51,8 @@ export interface RawJobSim {
   homepage: string;
   pages: { url: string; site: string; title: string; blocks: { kind: string; text: string; url: string; columns: string[]; rows: Rows; file: RawFile }[] }[];
   files: RawFile[];
+  // The built-in work apps' data as JSON text (see server/writeJobSim.ts)
+  work?: string;
   project: { name: string; files: { name: string; content: string; readonly: boolean }[]; testFile: string; checks: { id: string; code: string }[] };
   inbox: (RawMail & { id: string; phase: string; to: string[]; cc: string[]; date: string })[];
   replies: { id: string; to: string; mustMention: string[][]; mustAttach: string; reply: RawMail; otherwise: RawMail }[];
@@ -110,7 +113,8 @@ function desktopOf(raw: RawJobSim): Omit<DesktopConfig, 'phases'> {
   const domain = lower(raw.domain).replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, '') || 'company.co.uk';
   const me = `${slug(raw.user?.name)}@${domain}`;
   const custom = (raw.customApps ?? []).filter((a) => a.id && a.html);
-  const work = [...new Set([...custom.map((a) => a.id), ...(raw.apps ?? []).filter((a) => ['sheet', 'browser', 'sql', 'code'].includes(a))])];
+  const workData = workOf(raw);
+  const work = [...new Set([...custom.map((a) => a.id), ...(raw.apps ?? []).filter((a) => BASIC_APPS.includes(a) || (WORK_APPS as string[]).includes(a))])];
   const sheets = (raw.sheets ?? []).filter((s) => s.name?.trim() && s.rows?.length);
   const tables = (raw.tables ?? []).filter((t) => t.name?.trim() && t.columns?.length);
   const pages: DeskPage[] = (raw.pages ?? []).filter((p) => p.url?.trim()).map((p) => ({ url: p.url.trim(), site: p.site || raw.company, title: p.title || p.url, blocks: (p.blocks ?? []).map(block).filter((b): b is DeskBlock => !!b) }));
@@ -147,8 +151,88 @@ function desktopOf(raw: RawJobSim): Omit<DesktopConfig, 'phases'> {
       databaseName: raw.databaseName || 'company.db',
     }),
     ...(project && { project }),
+    ...(Object.keys(workData).length && { work: workData }),
   };
 }
+
+const BASIC_APPS = ['sheet', 'browser', 'sql', 'code'];
+const WORK_APPS: DeskWorkApp[] = ['chat', 'helpdesk', 'crm', 'docs', 'bi', 'forms', 'calendar', 'kb', 'board'];
+
+// The built-in apps' data the AI wrote, kept only for the apps on the desktop, with the shapes the apps need
+function workOf(raw: RawJobSim): DeskAppsConfig {
+  let parsed: Record<string, unknown> = {};
+  try {
+    const v = JSON.parse(raw.work || '{}');
+    if (v && typeof v === 'object') parsed = v;
+  } catch {
+    /* reported by assembleJobSim */
+  }
+  const out: DeskAppsConfig = {};
+  const arr = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
+  for (const app of WORK_APPS) {
+    if (!(raw.apps ?? []).includes(app)) continue;
+    const d = (parsed[app] ?? {}) as Record<string, unknown>;
+    switch (app) {
+      case 'chat':
+        out.chat = { channels: arr<ChatConfig['channels'][number]>(d.channels).map((c) => ({ ...c, messages: arr(c.messages) })), replies: arr(d.replies) };
+        break;
+      case 'helpdesk':
+        out.helpdesk = { ...(d as object), tickets: arr<Ticket>(d.tickets).map((t) => ({ ...t, id: String(t.id), thread: arr(t.thread), tags: arr(t.tags) })), macros: arr(d.macros) } as HelpdeskConfig;
+        break;
+      case 'crm':
+        out.crm = { ...(d as object), objects: arr<CrmConfig['objects'][number]>(d.objects).map((o) => ({ ...o, fields: arr(o.fields), records: arr<Record<string, string>>(o.records).map((r, i) => ({ ...r, id: String(r.id ?? `${o.id}-${i + 1}`) })) })) } as CrmConfig;
+        break;
+      case 'docs':
+        out.docs = { templates: arr(d.templates) };
+        break;
+      case 'bi':
+        out.bi = { name: typeof d.name === 'string' ? d.name : undefined };
+        break;
+      case 'forms':
+        out.forms = { ...(d as object), forms: arr<FormsConfig['forms'][number]>(d.forms).map((f) => ({ ...f, fields: arr(f.fields), entries: arr(f.entries) })) } as FormsConfig;
+        break;
+      case 'calendar':
+        out.calendar = { ...(d as object), events: arr(d.events) } as CalendarConfig;
+        break;
+      case 'kb':
+        out.kb = { ...(d as object), articles: arr(d.articles) } as KbConfig;
+        break;
+      case 'board':
+        out.board = { boards: arr<BoardConfig['boards'][number]>(d.boards).map((b) => ({ ...b, statuses: arr<string>(b.statuses).length ? arr<string>(b.statuses) : ['To Do', 'In Progress', 'Done'], items: arr<BoardConfig['boards'][number]['items'][number]>(b.items).map((i) => ({ ...i, id: String(i.id), status: i.status || arr<string>(b.statuses)[0] || 'To Do' })) })) };
+        break;
+    }
+  }
+  return out;
+}
+
+// What's missing from a built-in app's data
+function workProblems(raw: RawJobSim, w: DeskAppsConfig): string[] {
+  const p: string[] = [];
+  const apps = raw.apps ?? [];
+  if (apps.some((a) => (WORK_APPS as string[]).includes(a) && a !== 'docs' && a !== 'bi')) {
+    try {
+      JSON.parse(raw.work || '');
+    } catch {
+      p.push('work is not valid JSON text.');
+      return p;
+    }
+  }
+  if (apps.includes('chat') && !w.chat?.channels.length) p.push('apps has chat but work.chat has no channels.');
+  if (apps.includes('helpdesk') && !w.helpdesk?.tickets.length) p.push('apps has helpdesk but work.helpdesk has no tickets.');
+  if (apps.includes('crm') && !w.crm?.objects.some((o) => o.records.length)) p.push('apps has crm but work.crm has no records.');
+  if (apps.includes('forms') && !w.forms?.forms.some((f) => f.fields.length)) p.push('apps has forms but work.forms has no form with fields.');
+  if (apps.includes('calendar') && (!w.calendar?.weekOf || !/^\d{4}-\d{2}-\d{2}$/.test(w.calendar.weekOf))) p.push('apps has calendar but work.calendar.weekOf is not a YYYY-MM-DD date.');
+  if (apps.includes('kb') && !w.kb?.articles.length) p.push('apps has kb but work.kb has no articles.');
+  if (apps.includes('board') && !w.board?.boards.some((b) => b.items.length)) p.push('apps has board but work.board has no items.');
+  if (apps.includes('bi') && !(raw.files ?? []).some((f) => /\.csv$/i.test(f.name)) && !(raw.tables ?? []).length && !(raw.inbox ?? []).some((m) => (m.attachments ?? []).some((f) => /\.csv$/i.test(f.name))))
+    p.push('apps has bi but there is no CSV file or database table for its data.');
+  return p;
+}
+
+const WORK_APP_OF: Record<string, DeskWorkApp> = { chat: 'chat', chatcount: 'chat', chatreceived: 'chat', ticket: 'helpdesk', tickets: 'helpdesk', record: 'crm', recordwhere: 'crm', records: 'crm', crmnote: 'crm', event: 'calendar', eventwith: 'calendar', eventat: 'calendar', response: 'calendar', form: 'forms', formcount: 'forms', kbviewed: 'kb', item: 'board', itemwhere: 'board', items: 'board', chart: 'bi', charts: 'bi' };
+// The built-in apps' check kinds, and those that read writing (so may have a rubric)
+const WORK_CHECKS = ['file', 'filerows', 'chat', 'chatcount', 'chatreceived', 'ticket', 'tickets', 'record', 'recordwhere', 'records', 'crmnote', 'event', 'eventwith', 'eventat', 'response', 'form', 'formcount', 'kbviewed', 'item', 'itemwhere', 'items', 'chart', 'charts'];
+const writingCheck = (kind: string, rest: string) => ['chat', 'file', 'crmnote'].includes(kind) || (kind === 'ticket' && /:(reply|note)$/.test(rest)) || (kind === 'item' && /:comments$/.test(rest)) || kind === 'form';
 
 export interface AssembledJobSim {
   test?: AssessmentTest;
@@ -164,11 +248,12 @@ export function assembleJobSim(raw: RawJobSim, business?: Business, lenient = fa
   if (!raw || typeof raw !== 'object') return { problems: ['Nothing came back.'] };
   const desktop = desktopOf(raw);
   const work = desktop.apps.filter((a) => !['mail', 'files', 'ai'].includes(a));
-  if (!work.length) problems.push('The desktop has no work app: pick two of sheet, browser, sql and code (or a library app).');
+  if (!work.length) problems.push('The desktop has no work app: pick two of sheet, browser, sql, code and the built-in apps (or a library app).');
   if (work.includes('sheet') && !desktop.workbook) problems.push('apps has sheet but the workbook has no sheets.');
   if (work.includes('browser') && !desktop.pages?.length) problems.push('apps has browser but there are no pages.');
   if (work.includes('sql') && !desktop.tables?.length) problems.push('apps has sql but there are no tables.');
   if (work.includes('code') && !desktop.project) problems.push('apps has code but the project has no files.');
+  problems.push(...workProblems(raw, desktop.work ?? {}));
 
   const people = new Set([desktop.user.email, ...desktop.contacts.map((c) => c.email)]);
   for (const m of desktop.inbox) {
@@ -194,7 +279,8 @@ export function assembleJobSim(raw: RawJobSim, business?: Business, lenient = fa
     else if (['mail', 'mailwith', 'firstmail', 'earned'].includes(kind)) {
       if (!rubric.length) problem = `${name} reads an email but has no rubric.`;
       expected = { rubric };
-    } else if (rubric.length) problem = `${name} has a rubric but isn't an email check (mail: or mailwith:).`;
+    } else if (rubric.length && writingCheck(kind, rest)) expected = { rubric };
+    else if (rubric.length) problem = `${name} has a rubric but doesn't read writing (an email, a chat message, a document, a ticket reply or note).`;
     if (!problem)
       switch (kind) {
         case 'sheet': {
@@ -248,8 +334,26 @@ export function assembleJobSim(raw: RawJobSim, business?: Business, lenient = fa
           else if (initial[id] && matchesExpected(readPath(initial[id], path.join(':')), want)) problem = `${name} already passes when the app opens, before the candidate does anything.`;
           break;
         }
-        default:
-          problem = `${name} isn't a kind of check Praxa can mark.`;
+        default: {
+          if (!WORK_CHECKS.includes(input.includes(':') ? kind : input)) {
+            problem = `${name} isn't a kind of check Praxa can mark.`;
+            break;
+          }
+          const app = WORK_APP_OF[input.includes(':') ? kind : input];
+          if (app && !desktop.apps.includes(app)) {
+            problem = `${name} checks the ${app} app, which isn't on the desktop.`;
+            break;
+          }
+          if (typeof expected === 'string' && !expected && !rubric.length) {
+            problem = `${name} has no expected value.`;
+            break;
+          }
+          // It mustn't pass before the candidate does anything
+          if (typeof expected === 'string') {
+            const before = desktopValue(desktop as DesktopConfig, emptyDesktop(desktop as DesktopConfig), input);
+            if (matchesExpected(before, expected)) problem = `${name} already passes before the candidate does anything (it reads ${JSON.stringify(before)}).`;
+          }
+        }
       }
     if (problem) {
       if (!lenient) problems.push(problem);
