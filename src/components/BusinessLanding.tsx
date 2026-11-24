@@ -571,6 +571,16 @@ export const BusinessLanding: React.FC<{ top?: React.ReactNode; onJoin: (reason?
         </div>
         </Reveal>
       </section>
+
+      {/* Plain pages for reading (and for search engines): resources, the test library, pricing, about */}
+      <footer className="max-w-6xl mx-auto px-4 sm:px-6 pb-12 text-sm text-slate-500 flex flex-wrap gap-x-6 gap-y-2 justify-center">
+        <a href="/tests/" className="hover:text-slate-900">Test library</a>
+        <a href="/resources/" className="hover:text-slate-900">Resources</a>
+        <a href="/pricing/" className="hover:text-slate-900">Pricing</a>
+        <a href="/about/" className="hover:text-slate-900">About Praxa</a>
+        <a href="/guides/" className="hover:text-slate-900">Guides</a>
+        <a href="/jobs/" className="hover:text-slate-900">Jobs</a>
+      </footer>
     </div>
   );
 };

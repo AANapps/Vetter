@@ -8,7 +8,8 @@ import {API_ROUTES, previewOf, purposeOf} from './server/routes';
 export default defineConfig(({mode}) => {
   // The address the site is served from, for canonical links, the sitemap and job listings
   const env = loadEnv(mode, process.cwd(), '');
-  const siteUrl = (env.SITE_URL || 'https://vetter.dev').replace(/\/+$/, '');
+  // On Vercel without a SITE_URL, the project's production address
+  const siteUrl = (env.SITE_URL || (env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${env.VERCEL_PROJECT_PRODUCTION_URL}` : 'https://vetter.dev')).replace(/\/+$/, '');
   return {
     plugins: [
       react(),
