@@ -23,6 +23,14 @@ The user confirmed on 2026-11-24 that the Firestore rules are deployed (latest) 
 **Left off the checklist on purpose (until 5–10 customers):** API/MCP connector, public pool changes, people CRM (beyond the 30/90 check-ins), per-employee pricing for training/CRM (both hidden in beta), new roles. Blueprint-first rewrite of AI generation: not done; the "text too large" error was already fixed (two-step world/script + grammar fallback), sheet answers are computed by code, and launch roles use ready library sims, so AI generation isn't on the launch path.
 - Not clicked through live yet: guest test → sign-up → score, job-ad flow, check-ins, People app.
 
+**Before the free pilot (agreed 2026-11-25)**
+1. Click through live as a visitor, candidate and company: guest test → sign-up → score, job-ad → post → link, job sim (People app, curveball), check-ins, Hide/Show tests, Open their desktop. Find the blank-menu bug on the way.
+2. Privacy policy, terms and candidate-data terms (UK GDPR).
+3. Remove the 5 sample candidates from the live site.
+4. Deploy the leads rule (30/90 check-ins): `firebase deploy --only firestore:rules --project vetter-7b06f`.
+5. Domain: keep Praxa on a prefix domain (e.g. getpraxa.com / praxa.work) or pick a new name; then set `SITE_URL` in Vercel, Search Console, sitemap.
+6. Line up 3–5 companies hiring now, one real role each (Customer Support simplest).
+
 **To do before selling**
 - Payments: finish the live test (cancel on `checkout-test-1`), decide VAT (Stripe Tax), then switch Stripe to `sk_live_`.
 - Enforce plan limits (jobs, candidates per job, seats) on the server, not only in the browser.
