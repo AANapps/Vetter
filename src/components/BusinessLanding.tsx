@@ -580,6 +580,8 @@ export const BusinessLanding: React.FC<{ top?: React.ReactNode; onJoin: (reason?
         <a href="/about/" className="hover:text-slate-900">About Praxa</a>
         <a href="/guides/" className="hover:text-slate-900">Guides</a>
         <a href="/jobs/" className="hover:text-slate-900">Jobs</a>
+        <a href="/privacy/" className="hover:text-slate-900">Privacy</a>
+        <a href="/terms/" className="hover:text-slate-900">Terms</a>
       </footer>
     </div>
   );

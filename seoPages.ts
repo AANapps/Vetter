@@ -5,6 +5,7 @@ import type { Business, JobPosting } from './src/types';
 import type * as JobSeo from './src/lib/jobSeo';
 import type * as Guides from './src/data/guides';
 import type * as Articles from './src/data/articles';
+import type * as Legal from './src/data/legal';
 import type { AssessmentTest } from './src/types';
 import type * as Plans from './server/plans';
 
@@ -235,7 +236,7 @@ export function seoPages(siteUrl: string, firebase?: { projectId: string; apiKey
         `<a href="/tests/">Tests</a><a href="/resources/">Resources</a><a href="/pricing/">Pricing</a><a href="/about/">About</a><a href="/guides/">Guides</a>` +
         `<a class="cta" href="/">Start free</a></nav></header><main class="wrap">${p.body}</main>` +
         `<footer class="foot"><div class="wrap"><p><strong>Praxa</strong>: ${esc(PRAXA_DESCRIPTION)}</p>` +
-        `<p><a href="/tests/">Test library</a> &middot; <a href="/resources/">Resources</a> &middot; <a href="/pricing/">Pricing</a> &middot; <a href="/about/">About</a> &middot; <a href="/guides/">Guides</a> &middot; <a href="/jobs/">Jobs</a> &middot; <a href="/llms.txt">llms.txt</a></p></div></footer></body></html>`;
+        `<p><a href="/tests/">Test library</a> &middot; <a href="/resources/">Resources</a> &middot; <a href="/pricing/">Pricing</a> &middot; <a href="/about/">About</a> &middot; <a href="/guides/">Guides</a> &middot; <a href="/jobs/">Jobs</a> &middot; <a href="/llms.txt">llms.txt</a></p><p><a href="/privacy/">Privacy</a> &middot; <a href="/terms/">Terms</a> &middot; <a href="/candidate-data/">Candidate data terms</a></p></div></footer></body></html>`;
 
       // Articles
       const { ARTICLES, articlePath } = await load<typeof Articles>('src/data/articles.ts');
@@ -408,6 +409,29 @@ export function seoPages(siteUrl: string, firebase?: { projectId: string; apiKey
         })
       );
 
+      // Legal pages: privacy policy, terms, candidate data terms (src/data/legal.ts)
+      const { LEGAL_PAGES } = await load<typeof Legal>('src/data/legal.ts');
+      for (const page of LEGAL_PAGES) {
+        await write(
+          `${page.path.slice(1)}index.html`,
+          site({
+            path: page.path,
+            title: `${page.title} | Praxa`,
+            description: page.description,
+            body:
+              `<h1>${esc(page.title)}</h1><p><em>Last updated ${esc(page.updated)}</em></p>` +
+              page.sections
+                .map(
+                  (sec) =>
+                    `<h2>${esc(sec.heading)}</h2>` +
+                    (sec.paragraphs ?? []).map((t) => `<p>${esc(t)}</p>`).join('') +
+                    (sec.list ? `<ul>${sec.list.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : '')
+                )
+                .join(''),
+          })
+        );
+      }
+
       // The home page: the app, with a plain description inside it for crawlers that don't run JavaScript
       await write(
         'index.html',
@@ -442,6 +466,7 @@ export function seoPages(siteUrl: string, firebase?: { projectId: string; apiKey
         ...libTests.map((t) => ({ loc: testPath(t), lastmod: undefined })),
         { loc: '/pricing/', lastmod: undefined },
         { loc: '/about/', lastmod: undefined },
+        ...LEGAL_PAGES.map((p) => ({ loc: p.path, lastmod: p.updated })),
       ];
       await write(
         'sitemap.xml',

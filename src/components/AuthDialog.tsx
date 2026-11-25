@@ -350,6 +350,20 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ initialMode, reason, ini
           <button type="submit" disabled={busy} className="w-full py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 rounded-lg">
             {busy ? 'One moment…' : mode === 'sign-in' ? 'Sign in' : mode === 'reset' ? 'Send reset link' : 'Create account'}
           </button>
+          {mode !== 'reset' && (
+            <p className="text-[11px] text-slate-500 text-center">
+              By continuing you agree to Praxa's{' '}
+              <a href="/terms/" target="_blank" rel="noopener" className="underline hover:text-slate-900">terms</a> and{' '}
+              <a href="/privacy/" target="_blank" rel="noopener" className="underline hover:text-slate-900">privacy policy</a>
+              {mode === 'sign-up' && (
+                <>
+                  , and companies to the{' '}
+                  <a href="/candidate-data/" target="_blank" rel="noopener" className="underline hover:text-slate-900">candidate data terms</a>
+                </>
+              )}
+              .
+            </p>
+          )}
 
           <p className="text-xs text-slate-500 text-center">
             {mode === 'sign-up' ? (

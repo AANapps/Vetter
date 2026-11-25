@@ -2668,6 +2668,8 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
                 ))}
               </nav>
             )}
+            <a href="/privacy/" className="ml-4 hover:text-slate-900">Privacy</a>
+            <a href="/terms/" className="ml-3 hover:text-slate-900">Terms</a>
             <CurrencyPicker className="ml-auto" />
             {!firebaseEnabled && (
               <button onClick={handleResetData} className="ml-4 text-slate-400 hover:text-slate-700 transition-colors">

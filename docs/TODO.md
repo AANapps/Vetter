@@ -25,7 +25,7 @@ The user confirmed on 2026-11-24 that the Firestore rules are deployed (latest) 
 
 **Before the free pilot (agreed 2026-11-25)**
 1. Click through live as a visitor, candidate and company: guest test → sign-up → score, job-ad → post → link, job sim (People app, curveball), check-ins, Hide/Show tests, Open their desktop. Find the blank-menu bug on the way.
-2. Privacy policy, terms and candidate-data terms (UK GDPR).
+2. ~~Privacy policy, terms and candidate-data terms~~ drafted 2026-11-25 (src/data/legal.ts → /privacy/, /terms/, /candidate-data/; UK + Australia; linked in footers and sign-up). Left: fill LEGAL_DETAILS (legal name, address, company no., ICO number, privacy email), register with the ICO if not yet, lawyer review. Before the pilot fix the two mismatches: profiles (incl. integrity reports and hidden results) are publicly readable in Firestore, and 'Suspected cheating' auto-archive is a solely automated decision (UK GDPR Art. 22): make it flag-only or keep the human-review route.
 3. Remove the 5 sample candidates from the live site.
 4. Deploy the leads rule (30/90 check-ins): `firebase deploy --only firestore:rules --project vetter-7b06f`.
 5. Domain: keep Praxa on a prefix domain (e.g. getpraxa.com / praxa.work) or pick a new name; then set `SITE_URL` in Vercel, Search Console, sitemap.
