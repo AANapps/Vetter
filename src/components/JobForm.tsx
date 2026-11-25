@@ -15,6 +15,8 @@ interface JobFormProps {
   businesses: Business[];
   postedBy: NonNullable<JobPosting['postedBy']>;
   tests: AssessmentTest[];
+  // Whether a library test may be offered (what the Praxa team hid isn't); every test when left out
+  isListed?: (t: AssessmentTest) => boolean;
   onSave: (job: JobPosting) => void;
   onCancel: () => void;
   // Tests to start with, already ticked (e.g. from a test plan), by the version to use
@@ -44,6 +46,7 @@ export const JobForm: React.FC<JobFormProps> = ({
   businesses,
   postedBy,
   tests,
+  isListed = () => true,
   onSave,
   onCancel,
   initialTestIds = [],
@@ -72,7 +75,7 @@ export const JobForm: React.FC<JobFormProps> = ({
   const [pickedSector, setSector] = useState<SectorId | ''>(init?.sector ?? '');
   const sector = FOCUS_SECTOR || pickedSector || business?.sector || '';
   // Each Praxa test once, in the job's sector only; its level is chosen when it's ticked
-  const vetterTests = tests.filter((t) => isPublic(t) && isMainVersion(t) && t.businessId !== business?.id && inCompanySector(sector)(t));
+  const vetterTests = tests.filter((t) => isPublic(t) && isMainVersion(t) && t.businessId !== business?.id && inCompanySector(sector)(t) && isListed(t));
   // Every field the job board filters on is asked for here, so new jobs filter like the seeded ones
   const [location, setLocation] = useState(init?.location ?? (CITIES[business?.headquarters ?? ''] ? business!.headquarters : 'San Francisco, CA'));
   const [workType, setWorkType] = useState<JobPosting['workType']>(init?.workType ?? 'Remote');

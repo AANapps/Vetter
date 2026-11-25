@@ -2,6 +2,7 @@ import { isMainVersion } from '../lib/testLevels';
 import { Pic } from './Pic';
 import React from 'react';
 import { AssessmentTest, CandidateJobMatch, JobPosting, User, isPublic } from '../types';
+import { testHidden, useLibraryVisibility } from '../lib/libraryVisibility';
 import { getBestTestScore } from '../lib/matchingAlgorithm';
 import { fitKnown } from './JobDetails';
 import { SKILL_IDS } from '../data/seedCandidates';
@@ -20,10 +21,11 @@ const LIMIT = 3;
 // The right-hand column beside the profile: tests worth taking next and the jobs that fit best
 export const ProfileSidebar: React.FC<ProfileSidebarProps> = ({ candidate, tests, jobs, rankedJobs, onOpenTest, onOpenJob }) => {
   const activeJobs = jobs.filter((j) => j.status === 'active');
+  const visibility = useLibraryVisibility();
 
   // Untaken tests first (most in demand from open jobs), then their lowest scores, to improve
   const suggestedTests = tests
-    .filter((t) => isPublic(t) && isMainVersion(t))
+    .filter((t) => isPublic(t) && isMainVersion(t) && !testHidden(visibility, t))
     .map((test) => {
       const best = getBestTestScore(candidate, test.id);
       const jobsNeeding = activeJobs.filter((j) => j.requirements.some((r) => r.skillId === SKILL_IDS[test.category])).length;

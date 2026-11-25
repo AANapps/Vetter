@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Award, Check, Sparkles, GraduationCap, LayoutGrid, ListTodo, Lock, Mail, Plus, Search, SquareKanban, Trash2, UserPlus, X } from 'lucide-react';
 import { byUrgency, dueLabel, isOverdue, shortDate } from '../lib/work';
 import { Assignment, AssessmentTest, Business, TeamMember, User, isPublic, levelName } from '../types';
+import { testHidden, useLibraryVisibility } from '../lib/libraryVisibility';
 import { Pic } from './Pic';
 import { PageHeader } from './PageHeader';
 import { WorkBoard } from './WorkBoard';
@@ -643,15 +644,16 @@ export const AssignDialog: React.FC<{
   const [q, setQ] = useState('');
   const [due, setDue] = useState('');
   const [note, setNote] = useState('');
+  const visibility = useLibraryVisibility();
   const groups = useMemo(() => {
     const match = (t: AssessmentTest) => !q.trim() || `${t.title} ${t.category} ${t.skillsTested.join(' ')}`.toLowerCase().includes(q.trim().toLowerCase());
     const own = tests.filter((t) => t.businessId === business.id && match(t));
     return [
       { label: 'Your training', items: own.filter((t) => t.purpose === 'training') },
       { label: 'Your job simulations and tests', items: own.filter((t) => t.purpose !== 'training') },
-      { label: "Praxa's library", items: tests.filter((t) => isPublic(t) && t.businessId !== business.id && match(t)).slice(0, 30) },
+      { label: "Praxa's library", items: tests.filter((t) => isPublic(t) && t.businessId !== business.id && !testHidden(visibility, t) && match(t)).slice(0, 30) },
     ].filter((g) => g.items.length);
-  }, [tests, q, business.id]);
+  }, [tests, q, business.id, visibility]);
   const test = tests.find((t) => t.id === testId);
   const chosen = members.filter((m) => who.includes(m.id));
 

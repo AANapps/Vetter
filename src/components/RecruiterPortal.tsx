@@ -101,8 +101,10 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   const isSim = (t: AssessmentTest) => isHiringSim(t) || isJobSim(t);
   const companySims = ownTests.filter(isSim);
   const companyTests = ownTests.filter((t) => !isSim(t));
+  // A company doesn't see what the Praxa team has hidden from the library; the Praxa team sees everything
+  const visibility = useLibraryVisibility();
   // Praxa's own job simulations, which any company can send as they are
-  const praxaSims = tests.filter((t) => isJobSim(t) && isPublic(t) && isMainVersion(t) && !hiddenTests.includes(t.id));
+  const praxaSims = tests.filter((t) => isJobSim(t) && isPublic(t) && isMainVersion(t) && !hiddenTests.includes(t.id) && (isPraxa || !testHidden(visibility, t)));
   // For the Praxa team: every company's own tests, company by company, the busiest first
   const byCompany = isPraxa
     ? [
@@ -118,7 +120,6 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   // A company sees its own sector's tests only (picked at sign-up); the Praxa team sees every sector
   const sector = isPraxa ? undefined : companySector(business);
   // A company doesn't see what the Praxa team has hidden from the library; the Praxa team sees everything
-  const visibility = useLibraryVisibility();
   const vetterTests = tests.filter(
     (t) => isPublic(t) && isMainVersion(t) && (isPraxa ? t.type !== 'custom' : t.businessId !== business.id) && inCompanySector(sector)(t) && (isPraxa || !testHidden(visibility, t))
   );

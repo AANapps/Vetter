@@ -73,6 +73,7 @@ import { BusinessHome } from './components/BusinessHome';
 import { TeamPage } from './components/TeamPage';
 import { ProjectsPage } from './components/ProjectsPage';
 import { WORKSPACES_OPEN } from './lib/features';
+import { testHidden, useLibraryVisibility } from './lib/libraryVisibility';
 import { InviteToJobDialog } from './components/InviteToJobDialog';
 import { SendToStaffDialog } from './components/SendToStaffDialog';
 import { TrainingPage } from './components/TrainingPage';
@@ -1757,8 +1758,13 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
   const allCandidates = firebaseEnabled ? (isCandidateAccount ? [candidate, ...otherCandidates] : otherCandidates) : [candidate, ...otherCandidates];
   const testPageTest = testPageId ? tests.find((t) => t.id === testPageId) : undefined;
   const coursePage = COURSES.find((c) => c.id === coursePageId);
+  // What the Praxa team hid from the library (Admin panel > Library visibility) isn't listed to candidates, visitors or
+  // companies; a company still sees its own tests, and a hidden test still opens from a job or a direct link
+  const libraryVisibility = useLibraryVisibility();
+  const listed = (t: AssessmentTest) => activeRole === 'admin' || (!!recruiterBusiness && t.businessId === recruiterBusiness.id) || !testHidden(libraryVisibility, t);
+  const listedTests = tests.filter(listed);
   // What the candidate's browsing pages list, in the sector picked
-  const sectorTests = sector === 'all' ? tests : tests.filter(testInSector(sector));
+  const sectorTests = sector === 'all' ? listedTests : listedTests.filter(testInSector(sector));
   const sectorJobs = sector === 'all' ? jobs : jobs.filter(jobInSector(sector, tests));
   // A test page replaces the tab's own content
   const detailPage = testPageTest;
@@ -1936,7 +1942,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
         renderSearch={(mobile) => (
           <GlobalSearch
             people={allCandidates}
-            tests={tests}
+            tests={listedTests}
             // Companies are hidden for now, so search leaves them out
             businesses={[]}
             onOpenPerson={openPerson}
@@ -2358,7 +2364,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
               }
               onJobAd={(ad, text) => {
                 // Praxa's ready-made job simulation only where the plan has it; the skills tests on every plan
-                const ids = ad.testIds.filter((id) => tests.some((t) => t.id === id) && (planAccess.can('library-job-sims') || !isJobSim(tests.find((t) => t.id === id)!)));
+                const ids = ad.testIds.filter((id) => tests.some((t) => t.id === id && listed(t)) && (planAccess.can('library-job-sims') || !isJobSim(tests.find((t) => t.id === id)!)));
                 setPlanJobAd({ title: ad.title, description: text });
                 setJobForSend(true);
                 setPlanJobTests(ids);
@@ -2693,6 +2699,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
             editingTests.jobId ? j.id === editingTests.jobId : activeRole === 'admin' || j.businessId === recruiterBusiness?.id
           )}
           tests={tests}
+          isListed={listed}
           addTestIds={editingTests.addTestIds}
           onSave={(jobId, change) => {
             handleSaveJobTests(jobId, change);
@@ -2733,6 +2740,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
           businesses={recruiterBusiness && activeRole !== 'admin' ? [recruiterBusiness] : businesses}
           postedBy={activeRole === 'admin' ? 'vetter' : 'company'}
           tests={tests}
+          isListed={listed}
           initialJob={allJobs.find((j) => j.id === jobFormDraftId)}
           testDrafts={visibleDrafts.filter((d) => d.jobId === jobFormDraftId).map((d) => ({ id: d.id, title: d.test.title }))}
           onContinueTestDraft={(id) => {
@@ -2784,6 +2792,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
           businesses={[recruiterBusiness]}
           postedBy={activeRole === 'admin' ? 'vetter' : 'company'}
           tests={tests}
+          isListed={listed}
           initialVisibility="invite"
           initialTitle={inviteJobPerson.targetRole ?? ''}
           onSave={(job) => {
@@ -2801,6 +2810,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
           businesses={recruiterBusiness && activeRole !== 'admin' ? [recruiterBusiness] : businesses}
           postedBy={activeRole === 'admin' ? 'vetter' : 'company'}
           tests={tests}
+          isListed={listed}
           initialTestIds={planJobTests}
           initialTitle={planJobAd?.title ?? roleOfTest(tests.find((t) => t.id === planJobTests[0]))}
           initialDescription={planJobAd?.description}

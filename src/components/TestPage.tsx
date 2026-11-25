@@ -1,6 +1,7 @@
 import React from 'react';
 import { BackButton } from './BackButton';
-import { Globe, Link2, Pencil, Play, PlusCircle, Sparkles, UsersRound } from 'lucide-react';
+import { Eye, EyeOff, Globe, Link2, Pencil, Play, PlusCircle, Sparkles, UsersRound } from 'lucide-react';
+import { saveLibraryVisibility, testHidden, useLibraryVisibility } from '../lib/libraryVisibility';
 import { AssessmentTest, Business, JobPosting, TEST_DIFFICULTIES, User, UserRole, timerOf, isPublic, levelName } from '../types';
 import { RETAKE_DAYS, nextAttemptAt } from '../lib/results';
 import { getLeaderboard, getTestStats } from '../lib/leaderboard';
@@ -80,6 +81,11 @@ export const TestPage: React.FC<TestPageProps> = ({
   const yourEntry = leaderboard.find((e) => e.candidate.id === currentCandidateId);
   // A library test can be taken once every RETAKE_DAYS days
   const you = candidates.find((c) => c.id === currentCandidateId);
+  // The Praxa team can hide a library test from candidates and companies, or show it again (src/lib/libraryVisibility.ts)
+  const visibility = useLibraryVisibility();
+  const hiddenFromLibrary = testHidden(visibility, test);
+  // Hidden with its whole role or category, not on its own: that's changed in Admin panel > Library visibility
+  const hiddenByRole = hiddenFromLibrary && !visibility.hiddenTests.includes(test.familyId ?? test.id);
   const retakeFrom = !adminRun && viewerRole === 'candidate' && you && isPublic(test) ? nextAttemptAt(you, test.id) : null;
   const usedByJobs = jobs.filter((j) => j.testIds.includes(test.id) && j.status === 'active');
   // Candidates take company tests through the jobs they're attached to, or the company's own link
@@ -175,6 +181,32 @@ export const TestPage: React.FC<TestPageProps> = ({
             >
               <Sparkles className="w-3.5 h-3.5" />
               <span>Edit with AI</span>
+            </button>
+          )}
+
+          {viewerRole === 'admin' && isPublic(test) && (
+            <button
+              disabled={hiddenByRole}
+              onClick={() => {
+                const id = test.familyId ?? test.id;
+                const hiddenNow = visibility.hiddenTests.includes(id);
+                saveLibraryVisibility({ ...visibility, hiddenTests: hiddenNow ? visibility.hiddenTests.filter((x) => x !== id) : [...visibility.hiddenTests, id] }).catch(() =>
+                  alert("Couldn't save. Check the Firestore rules for settings/library are deployed.")
+                );
+              }}
+              title={
+                hiddenByRole
+                  ? 'Hidden with its role or category: show it in Admin panel > Library visibility'
+                  : hiddenFromLibrary
+                  ? 'Hidden from candidates and companies. Click to show it in the library again'
+                  : 'Shown to candidates and companies. Click to hide it from the library (it still opens from a job or a direct link)'
+              }
+              className={`px-4 py-2.5 text-xs font-semibold border rounded-lg transition-colors flex items-center gap-2 shrink-0 self-start disabled:opacity-60 ${
+                hiddenFromLibrary ? 'text-slate-600 bg-slate-100 border-slate-300 hover:bg-slate-200' : 'text-slate-700 bg-white border-slate-200 hover:border-slate-400'
+              }`}
+            >
+              {hiddenFromLibrary ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              <span>{hiddenByRole ? 'Hidden with its role' : hiddenFromLibrary ? 'Hidden: show' : 'Hide from library'}</span>
             </button>
           )}
 

@@ -1,6 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { collection, getDocs } from 'firebase/firestore';
+import { db, firebaseEnabled } from '../lib/firebase';
 import { Eye, EyeOff, Search } from 'lucide-react';
-import { AssessmentTest, TestRole, levelName } from '../types';
+import { AssessmentTest, TestRole, isPublic, levelName } from '../types';
 import { ROLE_GROUPS } from '../lib/testRoles';
 import { isMainVersion } from '../lib/testLevels';
 import { LibraryVisibility, roleHidden, saveLibraryVisibility, testHidden, useLibraryVisibility } from '../lib/libraryVisibility';
@@ -38,8 +40,22 @@ export const LibraryVisibilityAdmin: React.FC = () => {
   const [industry, setIndustry] = useState('');
   const [onlyHidden, setOnlyHidden] = useState(false);
 
-  // Praxa's own library tests, one row per test (its levels go with it)
-  const library = useMemo(() => STANDARD_ASSESSMENTS.filter((t) => isMainVersion(t) && t.type !== 'custom'), []);
+  // Every library test, one row per test (its levels go with it): Praxa's built-in ones (with the team's edits), tests
+  // the team made in the app, and companies' tests approved for the library
+  const [saved, setSaved] = useState<AssessmentTest[]>([]);
+  useEffect(() => {
+    if (!firebaseEnabled) return;
+    getDocs(collection(db(), 'tests'))
+      .then((snap) => setSaved(snap.docs.map((d) => ({ ...(d.data() as AssessmentTest), id: d.id }))))
+      .catch(() => setSaved([]));
+  }, []);
+  const library = useMemo(
+    () =>
+      [...STANDARD_ASSESSMENTS.map((t) => saved.find((c) => c.id === t.id) ?? t), ...saved.filter((c) => !STANDARD_ASSESSMENTS.some((t) => t.id === c.id))].filter(
+        (t) => isMainVersion(t) && isPublic(t)
+      ),
+    [saved]
+  );
   const update = async (next: LibraryVisibility) => {
     setBusy(true);
     setError(null);

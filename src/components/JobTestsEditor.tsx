@@ -8,6 +8,8 @@ interface JobTestsEditorProps {
   // The jobs the tests can be for: just one when opened from a job, or all of them when sending a test from its page
   jobs: JobPosting[];
   tests: AssessmentTest[];
+  // Whether a library test may be offered (what the Praxa team hid isn't); every test when left out
+  isListed?: (t: AssessmentTest) => boolean;
   // Tests to add, e.g. when sending one from its page
   addTestIds?: string[];
   onSave: (jobId: string, change: Pick<JobPosting, 'testIds' | 'testsRequired' | 'maxAttempts' | 'aiInSimulations'>) => void;
@@ -23,7 +25,7 @@ const STEPS = ['Pick tests', 'Details'] as const;
 const attemptsFor = (job: JobPosting | undefined) => job?.maxAttempts ?? (job?.testIds.length ? 0 : 2);
 
 // Choosing a job's tests is two steps: pick them, then set whether they're needed to apply
-export const JobTestsEditor: React.FC<JobTestsEditorProps> = ({ jobs, tests: allTests, addTestIds = [], onSave, onCancel }) => {
+export const JobTestsEditor: React.FC<JobTestsEditorProps> = ({ jobs, tests: allTests, isListed = () => true, addTestIds = [], onSave, onCancel }) => {
   // Training is for a company's team, never a job's candidates
   const tests = allTests.filter((t) => t.purpose !== 'training');
   const [step, setStep] = useState(0);
@@ -52,7 +54,7 @@ export const JobTestsEditor: React.FC<JobTestsEditorProps> = ({ jobs, tests: all
 
   const tq = testQuery.trim().toLowerCase();
   const matching = tests
-    .filter((t) => isMainVersion(t) && (isPublic(t) || t.businessId === job?.businessId))
+    .filter((t) => isMainVersion(t) && ((isPublic(t) && isListed(t)) || t.businessId === job?.businessId))
     .filter((t) => !tq || `${t.title} ${t.category} ${t.companyName ?? ''} ${t.skillsTested.join(' ')}`.toLowerCase().includes(tq));
   // The company's own tests first, the newest at the top, then Praxa's
   const own = newestFirst(matching.filter((t) => t.type === 'custom' && t.businessId === job?.businessId && t.purpose !== 'training'));
