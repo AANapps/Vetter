@@ -51,8 +51,8 @@ const DESKTOP: Omit<DesktopConfig, 'phases'> = {
   apps: ['mail', 'deskly', 'browser', 'files', 'ai'],
   customApps: [{ id: 'deskly', label: 'Deskly', html: DESKLY }],
   contacts: [
-    { name: 'Jo Bennett', role: 'Team Lead, Customer Care', email: JO },
-    { name: 'Kit Adeyemi', role: 'Tier 2 Technical', email: KIT },
+    { name: 'Jo Bennett', role: 'Team Lead, Customer Care', email: JO, helpsWith: 'approvals: refunds above your limit, escalations' },
+    { name: 'Kit Adeyemi', role: 'Tier 2 Technical', email: KIT, helpsWith: 'bugs, checkout and promo code faults' },
     { name: 'Ellie Ward', role: 'Bloom Club Lead', email: ELLIE },
     { name: 'Wholesale team', role: 'Sales', email: `wholesale@${DOMAIN}` },
     { name: 'Trust & Safety', role: 'Account security', email: `trust@${DOMAIN}` },

@@ -25,7 +25,7 @@ import {
   Play,
 } from 'lucide-react';
 import { CaseFile, Question } from '../types';
-import { DeskApp, DeskBlock, DeskEmail, DeskPhase, DesktopConfig, DesktopState, SentEmail, filesOf, inboxOf, landingIn, parseDesktop, repliesFor, desktopApps, hasApp } from '../lib/desktop';
+import { DeskApp, DeskBlock, DeskEmail, DeskPhase, DesktopConfig, DesktopState, SentEmail, filesOf, inboxOf, landingIn, parseDesktop, repliesFor, desktopApps, hasApp, hasDirectory } from '../lib/desktop';
 import { parseAddress } from '../lib/emailTasks';
 import { parseCsv } from '../lib/csv';
 import { SpreadsheetWindow } from './SpreadsheetWindow';
@@ -34,7 +34,8 @@ import { AiPanel } from './Workspace';
 import { AppWindow } from './AppWindow';
 import { CodeField } from './CodeField';
 import { DeskProject, TestRun, runDeskTests } from '../lib/deskCode';
-import { BarChart3, BookOpen, CalendarDays, ClipboardList, FileType2, Headphones, KanbanSquare, MessagesSquare, Users } from 'lucide-react';
+import { BarChart3, BookOpen, CalendarDays, ClipboardList, Contact, FileType2, Headphones, KanbanSquare, MessagesSquare, Users } from 'lucide-react';
+import { PeopleApp } from './desk/PeopleApp';
 import { DeskCtx } from './desk/shared';
 import { FilesApp, Folder } from './desk/FilesApp';
 import { ChatApp } from './desk/ChatApp';
@@ -74,6 +75,7 @@ const APPS: Record<DeskApp, { label: string; Icon: React.ComponentType<{ classNa
   calendar: { label: 'Calendar', Icon: CalendarDays, tint: 'bg-sky-700' },
   kb: { label: 'Knowledge base', Icon: BookOpen, tint: 'bg-teal-700' },
   board: { label: 'Projects', Icon: KanbanSquare, tint: 'bg-rose-500' },
+  people: { label: 'People', Icon: Contact, tint: 'bg-cyan-700' },
 };
 
 const REPLY_DELAY_MS = 2500;
@@ -102,7 +104,7 @@ export const Desktop: React.FC<{ question: Question; answer: string; onChange: (
   readOnly,
 }) => {
   // The basic apps are always there; the AI assistant only where the desktop has it
-  const cfg = useMemo(() => ({ ...q.desktop!, apps: desktopApps(q.desktop!.apps, q.desktop!.apps.includes('ai')) }), [q.desktop]);
+  const cfg = useMemo(() => ({ ...q.desktop!, apps: desktopApps(q.desktop!.apps, q.desktop!.apps.includes('ai'), hasDirectory(q.desktop!)) }), [q.desktop]);
   const appInfo = (c: DesktopConfig, app: string) => (slot && app === slot.id ? { ...(APPS[slot.look ?? 'code'] ?? APPS.code), label: slot.label } : baseAppInfo(c, app));
   const state = useMemo(() => parseDesktop(answer, cfg), [answer, cfg]);
   // The latest state, for replies that arrive after the candidate has done more
@@ -231,6 +233,8 @@ export const Desktop: React.FC<{ question: Question; answer: string; onChange: (
     return label;
   };
 
+  // A new email to someone picked in People (n: each pick opens a fresh draft)
+  const [composeTo, setComposeTo] = useState<{ to: string; n: number } | null>(null);
   // Sending: the email is kept, and whoever it earns a reply from writes back a moment later
   const sendEmail = (m: Omit<SentEmail, 'at'>) => {
     const sent: SentEmail = { ...m, at: latest.current.sent.length + 1 };
@@ -242,7 +246,8 @@ export const Desktop: React.FC<{ question: Question; answer: string; onChange: (
         save({ received: [...latest.current.received, ...coming.filter((c) => !latest.current.received.includes(c))] });
         const first = coming[0].split('#')[0];
         const rule = cfg.replies?.find((r) => r.id === first);
-        setToast(`New email from ${parseAddress((coming[0].includes('#') ? rule?.otherwise?.from : rule?.reply.from) ?? '').name || 'a colleague'}`);
+        const acked = first.startsWith('ack:') ? cfg.contacts.find((c) => parseAddress(c.email).email.toLowerCase() === first.split(':')[1])?.name : undefined;
+        setToast(`New email from ${acked ?? (parseAddress((coming[0].includes('#') ? rule?.otherwise?.from : rule?.reply.from) ?? '').name || 'a colleague')}`);
       }, REPLY_DELAY_MS);
   };
 
@@ -307,7 +312,28 @@ export const Desktop: React.FC<{ question: Question; answer: string; onChange: (
       );
     switch (app) {
       case 'mail':
-        return <MailApp cfg={cfg} state={state} inbox={inbox} files={files} onRead={(id) => !state.read.includes(id) && save({ read: [...state.read, id] })} onSend={sendEmail} onOpenFile={(name) => (setFocusFile(name), launch('files'))} />;
+        return (
+          <MailApp
+            cfg={cfg}
+            state={state}
+            inbox={inbox}
+            files={files}
+            composeTo={composeTo}
+            onComposed={() => setComposeTo(null)}
+            onRead={(id) => !state.read.includes(id) && save({ read: [...state.read, id] })}
+            onSend={sendEmail}
+            onOpenFile={(name) => (setFocusFile(name), launch('files'))}
+          />
+        );
+      case 'people':
+        return (
+          <PeopleApp
+            cfg={cfg}
+            inbox={inbox}
+            onEmail={(email) => (setComposeTo((c) => ({ to: email, n: (c?.n ?? 0) + 1 })), launch('mail'))}
+            onOpenFile={(name) => (setFocusFile(name), launch('files'))}
+          />
+        );
       case 'browser':
         return (
           <BrowserApp
@@ -701,10 +727,18 @@ const MailApp: React.FC<{
   onRead: (id: string) => void;
   onSend: (m: Omit<SentEmail, 'at'>) => void;
   onOpenFile: (name: string) => void;
-}> = ({ cfg, state, inbox, files, onRead, onSend, onOpenFile }) => {
+  // Someone picked in People: a new email to them, opened once
+  composeTo?: { to: string; n: number } | null;
+  onComposed?: () => void;
+}> = ({ cfg, state, inbox, files, onRead, onSend, onOpenFile, composeTo, onComposed }) => {
   const [folder, setFolder] = useState<'inbox' | 'sent'>('inbox');
   const [openId, setOpenId] = useState<string | null>(null);
   const [draft, setDraft] = useState<{ to: string; cc: string; subject: string; body: string; attachments: string[] } | null>(null);
+  useEffect(() => {
+    if (!composeTo) return;
+    setDraft({ to: composeTo.to, cc: '', subject: '', body: '', attachments: [] });
+    onComposed?.();
+  }, [composeTo?.n]);
   const newest = [...inbox].reverse();
   const current = inbox.find((m) => m.id === openId);
   const sentList = [...state.sent].reverse();

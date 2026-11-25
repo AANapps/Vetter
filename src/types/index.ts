@@ -259,6 +259,8 @@ export interface EmailContact {
   name: string;
   role: string;
   email: string;
+  // On a simulation desktop's People directory: what to ask them for ("refunds over £50, courier claims")
+  helpsWith?: string;
 }
 
 // One email in a thread the candidate reads

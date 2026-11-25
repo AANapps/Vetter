@@ -1,3 +1,4 @@
+import { parseAddress } from './emailTasks';
 import { CaseFile, DataTable, EmailContact, Question } from '../types';
 import { checkSheet, parseWorkbook } from './spreadsheet';
 import { matchesExpected, parseAppState, readPath } from './appSimulation';
@@ -91,7 +92,7 @@ export interface DeskPage {
   blocks: DeskBlock[];
 }
 
-export type DeskApp = 'mail' | 'browser' | 'files' | 'sheet' | 'sql' | 'ai' | 'code' | DeskWorkApp;
+export type DeskApp = 'mail' | 'browser' | 'files' | 'sheet' | 'sql' | 'ai' | 'code' | 'people' | DeskWorkApp;
 
 // Every desktop has the basic apps (Mail and Files, and the AI assistant where the test allows it); beyond them, the
 // taskbar shows only the apps that test uses
@@ -99,10 +100,12 @@ export const BASIC_DESK_APPS: DeskApp[] = ['mail', 'files', 'ai'];
 // Whether the desktop has an app, on the taskbar or only in the Start menu
 export const hasApp = (cfg: { apps: (DeskApp | string)[]; more?: (DeskApp | string)[] }, app: string) => cfg.apps.includes(app) || !!cfg.more?.includes(app);
 
-export function desktopApps(apps: (DeskApp | string)[], ai: boolean): (DeskApp | string)[] {
-  const work = [...new Set(apps.filter((a) => !(BASIC_DESK_APPS as string[]).includes(a)))];
-  return ['mail', ...work, 'files', ...(ai ? ['ai'] : [])];
+export function desktopApps(apps: (DeskApp | string)[], ai: boolean, people = false): (DeskApp | string)[] {
+  const work = [...new Set(apps.filter((a) => !(BASIC_DESK_APPS as string[]).includes(a) && a !== 'people'))];
+  return ['mail', ...(people ? ['people'] : []), ...work, 'files', ...(ai ? ['ai'] : [])];
 }
+// The staff directory comes with any desktop that has colleagues to contact (two or more besides the candidate)
+export const hasDirectory = (cfg: Pick<DesktopConfig, 'contacts' | 'user'>) => cfg.contacts.filter((c) => c.email.toLowerCase() !== cfg.user.email.toLowerCase()).length >= 2;
 
 // A job's own software on the desktop (a help desk, a CRM, a till): a hand-built app page that saves its state with
 // praxa.save, kept in the desktop's state under its id and checked with app:<id>:<path>
@@ -223,6 +226,7 @@ export function inboxOf(cfg: DesktopConfig, state: DesktopState): (DeskEmail & {
         const m = cfg.inbox.find((x) => x.id === key.slice(1));
         return m && arrived(cfg, state, m) ? m : null;
       }
+      if (key.startsWith('ack:')) return ackEmail(cfg, state, key);
       const [ruleId, kind] = key.split('#');
       const rule = cfg.replies?.find((r) => r.id === ruleId);
       if (!rule) return null;
@@ -249,15 +253,42 @@ export const landingIn = (cfg: DesktopConfig, phase: number): DeskEmail[] => {
   return id ? cfg.inbox.filter((m) => m.phase === id) : [];
 };
 
-// The replies a newly sent email brings: the person's answer, or their "I need more" once
+// The replies a newly sent email brings: the person's answer, or their "I need more" once. A colleague with nothing
+// scripted for this email still writes back once, a short acknowledgement (ack:<email>:<sent number>), so the
+// directory's people answer like real ones without giving anything away
 export function repliesFor(cfg: DesktopConfig, state: DesktopState, m: SentEmail): string[] {
   const out: string[] = [];
+  const answered = new Set<string>();
   for (const rule of cfg.replies ?? []) {
+    if (recipients(m).includes(lower(rule.to))) answered.add(lower(rule.to));
     if (state.received.includes(rule.id)) continue;
     if (earnsReply(rule, m)) out.push(rule.id);
     else if (rule.otherwise && recipients(m).includes(lower(rule.to)) && !state.received.includes(`${rule.id}#otherwise`)) out.push(`${rule.id}#otherwise`);
   }
+  const acked = new Set(state.received.filter((k) => k.startsWith('ack:')).map((k) => k.split(':')[1]));
+  for (const to of m.to.map((a) => lower(parseAddress(a).email))) {
+    const known = cfg.contacts.some((c) => lower(parseAddress(c.email).email) === to);
+    if (known && !answered.has(to) && !acked.has(to) && to !== lower(cfg.user.email)) out.push(`ack:${to}:${m.at}`);
+  }
   return out;
+}
+
+// A colleague's acknowledgement of an email nothing in the day is scripted for
+function ackEmail(cfg: DesktopConfig, state: DesktopState, key: string): (DeskEmail & { reply?: boolean }) | null {
+  const [, to, at] = key.split(':');
+  const contact = cfg.contacts.find((c) => lower(parseAddress(c.email).email) === to);
+  const sent = state.sent.find((x) => String(x.at) === at);
+  if (!contact) return null;
+  const me = cfg.user.name.split(' ')[0];
+  return {
+    id: key,
+    from: `${contact.name} <${parseAddress(contact.email).email}>`,
+    to: [cfg.user.email],
+    date: 'Just now',
+    subject: sent ? (/^re:/i.test(sent.subject) ? sent.subject : `Re: ${sent.subject || '(no subject)'}`) : 'Re: your email',
+    body: `Hi ${me},\n\nThanks, got this. I'm tied up for the rest of the day, so go with your best judgement and note any assumptions in what you send back.\n\n${contact.name.split(' ')[0]}`,
+    reply: true,
+  };
 }
 
 // Every file on the computer: the candidate's own (saved, exported, edited), handed over at the start, attached to
