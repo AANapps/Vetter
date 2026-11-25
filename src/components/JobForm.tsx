@@ -23,6 +23,8 @@ interface JobFormProps {
   initialVisibility?: 'public' | 'invite';
   // The job's title to start with, e.g. the role a test was made for
   initialTitle?: string;
+  // The job ad pasted on the company home: its description, with the tests already picked from it (no AI suggestion)
+  initialDescription?: string;
   // A draft of this job to carry on with: every field filled in as it was left, and posting it publishes that draft
   initialJob?: JobPosting;
   // Keeping it as a draft to finish later
@@ -46,6 +48,7 @@ export const JobForm: React.FC<JobFormProps> = ({
   onCancel,
   initialTestIds = [],
   initialTitle = '',
+  initialDescription,
   initialVisibility = 'public',
   initialJob,
   onSaveDraft,
@@ -77,7 +80,7 @@ export const JobForm: React.FC<JobFormProps> = ({
   const [salaryMax, setSalaryMax] = useState(initSalary?.max ?? 210000);
   const [employmentType, setEmploymentType] = useState<NonNullable<JobPosting['employmentType']>>(init?.employmentType ?? 'Full-time');
   const [experience, setExperience] = useState(init?.experienceLevel ?? EXPERIENCE_LEVELS[2]);
-  const [description, setDescription] = useState(init?.description ?? '');
+  const [description, setDescription] = useState(init?.description ?? initialDescription ?? '');
   // The tests candidates are ranked on, by main version: the level picked and its importance
   type Pick = { testId: string; importance: 'required' | 'preferred' };
   // Keyed by the test's main version, as the list below is
@@ -114,7 +117,7 @@ export const JobForm: React.FC<JobFormProps> = ({
   // Asked once per title and description, so posting again after answering doesn't ask again
   const [suggested, setSuggested] = useState<Suggestion[] | null>(null);
   const [include, setInclude] = useState<string[]>([]);
-  const [askedFor, setAskedFor] = useState('');
+  const [askedFor, setAskedFor] = useState(initialDescription ? `${initialTitle.trim()}\n${initialDescription.trim()}` : '');
   const [asking, setAsking] = useState(false);
   const [requireTest, setRequireTest] = useState<boolean>(init?.testsRequired ?? true);
 

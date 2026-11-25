@@ -1,3 +1,4 @@
+import { JobAdReading, readJobAd } from '../lib/jobAdClassifier';
 import { useCurrency } from '../lib/currency';
 import { TRAINING, asksForTraining, searchTraining } from '../data/trainingCatalogue';
 import React, { useEffect, useRef, useState } from 'react';
@@ -40,6 +41,8 @@ interface BusinessHomeProps {
   onEditWithAI: (testId: string) => void;
   // Sends a saved test to candidates: through the job it's on, or a new job made for it
   onSendTest: (testId: string) => void;
+  // A pasted job ad for a launch role (src/lib/jobAdClassifier.ts): the job opens with Praxa's ready tests, to post
+  onJobAd?: (ad: JobAdReading, text: string) => void;
   // Saves a hand edit made in the preview
   onUpdateTest: (test: AssessmentTest) => void;
   // Something to start the chat with, from elsewhere in the app (e.g. "make a test for this job"), and the job the test
@@ -125,6 +128,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
   onBuildPlan,
   onEditWithAI,
   onSendTest,
+  onJobAd,
   onUpdateTest,
   seed,
   onSeedUsed,
@@ -235,6 +239,11 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
       runPlan(t, build.kind, build.chat, build.plan);
       return;
     }
+    // A pasted job ad for a launch role: straight to the job with Praxa's ready tests (no AI, no wait), then the link
+    if (onJobAd && !turns.length && t.length >= 250) {
+      const reading = readJobAd(t);
+      if (reading.role) return onJobAd(reading, t);
+    }
     // Asking for training (not to build it): Praxa's live, tutor-led catalogue answers straight away, without AI
     const found = asksForTraining(t) && !/\b(create|build|make|write|generate|design)\b/i.test(t) ? searchTraining(t, 4) : [];
     if (found.length) {
@@ -313,7 +322,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
               <div className="space-y-2">
                 <BrandWordmark size="lg" className="mx-auto w-fit" />
                 <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">What do you want to do?</h1>
-                <p className="text-sm text-slate-500 max-w-md mx-auto">Pick one to start, or just type below: describe the role or paste a job description.</p>
+                <p className="text-sm text-slate-500 max-w-md mx-auto">Paste your job ad below and Praxa sets up the tests and a link to send. Or pick one to start.</p>
               </div>
               {/* The three starters, side by side */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-3xl mx-auto text-left">

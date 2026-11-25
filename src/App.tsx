@@ -543,6 +543,8 @@ export default function App() {
   const [shareJobId, setShareJobId] = useState<string | null>(null);
   // The job form opened to send a test (not from a test plan, which posting then closes)
   const [jobForSend, setJobForSend] = useState(false);
+  // A job ad pasted on the company home: the job form opens with its title, text and Praxa's ready tests
+  const [planJobAd, setPlanJobAd] = useState<{ title: string; description: string } | null>(null);
   const planToBuilder = useRef(false);
   const markPlanBuilt = (testId: string) => {
     if (planBuilding === null) return;
@@ -2340,6 +2342,14 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
               onEditWithAI={(testId) => enhanceTest(testId)}
               onCreateTraining={(brief) => (aiAllowed ? setTrainingBuild({ brief }) : setPlansOpen(true))}
               onSendTest={sendTest}
+              onJobAd={(ad, text) => {
+                // Praxa's ready-made job simulation only where the plan has it; the skills tests on every plan
+                const ids = ad.testIds.filter((id) => tests.some((t) => t.id === id) && (planAccess.can('library-job-sims') || !isJobSim(tests.find((t) => t.id === id)!)));
+                setPlanJobAd({ title: ad.title, description: text });
+                setJobForSend(true);
+                setPlanJobTests(ids);
+                showToast(`This looks like a ${ad.role === 'Customer Support Agent' ? 'Customer Support' : ad.role} job. Praxa picked ${ids.length} ready tests from your ad: check them and post.`, 6000);
+              }}
               onUpdateTest={(test) => {
                 // A change keeps the saved test's place: its id, owner, level family and kind
                 const before = tests.find((t) => t.id === test.id);
@@ -2778,7 +2788,8 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
           postedBy={activeRole === 'admin' ? 'vetter' : 'company'}
           tests={tests}
           initialTestIds={planJobTests}
-          initialTitle={roleOfTest(tests.find((t) => t.id === planJobTests[0]))}
+          initialTitle={planJobAd?.title ?? roleOfTest(tests.find((t) => t.id === planJobTests[0]))}
+          initialDescription={planJobAd?.description}
           onSave={(job) => {
             handleCreateJob(job);
             setShareJobId(job.id);
@@ -2788,10 +2799,11 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
               setPlanOpen(false);
             }
             setJobForSend(false);
+            setPlanJobAd(null);
             showToast(`"${job.title}" is posted with ${job.testIds.length} ${job.testIds.length === 1 ? 'test' : 'tests'}. Now send it to candidates.`);
             openBusinessJob(job.id);
           }}
-          onCancel={() => (setPlanJobTests(null), setJobForSend(false))}
+          onCancel={() => (setPlanJobTests(null), setJobForSend(false), setPlanJobAd(null))}
         />
       )}
 
