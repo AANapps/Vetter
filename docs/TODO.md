@@ -11,6 +11,18 @@ The user confirmed on 2026-11-24 that the Firestore rules are deployed (latest) 
 - Scale plan "Your branding on tests": the hiring company's name and logo on the test start screen and header for its job's candidates (no brand colour: that would need a new field in the companies rule).
 - SEO/AI pages: resources articles, test library pages, pricing, About, llms.txt, llms-full.txt, robots.txt, sitemap (seoPages.ts, src/data/articles.ts).
 
+**Done 2026-11-25 (pre-launch checklist)**
+- Candidates: pick a role on the visitor home (Data Analyst, Customer Support) and start straight away; any library test can be taken signed out (not ones with the AI assistant or server code runner); the score shows after sign-up and goes on the new profile (src/lib/guestResult.ts).
+- Companies: paste a job ad on the home chat; Data Analyst and Customer Support ads open the job with Praxa's ready tests (no AI), Post, then the link (src/lib/jobAdClassifier.ts). Sales and Customer Success are recognised but go to the chat until they have tests.
+- Outcome tracking: 30/90-day check-ins on the company home after a Hired move (Lead.checkIns, src/lib/outcomes.ts); Praxa admin home shows fit of good vs poor hires. **Deploy the leads rule** (checkIns added).
+- Work-based interview questions in a candidate's answers (src/lib/interviewQuestions.ts).
+- People directory app on sim desktops; colleagues acknowledge unscripted emails within seconds (ack: replies).
+- Curveball library for AI job sims (server/curveballs.ts).
+- Builder and plan dialog now open above previews.
+
+**Left off the checklist on purpose (until 5–10 customers):** API/MCP connector, public pool changes, people CRM (beyond the 30/90 check-ins), per-employee pricing for training/CRM (both hidden in beta), new roles. Blueprint-first rewrite of AI generation: not done; the "text too large" error was already fixed (two-step world/script + grammar fallback), sheet answers are computed by code, and launch roles use ready library sims, so AI generation isn't on the launch path.
+- Not clicked through live yet: guest test → sign-up → score, job-ad flow, check-ins, People app.
+
 **To do before selling**
 - Payments: finish the live test (cancel on `checkout-test-1`), decide VAT (Stripe Tax), then switch Stripe to `sk_live_`.
 - Enforce plan limits (jobs, candidates per job, seats) on the server, not only in the browser.
