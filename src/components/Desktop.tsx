@@ -31,6 +31,7 @@ import { parseCsv } from '../lib/csv';
 import { SpreadsheetWindow } from './SpreadsheetWindow';
 import { DatabaseWindow } from './DatabaseWindow';
 import { AiPanel } from './Workspace';
+import { ChatMessages } from './AiChat';
 import { AppWindow } from './AppWindow';
 import { CodeField } from './CodeField';
 import { DeskProject, TestRun, runDeskTests } from '../lib/deskCode';
@@ -394,17 +395,10 @@ export const Desktop: React.FC<{ question: Question; answer: string; onChange: (
         // Read only: their conversation with the assistant, without asking it anything new
         if (readOnly)
           return (
-            <div className="h-full overflow-y-auto p-4 space-y-2 bg-white text-sm select-text">
-              {state.ai.length ? (
-                state.ai.map((t, i) => (
-                  <div key={i} className={`rounded-lg px-3 py-2 whitespace-pre-wrap ${t.role === 'user' ? 'bg-indigo-50 text-indigo-950 ml-8' : 'bg-slate-100 text-slate-800 mr-8'}`}>
-                    <div className="text-[10px] font-bold uppercase tracking-wider opacity-60">{t.role === 'user' ? 'Candidate' : 'Assistant'}</div>
-                    {t.text}
-                  </div>
-                ))
-              ) : (
-                <p className="text-slate-500">They didn&rsquo;t use the AI assistant.</p>
-              )}
+            <div className="h-full overflow-y-auto px-4 sm:px-6 py-6 bg-white select-text">
+              <div className="max-w-3xl mx-auto">
+                {state.ai.length ? <ChatMessages chat={state.ai} readOnly /> : <p className="text-sm text-slate-500">They didn&rsquo;t use the AI assistant.</p>}
+              </div>
             </div>
           );
         return <AiPanel task={`${cfg.user.role} at ${cfg.company}. ${q.prompt}`.slice(0, 4000)} company={company ?? cfg.company} chat={state.ai} onChat={(ai) => save({ ai })} />;

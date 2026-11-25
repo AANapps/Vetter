@@ -1,5 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { ArrowUp, ClipboardCopy, FileText, Loader2, Sparkles } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { ClipboardCopy, FileText, Sparkles } from 'lucide-react';
+import { ChatMessages, Composer, plainText, useStickToBottom } from './AiChat';
 import { Question } from '../types';
 import { ASSISTANT_PROMPTS, AssistantTurn, assistantAnswer } from '../lib/questionTypes';
 import { signedInHeaders } from '../lib/aiRequest';
@@ -17,8 +18,9 @@ export const AssistantTask: React.FC<{ question: Question; answer: string; onCha
   const [showMaterial, setShowMaterial] = useState(true);
   const used = current.chat.filter((t) => t.role === 'user').length;
   const left = Math.max(0, ASSISTANT_PROMPTS - used);
-  const end = useRef<HTMLDivElement>(null);
-  useEffect(() => end.current?.scrollIntoView({ block: 'nearest' }), [current.chat.length, busy]);
+  // Replies that arrive while it's open appear word by word
+  const animateFrom = useRef(current.chat.length);
+  const { box, toBottom } = useStickToBottom([current.chat.length, busy]);
 
   const save = (change: Partial<typeof current>) => onChange(JSON.stringify({ ...latest.current, ...change }));
   const send = async () => {
@@ -75,64 +77,37 @@ export const AssistantTask: React.FC<{ question: Question; answer: string; onCha
       )}
 
       {/* The conversation */}
-      <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-        <div className="flex items-center gap-2 px-4 py-2.5 border-b border-slate-200 bg-slate-50">
+      <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+        <div className="flex items-center gap-2 px-4 py-2.5 border-b border-slate-100">
           <Sparkles className="w-4 h-4 text-violet-600" />
-          <span className="text-sm font-semibold text-slate-800">AI assistant</span>
+          <span className="text-sm font-semibold text-slate-800">Assistant</span>
           <span className={`ml-auto text-[11px] ${left <= 3 ? 'text-amber-700 font-semibold' : 'text-slate-500'}`}>
             {left} of {ASSISTANT_PROMPTS} messages left
           </span>
         </div>
-        <div className="max-h-[28rem] min-h-[10rem] overflow-y-auto p-4 space-y-3" aria-live="polite">
-          {current.chat.length === 0 && !busy && (
-            <p className="text-sm text-slate-500">
-              Ask the assistant to help with the task, as you would at work. It only knows what&rsquo;s in the material and what you tell it, and it can be wrong.
-            </p>
-          )}
-          {current.chat.map((t, i) => (
-            <div key={i} className={`flex ${t.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div
-                className={`max-w-[85%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
-                  t.role === 'user' ? 'bg-indigo-600 text-white rounded-br-md' : 'bg-slate-100 text-slate-900 rounded-bl-md'
-                }`}
-              >
-                {t.text}
-              </div>
+        <div ref={box} className="max-h-[32rem] min-h-[12rem] overflow-y-auto px-4 sm:px-6 py-5" aria-live="polite">
+          {current.chat.length === 0 && !busy ? (
+            <div className="py-6 text-center">
+              <p className="text-xl font-semibold tracking-tight text-slate-800">How can I help with this task?</p>
+              <p className="mt-2 text-sm text-slate-500">
+                Ask as you would at work. It only knows what&rsquo;s in the material and what you tell it, and it can be wrong.
+              </p>
             </div>
-          ))}
-          {busy && (
-            <div className="flex items-center gap-2 text-sm text-slate-500">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Thinking…
-            </div>
+          ) : (
+            <ChatMessages chat={current.chat} busy={busy} animateFrom={animateFrom.current} onStep={toBottom} />
           )}
-          <div ref={end} />
         </div>
         {error && <p className="px-4 pb-2 text-xs text-rose-700">{error}</p>}
-        <div className="border-t border-slate-200 p-2 flex items-end gap-2">
-          <textarea
+        <div className="px-3 pb-3">
+          <Composer
             value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                send();
-              }
-            }}
-            rows={2}
+            onChange={setText}
+            onSend={send}
+            busy={busy}
             disabled={left === 0}
-            aria-label="Message the assistant"
-            placeholder={left === 0 ? "You've used every message for this task" : 'Message the assistant (Enter to send, Shift+Enter for a new line)'}
-            className="flex-1 min-w-0 px-3 py-2 text-sm leading-relaxed outline-none resize-none bg-transparent disabled:opacity-60"
+            placeholder={left === 0 ? "You've used every message for this task" : 'Ask anything (Shift+Enter for a new line)'}
           />
-          <button
-            onClick={send}
-            disabled={busy || !text.trim() || left === 0}
-            aria-label="Send"
-            className="w-9 h-9 shrink-0 rounded-full bg-indigo-600 text-white flex items-center justify-center hover:bg-indigo-700 disabled:opacity-40"
-          >
-            <ArrowUp className="w-4 h-4" />
-          </button>
+          <p className="mt-1.5 text-center text-[11px] text-slate-400">The assistant can make mistakes, so check its work.</p>
         </div>
       </div>
 
@@ -143,7 +118,7 @@ export const AssistantTask: React.FC<{ question: Question; answer: string; onCha
             Your final work
           </label>
           {lastReply && (
-            <button onClick={() => save({ final: lastReply })} className="text-xs font-medium text-slate-600 hover:text-indigo-700">
+            <button onClick={() => save({ final: plainText(lastReply) })} className="text-xs font-medium text-slate-600 hover:text-indigo-700">
               Start from the assistant&rsquo;s last reply
             </button>
           )}

@@ -103,6 +103,9 @@ Keep the current test structure for now. Come back to this as AI use at work gro
 - Telemetry (what they opened, checked, asked the AI, in order) as Praxa's own data; needs server marking first.
 - Senior-first: fewer question sets, longer sims.
 
+## Later: AI-skills tests (idea 2026-11-25, not started)
+Tests where candidates show they can build with AI: automations (Zapier/n8n-style flows), calling and building APIs, setting up an MCP server/tools, writing AI functions (prompts, tool definitions, structured output, evals). Fits the parked "tests for an AI-first workplace" above. Needs sandboxed runners on the server (and the anti-cheat server identity) before it can be marked properly.
+
 ## Platform review (2026-11-21)
 From a code read-through of both flows (not clicked through live).
 

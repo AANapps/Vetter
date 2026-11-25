@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowUp, Bot, Download, FileText, Inbox, Lock, Paperclip, X } from 'lucide-react';
+import { Bot, Download, FileText, Inbox, Lock, Paperclip, Sparkles, X } from 'lucide-react';
+import { ChatMessages, Composer, useStickToBottom } from './AiChat';
 import { CaseFile, EmailMessage } from '../types';
 import { parseAddress } from '../lib/emailTasks';
 import { signedInHeaders } from '../lib/aiRequest';
@@ -171,16 +172,19 @@ export const FilesPanel: React.FC<{ files: CaseFile[] }> = ({ files }) => {
   );
 };
 
-// The AI tab: an ordinary assistant, on the questions the company allows it on. The conversation goes to the company
-// with the answers
+// The AI tab: an ordinary assistant, on the questions the company allows it on, looking and working like the AI chat
+// apps people use at work (src/components/AiChat.tsx). The conversation goes to the company with the answers
+const STARTERS = ['Explain what this task is asking', 'Help me plan how to approach it', 'Check my work for mistakes', 'Draft a reply for me to edit'];
+
 export const AiPanel: React.FC<{ task: string; company?: string; chat: AiTurn[]; onChat: (chat: AiTurn[]) => void }> = ({ task, company, chat, onChat }) => {
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const latest = useRef(chat);
   latest.current = chat;
-  const end = useRef<HTMLDivElement>(null);
-  useEffect(() => end.current?.scrollIntoView({ block: 'end' }), [chat.length, busy]);
+  // Replies that arrive while it's open appear word by word; earlier ones are shown whole
+  const animateFrom = useRef(chat.length);
+  const { box, toBottom } = useStickToBottom([chat.length, busy]);
   const used = chat.filter((t) => t.role === 'user').length;
   const left = MAX_AI_MESSAGES - used;
 
@@ -210,47 +214,61 @@ export const AiPanel: React.FC<{ task: string; company?: string; chat: AiTurn[];
     }
   };
 
+  const composer = (
+    <Composer
+      value={text}
+      onChange={setText}
+      onSend={send}
+      busy={busy}
+      disabled={left <= 0}
+      autoFocus
+      placeholder={left > 0 ? 'Ask anything' : 'You’ve used every message on this question'}
+    />
+  );
+  const note = (
+    <p className="mt-2 text-center text-[11px] text-slate-400">
+      The assistant can make mistakes, so check its work. Your conversation is shared with the company. {left} of {MAX_AI_MESSAGES} messages left.
+    </p>
+  );
+
   return (
     <div className="h-full flex flex-col bg-white">
-      <div className="px-6 py-2 border-b border-slate-200 text-xs text-slate-500">
-        The company allows AI on this question. Your conversation is shared with them alongside your answers. {left} of {MAX_AI_MESSAGES} messages left.
+      <div className="h-11 px-4 flex items-center gap-2 border-b border-slate-100 shrink-0">
+        <Sparkles className="w-4 h-4 text-violet-600" />
+        <span className="text-sm font-semibold text-slate-800">Assistant</span>
+        <span className={`ml-auto text-[11px] ${left <= 3 ? 'text-amber-700 font-semibold' : 'text-slate-400'}`}>{left} messages left</span>
       </div>
-      <div className="flex-1 overflow-y-auto px-6 py-4">
-        <div className="max-w-3xl mx-auto space-y-3">
-          {chat.length === 0 && <p className="text-sm text-slate-500 text-center py-10">Ask the assistant anything about this question: to explain, check, draft or work something out.</p>}
-          {chat.map((t, i) => (
-            <div key={i} className={`flex ${t.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[85%] px-4 py-2.5 rounded-2xl text-sm whitespace-pre-wrap leading-relaxed ${t.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-800'}`}>
-                {t.text}
-              </div>
+      {chat.length === 0 && !busy ? (
+        <div className="flex-1 overflow-y-auto flex flex-col items-center justify-center px-6 pb-10">
+          <div className="w-full max-w-2xl">
+            <h2 className="text-center text-2xl sm:text-3xl font-semibold tracking-tight text-slate-800 mb-6">How can I help with this task?</h2>
+            {composer}
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
+              {STARTERS.map((s) => (
+                <button key={s} onClick={() => setText(s)} className="px-3.5 py-1.5 rounded-full border border-slate-200 text-xs text-slate-600 hover:bg-slate-50 hover:text-slate-900">
+                  {s}
+                </button>
+              ))}
             </div>
-          ))}
-          {busy && <div className="text-sm text-slate-400">Thinking…</div>}
-          {error && <div className="text-sm text-rose-600">{error}</div>}
-          <div ref={end} />
+            {note}
+          </div>
         </div>
-      </div>
-      <div className="border-t border-slate-200 p-3">
-        <div className="max-w-3xl mx-auto flex gap-2 items-end">
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                send();
-              }
-            }}
-            rows={2}
-            disabled={left <= 0}
-            placeholder={left > 0 ? 'Message the AI assistant' : 'You’ve used every message on this question'}
-            className="flex-1 resize-none px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-          <button onClick={send} disabled={!text.trim() || busy || left <= 0} aria-label="Send" className="w-10 h-10 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white flex items-center justify-center">
-            <ArrowUp className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
+      ) : (
+        <>
+          <div ref={box} className="flex-1 overflow-y-auto px-4 sm:px-6 py-6">
+            <div className="max-w-3xl mx-auto">
+              <ChatMessages chat={chat} busy={busy} animateFrom={animateFrom.current} onStep={toBottom} />
+              {error && <p className="mt-4 text-sm text-rose-600">{error}</p>}
+            </div>
+          </div>
+          <div className="px-4 sm:px-6 pb-3 pt-1 shrink-0">
+            <div className="max-w-3xl mx-auto">
+              {composer}
+              {note}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };
