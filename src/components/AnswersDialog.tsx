@@ -1,3 +1,4 @@
+import { interviewQuestions } from '../lib/interviewQuestions';
 import { RichText } from './RichText';
 import React, { useEffect, useState } from 'react';
 import { AlertCircle, CheckCircle2, ChevronDown, Loader2, Monitor, X, XCircle } from 'lucide-react';
@@ -109,6 +110,7 @@ export const AnswersDialog: React.FC<AnswersDialogProps> = ({ businessId, candid
                     <span className="font-mono font-bold tabular-nums text-slate-900">{s.score}/100</span>
                     <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
                   </button>
+                  {open && <InterviewQuestions answers={s.answers} name={candidateName} />}
                   {open && (
                     <ol className="border-t border-slate-100 divide-y divide-slate-100">
                       {s.answers.map((a) => {
@@ -263,3 +265,28 @@ const Block: React.FC<{ label: string; text: string; tone: 'good' | 'part' | 'ba
     <div className={`mt-1 text-xs text-slate-800 whitespace-pre-wrap break-words ${mono ? 'font-mono text-[11px] max-h-64 overflow-auto' : ''}`}>{text}</div>
   </div>
 );
+
+// Questions for the interview, from this attempt's own work
+const InterviewQuestions: React.FC<{ answers: AnswerRecord[]; name: string }> = ({ answers, name }) => {
+  const qs = interviewQuestions(answers);
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="mx-4 mb-3 p-3 rounded-lg bg-indigo-50/60 border border-indigo-100 text-xs text-slate-700">
+      <div className="flex items-center justify-between gap-3">
+        <span className="font-bold text-slate-900">Ask in the interview</span>
+        <button
+          onClick={() => navigator.clipboard?.writeText(qs.map((q, i) => `${i + 1}. ${q}`).join('\n')).then(() => setCopied(true))}
+          className="text-indigo-700 font-semibold hover:underline"
+        >
+          {copied ? 'Copied' : 'Copy'}
+        </button>
+      </div>
+      <p className="text-slate-500 mt-0.5">From {name.split(' ')[0]}&rsquo;s own work: their answers show whether the work was theirs and whether they understand it.</p>
+      <ol className="mt-2 space-y-1 list-decimal pl-4">
+        {qs.map((q) => (
+          <li key={q}>{q}</li>
+        ))}
+      </ol>
+    </div>
+  );
+};
