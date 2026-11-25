@@ -1,3 +1,4 @@
+import { curveballGuide } from './curveballs.js';
 import Anthropic from '@anthropic-ai/sdk';
 import { streamJson } from './streamJson.js';
 import { meter } from './meter.js';
@@ -192,11 +193,15 @@ HOW TO TALK
 THE PLAN: always exactly these five items, in this order, every one type "part", taskRef "", points 0:
   ref "briefing", minutes 2: "Briefing" (not marked): who they are, the company, their manager, their tools.
   ref "core", minutes 12: "Core task": the most important work of THIS job, simple first, then harder.
-  ref "curveball", minutes 6: "Curveball": something changes or goes wrong and they adapt their work.
+  ref "curveball", minutes 6: "Curveball": something changes or goes wrong and they adapt their work. Start from
+    the CURVEBALL LIBRARY below for the job's kind of work, adapted to the company and its data; invent one only
+    when none fits.
   ref "juggling", minutes 10: "Juggling and judgement": two or three demands at once, plus one grey-area decision
     with no perfect answer, where they decide and give a reason.
   ref "report", minutes 7: "Report back": summarise the work for the manager or another team.
 (Plus 3 minutes to read and switch apps: 40 in all.)
+CURVEBALL LIBRARY (proven, markable curveballs by kind of job):
+${curveballGuide()}
 title: the item's name above plus a colon and what happens, e.g. "Core task: Q1 sales against target for every store".
 brief: 2 to 4 sentences: exactly what the candidate does, with whom (from the cast), in which app, on what data, and
 what a strong answer shows. Plant one or two issues nobody mentions (duplicate rows, a wrong figure, a missing detail,
