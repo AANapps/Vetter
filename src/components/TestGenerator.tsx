@@ -499,7 +499,7 @@ export const TestGenerator: React.FC<TestGeneratorProps> = ({ job, business, tes
         </button>
       </div>
     )}
-    <div className={minimised ? 'hidden' : 'fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/60 backdrop-blur-sm'}>
+    <div className={minimised ? 'hidden' : 'fixed inset-0 z-[210] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/60 backdrop-blur-sm'}>
       <div role="dialog" aria-modal="true" aria-label="AI test builder" className="bg-white sm:rounded-2xl rounded-t-2xl max-w-7xl w-full h-[calc(100dvh-1rem)] sm:h-[min(52rem,calc(100vh-2rem))] flex flex-col shadow-2xl overflow-hidden">
         {/* The builder's title bar: what it is, the test it's on, and saving */}
         <div className="px-4 sm:px-5 py-3 border-b border-slate-200 flex items-center justify-between gap-4">

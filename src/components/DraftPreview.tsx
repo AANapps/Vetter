@@ -66,6 +66,10 @@ export const DraftPreview: React.FC<DraftPreviewProps> = ({ test: given, onChang
   const [answers, setAnswers] = useState<Record<string, string>>({});
   // The whole test as a candidate takes it, in a popup the size of the window
   const [running, setRunning] = useState(false);
+  // An AI edit starting closes the whole-test preview, so the builder's progress card is the top layer
+  useEffect(() => {
+    if (locked) setRunning(false);
+  }, [locked]);
   const body = useRef<HTMLDivElement>(null);
 
   const at = Math.min(index, groups.length - 1);
@@ -222,7 +226,7 @@ export const DraftPreview: React.FC<DraftPreviewProps> = ({ test: given, onChang
         {running &&
           createPortal(
             // The transform makes the runner's full-window layout fill this box instead, so it's a popup, not full screen
-            <div className="fixed inset-0 z-[200] bg-slate-900/70 backdrop-blur-sm p-2 sm:p-4" role="dialog" aria-modal="true" aria-label={`Preview: ${test.title}`}>
+            <div className="fixed inset-0 z-[220] bg-slate-900/70 backdrop-blur-sm p-2 sm:p-4" role="dialog" aria-modal="true" aria-label={`Preview: ${test.title}`}>
               <div className="relative h-full w-full rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/10 bg-slate-50" style={{ transform: 'translateZ(0)' }}>
                 <TestRunner test={test} preview instant runLabel="Preview · nothing saved" onClose={() => setRunning(false)} onComplete={() => setRunning(false)} />
               </div>

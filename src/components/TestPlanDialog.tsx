@@ -73,7 +73,7 @@ export const TestPlanDialog: React.FC<TestPlanDialogProps> = ({ plan, tests, has
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/60 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[210] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/60 backdrop-blur-sm">
       <div role="dialog" aria-modal="true" aria-label="Your tests" className="bg-white sm:rounded-2xl rounded-t-2xl max-w-3xl w-full max-h-[calc(100dvh-1rem)] sm:max-h-[min(50rem,calc(100vh-2rem))] flex flex-col shadow-2xl">
         <div className="px-6 pt-5 pb-4 border-b border-slate-200 flex items-start justify-between gap-4">
           <div>

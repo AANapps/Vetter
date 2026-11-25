@@ -3077,7 +3077,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
       {previewing && <PlanPreviewBar preview={planPreview} onChange={setPlanPreview} />}
 
       {toast && (
-        <div className={`fixed bottom-6 right-6 left-6 sm:left-auto z-50 p-4 bg-slate-900 border border-slate-800 text-white rounded-xl shadow-2xl flex items-center gap-3 max-w-md`}>
+        <div className={`fixed bottom-6 right-6 left-6 sm:left-auto z-[240] p-4 bg-slate-900 border border-slate-800 text-white rounded-xl shadow-2xl flex items-center gap-3 max-w-md`}>
           <CheckCircle2 className="w-5 h-5 text-indigo-400 shrink-0" />
           <div className="text-xs font-medium">{toast}</div>
         </div>

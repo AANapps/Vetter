@@ -75,7 +75,7 @@ export const PlansDialog: React.FC<{ reason: string; access: PlanAccess; onClose
 
   const left = Math.max(0, status.ai.allowance - status.ai.used);
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/60 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Plans">
+    <div className="fixed inset-0 z-[230] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/60 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Plans">
       <div ref={box} className="bg-white sm:rounded-2xl rounded-t-2xl max-w-6xl w-full max-h-[calc(100vh-2rem)] overflow-y-auto shadow-2xl">
         <div className="sticky top-0 z-10 bg-white px-6 py-4 border-b border-slate-200 flex items-start justify-between gap-4">
           <div className="space-y-1">
