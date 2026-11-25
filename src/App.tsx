@@ -57,6 +57,7 @@ import { LeadsPage } from './components/LeadsPage';
 import { LeadChange } from './components/LeadsView';
 import { LeadRow, buildLeadRows, updatedLead } from './lib/leads';
 import { AuthDialog, AuthMode } from './components/AuthDialog';
+import { guestCanTake, guestVersion, peekGuestResult, saveGuestResult, takeGuestResult } from './lib/guestResult';
 import { AccountGate, CompanyReview, TeamRequests } from './components/AccountScreens';
 import { Pulse } from './components/Pulse';
 import { VisitorHome } from './components/VisitorHome';
@@ -848,6 +849,29 @@ export default function App() {
     const role = takeSignUpRole();
     if (role) setCandidate((prev) => ({ ...prev, targetRole: role }));
   }, [candidate.id, profileSync?.uid, activeRole, isVisitor]);
+  // A test taken before signing up goes on the new profile once it has loaded (once, and not inside the retake gap)
+  useEffect(() => {
+    if (activeRole !== 'candidate' || isVisitor) return;
+    if (firebaseEnabled && profileSync?.uid !== candidate.id) return;
+    const waiting = peekGuestResult();
+    const test = waiting && tests.find((t) => t.id === waiting.testId);
+    if (!waiting || !test) return;
+    takeGuestResult();
+    if (candidate.testResults.some((r) => r.testId === test.id) || nextAttemptAt(candidate, test.id)) return;
+    setCandidate((prev) => ({
+      ...addTestResult(prev, test, {
+        testId: test.id,
+        score: waiting.score,
+        completedAt: waiting.completedTime.slice(0, 10),
+        completedTime: waiting.completedTime,
+        durationSeconds: waiting.durationSeconds,
+        ...(waiting.integrity && { integrity: waiting.integrity }),
+        ...(waiting.breakdown && { breakdown: waiting.breakdown }),
+      }),
+      testStarts: [...(prev.testStarts ?? []), { testId: test.id, startedAt: waiting.startedAt, sawAll: true }],
+    }));
+    showToast(`Your score on "${waiting.testTitle}": ${waiting.score}/100. It's saved to your profile.`, 10000);
+  }, [candidate.id, profileSync?.uid, activeRole, isVisitor, tests.length]);
   useEffect(() => {
     const picked = (e: Event) => {
       if (roleRef.current !== 'candidate') return;
@@ -942,6 +966,9 @@ export default function App() {
       ? setAdminRun(test)
       : activeRole !== 'candidate'
       ? setTrialTest({ test })
+      : isVisitor && isPublic(test) && guestCanTake(test)
+      ? // Straight in: the result waits until they sign up (src/lib/guestResult.ts)
+        setActiveTest(guestVersion(test))
       : requireAccount('Create a free account to take this test and get a score.', () => {
           // A library test can be taken again once the retake gap has passed since the last start
           const next = isPublic(test) ? nextAttemptAt(candidate, test.id) : null;
@@ -1269,6 +1296,20 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
   const handleCompleteTest = (testId: string, finalScore: number, durationSeconds: number, integrity?: IntegrityReport, breakdown?: ResultBreakdown, answers?: AnswerRecord[]) => {
     const completedTest = tests.find((t) => t.id === testId);
     if (!completedTest) return;
+    // Taken before signing up: kept here, saved to their profile once they have an account
+    if (isVisitor) {
+      const now = new Date().toISOString();
+      return saveGuestResult({
+        testId,
+        testTitle: completedTest.title,
+        score: finalScore,
+        durationSeconds,
+        startedAt: new Date(Date.now() - durationSeconds * 1000).toISOString(),
+        completedTime: now,
+        ...(integrity && { integrity }),
+        ...(breakdown && { breakdown }),
+      });
+    }
 
     // Taken for a job, or from a company's link to the test: that company gets the result
     const jobAsWas = activeTestJobId ? jobs.find((j) => j.id === activeTestJobId) : undefined;
@@ -2161,6 +2202,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
               tests={sectorTests}
               jobs={jobs}
               onOpenTest={openTestPage}
+              onStartTest={startTest}
               onOpenJob={openJobPage}
               onGoTo={(tab) => {
                 goToTab(tab);
@@ -2864,10 +2906,20 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
             setActiveTestJobId(null);
             setActiveAttempt(null);
           }}
-          onBegin={activeTestJobId ? () => recordJobTestStart(activeTest, activeTestJobId) : isPublic(activeTest) ? () => recordTestStart(activeTest) : undefined}
-          getRankFor={isPublic(activeTest) ? (score) => rankFor(activeTest.id, score) : undefined}
-          retakeDays={!activeTestJobId && isPublic(activeTest) ? RETAKE_DAYS : undefined}
-          onSawAll={!activeTestJobId && isPublic(activeTest) ? () => recordSawAll(activeTest) : undefined}
+          onBegin={isVisitor ? undefined : activeTestJobId ? () => recordJobTestStart(activeTest, activeTestJobId) : isPublic(activeTest) ? () => recordTestStart(activeTest) : undefined}
+          getRankFor={!isVisitor && isPublic(activeTest) ? (score) => rankFor(activeTest.id, score) : undefined}
+          retakeDays={!isVisitor && !activeTestJobId && isPublic(activeTest) ? RETAKE_DAYS : undefined}
+          onSawAll={!isVisitor && !activeTestJobId && isPublic(activeTest) ? () => recordSawAll(activeTest) : undefined}
+          guest={
+            isVisitor
+              ? {
+                  onSignUp: () => {
+                    setActiveTest(null);
+                    setAuthDialog({ mode: 'sign-up', role: 'candidate', reason: 'Create your free account to see your score. It goes straight on your profile.' });
+                  },
+                }
+              : undefined
+          }
           attempt={activeAttempt ?? undefined}
           onComplete={handleCompleteTest}
           onPractice={isJobSim(activeTest) ? () => setPracticeOpen(true) : undefined}

@@ -8,6 +8,7 @@ import { AssessmentTest, JobPosting, isPublic, levelName } from '../types';
 import { AppTab } from './Navigation';
 import { TestTypeCards } from './TestTypeCards';
 import { ROLE_SECTIONS } from '../lib/testRoles';
+import { LAUNCH_ROLES } from '../lib/features';
 import { BusinessLanding } from './BusinessLanding';
 
 export type HomeAudience = 'candidates' | 'business';
@@ -19,6 +20,8 @@ interface VisitorHomeProps {
   tests: AssessmentTest[];
   jobs: JobPosting[];
   onOpenTest: (testId: string) => void;
+  // Starts a test straight away (signed out: the score waits until they sign up)
+  onStartTest: (test: AssessmentTest) => void;
   onOpenJob: (jobId: string) => void;
   onGoTo: (tab: AppTab) => void;
   onJoin: (reason?: string) => void;
@@ -95,7 +98,7 @@ const HowItWorks: React.FC = () => {
 
 // What a signed-out visitor sees first, tailored to who they are: for people looking for work, how it works, what a
 // test asks and real tests and jobs; for companies hiring, everything about hiring on Praxa, with the plans
-export const VisitorHome: React.FC<VisitorHomeProps> = ({ audience, onAudienceChange, tests, jobs, onOpenTest, onOpenJob, onGoTo, onJoin, onOpenGuide }) => {
+export const VisitorHome: React.FC<VisitorHomeProps> = ({ audience, onAudienceChange, tests, jobs, onOpenTest, onStartTest, onOpenJob, onGoTo, onJoin, onOpenGuide }) => {
   const { ref: heroRef, y: heroY } = useParallax(-60);
   if (audience === 'business') {
     return (
@@ -112,6 +115,10 @@ export const VisitorHome: React.FC<VisitorHomeProps> = ({ audience, onAudienceCh
     .map(([role, secs]) => ({ role, test: tests.find((t) => t.id === secs?.[0]?.testIds[0] && isPublic(t)) }))
     .filter((x): x is { role: string; test: AssessmentTest } => !!x.test);
   const popularTests = (starters.length >= 3 ? starters.map((x) => x.test) : tests.filter((t) => isPublic(t) && t.type === 'standard' && (!t.familyId || t.familyId === t.id))).filter((t, i, all) => all.findIndex((x) => x.id === t.id) === i).slice(0, 6);
+  // Pick a role, start now: each launch role's first test
+  const launchStarts = LAUNCH_ROLES.map((role) => ({ role, test: tests.find((t) => t.id === ROLE_SECTIONS[role]?.[0]?.testIds[0] && isPublic(t)) })).filter(
+    (x): x is { role: (typeof LAUNCH_ROLES)[number]; test: AssessmentTest } => !!x.test
+  );
   const starterRole = (id: string) => starters.find((x) => x.test.id === id)?.role;
   const latestJobs = [...jobs].sort((a, b) => b.postedDate.localeCompare(a.postedDate)).slice(0, 4);
 
@@ -147,11 +154,28 @@ export const VisitorHome: React.FC<VisitorHomeProps> = ({ audience, onAudienceCh
                 Take short skills tests instead of sending CVs. AI marks every answer in seconds, your score goes on your profile, and
                 companies hire the people who score best.
               </p>
-              <div className="mt-8 flex flex-col sm:flex-row justify-center lg:justify-start gap-3">
-                <button onClick={() => onGoTo('tests')} className="group inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-slate-900 text-white text-sm font-medium">
-                  Browse tests <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
+              {launchStarts.length > 0 && (
+                <div className="mt-8">
+                  <p className="text-sm font-medium text-slate-900">Pick your role and start now. No sign-up until you want your score.</p>
+                  <div className="mt-3 flex flex-col sm:flex-row justify-center lg:justify-start gap-3">
+                    {launchStarts.map(({ role, test }) => (
+                      <button
+                        key={role}
+                        onClick={() => onStartTest(test)}
+                        className="group inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-slate-900 text-white text-sm font-medium"
+                      >
+                        {role === 'Customer Support Agent' ? 'Customer Support' : role} · {test.estimatedMinutes} min
+                        <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className="mt-4 flex justify-center lg:justify-start gap-5 text-sm font-medium text-slate-700">
+                <button onClick={() => onGoTo('tests')} className="hover:text-slate-900 underline-offset-4 hover:underline">
+                  All tests
                 </button>
-                <button onClick={() => onGoTo('jobs')} className="px-6 py-3 rounded-full bg-white text-sm font-medium text-slate-800">
+                <button onClick={() => onGoTo('jobs')} className="hover:text-slate-900 underline-offset-4 hover:underline">
                   See jobs
                 </button>
               </div>

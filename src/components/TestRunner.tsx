@@ -153,6 +153,8 @@ interface TestRunnerProps {
   brand?: { name: string; logo?: string };
   // With instant: the note at the top instead of "Admin run · not saved" (e.g. a company previewing its draft)
   runLabel?: string;
+  // Taken before signing up: the result is kept but not shown until they create an account (src/lib/guestResult.ts)
+  guest?: { onSignUp: () => void };
 }
 
 // Every candidate gets their own numbers: the test's data is varied from a fresh seed before it opens (lib/variants.ts).
@@ -177,7 +179,7 @@ export const TestRunner: React.FC<TestRunnerProps> = (props) => {
   return <TestRunnerInner {...props} test={own} />;
 };
 
-const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete, preview, savedNote, onBegin, attempt, training, getRankFor, retakeDays, onSawAll, practice, onPractice, instant, brand, runLabel }) => {
+const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete, preview, savedNote, onBegin, attempt, training, getRankFor, retakeDays, onSawAll, practice, onPractice, instant, brand, runLabel, guest }) => {
   // Each hands-on task is shown with the questions about it; every other question on its own
   const groups = useMemo(() => groupQuestions(test.questions), [test.questions]);
   const ordered = useMemo(() => groups.flatMap((g) => g.questions), [groups]);
@@ -1508,8 +1510,33 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
         </div>
       )}
 
+      {/* Taken before signing up: marked and kept, shown once they have an account */}
+      {showCompletionModal && guest && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl text-center">
+            <div className="mx-auto w-12 h-12 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
+              <CheckCircle2 className="w-7 h-7" />
+            </div>
+            <h3 className="text-lg font-bold text-slate-900">Your test is marked</h3>
+            <p className="text-sm text-slate-600">
+              Create a free account to see your score, the feedback on each task and your rank. Your result goes on your profile, where employers can find it.
+            </p>
+            <button
+              onClick={guest.onSignUp}
+              className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm rounded-lg transition-colors flex items-center justify-center gap-2"
+            >
+              <span>Create free account to see my score</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+            <button onClick={onClose} className="text-xs text-slate-500 hover:text-slate-700">
+              Not now (kept on this device for 24 hours)
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Completion Modal */}
-      {showCompletionModal && (() => {
+      {showCompletionModal && !guest && (() => {
         return (
           // The result can be taller than the screen (the breakdown, every task's feedback): it scrolls within the screen
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
