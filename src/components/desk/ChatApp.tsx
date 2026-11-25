@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { AtSign, FileText, Hash, Paperclip, Send, X } from 'lucide-react';
+import { AtSign, Bold, ChevronDown, Code, FileText, Hash, Italic, Link2, List, Paperclip, Search, Send, Smile, Strikethrough, X } from 'lucide-react';
 import { ChatConfig, ChatPost, chatChannels, chatRepliesFor } from '../../lib/deskApps';
 import { gridFromClipboard, gridToText } from '../../lib/deskData';
 import { Avatar, DeskCtx, personName } from './shared';
@@ -52,19 +52,30 @@ export const ChatApp: React.FC<{ ctx: DeskCtx; cfg: ChatConfig }> = ({ ctx, cfg 
   if (!ch) return <div className="p-6 text-xs text-slate-500">No channels.</div>;
   const rows = ch.all;
   return (
-    <div className="h-full flex text-[13px]" data-ref="chat">
-      <aside className="w-56 shrink-0 bg-[#3f0e40] text-white/80 flex flex-col">
-        <div className="px-4 h-11 flex items-center font-bold text-white border-b border-white/10">{ctx.cfg.company}</div>
+    <div className="h-full flex flex-col text-[13px] bg-[#3f0e40]" data-ref="chat">
+      {/* The top bar: search across the workspace */}
+      <div className="h-10 shrink-0 flex items-center justify-center px-3">
+        <div className="w-full max-w-xl h-7 rounded-md bg-white/15 text-white/70 flex items-center gap-2 px-2.5 text-xs">
+          <Search className="w-3.5 h-3.5" />
+          Search {ctx.cfg.company}
+        </div>
+      </div>
+      <div className="flex-1 min-h-0 flex">
+      <aside className="w-60 shrink-0 text-white/75 flex flex-col">
+        <div className="px-4 h-12 flex items-center gap-1 font-bold text-[15px] text-white border-b border-white/10">
+          {ctx.cfg.company}
+          <ChevronDown className="w-4 h-4 opacity-70" />
+        </div>
         <div className="flex-1 overflow-y-auto py-2">
           {(['channel', 'dm'] as const).map((kind) => (
             <div key={kind} className="mb-3">
-              <div className="px-4 py-1 text-[11px] uppercase tracking-wider text-white/50">{kind === 'channel' ? 'Channels' : 'Direct messages'}</div>
+              <div className="px-4 py-1 flex items-center gap-1 text-[13px] text-white/70"><ChevronDown className="w-3.5 h-3.5" />{kind === 'channel' ? 'Channels' : 'Direct messages'}</div>
               {channels
                 .filter((c) => c.kind === kind)
                 .map((c) => {
                   const n = unread(c);
                   return (
-                    <button key={c.id} onClick={() => setAt(c.id)} className={`w-full h-7 px-4 flex items-center gap-1.5 text-left ${c.id === ch.id ? 'bg-[#1164a3] text-white' : 'hover:bg-white/10'} ${n ? 'font-bold text-white' : ''}`} data-ref={`chat-${c.id}`}>
+                    <button key={c.id} onClick={() => setAt(c.id)} className={`w-[calc(100%-16px)] mx-2 h-7 px-2.5 rounded-md flex items-center gap-2 text-left text-[14px] ${c.id === ch.id ? 'bg-[#1164a3] text-white' : 'hover:bg-white/10'} ${n ? 'font-bold text-white' : ''}`} data-ref={`chat-${c.id}`}>
                       {kind === 'channel' ? <Hash className="w-3.5 h-3.5 opacity-70" /> : <span className="w-2 h-2 rounded-full bg-emerald-400" />}
                       <span className="truncate">{c.name.replace(/^#/, '')}</span>
                       {n > 0 && <span className="ml-auto min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-[10px] grid place-items-center">{n}</span>}
@@ -75,20 +86,26 @@ export const ChatApp: React.FC<{ ctx: DeskCtx; cfg: ChatConfig }> = ({ ctx, cfg 
           ))}
         </div>
       </aside>
-      <section className="flex-1 min-w-0 flex flex-col">
-        <header className="h-11 shrink-0 px-4 flex items-center gap-2 border-b border-slate-200">
-          <span className="font-bold text-slate-900">{ch.kind === 'channel' ? `#${ch.name.replace(/^#/, '')}` : ch.name}</span>
+      <section className="flex-1 min-w-0 flex flex-col bg-white rounded-tl-lg overflow-hidden">
+        <header className="h-12 shrink-0 px-4 flex items-center gap-2 border-b border-slate-200">
+          <span className="font-bold text-[15px] text-slate-900 inline-flex items-center gap-1">{ch.kind === 'channel' ? `#${ch.name.replace(/^#/, '')}` : ch.name}</span>
           {ch.topic && <span className="text-xs text-slate-500 truncate">{ch.topic}</span>}
         </header>
-        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 select-text">
+        <div className="flex-1 overflow-y-auto py-3 select-text">
+          {rows.length > 0 && (
+            <div className="relative my-2 flex justify-center">
+              <span className="absolute inset-x-0 top-1/2 border-t border-slate-200" />
+              <span className="relative px-3 h-6 rounded-full border border-slate-200 bg-white text-[11px] font-semibold text-slate-700 grid place-items-center">Today</span>
+            </div>
+          )}
           {rows.map((m) => {
             const who = m.mine ? ctx.me.name : personName(ctx.cfg, m.from);
             return (
-              <div key={m.id} className="flex gap-2.5">
-                <Avatar name={who} size={32} />
+              <div key={m.id} className="flex gap-2.5 px-5 py-1.5 hover:bg-slate-50">
+                <Avatar name={who} size={36} square />
                 <div className="min-w-0">
                   <div className="flex items-baseline gap-2">
-                    <span className="font-bold text-slate-900">{who}</span>
+                    <span className="font-extrabold text-[14px] text-slate-900">{who}</span>
                     <span className="text-[11px] text-slate-400">{m.mine || m.at ? 'Just now' : m.time ?? ''}</span>
                   </div>
                   {m.text && <MessageText text={m.text} />}
@@ -102,11 +119,33 @@ export const ChatApp: React.FC<{ ctx: DeskCtx; cfg: ChatConfig }> = ({ ctx, cfg 
               </div>
             );
           })}
-          {typing && <div className="text-xs text-slate-400 italic">{typing} is typing…</div>}
+          {typing && <div className="px-5 text-xs text-slate-400 italic">{typing} is typing…</div>}
           <div ref={end} />
         </div>
-        <div className="p-3 shrink-0">
-          <div className="border border-slate-300 rounded-lg focus-within:border-slate-500">
+        <div className="px-4 pb-4 pt-1 shrink-0">
+          <div className="border border-slate-300 rounded-lg focus-within:border-slate-500 focus-within:shadow-sm">
+            {/* Formatting, as chat apps have above the message */}
+            <div className="flex items-center gap-0.5 px-1.5 pt-1.5 text-slate-500">
+              {(
+                [
+                  [Bold, 'Bold', '*'],
+                  [Italic, 'Italic', '_'],
+                  [Strikethrough, 'Strikethrough', '~'],
+                  [Code, 'Code', '`'],
+                ] as const
+              ).map(([Icon, label, mark]) => (
+                <button key={label} type="button" onClick={() => setText((t) => `${t}${mark}${mark}`)} aria-label={label} title={label} className="w-7 h-7 grid place-items-center rounded hover:bg-slate-100">
+                  <Icon className="w-3.5 h-3.5" />
+                </button>
+              ))}
+              <span className="w-px h-4 bg-slate-200 mx-1" />
+              <button type="button" onClick={() => setText((t) => `${t}${t && !t.endsWith('\n') ? '\n' : ''}• `)} aria-label="Bulleted list" title="Bulleted list" className="w-7 h-7 grid place-items-center rounded hover:bg-slate-100">
+                <List className="w-3.5 h-3.5" />
+              </button>
+              <button type="button" onClick={() => setText((t) => `${t}https://`)} aria-label="Link" title="Link" className="w-7 h-7 grid place-items-center rounded hover:bg-slate-100">
+                <Link2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
             {attach.length > 0 && (
               <div className="flex flex-wrap gap-1.5 px-2 pt-2">
                 {attach.map((a) => (
@@ -166,6 +205,9 @@ export const ChatApp: React.FC<{ ctx: DeskCtx; cfg: ChatConfig }> = ({ ctx, cfg 
               >
                 <AtSign className="w-4 h-4" />
               </button>
+              <button onClick={() => setText((t) => `${t}🙂`)} aria-label="Emoji" title="Emoji" className="w-7 h-7 grid place-items-center rounded hover:bg-slate-100 text-slate-500">
+                <Smile className="w-4 h-4" />
+              </button>
               <button onClick={post} disabled={!text.trim() && !attach.length} aria-label="Send" className="ml-auto w-8 h-7 grid place-items-center rounded bg-emerald-700 text-white disabled:bg-slate-200 disabled:text-slate-400" data-ref="chat-send">
                 <Send className="w-3.5 h-3.5" />
               </button>
@@ -173,6 +215,7 @@ export const ChatApp: React.FC<{ ctx: DeskCtx; cfg: ChatConfig }> = ({ ctx, cfg 
           </div>
         </div>
       </section>
+      </div>
     </div>
   );
 };

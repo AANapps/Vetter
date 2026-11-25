@@ -1,8 +1,12 @@
 import React, { useMemo, useState } from 'react';
-import { FileUp, Plus, Trash2, X } from 'lucide-react';
+import { ChevronDown, FileUp, Grip, LayoutGrid, Plus, Search, Trash2, X } from 'lucide-react';
 import { CrmConfig, CrmField, CrmObject, crmRecords } from '../../lib/deskApps';
 import { fileGrid, gridToRecords, recordsToGrid } from '../../lib/deskData';
-import { DataGrid, DeskCtx, FilePicker, Modal, SearchBox, TableActions, btn, input, primary } from './shared';
+import { DataGrid, DeskCtx, FilePicker, Modal, SearchBox, TableActions, accent, btn as plainBtn, input, primary } from './shared';
+
+// Buttons as CRMs draw them: white with the brand colour's text and a thin border
+const btn = `${plainBtn} !border-[#c9c9c9] !text-[#0176d3] !rounded`;
+const OBJECT_TINTS = ['bg-[#5867e8]', 'bg-[#ff5d2d]', 'bg-[#3ba755]', 'bg-[#06a59a]', 'bg-[#e3066a]', 'bg-[#9050e9]'];
 
 // The field that names a record: "name", else the first text field
 const nameField = (o: CrmObject) => o.fields.find((f) => /^(name|title|subject|full_?name)$/i.test(f.key))?.key ?? o.fields[0]?.key ?? 'id';
@@ -53,20 +57,39 @@ export const CrmApp: React.FC<{ ctx: DeskCtx; cfg: CrmConfig }> = ({ ctx, cfg })
   };
 
   return (
-    <div className="h-full flex flex-col text-[13px]" data-ref="crm">
-      <header className="h-11 shrink-0 flex items-center gap-1 px-3 bg-[#032d60] text-white">
-        <span className="font-bold mr-4">{cfg.name ?? 'CRM'}</span>
+    <div className="h-full flex flex-col text-[13px] bg-[#f3f3f3] text-[#181818]" data-ref="crm" style={accent('#0176d3', '#eef4ff')}>
+      {/* The global header: search across records */}
+      <div className="h-11 shrink-0 flex items-center px-3 bg-white border-b border-[#e5e5e5]">
+        <span className="w-8 h-8 rounded-full bg-[#0176d3] text-white grid place-items-center font-bold text-xs">{(cfg.name ?? 'C')[0]}</span>
+        <div className="mx-auto w-full max-w-md h-8 rounded border border-[#c9c9c9] flex items-center gap-2 px-2.5 text-[#747474]">
+          <Search className="w-3.5 h-3.5" />
+          Search…
+        </div>
+        <Grip className="w-5 h-5 text-[#747474]" />
+      </div>
+      {/* The app's navigation: one tab per object */}
+      <header className="h-10 shrink-0 flex items-center gap-0.5 px-3 bg-white border-b-[3px] border-[#0176d3]/10 shadow-sm">
+        <LayoutGrid className="w-4 h-4 text-[#747474] mr-2" />
+        <span className="text-[15px] font-semibold mr-4">{cfg.name ?? 'Sales'}</span>
         {cfg.objects.map((o) => (
-          <button key={o.id} onClick={() => (setObjId(o.id), setOpenId(null), setQ(''))} className={`h-11 px-3 text-[13px] border-b-[3px] ${o.id === obj.id ? 'border-white font-semibold' : 'border-transparent text-white/70 hover:text-white'}`} data-ref={`crm-${o.id}`}>
+          <button key={o.id} onClick={() => (setObjId(o.id), setOpenId(null), setQ(''))} className={`h-10 px-3 text-[13px] inline-flex items-center gap-1 border-b-[3px] -mb-[3px] ${o.id === obj.id ? 'border-[#0176d3] bg-[#eef4ff]/60 font-semibold' : 'border-transparent text-[#444] hover:bg-[#f3f3f3]'}`} data-ref={`crm-${o.id}`}>
             {o.label}
+            <ChevronDown className="w-3 h-3 opacity-50" />
           </button>
         ))}
       </header>
-      <div className="flex-1 min-h-0 flex">
-        <section className="flex-1 min-w-0 flex flex-col">
-          <div className="h-12 shrink-0 px-3 flex items-center gap-2 border-b border-slate-200">
-            <h2 className="font-semibold text-slate-900">{obj.label}</h2>
-            <span className="text-xs text-slate-400">{shown.length} items</span>
+      <div className="flex-1 min-h-0 flex gap-3 p-3">
+        <section className="flex-1 min-w-0 flex flex-col bg-white rounded border border-[#e5e5e5] shadow-sm overflow-hidden">
+          <div className="h-14 shrink-0 px-3 flex items-center gap-2.5 border-b border-[#e5e5e5] bg-[#f3f3f3]/50">
+            <span className={`w-8 h-8 rounded ${OBJECT_TINTS[cfg.objects.indexOf(obj) % OBJECT_TINTS.length]} text-white grid place-items-center text-xs font-bold`}>{obj.label[0]}</span>
+            <div>
+              <div className="text-[11px] text-[#444]">{obj.label}</div>
+              <h2 className="text-[16px] font-bold leading-tight inline-flex items-center gap-1">
+                All {obj.label}
+                <ChevronDown className="w-3.5 h-3.5" />
+              </h2>
+            </div>
+            <span className="text-xs text-[#747474] self-end mb-1.5">{shown.length} items</span>
             <span className="ml-auto flex items-center gap-1.5">
               <div className="w-48">
                 <SearchBox value={q} onChange={setQ} placeholder={`Search ${obj.label.toLowerCase()}`} />
@@ -95,7 +118,7 @@ export const CrmApp: React.FC<{ ctx: DeskCtx; cfg: CrmConfig }> = ({ ctx, cfg })
                   label: f.label,
                   num: f.type === 'number' || f.type === 'money',
                   render: (r: Record<string, string>) =>
-                    f.key === nf ? <span className="text-sky-700 font-medium hover:underline">{r[f.key] || '(no name)'}</span> : f.type === 'link' ? linkName(f, r[f.key] ?? '') : f.type === 'money' && r[f.key] ? money(r[f.key]) : r[f.key] ?? '',
+                    f.key === nf ? <span className="text-[#0176d3] hover:underline">{r[f.key] || '(no name)'}</span> : f.type === 'link' ? linkName(f, r[f.key] ?? '') : f.type === 'money' && r[f.key] ? money(r[f.key]) : r[f.key] ?? '',
                 }))}
             />
           </div>
@@ -185,8 +208,8 @@ const RecordPanel: React.FC<{ ctx: DeskCtx; cfg: CrmConfig; obj: CrmObject; reco
       .filter((x) => x.rows.length)
   );
   return (
-    <aside className="w-96 shrink-0 border-l border-slate-200 flex flex-col bg-slate-50" aria-label="Record">
-      <div className="px-4 py-3 bg-white border-b border-slate-200 flex items-start gap-2">
+    <aside className="w-96 shrink-0 flex flex-col bg-white rounded border border-[#e5e5e5] shadow-sm overflow-hidden" aria-label="Record">
+      <div className="px-4 py-3 bg-white border-b border-[#e5e5e5] flex items-start gap-2">
         <div className="min-w-0">
           <div className="text-[11px] uppercase tracking-wider text-slate-400">{obj.label.replace(/s$/, '')}</div>
           <h3 className="text-base font-semibold text-slate-900 truncate">{record[nameField(obj)] || record.id}</h3>
@@ -198,8 +221,8 @@ const RecordPanel: React.FC<{ ctx: DeskCtx; cfg: CrmConfig; obj: CrmObject; reco
           <X className="w-4 h-4" />
         </button>
       </div>
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        <div className="bg-white border border-slate-200 rounded-lg p-3 space-y-2.5">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#f3f3f3]/40">
+        <div className="bg-white border border-[#e5e5e5] rounded p-3 space-y-2.5">
           {obj.fields.map((f) => (
             <label key={f.key} className="block">
               <span className="text-[11px] font-semibold text-slate-500">{f.label}</span>

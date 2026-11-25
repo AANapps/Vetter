@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { BarChart3, Copy, Database, FileDown, Image, Pencil, Plus, Trash2 } from 'lucide-react';
+import { BarChart3, BarChartHorizontal, Copy, Database, FileDown, Hash, Image, LineChart, Pencil, PieChart, Plus, Table2, Trash2 } from 'lucide-react';
 import { Agg, BiChart, BiConfig, ChartKind, Dataset, chartData, datasetsOf } from '../../lib/deskApps';
 import { copyGrid, toCsv } from '../../lib/deskData';
-import { DataGrid, DeskCtx, FilePicker, Modal, Select, btn, primary } from './shared';
+import { DataGrid, DeskCtx, FilePicker, Modal, Select, accent, btn, primary } from './shared';
 
 const KINDS: { id: ChartKind; label: string }[] = [
   { id: 'column', label: 'Column' },
@@ -40,28 +40,45 @@ export const BiApp: React.FC<{ ctx: DeskCtx; cfg: BiConfig }> = ({ ctx, cfg }) =
   const ds = datasets.find((d) => d.name === dataAt) ?? datasets[0];
 
   return (
-    <div className="h-full flex flex-col bg-[#eaeaea] text-[13px]" data-ref="bi">
-      <header className="h-10 shrink-0 bg-[#f2c811] flex items-center px-3 gap-3 text-slate-900">
-        <BarChart3 className="w-4 h-4" />
-        <span className="font-semibold">{cfg.name ?? 'Report'}</span>
-        <span className="flex ml-4">
-          {(['report', 'data'] as const).map((t) => (
-            <button key={t} onClick={() => setTab(t)} className={`h-10 px-3 text-xs font-semibold ${tab === t ? 'bg-white/60' : 'hover:bg-white/30'}`}>
-              {t === 'report' ? 'Report view' : 'Data view'}
-            </button>
+    <div className="h-full flex flex-col bg-[#eaeaea] text-[13px] text-[#252423]" data-ref="bi" style={accent('#f2c811', '#fff8d6', '#252423')}>
+      {/* Title bar and ribbon, as desktop BI tools have */}
+      <div className="h-8 shrink-0 bg-[#252423] text-white/90 flex items-center px-3 gap-2 text-xs">
+        <span className="w-4 h-4 rounded-sm bg-[#f2c811] grid place-items-center"><BarChart3 className="w-3 h-3 text-[#252423]" /></span>
+        <span>{cfg.name ?? 'Report'}</span>
+      </div>
+      <div className="shrink-0 bg-white border-b border-[#e1dfdd]">
+        <div className="flex gap-4 px-3 pt-1 text-xs text-[#605e5c]" aria-hidden="true">
+          {['File', 'Home', 'Insert', 'Modeling', 'View', 'Help'].map((t) => (
+            <span key={t} className={`pb-1 ${t === 'Home' ? 'text-[#252423] font-semibold border-b-2 border-[#f2c811]' : ''}`}>{t}</span>
           ))}
-        </span>
-        <span className="ml-auto flex gap-1.5">
-          <button className={btn} onClick={() => setAdding(true)} title="Add a CSV or a pasted table as data">
-            <Database className="w-3.5 h-3.5" />
+        </div>
+        <div className="h-[60px] flex items-stretch gap-1 px-2 py-1 border-t border-[#edebe9]">
+          <button className="w-16 rounded hover:bg-[#f3f2f1] flex flex-col items-center justify-center gap-1 text-[11px]" onClick={() => setAdding(true)} title="Add a CSV or a pasted table as data">
+            <Database className="w-5 h-5 text-[#605e5c]" />
             Get data
           </button>
-          <button className={primary} disabled={!datasets.length} onClick={() => setEditing(blank())} data-ref="bi-new">
-            <Plus className="w-3.5 h-3.5" />
+          <button className="w-16 rounded hover:bg-[#f3f2f1] flex flex-col items-center justify-center gap-1 text-[11px] disabled:opacity-40" disabled={!datasets.length} onClick={() => setEditing(blank())} data-ref="bi-new">
+            <Plus className="w-5 h-5 text-[#605e5c]" />
             New visual
           </button>
-        </span>
-      </header>
+          <span className="w-px bg-[#edebe9] mx-1" />
+        </div>
+      </div>
+      <div className="flex-1 min-h-0 flex">
+        {/* View switcher */}
+        <nav className="w-11 shrink-0 bg-[#f3f2f1] border-r border-[#e1dfdd] flex flex-col items-center pt-2 gap-1" aria-label="Views">
+          {(
+            [
+              ['report', BarChart3, 'Report view'],
+              ['data', Table2, 'Table view'],
+            ] as const
+          ).map(([t, Icon, label]) => (
+            <button key={t} onClick={() => setTab(t)} title={label} aria-label={label} className={`relative w-9 h-9 grid place-items-center rounded ${tab === t ? 'bg-white' : 'hover:bg-white/60'}`}>
+              {tab === t && <span className="absolute left-[-4px] top-1.5 bottom-1.5 w-[3px] rounded bg-[#f2c811]" />}
+              <Icon className="w-4 h-4 text-[#605e5c]" />
+            </button>
+          ))}
+        </nav>
       {tab === 'data' ? (
         <div className="flex-1 min-h-0 flex bg-white">
           <aside className="w-56 shrink-0 border-r border-slate-200 overflow-y-auto">
@@ -76,11 +93,14 @@ export const BiApp: React.FC<{ ctx: DeskCtx; cfg: BiConfig }> = ({ ctx, cfg }) =
           <div className="flex-1 overflow-auto">{ds && <DataGrid rows={ds.grid.slice(1).map((r, i) => ({ id: i, ...Object.fromEntries(ds.grid[0].map((h, j) => [h, r[j]])) }))} columns={ds.grid[0].map((h) => ({ key: h, label: h }))} />}</div>
         </div>
       ) : (
+        <>
+        <div className="flex-1 min-w-0 flex flex-col">
         <div className="flex-1 overflow-y-auto p-4">
+          <div className="min-h-full bg-white shadow-sm p-4">
           {charts.length === 0 ? (
-            <div className="h-full grid place-items-center text-center text-slate-500">
+            <div className="h-full min-h-[300px] grid place-items-center text-center text-slate-500">
               <div>
-                <BarChart3 className="w-10 h-10 mx-auto text-slate-400" />
+                <BarChart3 className="w-10 h-10 mx-auto text-slate-300" />
                 <p className="mt-2">{datasets.length ? 'Build a visual from your data: New visual.' : 'Get some data first: any CSV in Files, or a database table, can be used.'}</p>
               </div>
             </div>
@@ -98,8 +118,44 @@ export const BiApp: React.FC<{ ctx: DeskCtx; cfg: BiConfig }> = ({ ctx, cfg }) =
               ))}
             </div>
           )}
+          </div>
         </div>
+        {/* Page tabs */}
+        <div className="h-8 shrink-0 bg-[#f3f2f1] border-t border-[#e1dfdd] flex items-end px-2">
+          <span className="h-7 px-4 bg-white border-x border-t border-[#e1dfdd] text-xs grid place-items-center relative">
+            <span className="absolute inset-x-0 bottom-0 h-[3px] bg-[#f2c811]" />
+            Page 1
+          </span>
+        </div>
+        </div>
+        {/* Visualizations and Data panes */}
+        <aside className="w-52 shrink-0 bg-white border-l border-[#e1dfdd] flex flex-col text-xs">
+          <div className="px-3 pt-2 pb-1 font-semibold text-[13px]">Visualizations</div>
+          <div className="px-3 pb-3 grid grid-cols-5 gap-1 border-b border-[#edebe9]">
+            {KINDS.map((k) => (
+              <button key={k.id} title={k.label} aria-label={`New ${k.label.toLowerCase()} visual`} disabled={!datasets.length} onClick={() => setEditing({ ...blank(), kind: k.id })} className="h-7 rounded border border-transparent hover:border-[#c8c6c4] grid place-items-center text-[#605e5c] disabled:opacity-40">
+                {k.id === 'pie' ? <PieChart className="w-4 h-4" /> : k.id === 'line' ? <LineChart className="w-4 h-4" /> : k.id === 'card' ? <Hash className="w-4 h-4" /> : k.id === 'bar' ? <BarChartHorizontal className="w-4 h-4" /> : k.id === 'column' ? <BarChart3 className="w-4 h-4" /> : <Table2 className="w-4 h-4" />}
+              </button>
+            ))}
+          </div>
+          <div className="px-3 pt-2 pb-1 font-semibold text-[13px]">Data</div>
+          <div className="flex-1 overflow-y-auto px-2 pb-2">
+            {datasets.map((d) => (
+              <details key={d.name} className="mb-1">
+                <summary className="px-1 py-1 cursor-pointer truncate hover:bg-[#f3f2f1] rounded">{d.label}</summary>
+                <ul className="pl-5">
+                  {d.grid[0].map((h) => (
+                    <li key={h} className="py-0.5 text-[#605e5c] truncate">{h}</li>
+                  ))}
+                </ul>
+              </details>
+            ))}
+            {!datasets.length && <p className="px-1 text-[#a19f9d]">No data yet.</p>}
+          </div>
+        </aside>
+        </>
       )}
+      </div>
       {editing && (
         <ChartEditor
           datasets={datasets}

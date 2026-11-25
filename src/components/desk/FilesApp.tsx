@@ -1,9 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Copy, Download, FilePlus2, FileSpreadsheet, FileText, FolderOpen, Image, Pencil, Trash2, Upload } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ArrowUp, ChevronRight, Copy, Download, FilePlus2, FileSpreadsheet, FileText, FolderOpen, Home, Image, Pencil, RotateCw, Search, Trash2, Upload } from 'lucide-react';
 import { CaseFile } from '../../types';
 import { cleanHtml, copyGrid, fileGrid, fileKind, freeName } from '../../lib/deskData';
 import { downloadFile, readTextFile } from '../../lib/csv';
-import { DeskCtx, btn } from './shared';
+import { DeskCtx, accent, btn as plainBtn } from './shared';
+
+// Command-bar buttons, flat until hovered
+const btn = 'h-8 px-2.5 rounded hover:bg-black/5 text-xs text-[#1a1a1a] inline-flex items-center gap-1.5 disabled:opacity-40';
+void plainBtn;
+// A file's type and size, as the Details view lists them
+const TYPES: Record<string, string> = { csv: 'CSV file', doc: 'Document', image: 'Image', other: 'File' };
+const sizeOf = (f: CaseFile) => `${Math.max(1, Math.ceil(f.content.length / 1024)).toLocaleString('en-GB')} KB`;
 import { hasApp } from '../../lib/desktop';
 
 export type Folder = 'all' | 'mine' | 'shared' | 'attachments' | 'downloads';
@@ -44,11 +51,29 @@ export const FilesApp: React.FC<{ ctx: DeskCtx; focus: string | null; origin: (f
     return k === 'csv' ? <FileSpreadsheet className="w-4 h-4 text-emerald-700 shrink-0" /> : k === 'doc' ? <FileText className="w-4 h-4 text-sky-700 shrink-0" /> : k === 'image' ? <Image className="w-4 h-4 text-violet-600 shrink-0" /> : <FileText className="w-4 h-4 text-slate-500 shrink-0" />;
   };
   return (
-    <div className="h-full flex flex-col text-sm" data-ref="files">
-      <div className="h-11 shrink-0 flex items-center gap-1.5 px-3 border-b border-slate-200 bg-slate-50">
-        <FolderOpen className="w-4 h-4 text-amber-500" />
-        <span className="text-xs text-slate-600">This PC › {folders.find((f) => f.id === folder)!.label}</span>
-        <span className="ml-auto flex gap-1.5">
+    <div className="h-full flex flex-col text-sm bg-white text-[#1a1a1a]" data-ref="files" style={accent('#005fb8', '#cce8ff')}>
+      {/* Address bar: back, forward, up, refresh, where you are, and search */}
+      <div className="h-11 shrink-0 flex items-center gap-1 px-2 bg-[#f3f3f3]">
+        {[ArrowLeft, ArrowRight, ArrowUp, RotateCw].map((Icon, i) => (
+          <span key={i} className="w-8 h-8 grid place-items-center text-[#5c5c5c]" aria-hidden="true">
+            <Icon className="w-4 h-4" />
+          </span>
+        ))}
+        <div className="flex-1 h-8 px-2 bg-white border border-[#e5e5e5] rounded flex items-center gap-1.5 text-[12.5px]">
+          <FolderOpen className="w-4 h-4 text-[#e8a33d]" />
+          <ChevronRight className="w-3.5 h-3.5 text-[#8a8a8a]" />
+          This PC
+          <ChevronRight className="w-3.5 h-3.5 text-[#8a8a8a]" />
+          {folders.find((f) => f.id === folder)!.label}
+        </div>
+        <div className="w-56 h-8 px-2 bg-white border border-[#e5e5e5] rounded flex items-center gap-1.5 text-[12.5px] text-[#8a8a8a]">
+          Search {folders.find((f) => f.id === folder)!.label}
+          <Search className="w-3.5 h-3.5 ml-auto" />
+        </div>
+      </div>
+      {/* Command bar */}
+      <div className="h-11 shrink-0 flex items-center gap-1 px-2 border-b border-[#e5e5e5] bg-[#f9f9f9]">
+        <span className="flex gap-1">
           {hasApp(ctx.cfg, 'docs') && (
             <button
               className={btn}
@@ -83,16 +108,22 @@ export const FilesApp: React.FC<{ ctx: DeskCtx; focus: string | null; origin: (f
         </span>
       </div>
       <div className="flex-1 min-h-0 flex">
-        <nav className="w-40 shrink-0 border-r border-slate-200 py-2 bg-white">
+        <nav className="w-48 shrink-0 border-r border-[#e5e5e5] py-2 bg-[#f9f9f9]">
+          <div className="h-8 px-3 text-xs flex items-center gap-2"><Home className="w-4 h-4 text-[#5c5c5c]" />Home</div>
           {folders.map((f) => (
-            <button key={f.id} onClick={() => setFolder(f.id)} className={`w-full h-8 px-3 text-left text-xs flex items-center gap-2 ${folder === f.id ? 'bg-amber-50 font-semibold text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}>
-              <FolderOpen className="w-3.5 h-3.5 text-amber-500" />
+            <button key={f.id} onClick={() => setFolder(f.id)} className={`w-[calc(100%-8px)] mx-1 h-8 pl-6 pr-2 rounded text-left text-xs flex items-center gap-2 ${folder === f.id ? 'bg-[#e5e5e5]' : 'hover:bg-black/5'}`}>
+              <FolderOpen className="w-4 h-4 text-[#e8a33d]" />
               {f.label}
-              <span className="ml-auto text-slate-400">{f.id === 'all' ? ctx.files.length : ctx.files.filter((x) => origin(x) === f.id).length}</span>
+              <span className="ml-auto text-[#8a8a8a]">{f.id === 'all' ? ctx.files.length : ctx.files.filter((x) => origin(x) === f.id).length}</span>
             </button>
           ))}
         </nav>
-        <ul className="w-60 shrink-0 border-r border-slate-200 overflow-y-auto">
+        <ul className="w-[340px] shrink-0 border-r border-[#e5e5e5] overflow-y-auto">
+          <li className="sticky top-0 bg-white grid grid-cols-[1fr_80px_56px] px-3 h-7 items-center text-[11.5px] text-[#5c5c5c] border-b border-[#e5e5e5]">
+            <span>Name</span>
+            <span>Type</span>
+            <span className="text-right">Size</span>
+          </li>
           {list.length === 0 && <li className="p-4 text-xs text-slate-500">No files here yet. Attachments you receive, files you download and anything you save or export appear in Files.</li>}
           {list.map((f) => (
             <li key={f.name}>
@@ -115,9 +146,13 @@ export const FilesApp: React.FC<{ ctx: DeskCtx; focus: string | null; origin: (f
                   <input name="n" autoFocus defaultValue={f.name.replace(/\.[^.]+$/, '')} onBlur={(e) => e.currentTarget.form?.requestSubmit()} className="w-full h-7 px-2 border border-sky-500 rounded text-xs" />
                 </form>
               ) : (
-                <button onClick={() => setSel(f.name)} onDoubleClick={() => ctx.openFile(f.name, OPENERS.find((o) => o.kinds.includes(fileKind(f.name)) && hasApp(ctx.cfg, o.app))?.app)} className={`w-full text-left px-3 py-2 flex items-center gap-2 border-b border-slate-100 ${sel === f.name ? 'bg-amber-50' : 'hover:bg-slate-50'}`}>
-                  {icon(f.name)}
-                  <span className="truncate text-[13px]">{f.name}</span>
+                <button onClick={() => setSel(f.name)} onDoubleClick={() => ctx.openFile(f.name, OPENERS.find((o) => o.kinds.includes(fileKind(f.name)) && hasApp(ctx.cfg, o.app))?.app)} className={`w-full text-left px-3 h-8 grid grid-cols-[1fr_80px_56px] items-center ${sel === f.name ? 'bg-[#cce8ff]' : 'hover:bg-[#e5f3ff]'}`}>
+                  <span className="flex items-center gap-2 min-w-0">
+                    {icon(f.name)}
+                    <span className="truncate text-[12.5px]">{f.name}</span>
+                  </span>
+                  <span className="text-[11.5px] text-[#5c5c5c] truncate">{TYPES[fileKind(f.name)] ?? 'File'}</span>
+                  <span className="text-[11.5px] text-[#5c5c5c] text-right">{sizeOf(f)}</span>
                 </button>
               )}
             </li>

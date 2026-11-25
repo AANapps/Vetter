@@ -37,7 +37,7 @@ import { CodeField } from './CodeField';
 import { DeskProject, TestRun, runDeskTests } from '../lib/deskCode';
 import { BarChart3, BookOpen, CalendarDays, ClipboardList, Contact, FileType2, Headphones, KanbanSquare, MessagesSquare, Users } from 'lucide-react';
 import { PeopleApp } from './desk/PeopleApp';
-import { DeskCtx } from './desk/shared';
+import { Avatar as DeskAvatar, DeskCtx } from './desk/shared';
 import { FilesApp, Folder } from './desk/FilesApp';
 import { ChatApp } from './desk/ChatApp';
 import { HelpdeskApp } from './desk/HelpdeskApp';
@@ -49,7 +49,7 @@ import { CalendarApp } from './desk/CalendarApp';
 import { KbApp } from './desk/KbApp';
 import { BoardApp } from './desk/BoardApp';
 import { freeName, gridFromClipboard, gridToText } from '../lib/deskData';
-import { LayoutGrid, Check, ChevronDown, ChevronUp, Clock, Search, Square, Copy, Wifi, Volume2, BatteryMedium, Bell } from 'lucide-react';
+import { Files, GitBranch, LayoutGrid, Check, ChevronDown, ChevronUp, Clock, Search, Square, Copy, Wifi, Volume2, BatteryMedium, Bell } from 'lucide-react';
 
 /**
  * The desktop a job simulation is worked on, made to feel like an everyday work computer: a wallpaper with shortcuts
@@ -746,33 +746,58 @@ const MailApp: React.FC<{
   const forward = (m: DeskEmail) => setDraft({ to: '', cc: '', subject: `Fw: ${m.subject}`, body: `\n\n---\nForwarded from ${nameOf(m.from)}:\n${m.body}`, attachments: (m.attachments ?? []).map((a) => a.name) });
 
   return (
-    <div className="h-full flex text-sm" data-ref="mail">
-      <aside className="w-44 shrink-0 border-r border-slate-200 bg-slate-50 p-2 space-y-1">
-        <button onClick={() => setDraft({ to: '', cc: '', subject: '', body: '', attachments: [] })} className="w-full mb-2 h-9 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold flex items-center justify-center gap-1.5" data-ref="mail-new">
+    <div className="h-full flex flex-col text-sm text-[#242424]" data-ref="mail">
+      {/* The mail app's top bar and ribbon */}
+      <div className="h-11 shrink-0 bg-[#0f6cbd] text-white flex items-center px-3 gap-3">
+        <span className="text-[15px] font-semibold">Mail</span>
+        <div className="mx-auto w-full max-w-md h-8 rounded bg-white/90 text-[#616161] text-xs flex items-center gap-2 px-2.5">
+          <Search className="w-3.5 h-3.5 text-[#0f6cbd]" />
+          Search
+        </div>
+        <span className="w-8 h-8 rounded-full bg-white/20 grid place-items-center text-[11px] font-semibold">{cfg.user.name.split(/\s+/).map((w) => w[0]).slice(0, 2).join('')}</span>
+      </div>
+      <div className="h-12 shrink-0 bg-[#f5f5f5] border-b border-[#e0e0e0] flex items-center gap-2 px-3">
+        <button onClick={() => setDraft({ to: '', cc: '', subject: '', body: '', attachments: [] })} className="h-8 px-3 rounded bg-[#0f6cbd] hover:bg-[#115ea3] text-white text-xs font-semibold flex items-center gap-1.5" data-ref="mail-new">
           <PenSquare className="w-4 h-4" />
-          New email
+          New mail
         </button>
+        {current && !draft && (
+          <>
+            <span className="w-px h-6 bg-[#e0e0e0]" />
+            <button onClick={() => startReply(current, false)} className="h-8 px-2 rounded hover:bg-black/5 text-xs flex items-center gap-1.5"><CornerUpLeft className="w-4 h-4 text-[#0f6cbd]" />Reply</button>
+            <button onClick={() => startReply(current, true)} className="h-8 px-2 rounded hover:bg-black/5 text-xs flex items-center gap-1.5"><ReplyAll className="w-4 h-4 text-[#0f6cbd]" />Reply all</button>
+            <button onClick={() => forward(current)} className="h-8 px-2 rounded hover:bg-black/5 text-xs flex items-center gap-1.5"><Forward className="w-4 h-4 text-[#0f6cbd]" />Forward</button>
+          </>
+        )}
+      </div>
+      <div className="flex-1 min-h-0 flex">
+      <aside className="w-48 shrink-0 border-r border-[#e0e0e0] bg-[#f5f5f5] p-2 space-y-0.5">
+        <div className="px-2.5 pb-1 text-[11px] font-semibold text-[#616161]">Folders</div>
         {(['inbox', 'sent'] as const).map((f) => (
-          <button key={f} onClick={() => (setFolder(f), setOpenId(null))} className={`w-full h-8 px-2.5 rounded-md flex items-center gap-2 text-xs ${folder === f ? 'bg-sky-100 text-sky-800 font-semibold' : 'text-slate-700 hover:bg-slate-100'}`}>
+          <button key={f} onClick={() => (setFolder(f), setOpenId(null))} className={`w-full h-8 px-2.5 rounded flex items-center gap-2 text-xs ${folder === f ? 'bg-[#ebf3fc] text-[#242424] font-semibold' : 'text-[#424242] hover:bg-black/5'}`}>
             {f === 'inbox' ? <Inbox className="w-4 h-4" /> : <Send className="w-4 h-4" />}
             {f === 'inbox' ? 'Inbox' : 'Sent'}
-            <span className="ml-auto tabular-nums text-slate-400">{f === 'inbox' ? inbox.filter((m) => !state.read.includes(m.id)).length || '' : state.sent.length || ''}</span>
+            <span className="ml-auto tabular-nums text-[#0f6cbd] font-semibold">{f === 'inbox' ? inbox.filter((m) => !state.read.includes(m.id)).length || '' : state.sent.length || ''}</span>
           </button>
         ))}
       </aside>
-      <div className="w-72 shrink-0 border-r border-slate-200 overflow-y-auto">
+      <div className="w-80 shrink-0 border-r border-[#e0e0e0] overflow-y-auto bg-white">
+        <div className="h-10 px-3 flex items-end gap-4 border-b border-[#e0e0e0] text-xs">
+          <span className="pb-2 font-semibold border-b-2 border-[#0f6cbd]">Focused</span>
+          <span className="pb-2 text-[#616161]">Other</span>
+        </div>
         {folder === 'inbox'
           ? newest.map((m) => {
               const unread = !state.read.includes(m.id);
               return (
-                <button key={m.id} onClick={() => (setOpenId(m.id), onRead(m.id), setDraft(null))} className={`w-full text-left px-3 py-2.5 border-b border-slate-100 ${openId === m.id ? 'bg-sky-50' : 'hover:bg-slate-50'}`}>
+                <button key={m.id} onClick={() => (setOpenId(m.id), onRead(m.id), setDraft(null))} className={`relative w-full text-left pl-4 pr-3 py-2.5 border-b border-[#f0f0f0] ${openId === m.id ? 'bg-[#ebf3fc]' : 'hover:bg-[#f5f5f5]'}`}>
+                  {(unread || openId === m.id) && <span className={`absolute left-0 top-0 bottom-0 w-[3px] ${openId === m.id ? 'bg-[#0f6cbd]' : 'bg-[#0f6cbd]/70'}`} />}
                   <div className="flex items-center gap-1.5">
-                    {unread && <span className="w-2 h-2 rounded-full bg-sky-600 shrink-0" />}
-                    <span className={`truncate ${unread ? 'font-semibold text-slate-900' : 'text-slate-700'}`}>{nameOf(m.from)}</span>
+                                        <span className={`truncate ${unread ? 'font-semibold text-slate-900' : 'text-slate-700'}`}>{nameOf(m.from)}</span>
                     {m.attachments?.length ? <Paperclip className="w-3.5 h-3.5 ml-auto text-slate-400 shrink-0" /> : null}
-                    <span className="text-[11px] text-slate-400 shrink-0 ml-1">{m.date}</span>
+                    <span className={`text-[11px] text-slate-500 shrink-0 ${m.attachments?.length ? 'ml-1' : 'ml-auto'}`}>{m.date}</span>
                   </div>
-                  <div className={`truncate text-xs ${unread ? 'font-semibold text-slate-800' : 'text-slate-600'}`}>{m.subject}</div>
+                  <div className={`truncate text-xs ${unread ? 'font-semibold text-[#0f6cbd]' : 'text-[#424242]'}`}>{m.subject}</div>
                   <div className="truncate text-xs text-slate-400">{m.body.replace(/\s+/g, ' ')}</div>
                 </button>
               );
@@ -791,13 +816,17 @@ const MailApp: React.FC<{
         {draft ? (
           <Composer cfg={cfg} files={files} draft={draft} onDraft={setDraft} onCancel={() => setDraft(null)} onSend={(m) => (onSend(m), setDraft(null))} />
         ) : current ? (
-          <article className="p-5 space-y-3">
-            <h2 className="text-lg font-semibold text-slate-900">{current.subject}</h2>
-            <div className="text-xs text-slate-500 space-y-0.5">
-              <div>
-                <span className="font-semibold text-slate-800">{nameOf(current.from)}</span> &lt;{parseAddress(current.from).email}&gt; · {current.date}
+          <article className="p-6 space-y-4">
+            <h2 className="text-[20px] font-semibold text-[#242424]">{current.subject}</h2>
+            <div className="flex gap-3 text-xs text-[#616161]">
+              <DeskAvatar name={nameOf(current.from)} size={40} />
+              <div className="space-y-0.5 min-w-0">
+                <div>
+                  <span className="text-[14px] font-semibold text-[#242424]">{nameOf(current.from)}</span> &lt;{parseAddress(current.from).email}&gt;
+                </div>
+                <div>To: {current.to.join(', ')}{current.cc?.length ? ` · Cc: ${current.cc.join(', ')}` : ''}</div>
+                <div>{current.date}</div>
               </div>
-              <div>To: {current.to.join(', ')}{current.cc?.length ? ` · Cc: ${current.cc.join(', ')}` : ''}</div>
             </div>
             <div className="flex flex-wrap gap-2">
               <button onClick={() => startReply(current, false)} className="h-8 px-3 rounded-md border border-slate-200 hover:bg-slate-50 text-xs flex items-center gap-1.5" data-ref="mail-reply"><CornerUpLeft className="w-3.5 h-3.5" />Reply</button>
@@ -818,8 +847,9 @@ const MailApp: React.FC<{
             ) : null}
           </article>
         ) : (
-          <div className="h-full grid place-items-center text-xs text-slate-400">Select an email to read it.</div>
+          <div className="h-full grid place-items-center text-xs text-slate-400">Select an item to read</div>
         )}
+      </div>
       </div>
     </div>
   );
@@ -999,7 +1029,16 @@ const BrowserApp: React.FC<{ cfg: DesktopConfig; onVisit: (url: string) => void;
   };
   return (
     <div className="h-full flex flex-col" data-ref="browser">
-      <div className="h-11 shrink-0 flex items-center gap-1.5 px-2 bg-slate-50 border-b border-slate-200">
+      {/* The tab strip */}
+      <div className="h-9 shrink-0 bg-[#dee1e6] flex items-end px-2 gap-1">
+        <div className="relative h-8 w-56 px-3 rounded-t-lg bg-white flex items-center gap-2 text-xs text-[#202124]">
+          <span className="w-4 h-4 rounded-sm bg-[#5f6368] text-white grid place-items-center text-[9px] font-bold shrink-0">{(page?.site ?? '?')[0]}</span>
+          <span className="truncate">{page?.site ?? url}</span>
+          <span className="ml-auto text-[#5f6368]" aria-hidden="true">×</span>
+        </div>
+        <span className="h-8 w-8 grid place-items-center text-[#5f6368] text-lg" aria-hidden="true">+</span>
+      </div>
+      <div className="h-10 shrink-0 flex items-center gap-1 px-2 bg-white border-b border-[#dadce0]">
         <button onClick={() => setAt((a) => Math.max(0, a - 1))} disabled={at === 0} aria-label="Back" className="w-8 h-8 grid place-items-center rounded-full hover:bg-slate-200 disabled:opacity-30"><ArrowLeft className="w-4 h-4" /></button>
         <button onClick={() => setAt((a) => Math.min(history.length - 1, a + 1))} disabled={at >= history.length - 1} aria-label="Forward" className="w-8 h-8 grid place-items-center rounded-full hover:bg-slate-200 disabled:opacity-30"><ArrowRight className="w-4 h-4" /></button>
         <button onClick={() => go(url)} aria-label="Reload" className="w-8 h-8 grid place-items-center rounded-full hover:bg-slate-200"><RotateCw className="w-4 h-4" /></button>
@@ -1008,9 +1047,9 @@ const BrowserApp: React.FC<{ cfg: DesktopConfig; onVisit: (url: string) => void;
             e.preventDefault();
             if (address.trim()) go(address.trim());
           }}
-          className="flex-1 flex items-center gap-2 h-8 px-3 rounded-full bg-white border border-slate-200 focus-within:border-sky-500"
+          className="flex-1 flex items-center gap-2 h-8 px-3 rounded-full bg-[#f1f3f4] border-2 border-transparent focus-within:bg-white focus-within:border-[#1a73e8]"
         >
-          <Lock className="w-3.5 h-3.5 text-slate-400" />
+          <Lock className="w-3.5 h-3.5 text-[#5f6368]" />
           <input value={address} onChange={(e) => setAddress(e.target.value)} className="flex-1 min-w-0 text-sm outline-none bg-transparent" aria-label="Address" data-ref="browser-address" />
         </form>
       </div>
@@ -1051,24 +1090,37 @@ const CodeApp: React.FC<{ project: DeskProject; files: Record<string, string>; o
   };
   const passed = run?.results.filter((r) => r.pass).length ?? 0;
   return (
-    <div className="h-full flex text-sm bg-slate-950" data-ref="code">
-      <aside className="w-48 shrink-0 bg-slate-900 text-slate-300 border-r border-slate-800 flex flex-col">
-        <div className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">{project.name}</div>
+    <div className="h-full flex flex-col text-sm bg-[#1e1e1e] text-[#cccccc]" data-ref="code">
+      <div className="flex-1 min-h-0 flex">
+      {/* Activity bar */}
+      <nav className="w-12 shrink-0 bg-[#333333] flex flex-col items-center pt-2 gap-1 text-[#858585]" aria-hidden="true">
+        <span className="w-12 h-11 grid place-items-center text-white border-l-2 border-white"><Files className="w-6 h-6" strokeWidth={1.5} /></span>
+        <span className="w-12 h-11 grid place-items-center"><Search className="w-6 h-6" strokeWidth={1.5} /></span>
+        <span className="w-12 h-11 grid place-items-center"><GitBranch className="w-6 h-6" strokeWidth={1.5} /></span>
+      </nav>
+      <aside className="w-52 shrink-0 bg-[#252526] flex flex-col">
+        <div className="px-5 h-9 flex items-center text-[11px] tracking-wide text-[#bbbbbb]">EXPLORER</div>
+        <div className="px-2 h-6 flex items-center gap-1 text-[11px] font-bold uppercase text-[#cccccc]">
+          <ChevronDown className="w-3.5 h-3.5" />
+          {project.name}
+        </div>
         {project.files.map((f) => (
-          <button key={f.name} onClick={() => setOpen(f.name)} className={`text-left px-3 py-1.5 text-xs font-mono flex items-center gap-2 ${open === f.name ? 'bg-slate-800 text-white' : 'hover:bg-slate-800/60'}`}>
-            <FileText className="w-3.5 h-3.5 shrink-0 text-slate-500" />
-            <span className="truncate">{f.name}</span>
-            {files[f.name] !== undefined && files[f.name] !== f.content && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-amber-400" title="Changed" />}
+          <button key={f.name} onClick={() => setOpen(f.name)} className={`text-left pl-6 pr-3 h-6 text-[13px] flex items-center gap-1.5 ${open === f.name ? 'bg-[#37373d] text-white outline outline-1 outline-[#007fd4] -outline-offset-1' : 'hover:bg-[#2a2d2e]'}`}>
+            <span className="text-[10px] font-bold text-[#e8c34b] w-4 shrink-0">{/\.ts$/.test(f.name) ? 'TS' : /\.json$/.test(f.name) ? '{}' : 'JS'}</span>
+            <span className={`truncate ${files[f.name] !== undefined && files[f.name] !== f.content ? 'text-[#e2c08d]' : ''}`}>{f.name}</span>
+            {files[f.name] !== undefined && files[f.name] !== f.content && <span className="ml-auto text-[10px] text-[#e2c08d]" title="Changed">M</span>}
           </button>
         ))}
       </aside>
       <div className="flex-1 min-w-0 flex flex-col">
-        <div className="h-9 shrink-0 flex items-center gap-2 px-3 bg-slate-900 border-b border-slate-800 text-xs text-slate-400">
-          <span className="font-mono text-slate-200">{open}</span>
-          {file?.readonly && <span className="px-1.5 rounded bg-slate-800 text-[10px]">read only</span>}
-          <button onClick={runTests} disabled={busy} className="ml-auto h-7 px-3 rounded-md bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold flex items-center gap-1.5" data-ref="code-run">
-            <Play className="w-3.5 h-3.5" />
-            {busy ? 'Running…' : `Run tests (${project.testFile})`}
+        <div className="h-9 shrink-0 flex items-stretch bg-[#252526] text-[13px]">
+          <span className="px-3 flex items-center gap-2 bg-[#1e1e1e] text-white border-t border-[#007acc]">
+            {open}
+            {file?.readonly && <span className="text-[10px] text-[#858585]">read only</span>}
+          </span>
+          <button onClick={runTests} disabled={busy} title={`Run tests (${project.testFile})`} className="ml-auto mr-2 my-1 px-2.5 rounded hover:bg-white/10 disabled:opacity-50 text-[#89d185] text-xs flex items-center gap-1.5" data-ref="code-run">
+            <Play className="w-4 h-4" />
+            {busy ? 'Running…' : 'Run tests'}
           </button>
         </div>
         <div className="flex-1 min-h-0 overflow-auto">
@@ -1083,9 +1135,15 @@ const CodeApp: React.FC<{ project: DeskProject; files: Record<string, string>; o
             />
           )}
         </div>
-        <div className="h-40 shrink-0 border-t border-slate-800 bg-slate-900 overflow-y-auto px-3 py-2 font-mono text-[12px]" data-ref="code-results" aria-live="polite">
+        <div className="h-44 shrink-0 border-t border-[#414141] bg-[#1e1e1e] flex flex-col">
+        <div className="h-8 shrink-0 px-4 flex items-end gap-5 text-[11px] text-[#969696]">
+          <span>PROBLEMS</span>
+          <span>OUTPUT</span>
+          <span className="pb-1 text-[#e7e7e7] border-b border-[#e7e7e7]">TERMINAL</span>
+        </div>
+        <div className="flex-1 overflow-y-auto px-4 py-1 font-mono text-[12px]" data-ref="code-results" aria-live="polite">
           {!run ? (
-            <span className="text-slate-500">Press Run tests to run {project.testFile} against your code.</span>
+            <span className="text-[#858585]">$ Press Run tests to run {project.testFile} against your code.</span>
           ) : (
             <>
               <div className={passed === run.results.length && !run.error ? 'text-emerald-400' : 'text-amber-300'}>
@@ -1100,6 +1158,15 @@ const CodeApp: React.FC<{ project: DeskProject; files: Record<string, string>; o
             </>
           )}
         </div>
+        </div>
+      </div>
+      </div>
+      {/* Status bar */}
+      <div className="h-6 shrink-0 bg-[#007acc] text-white text-[11px] flex items-center gap-4 px-3">
+        <span className="inline-flex items-center gap-1"><GitBranch className="w-3 h-3" />main</span>
+        <span>{run ? `${passed}/${run.results.length} tests passed` : 'Ready'}</span>
+        <span className="ml-auto">UTF-8</span>
+        <span>JavaScript</span>
       </div>
     </div>
   );

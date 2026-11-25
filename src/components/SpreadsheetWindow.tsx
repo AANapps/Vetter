@@ -818,16 +818,23 @@ export const SpreadsheetWindow: React.FC<SpreadsheetWindowProps> = ({ value, onC
   return (
     <div className="flex flex-col h-full min-h-0 bg-white border border-slate-300 rounded-lg overflow-hidden shadow-sm text-slate-900 select-none">
       {/* Title bar */}
-      <div className="h-8 bg-emerald-700 text-white flex items-center justify-between px-3 shrink-0">
-        <div className="flex items-center gap-2 text-xs font-semibold">
-          <Table2 className="w-3.5 h-3.5" />
+      <div className="h-8 bg-[#217346] text-white flex items-center justify-between px-3 shrink-0">
+        <div className="flex items-center gap-2 text-xs">
+          <span className="w-4 h-4 rounded-sm bg-white text-[#217346] grid place-items-center"><Table2 className="w-3 h-3" /></span>
           <span>{fileName}</span>
+          <span className="text-white/70">&middot; Saved</span>
         </div>
-        <span className="text-[10px] text-emerald-100">Spreadsheet &middot; saved as you go</span>
+        <span className="w-6 h-6 rounded-full bg-white/20" aria-hidden="true" />
+      </div>
+      {/* Ribbon tabs */}
+      <div className="h-8 flex items-end gap-0.5 px-2 bg-[#f3f2f1] shrink-0 text-[12px] text-[#424242]" aria-hidden="true">
+        {['File', 'Home', 'Insert', 'Page Layout', 'Formulas', 'Data', 'Review', 'View'].map((t) => (
+          <span key={t} className={`px-3 h-7 grid place-items-center ${t === 'Home' ? 'bg-white rounded-t text-[#217346] font-semibold border-b-2 border-[#217346]' : ''}`}>{t}</span>
+        ))}
       </div>
 
       {/* Ribbon */}
-      <div className="flex flex-wrap items-stretch gap-y-1 gap-x-1 px-2 py-1.5 border-b border-slate-200 bg-slate-50 shrink-0 text-[11px]">
+      <div className="flex flex-wrap items-stretch gap-y-1 gap-x-1 px-2 py-1.5 border-b border-[#e1dfdd] bg-white shadow-[0_1px_2px_rgba(0,0,0,.06)] shrink-0 text-[11px]">
         <RibbonGroup label="Edit">
           <RibbonButton icon={<Undo2 className="w-3.5 h-3.5" />} label="" title="Undo (Ctrl+Z)" onClick={doUndo} disabled={!undo.length} />
           <RibbonButton icon={<Redo2 className="w-3.5 h-3.5" />} label="" title="Redo (Ctrl+Y)" onClick={doRedo} disabled={!redo.length} />
@@ -1094,7 +1101,7 @@ export const SpreadsheetWindow: React.FC<SpreadsheetWindowProps> = ({ value, onC
       </div>
 
       {/* Sheet tabs */}
-      <div className="flex items-center gap-0.5 px-2 border-t border-slate-200 bg-slate-50 shrink-0 overflow-x-auto h-8">
+      <div className="flex items-center gap-0.5 px-2 border-t border-[#e1dfdd] bg-[#f3f2f1] shrink-0 overflow-x-auto h-8">
         {wb.sheets.map((s, i) =>
           renaming === i ? (
             <input
@@ -1144,7 +1151,7 @@ export const SpreadsheetWindow: React.FC<SpreadsheetWindowProps> = ({ value, onC
       </div>
 
       {/* Status bar */}
-      <div className="h-6 flex items-center justify-between px-3 bg-emerald-700 text-[11px] text-emerald-50 shrink-0">
+      <div className="h-6 flex items-center justify-between px-3 bg-[#f3f2f1] border-t border-[#e1dfdd] text-[11px] text-[#424242] shrink-0">
         <span>{toast ?? mode}</span>
         {stats && (
           <span className="tabular-nums space-x-4">
@@ -1371,7 +1378,7 @@ function matches(raw: string, find: string, matchCase: boolean, whole: boolean) 
 const RibbonGroup: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
   <div className="flex flex-col justify-between px-1.5 border-r border-slate-200 last:border-r-0 shrink-0">
     <div className="flex items-center gap-0.5">{children}</div>
-    <div className="text-[9px] uppercase tracking-wider text-slate-400 text-center mt-0.5">{label}</div>
+    <div className="text-[10px] text-[#605e5c] text-center mt-0.5">{label}</div>
   </div>
 );
 

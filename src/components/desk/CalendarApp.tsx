@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, MapPin, Plus, Trash2, Users } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, MapPin, Menu, Plus, Trash2, Users } from 'lucide-react';
 import { CalEvent, CalendarConfig, calendarEvents } from '../../lib/deskApps';
-import { DeskCtx, Modal, btn, input, personName, primary } from './shared';
+import { DeskCtx, Modal, accent, btn, input, personName, primary } from './shared';
 
 const DAY_MS = 86400000;
 const toDate = (s: string) => new Date(`${s}T00:00:00Z`);
@@ -12,6 +12,30 @@ const mins = (t: string) => {
 };
 const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 const dayName = (d: Date) => d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+// The month beside the week, as calendars show it, with this week picked out
+const MiniMonth: React.FC<{ month: Date; today: string; week: string[] }> = ({ month, today, week }) => {
+  const first = new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth(), 1));
+  const lead = (first.getUTCDay() + 6) % 7;
+  const cells = Array.from({ length: 42 }, (_, i) => new Date(first.getTime() + (i - lead) * DAY_MS));
+  return (
+    <div className="text-[11px]">
+      <div className="px-1 mb-1 text-[13px] font-medium">{first.toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' })}</div>
+      <div className="grid grid-cols-7 text-center gap-y-0.5">
+        {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
+          <span key={i} className="text-[#70757a]">{d}</span>
+        ))}
+        {cells.map((d) => {
+          const s = iso(d);
+          return (
+            <span key={s} className={`mx-auto w-6 h-6 grid place-items-center rounded-full ${s === today ? 'bg-[#1a73e8] text-white' : week.includes(s) ? 'bg-[#e8f0fe] text-[#1967d2]' : d.getUTCMonth() !== first.getUTCMonth() ? 'text-[#b0b3b8]' : ''}`}>
+              {d.getUTCDate()}
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 const overlaps = (a: CalEvent, b: { date: string; start: string; end: string }) => a.date === b.date && mins(a.start) < mins(b.end) && mins(b.start) < mins(a.end);
 
 // Outlook/Google-style calendar: the working week, the candidate's meetings and invitations (accept, tentative,
@@ -34,29 +58,47 @@ export const CalendarApp: React.FC<{ ctx: DeskCtx; cfg: CalendarConfig }> = ({ c
   const save = (patch: Partial<typeof work>) => ctx.setWork('calendar', { ...work, ...patch });
 
   return (
-    <div className="h-full flex flex-col text-[13px]" data-ref="calendar">
-      <div className="h-12 shrink-0 flex items-center gap-2 px-3 border-b border-slate-200">
-        <button className={primary} onClick={() => setDraft({ id: '', title: '', date: today, start: '10:00', end: '10:30', attendees: [] })} data-ref="cal-new">
-          <Plus className="w-3.5 h-3.5" />
-          New meeting
-        </button>
-        <button className={btn} onClick={() => setWeek(0)}>
+    <div className="h-full flex flex-col text-[13px] text-[#3c4043]" data-ref="calendar" style={accent('#1a73e8', '#e8f0fe')}>
+      <div className="h-14 shrink-0 flex items-center gap-2 px-3 border-b border-[#dadce0]">
+        <Menu className="w-5 h-5 text-[#5f6368] mx-1" />
+        <span className="w-8 h-8 rounded bg-[#1a73e8] grid place-items-center text-white text-[11px] font-bold">{toDate(today).getUTCDate()}</span>
+        <span className="text-[20px] text-[#3c4043] mr-8">Calendar</span>
+        <button className="h-9 px-4 rounded-full border border-[#dadce0] hover:bg-[#f1f3f4] text-[14px] font-medium" onClick={() => setWeek(0)}>
           Today
         </button>
-        <button onClick={() => setWeek((w) => w - 1)} aria-label="Previous week" className="w-8 h-8 grid place-items-center rounded hover:bg-slate-100">
-          <ChevronLeft className="w-4 h-4" />
+        <button onClick={() => setWeek((w) => w - 1)} aria-label="Previous week" className="w-8 h-8 grid place-items-center rounded-full hover:bg-[#f1f3f4]">
+          <ChevronLeft className="w-5 h-5" />
         </button>
-        <button onClick={() => setWeek((w) => w + 1)} aria-label="Next week" className="w-8 h-8 grid place-items-center rounded hover:bg-slate-100">
-          <ChevronRight className="w-4 h-4" />
+        <button onClick={() => setWeek((w) => w + 1)} aria-label="Next week" className="w-8 h-8 grid place-items-center rounded-full hover:bg-[#f1f3f4]">
+          <ChevronRight className="w-5 h-5" />
         </button>
-        <span className="font-semibold text-slate-800">{start.toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' })}</span>
+        <span className="text-[22px] text-[#3c4043]">{start.toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' })}</span>
+        <span className="ml-auto h-9 px-4 rounded-full border border-[#dadce0] text-[14px] grid place-items-center">Week</span>
       </div>
+      <div className="flex-1 min-h-0 flex">
+      <aside className="w-56 shrink-0 p-3 space-y-5 hidden md:block">
+        <button
+          className="h-14 pl-4 pr-6 rounded-2xl bg-white shadow-[0_1px_3px_rgba(60,64,67,.3),0_4px_8px_3px_rgba(60,64,67,.15)] hover:bg-[#f6fafe] inline-flex items-center gap-3 text-[14px] font-medium"
+          onClick={() => setDraft({ id: '', title: '', date: today, start: '10:00', end: '10:30', attendees: [] })}
+          data-ref="cal-new"
+        >
+          <Plus className="w-6 h-6 text-[#1a73e8]" />
+          Create
+        </button>
+        <MiniMonth month={start} today={today} week={days.map(iso)} />
+        <div className="text-[12px]">
+          <div className="font-medium mb-1.5">My calendars</div>
+          <div className="flex items-center gap-2"><span className="w-3.5 h-3.5 rounded-sm bg-[#039be5]" />{ctx.me.name}</div>
+          <div className="flex items-center gap-2 mt-1"><span className="w-3.5 h-3.5 rounded-sm bg-[#7986cb]" />Invitations</div>
+        </div>
+      </aside>
       <div className="flex-1 overflow-y-auto">
         <div className="grid sticky top-0 z-10 bg-white border-b border-slate-200" style={{ gridTemplateColumns: '56px repeat(5, 1fr)' }}>
           <span />
           {days.map((d) => (
-            <div key={iso(d)} className={`py-2 text-center text-xs ${iso(d) === today ? 'text-sky-700 font-bold' : 'text-slate-600'}`}>
-              {dayName(d)}
+            <div key={iso(d)} className={`py-2 text-center ${iso(d) === today ? 'text-[#1a73e8]' : 'text-[#70757a]'}`}>
+              <div className="text-[11px] font-medium uppercase">{d.toLocaleDateString('en-GB', { weekday: 'short', timeZone: 'UTC' })}</div>
+              <div className={`mx-auto mt-0.5 w-11 h-11 rounded-full grid place-items-center text-[24px] ${iso(d) === today ? 'bg-[#1a73e8] text-white' : 'text-[#3c4043]'}`}>{d.getUTCDate()}</div>
             </div>
           ))}
         </div>
@@ -96,11 +138,11 @@ export const CalendarApp: React.FC<{ ctx: DeskCtx; cfg: CalendarConfig }> = ({ c
                         key={e.id}
                         onClick={() => setOpenId(e.id)}
                         style={{ top, height: h }}
-                        className={`absolute left-1 right-1 rounded px-1.5 py-0.5 text-left text-[11.5px] overflow-hidden border-l-4 ${
-                          r === 'no' ? 'bg-slate-100 border-slate-300 text-slate-400 line-through' : made(e.id) ? 'bg-sky-100 border-sky-600 text-sky-900' : 'bg-indigo-50 border-indigo-500 text-indigo-900'
-                        } ${r === 'maybe' ? 'opacity-70 border-dashed' : ''}`}
+                        className={`absolute left-0.5 right-2 rounded-md px-2 py-0.5 text-left text-[12px] overflow-hidden ${
+                          r === 'no' ? 'bg-white border border-[#dadce0] text-[#70757a] line-through' : made(e.id) ? 'bg-[#039be5] text-white' : 'bg-[#7986cb] text-white'
+                        } ${r === 'maybe' ? 'bg-white !text-[#3c4043] border border-dashed border-[#7986cb]' : ''} ${!r && !made(e.id) ? 'ring-1 ring-white' : ''}`}
                       >
-                        <div className="font-semibold truncate">{e.title}</div>
+                        <div className="font-medium truncate">{e.title}</div>
                         <div className="truncate opacity-80">
                           {e.start}–{e.end}
                           {e.location ? ` · ${e.location}` : ''}
@@ -112,6 +154,7 @@ export const CalendarApp: React.FC<{ ctx: DeskCtx; cfg: CalendarConfig }> = ({ c
             );
           })}
         </div>
+      </div>
       </div>
       {open && (
         <Modal

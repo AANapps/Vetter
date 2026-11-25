@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { Lock, MessageSquare, Plus, Tag, X } from 'lucide-react';
+import { BarChart3, Bell, Home, LayoutList, Lock, MessageSquare, Plus, Settings, Tag, Users, X } from 'lucide-react';
 import { HelpdeskConfig, Ticket, TicketStatus, TicketWork, ticketsNow } from '../../lib/deskApps';
 import { recordsToGrid } from '../../lib/deskData';
-import { Avatar, DataGrid, DeskCtx, Modal, SearchBox, Select, TableActions, btn, input, personName, primary } from './shared';
+import { Avatar, DataGrid, DeskCtx, Modal, SearchBox, Select, TableActions, accent, btn, input, personName, primary } from './shared';
 
 const STATUSES: TicketStatus[] = ['new', 'open', 'pending', 'on-hold', 'solved', 'closed'];
 const PRIORITIES: Ticket['priority'][] = ['low', 'normal', 'high', 'urgent'];
@@ -42,9 +42,27 @@ export const HelpdeskApp: React.FC<{ ctx: DeskCtx; cfg: HelpdeskConfig }> = ({ c
   };
 
   return (
-    <div className="h-full flex text-[13px]" data-ref="helpdesk">
-      <aside className="w-56 shrink-0 bg-slate-50 border-r border-slate-200 flex flex-col">
-        <div className="px-3 h-11 flex items-center font-bold text-slate-800 border-b border-slate-200">{cfg.name ?? 'Support'}</div>
+    <div className="h-full flex text-[13px]" data-ref="helpdesk" style={accent('#1f73b7', '#edf7ff')}>
+      {/* The product's icon rail, as help desks have down the far left */}
+      <nav className="w-14 shrink-0 bg-[#03363d] flex flex-col items-center py-2 gap-1 text-white/70" aria-label="Help desk">
+        <span className="w-9 h-9 mb-2 rounded-lg bg-[#78a300] grid place-items-center text-[#03363d] font-black text-sm">{(cfg.name ?? 'S')[0]}</span>
+        {(
+          [
+            [Home, 'Home'],
+            [LayoutList, 'Views'],
+            [Users, 'Customers'],
+            [BarChart3, 'Reporting'],
+          ] as const
+        ).map(([Icon, label]) => (
+          <span key={label} title={label} className={`w-10 h-10 rounded-md grid place-items-center ${label === 'Views' ? 'bg-white/15 text-white' : ''}`}>
+            <Icon className="w-5 h-5" />
+          </span>
+        ))}
+        <span className="mt-auto w-10 h-10 grid place-items-center" title="Notifications"><Bell className="w-5 h-5" /></span>
+        <span className="w-10 h-10 grid place-items-center" title="Settings"><Settings className="w-5 h-5" /></span>
+      </nav>
+      <aside className="w-56 shrink-0 bg-[#f8f9f9] border-r border-slate-200 flex flex-col">
+        <div className="px-3 h-12 flex items-center text-[15px] font-semibold text-[#2f3941] border-b border-slate-200">Views</div>
         <div className="p-2">
           <button onClick={() => setCreating(true)} className={`${primary} w-full justify-center`}>
             <Plus className="w-3.5 h-3.5" />
@@ -52,11 +70,10 @@ export const HelpdeskApp: React.FC<{ ctx: DeskCtx; cfg: HelpdeskConfig }> = ({ c
           </button>
         </div>
         <nav className="flex-1 overflow-y-auto px-1">
-          <div className="px-2 py-1 text-[11px] uppercase tracking-wider text-slate-400">Views</div>
-          {VIEWS.map((v) => (
-            <button key={v.id} onClick={() => (setView(v.id), setOpenId(null))} className={`w-full h-8 px-2 rounded flex items-center text-left ${view === v.id ? 'bg-white shadow-sm font-semibold text-slate-900' : 'text-slate-600 hover:bg-white/70'}`} data-ref={`view-${v.id}`}>
+                    {VIEWS.map((v) => (
+            <button key={v.id} onClick={() => (setView(v.id), setOpenId(null))} className={`w-full h-8 px-2 rounded flex items-center text-left ${view === v.id ? 'bg-[#e9ebed] font-semibold text-[#2f3941]' : 'text-[#49545c] hover:bg-[#f1f3f4]'}`} data-ref={`view-${v.id}`}>
               <span className="truncate">{v.label}</span>
-              <span className="ml-auto text-xs tabular-nums text-slate-400">{tickets.filter((t) => v.test(t, me)).length}</span>
+              <span className="ml-auto text-xs tabular-nums text-[#68737d]">{tickets.filter((t) => v.test(t, me)).length}</span>
             </button>
           ))}
         </nav>
@@ -65,8 +82,8 @@ export const HelpdeskApp: React.FC<{ ctx: DeskCtx; cfg: HelpdeskConfig }> = ({ c
         <TicketView ctx={ctx} cfg={cfg} ticket={ticket} onBack={() => setOpenId(null)} onChange={(p) => change(ticket.id, p)} />
       ) : (
         <section className="flex-1 min-w-0 flex flex-col">
-          <div className="h-11 shrink-0 px-3 flex items-center gap-2 border-b border-slate-200">
-            <h2 className="font-semibold text-slate-800 truncate">{VIEWS.find((v) => v.id === view)!.label}</h2>
+          <div className="h-12 shrink-0 px-4 flex items-center gap-2 border-b border-slate-200">
+            <h2 className="text-[15px] font-semibold text-[#2f3941] truncate">{VIEWS.find((v) => v.id === view)!.label}</h2>
             <span className="text-xs text-slate-400">{shown.length} tickets</span>
             <span className="ml-auto flex items-center gap-1.5">
               <div className="w-52">
@@ -109,7 +126,7 @@ export const HelpdeskApp: React.FC<{ ctx: DeskCtx; cfg: HelpdeskConfig }> = ({ c
   );
 };
 
-const StatusPill: React.FC<{ s: TicketStatus }> = ({ s }) => <span className={`inline-block px-1.5 rounded text-[10.5px] font-bold uppercase ${STATUS_TINT[s]}`}>{s}</span>;
+const StatusPill: React.FC<{ s: TicketStatus }> = ({ s }) => <span className={`inline-block px-2 py-px rounded-full text-[10.5px] font-semibold capitalize ${STATUS_TINT[s]}`}>{s}</span>;
 
 const TicketView: React.FC<{ ctx: DeskCtx; cfg: HelpdeskConfig; ticket: ReturnType<typeof ticketsNow>[number]; onBack: () => void; onChange: (p: TicketWork) => void }> = ({ ctx, cfg, ticket: t, onBack, onChange }) => {
   const [mode, setMode] = useState<'public' | 'internal'>('public');

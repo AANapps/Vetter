@@ -139,21 +139,27 @@ export const DatabaseWindow: React.FC<DatabaseWindowProps> = ({ value, onChange,
   return (
     <div className="flex flex-col h-full min-h-0 bg-white border border-slate-300 rounded-lg overflow-hidden shadow-sm text-slate-900">
       {/* Title bar */}
-      <div className="h-8 bg-slate-800 text-white flex items-center justify-between px-3 shrink-0">
-        <div className="flex items-center gap-2 text-xs font-semibold">
-          <DatabaseIcon className="w-3.5 h-3.5 text-sky-300" />
-          <span>SQL workbench &mdash; {databaseName}</span>
+      <div className="h-8 bg-[#2b2b2b] text-white/90 flex items-center justify-between px-3 shrink-0">
+        <div className="flex items-center gap-2 text-xs">
+          <DatabaseIcon className="w-3.5 h-3.5 text-[#e8a33d]" />
+          <span>SQLQuery1.sql &mdash; {databaseName}</span>
         </div>
-        <span className="text-[10px] text-slate-300">SQLite dialect: use LIMIT, not TOP</span>
+        <span className="text-[10px] text-white/60">SQLite dialect: use LIMIT, not TOP</span>
+      </div>
+      {/* Menu bar */}
+      <div className="h-6 flex items-center gap-4 px-3 bg-[#eeeef2] text-[12px] text-[#1e1e1e] shrink-0" aria-hidden="true">
+        {['File', 'Edit', 'View', 'Query', 'Tools', 'Window', 'Help'].map((m) => (
+          <span key={m}>{m}</span>
+        ))}
       </div>
 
       {/* Toolbar */}
-      <div className="flex items-center gap-1 px-2 py-1.5 border-b border-slate-200 bg-slate-50 shrink-0 text-[11px] overflow-x-auto">
+      <div className="flex items-center gap-1 px-2 py-1.5 border-b border-[#ccced6] bg-[#eeeef2] shrink-0 text-[11px] overflow-x-auto">
         <button
           onClick={() => execute()}
           disabled={!ready || running}
           title="Run the selected text, or everything if nothing is selected (F5 or Ctrl+Enter)"
-          className="flex items-center gap-1 px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-semibold disabled:opacity-50"
+          className="flex items-center gap-1 px-2 py-1 rounded hover:bg-[#c9def5] text-[#1e1e1e] font-semibold disabled:opacity-50 [&>svg]:text-[#388a34]"
         >
           <Play className="w-3 h-3 fill-current" />
           {running ? 'Executing…' : 'Execute'}

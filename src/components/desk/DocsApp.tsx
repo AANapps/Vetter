@@ -3,7 +3,7 @@ import { Bold, Copy, FileDown, FilePlus2, Heading1, Heading2, Italic, List, List
 import { CaseFile } from '../../types';
 import { cleanHtml, fileKind, freeName, gridFromClipboard, gridToHtml, htmlToText } from '../../lib/deskData';
 import { downloadFile } from '../../lib/csv';
-import { DeskCtx, btn, input } from './shared';
+import { DeskCtx, accent, btn, input } from './shared';
 
 // Word/Google Docs: documents are files (".docx", kept as HTML) so they can be attached to emails, shared in chat and
 // marked by their words. Pasting cells from Spreadsheet, a table from a web page or a CSV's lines makes a real table.
@@ -17,12 +17,17 @@ export const DocsApp: React.FC<{ ctx: DeskCtx; focus?: string | null }> = ({ ctx
   return doc ? (
     <Editor key={doc.name} ctx={ctx} doc={doc} onClose={() => setName(null)} onRename={setName} />
   ) : (
-    <div className="h-full overflow-y-auto bg-slate-50 p-6 text-[13px]" data-ref="docs">
-      <div className="max-w-3xl mx-auto space-y-4">
-        <div className="flex items-center gap-2">
-          <h2 className="text-lg font-semibold text-slate-900">Documents</h2>
+    <div className="h-full overflow-y-auto bg-white text-[13px]" data-ref="docs">
+      <div className="h-14 px-4 flex items-center gap-3 border-b border-slate-200">
+        <span className="w-7 h-9 shrink-0 rounded-sm bg-[#4285f4] relative grid place-items-center" aria-hidden="true"><span className="w-3.5 space-y-[3px]"><span className="block h-[2px] bg-white" /><span className="block h-[2px] bg-white" /><span className="block h-[2px] bg-white w-2/3" /></span></span>
+        <span className="text-[20px] text-[#444746]">Docs</span>
+      </div>
+      {/* Start a new document */}
+      <div className="bg-[#f1f3f4] py-5">
+        <div className="max-w-3xl mx-auto px-6">
+          <div className="text-[15px] text-[#202124] mb-3">Start a new document</div>
           <button
-            className={`${btn} ml-auto`}
+            className="text-left group"
             onClick={() => {
               const n = freeName('Untitled document.docx', ctx.files.map((f) => f.name));
               ctx.saveFile({ name: n, content: '<p></p>' }, '');
@@ -30,15 +35,20 @@ export const DocsApp: React.FC<{ ctx: DeskCtx; focus?: string | null }> = ({ ctx
             }}
             data-ref="docs-new"
           >
-            <FilePlus2 className="w-3.5 h-3.5" />
-            Blank document
+            <span className="w-32 h-40 bg-white border border-[#dadce0] rounded group-hover:border-[#4285f4] grid place-items-center">
+              <FilePlus2 className="w-10 h-10 text-[#4285f4]" strokeWidth={1.5} />
+            </span>
+            <span className="block mt-1.5 text-[13px] text-[#202124]">Blank document</span>
           </button>
         </div>
+      </div>
+      <div className="max-w-3xl mx-auto p-6 space-y-4">
+        <div className="text-[15px] font-medium text-[#202124]">Recent documents</div>
         {docs.length === 0 && <p className="text-xs text-slate-500">No documents yet. Start a blank one.</p>}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {docs.map((d) => (
             <button key={d.name} onClick={() => setName(d.name)} className="text-left group">
-              <div className="h-36 bg-white border border-slate-200 rounded group-hover:border-sky-500 p-3 overflow-hidden text-[7px] leading-tight text-slate-500 whitespace-pre-wrap">{htmlToText(d.content).slice(0, 600)}</div>
+              <div className="h-44 bg-white border border-[#dadce0] rounded group-hover:border-[#4285f4] p-3 overflow-hidden text-[7px] leading-tight text-slate-500 whitespace-pre-wrap">{htmlToText(d.content).slice(0, 600)}</div>
               <div className="mt-1 text-xs font-medium text-slate-800 truncate">{d.name}</div>
             </button>
           ))}
@@ -90,21 +100,24 @@ const Editor: React.FC<{ ctx: DeskCtx; doc: CaseFile; onClose: () => void; onRen
     else exec('insertText', text);
   };
   const tool = (label: string, Icon: React.ComponentType<{ className?: string }>, run: () => void) => (
-    <button onMouseDown={(e) => e.preventDefault()} onClick={run} title={label} aria-label={label} className="w-8 h-8 grid place-items-center rounded hover:bg-slate-200 text-slate-700">
+    <button onMouseDown={(e) => e.preventDefault()} onClick={run} title={label} aria-label={label} className="w-7 h-7 grid place-items-center rounded hover:bg-[#dde3ea] text-[#444746]">
       <Icon className="w-4 h-4" />
     </button>
   );
   return (
-    <div className="h-full flex flex-col bg-slate-100 text-[13px]" data-ref="docs-editor">
-      <div className="shrink-0 bg-white border-b border-slate-200 px-3 pt-2 pb-1 space-y-1">
+    <div className="h-full flex flex-col bg-[#f9fbfd] text-[13px]" data-ref="docs-editor" style={accent('#0b57d0', '#d3e3fd')}>
+      <div className="shrink-0 px-3 pt-2 pb-2 space-y-1.5">
         <div className="flex items-center gap-2">
-          <button onClick={() => (save(true), onClose())} className="text-xs text-sky-700 hover:underline">
-            ← Documents
+          <button onClick={() => (save(true), onClose())} title="Back to documents" aria-label="Back to documents">
+            <span className="w-7 h-9 shrink-0 rounded-sm bg-[#4285f4] relative grid place-items-center" aria-hidden="true"><span className="w-3.5 space-y-[3px]"><span className="block h-[2px] bg-white" /><span className="block h-[2px] bg-white" /><span className="block h-[2px] bg-white w-2/3" /></span></span>
           </button>
-          <input value={title} onChange={(e) => (setTitle(e.target.value), setDirty(true))} onBlur={() => save(true)} className="h-7 px-1.5 text-[15px] font-medium text-slate-900 rounded hover:ring-1 hover:ring-slate-200 focus:ring-2 focus:ring-sky-500/30 outline-none min-w-0 flex-1" aria-label="Document name" data-ref="docs-title" />
-          <span className="text-[11px] text-slate-400">{dirty ? 'Saving…' : 'Saved to Files'}</span>
-          <button className={btn} onClick={() => save()} title="Save (Ctrl+S)">
-            <Save className="w-3.5 h-3.5" />
+          <div className="min-w-0 flex-1">
+          <input value={title} onChange={(e) => (setTitle(e.target.value), setDirty(true))} onBlur={() => save(true)} className="h-7 px-1.5 text-[18px] text-[#1f1f1f] rounded hover:ring-1 hover:ring-slate-300 focus:ring-2 focus:ring-[#0b57d0]/40 outline-none w-full max-w-md" aria-label="Document name" data-ref="docs-title" />
+            <div className="flex gap-3 px-1.5 text-[13px] text-[#444746]" aria-hidden="true">{['File', 'Edit', 'View', 'Insert', 'Format', 'Tools'].map((m) => <span key={m}>{m}</span>)}</div>
+          </div>
+          <span className="text-[11px] text-[#444746]">{dirty ? 'Saving…' : 'Saved to Files'}</span>
+          <button className="h-9 px-5 rounded-full bg-[#c2e7ff] hover:bg-[#b3dcf7] text-[#001d35] text-[13px] font-medium inline-flex items-center gap-1.5" onClick={() => save()} title="Save (Ctrl+S)">
+            <Save className="w-4 h-4" />
             Save
           </button>
           <button
@@ -125,11 +138,11 @@ const Editor: React.FC<{ ctx: DeskCtx; doc: CaseFile; onClose: () => void; onRen
             <FileDown className="w-3.5 h-3.5" />
           </button>
         </div>
-        <div className="flex items-center gap-0.5">
+        <div className="flex items-center gap-0.5 h-10 px-2 rounded-full bg-[#edf2fa]">
           {tool('Undo', Undo2, () => exec('undo'))}
           {tool('Redo', Redo2, () => exec('redo'))}
-          <span className="w-px h-5 bg-slate-200 mx-1" />
-          <select onChange={(e) => (exec('formatBlock', e.target.value), (e.target.value = ''))} defaultValue="" className={`${input} !w-32 !h-7`} aria-label="Style">
+          <span className="w-px h-5 bg-[#c7c7c7] mx-1" />
+          <select onChange={(e) => (exec('formatBlock', e.target.value), (e.target.value = ''))} defaultValue="" className="w-32 h-7 px-2 rounded bg-transparent hover:bg-[#dde3ea] text-[13px] text-[#444746] outline-none" aria-label="Style">
             <option value="" disabled>
               Style
             </option>
@@ -147,10 +160,10 @@ const Editor: React.FC<{ ctx: DeskCtx; doc: CaseFile; onClose: () => void; onRen
           {tool('Bulleted list', List, () => exec('insertUnorderedList'))}
           {tool('Numbered list', ListOrdered, () => exec('insertOrderedList'))}
           {tool('Insert a table', Table2, () => exec('insertHTML', gridToHtml([['Column 1', 'Column 2', 'Column 3'], ['', '', ''], ['', '', '']]) + '<p></p>'))}
-          <span className="ml-auto text-[11px] text-slate-500 tabular-nums">{words} words</span>
+          <span className="ml-auto pr-2 text-[11px] text-[#444746] tabular-nums">{words} words</span>
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto py-6">
+      <div className="flex-1 overflow-y-auto py-4 border-t border-[#dadce0]">
         <div
           ref={ref}
           contentEditable
@@ -163,7 +176,7 @@ const Editor: React.FC<{ ctx: DeskCtx; doc: CaseFile; onClose: () => void; onRen
               save();
             }
           }}
-          className="desk-doc mx-auto w-[min(760px,calc(100%-2rem))] min-h-[900px] bg-white shadow-sm border border-slate-200 px-16 py-14 outline-none text-[14px] leading-relaxed text-slate-900 select-text"
+          className="desk-doc mx-auto w-[min(760px,calc(100%-2rem))] min-h-[980px] bg-white shadow-[0_1px_3px_rgba(60,64,67,.15)] border border-[#dadce0] px-[72px] py-[72px] outline-none text-[14.5px] leading-[1.5] text-black select-text" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}
           aria-label="Document"
           data-ref="docs-body"
         />

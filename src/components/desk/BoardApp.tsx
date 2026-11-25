@@ -2,9 +2,11 @@ import React, { useMemo, useState } from 'react';
 import { FileUp, KanbanSquare, Plus, Table2, Trash2, X } from 'lucide-react';
 import { BoardConfig, BoardItem, DeskBoard, boardItems } from '../../lib/deskApps';
 import { fileGrid, gridToRecords, recordsToGrid } from '../../lib/deskData';
-import { Avatar, DeskCtx, FilePicker, SearchBox, TableActions, btn, input, primary } from './shared';
+import { accent, Avatar, DeskCtx, FilePicker, SearchBox, TableActions, btn, input, primary } from './shared';
 
 const STATUS_COLORS = ['#c4c4c4', '#fdab3d', '#579bfc', '#a25ddc', '#00c875', '#e2445c', '#037f4c', '#ff642e'];
+// Each group of a work board in its own colour, as work management tools show them
+const GROUP_COLORS = ['#579bfc', '#a25ddc', '#00c875', '#fdab3d', '#e2445c', '#037f4c'];
 const statusColor = (b: DeskBoard, s: string) => (/done|complete|closed|resolved/i.test(s) ? '#00c875' : /stuck|blocked/i.test(s) ? '#e2445c' : STATUS_COLORS[Math.max(b.statuses.indexOf(s), 0) % STATUS_COLORS.length]);
 const PRIORITIES = ['Low', 'Medium', 'High', 'Critical'];
 const TYPES = ['Story', 'Task', 'Bug', 'Epic'];
@@ -95,23 +97,25 @@ export const BoardApp: React.FC<{ ctx: DeskCtx; cfg: BoardConfig }> = ({ ctx, cf
   const groups = jira ? [null] : b.groups?.length ? b.groups : [null];
 
   return (
-    <div className="h-full flex text-[13px]" data-ref="board">
+    <div className={`h-full flex text-[13px] ${jira ? 'bg-white text-[#172b4d]' : 'bg-[#eceff8] text-[#323338]'}`} data-ref="board" style={jira ? accent('#0c66e4', '#e9f2ff') : accent('#0073ea', '#cce5ff')}>
       {cfg.boards.length > 1 && (
-        <aside className="w-48 shrink-0 bg-slate-50 border-r border-slate-200 py-2">
-          <div className="px-3 py-1 text-[11px] uppercase tracking-wider text-slate-400">{jira ? 'Projects' : 'Boards'}</div>
+        <aside className={`w-52 shrink-0 py-2 ${jira ? 'bg-[#f7f8f9] border-r border-[#dfe1e6]' : ''}`}>
+          <div className={`px-3 py-1 text-[12px] ${jira ? 'font-semibold text-[#44546f]' : 'font-medium text-[#676879]'}`}>{jira ? 'Projects' : 'Workspace'}</div>
           {cfg.boards.map((x) => (
-            <button key={x.id} onClick={() => (setBoardId(x.id), setOpenId(null), setView(x.style === 'jira' ? 'kanban' : 'table'))} className={`w-full text-left px-3 py-1.5 truncate ${x.id === b.id ? 'bg-white font-semibold' : 'text-slate-600 hover:bg-white/70'}`}>
+            <button key={x.id} onClick={() => (setBoardId(x.id), setOpenId(null), setView(x.style === 'jira' ? 'kanban' : 'table'))} className={`w-[calc(100%-12px)] mx-1.5 h-8 px-2.5 rounded flex items-center gap-2 text-left truncate ${x.id === b.id ? (jira ? 'bg-[#e9f2ff] text-[#0c66e4] font-medium' : 'bg-[#cce5ff] font-medium') : 'hover:bg-black/5'}`}>
+              {jira ? <KanbanSquare className="w-4 h-4 shrink-0" /> : <Table2 className="w-4 h-4 shrink-0" />}
               {x.name}
             </button>
           ))}
         </aside>
       )}
-      <section className="flex-1 min-w-0 flex flex-col">
-        <div className="shrink-0 px-4 pt-3 border-b border-slate-200">
-          <h2 className="text-lg font-bold text-slate-900">{b.name}</h2>
+      <section className={`flex-1 min-w-0 flex flex-col bg-white ${jira ? '' : 'm-2 ml-0 rounded-lg shadow-sm overflow-hidden'} ${cfg.boards.length > 1 ? '' : '!ml-2'}`}>
+        <div className="shrink-0 px-5 pt-3 border-b border-[#d0d4e4]">
+          {jira && <div className="text-[12px] text-[#626f86] mb-0.5">Projects / {b.name}</div>}
+          <h2 className={jira ? 'text-[20px] font-medium' : 'text-[24px] font-semibold'}>{jira ? (view === 'table' ? 'List' : 'Board') : b.name}</h2>
           <div className="flex items-center gap-1 mt-1">
             {(['table', 'kanban'] as const).map((v) => (
-              <button key={v} onClick={() => setView(v)} className={`h-9 px-3 border-b-2 flex items-center gap-1.5 ${view === v ? 'border-sky-600 text-slate-900 font-semibold' : 'border-transparent text-slate-500'}`}>
+              <button key={v} onClick={() => setView(v)} className={`h-9 px-3 border-b-2 flex items-center gap-1.5 ${view === v ? 'border-[var(--accent)] text-[var(--accent)] font-medium' : 'border-transparent text-[#676879] hover:text-[#323338]'}`}>
                 {v === 'table' ? <Table2 className="w-3.5 h-3.5" /> : <KanbanSquare className="w-3.5 h-3.5" />}
                 {v === 'table' ? (jira ? 'List' : 'Main table') : jira ? 'Board' : 'Kanban'}
               </button>
@@ -139,10 +143,10 @@ export const BoardApp: React.FC<{ ctx: DeskCtx; cfg: BoardConfig }> = ({ ctx, cf
                 const rows = shown.filter((i) => g === null || (i.group ?? b.groups?.[0]) === g);
                 return (
                   <div key={g ?? 'all'}>
-                    {g && <div className="font-semibold text-[#579bfc] mb-1">{g}</div>}
-                    <table className="min-w-full border-l-4 border-[#579bfc]">
+                    {g && <div className="font-semibold text-[16px] mb-1.5 flex items-center gap-1.5" style={{ color: GROUP_COLORS[(b.groups ?? []).indexOf(g) % GROUP_COLORS.length] }}>▾ {g}</div>}
+                    <table className="min-w-full border-l-[6px] rounded-l" style={{ borderLeftColor: g ? GROUP_COLORS[(b.groups ?? []).indexOf(g) % GROUP_COLORS.length] : '#579bfc' }}>
                       <thead>
-                        <tr className="text-[11.5px] text-slate-500">
+                        <tr className="text-[12.5px] text-[#676879]">
                           {fields
                             .filter((f) => f !== 'group')
                             .map((f) => (
@@ -155,7 +159,7 @@ export const BoardApp: React.FC<{ ctx: DeskCtx; cfg: BoardConfig }> = ({ ctx, cf
                       </thead>
                       <tbody>
                         {rows.map((i) => (
-                          <tr key={i.id} className={`hover:bg-slate-50 ${openId === i.id ? 'bg-sky-50' : ''}`}>
+                          <tr key={i.id} className={`hover:bg-[#f5f6f8] ${openId === i.id ? 'bg-[var(--accent-soft)]' : ''}`}>
                             {fields
                               .filter((f) => f !== 'group')
                               .map((f) => (
@@ -184,28 +188,28 @@ export const BoardApp: React.FC<{ ctx: DeskCtx; cfg: BoardConfig }> = ({ ctx, cf
               })}
             </div>
           ) : (
-            <div className="h-full flex gap-3 p-4 bg-slate-50 min-w-max">
+            <div className="h-full flex gap-2 p-4 bg-white min-w-max">
               {b.statuses.map((s) => {
                 const col = shown.filter((i) => i.status === s);
                 return (
                   <div
                     key={s}
-                    className="w-64 shrink-0 bg-slate-100 rounded-lg flex flex-col"
+                    className={`w-64 shrink-0 rounded-lg flex flex-col ${jira ? 'bg-[#f7f8f9]' : 'bg-[#f5f6f8]'}`}
                     onDragOver={(e) => e.preventDefault()}
                     onDrop={() => dragging && (update(dragging, { status: s }), setDragging(null))}
                     data-ref={`column-${s}`}
                   >
-                    <div className="px-3 py-2 text-[11.5px] font-semibold uppercase tracking-wide text-slate-600 flex items-center gap-2">
+                    <div className="px-3 py-2.5 text-[11.5px] font-semibold uppercase tracking-wide text-[#44546f] flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full" style={{ background: statusColor(b, s) }} />
                       {s}
                       <span className="text-slate-400">{col.length}</span>
                     </div>
                     <div className="flex-1 overflow-y-auto px-2 pb-2 space-y-2">
                       {col.map((i) => (
-                        <div key={i.id} draggable onDragStart={() => setDragging(i.id)} onClick={() => setOpenId(i.id)} className="bg-white rounded-md shadow-sm border border-slate-200 p-2.5 cursor-pointer hover:border-sky-400">
+                        <div key={i.id} draggable onDragStart={() => setDragging(i.id)} onClick={() => setOpenId(i.id)} className="bg-white rounded shadow-[0_1px_1px_rgba(9,30,66,.25),0_0_1px_rgba(9,30,66,.31)] p-3 cursor-pointer hover:bg-[#f7f8f9]">
                           <div className="text-slate-900">{i.title}</div>
                           <div className="flex items-center gap-1.5 mt-2 text-[11px] text-slate-500">
-                            {jira && <span className="font-medium text-sky-700">{i.id}</span>}
+                            {jira && <span className="font-medium text-[#44546f]">{i.id}</span>}
                             {i.type && <span className="px-1 rounded bg-slate-100">{i.type}</span>}
                             {i.priority && <span>{i.priority}</span>}
                             {i.points && <span className="ml-auto px-1.5 rounded-full bg-slate-200">{i.points}</span>}

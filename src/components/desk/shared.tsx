@@ -27,8 +27,9 @@ export interface DeskCtx {
 }
 
 export const btn = 'h-8 px-3 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-xs font-medium text-slate-700 inline-flex items-center gap-1.5 disabled:opacity-40';
-export const primary = 'h-8 px-3 rounded-md bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold inline-flex items-center gap-1.5 disabled:opacity-40';
-export const input = 'w-full h-8 px-2.5 border border-slate-200 rounded-md text-[13px] bg-white focus:outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20';
+// Each app sets its own accent (--accent, --accent-soft, --accent-ink) on its root, like the real tool's brand colour
+export const primary = 'h-8 px-3 rounded-md bg-[var(--accent,#0284c7)] hover:brightness-95 text-[var(--accent-ink,#fff)] text-xs font-semibold inline-flex items-center gap-1.5 disabled:opacity-40';
+export const input = 'w-full h-8 px-2.5 border border-slate-200 rounded-md text-[13px] bg-white focus:outline-none focus:border-[var(--accent,#0284c7)] focus:ring-2 focus:ring-[var(--accent-soft,#e0f2fe)]';
 
 // A name from "Name <email>" or an email, for showing people
 export const personName = (cfg: DesktopConfig, who: string) => {
@@ -44,10 +45,10 @@ export const initials = (name: string) =>
     .map((w) => w[0]!.toUpperCase())
     .join('');
 const TINTS = ['bg-sky-600', 'bg-emerald-600', 'bg-violet-600', 'bg-amber-600', 'bg-rose-600', 'bg-teal-600', 'bg-indigo-600', 'bg-fuchsia-600'];
-export const Avatar: React.FC<{ name: string; size?: number }> = ({ name, size = 28 }) => {
+export const Avatar: React.FC<{ name: string; size?: number; square?: boolean }> = ({ name, size = 28, square }) => {
   const tint = TINTS[[...name].reduce((a, c) => a + c.charCodeAt(0), 0) % TINTS.length];
   return (
-    <span className={`shrink-0 rounded-full ${tint} text-white grid place-items-center font-semibold`} style={{ width: size, height: size, fontSize: size * 0.4 }} aria-hidden="true">
+    <span className={`shrink-0 ${square ? 'rounded-md' : 'rounded-full'} ${tint} text-white grid place-items-center font-semibold`} style={{ width: size, height: size, fontSize: size * 0.4 }} aria-hidden="true">
       {initials(name) || '?'}
     </span>
   );
@@ -110,7 +111,7 @@ export function DataGrid<T extends Record<string, unknown>>({
       </thead>
       <tbody>
         {sorted.map((r, i) => (
-          <tr key={String(r.id ?? i)} onClick={() => onOpen?.(r)} className={`border-b border-slate-100 ${onOpen ? 'cursor-pointer' : ''} ${selected?.(r) ? 'bg-sky-50' : 'hover:bg-slate-50'}`}>
+          <tr key={String(r.id ?? i)} onClick={() => onOpen?.(r)} className={`border-b border-slate-100 ${onOpen ? 'cursor-pointer' : ''} ${selected?.(r) ? 'bg-[var(--accent-soft,#f0f9ff)]' : 'hover:bg-slate-50'}`}>
             {columns.map((c) => (
               <td key={c.key} className={`px-3 py-1.5 align-top ${c.num ? 'text-right tabular-nums' : ''}`}>
                 {c.render ? c.render(r) : String(r[c.key] ?? '')}
@@ -131,7 +132,7 @@ export function DataGrid<T extends Record<string, unknown>>({
 }
 
 export const SearchBox: React.FC<{ value: string; onChange: (v: string) => void; placeholder?: string }> = ({ value, onChange, placeholder = 'Search' }) => (
-  <label className="flex items-center gap-1.5 h-8 px-2.5 rounded-md border border-slate-200 bg-white focus-within:border-sky-500 min-w-0">
+  <label className="flex items-center gap-1.5 h-8 px-2.5 rounded-md border border-slate-200 bg-white focus-within:border-[var(--accent,#0284c7)] min-w-0">
     <Search className="w-3.5 h-3.5 text-slate-400 shrink-0" />
     <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="flex-1 min-w-0 text-[13px] outline-none bg-transparent" />
     {value && (
@@ -168,7 +169,7 @@ export const FilePicker: React.FC<{ ctx: DeskCtx; kinds: FileKind[]; title: stri
         <div className="text-xs font-semibold text-slate-600">On this computer</div>
         {files.length === 0 && <p className="text-xs text-slate-400">No files of that kind yet. Save or export one, or download it from an email or a site.</p>}
         {files.map((f) => (
-          <button key={f.name} onClick={() => onPick(f)} className="w-full flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-md hover:border-sky-500 hover:bg-sky-50 text-left">
+          <button key={f.name} onClick={() => onPick(f)} className="w-full flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-md hover:border-[var(--accent,#0284c7)] hover:bg-[var(--accent-soft,#f0f9ff)] text-left">
             <FileUp className="w-4 h-4 text-slate-400" />
             <span className="truncate">{f.name}</span>
           </button>
@@ -229,3 +230,6 @@ export const Select: React.FC<{ value: string; onChange: (v: string) => void; op
 );
 
 export const nowLabel = () => 'Just now';
+
+// An app's accent colours, set on its root element
+export const accent = (main: string, soft: string, ink = '#fff') => ({ '--accent': main, '--accent-soft': soft, '--accent-ink': ink }) as React.CSSProperties;
