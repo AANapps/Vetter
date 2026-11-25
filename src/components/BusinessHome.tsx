@@ -43,6 +43,8 @@ interface BusinessHomeProps {
   onSendTest: (testId: string) => void;
   // A pasted job ad for a launch role (src/lib/jobAdClassifier.ts): the job opens with Praxa's ready tests, to post
   onJobAd?: (ad: JobAdReading, text: string) => void;
+  // Shown above the starters, e.g. check-ins on people hired 30 and 90 days ago
+  notice?: React.ReactNode;
   // Saves a hand edit made in the preview
   onUpdateTest: (test: AssessmentTest) => void;
   // Something to start the chat with, from elsewhere in the app (e.g. "make a test for this job"), and the job the test
@@ -129,6 +131,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
   onEditWithAI,
   onSendTest,
   onJobAd,
+  notice,
   onUpdateTest,
   seed,
   onSeedUsed,
@@ -319,6 +322,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
         <div className="max-w-4xl mx-auto px-4 sm:px-6 space-y-6">
           {turns.length === 0 ? (
             <div className="pt-6 sm:pt-12 space-y-6 text-center">
+              {notice}
               <div className="space-y-2">
                 <BrandWordmark size="lg" className="mx-auto w-fit" />
                 <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">What do you want to do?</h1>

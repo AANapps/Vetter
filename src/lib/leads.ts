@@ -231,7 +231,7 @@ export function sortLeads(rows: LeadRow[], sort: LeadSort): LeadRow[] {
 // Moves a lead to a stage (creating it if the candidate only had their starting stage), or changes its details
 export function updatedLead(
   row: Pick<LeadRow, 'id' | 'job' | 'candidate' | 'stage' | 'lead'>,
-  change: Partial<Pick<Lead, 'stage' | 'rating' | 'note' | 'archiveReason' | 'dueDate' | 'tags'>>,
+  change: Partial<Pick<Lead, 'stage' | 'rating' | 'note' | 'archiveReason' | 'dueDate' | 'tags' | 'checkIns'>>,
   now = new Date().toISOString()
 ): Lead {
   const base: Lead = row.lead ?? {

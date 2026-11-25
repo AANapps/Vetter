@@ -909,4 +909,16 @@ export interface Lead {
   tags?: string[];
   updatedAt: string; // ISO timestamp
   history: { stage: LeadStage; at: string }[];
+  // After a hire: how they're doing 30 and 90 days in, to show whether Praxa's scores predict good hires
+  // (src/lib/outcomes.ts)
+  checkIns?: HireCheckIn[];
+}
+
+export interface HireCheckIn {
+  day: 30 | 90;
+  at: string; // ISO timestamp
+  // 1 (not working out) to 5 (one of our best)
+  rating: number;
+  stillEmployed: boolean;
+  note?: string;
 }

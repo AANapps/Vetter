@@ -255,7 +255,7 @@ service cloud.firestore {
         && (resource == null || resource.data.businessId == request.resource.data.businessId)
         && request.resource.data.stage in ['invited', 'applied', 'screening', 'interview', 'offer', 'hired', 'archived']
         && request.resource.data.keys().hasOnly(['id', 'jobId', 'candidateId', 'businessId', 'stage', 'rating', 'note',
-          'archiveReason', 'dueDate', 'tags', 'updatedAt', 'history']);
+          'archiveReason', 'dueDate', 'tags', 'updatedAt', 'history', 'checkIns']);
       allow delete: if isAdmin() || worksAt(resource.data.businessId);
     }
 

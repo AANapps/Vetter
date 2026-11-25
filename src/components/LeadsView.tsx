@@ -39,7 +39,7 @@ import {
 import { CANDIDATE_LEVELS, CAREER_STAGES } from '../lib/audience';
 import { IntegrityBadge } from './IntegrityBadge';
 
-export type LeadChange = Partial<Pick<Lead, 'stage' | 'rating' | 'note' | 'archiveReason' | 'dueDate' | 'tags'>>;
+export type LeadChange = Partial<Pick<Lead, 'stage' | 'rating' | 'note' | 'archiveReason' | 'dueDate' | 'tags' | 'checkIns'>>;
 
 interface LeadsViewProps {
   rows: LeadRow[];

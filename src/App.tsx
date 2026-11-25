@@ -57,6 +57,7 @@ import { LeadsPage } from './components/LeadsPage';
 import { LeadChange } from './components/LeadsView';
 import { LeadRow, buildLeadRows, updatedLead } from './lib/leads';
 import { AuthDialog, AuthMode } from './components/AuthDialog';
+import { HireCheckIns, OutcomeSummary } from './components/HireCheckIns';
 import { guestCanTake, guestVersion, peekGuestResult, saveGuestResult, takeGuestResult } from './lib/guestResult';
 import { AccountGate, CompanyReview, TeamRequests } from './components/AccountScreens';
 import { Pulse } from './components/Pulse';
@@ -2342,6 +2343,19 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
               onEditWithAI={(testId) => enhanceTest(testId)}
               onCreateTraining={(brief) => (aiAllowed ? setTrainingBuild({ brief }) : setPlansOpen(true))}
               onSendTest={sendTest}
+              notice={
+                activeRole === 'recruiter' ? (
+                  <HireCheckIns
+                    rows={allLeadRows}
+                    onSave={(row, c) => {
+                      handleUpdateLead(row, { checkIns: [...(row.lead?.checkIns ?? []).filter((x) => x.day !== c.day), c] });
+                      showToast(`Saved. Thanks: this is how Praxa shows which scores predict good hires.`);
+                    }}
+                  />
+                ) : activeRole === 'admin' ? (
+                  <OutcomeSummary rows={allLeadRows} />
+                ) : undefined
+              }
               onJobAd={(ad, text) => {
                 // Praxa's ready-made job simulation only where the plan has it; the skills tests on every plan
                 const ids = ad.testIds.filter((id) => tests.some((t) => t.id === id) && (planAccess.can('library-job-sims') || !isJobSim(tests.find((t) => t.id === id)!)));
