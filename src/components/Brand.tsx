@@ -62,6 +62,10 @@ export const AiMark: React.FC<{ className?: string; busy?: boolean; title?: stri
   );
 };
 
+// The name in the logo. Trying "Praksa" (2026-11-25): only the logo shows it; everything else still says Praxa.
+// Set back to 'Praxa' to undo
+export const LOGO_NAME = 'Praksa';
+
 // The mark and the name. size: the text size class; the mark follows it
 export const BrandWordmark: React.FC<{ size?: 'sm' | 'md' | 'lg'; className?: string; showMark?: boolean }> = ({ size = 'md', className = '', showMark = true }) => {
   const text = size === 'lg' ? 'text-3xl' : size === 'sm' ? 'text-base' : 'text-xl';
@@ -69,7 +73,7 @@ export const BrandWordmark: React.FC<{ size?: 'sm' | 'md' | 'lg'; className?: st
   return (
     <span className={`inline-flex items-center gap-1.5 ${className}`}>
       {showMark && <BrandSparkle className={mark} />}
-      <span className={`brand-word ${text}`}>Praxa</span>
+      <span className={`brand-word ${text}`}>{LOGO_NAME}</span>
     </span>
   );
 };
