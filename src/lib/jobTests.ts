@@ -1,4 +1,4 @@
-import { AiMode, AssessmentTest, JobInvitation, JobPosting, JobTestAttempt, TestResult, User, timerOf } from '../types';
+import { AiMode, AssessmentTest, JobInvitation, JobPosting, JobTestAttempt, TestResult, User, isJobSim, timerOf } from '../types';
 import { jobPath } from './jobSeo';
 import { AGENTS_NOTE } from '../data/modules/jobSimKit';
 
@@ -41,7 +41,8 @@ export const jobAiMode = (job: JobPosting): AiMode | undefined => job.aiMode ?? 
 //   agents     as required, with the agents (a simulation without agents runs as required)
 export function withJobAi(test: AssessmentTest, job: JobPosting): AssessmentTest {
   const mode = jobAiMode(job);
-  if (!mode || !test.questions.some((q) => q.type === 'desktop' && q.desktop)) return test;
+  // Only job simulations: a standalone AI test is AI by nature, whatever the job's setting
+  if (!mode || !isJobSim(test)) return test;
   return {
     ...test,
     ...(mode === 'none' && test.scenarioWithoutAi && test.scenario && { scenario: { ...test.scenario, brief: test.scenarioWithoutAi } }),

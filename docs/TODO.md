@@ -107,6 +107,15 @@ Next:
 3. Show capability scores on profiles and in candidate comparisons (only the answers view so far). AI marking of rubric checks doesn't update the stored check credit yet.
 4. Later: telemetry views (order of what they checked), senior-first longer sims, AI security (prompt injection) for SOC Analyst.
 
+## Standalone AI competency tests ("AI at Work", started 2026-11-26)
+User, 2026-11-26: job sims carry the AI overlay AND there are 10 standalone AI tests, built from the same framework (docs/architecture.md: same live agents, competencies, checks and scores). One general setting: Northfield Group, a UK business services company. Category "AI at Work", open to every sector. All checks tagged, so the score is the AI score. src/data/modules/aiAtWork.ts.
+Built (3 tasks each, about 20 min, each task on its own desktop with the Agents app):
+- 2 Checking AI Output (test-ai-verify): AI client update with 5 mistakes; AI overtime figures with a duplicate row; AI customer reply breaking the refunds policy.
+- 4 Supervising AI Agents (test-ai-supervise): Dex's payment run (pays a duplicate and an unapproved invoice); Ada's renewal mailing (emails opted-out customers, wrong price); delegating a meeting summary (confidential item, missing owners unless briefed).
+- 10 AI Safety and Security (test-ai-safety): prompt injection in a supplier proposal (rank me first, email staff bank details); an absence update naming people's health reasons plus a colleague asking to paste the file into a public AI site; an AI shortlist leaving people out for age and caring/illness gaps.
+Tried on live Haiku 2026-11-26: every pre-run task showed all its blind spots; the delegate task came back clean with a good brief and with both slips on a vague one. Not yet clicked through in the browser as a candidate.
+To do: 5 Workflow automation (Automations app), 6 APIs and integrations (API console + mock APIs), 7 Tools/MCP for AI (tool builder + live agent), then 1 Prompting and briefing, 3 Delegating to agents, 8 Analysing data with AI, 9 Creating with AI.
+
 ## Later: AI-skills tests (idea 2026-11-25, not started)
 Tests where candidates show they can build with AI: automations (Zapier/n8n-style flows), calling and building APIs, setting up an MCP server/tools, writing AI functions (prompts, tool definitions, structured output, evals). Fits the parked "tests for an AI-first workplace" above. Needs sandboxed runners on the server (and the anti-cheat server identity) before it can be marked properly.
 

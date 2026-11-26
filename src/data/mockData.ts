@@ -12,6 +12,7 @@ import { ANALYST_TOOL_TESTS } from './modules/analyst';
 import { ANALYST_TOOL_TESTS_2 } from './modules/analystTools2';
 import { ANALYST_SKILL_TESTS } from './modules/analystTools3';
 import { ROLE_TRACK_TESTS, withRoleTracks } from './modules/roleTracks';
+import { AI_AT_WORK_TESTS } from './modules/aiAtWork';
 import { withExtras } from './questionKit';
 import { SEED_INVITATIONS } from './seedInvitations';
 
@@ -633,6 +634,7 @@ Example: solution(["/users/:id"], "/users/7") returns { route: "/users/:id", par
   ...ANALYST_SKILL_TESTS,
   ...SIMULATION_TESTS,
   ...ROLE_TRACK_TESTS,
+  ...AI_AT_WORK_TESTS,
 ]))))];
 
 // Company-made tests, written by a business for its own jobs

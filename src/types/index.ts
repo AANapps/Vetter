@@ -28,7 +28,9 @@ export type SkillCategory =
   | 'Retail'
   | 'Customer Support'
   // Corprax's skills games: general abilities, for every sector
-  | 'Aptitude';
+  | 'Aptitude'
+  // The standalone AI competency tests (src/data/modules/aiAtWork.ts), for every sector
+  | 'AI at Work';
 
 // The jobs a test is relevant to; grouped by industry on the Tests page
 export type TestRole =

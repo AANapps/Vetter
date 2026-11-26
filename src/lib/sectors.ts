@@ -53,6 +53,7 @@ const CATEGORY_SECTOR: Record<SkillCategory, SectorId> = {
   Retail: 'retail',
   // The skills games are for every sector
   Aptitude: 'all',
+  'AI at Work': 'all',
 };
 
 // The Tests page's industries
