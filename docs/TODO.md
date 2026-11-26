@@ -123,6 +123,16 @@ Tried on live Haiku 2026-11-26: every pre-run task showed all its blind spots; t
 - 9 Creating with AI (test-ai-creating): a launch announcement to the fact sheet and brand voice (no invented quote, hype or wrong date); a client FAQ in Docs from the policies (AI-marked against them).
 Checked live on Haiku 2026-11-26: every briefing task slips on a vague brief and comes back clean on a good one (after fixes: the actions task had its answers in the agent's facts; Ada won't invent figures, so the handover check reads her output); the tools agent gets every scenario right with good tools and reproduces the misbehaviour with the broken ones; the API answers, ticket and shipping workflow pass end to end. All 10 tests start at 0. Not yet clicked through as a candidate in the test runner.
 
+## Colleagues who reply and point you to help (asked 2026-11-26, not started)
+User: "make the people in the company reply and reroute you to where you can get help, e.g. to another person." Today colleagues on the desktop only answer by fixed rules (email reply rules, Chat rules) or with a quick acknowledgement of an unscripted email (People app, 2026-11-25).
+Plan:
+- Every contact becomes a live colleague (Haiku, like the agents in server/deskAgent.ts) in Mail and Chat: their role, what they know and own, what they don't, and their manner, from the day's data.
+- When asked something outside their patch they say so and redirect: "Refunds are Aisha's call, ask her", "IT Security handles that: security@…", "Check the refunds policy in the knowledge base". They can also be away, slow or wrong.
+- Some answers are only reachable by asking the right person (a missing fact, an approval, a policy owner), so the day can be marked on whether the candidate found and asked the right person, not just on their output (fits the parked "ambiguous briefs: score asking the right person").
+- Keep marking fair: what each person knows is set by the day (facts and who owns what), the wording is live; checks read who was asked and what was obtained (e.g. asked:<email>, got:<fact id>).
+- Works in job simulations and the standalone AI tests (Northfield's staff); the AI job-sim writer gives each contact their knowledge and who they redirect to.
+- Cost and limits as for the agents (signed in, rate-limited, Corprax pays).
+
 ## Later: AI-skills tests (idea 2026-11-25, not started)
 Tests where candidates show they can build with AI: automations (Zapier/n8n-style flows), calling and building APIs, setting up an MCP server/tools, writing AI functions (prompts, tool definitions, structured output, evals). Fits the parked "tests for an AI-first workplace" above. Needs sandboxed runners on the server (and the anti-cheat server identity) before it can be marked properly.
 
