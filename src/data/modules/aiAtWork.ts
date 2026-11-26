@@ -1,6 +1,6 @@
 import { AssessmentTest, Capability, Question } from '../../types';
 import { DeskEmail, DesktopConfig } from '../../lib/desktop';
-import { AgentDef, AgentTask } from '../../lib/deskApps';
+import { AgentDef, AgentTask, DeskAppsConfig } from '../../lib/deskApps';
 import { toCsv } from '../../lib/csv';
 import { tc } from '../simulationKit';
 
@@ -37,17 +37,18 @@ const DEX: AgentDef = { id: 'dex', name: 'Dex', role: 'Operations agent: data, r
 type Check = [description: string, input: string, expected: string | { rubric: string[] }, capability: Capability];
 
 // One task of a standalone AI test: its own desktop at Northfield, with the agents and the files it needs
-function aiTask(o: { id: string; title: string; prompt: string; minutes: number; apps?: string[]; files?: { name: string; content: string }[]; inbox: DeskEmail[]; tasks: AgentTask[]; checks: Check[] }): Question {
+function aiTask(o: { id: string; title: string; prompt: string; minutes: number; apps?: string[]; files?: { name: string; content: string }[]; inbox: DeskEmail[]; tasks?: AgentTask[]; work?: DeskAppsConfig; checks: Check[] }): Question {
+  const agents = !!o.tasks?.length;
   const desktop: DesktopConfig = {
     user: { name: 'You', email: ME, role: 'Operations Coordinator' },
     company: COMPANY,
     time: 'Tue 09:00',
-    apps: ['mail', 'agents', ...(o.apps ?? []), 'files'],
+    apps: ['mail', ...(agents ? ['agents'] : []), ...(o.apps ?? []), 'files'],
     contacts: CONTACTS,
     inbox: o.inbox,
     ...(o.files && { files: o.files }),
-    work: { agents: { name: 'Northfield AI agents', agents: [ADA, DEX], tasks: o.tasks } },
-    aiMode: 'agents',
+    work: { ...(o.work ?? {}), ...(agents && { agents: { name: 'Northfield AI agents', agents: [ADA, DEX], tasks: o.tasks! } }) },
+    aiMode: agents ? 'agents' : 'required',
   };
   return {
     id: o.id,
@@ -504,4 +505,132 @@ const SAFETY_TEST = aiTest({
   ],
 });
 
-export const AI_AT_WORK_TESTS: AssessmentTest[] = [VERIFY_TEST, SUPERVISE_TEST, SAFETY_TEST];
+// ====================================================================================================================
+// 5. Workflow automation: building, fixing and adding AI to Zapier/n8n-style workflows (src/lib/automations.ts)
+// ====================================================================================================================
+
+const ENQUIRIES: Record<string, string>[] = [
+  { name: 'Hannah Price', email: 'hannah.price@lumendental.co.uk', company: 'Lumen Dental', message: 'Could you send a quote for weekly office cleaning at our two clinics?' },
+  { name: 'test', email: 'test@test.com', company: 'test', message: 'test test asdf' },
+  { name: 'Raj Bedi', email: 'raj.bedi@oakfieldaccountants.co.uk', company: 'Oakfield Accountants', message: 'Our September invoice seems to have been charged twice. Can someone check?' },
+  { name: 'Lucy Moran', email: 'lucy@greenleafvets.co.uk', company: 'Greenleaf Vets', message: 'We’re interested in your facilities management package for our 3 sites. What would it cost?' },
+  { name: 'Ben Ortiz', email: '', company: 'Ortiz Legal', message: 'We’d like a proposal for cleaning our new office from January.' },
+  { name: 'Claire Dunn', email: 'claire.dunn@harbourdental.co.uk', company: 'Harbour Dental', message: 'Can we add window cleaning to our contract? What would it cost?' },
+  { name: 'WIN A FREE IPHONE', email: 'promo@cheap-deals.biz', company: '-', message: 'Click here to claim your prize!!! Limited time offer' },
+  { name: 'Ahmed Malik', email: 'ahmed.malik@brightpath.org', company: 'BrightPath Charity', message: 'The cleaner didn’t turn up on Tuesday and the bins weren’t emptied.' },
+  { name: 'Sophie Turner', email: 'sophie@northgategym.co.uk', company: 'Northgate Gym', message: 'Looking for a quote for daily cleaning, starting in January.' },
+  { name: 'Tom Ellery', email: 'tom.ellery@kestrelsoftware.io', company: 'Kestrel Software', message: 'How do I change the card you charge each month?' },
+];
+const BASE_LEADS = [
+  { id: 'lead-1', name: 'Claire Dunn', email: 'claire.dunn@harbourdental.co.uk', company: 'Harbour Dental', interest: 'Office cleaning', source: 'Referral', status: 'Contacted' },
+  { id: 'lead-2', name: 'Peter Walsh', email: 'peter@walshlaw.co.uk', company: 'Walsh Law', interest: 'Facilities management', source: 'Event', status: 'New' },
+  { id: 'lead-3', name: 'Nina Roy', email: 'nina.roy@citycafe.co.uk', company: 'City Café', interest: 'Deep clean', source: 'Website', status: 'New' },
+];
+// The sales enquiries that should become new leads: genuine, with an email, not already in the CRM
+const NEW_LEADS = ['hannah.price@lumendental.co.uk', 'lucy@greenleafvets.co.uk', 'sophie@northgategym.co.uk'];
+const LEADS_AFTER = [...BASE_LEADS.map((l) => l.email), ...NEW_LEADS].sort((a, b) => a.localeCompare(b)).join(', ');
+
+const INVOICE_EVENTS: Record<string, string>[] = [
+  { invoice: 'INV-3101', supplier: 'Paperstack Ltd', amount: '£412.50', department: 'Office' },
+  { invoice: 'INV-3102', supplier: 'Harlow Facilities', amount: '£6,800.00', department: 'Operations' },
+  { invoice: 'INV-3103', supplier: 'Metro Couriers', amount: '£1,250.00', department: 'Operations' },
+  { invoice: 'INV-3104', supplier: 'Summit Print', amount: '£5,420.00', department: 'Marketing' },
+  { invoice: 'INV-3105', supplier: 'Clearway Cleaning', amount: '£2,980.00', department: 'Facilities' },
+  { invoice: 'INV-3106', supplier: 'Vertex Security', amount: '£12,300.00', department: 'Facilities' },
+  { invoice: 'INV-3107', supplier: 'Brightline IT', amount: '£4,999.00', department: 'IT' },
+];
+const BIG = INVOICE_EVENTS.filter((e) => Number(e.amount.replace(/[£,]/g, '')) > 5000);
+// The workflow as Aisha left it: the limit typed with an extra zero, a field that doesn't exist, the wrong channel
+const BROKEN_FLOW = {
+  id: 'flow-invoice-alerts',
+  name: 'Invoice approval alerts',
+  source: 'invoices',
+  onError: 'stop' as const,
+  steps: [
+    { id: 's1', kind: 'filter' as const, field: 'amount', op: 'greater than' as const, value: '50000' },
+    { id: 's2', kind: 'chat' as const, channel: 'general', text: 'Invoice {{invoice}} from {{supplier_name}} ({{amount}}) needs sign-off' },
+  ],
+};
+
+const TICKETS = [
+  { id: '4501', subject: 'Water leak in the lobby', message: 'There’s water all over the lobby floor at our Leeds office and it’s slippery. Your cleaners are on site: can they help make it safe now?', customer: 'Oakfield Accountants' },
+  { id: '4502', subject: 'Changing our contact', message: 'Our office manager has changed. How do we update the contact name on our account?', customer: 'Lumen Dental' },
+  { id: '4503', subject: 'Charged twice for October', message: 'We’ve been charged £1,240 twice for October. Please refund the extra payment.', customer: 'Walsh Law' },
+  { id: '4504', subject: 'No cleaner today at the clinic', message: 'Nobody turned up this morning and we open to patients at 2pm. We need someone today.', customer: 'Greenleaf Vets' },
+  { id: '4505', subject: 'Extra visit next month', message: 'Could we book one extra deep clean in December before our inspection?', customer: 'Harbour Dental' },
+  { id: '4506', subject: 'Eco products?', message: 'Just curious: are the products you use eco-friendly?', customer: 'City Café' },
+];
+// Northfield's own rules, not what anyone would guess: a triage that doesn't give the AI them gets some wrong
+const PRIORITY_RULES = `Northfield support: ticket priorities (from 1 November)
+
+- urgent: ONLY a visit missed or late today at a healthcare client (clinics, dental practices, vets, surgeries), as
+  patients are affected
+- high: any safety hazard on site (our site team is phoned straight away, so the ticket itself is high, not urgent),
+  and any billing error over £1,000
+- normal: everything else about the service, bookings or billing
+- low: general questions and how-tos`;
+
+const AUTOMATION_TEST = aiTest({
+  id: 'test-ai-automation',
+  title: 'Workflow Automation with AI',
+  description: 'Build the kind of automation every team now runs in Zapier or n8n: route website enquiries into the CRM with an AI step, without letting spam, duplicates or a bad record through; fix a broken alert; and get AI to triage support tickets by the company’s rules. About 20 minutes.',
+  skills: ['Workflow automation', 'AI fluency', 'Data quality', 'Error handling'],
+  questions: [
+    aiTask({
+      id: 'ai-auto-enquiries',
+      title: 'Route website enquiries',
+      minutes: 9,
+      apps: ['automations', 'crm', 'chat'],
+      prompt: `Sam wants website enquiries handled automatically (Mail). In Automations, build a workflow on the website form that uses an AI step to spot sales enquiries, adds each new one to the CRM's Leads (Source: Website, Status: New) and posts it in #sales. No spam, no duplicate leads, and anything that can't be added must be reported in #ops-alerts. Test it, then run it on all the enquiries.`,
+      inbox: [mail('m-sam4', SAM, 'Website enquiries', 'Hi,\n\nThe website form gets everything: sales enquiries, support questions and a fair bit of spam. Could you set up an automation so genuine sales enquiries go into the CRM as leads (Source Website, Status New) and the team gets a post in #sales? We already have some of these people as leads, so don’t add anyone twice. If one can’t be added, post it in #ops-alerts so someone follows it up.\n\nSam')],
+      work: {
+        crm: { name: 'Northfield CRM', objects: [{ id: 'leads', label: 'Leads', fields: [{ key: 'name', label: 'Name' }, { key: 'email', label: 'Email', type: 'email' }, { key: 'company', label: 'Company' }, { key: 'interest', label: 'Interest', type: 'textarea' }, { key: 'source', label: 'Source', type: 'select', options: ['Website', 'Referral', 'Event'] }, { key: 'status', label: 'Status', type: 'select', options: ['New', 'Contacted', 'Won', 'Lost'] }], records: BASE_LEADS }] },
+        chat: { channels: [{ id: 'sales', name: 'sales', kind: 'channel', messages: [] }, { id: 'ops-alerts', name: 'ops-alerts', kind: 'channel', messages: [] }, { id: 'general', name: 'general', kind: 'channel', messages: [] }] },
+        automations: { name: 'Northfield Automations', sources: [{ id: 'enquiries', label: 'Website contact form: new enquiry', app: 'forms', fields: ['name', 'email', 'company', 'message'], events: ENQUIRIES }], required: { leads: ['name', 'email'] } },
+      },
+      checks: [
+        ['The right new leads are in the CRM: sales only, no spam, nobody twice', 'recordsjoin:leads:email', LEADS_AFTER, 'solve'],
+        ['Each new lead posted in #sales', 'chatcount:sales', String(NEW_LEADS.length), 'solve'],
+        ['Used an AI step to sort the enquiries', 'flow:enquiries:hasai', 'true', 'fluency'],
+        ['One bad record didn’t stop the run, and Ben Ortiz’s enquiry was reported in #ops-alerts', 'chatmentions:ops-alerts:ben ortiz', 'true', 'supervise'],
+      ],
+    }),
+    aiTask({
+      id: 'ai-auto-fix',
+      title: 'Fix a broken alert',
+      minutes: 5,
+      apps: ['automations', 'chat'],
+      prompt: `Aisha's invoice alert isn't working (Mail). Find out why in Automations (a test run's log helps), fix it, and run it so #finance-approvals gets an alert, with the supplier's name, for every invoice over £5,000.`,
+      inbox: [mail('m-aisha3', AISHA, 'Invoice alerts not working', 'Hi,\n\nI set up an automation (Invoice approval alerts) to post in #finance-approvals whenever an invoice over £5,000 comes in, so I can sign it off. Nothing has come through all week, and I know Harlow’s £6,800 invoice arrived. Could you fix it and run it on this week’s invoices? The alerts need the supplier’s name.\n\nThanks,\nAisha')],
+      work: {
+        chat: { channels: [{ id: 'finance-approvals', name: 'finance-approvals', kind: 'channel', messages: [] }, { id: 'general', name: 'general', kind: 'channel', messages: [] }] },
+        automations: { name: 'Northfield Automations', sources: [{ id: 'invoices', label: 'Finance system: new invoice', app: 'webhook', fields: ['invoice', 'supplier', 'amount', 'department'], events: INVOICE_EVENTS }], flows: [BROKEN_FLOW] },
+      },
+      checks: [
+        [`An alert in #finance-approvals for each of the ${BIG.length} invoices over £5,000, and no others`, 'chatcount:finance-approvals', String(BIG.length), 'supervise'],
+        ['Each alert names the supplier', `chatmentions:finance-approvals:${BIG.map((e) => e.supplier.toLowerCase()).join('|')}`, 'true', 'supervise'],
+      ],
+    }),
+    aiTask({
+      id: 'ai-auto-triage',
+      title: 'AI ticket triage',
+      minutes: 6,
+      apps: ['automations', 'helpdesk'],
+      files: [{ name: 'priority_rules.txt', content: PRIORITY_RULES }],
+      prompt: `Leo wants new support tickets prioritised automatically by Northfield's rules (Mail, and priority_rules.txt in Files). In Automations, build a workflow on new tickets with an AI step that sets each ticket's priority by the rules, test it, then run it on all of them.`,
+      inbox: [mail('m-leo4', LEO, 'Ticket priorities', 'Hi,\n\nWe keep missing urgent tickets because everything comes in as normal. Could you set up an automation that has AI set each new ticket’s priority by our rules (priority_rules.txt)? Please check what it does before you let it loose.\n\nLeo')],
+      work: {
+        helpdesk: { name: 'Northfield Support', agents: ['You', 'Leo Grant'], tickets: TICKETS.map((t) => ({ id: t.id, subject: t.subject, requester: `${t.customer} <help@${t.customer.toLowerCase().replace(/[^a-z]+/g, '')}.co.uk>`, status: 'new' as const, priority: 'normal' as const, tags: [], created: 'Today 08:30', channel: 'email' as const, thread: [{ from: t.customer, body: t.message, time: '08:30' }] })) },
+        automations: { name: 'Northfield Automations', sources: [{ id: 'tickets', label: 'Help desk: new ticket', app: 'helpdesk', fields: ['ticket_id', 'subject', 'message', 'customer'], events: TICKETS.map((t) => ({ ticket_id: t.id, subject: t.subject, message: t.message, customer: t.customer })) }] },
+      },
+      checks: [
+        ['The safety hazard is high, as Northfield’s rules say (the site team is phoned)', 'ticket:4501:priority', 'high', 'fluency'],
+        ['The vets’ missed visit today is urgent', 'ticket:4504:priority', 'urgent', 'fluency'],
+        ['The £1,240 billing error is high', 'ticket:4503:priority', 'high', 'fluency'],
+        ['The general question is low', 'ticket:4506:priority', 'low', 'fluency'],
+      ],
+    }),
+  ],
+});
+
+export const AI_AT_WORK_TESTS: AssessmentTest[] = [VERIFY_TEST, SUPERVISE_TEST, AUTOMATION_TEST, SAFETY_TEST];

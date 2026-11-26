@@ -1,5 +1,7 @@
 import { CaseFile } from '../types';
 import { fileGrid, fileText } from './deskData';
+import type { AutomationsConfig, AutomationsState } from './automations';
+import { lastRunOn } from './automations';
 
 /**
  * The desktop's work apps beyond Mail, Browser, Files, Spreadsheet, Database and Code: each filled from the job
@@ -15,10 +17,12 @@ import { fileGrid, fileText } from './deskData';
  *   calendar   a week's calendar, colleagues' busy times and invitations
  *   kb         a help centre or policy library: searchable articles
  *   board      monday.com / Jira-style project board: table and kanban views of items
- *   agents     AI agents the candidate briefs, supervises and checks: scripted (no live AI), with planted mistakes
+ *   agents     AI agents the candidate briefs, supervises and checks: live AI with blind spots
+ *   automations  Zapier/n8n-style workflows the candidate builds, run on a source's events into the other apps
+ *                (src/lib/automations.ts)
  */
 
-export type DeskWorkApp = 'chat' | 'helpdesk' | 'crm' | 'docs' | 'bi' | 'forms' | 'calendar' | 'kb' | 'board' | 'agents';
+export type DeskWorkApp = 'chat' | 'helpdesk' | 'crm' | 'docs' | 'bi' | 'forms' | 'calendar' | 'kb' | 'board' | 'agents' | 'automations';
 
 // ---------- Chat ----------
 export interface ChatMessage {
@@ -344,6 +348,7 @@ export interface DeskAppsConfig {
   kb?: KbConfig;
   board?: BoardConfig;
   agents?: AgentsConfig;
+  automations?: AutomationsConfig;
 }
 
 export interface DeskAppsState {
@@ -356,6 +361,7 @@ export interface DeskAppsState {
   kb?: { viewed: string[] };
   board?: { items: Record<string, BoardItem[]> };
   agents?: { tasks: Record<string, AgentTaskWork>; opened?: string[] };
+  automations?: AutomationsState;
 }
 
 const lower = (s: string) => s.trim().toLowerCase();
@@ -530,6 +536,12 @@ export function chartData(ch: BiChart, ds: Dataset | undefined): { labels: strin
  *   agentcaught:<task>               the first run's planted mistakes caught, "n/total" (partial credit, less for false
  *                                    alarms)
  *   agentopened:<task>               whether they opened the task
+ *   flowrun:<source>:<metric>        the last real run of a workflow on that source: done, filtered, skipped, errors
+ *                                    (event counts), stopped (true/false), ran (true/false)
+ *   flow:<source>:<metric>           that workflow: kinds (its steps' kinds, comma-joined), hasai, onerror, errorchannel
+ *   recordsjoin:<object>:<field>     every record's field, sorted, ", " between (what's in the CRM now)
+ *   chatmentions:<channel>:<a|b|…>   whether every one of the words is in some message the candidate (or their
+ *                                    automation) posted there
  */
 export function deskAppValue(
   apps: DeskAppsConfig,
@@ -662,6 +674,33 @@ export function deskAppValue(
         asked: (w?.chat ?? []).filter((m) => m.role === 'user').length,
       };
       return { known: true, value: v[field ?? ''] };
+    }
+    case 'flowrun':
+    case 'flow': {
+      const [source, metric] = parts;
+      const run = lastRunOn(work.automations, source);
+      if (kind === 'flowrun') {
+        if (metric === 'ran') return { known: true, value: !!run };
+        if (!run) return { known: true, value: metric === 'stopped' ? '' : 0 };
+        if (metric === 'stopped') return { known: true, value: run.stopped };
+        const status = metric === 'errors' ? 'error' : metric;
+        return { known: true, value: run.events.filter((e) => e.status === status).length };
+      }
+      const flow = run && (work.automations?.flows ?? []).find((f) => f.id === run.flow);
+      if (!flow) return { known: true, value: metric === 'hasai' ? false : '' };
+      const v: Record<string, unknown> = { kinds: flow.steps.map((x) => x.kind).join(', '), hasai: flow.steps.some((x) => x.kind === 'ai'), onerror: flow.onError, errorchannel: flow.errorChannel ?? '' };
+      return { known: true, value: v[metric ?? ''] };
+    }
+    case 'recordsjoin': {
+      const [obj, field] = parts;
+      const recs = apps.crm ? crmRecords(apps.crm, work.crm, obj) : [];
+      return { known: true, value: recs.map((r) => String(r[field] ?? '').trim()).filter(Boolean).sort((a, b) => a.localeCompare(b)).join(', ') };
+    }
+    case 'chatmentions': {
+      const [channel, ...rest2] = parts;
+      const words = rest2.join(':').split('|').map(lower).filter(Boolean);
+      const posts = (work.chat?.posts ?? []).filter((p) => p.channel === channel).map((p) => lower(p.text));
+      return { known: true, value: words.every((wd) => posts.some((p) => p.includes(wd))) };
     }
     default:
       if (kind === 'charts') return { known: true, value: (work.bi?.charts ?? []).length };
