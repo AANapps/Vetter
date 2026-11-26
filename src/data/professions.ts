@@ -1,6 +1,6 @@
 import { ROLE_GROUPS } from '../lib/testRoles';
 
-// Professions a candidate can pick as the kind of work a job profile is for: Granyt's own roles plus common jobs
+// Professions a candidate can pick as the kind of work a job profile is for: Corprax's own roles plus common jobs
 // across industries, sorted, no duplicates
 const COMMON = [
   'Account Manager', 'Accounts Assistant', 'Actor', 'Administrator', 'Architect', 'Art Director', 'Auditor',

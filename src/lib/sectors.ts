@@ -22,7 +22,7 @@ export const SECTORS: { id: SectorId; label: string }[] = [
 // The sectors a company or job can be in: every one but All
 export const PICKABLE_SECTORS = SECTORS.filter((s) => s.id !== 'all');
 
-// Granyt is focused on one sector for now: every list shows it, new companies and jobs are filed under it, and the
+// Corprax is focused on one sector for now: every list shows it, new companies and jobs are filed under it, and the
 // sector pickers are hidden. Set to null to bring back every sector and the pickers
 export const FOCUS_SECTOR: SectorId | null = 'tech';
 
@@ -118,11 +118,11 @@ export const testSector = (test: AssessmentTest): SectorId => {
 
 export const industrySector = (industry: string): SectorId | undefined => INDUSTRY_SECTOR[industry];
 
-// A company works in one sector, picked at sign-up: Granyt's library, the Tests page's industries and the tests its jobs
+// A company works in one sector, picked at sign-up: Corprax's library, the Tests page's industries and the tests its jobs
 // and AI can use are that sector's alone (a trades company never sees a tech test). No sector picked: everything
 export const companySector = (business?: { sector?: SectorId }): SectorId | undefined =>
   FOCUS_SECTOR ?? (business?.sector && business.sector !== 'all' ? business.sector : undefined);
-// App simulations for jobs outside tech are made by the Granyt team and kept in the library, so a company in another
+// App simulations for jobs outside tech are made by the Corprax team and kept in the library, so a company in another
 // sector has its AI write the other kinds of question only (calculations, reasoning, written and so on)
 export const aiSimulationsFor = (business?: { sector?: SectorId }) => {
   const sector = companySector(business);

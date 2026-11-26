@@ -286,7 +286,7 @@ const CompanyBilling: React.FC<{ company: CompanyRow; onPlanSaved: (plan?: PlanI
         <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optional)" className="flex-1 min-w-32 px-2 py-1 border border-slate-300 rounded" />
         <button
           disabled={!!busy || !(Number(grant) > 0)}
-          onClick={() => run('grant', { action: 'admin-grant', pence: Math.round(Number(grant) * 100), note }, `£${Number(grant).toFixed(2)} of AI credit given. It shows in their usage as credit from Granyt.`)}
+          onClick={() => run('grant', { action: 'admin-grant', pence: Math.round(Number(grant) * 100), note }, `£${Number(grant).toFixed(2)} of AI credit given. It shows in their usage as credit from Corprax.`)}
           className="px-3 py-1 font-semibold text-white bg-slate-900 hover:bg-slate-700 disabled:opacity-50 rounded"
         >
           {busy === 'grant' ? 'Giving…' : 'Give'}

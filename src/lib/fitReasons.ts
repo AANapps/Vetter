@@ -6,7 +6,7 @@ import { sortExperience } from './experience';
 
 /**
  * Why a candidate fits one of the company's jobs, in a few plain lines a hiring manager can read at a glance: their
- * fit, then the evidence for it (the job's own simulation, skills Granyt has proven that the job asks for, their work
+ * fit, then the evidence for it (the job's own simulation, skills Corprax has proven that the job asks for, their work
  * history and how they want to work), then anything to check. Worked out from their record, not written by AI, so it's
  * instant and always matches the numbers.
  */
@@ -36,7 +36,7 @@ export function fitSummary(person: User, job: JobPosting, tests: AssessmentTest[
   } else if (progress.done > 0) concerns.push(`Has taken ${progress.done} of ${progress.total} of your tests so far.`);
   else if (job.testIds.length) concerns.push('Hasn’t taken your job simulation yet.');
 
-  // Their best place on a Granyt board for one of the job's skills
+  // Their best place on a Corprax board for one of the job's skills
   const relevant = person.verifiedSkills.filter((v) => job.requirements.some((r) => r.skillName.toLowerCase() === v.skillName.toLowerCase() || r.testId === v.testId));
   const ranked = relevant
     .map((v) => {
@@ -46,7 +46,7 @@ export function fitSummary(person: User, job: JobPosting, tests: AssessmentTest[
     })
     .filter((r): r is { name: string; rank: number; of: number } => !!r && r.of >= 5 && r.rank / r.of <= 0.2)
     .sort((a, b) => a.rank / a.of - b.rank / b.of)[0];
-  if (ranked) reasons.push(`Top ${Math.max(1, Math.round((ranked.rank / ranked.of) * 100))}% of ${ranked.of} candidates on Granyt’s ${ranked.name} test.`);
+  if (ranked) reasons.push(`Top ${Math.max(1, Math.round((ranked.rank / ranked.of) * 100))}% of ${ranked.of} candidates on Corprax’s ${ranked.name} test.`);
 
   // Their work: years, and a job like this one
   const history = sortExperience(person.experience ?? []);

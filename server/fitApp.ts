@@ -4,7 +4,7 @@ import { meter } from './meter.js';
 import { PRICES, apiFailure } from './generateTest.js';
 
 /**
- * A test built on an app from Granyt's app library (library-apps/, or one the AI built before): the app is kept as it is
+ * A test built on an app from Corprax's app library (library-apps/, or one the AI built before): the app is kept as it is
  * and only two things are written. The test's DATA, which the app reads from window.praxaData (its company, records and
  * planted problems), and, only when the test needs something the app can't do, small EDITS to the app's code (find
  * this exact text, replace it with that). So the app never has to be written out again however big it grows, its code
@@ -77,7 +77,7 @@ const extendSchema = {
   additionalProperties: false,
 };
 
-const INTRO = (mode: FitAppRequest['mode']) => `You fit an app from Granyt's app library to a new ${mode === 'task' ? 'test task' : 'job simulation'}. Granyt is a skills-testing
+const INTRO = (mode: FitAppRequest['mode']) => `You fit an app from Corprax's app library to a new ${mode === 'task' ? 'test task' : 'job simulation'}. Corprax is a skills-testing
 platform for hiring; candidates work in these apps (copies of real software) and are marked on what they do in them.
 The app reads all its data from window.praxaData when it starts (THE APP'S DATA says what that looks like; THE SAMPLE
 DATA shows an example) and saves what the candidate does with praxa.save(state) (THE APP'S STATE says what that looks
@@ -171,7 +171,7 @@ export async function fitApp(body: unknown, apiKey: string | undefined, model: s
     const price = PRICES[model];
     const { input_tokens, output_tokens, cache_read_input_tokens } = message.usage;
     if (price) console.log(`[fit-app ${mode} ${stage}] ${input_tokens} in (+${cache_read_input_tokens ?? 0} cached), ${output_tokens} out: $${((input_tokens * price.input + (cache_read_input_tokens ?? 0) * price.input * 0.1 + output_tokens * price.output) / 1e6).toFixed(3)}`);
-    if (message.stop_reason === 'refusal') return { status: 422, json: { error: 'Granyt declined to write this.' } };
+    if (message.stop_reason === 'refusal') return { status: 422, json: { error: 'Corprax declined to write this.' } };
     if (message.stop_reason === 'max_tokens') return { status: 502, json: { error: 'The app’s data came back incomplete.' } };
     return { status: 200, json: JSON.parse(message.content.flatMap((b) => (b.type === 'text' ? [b.text] : [])).join('')) };
   } catch (err) {

@@ -1,10 +1,10 @@
 /**
  * Articles for hiring teams: plain answers to the questions people ask search engines and AI assistants about
- * skills-based hiring. Each opens with the answer, then goes deeper with steps, tables and examples. Granyt is mentioned
+ * skills-based hiring. Each opens with the answer, then goes deeper with steps, tables and examples. Corprax is mentioned
  * as one practical way to do it, never as the only one. Written as data so the build turns each into a static page
  * (seoPages.ts) that crawlers read without running the app, with Article and FAQ structured data.
  *
- * No invented figures: only numbers that are true of Granyt itself (test lengths, prices) or plainly labelled as
+ * No invented figures: only numbers that are true of Corprax itself (test lengths, prices) or plainly labelled as
  * examples. Update `updated` whenever an article changes.
  */
 
@@ -73,9 +73,9 @@ export const ARTICLES: Article[] = [
         ],
       },
       {
-        heading: 'How Granyt does it',
+        heading: 'How Corprax does it',
         paragraphs: [
-          'Granyt has a library of ready-made skills tests and job simulations, mostly simulation tasks done in working copies of the tools (spreadsheet, SQL workbench, help desk, CRM, code editor) on a realistic desktop. Each skills module takes about 20 minutes and every candidate gets the same tasks, marked automatically on what they leave behind. Companies can also describe a role and have Granyt build a test for it.',
+          'Corprax has a library of ready-made skills tests and job simulations, mostly simulation tasks done in working copies of the tools (spreadsheet, SQL workbench, help desk, CRM, code editor) on a realistic desktop. Each skills module takes about 20 minutes and every candidate gets the same tasks, marked automatically on what they leave behind. Companies can also describe a role and have Corprax build a test for it.',
         ],
       },
     ],
@@ -124,9 +124,9 @@ export const ARTICLES: Article[] = [
         },
       },
       {
-        heading: 'Where Granyt fits',
+        heading: 'Where Corprax fits',
         paragraphs: [
-          'Granyt ranks applicants by their scores on job simulations and skills tests rather than by their CVs. Candidates can also keep their Granyt scores on their profile, and in Granyt a profile lists only skills that were proven in a test, never self-listed ones.',
+          'Corprax ranks applicants by their scores on job simulations and skills tests rather than by their CVs. Candidates can also keep their Corprax scores on their profile, and in Corprax a profile lists only skills that were proven in a test, never self-listed ones.',
         ],
       },
     ],
@@ -162,7 +162,7 @@ export const ARTICLES: Article[] = [
       {
         heading: 'Should candidates be allowed to use AI in the test?',
         paragraphs: [
-          "It depends on the job. If people in the role use AI tools every day, testing them without AI tests a way of working they will never use. A better question is whether they use AI well: what they ask, whether they check its answers, and whether the final work is right. Granyt lets companies choose per job whether the job simulation includes an AI assistant (on by default), and shows the company the candidate's full conversation with it.",
+          "It depends on the job. If people in the role use AI tools every day, testing them without AI tests a way of working they will never use. A better question is whether they use AI well: what they ask, whether they check its answers, and whether the final work is right. Corprax lets companies choose per job whether the job simulation includes an AI assistant (on by default), and shows the company the candidate's full conversation with it.",
         ],
       },
     ],
@@ -208,13 +208,13 @@ export const ARTICLES: Article[] = [
       {
         heading: 'Example: a customer support simulation',
         paragraphs: [
-          'Granyt\'s customer support simulation is a Monday on the support desk of an online plant shop. The candidate triages a ticket queue in a help desk, replies to a customer whose delivery is late (the courier\'s tracking page shows why), handles a failing discount code by escalating to the technical team, decides on a refund that needs a team lead\'s approval, spots an account-change request that looks like a takeover, and writes a handover to their team lead.',
+          'Corprax\'s customer support simulation is a Monday on the support desk of an online plant shop. The candidate triages a ticket queue in a help desk, replies to a customer whose delivery is late (the courier\'s tracking page shows why), handles a failing discount code by escalating to the technical team, decides on a refund that needs a team lead\'s approval, spots an account-change request that looks like a takeover, and writes a handover to their team lead.',
         ],
       },
       {
-        heading: 'Building one with Granyt',
+        heading: 'Building one with Corprax',
         paragraphs: [
-          'Companies on Granyt can use ready-made job simulations or describe a role in a chat and have Granyt build one. Every Granyt job simulation follows the same 40-minute, five-part structure on a realistic desktop with email, files and the job\'s own tools.',
+          'Companies on Corprax can use ready-made job simulations or describe a role in a chat and have Corprax build one. Every Corprax job simulation follows the same 40-minute, five-part structure on a realistic desktop with email, files and the job\'s own tools.',
         ],
       },
     ],
@@ -255,9 +255,9 @@ export const ARTICLES: Article[] = [
         ],
       },
       {
-        heading: 'In Granyt',
+        heading: 'In Corprax',
         paragraphs: [
-          'On Granyt, skills tests are simulation-based too: a candidate does the task in a working copy of the tool (for example cleaning data and building a PivotTable in a spreadsheet), with a few questions answered from their own work. Job simulations put several tools on one desktop for a timed, five-part working day.',
+          'On Corprax, skills tests are simulation-based too: a candidate does the task in a working copy of the tool (for example cleaning data and building a PivotTable in a spreadsheet), with a few questions answered from their own work. Job simulations put several tools on one desktop for a timed, five-part working day.',
         ],
       },
     ],
@@ -272,7 +272,7 @@ export const ARTICLES: Article[] = [
     title: 'Example customer support job simulation',
     description: "A worked example of a customer support job simulation: the scenario, the tasks in each part, the hidden issues, and how each part is marked.",
     answer:
-      'A good customer support job simulation gives the candidate a real-looking help desk queue and an inbox, then marks how they triage, follow policy, write to customers, escalate and hand over. Here is the structure of the one in Granyt\'s library, a Monday on the support desk of an online plant shop called Bloomvale.',
+      'A good customer support job simulation gives the candidate a real-looking help desk queue and an inbox, then marks how they triage, follow policy, write to customers, escalate and hand over. Here is the structure of the one in Corprax\'s library, a Monday on the support desk of an online plant shop called Bloomvale.',
     updated: '2026-11-24',
     sections: [
       {
@@ -302,7 +302,7 @@ export const ARTICLES: Article[] = [
       },
       {
         heading: 'Use it',
-        paragraphs: ["The simulation is in Granyt's library of ready-made job simulations, alongside four 20-minute customer support skills modules (ticket triage, communication, refunds and policy, troubleshooting)."],
+        paragraphs: ["The simulation is in Corprax's library of ready-made job simulations, alongside four 20-minute customer support skills modules (ticket triage, communication, refunds and policy, troubleshooting)."],
       },
     ],
     faqs: [
@@ -316,7 +316,7 @@ export const ARTICLES: Article[] = [
     title: 'Example data analyst skills test (Excel)',
     description: 'A worked example of a 20-minute Excel skills test for data analysts, built from real tasks: cleaning an export, lookups and conditional totals, dynamic arrays, and a quarterly report with Power Query, a PivotTable and a chart.',
     answer:
-      "A useful data analyst Excel test has the candidate do the work, not answer questions about it: clean a messy export, look up and summarise data with formulas, answer questions with sorting and filtering, and build a small report. Here is the structure of Granyt's 20-minute Excel test.",
+      "A useful data analyst Excel test has the candidate do the work, not answer questions about it: clean a messy export, look up and summarise data with formulas, answer questions with sorting and filtering, and build a small report. Here is the structure of Corprax's 20-minute Excel test.",
     updated: '2026-11-24',
     sections: [
       {
@@ -379,15 +379,15 @@ export const ARTICLES: Article[] = [
         ],
       },
       {
-        heading: 'How Granyt handles it',
+        heading: 'How Corprax handles it',
         paragraphs: [
-          "Granyt's job simulations include an AI assistant on the candidate's desktop by default, and companies can turn it off per job. Candidates are told before they start whether it is available. When it is on, the company can read the candidate's full conversation with the assistant next to their work.",
+          "Corprax's job simulations include an AI assistant on the candidate's desktop by default, and companies can turn it off per job. Candidates are told before they start whether it is available. When it is on, the company can read the candidate's full conversation with the assistant next to their work.",
         ],
       },
     ],
     faqs: [
       { q: 'Does allowing AI make the test too easy?', a: 'Not if the tasks depend on the candidate\'s own data and judgement. AI can help draft and calculate, but it cannot know which ticket is a takeover attempt unless the candidate reads it properly.' },
-      { q: 'Can I see how a candidate used the AI?', a: 'On Granyt, yes: the full conversation is saved with their answers.' },
+      { q: 'Can I see how a candidate used the AI?', a: 'On Corprax, yes: the full conversation is saved with their answers.' },
     ],
     related: ['how-to-vet-candidates-when-cvs-are-written-by-ai', 'how-to-create-a-job-simulation', 'skills-tests-vs-job-simulations'],
   },

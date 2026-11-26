@@ -42,7 +42,7 @@ export const JobApplicationModal: React.FC<JobApplicationModalProps> = ({
   if (!isOpen) return null;
   const profile = profiles.find((p) => p.id === profileId) ?? profiles[0];
 
-  // The job's tests (Granyt-made or the company's own) and how the candidate has done on them
+  // The job's tests (Corprax-made or the company's own) and how the candidate has done on them
   const jobTests = jobTestsOf(job, tests);
   const progress = jobTestProgress(job, candidate);
   const finished = progress.status === 'completed';
@@ -158,7 +158,7 @@ export const JobApplicationModal: React.FC<JobApplicationModalProps> = ({
                     <span className="min-w-0">
                       <span className="block font-semibold text-slate-900 truncate">{t.title}</span>
                       <span className="block text-slate-500">
-                        {t.type === 'custom' ? `${t.companyName} test` : 'Granyt test'} &middot; ~{t.estimatedMinutes} min
+                        {t.type === 'custom' ? `${t.companyName} test` : 'Corprax test'} &middot; ~{t.estimatedMinutes} min
                       </span>
                     </span>
                     <span className={`font-mono font-bold tabular-nums shrink-0 ${score === undefined ? 'text-slate-400 font-medium' : 'text-slate-900'}`}>

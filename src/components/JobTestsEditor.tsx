@@ -8,7 +8,7 @@ interface JobTestsEditorProps {
   // The jobs the tests can be for: just one when opened from a job, or all of them when sending a test from its page
   jobs: JobPosting[];
   tests: AssessmentTest[];
-  // Whether a library test may be offered (what the Granyt team hid isn't); every test when left out
+  // Whether a library test may be offered (what the Corprax team hid isn't); every test when left out
   isListed?: (t: AssessmentTest) => boolean;
   // Tests to add, e.g. when sending one from its page
   addTestIds?: string[];
@@ -56,7 +56,7 @@ export const JobTestsEditor: React.FC<JobTestsEditorProps> = ({ jobs, tests: all
   const matching = tests
     .filter((t) => isMainVersion(t) && ((isPublic(t) && isListed(t)) || t.businessId === job?.businessId))
     .filter((t) => !tq || `${t.title} ${t.category} ${t.companyName ?? ''} ${t.skillsTested.join(' ')}`.toLowerCase().includes(tq));
-  // The company's own tests first, the newest at the top, then Granyt's
+  // The company's own tests first, the newest at the top, then Corprax's
   const own = newestFirst(matching.filter((t) => t.type === 'custom' && t.businessId === job?.businessId && t.purpose !== 'training'));
   const choices = [...own, ...matching.filter((t) => !own.includes(t))];
   const minutes = pickedTests.reduce((sum, t) => sum + t.estimatedMinutes, 0);
@@ -129,8 +129,8 @@ export const JobTestsEditor: React.FC<JobTestsEditorProps> = ({ jobs, tests: all
                   {choices.map((t, i) => {
                     const pick = picked.find((p) => p.mainId === t.id);
                     const levels = levelsOf(t, tests);
-                    // A heading where the company's own tests start, and where Granyt's start after them
-                    const heading = i === 0 && own.length ? 'Your tests' : i === own.length ? 'Granyt tests' : '';
+                    // A heading where the company's own tests start, and where Corprax's start after them
+                    const heading = i === 0 && own.length ? 'Your tests' : i === own.length ? 'Corprax tests' : '';
                     return (
                       <React.Fragment key={t.id}>
                       {heading && <li className="px-4 py-1.5 bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-500">{heading}</li>}

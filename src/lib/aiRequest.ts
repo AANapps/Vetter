@@ -1,6 +1,6 @@
 import { auth, firebaseEnabled } from './firebase';
 
-// Every request to Granyt's AI carries who's asking, so the server can charge the company's credit
+// Every request to Corprax's AI carries who's asking, so the server can charge the company's credit
 // (server/credits.ts). Without accounts (the demo) there's nobody to name, and nothing is charged
 // The test being worked on, so each charge in the company's usage says what it was for
 let purpose = '';
@@ -34,8 +34,8 @@ export async function aiFetch(path: string, payload: unknown): Promise<Response>
     headers: {
       'Content-Type': 'application/json',
       ...(token && { Authorization: `Bearer ${token}` }),
-      ...(purpose && { 'X-Granyt-For': encodeURIComponent(purpose) }),
-      ...(preview && { 'X-Granyt-Preview': preview }),
+      ...(purpose && { 'X-Corprax-For': encodeURIComponent(purpose) }),
+      ...(preview && { 'X-Corprax-Preview': preview }),
     },
     body: JSON.stringify(payload),
     signal,
@@ -96,7 +96,7 @@ export async function loadUsage(): Promise<UsageEntry[] | null> {
 
 // What writing a test is likely to cost, in pence, from what's been picked: the plan, each question, and each
 // interactive task (the biggest part: a whole working page, often built twice to fix what the first try missed).
-// A rough range, from what these steps typically use on Granyt's default model at the default markup
+// A rough range, from what these steps typically use on Corprax's default model at the default markup
 export function estimateTest(questionCount: number, handsOn: boolean, apps: boolean): { low: number; high: number } {
   const tasks = handsOn ? Math.max(1, Math.round(questionCount / 10)) : 0;
   const appTasks = apps ? tasks : 0;
@@ -105,7 +105,7 @@ export function estimateTest(questionCount: number, handsOn: boolean, apps: bool
 }
 
 // The company's AI credit, in pence. billing is false when the site doesn't charge (no Stripe set up) or for the
-// Granyt team
+// Corprax team
 export interface Credit {
   billing: boolean;
   balance?: number;

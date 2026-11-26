@@ -1,7 +1,7 @@
 import React from 'react';
 import { CURRENCIES, CurrencyCode, useCurrency } from '../lib/currency';
 
-// Which currency Granyt's prices are shown in. Starts as the visitor's local one; their choice is remembered
+// Which currency Corprax's prices are shown in. Starts as the visitor's local one; their choice is remembered
 export const CurrencyPicker: React.FC<{ className?: string }> = ({ className = '' }) => {
   const { code, set } = useCurrency();
   return (

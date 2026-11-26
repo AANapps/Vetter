@@ -2,9 +2,9 @@ import { DesktopConfig } from '../../lib/desktop';
 import { jobSimulation } from './jobSimKit';
 
 /**
- * The Software Developer job simulation: a Tuesday on Fernway's shop team, in the five timed parts every Granyt job
+ * The Software Developer job simulation: a Tuesday on Fernway's shop team, in the five timed parts every Corprax job
  * simulation has (jobSimKit.ts), on the desktop with two environments: the Code app (the basket code and its tests;
- * Granyt's own tests check the fixes when marked) and the Browser (the issue tracker and the pricing rules).
+ * Corprax's own tests check the fixes when marked) and the Browser (the issue tracker and the pricing rules).
  *
  * Core task: fix the £50 delivery threshold, then the £NaN total from a retired product, and add a boundary test.
  * Curveball: Finance escalates stacking discount codes and the deploy freeze moves an hour earlier. Juggling and

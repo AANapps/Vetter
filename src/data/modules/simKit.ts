@@ -1,7 +1,7 @@
 import { Question } from '../../types';
 
 /**
- * Low-level simulations for Granyt's own tests: small working windows the candidate operates, built from data rather
+ * Low-level simulations for Corprax's own tests: small working windows the candidate operates, built from data rather
  * than written page by page. Each runs as an app task (see lib/appSimulation.ts): it keeps its state in one object,
  * saves it with praxa.save, and is marked on that state.
  *
@@ -29,7 +29,7 @@ export interface QueueRecord {
 
 const json = (v: unknown) => JSON.stringify(v).replace(/</g, '\\u003c');
 
-// Shared look: Granyt's greys and navy, a crisp sans and a mono for data
+// Shared look: Corprax's greys and navy, a crisp sans and a mono for data
 const STYLE = `<style>
 *{box-sizing:border-box}body{margin:0;font:13px/1.45 'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;color:#0f172a;background:#f6f7f9}
 header{display:flex;align-items:center;gap:10px;padding:10px 14px;background:#111833;color:#fff}

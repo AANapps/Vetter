@@ -1,6 +1,6 @@
 /**
- * Reads a pasted job ad, with no AI (free and instant): which launch role it is, its title, and the Granyt tests that
- * prove it. Data Analyst and Customer Support get Granyt's ready-made tests and job simulation; anything else goes to
+ * Reads a pasted job ad, with no AI (free and instant): which launch role it is, its title, and the Corprax tests that
+ * prove it. Data Analyst and Customer Support get Corprax's ready-made tests and job simulation; anything else goes to
  * the AI chat. Next roles: Sales and Customer Success (no library tests yet, so they go to the chat too).
  */
 import { TestRole } from '../types';
@@ -32,9 +32,9 @@ const RULES: Rule[] = [
 
 export interface JobAdReading {
   title: string;
-  // A launch role Granyt has ready-made tests for; undefined: send to the AI chat
+  // A launch role Corprax has ready-made tests for; undefined: send to the AI chat
   role?: TestRole;
-  // What it looks like even when Granyt has no tests yet (Sales, Customer Success)
+  // What it looks like even when Corprax has no tests yet (Sales, Customer Success)
   guess?: string;
   testIds: string[];
 }

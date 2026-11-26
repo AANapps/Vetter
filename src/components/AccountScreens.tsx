@@ -24,8 +24,8 @@ import {
 import { Pulse } from './Pulse';
 import { usePlan } from '../lib/plan';
 
-// What a signed-in person sees before they can use Granyt: verify their email, then (for companies) wait while
-// their company is set up, a colleague approves them, or Granyt's team reviews them
+// What a signed-in person sees before they can use Corprax: verify their email, then (for companies) wait while
+// their company is set up, a colleague approves them, or Corprax's team reviews them
 
 const Screen: React.FC<{ icon: React.ReactNode; title: string; children: React.ReactNode }> = ({ icon, title, children }) => (
   <div className="max-w-md mx-auto px-4 py-16 text-center space-y-4">
@@ -106,7 +106,7 @@ export const AccountGate: React.FC<{ user: FirebaseUser; account: Account | null
     return (
       <Screen icon={<UserPlus className="w-6 h-6" />} title={`Waiting to join ${company?.name ?? 'your company'}`}>
         <p>
-          {company?.name ?? 'Your company'} is already on Granyt. We've asked {company?.ownerName ?? 'its account owner'} to approve you, and you'll be in as
+          {company?.name ?? 'Your company'} is already on Corprax. We've asked {company?.ownerName ?? 'its account owner'} to approve you, and you'll be in as
           soon as they do.
         </p>
       </Screen>
@@ -116,7 +116,7 @@ export const AccountGate: React.FC<{ user: FirebaseUser; account: Account | null
     return (
       <Screen icon={<Clock className="w-6 h-6" />} title="We're checking your company">
         <p>
-          You signed up without a work email, so Granyt's team checks {company?.name ?? 'your company'} before you can post jobs. This usually takes less
+          You signed up without a work email, so Corprax's team checks {company?.name ?? 'your company'} before you can post jobs. This usually takes less
           than a working day, and this page updates by itself.
         </p>
       </Screen>
@@ -125,7 +125,7 @@ export const AccountGate: React.FC<{ user: FirebaseUser; account: Account | null
   if (account.status === 'rejected')
     return (
       <Screen icon={<X className="w-6 h-6" />} title="Your account wasn't approved">
-        <p>If you think this is a mistake, email the Granyt team from your work address and we'll take another look.</p>
+        <p>If you think this is a mistake, email the Corprax team from your work address and we'll take another look.</p>
       </Screen>
     );
 
@@ -165,7 +165,7 @@ const FinishGoogleSignUp: React.FC<{ user: FirebaseUser }> = ({ user }) => {
   return (
     <form onSubmit={submit} className="max-w-md mx-auto px-4 py-12 space-y-5">
       <div className="text-center space-y-1">
-        <h1 className="text-xl font-bold text-slate-900">Welcome to Granyt</h1>
+        <h1 className="text-xl font-bold text-slate-900">Welcome to Corprax</h1>
         <p className="text-sm text-slate-600">Signed in as {user.email}. One question before you start.</p>
       </div>
       <fieldset className="grid grid-cols-2 gap-2">
@@ -219,7 +219,7 @@ const FinishGoogleSignUp: React.FC<{ user: FirebaseUser }> = ({ user }) => {
 )}
           {free && (
             <p className="text-[11px] text-slate-800">
-              {user.email} is a personal address, so Granyt's team will check your company before you can post jobs. To skip that, sign in with your work
+              {user.email} is a personal address, so Corprax's team will check your company before you can post jobs. To skip that, sign in with your work
               Google account instead.
             </p>
           )}
@@ -288,7 +288,7 @@ export const TeamRequests: React.FC<{ company: Company }> = ({ company }) => {
   );
 };
 
-// Shown to the Granyt team: companies that signed up without a work email
+// Shown to the Corprax team: companies that signed up without a work email
 export const CompanyReview: React.FC = () => {
   const [queue, setQueue] = useState<Company[] | null>(null);
   const [error, setError] = useState<string | null>(null);

@@ -32,8 +32,8 @@ import { StepAction, useProfileProgress } from '../lib/profileProgress';
 
 /**
  * The candidate's own profile, laid out like a LinkedIn profile: a cover and photo, their headline and links, then what
- * Granyt adds: how complete the profile is (and the one thing to do next), their progress through their role's tests,
- * their test scores, then their experience, education, tests and applications. Skills only ever come from Granyt's
+ * Corprax adds: how complete the profile is (and the one thing to do next), their progress through their role's tests,
+ * their test scores, then their experience, education, tests and applications. Skills only ever come from Corprax's
  * tests (a score, no pass mark), so most of the nudges here are tests.
  */
 
@@ -563,12 +563,12 @@ export const MyProfile: React.FC<MyProfileProps> = (p) => {
         {/* ---------- Job simulations: a working day in the role, kept apart from skills ---------- */}
         <JobSimRecord person={candidate} tests={tests} onOpenTest={p.onOpenTest} own />
 
-        {/* ---------- Test scores: only ever from Granyt's tests ---------- */}
+        {/* ---------- Test scores: only ever from Corprax's tests ---------- */}
         <Card className="p-5 sm:p-6">
           <div className="flex items-start justify-between gap-3">
             <div>
               <h2 className="text-lg font-bold text-slate-900">Test scores</h2>
-              <p className="text-xs text-slate-500">Your best score on each Granyt test you've taken; nothing here is self-listed.</p>
+              <p className="text-xs text-slate-500">Your best score on each Corprax test you've taken; nothing here is self-listed.</p>
             </div>
             <button onClick={p.onFindTests} aria-label="Take a test" title="Take a test" className="w-9 h-9 shrink-0 rounded-full text-slate-500 hover:text-slate-900 hover:bg-slate-100 flex items-center justify-center">
               <Plus className="w-5 h-5" />
@@ -578,7 +578,7 @@ export const MyProfile: React.FC<MyProfileProps> = (p) => {
             <div className="mt-4 p-5 rounded-xl border border-dashed border-slate-300 text-center space-y-2">
               <Award className="w-8 h-8 text-indigo-300 mx-auto" />
               <p className="text-sm font-semibold text-slate-800">No scores yet</p>
-              <p className="text-xs text-slate-500">Companies on Granyt hire on test scores. Your first test takes about 20 minutes.</p>
+              <p className="text-xs text-slate-500">Companies on Corprax hire on test scores. Your first test takes about 20 minutes.</p>
               <button onClick={() => (nextModule ? p.onOpenTest(nextModule.test.id) : p.onFindTests())} className="px-4 py-2 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold">
                 {nextModule ? `Start ${nextModule.sec.label}` : 'Find a test'}
               </button>
@@ -642,7 +642,7 @@ export const MyProfile: React.FC<MyProfileProps> = (p) => {
                 </span>
                 <span>
                   <span className="block text-sm font-bold text-slate-900">Fill it in from your CV</span>
-                  <span className="block text-xs text-slate-600">Add your CV or paste your LinkedIn, and check what Granyt fills in.</span>
+                  <span className="block text-xs text-slate-600">Add your CV or paste your LinkedIn, and check what Corprax fills in.</span>
                 </span>
               </button>
             )}
@@ -677,7 +677,7 @@ export const MyProfile: React.FC<MyProfileProps> = (p) => {
           <div>
             <h2 className="text-lg font-bold text-slate-900">Test record</h2>
             <p className="text-xs text-slate-500">
-              Every attempt. Others see your Granyt tests; a company's own test goes to that company only. Hiding a test takes it off your public profile, but companies still see it.
+              Every attempt. Others see your Corprax tests; a company's own test goes to that company only. Hiding a test takes it off your public profile, but companies still see it.
             </p>
           </div>
           <TestHistory

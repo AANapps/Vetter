@@ -15,33 +15,33 @@ import { demandFor, jobsUsing } from '../lib/demand';
 
 interface TestPageProps {
   test: AssessmentTest;
-  // The Granyt team: any test can be started at once, with no retake gap (an admin run, nothing saved)
+  // The Corprax team: any test can be started at once, with no retake gap (an admin run, nothing saved)
   adminRun?: boolean;
   // Every test, to find this one's other levels
   tests: AssessmentTest[];
   candidates: User[];
   jobs: JobPosting[];
   viewerRole: UserRole;
-  // The company looking, who can try their own tests as well as Granyt's
+  // The company looking, who can try their own tests as well as Corprax's
   viewerBusinessId?: string;
   // A company looking: opens a candidate's profile from the leaderboard, with the job their fit is for
   onOpenPerson?: (candidateId: string, jobId?: string) => void;
   currentCandidateId?: string;
   // The company whose link the candidate came from
   referredByCompany?: Business;
-  // Companies and the Granyt team add the test to one of their jobs, then send it from there
+  // Companies and the Corprax team add the test to one of their jobs, then send it from there
   onSend?: () => void;
-  // Companies: send it to their own staff (the team), inviting any who aren't on Granyt yet
+  // Companies: send it to their own staff (the team), inviting any who aren't on Corprax yet
   onSendToStaff?: () => void;
   // The send button's words: "Send to candidates" on the company's own test
   sendLabel?: string;
-  // Companies take a copy of a Granyt module test to add their own questions to its areas and levels
+  // Companies take a copy of a Corprax module test to add their own questions to its areas and levels
   onCustomize?: () => void;
   // The company's own test: opens in the builder
   onEdit?: () => void;
   // The company's own test: opens in the test chat, to change by asking
   onEditWithAI?: () => void;
-  // The company's own test: offered to the public library (the Granyt team approves it first), or taken back out
+  // The company's own test: offered to the public library (the Corprax team approves it first), or taken back out
   onAskToPublish?: () => void;
   onWithdrawPublic?: () => void;
   onStartTest: (test: AssessmentTest) => void;
@@ -81,7 +81,7 @@ export const TestPage: React.FC<TestPageProps> = ({
   const yourEntry = leaderboard.find((e) => e.candidate.id === currentCandidateId);
   // A library test can be taken once every RETAKE_DAYS days
   const you = candidates.find((c) => c.id === currentCandidateId);
-  // The Granyt team can hide a library test from candidates and companies, or show it again (src/lib/libraryVisibility.ts)
+  // The Corprax team can hide a library test from candidates and companies, or show it again (src/lib/libraryVisibility.ts)
   const visibility = useLibraryVisibility();
   const hiddenFromLibrary = testHidden(visibility, test);
   // Hidden with its whole role or category, not on its own: that's changed in Admin panel > Library visibility
@@ -89,7 +89,7 @@ export const TestPage: React.FC<TestPageProps> = ({
   const retakeFrom = !adminRun && viewerRole === 'candidate' && you && isPublic(test) ? nextAttemptAt(you, test.id) : null;
   const usedByJobs = jobs.filter((j) => j.testIds.includes(test.id) && j.status === 'active');
   // Candidates take company tests through the jobs they're attached to, or the company's own link
-  // Companies try Granyt's tests and their own (the Granyt team any test) as practice runs that aren't saved
+  // Companies try Corprax's tests and their own (the Corprax team any test) as practice runs that aren't saved
   const canStart =
     adminRun ||
     (viewerRole === 'candidate'
@@ -119,11 +119,11 @@ export const TestPage: React.FC<TestPageProps> = ({
               <span className="text-slate-300">&middot;</span>
               <span className="text-slate-500">{levelName(test.difficulty)}</span>
               <span className="text-slate-300">&middot;</span>
-              <span className="text-slate-500">{test.type === 'standard' ? 'Made by Granyt' : `Made by ${test.companyName}`}</span>
+              <span className="text-slate-500">{test.type === 'standard' ? 'Made by Corprax' : `Made by ${test.companyName}`}</span>
               {test.type === 'standard' && <DemandBadge demand={demandFor(test)} />}
               {jobsUsing(test, tests, jobs) > 0 && (
                 <span className="text-slate-500 normal-case tracking-normal font-sans">
-                  &middot; used by {jobsUsing(test, tests, jobs)} open {jobsUsing(test, tests, jobs) === 1 ? 'job' : 'jobs'} on Granyt
+                  &middot; used by {jobsUsing(test, tests, jobs)} open {jobsUsing(test, tests, jobs) === 1 ? 'job' : 'jobs'} on Corprax
                 </span>
               )}
             </div>
@@ -176,7 +176,7 @@ export const TestPage: React.FC<TestPageProps> = ({
           {onEditWithAI && (
             <button
               onClick={onEditWithAI}
-              title="Change this test by telling Granyt what to change"
+              title="Change this test by telling Corprax what to change"
               className="px-4 py-2.5 text-xs font-semibold text-indigo-700 bg-white border border-indigo-200 hover:border-indigo-400 rounded-lg transition-colors flex items-center gap-2 shrink-0 self-start"
             >
               <Sparkles className="w-3.5 h-3.5" />
@@ -415,12 +415,12 @@ const PublicLibraryCard: React.FC<{ test: AssessmentTest; onAsk: () => void; onW
       </h2>
       <p className="text-slate-600 leading-relaxed">
         {status === 'approved'
-          ? 'Public: other companies can add it to their jobs and any candidate can take it, credited to you. Changing it sends it back to Granyt to approve again.'
+          ? 'Public: other companies can add it to their jobs and any candidate can take it, credited to you. Changing it sends it back to Corprax to approve again.'
           : status === 'pending'
-          ? 'Waiting for Granyt to check it. Once approved, other companies can use it and candidates can take it.'
+          ? 'Waiting for Corprax to check it. Once approved, other companies can use it and candidates can take it.'
           : status === 'rejected'
-          ? 'Granyt didn\'t approve it for the public library.'
-          : 'Only your company can use it. Share it and, once Granyt has checked it, other companies can add it to their jobs and any candidate can take it.'}
+          ? 'Corprax didn\'t approve it for the public library.'
+          : 'Only your company can use it. Share it and, once Corprax has checked it, other companies can add it to their jobs and any candidate can take it.'}
       </p>
       {status === 'rejected' && test.publicNote && <p className="p-2.5 rounded-lg bg-indigo-50 text-slate-800">{test.publicNote}</p>}
       {status === 'approved' || status === 'pending' ? (

@@ -7,7 +7,7 @@ import { Feature, Interval, PLANS, PlanId, PlanInfo, PlanPreview, PlanStatus, Ti
 /**
  * The signed-in company's plan, as the server reads it from Stripe (server/billing.ts), and every paywall's check.
  *
- * Nothing is locked when the site doesn't take payments yet (no Stripe key), for the Granyt team, or for candidates:
+ * Nothing is locked when the site doesn't take payments yet (no Stripe key), for the Corprax team, or for candidates:
  * only a company on a plan that leaves a feature out sees it locked, with a button to upgrade.
  */
 
@@ -56,7 +56,7 @@ const UNLOCKED: PlanAccess = { status: OFF, info: PLANS.scale, can: () => true, 
 const PlanContext = createContext<PlanAccess>(UNLOCKED);
 export const usePlan = () => useContext(PlanContext);
 
-// The Granyt team's changes to the tiers (settings/plans), applied to PLANS as they come; the number changes each time
+// The Corprax team's changes to the tiers (settings/plans), applied to PLANS as they come; the number changes each time
 // so App draws again with them
 export function useTiers(): number {
   const [version, setVersion] = useState(0);
@@ -74,7 +74,7 @@ export function useTiers(): number {
   return version;
 }
 
-// An admin's plan preview, kept in this browser: null is the Granyt team (everything open)
+// An admin's plan preview, kept in this browser: null is the Corprax team (everything open)
 const PREVIEW_KEY = 'praxa.planPreview';
 export function usePlanPreview(enabled: boolean): [PlanPreview | null, (p: PlanPreview | null) => void] {
   const [preview, setPreview] = useState<PlanPreview | null>(() => {

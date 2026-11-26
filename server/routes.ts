@@ -36,9 +36,9 @@ const specModel = (env: Env) => env.SPEC_MODEL || 'claude-opus-5-5';
 export interface RequestMeta {
   authorization?: string;
   origin?: string;
-  // The test a request is for (the X-Granyt-For header), named in the company's usage
+  // The test a request is for (the X-Corprax-For header), named in the company's usage
   purpose?: string;
-  // An admin trying a plan (the X-Granyt-Preview header): AI requests act as that plan would, and nothing is charged
+  // An admin trying a plan (the X-Corprax-Preview header): AI requests act as that plan would, and nothing is charged
   preview?: PlanPreview;
 }
 
@@ -51,7 +51,7 @@ export const previewOf = (header: string | string[] | undefined): PlanPreview | 
   }
 };
 
-// The X-Granyt-For header as sent (URI-encoded, so any title fits in a header)
+// The X-Corprax-For header as sent (URI-encoded, so any title fits in a header)
 export const purposeOf = (header: string | string[] | undefined) => {
   try {
     return decodeURIComponent(String(Array.isArray(header) ? header[0] : header ?? '')).replace(/\s+/g, ' ').trim().slice(0, 120);
@@ -61,7 +61,7 @@ export const purposeOf = (header: string | string[] | undefined) => {
 };
 type Handler = (body: unknown, env: Env, meta?: RequestMeta) => Promise<{ status: number; json: unknown }>;
 
-const BUSY = "Granyt's AI is busy right now. Nothing is lost: try again in a little while.";
+const BUSY = "Corprax's AI is busy right now. Nothing is lost: try again in a little while.";
 
 // Failures are logged with their reason, so a request that didn't work can be traced
 const logged =
@@ -73,7 +73,7 @@ const logged =
   };
 
 // Writing tests is paid for from the company's credit (server/credits.ts): it needs some left to start, and is charged
-// what it really cost once it's done. The Granyt team isn't charged; with no Stripe key set up, nobody is
+// what it really cost once it's done. The Corprax team isn't charged; with no Stripe key set up, nobody is
 const billed =
   (name: string, handler: Handler): Handler =>
   async (body, env, meta) => {
@@ -177,7 +177,7 @@ async function billing(body: unknown, env: Env, meta?: RequestMeta): Promise<{ s
   }
 }
 
-// The Granyt team, for any company: its plan and AI as Stripe has them, credit given, and this period's AI usage set
+// The Corprax team, for any company: its plan and AI as Stripe has them, credit given, and this period's AI usage set
 // (to try a company at different levels)
 async function adminBilling(
   req: { action?: string; companyId?: string; pence?: number; used?: number; note?: string },
@@ -225,10 +225,10 @@ export const API_ROUTES: Record<string, Handler> = {
   // Each interactive page is designed first at high effort (its own request, so the thinking gets its own time limit),
   // then built from that design. DESIGN_MODEL sets another model
   '/api/design-app': logged('design-app', billed('design-app', (body, env) => designApp(body, env.ANTHROPIC_API_KEY, env.DESIGN_MODEL || testModel(env)))),
-  // A saved simulation from Granyt's environment library to build a new page on, when one is the same kind of product;
+  // A saved simulation from Corprax's environment library to build a new page on, when one is the same kind of product;
   // a quick model reading short summaries
   '/api/match-environment': logged('match-environment', billed('match-environment', (body, env) => matchEnvironment(body, env.ANTHROPIC_API_KEY, env.MATCH_MODEL || 'claude-haiku-5-5'))),
-  // A test built on an app from Granyt's app library: only the test's data and, when it needs more, small edits to the app
+  // A test built on an app from Corprax's app library: only the test's data and, when it needs more, small edits to the app
   '/api/fit-app': logged('fit-app', billed('fit-app', (body, env) => fitApp(body, env.ANTHROPIC_API_KEY, testModel(env)))),
   // A change to an app page already in a test (a colour, a fix, a missing button), as small edits to its code
   '/api/edit-app': logged('edit-app', billed('edit-app', (body, env) => editApp(body, env.ANTHROPIC_API_KEY, testModel(env)))),
@@ -244,7 +244,7 @@ export const API_ROUTES: Record<string, Handler> = {
   '/api/test-advisor': logged('test-advisor', (body, env) => testAdvisor(body, env.ANTHROPIC_API_KEY, env.ADVISOR_MODEL || 'claude-sonnet-5-5')),
   // The library tests that fit a job being posted, from its description; free, like the home chat
   '/api/suggest-tests': logged('suggest-tests', (body, env) => suggestTests(body, env.ANTHROPIC_API_KEY, env.ADVISOR_MODEL || 'claude-sonnet-5-5')),
-  // The assistant candidates work with in an AI-assisted task: Granyt's cost, like marking, on a quick model by default
+  // The assistant candidates work with in an AI-assisted task: Corprax's cost, like marking, on a quick model by default
   '/api/task-assistant': logged('task-assistant', (body, env, meta) => taskAssistant(body, env, meta?.authorization, env.ASSISTANT_MODEL || 'claude-haiku-5-5')),
   // Programs in languages the browser can't run (Java, C#, C++, Go...), on Judge0; signed-in people only, rate-limited
   '/api/run-code': logged('run-code', (body, env, meta) => runCode(body, env, meta?.authorization)),
@@ -252,8 +252,8 @@ export const API_ROUTES: Record<string, Handler> = {
   '/api/crm-assistant': logged('crm-assistant', billed('crm-assistant', (body, env) => crmAssistant(body, env.ANTHROPIC_API_KEY, env.ADVISOR_MODEL || 'claude-sonnet-5-5'))),
   // A board's formula column written from what the person says it should do; the company's credit
   '/api/write-formula': logged('write-formula', billed('write-formula', (body, env) => writeFormula(body, env.ANTHROPIC_API_KEY, env.ADVISOR_MODEL || 'claude-sonnet-5-5'))),
-  // A candidate's CV read into their profile, for them to check: Granyt's cost, signed-in people only, a few an hour
+  // A candidate's CV read into their profile, for them to check: Corprax's cost, signed-in people only, a few an hour
   '/api/read-cv': logged('read-cv', (body, env, meta) => readCv(body, env, meta?.authorization, env.CV_MODEL || 'claude-haiku-5-5')),
-  // Marking a candidate's answers is Granyt's cost, not the company's credit
+  // Marking a candidate's answers is Corprax's cost, not the company's credit
   '/api/grade-answers': logged('grade-answers', (body, env) => gradeAnswers(body, env.ANTHROPIC_API_KEY, env.GRADING_MODEL || testModel(env))),
 };

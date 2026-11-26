@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Check, Cog, Hammer } from "lucide-react";
 import type { BuildStep } from "../lib/testChat";
 
-// Shown in the creator's preview while Granyt builds: a cog turning, then a hammer knocking, then the tabs of the test
+// Shown in the creator's preview while Corprax builds: a cog turning, then a hammer knocking, then the tabs of the test
 // settling into place, round and round, with what it's doing right now underneath
 // One step (writing a simulation's page) can take minutes, so how long it's been going shows beside it
 export const BuildingCard: React.FC<{
@@ -72,7 +72,7 @@ export const BuildingCard: React.FC<{
           <span className="build-bar block h-full w-1/3 rounded-full bg-indigo-500" />
         </div>
         {!compact && !!steps?.length && (
-          <ul className="mt-4 w-full space-y-2 text-left" aria-label="What Granyt is doing">
+          <ul className="mt-4 w-full space-y-2 text-left" aria-label="What Corprax is doing">
             {steps.map((step) => (
               <li key={step.id} className="flex items-start gap-2.5 text-[13px] leading-snug">
                 {step.status === "done" ? (

@@ -1016,7 +1016,7 @@ Jo Bennett, your Team Lead: "Follow the policies, keep customers posted, and fla
   ],
 };
 
-// Asked like every Granyt test: the questions first and the hands-on task (with the questions about it) last, marks out of 100
+// Asked like every Corprax test: the questions first and the hands-on task (with the questions about it) last, marks out of 100
 export const SUPPORT_SIM_TEST: AssessmentTest = (() => {
   const isTask = (q: Question) => q.type === 'app' || q.taskId === 'q-sup-sim-1';
   const ordered = [...BLOOMVALE_SIM.questions.filter((q) => !isTask(q)), ...BLOOMVALE_SIM.questions.filter(isTask)];

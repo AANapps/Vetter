@@ -4,7 +4,7 @@ import { isMainVersion } from '../lib/testLevels';
 import { deriveVerifiedSkills, hashString, initialsAvatar, mulberry32 } from './seedCandidates';
 
 // Five sample candidates shown alongside the real ones on the live site, so companies have full profiles to look at.
-// Each has taken several of Granyt's tests, picked at random but the same on every load (seeded by their id)
+// Each has taken several of Corprax's tests, picked at random but the same on every load (seeded by their id)
 const PEOPLE: Omit<User, 'role' | 'avatarUrl' | 'verifiedSkills' | 'testResults' | 'appliedJobIds'>[] = [
   {
     id: 'cand-sample-01',
@@ -92,7 +92,7 @@ const PEOPLE: Omit<User, 'role' | 'avatarUrl' | 'verifiedSkills' | 'testResults'
 const day = (d: Date) => d.toISOString().split('T')[0];
 
 export function buildSampleCandidates(tests: AssessmentTest[]): User[] {
-  // Granyt's own tests, one per family (not each level's copy)
+  // Corprax's own tests, one per family (not each level's copy)
   const pool = tests.filter((t) => t.type === 'standard' && isMainVersion(t));
   return PEOPLE.map((p) => {
     const rand = mulberry32(hashString(p.id));

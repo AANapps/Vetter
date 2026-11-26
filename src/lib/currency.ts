@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react';
 
 /**
- * The currency Granyt shows its own prices in (plans, courses, the cost comparison). It starts as the visitor's local
+ * The currency Corprax shows its own prices in (plans, courses, the cost comparison). It starts as the visitor's local
  * currency, worked out from their time zone (where they are) and then their browser's language, and they can change it;
  * their choice is remembered on this device. Prices are converted at fixed approximate rates and rounded to tidy
  * amounts, so they read like local prices. What's charged doesn't change: AI credit is bought in pounds.

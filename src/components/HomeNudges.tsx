@@ -11,7 +11,7 @@ import { isOverdue } from '../lib/work';
 
 /**
  * The top of a candidate's home: one list of what to do next, most important first. Jobs waiting on their tests, then
- * work from their team, then one Granyt test to build their profile. Nothing else competes with it.
+ * work from their team, then one Corprax test to build their profile. Nothing else competes with it.
  */
 
 const greeting = () => {

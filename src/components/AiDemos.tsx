@@ -4,7 +4,7 @@ import { AnimatePresence, motion, useInView } from 'motion/react';
 import { Check, FileText, Sparkles } from 'lucide-react';
 import { useStages, useTypewriter } from './Motion';
 
-// Looping illustrations of Granyt's AI at work for the public pages. Both are labelled Example: the job, the answer
+// Looping illustrations of Corprax's AI at work for the public pages. Both are labelled Example: the job, the answer
 // and the figures are made up to show the flow, not taken from a real account
 
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -38,7 +38,7 @@ export const AiTestWriterDemo: React.FC = () => {
   const jd = stage === 0 ? typed : JD;
   return (
     <div ref={ref} className="ai-panel overflow-hidden text-left">
-      <PanelTop title="Granyt AI · Test writer" busy={stage === 1} />
+      <PanelTop title="Corprax AI · Test writer" busy={stage === 1} />
       <div className="p-5 space-y-4">
         <div className="rounded-xl bg-slate-50 ring-1 ring-slate-900/[0.06] p-3.5">
           <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500">
@@ -120,7 +120,7 @@ export const AiMarkingDemo: React.FC = () => {
   const typed = useTypewriter(ANSWER, stage === 0, 30);
   return (
     <div ref={ref} className="ai-panel overflow-hidden text-left">
-      <PanelTop title="Granyt AI · Marking" busy={stage === 1} />
+      <PanelTop title="Corprax AI · Marking" busy={stage === 1} />
       <div className="p-5 space-y-4">
         <div>
           <div className="text-[11px] font-medium uppercase tracking-[0.12em] text-slate-400">Question 7 · Written answer</div>
@@ -171,7 +171,7 @@ export const AiMarkingDemo: React.FC = () => {
   );
 };
 
-// A slow sideways stream of the skills Granyt tests, under the heroes
+// A slow sideways stream of the skills Corprax tests, under the heroes
 const SKILLS = [
   'SQL',
   'Python',

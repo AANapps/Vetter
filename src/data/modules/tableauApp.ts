@@ -1,7 +1,7 @@
 import { BiTable } from './powerbiApp';
 
 /**
- * A Tableau Desktop-style worksheet, hand-built for Granyt's Data Analyst tests: a modern copy of how Tableau looks and
+ * A Tableau Desktop-style worksheet, hand-built for Corprax's Data Analyst tests: a modern copy of how Tableau looks and
  * works, under another name, with only what the tasks need. The Data pane (dimensions in blue, measures in green, and
  * calculated fields), the Columns and Rows shelves, the Filters card (filter dialog with a value list), the Marks card
  * (mark type, Color, Label), pill menus (aggregation, Quick Table Calculation: Running Total, Percent of Total, Rank;
@@ -9,7 +9,7 @@ import { BiTable } from './powerbiApp';
  * MAX, COUNT, COUNTD, MEDIAN, ZN, ROUND, ABS, IIF, ISNULL, UPPER, LOWER, YEAR, IF/THEN/ELSEIF/ELSE/END, AND/OR/NOT,
  * { FIXED [dim]: aggregate } and references to other calculated fields). The view is drawn from the shelves.
  *
- * State, as Granyt marks it: { shelves: { columns: [pill], rows: [pill], filters: { field: [kept values] }, color, label,
+ * State, as Corprax marks it: { shelves: { columns: [pill], rows: [pill], filters: { field: [kept values] }, color, label,
  * mark, sort }, tableCalc: { pill: name }, calcs: { name: { formula, kind, type, value, counts, max, min, error } },
  * view: { order: [category], values: { category: value }, top } }. Pills read as Tableau shows them: Region,
  * SUM(Sales), AGG(Profit Ratio).

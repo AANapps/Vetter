@@ -85,7 +85,7 @@ export const levelForScore = (score: number): VerifiedSkill['level'] =>
 
 const isoDate = (d: Date) => d.toISOString().split('T')[0];
 
-// Profile scores mirror each candidate's best score on every Granyt-made test they've taken
+// Profile scores mirror each candidate's best score on every Corprax-made test they've taken
 export function deriveVerifiedSkills(results: TestResult[], tests: AssessmentTest[]): VerifiedSkill[] {
   return tests
     .filter((t) => t.type === 'standard')

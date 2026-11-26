@@ -90,7 +90,7 @@ export const SendToStaffDialog: React.FC<{
               className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
             <p className="text-[11px] text-slate-500">
-              They're asked to join your team on Granyt; the test is sent to them as soon as they accept.
+              They're asked to join your team on Corprax; the test is sent to them as soon as they accept.
               {invited.length > 0 && ` ${invited.length} already invited ${invited.length === 1 ? 'hasn’t' : 'haven’t'} joined yet; adding their address queues it for them too.`}
             </p>
             {bad.length > 0 && <p className="text-[11px] font-semibold text-rose-600">Not an email address: {bad.join(', ')}</p>}

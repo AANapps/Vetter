@@ -18,7 +18,7 @@ export interface GenerateRequest {
   questionCount: number;
   styles: string[];
   level: string;
-  // The tests already on Granyt the company could use, and roles a library test can be filed under
+  // The tests already on Corprax the company could use, and roles a library test can be filed under
   library: { id: string; title: string; category: string; difficulty: string; skills: string[]; roles: string[]; description: string }[];
   roles: string[];
   categories: string[];
@@ -126,7 +126,7 @@ export const WORKSPACE_RULES = `
   starterCode: a short SQL comment naming the tables, then the start of the statement. solutionCode: SQLite that does the task
   (CREATE VIEW ..., UPDATE ...). testCases: 2 to 4 checks; input is a SELECT run afterwards (e.g. "SELECT * FROM
   monthly_revenue ORDER BY month"), expectedOutput "" (it's worked out from solutionCode).
-- desktop: a task on Granyt's built-in work apps, on a desktop with Files: chat (Slack/Teams), helpdesk (Zendesk-style
+- desktop: a task on Corprax's built-in work apps, on a desktop with Files: chat (Slack/Teams), helpdesk (Zendesk-style
   tickets), crm (contacts, accounts, deals), docs (Word-style documents), bi (charts from CSV files), forms, calendar,
   kb (a knowledge base) and board (monday.com or Jira). Use it for support, sales, account, operations, project, admin,
   marketing and reporting work done in that kind of software. It is ready-made and reliable, so prefer it to an app
@@ -255,7 +255,7 @@ export const APP_PAGE_RULES = `  For every kind, appHtml is ONE self-contained H
     leader line to it when it can't sit next to it), never across another part. Draw all labels last, after every
     shape, so nothing covers them, and give each a halo (paint-order:stroke with a 3px stroke in
     the background colour). Keep every label inside the viewBox with a margin, no two labels touching, and at least 12px
-    tall as drawn. Leave room for the labels when you lay the drawing out; Granyt checks for hidden and cut-off labels.
+    tall as drawn. Leave room for the labels when you lay the drawing out; Corprax checks for hidden and cut-off labels.
   • NOTHING IS A MYSTERY SHAPE: every tool, instrument, part, item and person drawn has its real name as visible text
     beside or under it at all times (not only on hover), e.g. "Mouth mirror", "Probe", "Two-pole voltage tester". Draw
     each one as its classic, instantly recognisable outline (the shape anyone in the job would know at a glance) with
@@ -375,7 +375,7 @@ know; leave out anything a good candidate would look at and think "that's not my
 - DESK WORK: hands-on tasks are in the software the job uses (sheet, database, code, an app copying its product).
 
 SKILLS GAMES: games for general abilities (attention to detail, verbal, numerical and logical reasoning, memory,
-multitasking) are made by the Granyt team for the library and suggested when the company posts the job. Don't build a
+multitasking) are made by the Corprax team for the library and suggested when the company posts the job. Don't build a
 game for those abilities here unless the company asks for one by name; test the job's own skills instead.
 
 QUESTION QUALITY: write questions that really test the candidate: a strong one finds them demanding and a weak one can't
@@ -556,7 +556,7 @@ questions about it; they're answered beside it, so they may rely on what it show
 and every question that isn't a case or task has ref "". A kept case or task's ref is its id.`;
 
 function instructions(req: GenerateRequest): string {
-  return `You help companies on Granyt, a skills-based hiring platform, choose and write tests for a job.
+  return `You help companies on Corprax, a skills-based hiring platform, choose and write tests for a job.
 
 ${req.wantExisting ? `Pick up to 4 tests from the LIBRARY that genuinely fit the job, best first, each with a one-sentence reason a hiring manager would find useful. Only use ids from the library. Return an empty list if none fit.` : 'Return an empty "existing" list.'}
 
@@ -708,11 +708,11 @@ export function apiFailure(name: string, err: unknown): { status: number; json: 
   if (err instanceof Anthropic.AuthenticationError) return { status: 503, json: { error: 'The Anthropic API key was rejected. Check ANTHROPIC_API_KEY.' } };
   if (err instanceof Anthropic.RateLimitError) return { status: 429, json: { error: 'Too many requests to Claude right now. Try again in a minute.' } };
   if (err instanceof Anthropic.APIError) console.error(`[${name}] ${err.message}`);
-  // Granyt's own Anthropic account is out of credit, or has hit the monthly spend limit set in the Console (a 400 saying
-  // "You have reached your specified API usage limits"): logged above for the Granyt team; companies get a plain 'busy'
+  // Corprax's own Anthropic account is out of credit, or has hit the monthly spend limit set in the Console (a 400 saying
+  // "You have reached your specified API usage limits"): logged above for the Corprax team; companies get a plain 'busy'
   // message
   if (err instanceof Anthropic.APIError && /credit balance|usage limit/i.test(err.message))
-    return { status: 503, json: { error: "Granyt's AI is busy right now. Nothing is lost: try again in a little while." } };
+    return { status: 503, json: { error: "Corprax's AI is busy right now. Nothing is lost: try again in a little while." } };
   // Any other refused request says why, so it can be fixed
   if (err instanceof Anthropic.BadRequestError) return { status: 502, json: { error: `Claude refused the request (400): ${reasonOf(err)}` } };
   if (err instanceof Anthropic.APIError) return { status: 502, json: { error: `Claude returned an error (${err.status}).` } };

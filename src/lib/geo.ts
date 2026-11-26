@@ -1,4 +1,4 @@
-// Coordinates for the cities Granyt's jobs and candidates use, so the job board can search by radius.
+// Coordinates for the cities Corprax's jobs and candidates use, so the job board can search by radius.
 // Add a city here when a job or candidate uses a new one.
 export const CITIES: Record<string, { lat: number; lng: number }> = {
   'San Francisco, CA': { lat: 37.7749, lng: -122.4194 },

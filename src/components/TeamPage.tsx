@@ -8,7 +8,7 @@ import { PageHeader } from './PageHeader';
 import { WorkBoard } from './WorkBoard';
 
 /**
- * A company's team on Granyt: the people it asked to join (candidates on Granyt, or anyone by email), and the tests, job
+ * A company's team on Corprax: the people it asked to join (candidates on Corprax, or anyone by email), and the tests, job
  * simulations and training it gives them. Results stay between the company and the person: never on their profile or a
  * leaderboard.
  */
@@ -92,10 +92,10 @@ export const TeamPage: React.FC<TeamPageProps> = ({
   const testOf = (id: string) => tests.find((t) => t.id === id);
   const live = assignments.filter((a) => testOf(a.testId));
 
-  // What each person is good at: their best Granyt test scores, and the team work they passed
+  // What each person is good at: their best Corprax test scores, and the team work they passed
   const strengths = (m: TeamMember) => {
     const p = person(m);
-    const verified = [...(p?.verifiedSkills ?? [])].sort((a, b) => b.score - a.score).map((v) => ({ name: v.skillName, score: v.score, from: 'Granyt' as const, testId: v.testId }));
+    const verified = [...(p?.verifiedSkills ?? [])].sort((a, b) => b.score - a.score).map((v) => ({ name: v.skillName, score: v.score, from: 'Corprax' as const, testId: v.testId }));
     const fromTeam = live
       .filter((a) => a.memberId === m.id && a.completedAt && (a.score ?? 0) >= (testOf(a.testId)?.passingScore ?? 75))
       .map((a) => ({ name: testOf(a.testId)!.title.replace(/:.*$/, ''), score: a.score ?? 0, from: 'Team' as const, testId: a.testId }));
@@ -108,7 +108,7 @@ export const TeamPage: React.FC<TeamPageProps> = ({
     return { theirs, done, avg, late: theirs.filter(isOverdue).length };
   };
 
-  // Typing a name finds people on Granyt to ask; an address invites anyone
+  // Typing a name finds people on Corprax to ask; an address invites anyone
   const query = invite.trim().toLowerCase();
   const matches =
     query.length >= 2 && !query.includes('@')
@@ -323,9 +323,9 @@ export const TeamPage: React.FC<TeamPageProps> = ({
             )}
             {active.length > 0 && (
                 <Card className="overflow-hidden">
-                <div className="px-5 py-3 border-b border-slate-100 text-sm font-bold text-slate-900">Team skills <span className="font-normal text-slate-400">· proven on Granyt, green 88+, amber 75–87</span></div>
+                <div className="px-5 py-3 border-b border-slate-100 text-sm font-bold text-slate-900">Team skills <span className="font-normal text-slate-400">· proven on Corprax, green 88+, amber 75–87</span></div>
                 {skillColumns.length === 0 ? (
-                  <p className="px-5 py-4 text-sm text-slate-500">No one has proven a skill on Granyt yet.</p>
+                  <p className="px-5 py-4 text-sm text-slate-500">No one has proven a skill on Corprax yet.</p>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
@@ -395,7 +395,7 @@ export const TeamPage: React.FC<TeamPageProps> = ({
         {/* ---------- People & invites ---------- */}
         {section === 'people' && (
           <>
-            <PageHeader title="People & invites" sub={`Invite your people to join ${business.name} on Granyt, and manage who's on the team.`} />
+            <PageHeader title="People & invites" sub={`Invite your people to join ${business.name} on Corprax, and manage who's on the team.`} />
             <Card className="p-5 space-y-3">
               <h2 className="text-sm font-bold text-slate-900">Invite someone</h2>
               <div className="relative">
@@ -406,7 +406,7 @@ export const TeamPage: React.FC<TeamPageProps> = ({
                       value={invite}
                       onChange={(e) => setInvite(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && sendEmail()}
-                      placeholder="Their work email, or the name of someone on Granyt"
+                      placeholder="Their work email, or the name of someone on Corprax"
                       className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                   </div>
@@ -433,7 +433,7 @@ export const TeamPage: React.FC<TeamPageProps> = ({
                           <Pic src={c.avatarUrl} alt="" className="w-8 h-8 rounded-full" />
                           <span className="min-w-0 flex-1">
                             <span className="block text-sm font-semibold text-slate-900 truncate">{c.name}</span>
-                            <span className="block text-xs text-slate-500 truncate">{c.title || 'On Granyt'}</span>
+                            <span className="block text-xs text-slate-500 truncate">{c.title || 'On Corprax'}</span>
                           </span>
                           <span className="text-xs font-semibold text-indigo-700 inline-flex items-center gap-1">
                             <UserPlus className="w-3.5 h-3.5" />
@@ -445,7 +445,7 @@ export const TeamPage: React.FC<TeamPageProps> = ({
                   </ul>
                 )}
               </div>
-              <p className="text-xs text-slate-500">They'll see the invitation on Granyt once they sign in with that address, and can accept or decline it.</p>
+              <p className="text-xs text-slate-500">They'll see the invitation on Corprax once they sign in with that address, and can accept or decline it.</p>
             </Card>
 
             <Card className="divide-y divide-slate-100">
@@ -583,7 +583,7 @@ export const TeamPage: React.FC<TeamPageProps> = ({
                                     <span className={`block h-full rounded-full ${g.score >= 88 ? 'bg-emerald-500' : g.score >= 75 ? 'bg-amber-400' : 'bg-slate-300'}`} style={{ width: `${g.score}%` }} />
                                   </span>
                                 </span>
-                                <span className="text-[10px] font-semibold text-slate-400 w-10 text-right">{g.from === 'Granyt' ? 'Granyt' : 'Team'}</span>
+                                <span className="text-[10px] font-semibold text-slate-400 w-10 text-right">{g.from === 'Corprax' ? 'Corprax' : 'Team'}</span>
                                 <span className="font-mono text-sm font-bold tabular-nums text-slate-900 w-8 text-right">{g.score}</span>
                               </button>
                             </li>
@@ -628,7 +628,7 @@ export const TeamPage: React.FC<TeamPageProps> = ({
   );
 };
 
-// Picking who gets what: the company's training, its own simulations and tests, then Granyt's library
+// Picking who gets what: the company's training, its own simulations and tests, then Corprax's library
 export const AssignDialog: React.FC<{
   members: TeamMember[];
   initial: string[];
@@ -651,7 +651,7 @@ export const AssignDialog: React.FC<{
     return [
       { label: 'Your training', items: own.filter((t) => t.purpose === 'training') },
       { label: 'Your job simulations and tests', items: own.filter((t) => t.purpose !== 'training') },
-      { label: "Granyt's library", items: tests.filter((t) => isPublic(t) && t.businessId !== business.id && !testHidden(visibility, t) && match(t)).slice(0, 30) },
+      { label: "Corprax's library", items: tests.filter((t) => isPublic(t) && t.businessId !== business.id && !testHidden(visibility, t) && match(t)).slice(0, 30) },
     ].filter((g) => g.items.length);
   }, [tests, q, business.id, visibility]);
   const test = tests.find((t) => t.id === testId);
@@ -663,7 +663,7 @@ export const AssignDialog: React.FC<{
         <div className="px-5 pt-4 pb-3 border-b border-slate-200 flex items-start justify-between gap-4">
           <div>
             <h2 className="text-lg font-bold text-slate-900">Send work to your team</h2>
-            <p className="text-sm text-slate-500">Training, a job simulation or a test. They'll find it on their Granyt home.</p>
+            <p className="text-sm text-slate-500">Training, a job simulation or a test. They'll find it on their Corprax home.</p>
           </div>
           <button onClick={onClose} aria-label="Close" className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg">
             <X className="w-5 h-5" />

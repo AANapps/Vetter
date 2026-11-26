@@ -1,13 +1,13 @@
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 
 /**
- * Companies pay for Granyt's AI with credit they buy in advance. The balance lives in Stripe, as the credit on the
+ * Companies pay for Corprax's AI with credit they buy in advance. The balance lives in Stripe, as the credit on the
  * company's Stripe customer (one per company, found by its companyId), so only the server can change it: there's no
  * Firebase admin key to write it anywhere else, and the browser must never be trusted with it.
  *
  * - Who's asking: the browser sends the person's Firebase ID token; it's checked against Google's keys here, and their
  *   user record is read from Firestore with that same token (so Firestore's rules decide what it says).
- * - Each billed request runs only with credit left, and is charged what it really cost Granyt in Claude usage, times
+ * - Each billed request runs only with credit left, and is charged what it really cost Corprax in Claude usage, times
  *   CREDIT_MARKUP, in pence (server/meter.ts adds it up).
  * - Topping up is a Stripe Checkout payment, opened in a new tab so the chat stays where it was. Paid sessions are
  *   credited when the tab comes back, and again whenever the balance is looked at, in case it never did; each session
@@ -32,7 +32,7 @@ export const billingOn = (env: Env) => !!env.STRIPE_SECRET_KEY;
 
 export type Caller =
   | { kind: 'company'; uid: string; companyId: string; token: string }
-  // The Granyt team isn't charged
+  // The Corprax team isn't charged
   | { kind: 'admin'; uid: string; token: string }
   | { kind: 'none'; reason: string };
 
@@ -42,8 +42,8 @@ const keys = createRemoteJWKSet(new URL('https://www.googleapis.com/service_acco
 export async function whoIsAsking(authorization: string | undefined, env: Env): Promise<Caller> {
   const token = authorization?.match(/^Bearer (.+)$/)?.[1];
   const project = projectOf(env);
-  if (!token) return { kind: 'none', reason: 'Sign in with your company account to use Granyt’s AI.' };
-  if (!project) return { kind: 'none', reason: 'Granyt’s sign-in isn’t set up on this server.' };
+  if (!token) return { kind: 'none', reason: 'Sign in with your company account to use Corprax’s AI.' };
+  if (!project) return { kind: 'none', reason: 'Corprax’s sign-in isn’t set up on this server.' };
   let uid: string;
   try {
     const { payload } = await jwtVerify(token, keys, { issuer: `https://securetoken.google.com/${project}`, audience: project });
@@ -59,7 +59,7 @@ export async function whoIsAsking(authorization: string | undefined, env: Env): 
   const field = (name: string) => fields[name]?.stringValue ?? '';
   if (field('role') === 'admin') return { kind: 'admin', uid, token };
   if (field('role') === 'recruiter' && field('status') === 'active' && field('companyId')) return { kind: 'company', uid, companyId: field('companyId'), token };
-  return { kind: 'none', reason: 'Granyt’s AI is for company accounts. Finish setting up your company first.' };
+  return { kind: 'none', reason: 'Corprax’s AI is for company accounts. Finish setting up your company first.' };
 }
 
 // --- Stripe ---
@@ -121,7 +121,7 @@ type Session = {
 async function creditSession(env: Env, session: Session): Promise<boolean> {
   const intent = typeof session.payment_intent === 'object' ? session.payment_intent : null;
   if (session.payment_status !== 'paid' || session.metadata?.vetterCredit !== 'true' || !intent || intent.metadata?.credited === 'true') return false;
-  await stripe(env, 'POST', `/customers/${session.customer}/balance_transactions`, { amount: -session.amount_total, currency: 'gbp', description: 'Granyt AI credit' }, `vetter-topup-${session.id}`);
+  await stripe(env, 'POST', `/customers/${session.customer}/balance_transactions`, { amount: -session.amount_total, currency: 'gbp', description: 'Corprax AI credit' }, `vetter-topup-${session.id}`);
   await stripe(env, 'POST', `/payment_intents/${intent.id}`, { 'metadata[credited]': 'true' });
   return true;
 }
@@ -135,7 +135,7 @@ export async function balanceFor(env: Env, companyId: string): Promise<number> {
 
 export const hasEnough = (pence: number) => pence >= MIN_PENCE;
 
-// What a request cost Granyt, as the company is charged for it
+// What a request cost Corprax, as the company is charged for it
 export const penceFor = (usd: number, env: Env) => Math.ceil(usd * USD_TO_GBP * Math.max(1, Number(env.CREDIT_MARKUP) || 2) * 100);
 
 // What each billed request is, as the company reads it in its usage
@@ -161,7 +161,7 @@ export const STEP_NAMES: Record<string, string> = {
 export async function charge(env: Env, companyId: string, pence: number, step: string, purpose: string, covered?: { pence: number; period: string }): Promise<void> {
   if (pence <= 0) return;
   const customer = await customerFor(env, companyId);
-  const description = `Granyt AI: ${STEP_NAMES[step] ?? step}${purpose ? ` (${purpose})` : ''}`.slice(0, 350);
+  const description = `Corprax AI: ${STEP_NAMES[step] ?? step}${purpose ? ` (${purpose})` : ''}`.slice(0, 350);
   const plan = Math.min(pence, covered?.pence ?? 0);
   if (plan > 0 && covered) {
     const meta = { 'metadata[step]': step, 'metadata[for]': purpose.slice(0, 200), 'metadata[allowance]': covered.period };
@@ -204,18 +204,18 @@ export async function ledger(env: Env, companyId: string, since = 0): Promise<Tr
 }
 
 // What the plan's allowance has paid for in a period
-// (the Granyt team's adjustments are negative or positive entries in the same period)
+// (the Corprax team's adjustments are negative or positive entries in the same period)
 export const allowanceUsed = (entries: Transaction[], period: string) =>
   Math.max(0, entries.filter((t) => t.metadata?.allowance === period).reduce((sum, t) => sum + t.amount, 0));
 
-// The Granyt team giving a company credit, or setting how much of this period's allowance is used (to test the levels):
+// The Corprax team giving a company credit, or setting how much of this period's allowance is used (to test the levels):
 // both in the same ledger, the usage change as a pair that leaves the balance as it was
 export async function grantCredit(env: Env, companyId: string, pence: number, note: string): Promise<void> {
   const customer = await customerFor(env, companyId);
   await stripe(env, 'POST', `/customers/${customer.id}/balance_transactions`, {
     amount: -pence,
     currency: 'gbp',
-    description: `Granyt AI credit from the Granyt team${note ? ` (${note})` : ''}`.slice(0, 350),
+    description: `Corprax AI credit from the Corprax team${note ? ` (${note})` : ''}`.slice(0, 350),
     'metadata[granted]': 'true',
   });
 }
@@ -223,7 +223,7 @@ export async function adjustAllowance(env: Env, companyId: string, delta: number
   if (!delta) return;
   const customer = await customerFor(env, companyId);
   const add = (amount: number, meta: Record<string, string>) =>
-    stripe(env, 'POST', `/customers/${customer.id}/balance_transactions`, { amount, currency: 'gbp', description: 'Usage adjusted by the Granyt team', ...meta });
+    stripe(env, 'POST', `/customers/${customer.id}/balance_transactions`, { amount, currency: 'gbp', description: 'Usage adjusted by the Corprax team', ...meta });
   await add(delta, { 'metadata[allowance]': period, 'metadata[adjust]': 'true' });
   await add(-delta, { 'metadata[planCover]': period, 'metadata[adjust]': 'true' });
 }
@@ -248,7 +248,7 @@ export async function usageFor(env: Env, companyId: string): Promise<UsageEntry[
     .map((t) => ({
       amount: t.amount,
       at: new Date(t.created * 1000).toISOString(),
-      step: t.metadata?.granted ? 'Credit from Granyt' : t.amount < 0 ? 'Credit bought' : STEP_NAMES[t.metadata?.step ?? ''] ?? 'Granyt AI',
+      step: t.metadata?.granted ? 'Credit from Corprax' : t.amount < 0 ? 'Credit bought' : STEP_NAMES[t.metadata?.step ?? ''] ?? 'Corprax AI',
       for: t.metadata?.for ?? '',
       ...(t.metadata?.allowance && { covered: true }),
     }));
@@ -264,7 +264,7 @@ export async function startTopUp(env: Env, companyId: string, pence: number, ori
     'line_items[0][quantity]': 1,
     'line_items[0][price_data][currency]': 'gbp',
     'line_items[0][price_data][unit_amount]': pence,
-    'line_items[0][price_data][product_data][name]': `Granyt AI credit (£${(pence / 100).toFixed(2)})`,
+    'line_items[0][price_data][product_data][name]': `Corprax AI credit (£${(pence / 100).toFixed(2)})`,
     'metadata[vetterCredit]': 'true',
     'metadata[companyId]': companyId,
     'payment_intent_data[metadata][companyId]': companyId,

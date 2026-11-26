@@ -27,7 +27,7 @@ const fresh = async () => { forget(co); return billingFor(env, co, 'none'); };
     ok(aiLeft(b) === 0, `trial used up, nothing left (left=${aiLeft(b)})`);
     await grantCredit(env, co, 500, 'test');
     b = await fresh();
-    ok(b.ai.credit === 500, `Granyt-granted credit shows (credit=${b.ai.credit})`);
+    ok(b.ai.credit === 500, `Corprax-granted credit shows (credit=${b.ai.credit})`);
     const r = await subscribe(env, co, b, 'starter', 'month', 'http://localhost:3000');
     ok(!!r.url?.includes('checkout.stripe.com'), 'Starter checkout link made');
     // simulate the paid checkout: card on file + subscription on the billing customer

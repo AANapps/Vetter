@@ -1,7 +1,7 @@
 import { AssessmentTest } from '../types';
 import { caseStudy, choice, match, multi, order, short, written } from './questionKit';
 
-// Granyt tests for work outside software and data, one per field. Each has ten questions: the fundamentals first, then
+// Corprax tests for work outside software and data, one per field. Each has ten questions: the fundamentals first, then
 // a short case where the candidate works out the numbers, judges what they mean and says what they'd do
 
 const minutes = (qs: { timeLimitMinutes: number }[]) => qs.reduce((n, q) => n + q.timeLimitMinutes, 0);

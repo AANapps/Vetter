@@ -1689,7 +1689,7 @@ export class Calc {
         const iso = dateText(t);
         return iso ?? err('#VALUE!');
       }
-      // ---------- Granyt's marking: what the candidate built besides cells ----------
+      // ---------- Corprax's marking: what the candidate built besides cells ----------
       case 'PRAXA.TABLE': {
         const t = text(0);
         if (isErr(t)) return t;
@@ -1759,7 +1759,7 @@ export class Calc {
 // Functions of single values, applied cell by cell when given a range
 const LIFTED = new Set(['LEN', 'TRIM', 'CLEAN', 'UPPER', 'LOWER', 'PROPER', 'LEFT', 'RIGHT', 'MID', 'FIND', 'SEARCH', 'SUBSTITUTE', 'VALUE', 'DATEVALUE', 'TEXT', 'EXACT', 'ISNUMBER', 'ISTEXT', 'ISBLANK', 'ISERROR', 'ISNA', 'ROUND', 'ROUNDUP', 'ROUNDDOWN', 'ABS', 'INT', 'SQRT', 'MOD', 'YEAR', 'MONTH', 'DAY', 'IF', 'IFERROR', 'IFNA', 'NOT']);
 
-// A date typed any common way, as Granyt holds dates (YYYY-MM-DD): 14/03/2026, 14-03-2026, 14 Mar 2026, Mar 14 2026,
+// A date typed any common way, as Corprax holds dates (YYYY-MM-DD): 14/03/2026, 14-03-2026, 14 Mar 2026, Mar 14 2026,
 // 2026-03-14, 14.03.26
 export function dateText(text: string): string | null {
   const t = text.trim();

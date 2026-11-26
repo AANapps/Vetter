@@ -170,7 +170,7 @@ export const WorkPage: React.FC<WorkPageProps> = ({ invitations, memberships, as
               {memberships.length === 0 && assignments.length === 0 ? (
                 empty('You’re not on a team yet. When a company invites you to its team, the work it sends you appears here.', (
                   <button onClick={onFindTests} className="px-4 py-2 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold">
-                    Take a Granyt test meanwhile
+                    Take a Corprax test meanwhile
                   </button>
                 ))
               ) : (
@@ -353,7 +353,7 @@ export const WorkPage: React.FC<WorkPageProps> = ({ invitations, memberships, as
                 <ShieldCheck className="w-6 h-6 text-emerald-600 shrink-0" />
                 <div className="text-sm text-slate-700 space-y-1">
                   <p className="font-semibold text-slate-900">What a team can see</p>
-                  <p>The work it sends you and how you do on it, and your public Granyt profile. Not your other teams, not other companies' tests, and not where you've applied.</p>
+                  <p>The work it sends you and how you do on it, and your public Corprax profile. Not your other teams, not other companies' tests, and not where you've applied.</p>
                 </div>
               </Card>
               {memberships.length === 0 ? (

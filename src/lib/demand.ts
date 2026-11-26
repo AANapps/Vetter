@@ -2,10 +2,10 @@ import { AssessmentTest, JobPosting, TestRole } from '../types';
 import { levelsOf } from './testLevels';
 
 /**
- * Hiring demand for a test, from published labour-market research (not from activity on Granyt): LinkedIn's Jobs on
+ * Hiring demand for a test, from published labour-market research (not from activity on Corprax): LinkedIn's Jobs on
  * the Rise 2026, the World Economic Forum's Future of Jobs Report 2025, and the US Bureau of Labor Statistics'
  * employment projections for 2024–34, for the main role a test is for. Roles the research
- * doesn't single out show no badge. Alongside it, the live count of jobs on Granyt that use the test.
+ * doesn't single out show no badge. Alongside it, the live count of jobs on Corprax that use the test.
  */
 
 export type DemandLevel = 'high' | 'rising';
@@ -36,7 +36,7 @@ export function demandFor(test: Pick<AssessmentTest, 'roles'>): Demand | undefin
   return main ? ROLE_DEMAND[main] : undefined;
 }
 
-// Open jobs on Granyt that ask for any level of this test
+// Open jobs on Corprax that ask for any level of this test
 export function jobsUsing(test: AssessmentTest, tests: AssessmentTest[], jobs: JobPosting[]): number {
   const ids = new Set(levelsOf(test, tests).map((t) => t.id).concat(test.id));
   return jobs.filter((j) => j.testIds.some((id) => ids.has(id))).length;

@@ -64,7 +64,7 @@ export const MORE_TABS: { id: AppTab; label: string; icon: TabIcon; blurb: strin
 const VIEWS: { role: UserRole; label: string }[] = [
   { role: 'candidate', label: 'candidate view' },
   { role: 'recruiter', label: 'business view' },
-  { role: 'admin', label: 'Granyt team view' },
+  { role: 'admin', label: 'Corprax team view' },
 ];
 
 export interface NavNotification {
@@ -84,7 +84,7 @@ interface NavigationProps {
   onRoleChange: (role: UserRole) => void;
   // A company's plan, billing and cancelling (the plans dialog); absent for everyone else
   onPlans?: () => void;
-  // With accounts: sign in and out, and the view switcher only for the Granyt team. Without, the demo's view switcher
+  // With accounts: sign in and out, and the view switcher only for the Corprax team. Without, the demo's view switcher
   accounts?: {
     signedIn: boolean;
     email?: string;
@@ -103,7 +103,7 @@ interface NavigationProps {
   visitor?: { onSignIn: () => void; onJoin: () => void };
   // The search box, rendered in the bar (and full width on phones)
   renderSearch: (mobile: { onClose: () => void } | null) => React.ReactNode;
-  // Companies: start a fresh chat with Granyt on the home page
+  // Companies: start a fresh chat with Corprax on the home page
   onNewChat?: () => void;
   // Candidates: what their teams have sent them, shown on the Work mode switch
   work?: { open: number; late: number; companies?: string[] };
@@ -111,9 +111,9 @@ interface NavigationProps {
   workspaces?: boolean;
 }
 
-// The sparkle and the name in the brand's gradient: ✦ Granyt
+// The sparkle and the name in the brand's gradient: ✦ Corprax
 const Wordmark: React.FC<{ onClick: () => void }> = ({ onClick }) => (
-  <button onClick={onClick} aria-label="Granyt home" className="flex items-center shrink-0 hover:opacity-85 transition-opacity">
+  <button onClick={onClick} aria-label="Corprax home" className="flex items-center shrink-0 hover:opacity-85 transition-opacity">
     <BrandWordmark />
   </button>
 );
@@ -162,7 +162,7 @@ export const Navigation: React.FC<NavigationProps> = ({
     return () => document.removeEventListener('mousedown', onClick);
   }, []);
 
-  // The account menu: who's signed in, guides, the admin page and view switcher for the Granyt team, sign out
+  // The account menu: who's signed in, guides, the admin page and view switcher for the Corprax team, sign out
   const meMenu = () => (
     <>
       <div className="flex items-center gap-3">
@@ -281,7 +281,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                 )}
                 <ThemeToggle />
                 {accounts?.email && <div className="text-[11px] text-slate-500 truncate -mt-1">{accounts.email}</div>}
-                {/* The Granyt team's admin page */}
+                {/* The Corprax team's admin page */}
                 {accounts?.canSwitchViews && (
                   <a
                     role="menuitem"
@@ -292,7 +292,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                     <span>Admin panel</span>
                   </a>
                 )}
-                {/* The demo's views, and with accounts the Granyt team's */}
+                {/* The demo's views, and with accounts the Corprax team's */}
                 {(!accounts || accounts.canSwitchViews) && VIEWS.filter((v) => v.role !== activeRole).map((v) => (
                   <button
                     key={v.role}
@@ -323,7 +323,7 @@ export const Navigation: React.FC<NavigationProps> = ({
     </>
   );
 
-  // Companies and the Granyt team: laid out like a chat app, with the menu down the right
+  // Companies and the Corprax team: laid out like a chat app, with the menu down the right
   if (!pending && !visitor && activeRole !== 'candidate')
     return (
       <StaffNav
@@ -578,7 +578,7 @@ export const Navigation: React.FC<NavigationProps> = ({
   );
 };
 
-// Signed out, Granyt is a website: the name, what's on it, and signing in or joining
+// Signed out, Corprax is a website: the name, what's on it, and signing in or joining
 const VisitorHeader: React.FC<{ currentTab: AppTab; onTabChange: (tab: AppTab) => void; onSignIn: () => void; onJoin: () => void }> = ({
   currentTab,
   onTabChange,
@@ -606,7 +606,7 @@ const VisitorHeader: React.FC<{ currentTab: AppTab; onTabChange: (tab: AppTab) =
       }`}
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-2">
-        <button onClick={() => onTabChange('home')} aria-label="Granyt home" className="flex items-center gap-2 mr-4">
+        <button onClick={() => onTabChange('home')} aria-label="Corprax home" className="flex items-center gap-2 mr-4">
           <BrandWordmark />
         </button>
         <nav className="hidden md:flex items-center gap-1">
@@ -649,7 +649,7 @@ const VisitorHeader: React.FC<{ currentTab: AppTab; onTabChange: (tab: AppTab) =
   );
 };
 
-// Companies' and the Granyt team's menu, like a chat app's: a panel down the left of the window with a new chat,
+// Companies' and the Corprax team's menu, like a chat app's: a panel down the left of the window with a new chat,
 // search, the pages and the account. On phones and tablets it slides in from the left from a slim top bar
 const StaffNav: React.FC<{
   tabs: { id: AppTab; label: string; icon: TabIcon; group?: string }[];
@@ -726,7 +726,7 @@ const StaffNav: React.FC<{
     <div className="h-full flex flex-col bg-slate-50 border-r border-slate-200">
       <div className={`h-14 flex items-center justify-between gap-2 shrink-0 ${collapsed ? 'px-3' : 'px-4'}`}>
         {collapsed ? (
-          <button onClick={() => go(tabs[0].id)} aria-label="Granyt home" className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-slate-200/60">
+          <button onClick={() => go(tabs[0].id)} aria-label="Corprax home" className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-slate-200/60">
             <BrandSparkle className="w-6 h-6" />
           </button>
         ) : (

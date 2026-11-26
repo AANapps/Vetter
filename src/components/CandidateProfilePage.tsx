@@ -19,7 +19,7 @@ interface CandidateProfilePageProps {
   tests: AssessmentTest[];
   candidates: User[];
   businesses: Business[];
-  // The company looking; without one, the Granyt team, who see every company's results
+  // The company looking; without one, the Corprax team, who see every company's results
   business?: Business;
   // The viewer's jobs, to show which of them the candidate is on
   jobs: JobPosting[];
@@ -53,7 +53,7 @@ const Heading: React.FC<{ children: React.ReactNode; aside?: React.ReactNode }> 
   </div>
 );
 
-// A candidate's profile as a company sees it, on a page of its own: a digital CV. Who they are, then what Granyt has
+// A candidate's profile as a company sees it, on a page of its own: a digital CV. Who they are, then what Corprax has
 // verified they can do, then every test the company may see, with how they stand on the company's own jobs beside it
 export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
   person,
@@ -86,7 +86,7 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
   const rows = leadRows.filter((r) => r.candidate.id === person.id);
   const [allHistory, setAllHistory] = useState(false);
   const jobsHeld = sortExperience(person.experience ?? []);
-  // Each Granyt library test they've taken (or started and left): best score, attempts, rank, newest first
+  // Each Corprax library test they've taken (or started and left): best score, attempts, rank, newest first
   const libraryCards = [...new Set([...person.testResults.map((r) => r.testId), ...(person.testStarts ?? []).map((st) => st.testId)])]
     .flatMap((testId) => {
       const test = tests.find((t) => t.id === testId);
@@ -108,12 +108,12 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
   const fit = fitJob ? fitSummary(person, fitJob, tests, candidates) : undefined;
   const fullReports = usePlan().can('full-reports');
   const scored = libraryCards.filter((c) => c.best !== null);
-  // Their three best Granyt test scores, shown at the top
+  // Their three best Corprax test scores, shown at the top
   const strongest = scored.slice(0, 3);
   const average = scored.length ? Math.round(scored.reduce((n, c) => n + c.best!, 0) / scored.length) : null;
   const topRank = scored.filter((c) => c.rank).sort((a, b) => a.rank! / a.of - b.rank! / b.of)[0];
   const figures = [
-    { label: 'Granyt tests taken', value: scored.length || '—', note: scored.length ? undefined : 'None taken yet' },
+    { label: 'Corprax tests taken', value: scored.length || '—', note: scored.length ? undefined : 'None taken yet' },
     { label: 'Average score', value: average ?? '—', note: undefined },
     { label: 'Best score', value: scored[0]?.best ?? '—', note: scored[0]?.test.title },
     { label: 'Best ranking', value: topRank ? `#${topRank.rank}` : '—', note: topRank ? `of ${topRank.of} on ${topRank.test.title}` : undefined },
@@ -171,7 +171,7 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
     <>
       {topBar}
 
-      {/* The top of the profile: who they are and what they do now, their summary, what they're strongest at on Granyt
+      {/* The top of the profile: who they are and what they do now, their summary, what they're strongest at on Corprax
           and the four figures a hiring manager wants first */}
       <header className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
         <div className="h-16 sm:h-20 bg-[linear-gradient(110deg,#e0e7ff_0%,#ede9fe_45%,#fce7f3_100%)]" aria-hidden />
@@ -228,7 +228,7 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
 
           {strongest.length > 0 && (
             <section className="mt-5">
-              <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400 mb-2">Strongest on Granyt</h2>
+              <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400 mb-2">Strongest on Corprax</h2>
               <ul className="flex flex-wrap gap-2">
                 {strongest.map((c) => {
                   const band = SCORED;
@@ -246,7 +246,7 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
           )}
         </div>
 
-        {/* The figures: how many Granyt tests they've taken, their average, their best, and their best place on a board */}
+        {/* The figures: how many Corprax tests they've taken, their average, their best, and their best place on a board */}
         <dl className="grid grid-cols-2 lg:grid-cols-4 border-t border-slate-100 bg-slate-50/60">
           {figures.map((f, i) => (
             <div key={f.label} className={`px-5 sm:px-6 py-4 border-slate-100 ${i % 2 ? 'border-l' : ''} ${i >= 2 ? 'border-t lg:border-t-0' : ''} ${i === 2 ? 'lg:border-l' : ''}`}>
@@ -277,16 +277,16 @@ export const CandidateProfilePage: React.FC<CandidateProfilePageProps> = ({
             )
           )}
 
-          {/* Every Granyt skills test they've taken, as square cards with the score */}
+          {/* Every Corprax skills test they've taken, as square cards with the score */}
           <section className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-xs">
             <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
               <div>
-                <h2 className="text-base font-bold text-slate-900">Granyt skills tests</h2>
-                <p className="text-xs text-slate-500">Hands-on tests, marked by Granyt. Best score on each, strongest first.</p>
+                <h2 className="text-base font-bold text-slate-900">Corprax skills tests</h2>
+                <p className="text-xs text-slate-500">Hands-on tests, marked by Corprax. Best score on each, strongest first.</p>
               </div>
             </div>
             {libraryCards.length === 0 ? (
-              <p className="text-sm text-slate-500 rounded-xl border border-dashed border-slate-300 p-6 text-center">No Granyt skills tests taken yet.</p>
+              <p className="text-sm text-slate-500 rounded-xl border border-dashed border-slate-300 p-6 text-center">No Corprax skills tests taken yet.</p>
             ) : (
               <ul className="grid grid-cols-2 sm:grid-cols-3 gap-3 auto-rows-fr">
                 {libraryCards.map((c) => {

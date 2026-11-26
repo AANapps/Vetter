@@ -86,7 +86,7 @@ export const TrainingPage: React.FC<TrainingPageProps> = ({
           <GraduationCap className="w-8 h-8 text-indigo-500 mx-auto" />
           <p className="text-sm font-semibold text-slate-900">No training yet</p>
           <p className="text-sm text-slate-500 max-w-md mx-auto">
-            Tell Granyt the app and the areas your team needs (e.g. "refunds and macros in Zendesk"), and it builds a copy of the app with guided tasks for them.
+            Tell Corprax the app and the areas your team needs (e.g. "refunds and macros in Zendesk"), and it builds a copy of the app with guided tasks for them.
           </p>
         </div>
       ) : (

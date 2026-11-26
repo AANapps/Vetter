@@ -22,7 +22,7 @@ interface PersonProfileModalProps {
   team?: { status: 'none' | 'invited' | 'member'; onInvite: () => void };
 }
 
-// Someone's profile: who they are, their Granyt test scores and every test they've taken that the viewer may see
+// Someone's profile: who they are, their Corprax test scores and every test they've taken that the viewer may see
 export const PersonProfileModal: React.FC<PersonProfileModalProps> = ({
   person,
   isYou,

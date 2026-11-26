@@ -73,7 +73,7 @@ export const DiscoverFeed: React.FC<DiscoverFeedProps> = ({
   const filtered = feed.filter((item) => matchesFilter(item, filter, social.following));
   const visible = filtered.slice(0, visibleCount);
 
-  // Results the candidate can attach to a post: Granyt tests they've taken
+  // Results the candidate can attach to a post: Corprax tests they've taken
   const shareableTests = tests.filter((t) => isPublic(t) && getBestTestScore(candidate, t.id) !== undefined);
 
   const toggleFollow = (id: string) =>
@@ -131,7 +131,7 @@ export const DiscoverFeed: React.FC<DiscoverFeedProps> = ({
     <div className="space-y-4 min-w-0">
       <div>
         <h2 className="text-base font-bold text-slate-900 tracking-tight">Discover</h2>
-        <p className="text-xs text-slate-500 mt-0.5">What people on Granyt are passing, sharing and hiring for.</p>
+        <p className="text-xs text-slate-500 mt-0.5">What people on Corprax are passing, sharing and hiring for.</p>
       </div>
 
       <FieldSlider tests={tests} onOpenField={onOpenField} />
@@ -139,9 +139,9 @@ export const DiscoverFeed: React.FC<DiscoverFeedProps> = ({
       {/* Composer: visitors are asked to join instead */}
       {onJoin ? (
         <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3 shadow-xs">
-          <p className="text-sm text-slate-600">Join Granyt to share your results, post and comment.</p>
+          <p className="text-sm text-slate-600">Join Corprax to share your results, post and comment.</p>
           <button onClick={onJoin} className="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg">
-            Join Granyt
+            Join Corprax
           </button>
         </div>
       ) : (

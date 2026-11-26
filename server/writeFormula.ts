@@ -51,7 +51,7 @@ const LANGUAGE = `The formula language (like monday.com's formula column, worked
 - A result that is a date as 'YYYY-MM-DD' text shows as a date; TRUE shows as a tick; numbers can show a currency.
 Nothing else exists: no cell references, ranges, lookups across items or other boards' columns.`;
 
-const system = `You write formula columns for Granyt's project and CRM boards. The person describes what the column should
+const system = `You write formula columns for Corprax's project and CRM boards. The person describes what the column should
 show; you write the formula that does it.
 
 ${LANGUAGE}

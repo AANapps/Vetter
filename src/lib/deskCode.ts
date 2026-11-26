@@ -2,7 +2,7 @@ import { runProgram } from './codeRunner';
 import { languageById } from './languages';
 
 /**
- * The desktop's Code app: a small JavaScript project (its files, and the tests the candidate can run) and Granyt's own
+ * The desktop's Code app: a small JavaScript project (its files, and the tests the candidate can run) and Corprax's own
  * checks, run on the candidate's files when the work is marked. Tests are written with test(name, fn) and
  * expect(value).toBe(expected) / .toEqual(expected) / .toBeCloseTo(expected).
  */
@@ -13,7 +13,7 @@ export interface DeskProject {
   files: { name: string; content: string; readonly?: boolean }[];
   // The file holding the tests the candidate runs and adds to
   testFile: string;
-  // Granyt's checks, run on the candidate's code when marked: each is a test body using the project's functions
+  // Corprax's checks, run on the candidate's code when marked: each is a test body using the project's functions
   checks?: { id: string; code: string }[];
 }
 
@@ -39,7 +39,7 @@ export interface TestRun {
   error?: string;
 }
 
-// The project's code (every file but the test file), then tests: the candidate's own, or Granyt's checks
+// The project's code (every file but the test file), then tests: the candidate's own, or Corprax's checks
 export async function runDeskTests(project: DeskProject, files: Record<string, string>, which: 'mine' | 'checks'): Promise<TestRun> {
   const code = project.files.filter((f) => f.name !== project.testFile).map((f) => files[f.name] ?? f.content).join('\n;\n');
   const tests = which === 'mine' ? files[project.testFile] ?? project.files.find((f) => f.name === project.testFile)?.content ?? '' : (project.checks ?? []).map((c) => `test(${JSON.stringify(c.id)}, () => {\n${c.code}\n});`).join('\n');

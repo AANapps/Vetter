@@ -2,9 +2,9 @@ import { DesktopConfig } from '../../lib/desktop';
 import { jobSimulation } from './jobSimKit';
 
 /**
- * The Frontend Engineer job simulation: a Wednesday on Fernway's shop frontend, in the five timed parts every Granyt
+ * The Frontend Engineer job simulation: a Wednesday on Fernway's shop frontend, in the five timed parts every Corprax
  * job simulation has (jobSimKit.ts), on the desktop with two environments: the Code app (the shop's product-list and
- * checkout code; Granyt's own tests check the fixes when marked) and the Browser (the design site).
+ * checkout code; Corprax's own tests check the fixes when marked) and the Browser (the design site).
  *
  * Core task: fix the product list's search, then its price filter and sorting, and add a test. Curveball: couriers are
  * failing on junk postcodes, so the checkout validation planned for next sprint has to go in now, from the spec.
@@ -181,7 +181,7 @@ export const FE_JOB_SIM = jobSimulation({
   company: 'Fernway',
   day: 'Wednesday on the Shop Frontend',
   description:
-    'A working day on an online shop’s frontend, in five timed parts on a full desktop: fix the product list’s search, price filter and sorting and add a test; adapt when checkout validation has to ship today, from the design spec; get the missing rule from the designer and handle Marketing’s request to pre-tick the newsletter box; then explain the changes for support. Granyt’s own tests check the code. 40 minutes.',
+    'A working day on an online shop’s frontend, in five timed parts on a full desktop: fix the product list’s search, price filter and sorting and add a test; adapt when checkout validation has to ship today, from the design spec; get the missing rule from the designer and handle Marketing’s request to pre-tick the newsletter box; then explain the changes for support. Corprax’s own tests check the code. 40 minutes.',
   skillsTested: ['JavaScript', 'Frontend', 'Debugging', 'Testing', 'Written Communication'],
   roles: ['Frontend Engineer'],
   category: 'Frontend',

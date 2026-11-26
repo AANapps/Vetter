@@ -1,6 +1,6 @@
 /**
  * Outcome tracking: 30 and 90 days after a hire, the company says how the person is doing. Set against the scores
- * they were hired on, it shows whether Granyt's scores predict good hires (the proof companies buy on).
+ * they were hired on, it shows whether Corprax's scores predict good hires (the proof companies buy on).
  */
 import { HireCheckIn } from '../types';
 import { LeadRow } from './leads';

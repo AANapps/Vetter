@@ -5,7 +5,7 @@ import { ArrowUp, Check, Copy, Sparkles } from 'lucide-react';
  * The pieces of the AI assistant candidates use in tests and job simulations, made to look and feel like the AI chat
  * apps people use at work: a centred conversation, the assistant's replies as formatted text (headings, lists, tables,
  * code blocks with Copy) appearing word by word, the person's messages in soft bubbles, a "thinking" indicator and a
- * rounded message box that grows as they type. Plain styling of Granyt's own; no other product's name or logo.
+ * rounded message box that grows as they type. Plain styling of Corprax's own; no other product's name or logo.
  *
  * Copying a reply is copying inside the test, so pasting it back into the work isn't flagged as from outside.
  */

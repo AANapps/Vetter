@@ -49,7 +49,7 @@ export const ProfileSidebar: React.FC<ProfileSidebarProps> = ({ candidate, tests
       <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-4 shadow-xs">
         <h2 className="text-sm font-bold text-slate-900">Suggested tests</h2>
         {suggestedTests.length === 0 ? (
-          <p className="text-xs text-slate-500">You’ve scored 95+ on every Granyt test.</p>
+          <p className="text-xs text-slate-500">You’ve scored 95+ on every Corprax test.</p>
         ) : (
           <ul className="space-y-3.5">
             {suggestedTests.map(({ test, best, jobsNeeding }) => {

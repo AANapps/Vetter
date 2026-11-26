@@ -41,7 +41,7 @@ export function searchEverything(query: string, people: User[], tests: Assessmen
       kind: 'test',
       id: t.id,
       title: t.title,
-      subtitle: `${t.category} · ${t.type === 'standard' ? 'Made by Granyt' : t.companyName}`,
+      subtitle: `${t.category} · ${t.type === 'standard' ? 'Made by Corprax' : t.companyName}`,
     }));
   const companyResults: SearchResult[] = businesses
     .filter((b) => matches(q, b.name, b.industry, b.headquarters, ...b.techStack))

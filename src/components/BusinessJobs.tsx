@@ -41,7 +41,7 @@ import { LeadRow } from '../lib/leads';
 import { ArrowLeft, Check, CheckCircle2, ChevronDown, Copy, Download, Link2, Mail, MapPin, Pencil, Plus, Search, Send, Share2, Sparkles, Trash2, UserPlus, X } from 'lucide-react';
 
 interface BusinessJobsProps {
-  // The company signed in; without one, the Granyt team sees every company's jobs
+  // The company signed in; without one, the Corprax team sees every company's jobs
   business?: Business;
   businesses: Business[];
   jobs: JobPosting[];
@@ -55,9 +55,9 @@ interface BusinessJobsProps {
   onSelect: (jobId: string | null) => void;
   onCreateJob: (job: JobPosting) => void;
   onEditTests: (jobId: string) => void;
-  // Granyt's AI suggests library tests for the job and writes a new one
+  // Corprax's AI suggests library tests for the job and writes a new one
   onSuggestTests: (jobId: string) => void;
-  // Reopens one of the company's own tests in the chat with Granyt, to change it by asking
+  // Reopens one of the company's own tests in the chat with Corprax, to change it by asking
   // The company's own test: edited where it was made (the test chat for AI tests, the builder for ones made by hand)
   onEditTest: (jobId: string, testId: string) => void;
   onUpdateJobRequirements: (jobId: string, requirements: JobPosting['requirements']) => void;
@@ -129,7 +129,7 @@ export const BusinessJobs: React.FC<BusinessJobsProps> = (props) => {
   const { business, jobs: allJobs, selectedJobId } = props;
   const jobs = business ? allJobs.filter((j) => j.businessId === business.id) : allJobs;
   const selected = selectedJobId ? jobs.find((j) => j.id === selectedJobId) : undefined;
-  // A company sees its own jobs, and in a second tab every job listed on Granyt
+  // A company sees its own jobs, and in a second tab every job listed on Corprax
   const [view, setView] = useState<'yours' | 'all'>('yours');
   if (selected) return <JobDetail {...props} job={selected} />;
   if (!business) return <JobList {...props} jobs={jobs} />;
@@ -679,12 +679,12 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
         </div>
         {jobTests.length === 0 ? (
           <p className="text-xs text-slate-500">
-            Add the tests candidates should take for this job, then send them out. Or let Granyt suggest tests from the job description and write a new one.
+            Add the tests candidates should take for this job, then send them out. Or let Corprax suggest tests from the job description and write a new one.
           </p>
         ) : (
           <div className="flex flex-wrap items-center gap-2">
             {jobTests.map((t, i) =>
-              // The company's own tests can be changed by asking Granyt; library tests are shared, so they stay as they are
+              // The company's own tests can be changed by asking Corprax; library tests are shared, so they stay as they are
               t.type === 'custom' && t.businessId === job.businessId ? (
                 <span key={t.id} className="inline-flex items-stretch text-xs bg-slate-50 border border-slate-200 rounded-full text-slate-700 overflow-hidden">
                   <button onClick={() => onOpenTest(t.id)} className="pl-2.5 pr-2 py-1 hover:bg-indigo-50 hover:text-indigo-800">
@@ -922,7 +922,7 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
 
         {pendingEmails.length > 0 && (filter === 'all' || filter === 'sent') && (
           <div className="px-5 py-3 border-t border-slate-100 text-xs text-slate-500">
-            <span className="font-semibold text-slate-700">Emailed, no Granyt account yet ({pendingEmails.length}):</span> {pendingEmails.join(', ')}
+            <span className="font-semibold text-slate-700">Emailed, no Corprax account yet ({pendingEmails.length}):</span> {pendingEmails.join(', ')}
           </div>
         )}
       </section>
@@ -947,7 +947,7 @@ const JobDetail: React.FC<BusinessJobsProps & { job: JobPosting }> = ({
   );
 };
 
-// Tucked away under the results: the skill scores the job asks for, and Granyt's candidates ranked against them
+// Tucked away under the results: the skill scores the job asks for, and Corprax's candidates ranked against them
 const SkillRanking: React.FC<{
   job: JobPosting;
   candidates: User[];
@@ -965,7 +965,7 @@ const SkillRanking: React.FC<{
       <button onClick={() => setOpen(!open)} aria-expanded={open} className="w-full px-5 py-4 flex items-center justify-between text-left">
         <span>
           <span className="block text-sm font-bold text-slate-900">Skill scores and best matches</span>
-          <span className="block text-xs text-slate-500">The skills this job asks for, and who on Granyt scores best on them</span>
+          <span className="block text-xs text-slate-500">The skills this job asks for, and who on Corprax scores best on them</span>
         </span>
         <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
@@ -1099,7 +1099,7 @@ const HireSteps: React.FC<{ job: JobPosting; testCount: number; onAddTests: () =
             </button>
           </div>
           <p className="text-xs text-slate-500">
-            It opens this job. New candidates create an account there and come straight back to the tests; people already on Granyt just sign in.
+            It opens this job. New candidates create an account there and come straight back to the tests; people already on Corprax just sign in.
           </p>
         </div>
       )}
@@ -1107,7 +1107,7 @@ const HireSteps: React.FC<{ job: JobPosting; testCount: number; onAddTests: () =
   );
 };
 
-// Sending the link: copy it, email it, or pick people already on Granyt
+// Sending the link: copy it, email it, or pick people already on Corprax
 const SharePanel: React.FC<{
   job: JobPosting;
   candidates: User[];
@@ -1138,7 +1138,7 @@ const SharePanel: React.FC<{
     setError(null);
     onEmail(job.id, emails);
     const subject = `${job.companyName}: ${job.title}`;
-    const body = `Hi,\n\n${job.companyName} would like you to take the tests for ${job.title} on Granyt (${job.testIds.length} ${
+    const body = `Hi,\n\n${job.companyName} would like you to take the tests for ${job.title} on Corprax (${job.testIds.length} ${
       job.testIds.length === 1 ? 'test' : 'tests'
     }). Your results go straight to ${job.companyName}.\n\nStart here: ${link}\n`;
     window.location.href = `mailto:?bcc=${encodeURIComponent(emails.join(','))}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
@@ -1158,7 +1158,7 @@ const SharePanel: React.FC<{
 
   const invite = () => {
     onInvite(job.id, chosen);
-    flash(`Emailed ${chosen.length} ${chosen.length === 1 ? 'candidate' : 'candidates'} at their Granyt login address. They're tracked on the job.`);
+    flash(`Emailed ${chosen.length} ${chosen.length === 1 ? 'candidate' : 'candidates'} at their Corprax login address. They're tracked on the job.`);
     setChosen([]);
   };
 
@@ -1186,7 +1186,7 @@ const SharePanel: React.FC<{
         <div className="flex gap-1">
           {(
             [
-              { id: 'vetter', label: 'Send to people on Granyt', icon: UserPlus },
+              { id: 'vetter', label: 'Send to people on Corprax', icon: UserPlus },
               { id: 'email', label: 'Email it', icon: Mail },
             ] as const
           ).map((m) => (
@@ -1334,7 +1334,7 @@ const SharePanel: React.FC<{
                 <Send className="w-3.5 h-3.5" />
                 {chosen.length === 0 ? 'Send' : `Send to ${chosen.length}`}
               </button>
-              <span className="text-[11px] text-slate-500">Emailed to each person's Granyt login address and added to their Home.</span>
+              <span className="text-[11px] text-slate-500">Emailed to each person's Corprax login address and added to their Home.</span>
               {sample && (
                 <button onClick={() => setShowEmail(!showEmail)} className="text-[11px] font-semibold text-indigo-700 hover:text-indigo-900">
                   {showEmail ? 'Hide email' : 'Preview email'}
@@ -1435,7 +1435,7 @@ const TeamTries: React.FC<{ job: JobPosting; jobTests: AssessmentTest[]; trials:
   );
 };
 
-// Every job open on Granyt, from every company: searchable, with the company's own marked. Its own open as usual;
+// Every job open on Corprax, from every company: searchable, with the company's own marked. Its own open as usual;
 // another company's opens as candidates see it
 const AllListings: React.FC<{
   jobs: JobPosting[];
@@ -1459,7 +1459,7 @@ const AllListings: React.FC<{
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-6">
       <div className="space-y-1">
         <h1 className="text-2xl font-bold text-slate-900 tracking-tight">All listings</h1>
-        <p className="text-sm text-slate-500 max-w-xl">Every job open on Granyt, from every company, newest first. Yours are marked.</p>
+        <p className="text-sm text-slate-500 max-w-xl">Every job open on Corprax, from every company, newest first. Yours are marked.</p>
       </div>
       <div className="flex flex-col sm:flex-row gap-2">
         <label className="relative flex-1">

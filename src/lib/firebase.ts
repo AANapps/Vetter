@@ -4,7 +4,7 @@ import { Firestore, connectFirestoreEmulator, initializeFirestore } from 'fireba
 
 /**
  * Firebase, for accounts. Set up from the VITE_FIREBASE_* settings (the web app's public config from the Firebase
- * console). Without them Granyt runs as a demo: no accounts, and the view switcher in the menu.
+ * console). Without them Corprax runs as a demo: no accounts, and the view switcher in the menu.
  */
 const config = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,

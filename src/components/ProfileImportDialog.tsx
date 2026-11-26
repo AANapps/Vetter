@@ -4,7 +4,7 @@ import { User } from '../types';
 import { ProfilePatch, mergeProfile, readCv } from '../lib/cvImport';
 import { CertificationList, EducationList, ExperienceList } from './ExperienceList';
 
-// Filling the profile from a CV: add the PDF (or paste the text from a CV or LinkedIn), Granyt's AI reads it, and the
+// Filling the profile from a CV: add the PDF (or paste the text from a CV or LinkedIn), Corprax's AI reads it, and the
 // candidate checks what it found before it goes on their profile. Everything can be changed by hand afterwards
 export const ProfileImportDialog: React.FC<{ candidate: User; onSave: (change: Partial<User>) => void; onClose: () => void }> = ({ candidate, onSave, onClose }) => {
   const [mode, setMode] = useState<'file' | 'paste'>('file');
@@ -48,7 +48,7 @@ export const ProfileImportDialog: React.FC<{ candidate: User; onSave: (change: P
             <Sparkles className="w-5 h-5 text-indigo-600" />
             Fill in your profile from your CV
           </h2>
-          <p className="text-xs text-slate-500">Granyt reads your CV and fills in your experience, education and certifications. You check it before anything is saved.</p>
+          <p className="text-xs text-slate-500">Corprax reads your CV and fills in your experience, education and certifications. You check it before anything is saved.</p>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-5">

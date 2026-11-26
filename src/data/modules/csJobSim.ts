@@ -4,7 +4,7 @@ import { BLOOMVALE_POLICIES, BLOOM_TAGS, BLOOM_TICKETS } from './support';
 import { jobSimulation } from './jobSimKit';
 
 /**
- * The Customer Support job simulation: a Monday on Bloomvale's support desk, in the five timed parts every Granyt job
+ * The Customer Support job simulation: a Monday on Bloomvale's support desk, in the five timed parts every Corprax job
  * simulation has (jobSimKit.ts), on the desktop with two environments: Deskly (the help desk) and the Browser (the
  * help centre and the courier's tracking site).
  *

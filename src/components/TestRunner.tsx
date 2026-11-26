@@ -146,7 +146,7 @@ interface TestRunnerProps {
   practice?: boolean;
   // A job simulation's start screen offers the practice first
   onPractice?: () => void;
-  // The Granyt team trying a test (with preview: nothing saved): straight in, with no intro, signing, countdown or
+  // The Corprax team trying a test (with preview: nothing saved): straight in, with no intro, signing, countdown or
   // full screen, and a note at the top saying so
   instant?: boolean;
   // The hiring company's own name and logo on the test (Scale plan)
@@ -210,7 +210,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
   const [breakdown, setBreakdown] = useState<ResultBreakdown | undefined>();
   const [finalDuration, setFinalDuration] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // After the automatic checks, Granyt's AI takes a second look at code and written answers that fell short
+  // After the automatic checks, Corprax's AI takes a second look at code and written answers that fell short
   const [isAiMarking, setIsAiMarking] = useState(false);
   const [aiMarked, setAiMarked] = useState<Record<string, AiMark>>({});
   const answersRef = useRef<AnswerRecord[] | undefined>(undefined);
@@ -1609,7 +1609,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
                         <span className="truncate">
                           {idx + 1}. {q.title} <span className="text-slate-400">({q.weight}%)</span>
                           {byAi && (
-                            <span className="ml-1.5 px-1.5 py-px rounded bg-indigo-50 text-indigo-700 text-[10px] font-semibold" title="Marked again by Granyt's AI, which gives credit for answers that are nearly right">
+                            <span className="ml-1.5 px-1.5 py-px rounded bg-indigo-50 text-indigo-700 text-[10px] font-semibold" title="Marked again by Corprax's AI, which gives credit for answers that are nearly right">
                               AI-marked
                             </span>
                           )}
@@ -1641,7 +1641,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
 
               {Object.keys(aiMarked).length > 0 && (
                 <p className="text-[11px] text-slate-500">
-                  Code and written answers that weren't fully right were marked again by Granyt's AI, which gives credit for answers that are nearly there.
+                  Code and written answers that weren't fully right were marked again by Corprax's AI, which gives credit for answers that are nearly there.
                 </p>
               )}
 

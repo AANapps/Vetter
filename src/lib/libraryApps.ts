@@ -1,5 +1,5 @@
 /**
- * Granyt's app library, as kept in the repo (library-apps/<id>/): apps for job simulations and app tasks, each a
+ * Corprax's app library, as kept in the repo (library-apps/<id>/): apps for job simulations and app tasks, each a
  * working copy of a kind of product with no data of its own. A test gives an app its data (its company, records and
  * planted problems); the app reads it from window.praxaData when it starts and saves what the candidate does with
  * praxa.save(state), as every app page does (appSimulation.ts). So one app serves every test that needs it, and a new
@@ -116,17 +116,17 @@ export interface ReusableApp {
   data: string;
   state: string;
   game?: SavedEnvironment['game'];
-  // Granyt's own apps in the repo have sample data
+  // Corprax's own apps in the repo have sample data
   sample?: unknown;
 }
 
-// Granyt's own apps and every data-driven app in Firestore, each at its latest version
+// Corprax's own apps and every data-driven app in Firestore, each at its latest version
 export async function reusableApps(): Promise<ReusableApp[]> {
   const saved = (await loadEnvironments().catch(() => [] as SavedEnvironment[])).filter((e) => e.dataDriven);
   const out = new Map<string, ReusableApp>();
   for (const e of saved)
     out.set(e.id, { id: e.id, name: e.app || e.name, product: e.product, summary: e.summary, features: e.features, version: e.version, data: e.data ?? '', state: e.state ?? '', ...(e.game && { game: e.game }) });
-  // Apps this company had built that are waiting for the Granyt team's review: theirs to reuse straight away (as
+  // Apps this company had built that are waiting for the Corprax team's review: theirs to reuse straight away (as
   // "sub:<id>"), and everyone's once approved. An app already in the library under the same name is used instead
   const names = new Set(saved.map((e) => (e.app || e.name).trim().toLowerCase()));
   const mine = await loadSubmissions(false).catch(() => []);

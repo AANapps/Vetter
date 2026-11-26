@@ -6,8 +6,8 @@ import { streamJson } from './streamJson.js';
  * Guided training, not a test: a working copy of the app the company's team uses, and lessons that walk them through it
  * step by step. Each step says what to do and why, points at the control on the page (data-ref), and is ticked off by
  * itself when the app's saved state shows it's done. This writes the plan: the lessons and the spec of the app to
- * build. The browser then builds the app like any simulation (reusing Granyt's app library when it has the app) and
- * saves it to the library for the Granyt team.
+ * build. The browser then builds the app like any simulation (reusing Corprax's app library when it has the app) and
+ * saves it to the library for the Corprax team.
  */
 
 interface TrainingRequest {
@@ -56,7 +56,7 @@ const schema = {
   additionalProperties: false,
 };
 
-const SYSTEM = `You design guided training on Granyt for a company's own staff. It is NOT a test: nobody is marked or
+const SYSTEM = `You design guided training on Corprax for a company's own staff. It is NOT a test: nobody is marked or
 ranked. The learner works in a working copy of the software (built afterwards from your appBrief), while a coach panel
 beside it walks them through, one step at a time. Each step tells them exactly what to do and why it matters, glows on
 the control to use, and ticks itself off when the app's saved state shows it's done. Think of a patient colleague
@@ -116,7 +116,7 @@ export async function writeTraining(body: unknown, apiKey: string | undefined, m
       return { status: 200, json: { error: "That couldn't be turned into training. Try describing it another way." } };
     return { status: 200, json: out };
   } catch (err) {
-    if (err instanceof Anthropic.RateLimitError) return { status: 429, json: { error: "Granyt's AI is busy. Try again in a moment." } };
+    if (err instanceof Anthropic.RateLimitError) return { status: 429, json: { error: "Corprax's AI is busy. Try again in a moment." } };
     if (err instanceof Anthropic.APIError) return { status: 502, json: { error: `The AI couldn't write it (${err.status}). Try again.` } };
     return { status: 502, json: { error: 'The AI couldn’t write it. Try again.' } };
   }

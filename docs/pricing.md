@@ -5,7 +5,7 @@ Draft, October 2026. Competitor figures are rough and need checking against curr
 ## What a test costs us to make
 
 AI test creation calls Claude once per new test: about 3,000 tokens in and 4,000–9,000 out. Suggesting
-existing tests from the library is free (Granyt matches them itself).
+existing tests from the library is free (Corprax matches them itself).
 
 | Model | Price per 1M tokens (in / out) | Per test | Per 100 tests | Per 1,000 tests |
 |---|---|---|---|---|
@@ -41,7 +41,7 @@ These are the plans on the pricing page (`src/components/PricingSection.tsx`), o
 | Per job | £79 per job | 1 job for 30 days, unlimited candidates, AI-written tests and simulations, AI marking |
 | Growth | £149/month, or £1,490/year | Up to 5 active jobs, 3 seats, CSV export, search the candidate pool |
 | Scale | £349/month, or £3,490/year | Unlimited jobs and seats, your branding on tests, priority support |
-| Enterprise | Custom | Tests written by the Granyt team, SSO, ATS integration, invoicing |
+| Enterprise | Custom | Tests written by the Corprax team, SSO, ATS integration, invoicing |
 
 Annual billing is two months free. Watch how many jobs a typical employer posts: if most post 4 or more, consider
 £199 for Growth; if few free employers reach 25 candidates, lower that limit.
@@ -73,7 +73,7 @@ Agreed as the direction to build towards. Supersedes the "Plans" table above onc
 ### How it's charged (2026-11-23)
 
 - **Subscriptions, not per-test charges.** Monthly recurring revenue is the goal, and per-test prices put companies
-  off the feature that sets Granyt apart. AI is metered only as an allowance so heavy users can't cost more than they pay.
+  off the feature that sets Corprax apart. AI is metered only as an allowance so heavy users can't cost more than they pay.
 - **The free plan sells the upgrade.** It's useful (a real job, real scores) but stops where value shows: candidates
   past 15 are counted but hidden, and the full report (integrity, answers, replay, fit) is shown locked with an
   Upgrade button. Locked features are visible, not hidden, so companies see what they'd get.
@@ -123,7 +123,7 @@ on, every company pays from credit, Growth and Scale included. The free plan als
 - The subscription still feels like it includes AI, most companies never pay extra, and heavy users pay for what they use.
 
 **Limits:**
-- Plans aren't paid online yet (the Granyt team switches them on), so the allowance would follow whatever plan is set on
+- Plans aren't paid online yet (the Corprax team switches them on), so the allowance would follow whatever plan is set on
   the company.
 - The amounts above are suggestions; set them from real usage in the Stripe dashboard.
 - The server would read the company's plan from its company record on each request, alongside the sign-in check it
@@ -131,7 +131,7 @@ on, every company pays from credit, Growth and Scale included. The free plan als
 
 Not built yet.
 
-## When Granyt asks a company to buy credit (November 2026)
+## When Corprax asks a company to buy credit (November 2026)
 
 Every check runs off one number: the credit on the company's Stripe customer.
 
@@ -169,7 +169,7 @@ Recommended first: 1 and the banner from 2. Not built yet.
 ## Free CRM, paid dashboards and AI (2026-11-23, agreed, not built)
 
 The Projects & CRM side (boards, tasks, CRM) is free, including Claude and ChatGPT connected to it. Dashboards and
-Granyt's own AI are in the paid plans. Replaces the £99 Project Manager add-on.
+Corprax's own AI are in the paid plans. Replaces the £99 Project Manager add-on.
 
 | | Free | Starter | Growth | Scale |
 |---|---|---|---|---|
@@ -177,20 +177,20 @@ Granyt's own AI are in the paid plans. Replaces the £99 Project Manager add-on.
 | Basic "my week" view | ✔ | ✔ | ✔ | ✔ |
 | Saved dashboards made by AI | – | 3 | 10 | Unlimited |
 | Weekly summaries (email) | – | Numbers | Numbers + AI text | Numbers + AI text |
-| Granyt's own AI tasks | £2 trial | Allowance | Allowance | Allowance |
+| Corprax's own AI tasks | £2 trial | Allowance | Allowance | Allowance |
 
 - **Free caps** (to set): e.g. 3 boards, 500 CRM records, 5 members, a daily limit on connector calls (AI tools can
   make hundreds).
-- **Why free is affordable:** in Claude or ChatGPT the person's own subscription pays for the AI; Granyt pays only for
+- **Why free is affordable:** in Claude or ChatGPT the person's own subscription pays for the AI; Corprax pays only for
   the server and database.
-- **AI tasks = Granyt-side AI only** (Ask AI, written summaries, auto-filling records), charged to the plan's AI
+- **AI tasks = Corprax-side AI only** (Ask AI, written summaries, auto-filling records), charged to the plan's AI
   allowance like tests. What someone's own Claude does through the connector is free and not blocked.
 - **Always free:** the bin and undo for deletions (30 days), and "Hire for this" from a board, which leads into paid hiring.
-- **Dashboards:** the AI sends a description (charts, source board, grouping, filters), never code; Granyt stores it and
-  draws it from live data, so no AI cost to keep it current. Weekly summaries run on a schedule in Granyt (Claude and
+- **Dashboards:** the AI sends a description (charts, source board, grouping, filters), never code; Corprax stores it and
+  draws it from live data, so no AI cost to keep it current. Weekly summaries run on a schedule in Corprax (Claude and
   ChatGPT can't push on a timer); numbers cost nothing, AI-written text comes out of the allowance.
 - **The moat isn't the CRM** (monday, Asana, Notion, Linear already have Claude connectors). It's the link to
-  Granyt's skills: real work next to test scores (which scores predict good work), hiring from a board, training from
+  Corprax's skills: real work next to test scores (which scores predict good work), hiring from a board, training from
   the work, and verified work history on candidates' profiles. Present it as "where your team's work and skills live".
 
 **Before building:** (1) Firebase admin key and server permission checks (also anti-cheat step 1), (2) finish
@@ -204,6 +204,6 @@ in-chat widget, directory listings. See `docs/ai-agents.md` for the hiring conne
 - Price on hiring value, not AI cost: at £49 a job the AI is about 0.01% of the price. Real costs are
   hosting, support and acquiring customers.
 - Position below an agency fee and close to a job ad: "one test replaces CV screening".
-- Don't charge per test created; it discourages the feature that sets Granyt apart. Charge per job or per
+- Don't charge per test created; it discourages the feature that sets Corprax apart. Charge per job or per
   month, and cap candidates if needed.
 - Keep it free for candidates. The pool of tested candidates is what employers pay for.

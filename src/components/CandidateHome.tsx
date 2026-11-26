@@ -65,10 +65,10 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, jobs, t
             <h1 className="text-lg font-bold text-slate-900 tracking-tight">Get hired on what you can do</h1>
             <p className="text-sm text-slate-600">Take a free test, get a score, and apply to jobs that hire on skill rather than CVs.</p>
             <button onClick={visitor.onJoin} className="w-full py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg">
-              Join Granyt, it's free
+              Join Corprax, it's free
             </button>
             <p className="text-xs text-slate-500 text-center">
-              Already on Granyt?{' '}
+              Already on Corprax?{' '}
               <button onClick={visitor.onSignIn} className="font-semibold text-indigo-700 hover:underline">
                 Sign in
               </button>
@@ -218,7 +218,7 @@ export const CandidateHome: React.FC<CandidateHomeProps> = ({ candidate, jobs, t
             Open
           </button>
         </div>
-        {linkError && <p className="text-xs font-semibold text-slate-800">That link doesn't match a job on Granyt. Check it and try again.</p>}
+        {linkError && <p className="text-xs font-semibold text-slate-800">That link doesn't match a job on Corprax. Check it and try again.</p>}
       </form>
 
       {finished.length > 0 && (

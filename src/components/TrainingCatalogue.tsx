@@ -7,10 +7,10 @@ import { useCurrency } from '../lib/currency';
 import { STANDARD_ASSESSMENTS } from '../data/mockData';
 
 /**
- * The company's Training: live training taught by a Granyt tutor, to book for the team. Mini modules (one skill in a few
+ * The company's Training: live training taught by a Corprax tutor, to book for the team. Mini modules (one skill in a few
  * hours) and job bootcamps (a role at Junior, Mid-level and Advanced). Search and filter the catalogue, open an item for
  * its sessions, outcomes and the bootcamp path, and book it for team members, online or at the office. Bookings are
- * listed with their status; the Granyt team confirms the dates and the tutor.
+ * listed with their status; the Corprax team confirms the dates and the tutor.
  */
 
 const STATUS: Record<TrainingBooking['status'], { label: string; tone: string }> = {
@@ -67,7 +67,7 @@ export const TrainingCatalogue: React.FC<{
         {!embedded && (
           <div>
             <h1 className="text-xl font-bold text-slate-900 tracking-tight">Training</h1>
-            <p className="text-sm text-slate-600 max-w-2xl">Live training for your team, taught by a Granyt tutor: short mini modules on one skill, and job bootcamps from junior to advanced. Online or at your office.</p>
+            <p className="text-sm text-slate-600 max-w-2xl">Live training for your team, taught by a Corprax tutor: short mini modules on one skill, and job bootcamps from junior to advanced. Online or at your office.</p>
           </div>
         )}
         <div role="tablist" className="flex gap-1 p-1 bg-slate-100 rounded-lg">
@@ -160,7 +160,7 @@ export const TrainingCatalogue: React.FC<{
             setBooking(null);
             setOpen(null);
             setTab('bookings');
-            setDone(`Requested “${b.title}” for ${b.people} ${b.people === 1 ? 'person' : 'people'}. The Granyt team will confirm the dates and your tutor within two working days.`);
+            setDone(`Requested “${b.title}” for ${b.people} ${b.people === 1 ? 'person' : 'people'}. The Corprax team will confirm the dates and your tutor within two working days.`);
           }}
         />
       )}
@@ -196,7 +196,7 @@ const Detail: React.FC<{ item: TrainingItem; onClose: () => void; onOpen: (t: Tr
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
             {[
               [Clock, 'Length', item.duration],
-              [Video, 'How', 'Live with a Granyt tutor'],
+              [Video, 'How', 'Live with a Corprax tutor'],
               [MapPin, 'Where', 'Online or at your office'],
               [Users, 'Group', `Up to ${item.maxGroup} people`],
             ].map(([Icon, label, value]) => (
@@ -366,10 +366,10 @@ const BookDialog: React.FC<{
                 ))}
               </ul>
             ) : (
-              <p className="text-xs text-slate-500">Nobody has joined your team on Granyt yet; add the number of people below.</p>
+              <p className="text-xs text-slate-500">Nobody has joined your team on Corprax yet; add the number of people below.</p>
             )}
             <label className="mt-2 flex items-center gap-2 text-slate-700">
-              <span>{team.length ? 'Plus people not on Granyt' : 'Number of people'}</span>
+              <span>{team.length ? 'Plus people not on Corprax' : 'Number of people'}</span>
               <input type="number" min={0} max={item.maxGroup} value={others} onChange={(e) => setOthers(Math.max(0, Number(e.target.value) || 0))} className="w-20 h-8 px-2 border border-slate-200 rounded-md" />
             </label>
           </section>
@@ -401,7 +401,7 @@ const BookDialog: React.FC<{
             </span>
             <span className="text-lg font-bold text-slate-900">{money(each * people)}</span>
           </div>
-          <p className="text-xs text-slate-500">Nothing is charged now. The Granyt team confirms the dates and your tutor, then invoices you. Prices exclude VAT.</p>
+          <p className="text-xs text-slate-500">Nothing is charged now. The Corprax team confirms the dates and your tutor, then invoices you. Prices exclude VAT.</p>
           {error && <p className="text-xs text-rose-600">{error}</p>}
         </div>
         <div className="p-4 border-t border-slate-100 flex justify-end gap-2">

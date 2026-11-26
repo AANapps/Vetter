@@ -28,7 +28,7 @@ export const GuidesPage: React.FC<GuidesPageProps> = ({ slug, onOpen }) => {
     return (
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
         <p className="text-xs font-semibold uppercase tracking-wider text-indigo-600">Guides</p>
-        <h1 className="mt-2 text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">How to use Granyt</h1>
+        <h1 className="mt-2 text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">How to use Corprax</h1>
         <p className="mt-3 text-slate-600 max-w-2xl">Short, step-by-step guides. Each one takes a few minutes to read.</p>
         {GUIDE_AUDIENCES.map((a) => (
           <section key={a.id} className="mt-10">

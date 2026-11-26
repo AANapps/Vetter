@@ -4,8 +4,8 @@ import { Question } from '../types';
 
 /**
  * App simulations: a working copy of a real product's interface (a BI tool, a CRM, an ad platform), written by the AI
- * as one HTML page. It runs in a sandboxed iframe with no network and no access to Granyt, keeps its state in an
- * object, and hands that object to Granyt with praxa.save(state) whenever it changes. The candidate's answer is that
+ * as one HTML page. It runs in a sandboxed iframe with no network and no access to Corprax, keeps its state in an
+ * object, and hands that object to Corprax with praxa.save(state) whenever it changes. The candidate's answer is that
  * state as JSON; each check reads one value from it.
  */
 
@@ -13,7 +13,7 @@ import { Question } from '../types';
 const CSP =
   "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src data: blob:; form-action 'none'";
 
-// Run only when Granyt tries a new app out of sight: once it has settled, click every visible control that isn't greyed
+// Run only when Corprax tries a new app out of sight: once it has settled, click every visible control that isn't greyed
 // out, one at a time, and report the ones that changed nothing on the page and saved nothing. Native checkboxes, radios,
 // selects and text fields are left out, since the browser makes those work on its own
 const AUDIT = `<script>
@@ -143,7 +143,7 @@ const AUDIT = `<script>
 })();
 </script>`;
 
-// What the page starts with: the work to resume, a save that reports to Granyt, and errors reported too
+// What the page starts with: the work to resume, a save that reports to Corprax, and errors reported too
 function bootstrap(saved: unknown) {
   const json = JSON.stringify(saved ?? null).replace(/</g, '\\u003c');
   return `<meta http-equiv="Content-Security-Policy" content="${CSP}">
@@ -164,7 +164,7 @@ html, body { overflow: auto !important; overscroll-behavior: none !important; }
 <script>
 window.vetterSaved = ${json};
 window.vetter = { saved: window.vetterSaved, save: function (state) { parent.postMessage({ source: 'vetter-app', state: JSON.parse(JSON.stringify(state)) }, '*'); } };
-// The same hook under Granyt's name; pages written before the rename call vetter.save, and both keep working
+// The same hook under Corprax's name; pages written before the rename call vetter.save, and both keep working
 window.praxaSaved = window.vetterSaved;
 window.praxa = window.vetter;
 // Files on the desktop the app is on: praxa.files is the list ({ name, content }), kept up to date, and praxa.onFiles(fn)
@@ -179,7 +179,7 @@ window.addEventListener('message', function (e) {
   (window.__praxaFileListeners || []).forEach(function (fn) { try { fn(e.data.files); } catch (err) {} });
 });
 window.addEventListener('error', function (e) { parent.postMessage({ source: 'vetter-app', error: String(e.message || e) }, '*'); });
-// A link never takes the frame away from the page: in a frame made from text, even href="#" would load Granyt itself.
+// A link never takes the frame away from the page: in a frame made from text, even href="#" would load Corprax itself.
 // In-page links still move the #fragment, and download links still download
 document.addEventListener('click', function (e) {
   var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
@@ -271,7 +271,7 @@ const callouts = (tips: { ref: string; text: string }[]) => `<style>
 })();
 </script>`;
 
-// The page to load: Granyt's head first, so the policy covers everything the AI wrote. audit adds the control check;
+// The page to load: Corprax's head first, so the policy covers everything the AI wrote. audit adds the control check;
 // tips adds the pop-ups pinned to the page
 export function appDocument(html: string, saved?: unknown, audit = false, tips?: { ref: string; text: string }[]): string {
   const head = bootstrap(saved) + (audit ? AUDIT : '') + (tips?.length ? callouts(tips) : '');
@@ -345,7 +345,7 @@ export function checkAppState(q: Question, answer: string) {
   const state = parseAppState(answer) ?? {};
   return q.testCases.map((tc) => {
     const actual = readPath(state, tc.input);
-    // Writing done in the app: a rough first mark from its marking points, until Granyt's AI marks it
+    // Writing done in the app: a rough first mark from its marking points, until Corprax's AI marks it
     if (tc.rubric?.length) {
       const text = typeof actual === 'string' ? actual : '';
       const credit = roughWrittenMark({ rubric: tc.rubric } as Question, text) / 100;

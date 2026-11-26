@@ -17,8 +17,8 @@ interface TrainingBuilderProps {
   onNeedCredit: () => void;
 }
 
-// Making guided training: Granyt plans the lessons and steps (changed by asking), then builds the app they're done in
-// (from Granyt's app library when it has the software), then it's tried out and saved to the company's Training
+// Making guided training: Corprax plans the lessons and steps (changed by asking), then builds the app they're done in
+// (from Corprax's app library when it has the software), then it's tried out and saved to the company's Training
 export const TrainingBuilder: React.FC<TrainingBuilderProps> = ({ brief, business, existing, onSaved, onClose, onNeedCredit }) => {
   const [plan, setPlan] = useState<TrainingPlan | null>(existing ? planOf(existing) : null);
   const [built, setBuilt] = useState<AssessmentTest | null>(existing ?? null);
@@ -118,7 +118,7 @@ export const TrainingBuilder: React.FC<TrainingBuilderProps> = ({ brief, busines
           {error && <p className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-950">{error}</p>}
           {built && !busy && (
             <p className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-sm text-emerald-900">
-              Built. Try it as your team will, then save it to your Training. The app also goes to Granyt&rsquo;s app library, so the next training or job
+              Built. Try it as your team will, then save it to your Training. The app also goes to Corprax&rsquo;s app library, so the next training or job
               simulation in {plan?.appName} builds on it.
             </p>
           )}

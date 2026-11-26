@@ -6,8 +6,8 @@ import { apiFailure } from './generateTest.js';
 
 /**
  * Reads a candidate's CV (a PDF, or text pasted from a CV or LinkedIn) and pulls out their profile: headline, about,
- * jobs, education, certifications and links (not skills: those come only from Granyt's tests), for them to check before it's saved (src/lib/cvImport.ts).
- * Granyt pays for it, so only signed-in people can use it, a few times an hour each.
+ * jobs, education, certifications and links (not skills: those come only from Corprax's tests), for them to check before it's saved (src/lib/cvImport.ts).
+ * Corprax pays for it, so only signed-in people can use it, a few times an hour each.
  */
 
 type Env = Record<string, string | undefined>;
@@ -56,7 +56,7 @@ const schema = {
 };
 
 const today = () => new Date().toISOString().slice(0, 7);
-const RULES = () => `You read a candidate's CV (or text copied from their LinkedIn) and fill in their profile on Granyt, a hiring
+const RULES = () => `You read a candidate's CV (or text copied from their LinkedIn) and fill in their profile on Corprax, a hiring
 platform. Take only what the CV says: never invent a job, a date, a grade or a skill. British English, no em dashes.
 - found: false if this isn't a CV or profile at all (then everything else empty).
 - title: their headline, e.g. "Data Analyst" or "Computer Science student at Leeds", under 80 characters.
@@ -109,7 +109,7 @@ export async function readCv(body: unknown, env: Env, authorization: string | un
         messages: [{ role: 'user', content }],
       });
     meter(model, message.usage);
-    if (message.stop_reason === 'refusal') return { status: 422, json: { error: "Granyt couldn't read that. Try pasting the text instead." } };
+    if (message.stop_reason === 'refusal') return { status: 422, json: { error: "Corprax couldn't read that. Try pasting the text instead." } };
     return { status: 200, json: JSON.parse(message.content.flatMap((b) => (b.type === 'text' ? [b.text] : [])).join('')) };
   } catch (err) {
     return apiFailure('read-cv', err);

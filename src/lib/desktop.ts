@@ -31,7 +31,7 @@ import { DeskAppsConfig, DeskAppsState, DeskWorkApp, chatChannels, deskAppValue 
  *   visited:<url>             whether the page was opened
  *   downloaded:<file name>    whether the file was downloaded or saved
  *   app:<app id>:<path>       a path in a custom app's state (e.g. app:deskly:tickets.9001.status)
- *   test:<check id>           one of Granyt's tests, run on the Code app's files when marked
+ *   test:<check id>           one of Corprax's tests, run on the Code app's files when marked
  *   filehas:<file>:<pattern>  whether a Code app file contains a pattern (a regular expression)
  *   state:<path>              any other part of the state
  * and the work apps' checks (file:, chat:, ticket:, record:, event:, form:, kbviewed:, item:, chart: …), listed in
@@ -114,7 +114,7 @@ export interface DeskCustomApp {
   label: string;
   // The page; while stored, left out when it's a library app's version unchanged (src/lib/appRefs.ts)
   html: string;
-  // The app from Granyt's app library it is, and its version, and (stored without html) its data as JSON
+  // The app from Corprax's app library it is, and its version, and (stored without html) its data as JSON
   libraryApp?: { id: string; version: number };
   data?: string;
 }
@@ -366,7 +366,7 @@ export function desktopValue(cfg: DesktopConfig, state: DesktopState, input: str
   }
 }
 
-// Every check run on the desktop as the candidate left it. Checks written test:<id> are Granyt's tests on the Code app's
+// Every check run on the desktop as the candidate left it. Checks written test:<id> are Corprax's tests on the Code app's
 // files, run beforehand (testsPassed)
 export function checkDesktop(q: Question, answer: string, testsPassed: Record<string, boolean> = {}) {
   const cfg = q.desktop!;

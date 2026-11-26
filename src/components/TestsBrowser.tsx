@@ -11,7 +11,7 @@ import { jobsUsing } from '../lib/demand';
 import { LevelPicker } from './LevelPicker';
 
 /**
- * Granyt's tests, laid out for someone who has never been here. With no role picked it asks what job they want (or
+ * Corprax's tests, laid out for someone who has never been here. With no role picked it asks what job they want (or
  * lets them search everything). With a role, it's the catalogue for it: a header, the role's tests as numbered steps,
  * and a card for each module. Progress and the next test to take live on Home, not here. A group of roles (an industry, or a field from Home) is a grid of
  * its tests. Every card says the same few things in words: level, minutes, questions, their best and one button.
@@ -66,7 +66,7 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
     );
   };
 
-  // Granyt's tests in the sector shown, each once (its levels are picked on its card)
+  // Corprax's tests in the sector shown, each once (its levels are picked on its card)
   const library = useMemo(
     () => tests.filter((t) => isPublic(t) && isMainVersion(t) && (sector === 'all' || testInSector(sector)(t)) && !testHidden(visibility, t)),
     [tests, sector, visibility]

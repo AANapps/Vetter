@@ -40,7 +40,7 @@
   --color-slate-400: #8a94a3;
   --color-slate-500: #5c6777;
 
-  /* The Granyt logo's pixel lettering */
+  /* The Corprax logo's pixel lettering */
   --font-pixel: 'Silkscreen', ui-monospace, monospace;
   --font-brand: 'Outfit', 'Geist', system-ui, sans-serif;
 
@@ -65,9 +65,9 @@
 }
 
 /* The company home's chat: a faint colour wash behind frosted panels, and a multicolour border on the message box that
-   brightens when typing and turns while Granyt is thinking. Idle, nothing moves: a moving wash under blurred glass, a
+   brightens when typing and turns while Corprax is thinking. Idle, nothing moves: a moving wash under blurred glass, a
    turning border with a blurred glow, and a spinning mark on every reply were redrawn every frame and ran graphics hot,
-   more so the longer the chat got. Now only what shows Granyt is working moves, and only while it is */
+   more so the longer the chat got. Now only what shows Corprax is working moves, and only while it is */
 @property --ai-angle {
   syntax: '<angle>';
   initial-value: 0deg;
@@ -375,7 +375,7 @@ button:is(
    carry on to the page and send the browser back a page, losing the candidate's place */
 html, body { overscroll-behavior-x: none; }
 
-/* Granyt's flashing pixel: the full stop after the wordmark, and after the V on the square badges */
+/* Corprax's flashing pixel: the full stop after the wordmark, and after the V on the square badges */
 @keyframes pixel-blink {
   0%, 55% { opacity: 1; }
   56%, 100% { opacity: 0; }
@@ -797,7 +797,7 @@ html.dark :is(.text-rose-600, .text-rose-700, .text-rose-800) { color: #fb7185; 
 html.dark .theme-light :is(.text-indigo-600, .text-indigo-700) { color: rgb(88, 52, 255); }
 /* The faintest grey text (a "–" for none, a "·" between details) stays visible on the dark page */
 html.dark .text-slate-300:not(.theme-light *, .text-white *, [class~="bg-slate-800"] *, [class~="bg-slate-900"] *, [class~="bg-slate-950"] *) { color: #6d788c; }
-/* Granyt's indigo is a navy: its middle shades, as text or on hover, are brightened like the rest of the brand text */
+/* Corprax's indigo is a navy: its middle shades, as text or on hover, are brightened like the rest of the brand text */
 html.dark :is(.text-indigo-400, .text-indigo-500, .text-violet-500) { color: #b4a8ff; }
 html.dark :is(.hover\:text-indigo-600:hover, .group:hover .group-hover\:text-indigo-600) { color: #a99bff; }
 html.dark .theme-light :is(.text-indigo-400, .text-indigo-500) { color: var(--color-indigo-500); }
@@ -909,7 +909,7 @@ html.dark .build-veil { background: rgb(11 17 30 / 0.6); }
   .build-bar { width: 100%; opacity: 0.4; }
 }
 
-/* ---- Granyt's wordmark: a rounded geometric sans in the AI gradient, and the sparkle turning while the AI works ---- */
+/* ---- Corprax's wordmark: a rounded geometric sans in the AI gradient, and the sparkle turning while the AI works ---- */
 .brand-word {
   font-family: var(--font-brand); font-weight: 600; letter-spacing: -0.025em; line-height: 1;
   background: linear-gradient(90deg, #3b6fe0, #8b5cf6 55%, #db5a9e); -webkit-background-clip: text; background-clip: text; color: transparent;

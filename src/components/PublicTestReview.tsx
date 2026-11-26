@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { CheckCircle2, Globe } from 'lucide-react';
 import { AssessmentTest, levelName } from '../types';
 
-// Shown to the Granyt team: companies' tests asking to join the public library. Each can be opened to read and try,
+// Shown to the Corprax team: companies' tests asking to join the public library. Each can be opened to read and try,
 // then approved (every company can use it, every candidate can take it) or turned down with a reason the company sees
 export const PublicTestReview: React.FC<{
   tests: AssessmentTest[];
