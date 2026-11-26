@@ -1,5 +1,6 @@
 import { isMainVersion } from '../lib/testLevels';
 import { Pic } from './Pic';
+import { DriftStrip } from './DriftStrip';
 import { BusinessInfo, BusinessInfoEditor } from './BusinessInfoEditor';
 import React, { useState } from 'react';
 import { User, JobPosting, AssessmentTest, Business, TestDraft, TestRole, isHiringSim, isJobSim, isPublic, levelName, madeWithAI } from '../types';
@@ -575,9 +576,13 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                   Explore all {aiLibrary.length} AI at Work tests →
                 </button>
               </div>
-              <ul className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 [scrollbar-width:thin]">
-                {aiLibrary.map((t) => (
-                  <li key={t.id} className="w-72 shrink-0 snap-start bg-white border border-slate-200 rounded-xl p-4 flex flex-col gap-2">
+              <DriftStrip
+                items={aiLibrary}
+                itemKey={(t) => t.id}
+                label="AI at Work tests"
+                gapClass="pr-3"
+                render={(t) => (
+                  <div className="w-72 h-full bg-white border border-slate-200 rounded-xl p-4 flex flex-col gap-2">
                     <button onClick={() => onOpenTest(t.id)} className="text-left group">
                       <span className="block text-[11px] font-medium text-violet-700">AI at Work · every job</span>
                       <span className="block text-sm font-semibold text-slate-900 group-hover:text-indigo-700">{t.title}</span>
@@ -596,9 +601,9 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                         </button>
                       )}
                     </div>
-                  </li>
-                ))}
-              </ul>
+                  </div>
+                )}
+              />
             </section>
           )}
           <div className="pt-2">

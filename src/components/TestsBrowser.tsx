@@ -10,6 +10,7 @@ import { getTestStats } from '../lib/leaderboard';
 import { jobsUsing } from '../lib/demand';
 import { CAPABILITIES } from '../lib/capabilities';
 import { LevelPicker } from './LevelPicker';
+import { DriftStrip } from './DriftStrip';
 
 /**
  * Corprax's tests, laid out for someone who has never been here. With no role picked it asks what job they want (or
@@ -114,8 +115,10 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
     const taken = getTestStats(t, allCandidates).candidatesRanked;
     const wanted = jobsUsing(main, tests, jobs);
     const sim = opts.sim ?? isSim(main);
+    // In the drifting strip the strip makes the list item; elsewhere the card is one
+    const Item = opts.slide ? 'div' : 'li';
     return (
-      <li key={main.id} id={`test-card-${main.id}`} className={`scroll-mt-24 ${opts.slide ? 'w-[19rem] sm:w-[21rem] shrink-0 snap-start' : ''}`}>
+      <Item key={main.id} id={opts.slide ? undefined : `test-card-${main.id}`} className={opts.slide ? 'block w-[19rem] sm:w-[21rem] h-full' : 'scroll-mt-24'}>
         <div className="tl-glass tl-card h-full p-5 flex flex-col gap-4">
           <div className="flex items-start gap-3">
             <span className={`tl-tile ${ok ? 'tl-tile-done' : sim ? 'tl-tile-sim' : ''}`} aria-hidden="true">
@@ -161,7 +164,7 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
             </button>
           </div>
         </div>
-      </li>
+      </Item>
     );
   };
 
@@ -517,10 +520,8 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
           {kind === 'tests' && aiTests.length > 0 && (
             <section className="space-y-4">
               {sectionTitle('AI at Work', 'For every job: how well you work with AI. Brief and check AI agents, catch their mistakes and keep data safe. About 20 minutes each.')}
-              {/* One row that slides sideways; the rest are on their own page */}
-              <ul className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-3 -mx-1 px-1 [scrollbar-width:thin]" aria-label="AI at Work tests">
-                {aiTests.map((t) => card(t, { label: 'AI at Work · every job', slide: true }))}
-              </ul>
+              {/* One row that drifts sideways; the rest are on their own page */}
+              <DriftStrip items={aiTests} itemKey={(t) => t.id} label="AI at Work tests" gapClass="pr-4" render={(t) => card(t, { label: 'AI at Work · every job', slide: true })} />
               <div className="flex justify-center">
                 <button onClick={() => onTestFieldChange({ label: AI_FIELD, roles: [] })} className="tl-ghost h-10 px-5 rounded-full text-sm font-semibold inline-flex items-center gap-1.5" data-ref="ai-explore">
                   Explore all {aiTests.length} AI at Work tests
