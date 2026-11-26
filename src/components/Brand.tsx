@@ -62,9 +62,9 @@ export const AiMark: React.FC<{ className?: string; busy?: boolean; title?: stri
   );
 };
 
-// The name in the logo. Trying "Granyt" (2026-11-26): only the logo shows it; everything else still says Praxa.
+// The name in the logo. Trying "Corprax" (2026-11-26): only the logo shows it; everything else still says Praxa.
 // Set back to 'Praxa' to undo
-export const LOGO_NAME = 'Granyt';
+export const LOGO_NAME = 'Corprax';
 
 // The mark and the name. size: the text size class; the mark follows it
 export const BrandWordmark: React.FC<{ size?: 'sm' | 'md' | 'lg'; className?: string; showMark?: boolean }> = ({ size = 'md', className = '', showMark = true }) => {
