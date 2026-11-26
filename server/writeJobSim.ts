@@ -69,6 +69,8 @@ export const jobSimSchema = {
     scenario: str,
     briefing: str,
     briefs: { type: 'object', properties: { core: str, curveball: str, juggling: str, report: str }, required: ['core', 'curveball', 'juggling', 'report'], additionalProperties: false },
+    // The briefs as they read with no AI in the day ("" where the same)
+    briefsWithoutAi: { type: 'object', properties: { core: str, curveball: str, juggling: str, report: str }, required: ['core', 'curveball', 'juggling', 'report'], additionalProperties: false },
     user: { type: 'object', properties: { name: str, role: str }, required: ['name', 'role'], additionalProperties: false },
     time: str,
     apps: { type: 'array', items: { type: 'string', enum: ['sheet', 'browser', 'sql', 'code', 'chat', 'helpdesk', 'crm', 'docs', 'bi', 'forms', 'calendar', 'kb', 'board', 'agents'] } },
@@ -116,7 +118,7 @@ export const jobSimSchema = {
     },
     inbox: {
       type: 'array',
-      items: mail({ id: str, phase: { type: 'string', enum: ['', 'core', 'curveball', 'juggling', 'report'] }, to: strs, cc: strs, date: str }, ['id', 'phase', 'to', 'cc', 'date']),
+      items: mail({ id: str, phase: { type: 'string', enum: ['', 'core', 'curveball', 'juggling', 'report'] }, to: strs, cc: strs, date: str, bodyWithoutAi: str }, ['id', 'phase', 'to', 'cc', 'date', 'bodyWithoutAi']),
     },
     replies: {
       type: 'array',
@@ -131,13 +133,13 @@ export const jobSimSchema = {
       type: 'array',
       items: {
         type: 'object',
-        properties: { part: { type: 'string', enum: ['core', 'curveball', 'juggling', 'report'] }, description: str, input: str, expected: str, rubric: strs, capability: { type: 'string', enum: ['', 'fluency', 'verify', 'orchestrate', 'judgement', 'adapt', 'own'] } },
+        properties: { part: { type: 'string', enum: ['core', 'curveball', 'juggling', 'report'] }, description: str, input: str, expected: str, rubric: strs, capability: { type: 'string', enum: ['', 'fluency', 'solve', 'verify', 'judgement', 'orchestrate', 'supervise', 'safety', 'adapt'] } },
         required: ['part', 'description', 'input', 'expected', 'rubric', 'capability'],
         additionalProperties: false,
       },
     },
   },
-  required: ['reply', 'role', 'company', 'domain', 'day', 'description', 'category', 'skillsTested', 'scenario', 'briefing', 'briefs', 'user', 'time', 'apps', 'contacts', 'workbookName', 'sheets', 'databaseName', 'tables', 'homepage', 'pages', 'files', 'work', 'project', 'inbox', 'replies', 'checks'],
+  required: ['reply', 'role', 'company', 'domain', 'day', 'description', 'category', 'skillsTested', 'scenario', 'briefing', 'briefs', 'briefsWithoutAi', 'user', 'time', 'apps', 'contacts', 'workbookName', 'sheets', 'databaseName', 'tables', 'homepage', 'pages', 'files', 'work', 'project', 'inbox', 'replies', 'checks'],
   additionalProperties: false,
 };
 
@@ -153,7 +155,7 @@ const pick = (keys: string[], extra: Record<string, unknown> = {}) => ({
 // then the desk: the data, pages, files and project on the computer, written to it
 const WORLD_KEYS = ['role', 'company', 'domain', 'day', 'description', 'category', 'skillsTested', 'scenario', 'briefing', 'user', 'time', 'apps', 'contacts'];
 const DESK_KEYS = ['workbookName', 'sheets', 'databaseName', 'tables', 'homepage', 'pages', 'files', 'work', 'project'];
-const SCRIPT_KEYS = ['reply', 'briefs', 'inbox', 'replies', 'checks'];
+const SCRIPT_KEYS = ['reply', 'briefs', 'briefsWithoutAi', 'inbox', 'replies', 'checks'];
 // planted: for the script's writer, each issue in the data and where it is, and the facts and figures the day turns on
 // libraryApps: apps from the library on the desktop, each with what it must hold for the day; newApp: software the job
 // uses that the library doesn't have yet, which Corprax builds (empty strings when there's none)

@@ -1,3 +1,4 @@
+import { splitScore } from './capabilities';
 import { AssessmentTest, Question } from '../types';
 import { QuestionRunResult } from './grading';
 import { codeAnswer, languageById } from './languages';
@@ -125,11 +126,11 @@ export async function aiMarks(test: AssessmentTest, codes: Record<string, string
       // A written answer is marked by the AI alone: the first mark only matched words, which can be gamed
       // An app task: the AI's mark replaces the rough one for its writing; its other checks stand as they were
       if (q.type === 'app' || q.type === 'desktop') {
+        // Every writing check takes the AI's mark as its credit, so the job and AI scores (and the answers kept) use it
         const results = runs[q.id].testCaseResults;
-        const writing = writingChecks(q).length;
-        const passed = results.filter((r) => r.passed && !q.testCases.find((tc) => tc.id === r.id)?.rubric?.length).length;
         const ai = Math.max(0, Math.min(100, aiScore)) / 100;
-        result[q.id] = { score: Math.round(((passed + writing * ai) / Math.max(1, results.length)) * 100), feedback: String(m.feedback ?? '').slice(0, 300) };
+        for (const r of results) if (q.testCases.find((tc) => tc.id === r.id)?.rubric?.length) r.credit = ai;
+        result[q.id] = { score: splitScore(q, results).score, feedback: String(m.feedback ?? '').slice(0, 300) };
         continue;
       }
       const score = q.type === 'email' ? emailMark(q, emailAnswer(codes[q.id] ?? ''), Math.max(0, Math.min(100, aiScore))) : q.type === 'written' || q.type === 'assistant' ? Math.max(0, Math.min(100, aiScore)) : Math.max(perQuestion[q.id], Math.min(aiScore, CAP[q.type] ?? 90));

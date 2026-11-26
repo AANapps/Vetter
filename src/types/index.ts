@@ -219,6 +219,8 @@ export interface ResultBreakdown {
   tiers: { tier: TestDifficulty; score: number }[];
   // Unset when even the Beginner questions fell short
   levelReached?: TestDifficulty;
+  // The AI Framework Overlay's score, apart from the job score (src/lib/capabilities.ts), and the AI condition it ran under
+  ai?: { score: number; competencies: { id: Capability; score: number }[]; mode?: AiMode };
 }
 
 // 'choice' is multiple choice, for roles where writing code isn't the job;
@@ -316,7 +318,11 @@ export interface TestCase {
   capability?: Capability;
 }
 
-export type Capability = 'fluency' | 'verify' | 'orchestrate' | 'judgement' | 'adapt' | 'own';
+// The AI Framework Overlay's competencies (docs/architecture.md, src/lib/capabilities.ts)
+export type Capability = 'fluency' | 'solve' | 'verify' | 'judgement' | 'orchestrate' | 'supervise' | 'safety' | 'adapt';
+// The AI condition a simulation runs under: no AI; AI there to use if it helps (unused AI costs nothing); AI's use is
+// part of the work; and AI agents to delegate to and supervise
+export type AiMode = 'none' | 'permitted' | 'required' | 'agents';
 
 export interface Question {
   id: string;
@@ -491,6 +497,8 @@ export interface AssessmentTest {
   roles?: TestRole[];
   // Simulations: one scenario that every question plays out in
   scenario?: TestScenario;
+  // A job simulation's scenario brief with no AI in the day (the AI overlay taken out)
+  scenarioWithoutAi?: string;
   // Module tests: the core areas every level covers; each question names one. Companies can add their own questions
   // to any area at any level
   aspects?: TestAspect[];
@@ -610,6 +618,9 @@ export interface JobPosting {
   // Whether candidates get the AI assistant in the job's simulations (the desktop's AI app). On unless the company turns
   // it off: AI is part of everyday work, so the simulation shows how well they use it
   aiInSimulations?: boolean;
+  // The AI condition its job simulations run under (src/lib/capabilities.ts AI_MODES); unset is each simulation's own.
+  // Replaces aiInSimulations (false there is 'none')
+  aiMode?: AiMode;
   // Everyone the job's tests have been sent to, and addresses emailed that have no Corprax account yet
   invitations: JobInvitation[];
   invitedEmails?: string[];

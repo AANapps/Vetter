@@ -1346,6 +1346,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
         testTitle: completedTest.title,
         score: finalScore,
         ...(isJobSim(completedTest) && { aiAssistant: simHasAi(completedTest) }),
+        ...(breakdown?.ai && { ai: breakdown.ai }),
         completedAt,
         answers,
       }).catch((err) => console.error("Couldn't keep the answers for the company", err));
@@ -1642,7 +1643,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
     openBusinessJob(job.id);
   };
 
-  const handleSaveJobTests = (jobId: string, change: Pick<JobPosting, 'testIds' | 'testsRequired' | 'maxAttempts' | 'aiInSimulations'>) => {
+  const handleSaveJobTests = (jobId: string, change: Pick<JobPosting, 'testIds' | 'testsRequired' | 'maxAttempts' | 'aiInSimulations' | 'aiMode'>) => {
     if (libraryJobSimHit(change.testIds, allJobs.find((j) => j.id === jobId)?.testIds)) return;
     setJobs((prev) => prev.map((j) => (j.id === jobId ? { ...j, ...change } : j)));
   };

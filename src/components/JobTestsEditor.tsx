@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { BackButton } from './BackButton';
-import { AssessmentTest, JobPosting, isJobSim, isPublic, levelName } from '../types';
+import { AiMode, AssessmentTest, JobPosting, isJobSim, isPublic, levelName } from '../types';
+import { AI_MODES } from '../lib/capabilities';
+import { jobAiMode } from '../lib/jobTests';
 import { isMainVersion, levelsOf, newestFirst } from '../lib/testLevels';
 import { ArrowLeft, ArrowRight, Check, Search, Sparkles, X } from 'lucide-react';
 
@@ -12,7 +14,7 @@ interface JobTestsEditorProps {
   isListed?: (t: AssessmentTest) => boolean;
   // Tests to add, e.g. when sending one from its page
   addTestIds?: string[];
-  onSave: (jobId: string, change: Pick<JobPosting, 'testIds' | 'testsRequired' | 'maxAttempts' | 'aiInSimulations'>) => void;
+  onSave: (jobId: string, change: Pick<JobPosting, 'testIds' | 'testsRequired' | 'maxAttempts' | 'aiInSimulations' | 'aiMode'>) => void;
   onCancel: () => void;
 }
 
@@ -42,14 +44,14 @@ export const JobTestsEditor: React.FC<JobTestsEditorProps> = ({ jobs, tests: all
   const pickedTests = picked.map((p) => tests.find((t) => t.id === p.testId)).filter((t): t is AssessmentTest => !!t);
   const [required, setRequired] = useState(() => job?.testsRequired ?? true);
   const [maxAttempts, setMaxAttempts] = useState(() => attemptsFor(job));
-  const [aiInSims, setAiInSims] = useState(() => job?.aiInSimulations !== false);
+  const [aiMode, setAiMode] = useState<AiMode>(() => (job ? jobAiMode(job) : undefined) ?? 'agents');
   const switchJob = (id: string) => {
     const next = jobs.find((j) => j.id === id);
     setJobId(id);
     setPicked(pickedFor(next));
     setRequired(next?.testsRequired ?? true);
     setMaxAttempts(attemptsFor(next));
-    setAiInSims(next?.aiInSimulations !== false);
+    setAiMode((next ? jobAiMode(next) : undefined) ?? 'agents');
   };
 
   const tq = testQuery.trim().toLowerCase();
@@ -67,7 +69,7 @@ export const JobTestsEditor: React.FC<JobTestsEditorProps> = ({ jobs, tests: all
   const save = (e: React.FormEvent) => {
     e.preventDefault();
     if (!job || pickedTests.length === 0) return;
-    onSave(job.id, { testIds: pickedTests.map((t) => t.id), testsRequired: required, maxAttempts, aiInSimulations: aiInSims });
+    onSave(job.id, { testIds: pickedTests.map((t) => t.id), testsRequired: required, maxAttempts, aiInSimulations: aiMode !== 'none', aiMode });
   };
 
   return (
@@ -199,24 +201,31 @@ export const JobTestsEditor: React.FC<JobTestsEditorProps> = ({ jobs, tests: all
                   </p>
                 </div>
                 {pickedTests.some(isJobSim) && (
-                  <div className="p-3 rounded-xl border border-indigo-200 bg-indigo-50/60 space-y-2">
-                    <label className="flex items-start gap-2 text-sm text-slate-800 cursor-pointer">
-                      <input type="checkbox" checked={aiInSims} onChange={(e) => setAiInSims(e.target.checked)} className="mt-0.5 accent-indigo-600" />
-                      <span>
-                        <span className="font-semibold flex items-center gap-1">
-                          <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                          Allow the AI assistant in the job simulation
-                        </span>
-                        <span className="block text-xs text-slate-600 mt-1 leading-relaxed">
-                          We recommend leaving this on. AI is now part of everyday work: most people in this kind of job use an AI assistant to draft, check
-                          and speed things up, and you'll want them to. With it on, the simulation shows how well they use it: what they ask, whether they
-                          check its answers, and whether the work they hand in is right. You see their full AI conversation with their answers. Turn it off
-                          only if you need to see what they can do entirely on their own.
-                        </span>
-                      </span>
-                    </label>
-                    {!aiInSims && <p className="text-xs text-amber-800">The AI assistant will be taken off the simulation's desktop for this job's candidates.</p>}
-                  </div>
+                  <fieldset className="p-3 rounded-xl border border-indigo-200 bg-indigo-50/60 space-y-2">
+                    <legend className="sr-only">AI in the job simulation</legend>
+                    <p className="text-sm font-semibold text-slate-800 flex items-center gap-1">
+                      <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                      AI in the job simulation
+                    </p>
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      AI is part of everyday work, so we recommend leaving AI in. Candidates get a job score and, apart from it, an AI score: how they use,
+                      check, correct and supervise AI. Rankings use the job score.
+                    </p>
+                    <div className="grid sm:grid-cols-2 gap-2">
+                      {(Object.keys(AI_MODES) as AiMode[]).map((m) => (
+                        <label key={m} className={`flex items-start gap-2 p-2.5 rounded-lg border cursor-pointer text-sm ${aiMode === m ? 'border-indigo-500 bg-white' : 'border-slate-200 bg-white/60 hover:border-indigo-300'}`}>
+                          <input type="radio" name="ai-mode" checked={aiMode === m} onChange={() => setAiMode(m)} className="mt-0.5 accent-indigo-600" />
+                          <span>
+                            <span className="font-semibold text-slate-900">
+                              {AI_MODES[m].label}
+                              {m === 'agents' && <span className="ml-1 text-[11px] font-medium text-indigo-700">Recommended</span>}
+                            </span>
+                            <span className="block text-xs text-slate-600 leading-relaxed">{AI_MODES[m].about}</span>
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
                 )}
               </>
             )}

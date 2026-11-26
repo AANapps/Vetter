@@ -13,6 +13,8 @@ import { MOCK_DATABASE } from '../lib/sqlEngine';
 import { runQuestion, gradeTest, QuestionRunResult, weightedScore } from '../lib/grading';
 import { makeVariant, newVariantSeed } from '../lib/variants';
 import { AiMark, aiMarks } from '../lib/aiMarking';
+import { aiScoreOf, capabilityScores } from '../lib/capabilities';
+import { AiScorePanel } from './AiScorePanel';
 import { Pulse } from './Pulse';
 import {
   Play,
@@ -535,7 +537,12 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
     setQuestionScores(perQuestion);
     setQuestionFeedback(feedback);
     setFinalScore(score);
-    const levels = breakdownFor(test, perQuestion);
+    // The AI overlay's checks, scored apart from the job score (with the AI's marks on any writing in them)
+    const tagged = test.questions.flatMap((q) => (graded.runs[q.id] && 'testCaseResults' in graded.runs[q.id] ? graded.runs[q.id].testCaseResults : []).map((r) => ({ ...r, capability: q.testCases?.find((tc) => tc.id === r.id)?.capability })));
+    const aiScore = aiScoreOf(tagged);
+    const mode = test.questions.find((q) => q.desktop?.aiMode)?.desktop?.aiMode;
+    const byLevel = breakdownFor(test, perQuestion);
+    const levels = aiScore === undefined ? byLevel : { ...(byLevel ?? { aspects: [], tiers: [] }), ai: { score: aiScore, competencies: capabilityScores(tagged).map(({ id, score }) => ({ id, score })), ...(mode && { mode }) } };
     const duration = Math.round((Date.now() - startedAtRef.current) / 1000);
     setBreakdown(levels);
     setFinalRank(getRankFor?.(score) ?? null);
@@ -1567,7 +1574,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
 
               {training ? (
                 <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-center">
-                  <div className="text-xs text-slate-500 mb-1 font-medium">Your score</div>
+                  <div className="text-xs text-slate-500 mb-1 font-medium">{breakdown?.ai && test.questions.some((q) => q.testCases?.some((tc) => !tc.capability)) ? 'Job score' : 'Your score'}</div>
                   <div className="text-3xl font-extrabold font-mono tabular-nums text-slate-900">{finalScore}</div>
                   <div className={`text-[11px] mt-1 font-medium ${finalScore >= test.passingScore ? 'text-emerald-700' : 'text-amber-700'}`}>
                     {finalScore >= test.passingScore ? 'Well done: you’ve got the hang of it' : `Worth another go: ${test.passingScore} shows you’ve got it`}
@@ -1578,7 +1585,7 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
               {/* The score, and where it ranks on the test's leaderboard. No pass mark or badge: the score is the result */}
               <div className={`grid ${finalRank ? 'grid-cols-2' : 'grid-cols-1'} gap-3 p-4 bg-slate-50 border border-slate-200 rounded-xl text-center`}>
                 <div>
-                  <div className="text-xs text-slate-500 mb-1 font-medium">Your score</div>
+                  <div className="text-xs text-slate-500 mb-1 font-medium">{breakdown?.ai && test.questions.some((q) => q.testCases?.some((tc) => !tc.capability)) ? 'Job score' : 'Your score'}</div>
                   <div className="text-3xl font-extrabold font-mono tabular-nums text-slate-900">
                     {finalScore}
                     <span className="text-sm font-medium text-slate-400">/100</span>
@@ -1596,7 +1603,8 @@ const TestRunnerInner: React.FC<TestRunnerProps> = ({ test, onClose, onComplete,
                 </>
               )}
 
-              {breakdown && <ResultBreakdownPanel breakdown={breakdown} testLevel={test.difficulty} />}
+              {breakdown && breakdown.tiers.length > 0 && <ResultBreakdownPanel breakdown={breakdown} testLevel={test.difficulty} />}
+              {breakdown?.ai && <AiScorePanel ai={breakdown.ai} />}
 
               <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600 space-y-1.5 max-h-64 overflow-y-auto">
                 <div className="font-bold text-slate-900">Score and feedback by task</div>

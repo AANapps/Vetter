@@ -108,7 +108,14 @@ export const AnswersDialog: React.FC<AnswersDialogProps> = ({ businessId, candid
                         {s.aiAssistant !== undefined && ` · AI assistant ${s.aiAssistant ? 'allowed' : 'off'}`}
                       </div>
                     </div>
-                    <span className="font-mono font-bold tabular-nums text-slate-900">{s.score}/100</span>
+                    {s.ai ? (
+                      <span className="text-right leading-tight">
+                        <span className="block font-mono font-bold tabular-nums text-slate-900">{s.score}/100</span>
+                        <span className="block text-[10px] text-slate-500">job · AI <b className="font-mono text-violet-700">{s.ai.score}</b></span>
+                      </span>
+                    ) : (
+                      <span className="font-mono font-bold tabular-nums text-slate-900">{s.score}/100</span>
+                    )}
                     <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
                   </button>
                   {open && <InterviewQuestions answers={s.answers} name={candidateName} />}
@@ -228,12 +235,13 @@ const Answer: React.FC<{ a: AnswerRecord; onOpenDesktop?: () => void }> = ({ a, 
           </div>
           <ul className="space-y-1.5">
             {a.checks.map((c, i) => (
-              <li key={i} className={`rounded-lg border px-3 py-2 text-xs ${c.passed ? 'border-emerald-200 bg-emerald-50/50' : 'border-rose-200 bg-rose-50/50'}`}>
+              <li key={i} className={`rounded-lg border px-3 py-2 text-xs ${c.skipped ? 'border-slate-200 bg-slate-50 text-slate-500' : c.passed ? 'border-emerald-200 bg-emerald-50/50' : 'border-rose-200 bg-rose-50/50'}`}>
                 <div className="flex items-start gap-1.5 font-semibold text-slate-800">
                   {c.passed ? <CheckCircle2 className="w-3.5 h-3.5 mt-px shrink-0 text-emerald-600" /> : <XCircle className="w-3.5 h-3.5 mt-px shrink-0 text-rose-600" />}
                   {c.description}
                 </div>
-                {!c.passed && (
+                {c.skipped && <div className="mt-0.5 pl-5 text-[11px]">Not counted: AI was optional here and they did it without it.</div>}
+                {!c.passed && !c.skipped && (
                   <div className="mt-1 pl-5 grid grid-cols-[auto_minmax(0,1fr)] gap-x-2 gap-y-0.5 font-mono text-[11px] text-slate-600">
                     <span className="text-slate-400">Expected</span>
                     <span className="break-words">{c.expected || '—'}</span>

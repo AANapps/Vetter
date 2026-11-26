@@ -91,11 +91,16 @@ Agent checks (in checks, like the others; each run reports which blind spots it 
   agent:<task id>:handled   rejected, sent back, or approved only clean work: expected "true" (the judgement task)
   agent:<task id>:note      the note with their decision (rubric)
   agentcaught:<task id>     the verify task's planted mistakes caught: expected "5" (marked with partial credit)
-Each check has capability: "orchestrate" (briefing and directing agents), "verify" (checking AI output: the delegate
-approval, the quoted figure's reply, agentcaught), "judgement" (the judgement task and the grey-area reply), "adapt" (the
-curveball checks), "own" (the report back's email), "fluency" (using AI to get the core work done), or "" for the job's
-own skills. Tag every check; at least five have a capability.
+Each check has capability (Corprax's AI competency framework). Tag ONLY checks that exist because of the AI layer (the
+agent tasks, an AI figure to check): the job's own work (the sheet, the curveball, the replies, the report back) stays ""
+and is scored as the job, whatever the AI condition. Tags: "fluency" (using AI tools well), "solve" (AI-assisted
+problem-solving), "verify" (checking AI output: the delegate approval, agentcaught), "judgement" (the judgement task:
+agent:<id>:handled), "orchestrate" (briefing and delegating: agent:<id>:clean), "supervise" (correcting an agent as it
+works), "safety" (AI safety, privacy and accountability: e.g. a separate rubric check that the report back repeats none
+of the agent draft's mistakes), "adapt" (an AI tool new to them). At least three checks have a capability.
+THE DAY MUST ALSO WORK WITH NO AI (a job can turn AI off): every email that mentions an agent has bodyWithoutAi, the
+same email without the AI (e.g. "what was March revenue?" instead of "the agent says £X, OK?"); "" for emails that don't
+mention AI. briefsWithoutAi: each brief without the agent tasks ("" where it's the same).
 The setting's planted lines list the three agent tasks and their blind spots, so the desk and script match.`;
 
-export const NO_AI_LAYER = `THE AI-AT-WORK LAYER is OFF for this day: no "agents" app or work data, and every check's capability is "" except
-the curveball's checks ("adapt"), the grey-area reply ("judgement") and the report back's email ("own").`;
+export const NO_AI_LAYER = `THE AI-AT-WORK LAYER is OFF for this day: no "agents" app or work data, every check's capability is "" (the job's own skills), every bodyWithoutAi is "" and every briefsWithoutAi field is "".`;

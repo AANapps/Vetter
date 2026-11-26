@@ -43,14 +43,20 @@ structured rubrics, calibrated difficulty, validation, consistent criteria. Vari
 Onboarding, workforce capability mapping, internal skills verification, development, continuous assessment, AI agent
 evaluation, human-AI collaboration assessment, workforce analytics.
 
-## Where the code stands (2026-11-26)
+## Where the code stands (2026-11-26, after phase 1)
 
 | Spec | Built | Gap |
 |---|---|---|
 | Simulation Engine | Desktop + work apps (src/components/Desktop.tsx, desk/), job sims in 5 parts (jobSimKit.ts), AI writer (server/writeJobSim.ts, src/lib/jobSimBuild.ts), app library | Seniority calibration; equivalent-difficulty variants |
-| Competency Engine | Plan blueprint (server/planTest.ts), checks with rubrics, AI marking | No reusable competency framework: checks aren't mapped to standard competencies; one blended score |
+| Competency Engine | Plan blueprint (server/planTest.ts), checks with rubrics, AI marking; untagged checks are the job score | No reusable job-competency framework yet (checks aren't mapped to standard job competencies) |
 | AI Overlay: inject | Agents app with live Haiku agents and blind spots (deskAgent.ts); DA day hand-written; AI writer adds agent tasks when the switch is on | Not a reusable module library: each day writes its own; no supervision-in-progress, safety/injection, automation, API or tool/MCP interactions yet |
 | AI Overlay: observe | Agent task log, flags, chat, AI assistant transcript | Not summarised as evidence |
-| AI Overlay: evaluate | Capability tags on checks, "Working with AI" scores in the answers view | Score not separate from the job score; not on profiles |
-| AI conditions | On/off switch on AI-built sims; per-job AI assistant on/off | Four modes; "don't penalise unused AI" (the DA day's delegation checks count even when AI is only permitted) |
+| AI Overlay: evaluate | The framework's 8 competencies (src/lib/capabilities.ts) tag overlay checks only; `splitScore` keeps the job score (ranks) and the AI score apart; AI score + competencies saved on results and submissions (breakdown.ai), shown on the result screen and the company's answers view | Not on profiles yet; no evidence summary |
+| AI conditions | Four modes per job (JobPosting.aiMode, job test picker; src/lib/jobTests.ts withJobAi): No AI takes the overlay out whole (apps, emails and briefs via withoutAi/briefWithoutAi, AI checks); AI permitted skips delegation checks the candidate didn't use; the DA day runs Agent-enabled by default. The AI writer writes the no-AI versions too | "AI required" scores like Agent-enabled when a day has no agents |
 | Results | Score + rank, answers view | Capability report: separate scores, evidence, strengths and weaknesses |
+
+Rules from building it:
+- Tag only checks that exist because of the overlay. The job's own work (the sheet, the curveball, replies, the report)
+  stays untagged, so the job score is the same under every AI condition (DA day: 81 under all three in the solve check).
+- Every overlay mention in a day has a no-AI version, so "No AI" reads as if the overlay was never there.
+- Adaptability means adapting to new AI tools, not the curveball (that's a job skill).

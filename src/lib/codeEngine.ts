@@ -14,6 +14,8 @@ export interface CodeExecutionResult {
     error?: string;
     // A check marked on a scale rather than pass/fail (writing in an app): its share of a full mark, 0 to 1
     credit?: number;
+    // Left out of the score: AI wasn't used where it was only permitted (src/lib/capabilities.ts)
+    skipped?: boolean;
   }[];
   logs: string[];
   totalExecutionTimeMs: number;

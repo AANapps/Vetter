@@ -1,3 +1,4 @@
+import { splitScore } from './capabilities';
 import { checkDesktop, parseDesktop } from './desktop';
 import { runDeskTests } from './deskCode';
 import { AssessmentTest, Question } from '../types';
@@ -119,11 +120,11 @@ async function gradeDesktopQuestion(q: Question, answer: string): Promise<Questi
     testsPassed = Object.fromEntries(run.results.map((r) => [r.name, r.pass]));
   }
   const testCaseResults = checkDesktop(q, answer, testsPassed);
-  const earned = testCaseResults.reduce((n, r) => n + (r.passed ? 1 : (r.credit ?? 0)), 0);
+  // The job's own checks make the score; the AI overlay's are scored apart (src/lib/capabilities.ts)
   return {
     type: 'code',
-    allPassed: testCaseResults.every((r) => r.passed),
-    score: testCaseResults.length ? Math.round((earned / testCaseResults.length) * 100) : 0,
+    allPassed: testCaseResults.every((r) => r.passed || r.skipped),
+    score: splitScore(q, testCaseResults).score,
     testCaseResults,
     logs: [],
     totalExecutionTimeMs: 0,

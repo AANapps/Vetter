@@ -1,5 +1,6 @@
-import { AssessmentTest, JobInvitation, JobPosting, JobTestAttempt, TestResult, User, timerOf } from '../types';
+import { AiMode, AssessmentTest, JobInvitation, JobPosting, JobTestAttempt, TestResult, User, timerOf } from '../types';
 import { jobPath } from './jobSeo';
+import { AGENTS_NOTE } from '../data/modules/jobSimKit';
 
 export interface JobTestProgress {
   // Best score on each of the job's tests, or undefined if not taken yet
@@ -29,10 +30,45 @@ function attemptLog(job: JobPosting, candidate: User, testId: string) {
   return [...finished, ...unsubmitted].sort((a, b) => a.at.localeCompare(b.at));
 }
 
-// A job simulation as the job's candidates take it: without the AI assistant when the company turned it off
+// The AI condition a job's simulations run under: the company's choice, or "No AI" for a job saved with the AI
+// assistant turned off, else each simulation's own
+export const jobAiMode = (job: JobPosting): AiMode | undefined => job.aiMode ?? (job.aiInSimulations === false ? 'none' : undefined);
+
+// A job simulation as the job's candidates take it, under the job's AI condition (src/lib/capabilities.ts):
+//   none       no AI assistant or agents, and the AI overlay's checks taken out (no AI score)
+//   permitted  AI there to use; delegating to an agent is optional (unused, it isn't scored)
+//   required   AI there and its use scored
+//   agents     as required, with the agents (a simulation without agents runs as required)
 export function withJobAi(test: AssessmentTest, job: JobPosting): AssessmentTest {
-  if (job.aiInSimulations !== false || !test.questions.some((q) => q.type === 'desktop' && q.desktop)) return test;
-  return { ...test, questions: test.questions.map((q) => (q.type === 'desktop' && q.desktop ? { ...q, desktop: { ...q.desktop, apps: q.desktop.apps.filter((a) => a !== 'ai') } } : q)) };
+  const mode = jobAiMode(job);
+  if (!mode || !test.questions.some((q) => q.type === 'desktop' && q.desktop)) return test;
+  return {
+    ...test,
+    ...(mode === 'none' && test.scenarioWithoutAi && test.scenario && { scenario: { ...test.scenario, brief: test.scenarioWithoutAi } }),
+    questions: test.questions.map((q) => {
+      if (q.type !== 'desktop' || !q.desktop) return q;
+      if (mode === 'none') {
+        // The AI overlay taken out whole: its apps, emails, briefs and checks, so the day reads as if it never had AI
+        const d = q.desktop;
+        const { agents: _agents, ...work } = d.work ?? {};
+        return {
+          ...q,
+          prompt: q.prompt.replace(AGENTS_NOTE, ''),
+          desktop: {
+            ...d,
+            aiMode: mode,
+            apps: d.apps.filter((a) => a !== 'ai' && a !== 'agents'),
+            ...(d.work && { work }),
+            inbox: d.inbox.flatMap((m) => (m.withoutAi === null ? [] : [m.withoutAi ? { ...m, ...m.withoutAi } : m])),
+            ...(d.phases && { phases: d.phases.map((p) => (p.briefWithoutAi ? { ...p, brief: p.briefWithoutAi } : p)) }),
+          },
+          testCases: q.testCases.filter((tc) => !tc.capability),
+        };
+      }
+      const apps = q.desktop.apps.includes('ai') ? q.desktop.apps : [...q.desktop.apps, 'ai'];
+      return { ...q, desktop: { ...q.desktop, aiMode: mode, apps } };
+    }),
+  };
 }
 // Whether a test's simulation had the AI assistant on its desktop
 export const simHasAi = (test: AssessmentTest) => test.questions.some((q) => q.type === 'desktop' && !!q.desktop?.apps.includes('ai'));

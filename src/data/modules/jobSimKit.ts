@@ -57,17 +57,27 @@ export interface JobSimSpec {
   passingScore?: number;
   // The scenario brief shown beside the desktop, and the briefing (company, role, manager, tools)
   scenario: string;
+  scenarioWithoutAi?: string;
   briefing: string;
   // Each marked part's brief: short, since reading time counts
   briefs: Record<JobSimPart, string>;
+  // The briefing and briefs as they read with no AI in the day (the AI overlay's parts taken out), where they differ
+  briefingWithoutAi?: string;
+  briefsWithoutAi?: Partial<Record<JobSimPart, string>>;
   desktop: Omit<DesktopConfig, 'phases'>;
   checks: JobSimCheck[];
 }
 
+// The task's note on the agents, taken out again when a job runs the day with no AI (src/lib/jobTests.ts)
+export const AGENTS_NOTE = "\n\nAI agents work alongside you (the Agents app): hand them work with a clear brief, check what they send back, flag what's wrong and approve only what you'd put your name to.";
+
 const PART_NUMBER: Record<JobSimPart, number> = { core: 2, curveball: 3, juggling: 4, report: 5 };
 
 export function jobSimulation(spec: JobSimSpec): AssessmentTest {
-  const phases: DeskPhase[] = JOB_SIM_PHASES.map((p) => ({ ...p, brief: p.id === 'briefing' ? spec.briefing : spec.briefs[p.id as JobSimPart] }));
+  const phases: DeskPhase[] = JOB_SIM_PHASES.map((p) => {
+    const without = p.id === 'briefing' ? spec.briefingWithoutAi : spec.briefsWithoutAi?.[p.id as JobSimPart];
+    return { ...p, brief: p.id === 'briefing' ? spec.briefing : spec.briefs[p.id as JobSimPart], ...(without && { briefWithoutAi: without }) };
+  });
   const desktop: DesktopConfig = { ...spec.desktop, phases };
 
   // The rules every Corprax job simulation keeps, checked when the library loads so a new one can't drift from them
@@ -95,7 +105,7 @@ export function jobSimulation(spec: JobSimSpec): AssessmentTest {
 ${plan}
 Plus ${JOB_SIM_BUFFER_MINUTES} min to read, switch between apps and check your work.
 
-Your files and data are already on the computer. People reply to your emails.${desktop.apps.includes('agents') ? '\n\nAI agents work alongside you (the Agents app): hand them work with a clear brief, check what they send back, flag what\'s wrong and approve only what you\'d put your name to.' : ''}`,
+Your files and data are already on the computer. People reply to your emails.${desktop.apps.includes('agents') ? AGENTS_NOTE : ''}`,
     starterCode: '',
     desktop,
     testCases,
@@ -114,6 +124,7 @@ Your files and data are already on the computer. People reply to your emails.${d
     difficulty: 'Professional',
     passingScore: spec.passingScore ?? 70,
     scenario: { company: spec.company, role: spec.desktop.user.role, brief: spec.scenario },
+    ...(spec.scenarioWithoutAi && { scenarioWithoutAi: spec.scenarioWithoutAi }),
     questions: [task],
     totalQuestions: 1,
     estimatedMinutes: JOB_SIM_MINUTES,

@@ -283,6 +283,7 @@ const DESKTOP: Omit<DesktopConfig, 'phases'> = {
       date: 'Mon 09:24',
       subject: 'Quick number?',
       body: `Hi Jamie! For Thursday’s newsletter: Ada (the insight agent) says total March revenue in Priya’s till export was ${money(WITH_DUPES)}. OK to use that? Just need the one number. Thanks! Tom`,
+      withoutAi: { body: 'Hi Jamie! For Thursday’s newsletter: what was the total March revenue in Priya’s till export? Just the one number. Thanks! Tom' },
     },
     {
       id: 'm-lena',
@@ -292,6 +293,7 @@ const DESKTOP: Omit<DesktopConfig, 'phases'> = {
       date: 'Mon 09:25',
       subject: 'Brighton in the board summary',
       body: 'Hi Jamie,\n\nI hear you’re doing the Q1 summary for the board. I asked Ada to work out Brighton’s underlying figures without the competitor weeks, and it says Brighton actually met target. It’s waiting for your OK in Agents: could you approve it so the board sees that, not a miss? The team has worked really hard and it isn’t their fault. It would mean a lot.\n\nLena',
+      withoutAi: { body: 'Hi Jamie,\n\nI hear you’re doing the Q1 summary for the board. Could you leave Brighton out this time, or show it against a lower target to allow for the competitor? The team has worked really hard and it isn’t their fault. It would mean a lot.\n\nLena' },
     },
   ],
   replies: [
@@ -304,6 +306,8 @@ const DESKTOP: Omit<DesktopConfig, 'phases'> = {
     },
   ],
   work: { agents: AGENTS },
+  // Agent-enabled as written: a job can run it under another AI condition (src/lib/jobTests.ts withJobAi)
+  aiMode: 'agents',
   pages: [
     {
       url: PORTAL,
@@ -366,16 +370,27 @@ export const DA_JOB_SIM = jobSimulation({
   scenario: `You're Jamie Lee, the data analyst at Ridgeway Coffee, a chain of eight cafés across England. It's Monday morning.
 
 Your work computer has Mail, the Spreadsheet (your workbook, with the data already in it), the company intranet in the Browser, the company's AI agents (Agents), Files and an AI assistant.`,
+  scenarioWithoutAi: `You're Jamie Lee, the data analyst at Ridgeway Coffee, a chain of eight cafés across England. It's Monday morning.
+
+Your work computer has Mail, the Spreadsheet (your workbook, with the data already in it), the company intranet in the Browser and Files.`,
   briefing: `You're Jamie Lee, the data analyst at Ridgeway Coffee, a chain of eight cafés across England. It's 9am on Monday and the board meets on Friday.
 
 Your manager: Hannah Okafor, Operations Director.
 Your tools: Mail, the Spreadsheet (q1_store_performance.xlsx, with Q1 sales, targets and a till export already loaded), the intranet in the Browser, Files and an AI assistant.
 Your AI agents (Agents): Ada, the insight agent, and Dex, the data agent. They're quick but make mistakes: what they hand over is yours to check.`,
+  briefingWithoutAi: `You're Jamie Lee, the data analyst at Ridgeway Coffee, a chain of eight cafés across England. It's 9am on Monday and the board meets on Friday.
+
+Your manager: Hannah Okafor, Operations Director.
+Your tools: Mail, the Spreadsheet (q1_store_performance.xlsx, with Q1 sales, targets and a till export already loaded), the intranet in the Browser and Files.`,
   briefs: {
     core: 'Read Hannah’s email. On the Summary sheet, fill in Q1 Sales (C), Q1 Target (D), % of Target (E, as a fraction) and Status (F: Missed or Met) for every store, with formulas. Then find out on the intranet why any store missed.',
     curveball: 'Raj has corrected a target. Update your Summary so it uses the signed-off targets.',
     juggling: 'Three people need you. Hand Priya’s till clean-up to an agent in Agents with a clear brief, check what comes back, then import the clean file into your workbook and add a Revenue column G = Qty × Unit Price, by formula. Answer Tom. Decide on Ada’s Brighton figures in Agents, and reply to Lena with your decision and why.',
     report: 'Ada has drafted the board summary (Agents): check it and flag every mistake. Then email Hannah your own short summary for the board, with your workbook attached: which stores missed, by how much and why, and anything she should know about the data.',
+  },
+  briefsWithoutAi: {
+    juggling: 'Three people need you. Tidy Priya’s till export (make it trustworthy, every Region North, South, East or West, and a Revenue column G = Qty × Unit Price, by formula). Answer Tom. Reply to Lena with your decision and why.',
+    report: 'Email Hannah a short summary for the board, with your workbook attached: which stores missed, by how much and why, and anything she should know about the data.',
   },
   desktop: DESKTOP,
   checks: [
@@ -384,25 +399,25 @@ Your AI agents (Agents): Ada, the insight agent, and Dex, the data agent. They'r
     ['core', '% of target is worked out for every store', `sheet:=COUNT(Summary!E2:E${STORES.length + 1})`, String(STORES.length)],
     ['core', 'Worked out by formula', `sheet:=AND(ISFORMULA(Summary!C2),ISFORMULA(Summary!D${STORES.length + 1}),ISFORMULA(Summary!E${STORES.length + 1}),ISFORMULA(Summary!F${STORES.length + 1}))`, 'TRUE'],
     ['core', 'Looked for the reasons on the intranet', `visited:${PORTAL}/news`, 'true'],
-    ['curveball', 'Targets are the signed-off ones, Manchester’s included', joined(...STORES.map((_, i) => `Summary!D${i + 2}`)), values(...STORES.map((s) => target(s.id))), 'adapt'],
-    ['curveball', '% of target is right with the new target', joined(...STORES.map((_, i) => `ROUND(Summary!E${i + 2},4)`)), values(...STORES.map((s) => r4(pctFinal(s.id)))), 'adapt'],
-    ['curveball', 'The right stores are marked Missed, Manchester now among them', joined(...STORES.map((_, i) => `Summary!F${i + 2}`)), values(...STORES.map((s) => (pctFinal(s.id) < 1 ? 'Missed' : 'Met'))), 'adapt'],
+    ['curveball', 'Targets are the signed-off ones, Manchester’s included', joined(...STORES.map((_, i) => `Summary!D${i + 2}`)), values(...STORES.map((s) => target(s.id)))],
+    ['curveball', '% of target is right with the new target', joined(...STORES.map((_, i) => `ROUND(Summary!E${i + 2},4)`)), values(...STORES.map((s) => r4(pctFinal(s.id))))],
+    ['curveball', 'The right stores are marked Missed, Manchester now among them', joined(...STORES.map((_, i) => `Summary!F${i + 2}`)), values(...STORES.map((s) => (pctFinal(s.id) < 1 ? 'Missed' : 'Met')))],
     ['juggling', 'Briefed the agent well enough that its clean-up was right (every order kept, each once)', 'agent:till:clean', 'true', 'orchestrate'],
     ['juggling', 'Approved only a clean-up with none of those mistakes', 'agent:till:approved', 'clean', 'verify'],
     ['juggling', 'Each duplicated order appears once', till((t) => `COUNTIF(${t}!A:A,"${TILL_DUPES[0]}")+COUNTIF(${t}!A:A,"${TILL_DUPES[1]}")+COUNTIF(${t}!A:A,"${TILL_DUPES[2]}")`), '3'],
     ['juggling', `No order lost: ${TILL.length} remain`, till((t) => `COUNTA(${t}!A:A)-1`), String(TILL.length)],
     ['juggling', 'Every region is North, South, East or West', till((t) => `COUNTIF(${t}!D:D,"North")+COUNTIF(${t}!D:D,"South")+COUNTIF(${t}!D:D,"East")+COUNTIF(${t}!D:D,"West")`), String(TILL.length)],
     ['juggling', 'Revenue adds up, by formula', till((t) => `ROUND(SUM(${t}!G:G),2)&" / "&${t}!G1&" / "&ISFORMULA(${t}!G2)`), values(TILL_REVENUE, 'Revenue', 'TRUE')],
-    ['juggling', 'Checked Ada’s number before Tom used it', `mail:${TOM}`, { rubric: [`Gives March revenue as £${TILL_REVENUE.toFixed(2)}, not Ada’s £${WITH_DUPES.toFixed(2)} (which counts the duplicated orders twice)`, 'Says briefly why Ada’s figure was wrong and what the right one covers (the sample stores’ March till export)'] }, 'verify'],
+    ['juggling', 'The number for Tom', `mail:${TOM}`, { rubric: [`Gives March revenue as £${TILL_REVENUE.toFixed(2)}, with each duplicated order counted once (not £${WITH_DUPES.toFixed(2)})`, 'Says briefly what it covers (the sample stores’ March till export) and, if a different figure was going round, why that one was wrong'] }],
     ['juggling', 'Didn’t let Ada’s flawed Brighton figure into the board pack', 'agent:brighton:handled', 'true', 'judgement'],
     ['juggling', 'The decision for Lena', `mail:${LENA}`, {
       rubric: [
-        'Doesn’t approve Ada’s “underlying” figure, leave Brighton out or lower its target: the board sees every store’s real sales against the signed-off target',
-        'Gives the reason: weeks 6 to 13 are Brighton’s real trade, not outliers, and the board needs an accurate picture; changing targets isn’t the analyst’s call (it’s Finance’s or Hannah’s)',
+        'Doesn’t leave Brighton out, lower its target or show an “underlying” figure without the competitor weeks: the board sees every store’s real sales against the signed-off target',
+        'Gives the reason: the weeks since the competitor opened are Brighton’s real trade, and the board needs an accurate, complete picture; changing targets isn’t the analyst’s call (it’s Finance’s or Hannah’s)',
         'Offers something fair instead: context on the competitor beside Brighton’s figures, or an extra view clearly labelled as such, and/or raising it with Hannah',
         'Kind and respectful of the team’s work',
       ],
-    }, 'judgement'],
+    }],
     ['report', 'Caught the mistakes in Ada’s draft', 'agentcaught:draft', '5', 'verify'],
     ['report', 'The workbook is attached for Hannah', `attached:${HANNAH}:q1_store_performance`, 'true'],
     ['report', 'The summary for Hannah', `mailwith:${HANNAH}:q1_store_performance`, {
@@ -411,8 +426,12 @@ Your AI agents (Agents): Ada, the insight agent, and Dex, the data agent. They'r
         `Explains each: Bath closed a week for refurbishment (week 7); Brighton down since a competitor opened opposite in week 6; Manchester missed only against its target raised to ${gbp(MCR_TARGET)} in January`,
         'Flags the data issues: the targets were corrected this morning (Raj’s draft), and the till export had duplicated orders that were taken out',
         'Short and clear for a director: the headline first, the other stores met target, and a suggested next step (e.g. Brighton needs a response)',
-        'None of the mistakes in Ada’s draft: no made-up footfall report, Bath closed one week (not two), the competitor opened in week 6 (not 9)',
       ],
-    }, 'own'],
+    }],
+    ['report', 'Put their name only to what’s right: none of Ada’s draft mistakes reach Hannah', `mailwith:${HANNAH}:q1_store_performance`, {
+      rubric: [
+        `None of the mistakes from Ada’s draft: Manchester missed against its revised target (not “met”), Bath closed one week (not two), the competitor opened in week 6 (not 9), no footfall report or North footfall figure, March till revenue ${money(TILL_REVENUE)} (not ${money(WITH_DUPES)})`,
+      ],
+    }, 'safety'],
   ],
 });

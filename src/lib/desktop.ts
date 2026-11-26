@@ -1,5 +1,5 @@
 import { parseAddress } from './emailTasks';
-import { CaseFile, DataTable, EmailContact, Question } from '../types';
+import { AiMode, CaseFile, DataTable, EmailContact, Question } from '../types';
 import { checkSheet, parseWorkbook } from './spreadsheet';
 import { matchesExpected, parseAppState, readPath } from './appSimulation';
 import { roughWrittenMark } from './questionTypes';
@@ -49,6 +49,8 @@ export interface DeskEmail {
   attachments?: CaseFile[];
   // The phase this email lands in (its id), for a curveball or a new demand; without one it's waiting at the start
   phase?: string;
+  // How it reads with no AI in the day (the AI overlay's mentions taken out); null: it isn't sent at all
+  withoutAi?: { subject?: string; body?: string } | null;
 }
 
 // A phase of a timed job simulation (see src/data/modules/jobSimKit.ts): Briefing, Core task, Curveball, Juggling
@@ -62,6 +64,8 @@ export interface DeskPhase {
   scored: boolean;
   // What's asked now, shown on the desktop as the phase starts (kept short: reading time counts)
   brief: string;
+  // The brief with no AI in the day
+  briefWithoutAi?: string;
 }
 
 // Someone who writes back: when the candidate sends an email to this address that matches, the reply arrives
@@ -146,6 +150,8 @@ export interface DesktopConfig {
   phases?: DeskPhase[];
   // The work apps' starting data (chat, help desk, CRM, docs, BI, forms, calendar, knowledge base, board): see deskApps.ts
   work?: DeskAppsConfig;
+  // The AI condition it runs under (src/lib/capabilities.ts AI_MODES); unset is as written
+  aiMode?: AiMode;
 }
 
 export interface SentEmail {
@@ -373,6 +379,11 @@ export function checkDesktop(q: Question, answer: string, testsPassed: Record<st
   const state = parseDesktop(answer, cfg);
   const wb = parseWorkbook(state.workbook);
   return q.testCases.map((tc) => {
+    const r = checkOne(tc);
+    // AI permitted: delegating to an agent was optional, so not doing it is left out of the score, not marked wrong
+    return unusedAgent(cfg, state, tc) ? { ...r, skipped: true } : r;
+  });
+  function checkOne(tc: Question['testCases'][number]) {
     if (tc.input.startsWith('test:')) {
       const passed = !!testsPassed[tc.input.slice(5)];
       return { id: tc.id, description: tc.description, passed, input: tc.input, expected: 'passes', actual: passed ? 'passes' : 'fails', executionMs: 0 };
@@ -397,6 +408,15 @@ export function checkDesktop(q: Question, answer: string, testsPassed: Record<st
       return { id: tc.id, description: tc.description, passed: false, credit, input: tc.input, expected: tc.rubric.join(' · '), actual: text || '(nothing written)', executionMs: 0 };
     }
     const shown = actual === undefined ? '(not set)' : typeof actual === 'string' ? actual : JSON.stringify(actual);
-    return { id: tc.id, description: tc.description, passed: matchesExpected(actual, tc.expectedOutput), input: tc.input, expected: tc.expectedOutput, actual: shown, executionMs: 0 };
-  });
+    return { id: tc.id, description: tc.description, passed: matchesExpected(actual, tc.expectedOutput), input: tc.input, expected: tc.expectedOutput, actual: shown, executionMs: 0 } as { id: string; description: string; passed: boolean; credit?: number; skipped?: boolean; input: string; expected: string; actual: string; executionMs: number };
+  }
+}
+
+// A check on work the candidate could hand to an agent, under "AI permitted", when they didn't: it doesn't count
+function unusedAgent(cfg: DesktopConfig, state: DesktopState, tc: Question['testCases'][number]) {
+  if (cfg.aiMode !== 'permitted' || !tc.capability) return false;
+  const m = tc.input.match(/^agent(?:flag|caught|opened)?:([^:]+)/);
+  const t = m && cfg.work?.agents?.tasks.find((x) => x.id.toLowerCase() === m[1].trim().toLowerCase());
+  // Work a colleague already handed an agent is there to review, used or not; only work they could delegate is optional
+  return !!t && !t.agent && !(state.desk?.agents?.tasks?.[t.id]?.runs?.length);
 }

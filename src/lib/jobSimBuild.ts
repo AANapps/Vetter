@@ -55,7 +55,8 @@ export interface RawJobSim {
   // The built-in work apps' data as JSON text (see server/writeJobSim.ts)
   work?: string;
   project: { name: string; files: { name: string; content: string; readonly: boolean }[]; testFile: string; checks: { id: string; code: string }[] };
-  inbox: (RawMail & { id: string; phase: string; to: string[]; cc: string[]; date: string })[];
+  inbox: (RawMail & { id: string; phase: string; to: string[]; cc: string[]; date: string; bodyWithoutAi?: string })[];
+  briefsWithoutAi?: Partial<Record<JobSimPart, string>>;
   replies: { id: string; to: string; mustMention: string[][]; mustAttach: string; reply: RawMail; otherwise: RawMail }[];
   checks: { part: JobSimPart; description: string; input: string; expected: string; rubric: string[]; capability?: string }[];
   // Apps from Corprax's app library on the desktop, as the world asked for them, and software to build for the day
@@ -135,6 +136,7 @@ function desktopOf(raw: RawJobSim): Omit<DesktopConfig, 'phases'> {
       ...(m.cc?.length && { cc: m.cc.map(addressOf) }),
       date: m.date || raw.time,
       ...(m.phase && { phase: m.phase }),
+      ...(m.bodyWithoutAi?.trim() && { withoutAi: { body: m.bodyWithoutAi } }),
     })),
     replies: (raw.replies ?? []).map((r) => ({
       id: r.id,
@@ -412,7 +414,9 @@ export function assembleJobSim(raw: RawJobSim, business?: Business, lenient = fa
       const t = desktop.work?.agents?.tasks.find((x) => lower(x.id) === lower(c[2].slice(12)));
       if (t && (!t.agent || t.pitfalls.length !== 5)) problems.push(`Agent task ${t.id} is checked with agentcaught, so it must be handed out already (agent and brief set) with exactly five pitfalls.`);
     }
-    if (checks.filter((c) => c[4]).length < 5) problems.push('Fewer than five checks have a capability: tag them (orchestrate, verify, judgement, adapt, own, fluency).');
+    if (checks.filter((c) => c[4]).length < 3) problems.push('Fewer than three checks have a capability: tag the AI layer\'s checks (orchestrate, verify, judgement, safety…).');
+    const mentionsAi = (t: string) => /\b(agent|agents|AI)\b/.test(t) || (desktop.work?.agents?.agents ?? []).some((a) => new RegExp(`\\b${a.name}\\b`).test(t));
+    for (const m of desktop.inbox) if (mentionsAi(m.body) && !m.withoutAi) problems.push(`Email ${m.id} mentions the AI agents but has no bodyWithoutAi (the day must also work with no AI).`);
   }
 
   const category = (categoriesFor(companySector(business)) as string[]).includes(raw.category) ? (raw.category as SkillCategory) : categoriesFor(companySector(business))[0] ?? ('Consulting' as SkillCategory);
@@ -432,6 +436,7 @@ export function assembleJobSim(raw: RawJobSim, business?: Business, lenient = fa
       scenario: raw.scenario,
       briefing: raw.briefing,
       briefs: raw.briefs,
+      briefsWithoutAi: Object.fromEntries(Object.entries(raw.briefsWithoutAi ?? {}).filter(([, v]) => String(v ?? '').trim())),
       desktop,
       checks,
     });
