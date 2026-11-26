@@ -268,7 +268,7 @@ function workProblems(raw: RawJobSim, w: DeskAppsConfig): string[] {
 const WORK_APP_OF: Record<string, DeskWorkApp> = { agent: 'agents', agentflag: 'agents', agentcaught: 'agents', agentopened: 'agents', chat: 'chat', chatcount: 'chat', chatreceived: 'chat', ticket: 'helpdesk', tickets: 'helpdesk', record: 'crm', recordwhere: 'crm', records: 'crm', crmnote: 'crm', event: 'calendar', eventwith: 'calendar', eventat: 'calendar', response: 'calendar', form: 'forms', formcount: 'forms', kbviewed: 'kb', item: 'board', itemwhere: 'board', items: 'board', chart: 'bi', charts: 'bi' };
 // The built-in apps' check kinds, and those that read writing (so may have a rubric)
 const WORK_CHECKS = ['agent', 'agentflag', 'agentcaught', 'agentopened', 'file', 'filerows', 'chat', 'chatcount', 'chatreceived', 'ticket', 'tickets', 'record', 'recordwhere', 'records', 'crmnote', 'event', 'eventwith', 'eventat', 'response', 'form', 'formcount', 'kbviewed', 'item', 'itemwhere', 'items', 'chart', 'charts'];
-const writingCheck = (kind: string, rest: string) => ['chat', 'file', 'crmnote'].includes(kind) || (kind === 'agent' && /:(note|notes|brief|flagnotes)$/.test(rest)) || (kind === 'ticket' && /:(reply|note)$/.test(rest)) || (kind === 'item' && /:comments$/.test(rest)) || kind === 'form';
+const writingCheck = (kind: string, rest: string) => ['chat', 'file', 'crmnote'].includes(kind) || (kind === 'agent' && /:(note|notes|brief|flagnotes|output)$/.test(rest)) || (kind === 'ticket' && /:(reply|note)$/.test(rest)) || (kind === 'item' && /:comments$/.test(rest)) || kind === 'form';
 
 export interface AssembledJobSim {
   test?: AssessmentTest;

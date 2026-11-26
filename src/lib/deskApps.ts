@@ -2,6 +2,9 @@ import { CaseFile } from '../types';
 import { fileGrid, fileText } from './deskData';
 import type { AutomationsConfig, AutomationsState } from './automations';
 import { lastRunOn } from './automations';
+import type { MockApiConfig, MockApiState } from './mockApi';
+import { apiValue } from './mockApi';
+import type { McpConfig, McpState } from './mcp';
 
 /**
  * The desktop's work apps beyond Mail, Browser, Files, Spreadsheet, Database and Code: each filled from the job
@@ -20,9 +23,11 @@ import { lastRunOn } from './automations';
  *   agents     AI agents the candidate briefs, supervises and checks: live AI with blind spots
  *   automations  Zapier/n8n-style workflows the candidate builds, run on a source's events into the other apps
  *                (src/lib/automations.ts)
+ *   api        a Postman-style console on the company's REST API, simulated (src/lib/mockApi.ts)
+ *   mcp        AI tools: the tools (MCP-style) a live AI agent gets on that API, tried on customer requests (src/lib/mcp.ts)
  */
 
-export type DeskWorkApp = 'chat' | 'helpdesk' | 'crm' | 'docs' | 'bi' | 'forms' | 'calendar' | 'kb' | 'board' | 'agents' | 'automations';
+export type DeskWorkApp = 'chat' | 'helpdesk' | 'crm' | 'docs' | 'bi' | 'forms' | 'calendar' | 'kb' | 'board' | 'agents' | 'automations' | 'api' | 'mcp';
 
 // ---------- Chat ----------
 export interface ChatMessage {
@@ -349,6 +354,8 @@ export interface DeskAppsConfig {
   board?: BoardConfig;
   agents?: AgentsConfig;
   automations?: AutomationsConfig;
+  api?: MockApiConfig;
+  mcp?: McpConfig;
 }
 
 export interface DeskAppsState {
@@ -362,6 +369,8 @@ export interface DeskAppsState {
   board?: { items: Record<string, BoardItem[]> };
   agents?: { tasks: Record<string, AgentTaskWork>; opened?: string[] };
   automations?: AutomationsState;
+  api?: MockApiState;
+  mcp?: McpState;
 }
 
 const lower = (s: string) => s.trim().toLowerCase();
@@ -531,7 +540,8 @@ export function chartData(ch: BiChart, ds: Dataset | undefined): { labels: strin
  *                                    spot: true/false), slips (the latest run's blind spots, comma-joined), runs (how
  *                                    many), decision (approved/rejected/returned or ''), approved (clean/flawed or ''),
  *                                    note (with the decision), notes (everything they told it), flags, flagnotes, asked,
- *                                    handled (rejected, sent back, or approved only clean work: for a judgement call)
+ *                                    handled (rejected, sent back, or approved only clean work: for a judgement call),
+ *                                    output (what its latest run handed back, for a rubric)
  *   agentflag:<task>:<pitfall id>    whether they flagged a line where the agent fell into that blind spot
  *   agentcaught:<task>               the first run's planted mistakes caught, "n/total" (partial credit, less for false
  *                                    alarms)
@@ -542,6 +552,12 @@ export function chartData(ch: BiChart, ds: Dataset | undefined): { labels: strin
  *   recordsjoin:<object>:<field>     every record's field, sorted, ", " between (what's in the CRM now)
  *   chatmentions:<channel>:<a|b|…>   whether every one of the words is in some message the candidate (or their
  *                                    automation) posted there
+ *   apirec:, apicount:, apicalls:    the company API's records and the calls made (src/lib/mockApi.ts apiValue)
+ *   mcptool:<operation>              whether an AI tool uses that API operation; mcpconfirm:<operation> whether it
+ *                                    exists and needs a person's OK every time; mcpsafe:<operation> whether the agent
+ *                                    has tools and none can do it; mcpdescs the tools' names and descriptions (rubric)
+ *   mcpmentions:<scenario>:<a|b|…>   whether the agent's last reply in that tryout has every one of the words
+ *   mcpcalled:<scenario>:<operation> whether the agent used that operation successfully in that tryout
  */
 export function deskAppValue(
   apps: DeskAppsConfig,
@@ -672,6 +688,8 @@ export function deskAppValue(
         flags: (w?.flags ?? []).length,
         flagnotes: (w?.flags ?? []).map((f) => `${f.text} — ${f.note}`).join('\n'),
         asked: (w?.chat ?? []).filter((m) => m.role === 'user').length,
+        // What the latest run handed back (marked against a rubric)
+        output: last?.output ?? '',
       };
       return { known: true, value: v[field ?? ''] };
     }
@@ -701,6 +719,33 @@ export function deskAppValue(
       const words = rest2.join(':').split('|').map(lower).filter(Boolean);
       const posts = (work.chat?.posts ?? []).filter((p) => p.channel === channel).map((p) => lower(p.text));
       return { known: true, value: words.every((wd) => posts.some((p) => p.includes(wd))) };
+    }
+    case 'apirec':
+    case 'apicount':
+    case 'apicalls':
+      return { known: true, value: apps.api ? apiValue(apps.api, work.api, kind, parts) : undefined };
+    case 'mcptool':
+    case 'mcpconfirm':
+    case 'mcpsafe': {
+      const all = work.mcp?.tools ?? apps.mcp?.tools ?? [];
+      const tools = all.filter((t) => t.op === rest);
+      // mcpsafe: the agent has tools, and none of them can do that
+      if (kind === 'mcpsafe') return { known: true, value: all.length > 0 && !tools.length };
+      return { known: true, value: kind === 'mcptool' ? tools.length > 0 : tools.length > 0 && tools.every((t) => t.confirm) };
+    }
+    case 'mcpdescs':
+      return { known: true, value: (work.mcp?.tools ?? apps.mcp?.tools ?? []).map((t) => `${t.name}: ${t.description}`).join('\n') };
+    case 'mcpmentions': {
+      const [scenario, ...words] = parts;
+      const final = lower(work.mcp?.runs?.[scenario]?.final ?? '');
+      const want = words.join(':').split('|').map(lower).filter(Boolean);
+      return { known: true, value: !!final && want.every((w) => final.includes(w)) };
+    }
+    case 'mcpcalled': {
+      const [scenario, op] = parts;
+      const run = work.mcp?.runs?.[scenario];
+      const names = (work.mcp?.tools ?? apps.mcp?.tools ?? []).filter((t) => t.op === op).map((t) => t.name);
+      return { known: true, value: !!run?.steps.some((st) => st.kind === 'tool' && names.includes(st.tool ?? '') && (st.status ?? 500) < 400) };
     }
     default:
       if (kind === 'charts') return { known: true, value: (work.bi?.charts ?? []).length };

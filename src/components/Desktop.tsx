@@ -35,7 +35,7 @@ import { ChatMessages } from './AiChat';
 import { AppWindow } from './AppWindow';
 import { CodeField } from './CodeField';
 import { DeskProject, TestRun, runDeskTests } from '../lib/deskCode';
-import { BarChart3, BookOpen, CalendarDays, ClipboardList, Contact, FileType2, Headphones, KanbanSquare, MessagesSquare, Sparkles, Users, Zap } from 'lucide-react';
+import { BarChart3, BookOpen, CalendarDays, ClipboardList, Contact, FileType2, Headphones, KanbanSquare, MessagesSquare, Sparkles, Users, Wrench, Zap } from 'lucide-react';
 import { PeopleApp } from './desk/PeopleApp';
 import { Avatar as DeskAvatar, DeskCtx } from './desk/shared';
 import { FilesApp, Folder } from './desk/FilesApp';
@@ -49,6 +49,8 @@ import { CalendarApp } from './desk/CalendarApp';
 import { KbApp } from './desk/KbApp';
 import { AgentsApp } from './desk/AgentsApp';
 import { AutomationsApp } from './desk/AutomationsApp';
+import { ApiConsoleApp } from './desk/ApiConsoleApp';
+import { McpApp } from './desk/McpApp';
 import { BoardApp } from './desk/BoardApp';
 import { freeName, gridFromClipboard, gridToText } from '../lib/deskData';
 import { Files, GitBranch, LayoutGrid, Check, ChevronDown, ChevronUp, Clock, Search, Square, Copy, Wifi, Volume2, BatteryMedium, Bell } from 'lucide-react';
@@ -80,6 +82,8 @@ const APPS: Record<DeskApp, { label: string; Icon: React.ComponentType<{ classNa
   board: { label: 'Projects', Icon: KanbanSquare, tint: 'bg-rose-500' },
   agents: { label: 'Agents', Icon: Sparkles, tint: 'bg-violet-700' },
   automations: { label: 'Automations', Icon: Zap, tint: 'bg-orange-600' },
+  api: { label: 'API console', Icon: Send, tint: 'bg-[#ff6c37]' },
+  mcp: { label: 'AI Tools', Icon: Wrench, tint: 'bg-teal-700' },
   people: { label: 'People', Icon: Contact, tint: 'bg-cyan-700' },
 };
 
@@ -401,6 +405,10 @@ export const Desktop: React.FC<{ question: Question; answer: string; onChange: (
         return work.agents ? <AgentsApp ctx={ctx} cfg={work.agents} /> : null;
       case 'automations':
         return work.automations ? <AutomationsApp ctx={ctx} cfg={work.automations} /> : null;
+      case 'api':
+        return work.api ? <ApiConsoleApp ctx={ctx} cfg={work.api} /> : null;
+      case 'mcp':
+        return work.mcp ? <McpApp ctx={ctx} cfg={work.mcp} /> : null;
       case 'code':
         return cfg.project ? <CodeApp project={cfg.project} files={state.code ?? {}} onFiles={(code) => save({ code: { ...(latest.current.code ?? {}), ...code } })} /> : null;
       case 'ai':

@@ -1,6 +1,7 @@
 import { CaseFile } from '../types';
 import type { ChatPost, CrmConfig, DeskAppsConfig, DeskAppsState, HelpdeskConfig, TicketWork } from './deskApps';
 import { toCsv } from './csv';
+import { MockApiConfig, MockApiState, callApi } from './mockApi';
 
 /**
  * Automations on the desktop (the Automations app, src/components/desk/AutomationsApp.tsx): Zapier/n8n-style
@@ -32,7 +33,8 @@ export type FlowStep =
   | { id: string; kind: 'crm'; object: string; values: Record<string, string> }
   | { id: string; kind: 'chat'; channel: string; text: string }
   | { id: string; kind: 'ticket'; ticket: string; status: string; priority: string; tags: string }
-  | { id: string; kind: 'row'; file: string; values: Record<string, string> };
+  | { id: string; kind: 'row'; file: string; values: Record<string, string> }
+  | { id: string; kind: 'http'; method: string; url: string; headers: string; body: string };
 export type StepKind = FlowStep['kind'];
 
 export const STEP_INFO: Record<StepKind, { label: string; about: string }> = {
@@ -44,6 +46,7 @@ export const STEP_INFO: Record<StepKind, { label: string; about: string }> = {
   chat: { label: 'Post in Chat', about: 'Post a message to a channel' },
   ticket: { label: 'Update ticket', about: 'Change a help desk ticket' },
   row: { label: 'Add CSV row', about: 'Add a row to a CSV file in Files' },
+  http: { label: 'HTTP request', about: 'Call an API (the response is saved as http_status and http_response)' },
 };
 
 export interface Flow {
@@ -88,6 +91,8 @@ export interface FlowEffects {
   chat: number[]; // the posts' times (ids)
   tickets: Record<string, TicketWork | null>; // each ticket's work before the run (null: none)
   files: string[];
+  // The company API's state before the run, put back when it runs again
+  api?: MockApiState | null;
 }
 
 export interface AutomationsState {
@@ -176,6 +181,7 @@ export function undoEffects(work: DeskAppsState, apps: DeskAppsConfig, e: FlowEf
     }
     next.helpdesk = { ...next.helpdesk, tickets };
   }
+  if (e.api !== undefined) next.api = e.api ?? undefined;
   return { work: next, files: files.filter((f) => !e.files.includes(f.name)) };
 }
 
@@ -346,6 +352,33 @@ export async function runFlow(flow: Flow, source: FlowSource, w: RunWorld, test:
             work = { ...work, helpdesk: { ...(work.helpdesk ?? { tickets: {} }), tickets: { ...(work.helpdesk?.tickets ?? {}), [t.id]: { ...(cur ?? {}), ...patch, ...(tags.length && { tags: [...new Set([...(cur?.tags ?? t.tags ?? []), ...tags])] }) } } } };
           }
           logs[i].lines.push(`${label}: ${test ? 'would set' : 'set'} ticket ${t.id}${patch.priority ? ` priority ${patch.priority}` : ''}${patch.status ? ` status ${patch.status}` : ''}${tags.length ? ` tags ${tags.join(', ')}` : ''}`);
+          break;
+        }
+        case 'http': {
+          const api: MockApiConfig | undefined = w.apps.api;
+          if (!api) {
+            fail(i, 'there’s no API to call on this computer', label);
+            break;
+          }
+          const headers = Object.fromEntries(
+            fill(step.headers, ev)
+              .split('\n')
+              .map((l) => l.split(':'))
+              .filter((p) => p.length > 1 && p[0].trim())
+              .map(([k, ...v]) => [k.trim(), v.join(':').trim()])
+          );
+          // A JSON body: {{field}}s filled in, each value escaped so a quote in the data can't break it
+          const body = step.method === 'GET' || step.method === 'DELETE' ? undefined : String(step.body ?? '').replace(/\{\{\s*([^}]+?)\s*\}\}/g, (_, k: string) => JSON.stringify(fieldOf(ev, k.trim())).slice(1, -1));
+          if (!test && !('api' in effects)) effects.api = work.api ? { ...work.api } : null;
+          const out = callApi(api, work.api, { method: step.method, url: fill(step.url, ev), headers, body }, 'automation');
+          if (!test) work = { ...work, api: out.state };
+          ev.http_status = String(out.res.status);
+          ev.http_response = JSON.stringify(out.res.body ?? '');
+          if (out.res.status >= 400) {
+            fail(i, `the API answered ${out.res.status}: ${(out.res.body as { error?: string; details?: string[] })?.error ?? ''}${(out.res.body as { details?: string[] })?.details ? ` (${(out.res.body as { details: string[] }).details.join('; ')})` : ''}`, label);
+            break;
+          }
+          logs[i].lines.push(`${label}: ${step.method} ${fill(step.url, ev).replace(api.baseUrl, '')} → ${out.res.status}${test ? ' (test: not kept)' : ''}`);
           break;
         }
         case 'row': {

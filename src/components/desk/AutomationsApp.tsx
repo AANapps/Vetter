@@ -32,6 +32,8 @@ const blank = (kind: StepKind): FlowStep => {
       return { id, kind, ticket: '', status: '', priority: '', tags: '' };
     case 'row':
       return { id, kind, file: 'automation_output.csv', values: { column_1: '' } };
+    case 'http':
+      return { id, kind, method: 'POST', url: '', headers: 'Content-Type: application/json', body: '' };
   }
 };
 
@@ -109,7 +111,7 @@ const Editor: React.FC<{
   const ro = !!ctx.readOnly;
   const source = cfg.sources.find((s) => s.id === flow.source);
   // Every field a step can use: the trigger's, then each set or AI step's output
-  const fields = [...(source?.fields ?? []), ...flow.steps.flatMap((s) => (s.kind === 'set' ? [s.field] : s.kind === 'ai' ? [s.output] : [])).filter(Boolean)];
+  const fields = [...(source?.fields ?? []), ...flow.steps.flatMap((s) => (s.kind === 'set' ? [s.field] : s.kind === 'ai' ? [s.output] : s.kind === 'http' ? ['http_status', 'http_response'] : [])).filter(Boolean)];
   const work = ctx.cfg.work ?? {};
   const setStep = (i: number, s: FlowStep) => onChange({ ...flow, steps: flow.steps.map((x, j) => (j === i ? s : x)) });
   const move = (i: number, d: number) => {
@@ -132,7 +134,7 @@ const Editor: React.FC<{
       const auto = cur();
       const next: AutomationsState = { ...auto, runs: [...auto.runs, out.run].slice(-30), ...(!test && { effects: { ...(auto.effects ?? {}), [flow.id]: out.effects } }) };
       if (!test) {
-        for (const k of ['crm', 'chat', 'helpdesk'] as (keyof DeskAppsState)[]) if (out.work[k] !== (before.desk ?? {})[k]) ctx.setWork(k, out.work[k] as never);
+        for (const k of ['crm', 'chat', 'helpdesk', 'api'] as (keyof DeskAppsState)[]) if (out.work[k] !== (before.desk ?? {})[k]) ctx.setWork(k, out.work[k] as never);
         for (const name of last?.files ?? []) if (!out.effects.files.includes(name)) ctx.removeFile(name);
         for (const name of out.effects.files) {
           const f = out.files.find((x) => x.name === name);
@@ -416,6 +418,27 @@ const StepForm: React.FC<{ step: FlowStep; ro: boolean; fields: string[]; work: 
             </select>
           </Field>
           <Field label="Add tags (comma-separated)">{text(s.tags, (tags) => onChange({ ...s, tags }), 'e.g. {{category}}')}</Field>
+        </div>
+      );
+    case 'http':
+      return (
+        <div className="grid sm:grid-cols-[auto_1fr] gap-2">
+          <Field label="Method">
+            <select value={s.method} disabled={ro} onChange={(e) => onChange({ ...s, method: e.target.value })} className={input}>
+              {['GET', 'POST', 'PATCH', 'DELETE'].map((m) => (
+                <option key={m}>{m}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="URL">{text(s.url, (url) => onChange({ ...s, url }), work.api ? `${work.api.baseUrl}/…` : 'https://…', 'flow-http-url')}</Field>
+          <Field label="Headers (one per line: Name: value)" wide>
+            <textarea value={s.headers} disabled={ro} rows={2} onChange={(e) => onChange({ ...s, headers: e.target.value })} className="w-full px-2.5 py-2 border border-slate-200 rounded-md font-mono text-[12px] focus:outline-none focus:border-orange-500" data-ref="flow-http-headers" spellCheck={false} />
+          </Field>
+          {s.method !== 'GET' && s.method !== 'DELETE' && (
+            <Field label="Body (JSON, with {{field}}s)" wide>
+              <textarea value={s.body} disabled={ro} rows={4} onChange={(e) => onChange({ ...s, body: e.target.value })} className="w-full px-2.5 py-2 border border-slate-200 rounded-md font-mono text-[12px] focus:outline-none focus:border-orange-500" placeholder={'{\n  "order_id": "{{order}}"\n}'} data-ref="flow-http-body" spellCheck={false} />
+            </Field>
+          )}
         </div>
       );
     case 'row': {

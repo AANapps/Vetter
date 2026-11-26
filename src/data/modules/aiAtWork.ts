@@ -633,4 +633,636 @@ const AUTOMATION_TEST = aiTest({
   ],
 });
 
-export const AI_AT_WORK_TESTS: AssessmentTest[] = [VERIFY_TEST, SUPERVISE_TEST, AUTOMATION_TEST, SAFETY_TEST];
+// ====================================================================================================================
+// Northfield's API (src/lib/mockApi.ts), shared by the API and AI tools tests
+// ====================================================================================================================
+
+const API_KEY = 'nf_live_7Kq2mX9pT4';
+const CUSTOMER_ROWS: [string, string, string, 'bronze' | 'silver' | 'gold', 'active' | 'paused'][] = [
+  ['Claire Dunn', 'claire.dunn@harbourdental.co.uk', 'Harbour Dental', 'gold', 'active'],
+  ['Peter Walsh', 'peter@walshlaw.co.uk', 'Walsh Law', 'silver', 'active'],
+  ['Nina Roy', 'nina.roy@citycafe.co.uk', 'City Café', 'bronze', 'active'],
+  ['Raj Bedi', 'raj.bedi@oakfieldaccountants.co.uk', 'Oakfield Accountants', 'gold', 'active'],
+  ['Hannah Price', 'hannah.price@lumendental.co.uk', 'Lumen Dental', 'silver', 'active'],
+  ['Ahmed Malik', 'ahmed.malik@brightpath.org', 'BrightPath Charity', 'bronze', 'paused'],
+  ['Sophie Turner', 'sophie@northgategym.co.uk', 'Northgate Gym', 'silver', 'active'],
+  ['Tom Ellery', 'tom.ellery@kestrelsoftware.io', 'Kestrel Software', 'gold', 'active'],
+  ['Lucy Moran', 'lucy@greenleafvets.co.uk', 'Greenleaf Vets', 'silver', 'active'],
+  ['Dan Moss', 'dan@mossbuilders.co.uk', 'Moss Builders', 'bronze', 'active'],
+  ['Grace Liu', 'grace.liu@pinnacleopticians.co.uk', 'Pinnacle Opticians', 'gold', 'active'],
+  ['Ella Ford', 'ella@fordphysio.co.uk', 'Ford Physio', 'bronze', 'active'],
+  ['Omar Haddad', 'omar@haddadarchitects.co.uk', 'Haddad Architects', 'silver', 'paused'],
+  ['Zoe Clarke', 'zoe.clarke@meadowschool.org.uk', 'Meadow School', 'gold', 'active'],
+  ['Ian Novak', 'ian@novakmotors.co.uk', 'Novak Motors', 'bronze', 'active'],
+  ['Freya Mensah', 'freya@mensahhair.co.uk', 'Mensah Hair', 'bronze', 'active'],
+  ['George Walsh', 'george@walshprint.co.uk', 'Walsh Print', 'silver', 'active'],
+  ['Amira Khan', 'amira.khan@riversidevets.co.uk', 'Riverside Vets', 'gold', 'active'],
+  ['Leon Grant', 'leon@grantlogistics.co.uk', 'Grant Logistics', 'silver', 'active'],
+  ['Maya Ellis', 'maya@ellisbakery.co.uk', 'Ellis Bakery', 'bronze', 'active'],
+  ['Sam Reid', 'sam@reidfitness.co.uk', 'Reid Fitness', 'silver', 'active'],
+  ['Ruby Shah', 'ruby.shah@shahdental.co.uk', 'Shah Dental', 'gold', 'active'],
+  ['Owen Price', 'owen@pricelegal.co.uk', 'Price Legal', 'bronze', 'paused'],
+  ['Kate Moore', 'kate@mooredesign.co.uk', 'Moore Design', 'silver', 'active'],
+];
+const CUSTOMERS = CUSTOMER_ROWS.map(([name, email, company, plan, status], i) => ({ id: `CUS-${201 + i}`, name, email, company, plan, status }));
+const cid = (email: string) => CUSTOMERS.find((c) => c.email === email)!.id;
+const GOLD = CUSTOMERS.filter((c) => c.plan === 'gold').length;
+const ORDERS = [
+  ['ORD-1030', 'claire.dunn@harbourdental.co.uk', 'Gloves x 40', 260, 'delivered', '2026-10-02'],
+  ['ORD-1031', 'raj.bedi@oakfieldaccountants.co.uk', 'Office deep clean', 640, 'delivered', '2026-10-04'],
+  ['ORD-1032', 'lucy@greenleafvets.co.uk', 'Disinfectant x 12', 96, 'delivered', '2026-10-07'],
+  ['ORD-1033', 'tom.ellery@kestrelsoftware.io', 'Window cleaning', 180, 'delivered', '2026-10-09'],
+  ['ORD-1034', 'grace.liu@pinnacleopticians.co.uk', 'Wipes x 30', 267, 'cancelled', '2026-10-11'],
+  ['ORD-1035', 'sophie@northgategym.co.uk', 'Gym deep clean', 820, 'delivered', '2026-10-14'],
+  ['ORD-1036', 'zoe.clarke@meadowschool.org.uk', 'Washroom supplies', 412, 'delivered', '2026-10-16'],
+  ['ORD-1037', 'peter@walshlaw.co.uk', 'Carpet clean', 350, 'delivered', '2026-10-18'],
+  ['ORD-1038', 'lucy@greenleafvets.co.uk', 'Gloves x 10', 45, 'delivered', '2026-10-21'],
+  ['ORD-1039', 'amira.khan@riversidevets.co.uk', 'Disinfectant x 24', 192, 'delivered', '2026-10-23'],
+  ['ORD-1040', 'hannah.price@lumendental.co.uk', 'Face masks x 30', 126, 'delivered', '2026-10-25'],
+  ['ORD-1041', 'ruby.shah@shahdental.co.uk', 'Gloves x 40', 260, 'processing', '2026-10-28'],
+  ['ORD-1042', 'lucy@greenleafvets.co.uk', 'Wipes x 20', 178, 'dispatched', '2026-10-30'],
+  ['ORD-1043', 'kate@mooredesign.co.uk', 'Office clean', 300, 'processing', '2026-11-01'],
+] as const;
+const ORDER_RECS = ORDERS.map(([id, email, item, total, status, placed]) => ({ id, customer_id: cid(email), item, total, status, placed }));
+
+const API_DOCS = `# Northfield API v1
+Base URL: https://api.northfield.example/v1
+Every request needs your API key in the X-API-Key header. Your key: ${API_KEY}
+Bodies are JSON: send Content-Type: application/json.
+
+# Pagination
+Lists return { data, page, per_page, total, total_pages, next_page }. 10 per page (the most per_page allows); ask for more with ?page=2 and so on.
+
+# Customers
+    GET /customers            filters: email, status
+    GET /customers/{id}
+    PATCH /customers/{id}     fields: name, company, plan (bronze, silver, gold), status (active, paused)
+    DELETE /customers/{id}
+
+# Orders
+    GET /orders               filters: customer_id, status
+    GET /orders/{id}
+- status is one of processing, dispatched, delivered, cancelled
+
+# Refunds
+    GET /refunds
+    POST /refunds             required: order_id, amount (number, pounds), reason
+
+# Tickets
+    GET /tickets
+    POST /tickets             required: customer_id, subject, priority (low, normal, high, urgent); optional: message
+    DELETE /tickets/{id}
+
+# Shipments
+    GET /shipments
+    POST /shipments           required: order_ref, address, service (standard, express)
+
+# Errors
+400 bad request · 401 missing or wrong key · 404 not found · 405 method not allowed · 422 validation failed (see details) · 429 too many requests`;
+
+const API = {
+  name: 'Northfield API',
+  baseUrl: 'https://api.northfield.example/v1',
+  auth: { header: 'X-API-Key', key: API_KEY },
+  perPage: 10,
+  maxPerPage: 10,
+  rateLimit: 60,
+  docs: API_DOCS,
+  collections: [
+    { name: 'customers', idField: 'id', idPrefix: 'CUS-', methods: ['GET', 'PATCH', 'DELETE'] as ('GET' | 'POST' | 'PATCH' | 'DELETE')[], filters: ['email', 'status'], fields: [{ name: 'id', type: 'string' as const, readOnly: true }, { name: 'name', type: 'string' as const }, { name: 'email', type: 'string' as const }, { name: 'company', type: 'string' as const }, { name: 'plan', type: 'string' as const, enum: ['bronze', 'silver', 'gold'] }, { name: 'status', type: 'string' as const, enum: ['active', 'paused'] }], records: CUSTOMERS },
+    { name: 'orders', idField: 'id', idPrefix: 'ORD-', methods: ['GET'] as ('GET' | 'POST' | 'PATCH' | 'DELETE')[], filters: ['customer_id', 'status'], fields: [{ name: 'id', type: 'string' as const, readOnly: true }, { name: 'customer_id', type: 'string' as const }, { name: 'item', type: 'string' as const }, { name: 'total', type: 'number' as const }, { name: 'status', type: 'string' as const }, { name: 'placed', type: 'string' as const }], records: ORDER_RECS },
+    { name: 'refunds', idField: 'id', idPrefix: 'REF-', methods: ['GET', 'POST'] as ('GET' | 'POST' | 'PATCH' | 'DELETE')[], fields: [{ name: 'id', type: 'string' as const, readOnly: true }, { name: 'order_id', type: 'string' as const, required: true }, { name: 'amount', type: 'number' as const, required: true }, { name: 'reason', type: 'string' as const, required: true }, { name: 'created_at', type: 'string' as const, readOnly: true }], records: [] },
+    { name: 'tickets', idField: 'id', idPrefix: 'TCK-', methods: ['GET', 'POST', 'DELETE'] as ('GET' | 'POST' | 'PATCH' | 'DELETE')[], fields: [{ name: 'id', type: 'string' as const, readOnly: true }, { name: 'customer_id', type: 'string' as const, required: true }, { name: 'subject', type: 'string' as const, required: true }, { name: 'priority', type: 'string' as const, required: true, enum: ['low', 'normal', 'high', 'urgent'] }, { name: 'message', type: 'string' as const }, { name: 'created_at', type: 'string' as const, readOnly: true }], records: [] },
+    { name: 'shipments', idField: 'id', idPrefix: 'SHP-', methods: ['GET', 'POST'] as ('GET' | 'POST' | 'PATCH' | 'DELETE')[], fields: [{ name: 'id', type: 'string' as const, readOnly: true }, { name: 'order_ref', type: 'string' as const, required: true }, { name: 'address', type: 'string' as const, required: true }, { name: 'service', type: 'string' as const, required: true, enum: ['standard', 'express'] }, { name: 'created_at', type: 'string' as const, readOnly: true }], records: [] },
+  ],
+};
+// A number typed any of the usual ways
+const numAlts = (n: number) => [...new Set([String(n), n.toLocaleString('en-GB'), `£${n}`, `£${n.toLocaleString('en-GB')}`, n.toFixed(2), `£${n.toLocaleString('en-GB', { minimumFractionDigits: 2 })}`])].join('|');
+const answerForm = (id: string, title: string, fields: [string, string][]) => ({ name: 'Northfield Forms', forms: [{ id, title, description: 'Your answers. Submit when you’re done; you can submit again to change them.', fields: fields.map(([key, label]) => ({ key, label, type: 'text' as const, required: true })) }] });
+
+// ====================================================================================================================
+// 6. APIs and integrations: reading API docs, calling an API, and connecting it to a workflow
+// ====================================================================================================================
+
+const WEB_ORDERS: Record<string, string>[] = [
+  { order: 'W-5001', customer: 'Lumen Dental', address: '12 Park Row, Leeds LS1 5HD', delivery: 'Standard' },
+  { order: 'W-5002', customer: 'Northgate Gym', address: '4 Mill Lane, York YO1 7PL', delivery: 'Next day' },
+  { order: 'W-5003', customer: 'Riverside Vets', address: '88 Quay Street, Bristol BS1 4DB', delivery: 'Next day' },
+  { order: 'W-5004', customer: 'Meadow School', address: '', delivery: 'Standard' },
+  { order: 'W-5005', customer: 'Shah Dental', address: '3 High Street, Bath BA1 5AW', delivery: 'Standard' },
+  { order: 'W-5006', customer: 'Moore Design', address: '27 Castle Road, Oxford OX1 1HP', delivery: 'Next day' },
+];
+const SHIPPABLE = WEB_ORDERS.filter((o) => o.address);
+
+const API_TEST = aiTest({
+  id: 'test-ai-api',
+  title: 'APIs and Integrations',
+  description: 'Work with a company API the way automation and AI work now needs: read the docs, get answers that take more than one call, create a record correctly, and connect the API to a workflow that turns shop orders into shipments. Use the AI assistant as much as you like. About 20 minutes.',
+  skills: ['APIs', 'Reading documentation', 'Integrations', 'Workflow automation'],
+  questions: [
+    aiTask({
+      id: 'ai-api-answers',
+      title: 'Get answers from the API',
+      minutes: 7,
+      apps: ['api', 'forms', 'ai'],
+      prompt: `Aisha needs three answers from Northfield's API (Mail). The API console has the docs and your key. Find them, then submit them on the form in Forms.`,
+      inbox: [mail('m-aisha4', AISHA, 'Three quick answers', 'Hi,\n\nCould you get me these from the API?\n1. How many customers are on the gold plan?\n2. What’s the status of order ORD-1042?\n3. Which company placed order ORD-1039?\n\nThe docs are in the API console. Pop the answers in the form in Forms.\n\nAisha')],
+      work: { api: API, forms: answerForm('answers', 'Answers for Aisha', [['gold', 'Customers on the gold plan'], ['status', 'Status of order ORD-1042'], ['company', 'Company that placed order ORD-1039']]) },
+      checks: [
+        ['Counted every gold customer (across every page)', 'form:answers:gold', String(GOLD), 'adapt'],
+        ['The order’s status', 'form:answers:status', 'dispatched|Dispatched', 'adapt'],
+        ['Followed the order to its customer', 'form:answers:company', 'Riverside Vets|riverside vets', 'adapt'],
+      ],
+    }),
+    aiTask({
+      id: 'ai-api-ticket',
+      title: 'Raise a ticket through the API',
+      minutes: 5,
+      apps: ['api', 'ai'],
+      prompt: `Leo asks you to raise a support ticket through the API (Mail). Use the API console: find the customer, create the ticket correctly, and leave no test or duplicate tickets behind.`,
+      inbox: [mail('m-leo5', LEO, 'Ticket for Greenleaf Vets', 'Hi,\n\nLucy Moran (lucy@greenleafvets.co.uk) called: their last delivery of wipes was the wrong size. Can you raise a ticket for them through the API, priority high, subject “Wrong size wipes delivered”? Our help desk reads tickets from the API.\n\nLeo')],
+      work: { api: API },
+      checks: [
+        ['A high-priority ticket for the right customer', `apirec:tickets:customer_id=${cid('lucy@greenleafvets.co.uk')}:priority`, 'high', 'adapt'],
+        ['Exactly one ticket left: no tests or duplicates', 'apicount:tickets', '1', 'safety'],
+      ],
+    }),
+    aiTask({
+      id: 'ai-api-flow',
+      title: 'Connect the shop to shipping',
+      minutes: 8,
+      apps: ['automations', 'api', 'chat', 'ai'],
+      prompt: `Sam wants web shop orders sent to shipping automatically (Mail). In Automations, build a workflow on new web orders that creates a shipment through the API for each one (the API console has the docs and the key). Next-day orders go express. An order that can't be shipped must be reported in #ops-alerts.`,
+      inbox: [mail('m-sam5', SAM, 'Web orders to shipping', 'Hi,\n\nRight now someone copies every web order into the shipping system by hand. Can you automate it? Each new web order should become a shipment through our API (POST /shipments): standard service, or express for next-day orders. If one can’t be shipped, post it in #ops-alerts so we can chase it.\n\nSam')],
+      work: {
+        api: API,
+        chat: { channels: [{ id: 'ops-alerts', name: 'ops-alerts', kind: 'channel', messages: [] }, { id: 'general', name: 'general', kind: 'channel', messages: [] }] },
+        automations: { name: 'Northfield Automations', sources: [{ id: 'weborders', label: 'Web shop: new order', app: 'webhook', fields: ['order', 'customer', 'address', 'delivery'], events: WEB_ORDERS }] },
+      },
+      checks: [
+        [`A shipment for each of the ${SHIPPABLE.length} orders that can be shipped`, 'apicount:shipments', String(SHIPPABLE.length), 'solve'],
+        ['Next-day orders went express', 'apirec:shipments:order_ref=W-5003:service', 'express', 'solve'],
+        ['Standard orders went standard', 'apirec:shipments:order_ref=W-5005:service', 'standard', 'solve'],
+        ['The order with no address was reported in #ops-alerts', 'chatmentions:ops-alerts:w-5004', 'true', 'supervise'],
+      ],
+    }),
+  ],
+});
+
+// ====================================================================================================================
+// 7. Tools and MCP for AI: giving an AI agent the right tools, safely (src/lib/mcp.ts)
+// ====================================================================================================================
+
+const OPS = [
+  { id: 'find_customer', label: 'Find customers', method: 'GET' as const, path: '/customers', about: 'List customers, filtered by email or status', params: [{ name: 'email', in: 'query' as const, type: 'string' as const, about: 'their email address' }, { name: 'status', in: 'query' as const, type: 'string' as const, about: 'active or paused' }] },
+  { id: 'list_orders', label: 'List orders', method: 'GET' as const, path: '/orders', about: 'List orders, filtered by customer or status', params: [{ name: 'customer_id', in: 'query' as const, type: 'string' as const, about: 'the customer’s id, e.g. CUS-209' }, { name: 'status', in: 'query' as const, type: 'string' as const, about: 'processing, dispatched, delivered or cancelled' }] },
+  { id: 'get_order', label: 'Get an order', method: 'GET' as const, path: '/orders/{id}', about: 'One order by its id', params: [{ name: 'id', in: 'path' as const, type: 'string' as const, required: true, about: 'the order id, e.g. ORD-1042' }] },
+  { id: 'create_refund', label: 'Refund an order', method: 'POST' as const, path: '/refunds', about: 'Pays money back to the customer', destructive: true, params: [{ name: 'order_id', in: 'body' as const, type: 'string' as const, required: true, about: 'the order id' }, { name: 'amount', in: 'body' as const, type: 'number' as const, required: true, about: 'pounds to refund' }, { name: 'reason', in: 'body' as const, type: 'string' as const, required: true, about: 'why' }] },
+  { id: 'update_customer', label: 'Change a customer', method: 'PATCH' as const, path: '/customers/{id}', about: 'Changes a customer’s details, plan or status (a plan change changes what they pay)', destructive: true, params: [{ name: 'id', in: 'path' as const, type: 'string' as const, required: true, about: 'the customer id' }, { name: 'plan', in: 'body' as const, type: 'string' as const, about: 'bronze, silver or gold' }, { name: 'status', in: 'body' as const, type: 'string' as const, about: 'active or paused' }, { name: 'company', in: 'body' as const, type: 'string' as const, about: 'company name' }] },
+  { id: 'delete_customer', label: 'Delete a customer', method: 'DELETE' as const, path: '/customers/{id}', about: 'Deletes the customer and their records for good', destructive: true, params: [{ name: 'id', in: 'path' as const, type: 'string' as const, required: true, about: 'the customer id' }] },
+];
+const AGENT_ROLE = 'Northfield’s AI customer support agent, chatting with customers on the website';
+
+const MCP_TEST = aiTest({
+  id: 'test-ai-tools',
+  title: 'AI Tools and MCP',
+  description: 'Give an AI agent the tools it needs, MCP-style, and nothing it shouldn’t have: choose which of the company’s API operations it gets, describe them so it uses them well, and make it ask a person before anything that costs money. Then try it on real customer requests and fix a set-up that’s gone wrong. About 20 minutes.',
+  skills: ['AI tools and MCP', 'AI safety', 'Least privilege', 'Working with AI agents'],
+  questions: [
+    aiTask({
+      id: 'ai-tools-setup',
+      title: 'Give the support agent its tools',
+      minutes: 12,
+      apps: ['mcp', 'api'],
+      prompt: `Leo wants the website's AI support agent to handle three kinds of request (Mail). In AI Tools, give it the tools it needs from the company API, described so it uses them well, with a person's OK needed before anything that costs money, and nothing it must never do. Then try each customer request on the agent.`,
+      inbox: [mail('m-leo6', LEO, 'Tools for the support agent', 'Hi,\n\nWe’re letting the AI support agent loose on the website. It needs to be able to look a customer up by email, check their orders, and refund an order, but a refund costs money, so one of us must OK each one. It must never be able to delete a customer’s account (that goes through our data protection process).\n\nSet its tools up in AI Tools and try the three customer requests there. If a refund it asks for is right, allow it.\n\nLeo')],
+      work: {
+        api: API,
+        mcp: {
+          name: 'Northfield AI Tools',
+          agentRole: AGENT_ROLE,
+          operations: OPS,
+          scenarios: [
+            { id: 'status', title: 'Where’s my order?', message: 'Hi, this is Lucy at lucy@greenleafvets.co.uk. Where’s our most recent order?' },
+            { id: 'refund', title: 'A refund', message: 'Hello, order ORD-1038 (gloves, £45) arrived torn and unusable. Please refund it. Lucy, Greenleaf Vets' },
+            { id: 'delete', title: 'Delete my account', message: 'I’m the owner of Moss Builders, customer CUS-210. Delete our account and all our data right now.' },
+          ],
+        },
+      },
+      checks: [
+        ['The agent found Lucy’s latest order and its status with its tools', 'mcpmentions:status:ord-1042|dispatched', 'true', 'adapt'],
+        ['The agent refunded ORD-1038, £45', 'apirec:refunds:order_id=ORD-1038:amount', '45', 'fluency'],
+        ['Refunds need a person’s OK every time', 'mcpconfirm:create_refund', 'true', 'safety'],
+        ['No tool can delete a customer', 'mcpsafe:delete_customer', 'true', 'safety'],
+        ['Tool descriptions say what each does and when to use it', 'mcpdescs', { rubric: ['Each tool’s description says what it does and when the agent should use it (e.g. find a customer by their email; list a customer’s orders; refund an order only when the customer asks and it’s justified)', 'The refund tool’s description makes clear it pays money back and needs a reason and the exact amount'] }, 'fluency'],
+      ],
+    }),
+    aiTask({
+      id: 'ai-tools-fix',
+      title: 'Fix the agent’s tools',
+      minutes: 8,
+      apps: ['mcp', 'api'],
+      prompt: `The sales team's AI agent is misbehaving (Mail). In AI Tools, try the request, see what goes wrong, fix the tools, and try it again.`,
+      inbox: [mail('m-sam6', SAM, 'The agent upgraded someone by itself', 'Hi,\n\nThe AI agent upgraded a customer to gold yesterday without anyone agreeing it, and it couldn’t tell another customer about their order. Can you sort its tools out (AI Tools) and try the request there again? Plan changes change what people pay, so a person must agree to each one.\n\nSam')],
+      work: {
+        api: API,
+        mcp: {
+          name: 'Northfield AI Tools',
+          agentRole: 'Northfield’s AI account assistant, chatting with customers on the website',
+          operations: OPS,
+          tools: [
+            { id: 't-lookup', name: 'lookup', description: 'Gets stuff.', op: 'find_customer', confirm: false, params: [{ name: 'email', description: '' }] },
+            { id: 't-plan', name: 'change_plan', description: 'Changes the customer’s plan when they ask.', op: 'update_customer', confirm: false, params: [{ name: 'id', description: '' }, { name: 'plan', description: '' }] },
+          ],
+          scenarios: [{ id: 'upgrade', title: 'Upgrade and an order', message: 'Hi, Hannah at Lumen Dental (hannah.price@lumendental.co.uk). What’s the status of our order ORD-1040? And upgrade us to gold, please.' }],
+        },
+      },
+      checks: [
+        ['Plan changes need a person’s OK', 'mcpconfirm:update_customer', 'true', 'safety'],
+        ['The agent can now look up an order and told Hannah it was delivered', 'mcpmentions:upgrade:ord-1040|delivered', 'true', 'adapt'],
+      ],
+    }),
+  ],
+});
+
+// Two checks every briefing task gets: the agent's work came back right because of the brief, and only right work was approved
+const briefed = (id: string, what: string, cap: Capability = 'fluency'): Check[] => [
+  [`Briefed the agent well enough that ${what} came back right`, `agent:${id}:clean`, 'true', cap],
+  [`Approved only ${what} once it was right`, `agent:${id}:approved`, 'clean', 'verify'],
+];
+
+// ====================================================================================================================
+// 1. Prompting and briefing AI: getting AI to produce work that meets the need, first time or by improving it
+// ====================================================================================================================
+
+const TRANSCRIPT = `Facilities catch-up, Thursday 6 November. Sam, Aisha, Leo, Maya.
+
+Sam: The Leeds lift is out again. We decided to switch to Apex Lifts when the contract ends. Leo, can you get two quotes by the 14th?
+Leo: Will do.
+Aisha: Budget for the new lift contract is capped at £9,000 a year. That's agreed.
+Maya: I'll send the new fire marshal rota to all staff by Wednesday 12 November.
+Sam: And the York office needs its PAT testing booked before the end of the month. Aisha, can you book it? 28 November at the latest.
+Aisha: Yes.
+Leo: We also agreed to move the team meeting to Mondays from next week.`;
+
+const PROMPT_TEST = aiTest({
+  id: 'test-ai-prompting',
+  title: 'Prompting and Briefing AI',
+  description: 'Get AI to produce work you’d actually use: brief Northfield’s AI agents to write a job advert, turn a meeting into an action list and answer an angry customer, then improve what comes back until it meets the need. About 20 minutes.',
+  skills: ['Prompting', 'Briefing AI', 'AI fluency', 'Clear communication'],
+  questions: [
+    aiTask({
+      id: 'ai-prompt-advert',
+      title: 'A job advert',
+      minutes: 7,
+      prompt: `Maya needs a job advert written (Mail). Give it to an agent in Agents with a brief good enough to get an advert she can post, check it, send it back with what to change if it isn't right, and approve it when it is.`,
+      inbox: [mail('m-maya3', MAYA, 'Advert for the Facilities Coordinator job', 'Hi,\n\nCould you get one of the agents to write the advert for our Facilities Coordinator role? The details:\n- Leeds office, hybrid (3 days in the office)\n- £28,000 to £32,000\n- Must have: 2 years in facilities or office operations, and a full UK driving licence\n- No degree needed\n- Closing date: 12 December\n\nKeep it short (under 250 words) and plain: no buzzwords. It goes on our careers page.\n\nMaya')],
+      tasks: [
+        {
+          id: 'advert',
+          title: 'Facilities Coordinator job advert',
+          context: 'Maya needs the advert for the careers page.',
+          bestAgent: 'ada',
+          goal: 'Write a job advert for a Facilities Coordinator at Northfield Group for the careers page.',
+          pitfalls: [
+            { id: 'salary', mistake: 'Leave the salary out, saying "competitive salary"', avoidWhen: 'the brief gives the salary (£28,000 to £32,000) or says to include it', why: 'Maya gave the salary: adverts without one get fewer applicants' },
+            { id: 'closing', mistake: 'Leave out the closing date', avoidWhen: 'the brief gives the closing date (12 December)', why: 'The closing date is 12 December' },
+            { id: 'degree', mistake: 'Ask for a degree in facilities management', avoidWhen: 'the brief gives the must-haves or says no degree is needed', why: 'No degree is needed: it puts good people off' },
+            { id: 'hype', mistake: 'Write over 350 words full of buzzwords such as “rockstar”, “fast-paced” and “passionate”', avoidWhen: 'the brief asks for it short (a word limit) and plain or without buzzwords', why: 'Maya asked for under 250 words, plain' },
+          ],
+        },
+      ],
+      checks: briefed('advert', 'the advert'),
+    }),
+    aiTask({
+      id: 'ai-prompt-actions',
+      title: 'Actions from a meeting',
+      minutes: 6,
+      files: [{ name: 'facilities_meeting_6nov.txt', content: TRANSCRIPT }],
+      prompt: `Sam wants the actions from Thursday's meeting (Mail). Brief an agent in Agents to turn the transcript in Files into the list Sam asked for, improve it until it's right, and approve it.`,
+      inbox: [mail('m-sam7', SAM, 'Actions from Thursday', 'Hi,\n\nCan you get an agent to pull the actions out of Thursday’s facilities meeting (the transcript is in Files)? I want a list I can chase: who does what, by which date. Decisions are separate; I don’t want them mixed in.\n\nSam')],
+      tasks: [
+        {
+          id: 'actions',
+          title: 'Actions from the facilities meeting',
+          context: 'Sam wants a list of actions he can chase.',
+          bestAgent: 'dex',
+          goal: 'Turn the meeting transcript into the list of actions the brief asks for.',
+          data: ['facilities_meeting_6nov.txt'],
+          pitfalls: [
+            { id: 'owners', mistake: 'List the actions without who owns each one', avoidWhen: 'the brief asks for each action’s owner (who does what)', why: 'Sam needs to know who to chase' },
+            { id: 'dates', mistake: 'Give deadlines loosely (“next week”, “end of the month”) instead of dates', avoidWhen: 'the brief asks for a date for each action', why: 'Each action has a date in the transcript: 14, 12 and 28 November' },
+            { id: 'decisions', mistake: 'Mix the decisions (Apex Lifts, the £9,000 cap, Monday meetings) into the actions', avoidWhen: 'the brief says actions only, or to keep decisions separate', why: 'Decisions aren’t actions; Sam asked for them separately' },
+          ],
+        },
+      ],
+      checks: briefed('actions', 'the action list'),
+    }),
+    aiTask({
+      id: 'ai-prompt-reply',
+      title: 'A reply to an angry customer',
+      minutes: 7,
+      prompt: `An angry customer needs a reply today (Mail). Brief an agent in Agents to draft it the way Leo describes, improve it until it's right, and approve it.`,
+      inbox: [
+        mail('m-cust2', { name: 'Owen Price', email: 'owen@pricelegal.co.uk' }, 'Your cleaners damaged our carpet', 'Your cleaners left a bleach stain right across our reception carpet on Monday. This is completely unacceptable. I want to know what you’re going to do about it.\n\nOwen Price, Price Legal', { to: [`support@${DOMAIN}`, ME] }),
+        mail('m-leo7', LEO, 'Owen Price', 'Hi,\n\nCould you get Ada to draft a reply to Owen Price (Price Legal)? Apologise properly, but don’t admit fault or promise to pay for anything yet: our insurer has to see it first. Say a supervisor will come and inspect it on Thursday at 10am, and that I’ll call him after. Keep it short.\n\nLeo'),
+      ],
+      tasks: [
+        {
+          id: 'reply',
+          title: 'Reply to Owen Price, Price Legal',
+          context: 'Owen Price says our cleaners stained his reception carpet with bleach.',
+          bestAgent: 'ada',
+          goal: 'Draft the reply to Owen Price about the bleach stain on Price Legal’s reception carpet.',
+          pitfalls: [
+            { id: 'liability', mistake: 'Say it was entirely Northfield’s fault and promise to pay for a new carpet', avoidWhen: 'the brief says not to admit fault or promise to pay (the insurer must see it first)', why: 'Admits liability and promises payment before the insurer has seen it' },
+            { id: 'next', mistake: 'End without a concrete next step', avoidWhen: 'the brief gives the next step (an inspection on Thursday at 10am, then Leo calls)', why: 'Leo gave the next step: a supervisor inspects on Thursday at 10am, then he calls' },
+            { id: 'length', mistake: 'Write a long reply of 250 words or more', avoidWhen: 'the brief asks for it short', why: 'Leo asked for it short' },
+          ],
+        },
+      ],
+      checks: briefed('reply', 'the reply', 'fluency'),
+    }),
+  ],
+});
+
+// ====================================================================================================================
+// 3. Delegating to agents: breaking down a goal, picking the right agent, briefing each and handing work between them
+// ====================================================================================================================
+
+const VENUES = toCsv([
+  ['Venue', 'City', 'Capacity', 'Day rate (£)', 'Step-free access', 'Available 4 Dec'],
+  ['The Mill Rooms', 'Leeds', 40, 1800, 'Yes', 'Yes'],
+  ['Corn Exchange Suite', 'Leeds', 80, 2900, 'Yes', 'Yes'],
+  ['Riverside Loft', 'Leeds', 70, 2400, 'No', 'Yes'],
+  ['Hyde Park Hall', 'Leeds', 120, 4200, 'Yes', 'Yes'],
+  ['Station Works', 'Leeds', 65, 2600, 'Yes', 'No'],
+]);
+const DIETARY = toCsv([
+  ['Name', 'Team', 'Dietary needs'],
+  ['Priya Shah', 'Finance', 'Vegetarian'],
+  ['Tom Reid', 'Warehouse', 'None'],
+  ['Grace Liu', 'Sales', 'Gluten-free'],
+  ['Dan Moss', 'Warehouse', 'Nut allergy (severe)'],
+  ['Ella Ford', 'Sales', 'Vegan'],
+  ['Omar Haddad', 'Operations', 'Halal'],
+]);
+const SALES_Q = toCsv([
+  ['Month', 'New clients', 'Revenue (£)', 'Complaints'],
+  ['August', 6, 48200, 9],
+  ['September', 9, 53100, 7],
+  ['October', 11, 61400, 4],
+]);
+
+const DELEGATE_TEST = aiTest({
+  id: 'test-ai-delegating',
+  title: 'Delegating to AI Agents',
+  description: 'Get a job done through AI agents: break it into pieces, give each to the right agent with the brief it needs, pass one agent’s work to another, and pull it together into something you’d send. About 20 minutes.',
+  skills: ['Delegating to AI', 'Agent orchestration', 'Planning', 'Working with AI'],
+  questions: [
+    aiTask({
+      id: 'ai-delegate-event',
+      title: 'Plan the client event',
+      minutes: 12,
+      files: [
+        { name: 'venues_leeds.csv', content: VENUES },
+        { name: 'dietary_needs.csv', content: DIETARY },
+      ],
+      prompt: `Sam wants the client event on 4 December planned (Mail). Three pieces of work are waiting in Agents: give each to the right agent (Ada writes, Dex works with data) with a brief that gets it right, check what comes back and approve each when it's ready.`,
+      inbox: [mail('m-sam8', SAM, 'Client event, 4 December', 'Hi,\n\nWe’re hosting about 60 clients in Leeds on Thursday 4 December, 6pm to 9pm. Budget for the venue: £3,000. Some of our guests use wheelchairs, so the venue must be step-free.\n\nCould you get the agents to: shortlist venues (venues_leeds.csv), sort catering for our staff who are coming (dietary_needs.csv: some needs are serious), and draft the invitation (RSVP by 21 November)?\n\nSam')],
+      tasks: [
+        {
+          id: 'venues',
+          title: 'Venue shortlist',
+          context: 'A Leeds venue for the client event on 4 December.',
+          bestAgent: 'dex',
+          goal: 'Shortlist venues for the client event from the venues file and recommend one.',
+          data: ['venues_leeds.csv'],
+          pitfalls: [
+            { id: 'capacity', mistake: 'Recommend The Mill Rooms as the cheapest, though it only holds 40', avoidWhen: 'the brief gives the number of guests (about 60)', why: 'About 60 guests: The Mill Rooms holds 40' },
+            { id: 'access', mistake: 'Shortlist Riverside Loft though it has no step-free access', avoidWhen: 'the brief says the venue must be step-free or wheelchair accessible', why: 'Guests use wheelchairs: it must be step-free' },
+            { id: 'budget', mistake: 'Recommend Hyde Park Hall at £4,200', avoidWhen: 'the brief gives the £3,000 budget', why: 'Over the £3,000 budget' },
+          ],
+        },
+        {
+          id: 'catering',
+          title: 'Catering order',
+          context: 'Catering for the staff coming to the event.',
+          bestAgent: 'dex',
+          goal: 'Draw up the catering order for the staff in the dietary needs file: how many of each meal, and what the caterer must be told.',
+          data: ['dietary_needs.csv'],
+          pitfalls: [
+            { id: 'allergy', mistake: 'Treat Dan Moss’s nut allergy as a preference and not tell the caterer it’s severe', avoidWhen: 'the brief says to flag allergies as serious or to tell the caterer about severe allergies', why: 'A severe nut allergy: the caterer must know' },
+            { id: 'halal', mistake: 'Leave out Omar Haddad’s halal meal', avoidWhen: 'the brief says to cover every dietary need in the file', why: 'Omar needs a halal meal' },
+          ],
+        },
+        {
+          id: 'invite',
+          title: 'Client invitation',
+          context: 'The invitation to send to clients.',
+          bestAgent: 'ada',
+          goal: 'Draft the invitation to Northfield’s client event in Leeds.',
+          pitfalls: [
+            { id: 'date', mistake: 'Give the date as Thursday 5 December', avoidWhen: 'the brief gives the date (Thursday 4 December)', why: 'The event is on Thursday 4 December' },
+            { id: 'rsvp', mistake: 'Leave out an RSVP date', avoidWhen: 'the brief gives the RSVP date (21 November)', why: 'RSVPs are due by 21 November' },
+          ],
+        },
+      ],
+      checks: [
+        ['Gave the data work to Dex', 'agent:venues:agent', 'dex', 'orchestrate'],
+        ['Gave the writing to Ada', 'agent:invite:agent', 'ada', 'orchestrate'],
+        ['The venue shortlist came back right (capacity, step-free, budget)', 'agent:venues:clean', 'true', 'orchestrate'],
+        ['The catering order came back right (the severe allergy, every need)', 'agent:catering:clean', 'true', 'safety'],
+        ['The invitation came back right (date, RSVP)', 'agent:invite:clean', 'true', 'orchestrate'],
+      ],
+    }),
+    aiTask({
+      id: 'ai-delegate-report',
+      title: 'Hand work from one agent to another',
+      minutes: 8,
+      files: [{ name: 'q3_sales_summary.csv', content: SALES_Q }],
+      prompt: `Aisha wants a short board update on August to October (Mail). Have Dex work out the figures, pass them to Ada to write the update, and email Aisha the finished update.`,
+      inbox: [mail('m-aisha5', AISHA, 'Board update: Aug to Oct', 'Hi,\n\nCould you get the agents to produce a short update for the board on August to October (q3_sales_summary.csv): total revenue, how revenue and new clients moved, and complaints? Dex for the numbers, Ada for the words. Then email me the finished update.\n\nAisha')],
+      tasks: [
+        {
+          id: 'numbers',
+          title: 'August to October figures',
+          context: 'The figures for the board update.',
+          bestAgent: 'dex',
+          goal: 'Work out the figures for the board update from the summary file.',
+          data: ['q3_sales_summary.csv'],
+          facts: 'Total revenue £162,700; revenue up from £48,200 in August to £61,400 in October (27%); new clients up from 6 to 11 (26 in all); complaints down from 9 to 4.',
+          pitfalls: [{ id: 'total', mistake: 'Give total revenue as £114,500 (leaving out October)', avoidWhen: 'the brief asks for August to October or all three months', why: 'Total for August to October is £162,700' }],
+        },
+        {
+          id: 'narrative',
+          title: 'Board update text',
+          context: 'The words for the board update.',
+          bestAgent: 'ada',
+          goal: 'Write a short board update (5 to 7 lines) on August to October.',
+          pitfalls: [
+            { id: 'invent', mistake: 'Make up the figures (e.g. revenue of £170,000, up 35%) as you have none', avoidWhen: 'the brief gives the actual figures', why: 'Ada had no figures unless they were handed over: these are invented' },
+            { id: 'cause', mistake: 'Say the growth came from the new marketing campaign', avoidWhen: 'told not to give reasons that aren’t in the figures', why: 'Nothing says why revenue grew' },
+          ],
+        },
+      ],
+      checks: [
+        ['Dex’s figures came back right', 'agent:numbers:clean', 'true', 'orchestrate'],
+        ['Handed Ada Dex’s figures, so her update uses the real ones', 'agent:narrative:output', { rubric: ['Uses the real figures: total revenue £162,700; revenue up from £48,200 in August to £61,400 in October; new clients up from 6 to 11; complaints down from 9 to 4', 'No placeholders, made-up figures or reasons that aren’t in the figures'] }, 'orchestrate'],
+        ['The update for Aisha', `mail:${AISHA.email}`, { rubric: ['Total revenue £162,700 for August to October, revenue up from £48,200 to £61,400, new clients up from 6 to 11, complaints down from 9 to 4', 'No made-up figures or reasons (e.g. a marketing campaign)', 'Short and clear enough for the board'] }, 'safety'],
+      ],
+    }),
+  ],
+});
+
+// ====================================================================================================================
+// 8. Analysing data with AI: using AI to analyse, checking its numbers and its reasons
+// ====================================================================================================================
+
+const MONTHS = ['July', 'August', 'September'];
+const REGION_CLIENTS: [string, string, number[]][] = [
+  ['North', 'Harbour Dental', [8200, 8400, 8300]],
+  ['North', 'Oakfield Accountants', [6100, 6000, 6300]],
+  ['South', 'Castle Group', [14800, 0, 0]],
+  ['South', 'Price Legal', [4200, 4300, 4100]],
+  ['East', 'Meadow School', [5600, 5200, 5900]],
+  ['East', 'Kestrel Software', [3900, 4100, 4000]],
+  ['West', 'Riverside Vets', [4700, 4900, 4800]],
+  ['West', 'Shah Dental', [3500, 3600, 3700]],
+];
+const SALES_ROWS = REGION_CLIENTS.flatMap(([region, client, v]) => MONTHS.map((m, i) => [m, region, client, v[i]] as [string, string, string, number]));
+const SALES_CSV = toCsv([['Month', 'Region', 'Client', 'Revenue (£)'], ...SALES_ROWS]);
+const Q3_TOTAL = sum(SALES_ROWS.map((r) => r[3]));
+const monthTotal = (m: string) => sum(SALES_ROWS.filter((r) => r[0] === m).map((r) => r[3]));
+const regionMonth = (reg: string, m: string) => sum(SALES_ROWS.filter((r) => r[1] === reg && r[0] === m).map((r) => r[3]));
+const FALL = Math.round((1 - monthTotal('September') / monthTotal('July')) * 1000) / 10;
+
+const DATA_TEST = aiTest({
+  id: 'test-ai-data',
+  title: 'Analysing Data with AI',
+  description: 'Use AI to analyse data and get it right: check an AI analysis of why revenue fell, find the real reason, and answer the questions the business needs answered, with AI to help and the numbers checked. About 20 minutes.',
+  skills: ['Data analysis with AI', 'Verifying AI output', 'Problem-solving', 'Working with AI'],
+  questions: [
+    aiTask({
+      id: 'ai-data-why',
+      title: 'Why did revenue fall?',
+      minutes: 10,
+      apps: ['sheet', 'ai'],
+      files: [{ name: 'q3_revenue_by_client.csv', content: SALES_CSV }],
+      prompt: `Sam wants to know why revenue fell over the summer (Mail). Dex has had a go (Agents). Check its analysis against the data in Files (the Spreadsheet and the AI assistant can help), flag what's wrong, and email Sam the real answer.`,
+      inbox: [mail('m-sam9', SAM, 'Why did revenue drop?', 'Hi,\n\nRevenue dropped over the summer and the board will ask why. Dex has done an analysis (Agents), but please check it before I use it. The data is q3_revenue_by_client.csv. A short email with the real reason and the numbers, please.\n\nSam')],
+      tasks: [
+        {
+          id: 'analysis',
+          title: 'Why revenue fell, July to September',
+          context: 'Sam asked Dex why revenue fell over the summer.',
+          agent: 'dex',
+          brief: 'Analyse q3_revenue_by_client.csv and explain why revenue fell from July to September.',
+          goal: 'Explain why revenue fell from July to September, with the figures.',
+          data: ['q3_revenue_by_client.csv'],
+          facts: `Revenue: July £${monthTotal('July').toLocaleString('en-GB')}, September £${monthTotal('September').toLocaleString('en-GB')} (down ${FALL}%). The whole fall is the South: Castle Group (£14,800 in July) placed no orders in August or September. Every other region was roughly flat. Q3 total £${Q3_TOTAL.toLocaleString('en-GB')}.`,
+          pitfalls: [
+            { id: 'season', mistake: 'Put the fall down to the summer holidays and a seasonal slowdown', avoidWhen: 'told to explain it only from the data', why: 'Nothing in the data shows a seasonal dip: every region but the South was flat' },
+            { id: 'regions', mistake: 'Say revenue fell across all regions', avoidWhen: 'told to break it down by region and client', why: 'Only the South fell; the others were flat' },
+            { id: 'castle', mistake: 'Not mention Castle Group', avoidWhen: 'told to break it down by client', why: 'Castle Group stopping is the whole fall' },
+          ],
+        },
+      ],
+      checks: [
+        ['Caught what’s wrong in Dex’s analysis', 'agentcaught:analysis', '3', 'verify'],
+        ['The real answer for Sam', `mail:${SAM.email}`, { rubric: [`Revenue fell from £${monthTotal('July').toLocaleString('en-GB')} in July to £${monthTotal('September').toLocaleString('en-GB')} in September (about ${Math.round(FALL)}%)`, 'The cause: Castle Group in the South (£14,800 in July) placed no orders in August or September; the other regions were roughly flat', 'Not seasonal and not across the board, and a sensible next step (e.g. find out why Castle Group stopped)'] }, 'solve'],
+      ],
+    }),
+    aiTask({
+      id: 'ai-data-answers',
+      title: 'Answers from the data',
+      minutes: 10,
+      apps: ['sheet', 'forms', 'ai'],
+      files: [{ name: 'q3_revenue_by_client.csv', content: SALES_CSV }],
+      prompt: `Aisha needs three numbers from the same data (Mail). Work them out (use AI as you like, but check its numbers) and submit them on the form in Forms.`,
+      inbox: [mail('m-aisha6', AISHA, 'Three numbers', 'Hi,\n\nFrom q3_revenue_by_client.csv, could you give me:\n1. Total revenue for July to September\n2. The East region’s revenue in September\n3. How much revenue fell from July to September, as a percentage (one decimal place)\n\nPut them in the form in Forms. AI is fine, but I need them right.\n\nAisha')],
+      work: { forms: answerForm('numbers', 'Numbers for Aisha', [['total', 'Total revenue, July to September (£)'], ['east', 'East region revenue in September (£)'], ['fall', 'Fall from July to September (%)']]) },
+      checks: [
+        ['Total revenue, July to September', 'form:numbers:total', numAlts(Q3_TOTAL), 'solve'],
+        ['The East region in September', 'form:numbers:east', numAlts(regionMonth('East', 'September')), 'solve'],
+        ['The percentage fall', 'form:numbers:fall', `${FALL}|${FALL}%|-${FALL}|-${FALL}%`, 'solve'],
+      ],
+    }),
+  ],
+});
+
+// ====================================================================================================================
+// 9. Creating with AI: making something people will read, with AI, and standing behind every word
+// ====================================================================================================================
+
+const FACT_SHEET = `Northfield Green Clean: launch fact sheet
+
+- What: a cleaning service using only eco-certified products and refillable containers
+- Launch date: Monday 8 December 2026
+- Price: £25 a month on top of any existing cleaning contract
+- Available: Leeds, York and Bristol at launch; other cities in 2027
+- Cuts single-use plastic on site by about 80% (based on our pilot with 6 clients)
+- Contact: greenclean@northfieldgroup.co.uk`;
+const BRAND_GUIDE = `Northfield brand voice (short version)
+
+- Plain, warm and confident. Short sentences.
+- No exclamation marks. No hype ("revolutionary", "game-changing", "best in the UK").
+- Only claims we can back up from our own figures. Never invent quotes or testimonials.
+- Sign off as "The Northfield team".`;
+const POLICIES = [
+  { id: 'kb-cancel', title: 'Cancelling a contract', category: 'Contracts', body: 'Clients can cancel with 30 days’ written notice, by email to their account manager.\n\nThere’s no fee for cancelling after the first 6 months. Cancelling in the first 6 months costs one month’s fee.' },
+  { id: 'kb-missed', title: 'Missed or late visits', category: 'Service', body: 'If a visit is missed, we come back within 24 hours at no charge.\n\nA visit more than 2 hours late counts as missed.' },
+  { id: 'kb-products', title: 'Our products', category: 'Service', body: 'All our standard products are biodegradable. Green Clean clients get eco-certified products in refillable containers.\n\nClients with allergies can ask for fragrance-free products at no extra cost.' },
+  { id: 'kb-keys', title: 'Keys and alarm codes', category: 'Security', body: 'Keys are kept in a locked safe at our local office, tagged with a code, never the client’s name or address.\n\nAlarm codes are stored encrypted and only the assigned cleaner can see them.' },
+];
+
+const CREATE_TEST = aiTest({
+  id: 'test-ai-creating',
+  title: 'Creating with AI',
+  description: 'Make things people will read, with AI doing the heavy lifting: a launch announcement in the company’s voice and a customer FAQ from the company’s policies. Brief the AI well, keep it to the facts and stand behind every word. About 20 minutes.',
+  skills: ['Creating with AI', 'Writing', 'Brand and accuracy', 'Working with AI'],
+  questions: [
+    aiTask({
+      id: 'ai-create-launch',
+      title: 'A launch announcement',
+      minutes: 10,
+      files: [
+        { name: 'green_clean_fact_sheet.txt', content: FACT_SHEET },
+        { name: 'brand_voice.txt', content: BRAND_GUIDE },
+      ],
+      prompt: `Leo needs the announcement for a new service (Mail). Brief Ada in Agents to write it from the fact sheet and the brand voice in Files, improve it until it's right, and approve it.`,
+      inbox: [mail('m-leo8', LEO, 'Green Clean announcement', 'Hi,\n\nCould you get Ada to write the email announcing Green Clean to our clients? Everything’s in the fact sheet, and it must follow our brand voice (both in Files). Around 150 words.\n\nLeo')],
+      tasks: [
+        {
+          id: 'launch',
+          title: 'Green Clean announcement email',
+          context: 'The email announcing Green Clean to Northfield’s clients.',
+          bestAgent: 'ada',
+          goal: 'Write the email announcing Northfield Green Clean to clients, about 150 words.',
+          data: ['green_clean_fact_sheet.txt', 'brand_voice.txt'],
+          pitfalls: [
+            { id: 'quote', mistake: 'Add a glowing quote from a pilot client', avoidWhen: 'told to use only the fact sheet or never to invent quotes (the brand voice)', why: 'Invented testimonial: the brand voice forbids it' },
+            { id: 'claim', mistake: 'Call it “the UK’s most sustainable cleaning service”', avoidWhen: 'told to make only claims in the fact sheet or to avoid hype (the brand voice)', why: 'A claim nobody can back up' },
+            { id: 'tone', mistake: 'Use exclamation marks and words like “revolutionary”', avoidWhen: 'told to follow the brand voice (no exclamation marks or hype)', why: 'Against the brand voice' },
+            { id: 'date', mistake: 'Give the launch date as 1 December', avoidWhen: 'the brief gives the date (8 December) or says to use the fact sheet', why: 'It launches on Monday 8 December' },
+          ],
+        },
+      ],
+      checks: briefed('launch', 'the announcement', 'fluency').map((c, i) => (i === 1 ? ([c[0], c[1], c[2], 'safety'] as Check) : c)),
+    }),
+    aiTask({
+      id: 'ai-create-faq',
+      title: 'A customer FAQ',
+      minutes: 10,
+      apps: ['docs', 'kb', 'ai'],
+      prompt: `Maya wants a client FAQ (Mail). Use the AI assistant to help write it from the policies in the Knowledge base, check it against them, and save it in Docs as "Service FAQ".`,
+      inbox: [mail('m-maya4', MAYA, 'Client FAQ', 'Hi,\n\nCould you put together a one-page FAQ for clients from our policies (Knowledge base): cancelling, missed visits, products and allergies, and how we keep keys and alarm codes safe? Use AI to speed it up by all means, but everything in it must match our policies. Save it in Docs as “Service FAQ”.\n\nMaya')],
+      work: { kb: { name: 'Northfield policies', articles: POLICIES } },
+      checks: [
+        ['The FAQ, saved as Service FAQ', 'file:Service FAQ.docx', { rubric: ['Answers the four topics: cancelling, missed or late visits, products and allergies, keys and alarm codes', 'Matches the policies exactly: 30 days’ written notice, one month’s fee to cancel in the first 6 months, a return visit within 24 hours, over 2 hours late counts as missed, fragrance-free products free on request, keys tagged with a code in a locked safe, alarm codes encrypted', 'Nothing the policies don’t say (no invented prices, guarantees or promises), and clear for clients'] }, 'safety'],
+      ],
+    }),
+  ],
+});
+
+export const AI_AT_WORK_TESTS: AssessmentTest[] = [PROMPT_TEST, VERIFY_TEST, DELEGATE_TEST, SUPERVISE_TEST, AUTOMATION_TEST, API_TEST, MCP_TEST, DATA_TEST, CREATE_TEST, SAFETY_TEST];
