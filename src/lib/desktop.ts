@@ -4,7 +4,7 @@ import { checkSheet, parseWorkbook } from './spreadsheet';
 import { matchesExpected, parseAppState, readPath } from './appSimulation';
 import { roughWrittenMark } from './questionTypes';
 import type { DeskProject } from './deskCode';
-import { DeskAppsConfig, DeskAppsState, DeskWorkApp, chatChannels, deskAppValue } from './deskApps';
+import { DeskAppsConfig, DeskAppsState, DeskWorkApp, agentCatches, chatChannels, deskAppValue } from './deskApps';
 
 /**
  * A desktop for job simulations: a computer like the candidate's own at work, with a taskbar of apps (Mail, Browser,
@@ -380,6 +380,15 @@ export function checkDesktop(q: Question, answer: string, testsPassed: Record<st
     if (tc.input.startsWith('sheet:')) {
       const r = checkSheet(wb, tc.input.slice(6), tc.expectedOutput);
       return { id: tc.id, description: tc.description, passed: r.passed, input: tc.input, expected: tc.expectedOutput, actual: r.actual, executionMs: 0 };
+    }
+    // Spotting an agent's planted mistakes: credit for each caught, half of one taken off for every false alarm after
+    // the first, so flagging every line doesn't pay
+    if (tc.input.startsWith('agentcaught:')) {
+      const t = cfg.work?.agents?.tasks.find((x) => x.id.toLowerCase() === tc.input.slice(12).trim().toLowerCase());
+      const c = t ? agentCatches(t, state.desk?.agents?.tasks?.[t.id]) : { caught: [], wrong: [], total: 0 };
+      const credit = c.total ? Math.max(0, c.caught.length - 0.5 * Math.max(0, c.wrong.length - 1)) / c.total : 0;
+      const actual = `${c.caught.length} of ${c.total} caught${c.wrong.length ? `, ${c.wrong.length} false alarm${c.wrong.length === 1 ? '' : 's'}` : ''}`;
+      return { id: tc.id, description: tc.description, passed: credit >= 1, credit: Math.min(1, credit), input: tc.input, expected: `all ${c.total} caught`, actual, executionMs: 0 };
     }
     const actual = desktopValue(cfg, state, tc.input);
     if (tc.rubric?.length) {

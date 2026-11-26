@@ -926,6 +926,7 @@ const PlanCard: React.FC<{ plan: TestPlan; canBuild: boolean; onBuild: () => voi
           );
         })}
       </ol>
+      {day && <AiLayerSwitch on={plan.aiLayer !== false} editable={canBuild} onChange={(aiLayer) => onChange({ ...plan, aiLayer })} />}
       {canBuild && (
         <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-3">
           <button onClick={onBuild} className="px-4 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg inline-flex items-center gap-1.5">
@@ -939,6 +940,32 @@ const PlanCard: React.FC<{ plan: TestPlan; canBuild: boolean; onBuild: () => voi
     </div>
   );
 };
+
+// The company's switch for a job simulation's AI-at-work layer: AI agents on the desktop that the candidate briefs,
+// checks and overrules, with mistakes planted in their work (src/lib/capabilities.ts). On by default
+const AiLayerSwitch: React.FC<{ on: boolean; editable: boolean; onChange: (on: boolean) => void }> = ({ on, editable, onChange }) => (
+  <div className="flex items-start gap-3 rounded-lg border border-violet-200 bg-violet-50/40 px-3 py-2.5">
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      aria-label="Test working with AI"
+      disabled={!editable}
+      onClick={() => onChange(!on)}
+      className={`mt-0.5 relative w-9 h-5 shrink-0 rounded-full transition-colors disabled:opacity-60 ${on ? 'bg-violet-600' : 'bg-slate-300'}`}
+    >
+      <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${on ? 'translate-x-4' : ''}`} />
+    </button>
+    <div className="min-w-0">
+      <p className="text-xs font-semibold text-slate-900">Test working with AI {on ? 'on' : 'off'}</p>
+      <p className="text-[11px] text-slate-600 leading-relaxed">
+        {on
+          ? 'AI agents work alongside the candidate. They brief an agent, catch the mistakes planted in its work and overrule a wrong recommendation. Results show a score for each AI skill.'
+          : 'The day tests the job on its own, with no AI agents. Turn it on to also see how they brief, check and overrule AI.'}
+      </p>
+    </div>
+  </div>
+);
 
 // A plan item's prompt, edited in place and saved when the box loses focus
 const PromptBox: React.FC<{ value: string; label: string; onSave: (v: string) => void }> = ({ value, label, onSave }) => {

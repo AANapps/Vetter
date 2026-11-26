@@ -35,6 +35,7 @@ const BUILT_IN: { id: string; label: string }[] = [
   { id: 'calendar', label: 'Calendar' },
   { id: 'kb', label: 'Knowledge base' },
   { id: 'board', label: 'Projects (monday/Jira)' },
+  { id: 'agents', label: 'AI agents' },
 ];
 
 // A job simulation's desktop, untimed: the whole day's email is there from the start
@@ -73,7 +74,8 @@ function sandboxDesktop(sims: AssessmentTest[]): DesktopConfig {
     pages: withPages?.pages,
     homepage: withPages?.homepage,
     files: unique([...SAMPLE_FILES, ...desks.flatMap((d) => d.files ?? [])], (f) => f.name),
-    work: SAMPLE_WORK,
+    // The agents from the first job simulation that has them (the Data Analyst's)
+    work: { ...SAMPLE_WORK, agents: desks.find((d) => d.work?.agents)?.work?.agents },
     workbook: pick('workbook') ?? workbookStarter([{ name: 'Sheet1', rows: [['A', 'B'], [1, 2]] }]),
     workbookName: pick('workbookName') ?? 'Book1',
     tables: pick('tables'),

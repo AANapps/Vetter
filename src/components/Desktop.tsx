@@ -35,7 +35,7 @@ import { ChatMessages } from './AiChat';
 import { AppWindow } from './AppWindow';
 import { CodeField } from './CodeField';
 import { DeskProject, TestRun, runDeskTests } from '../lib/deskCode';
-import { BarChart3, BookOpen, CalendarDays, ClipboardList, Contact, FileType2, Headphones, KanbanSquare, MessagesSquare, Users } from 'lucide-react';
+import { BarChart3, BookOpen, CalendarDays, ClipboardList, Contact, FileType2, Headphones, KanbanSquare, MessagesSquare, Sparkles, Users } from 'lucide-react';
 import { PeopleApp } from './desk/PeopleApp';
 import { Avatar as DeskAvatar, DeskCtx } from './desk/shared';
 import { FilesApp, Folder } from './desk/FilesApp';
@@ -47,6 +47,7 @@ import { BiApp } from './desk/BiApp';
 import { FormsApp } from './desk/FormsApp';
 import { CalendarApp } from './desk/CalendarApp';
 import { KbApp } from './desk/KbApp';
+import { AgentsApp } from './desk/AgentsApp';
 import { BoardApp } from './desk/BoardApp';
 import { freeName, gridFromClipboard, gridToText } from '../lib/deskData';
 import { Files, GitBranch, LayoutGrid, Check, ChevronDown, ChevronUp, Clock, Search, Square, Copy, Wifi, Volume2, BatteryMedium, Bell } from 'lucide-react';
@@ -76,6 +77,7 @@ const APPS: Record<DeskApp, { label: string; Icon: React.ComponentType<{ classNa
   calendar: { label: 'Calendar', Icon: CalendarDays, tint: 'bg-sky-700' },
   kb: { label: 'Knowledge base', Icon: BookOpen, tint: 'bg-teal-700' },
   board: { label: 'Projects', Icon: KanbanSquare, tint: 'bg-rose-500' },
+  agents: { label: 'Agents', Icon: Sparkles, tint: 'bg-violet-700' },
   people: { label: 'People', Icon: Contact, tint: 'bg-cyan-700' },
 };
 
@@ -389,6 +391,8 @@ export const Desktop: React.FC<{ question: Question; answer: string; onChange: (
         return work.kb ? <KbApp ctx={ctx} cfg={work.kb} /> : null;
       case 'board':
         return work.board ? <BoardApp ctx={ctx} cfg={work.board} /> : null;
+      case 'agents':
+        return work.agents ? <AgentsApp ctx={ctx} cfg={work.agents} /> : null;
       case 'code':
         return cfg.project ? <CodeApp project={cfg.project} files={state.code ?? {}} onFiles={(code) => save({ code: { ...(latest.current.code ?? {}), ...code } })} /> : null;
       case 'ai':

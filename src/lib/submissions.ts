@@ -1,5 +1,5 @@
 import { collection, doc, getDocs, query, setDoc, where } from 'firebase/firestore';
-import { AssessmentTest, Question } from '../types';
+import { AssessmentTest, Capability, Question } from '../types';
 import { db, firebaseEnabled } from './firebase';
 import { assistantText } from './aiMarking';
 import { assistantAnswer, matchAnswer, emailAnswer, multiAnswer, orderAnswer, orderedQuestions } from './questionTypes';
@@ -33,7 +33,8 @@ export interface AnswerRecord {
   correct?: string;
   feedback: string[];
   // The automatic checks on code, SQL and hands-on tasks: what each expected and what the candidate's work gave
-  checks?: { description: string; expected: string; actual: string; passed: boolean }[];
+  // credit: a partly-met check's share of a full mark; capability: the AI-at-work capability it shows (job simulations)
+  checks?: { description: string; expected: string; actual: string; passed: boolean; credit?: number; capability?: Capability }[];
   // The task a question is about, when it's about one
   task?: string;
 }
@@ -151,7 +152,10 @@ export function answerRecords(
         ...(correct && { correct: cap(correct, 4000) }),
         feedback: feedback[q.id] ?? [],
         ...(run && 'testCaseResults' in run && run.testCaseResults.length > 0 && {
-          checks: run.testCaseResults.map((r) => ({ description: r.description, expected: cap(String(r.expected ?? ''), 2000), actual: cap(String(r.actual ?? ''), 2000), passed: r.passed })),
+          checks: run.testCaseResults.map((r) => {
+            const capability = q.testCases?.find((tc) => tc.id === r.id)?.capability;
+            return { description: r.description, expected: cap(String(r.expected ?? ''), 2000), actual: cap(String(r.actual ?? ''), 2000), passed: r.passed, ...(!r.passed && r.credit && { credit: Math.round(r.credit * 100) / 100 }), ...(capability && { capability }) };
+          }),
         }),
         ...(task && { task: `${task.type === 'case' ? 'Case' : 'Task'} ${tasks.indexOf(task) + 1}: ${task.title}` }),
       },

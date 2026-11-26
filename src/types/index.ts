@@ -311,7 +311,12 @@ export interface TestCase {
   // A check on writing done inside a simulated app (a reply, a note, a bug report): the text at the input path is marked
   // against these points by Corprax's AI, with a rough first mark from matching words until then
   rubric?: string[];
+  // The AI-at-work capability it shows, for a job simulation's results (src/lib/capabilities.ts); untagged checks are
+  // the job's own skills
+  capability?: Capability;
 }
+
+export type Capability = 'fluency' | 'verify' | 'orchestrate' | 'judgement' | 'adapt' | 'own';
 
 export interface Question {
   id: string;

@@ -875,7 +875,10 @@ async function writeJobSimDay(
   } catch {
     current = undefined;
   }
+  // The AI-at-work layer: the company's switch on the plan (on by default); a day being changed keeps what it had
+  const aiLayer = extra.plan?.aiLayer ?? (extra.current ? !!extra.current.questions[0]?.desktop?.apps.includes('agents') : true);
   const base = {
+    aiLayer,
     job: request.job,
     jobTitle: request.jobTitle,
     company: request.company,
@@ -993,11 +996,11 @@ async function writeJobSimDay(
   let raw = { ...world, ...sc.script, customApps: apps } as unknown as RawJobSim;
 
   list.start('check', 'Working out every answer from the data and checking each part can be marked…');
-  let made = assembleJobSim(raw, ctx.business, false, initial);
+  let made = assembleJobSim(raw, ctx.business, false, initial, aiLayer);
   if (made.problems.length) {
     list.start('check', `Fixing ${made.problems.length === 1 ? 'one problem' : `${made.problems.length} problems`} Corprax's checks found…`);
     // Problems with the computer itself (no data for an app) are the world's; the rest are the script's
-    const inWorld = made.problems.some((p) => /^(The desktop has no work app|apps has )/.test(p));
+    const inWorld = made.problems.some((p) => /^(The desktop has no work app|apps has |Agent task |The AI-at-work layer is o)/.test(p));
     let fixedWorld = world;
     const kept = { apps, initial };
     if (inWorld) {
@@ -1010,9 +1013,9 @@ async function writeJobSimDay(
     const again = await writeScript(fixedWorld, made.problems, raw);
     if (again.script) {
       const next = { ...fixedWorld, ...again.script, customApps: apps } as unknown as RawJobSim;
-      const remade = assembleJobSim(next, ctx.business, false, initial);
+      const remade = assembleJobSim(next, ctx.business, false, initial, aiLayer);
       // The fix is kept when it passes, or when the first version can't stand even with its broken checks left out
-      if (!remade.problems.length || !assembleJobSim(raw, ctx.business, true, kept.initial).test) {
+      if (!remade.problems.length || !assembleJobSim(raw, ctx.business, true, kept.initial, aiLayer).test) {
         raw = next;
         world = fixedWorld;
         made = remade;
@@ -1023,7 +1026,7 @@ async function writeJobSimDay(
       apps = kept.apps;
       initial = kept.initial;
     }
-    if (made.problems.length) made = assembleJobSim(raw, ctx.business, true, initial);
+    if (made.problems.length) made = assembleJobSim(raw, ctx.business, true, initial, aiLayer);
   }
   list.finish();
   if (!made.test) {

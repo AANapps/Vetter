@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { streamJson } from './streamJson.js';
 import { meter } from './meter.js';
 import { MAX_PROMPT, PRICES, SimulationCompany, apiFailure } from './generateTest.js';
-import { WORK_APP_CHECKS, WORK_APP_FORMATS } from './deskAppRules.js';
+import { AI_LAYER_RULES, NO_AI_LAYER, WORK_APP_CHECKS, WORK_APP_FORMATS } from './deskAppRules.js';
 
 /**
  * Writes a whole AI-made job simulation as one day on the desktop, in the five timed parts every Corprax job simulation
@@ -27,6 +27,8 @@ export interface JobSimRequest {
   research?: string;
   // The plan agreed in the chat: its five parts, cast and blueprint
   plan?: { title?: string; description?: string; company?: string; setting?: string; people?: string[]; blueprint?: string[]; items?: { ref: string; title: string; brief: string; minutes: number; software?: string; appId?: string }[] };
+  // The AI-at-work layer (agents with planted mistakes, capability-tagged checks): the company's switch, on by default
+  aiLayer?: boolean;
   // A day already written, to change as asked or to fix
   current?: unknown;
   change?: string;
@@ -69,7 +71,7 @@ export const jobSimSchema = {
     briefs: { type: 'object', properties: { core: str, curveball: str, juggling: str, report: str }, required: ['core', 'curveball', 'juggling', 'report'], additionalProperties: false },
     user: { type: 'object', properties: { name: str, role: str }, required: ['name', 'role'], additionalProperties: false },
     time: str,
-    apps: { type: 'array', items: { type: 'string', enum: ['sheet', 'browser', 'sql', 'code', 'chat', 'helpdesk', 'crm', 'docs', 'bi', 'forms', 'calendar', 'kb', 'board'] } },
+    apps: { type: 'array', items: { type: 'string', enum: ['sheet', 'browser', 'sql', 'code', 'chat', 'helpdesk', 'crm', 'docs', 'bi', 'forms', 'calendar', 'kb', 'board', 'agents'] } },
     contacts: { type: 'array', items: { type: 'object', properties: { name: str, role: str, email: str }, required: ['name', 'role', 'email'], additionalProperties: false } },
     workbookName: str,
     sheets: { type: 'array', items: { type: 'object', properties: { name: str, rows: { type: 'array', items: strs } }, required: ['name', 'rows'], additionalProperties: false } },
@@ -129,8 +131,8 @@ export const jobSimSchema = {
       type: 'array',
       items: {
         type: 'object',
-        properties: { part: { type: 'string', enum: ['core', 'curveball', 'juggling', 'report'] }, description: str, input: str, expected: str, rubric: strs },
-        required: ['part', 'description', 'input', 'expected', 'rubric'],
+        properties: { part: { type: 'string', enum: ['core', 'curveball', 'juggling', 'report'] }, description: str, input: str, expected: str, rubric: strs, capability: { type: 'string', enum: ['', 'fluency', 'verify', 'orchestrate', 'judgement', 'adapt', 'own'] } },
+        required: ['part', 'description', 'input', 'expected', 'rubric', 'capability'],
         additionalProperties: false,
       },
     },
@@ -359,6 +361,7 @@ export async function writeJobSim(body: unknown, apiKey: string | undefined, mod
           .map((a) => `APP ${a.id} ("${a.label}")\nIts saved state: ${String(a.state).slice(0, 3000)}\nWhat's planted and how it's marked: ${(a.planted ?? []).slice(0, 30).join('\n') || 'not listed'}\nIts data: ${String(a.data).slice(0, 25000)}`)
           .join('\n\n')}`
       : '',
+    req.aiLayer === false ? NO_AI_LAYER : AI_LAYER_RULES,
     STAGE_NOTES[stageOf(req)],
   ]
     .filter(Boolean)

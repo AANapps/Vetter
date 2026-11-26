@@ -1,4 +1,4 @@
-import { AssessmentTest, Question } from '../../types';
+import { AssessmentTest, Capability, Question } from '../../types';
 type TestRole = NonNullable<AssessmentTest['roles']>[number];
 type Category = AssessmentTest['category'];
 import { DeskPhase, DesktopConfig } from '../../lib/desktop';
@@ -35,11 +35,12 @@ export const JOB_SIM_PHASES: Omit<DeskPhase, 'brief'>[] = [
 export const JOB_SIM_BUFFER_MINUTES = 3;
 export const JOB_SIM_MINUTES = JOB_SIM_PHASES.reduce((n, p) => n + p.minutes, 0) + JOB_SIM_BUFFER_MINUTES;
 
-// A check: the part it belongs to, what it looks for, how it's read off the desktop, and the answer (or a rubric)
-export type JobSimCheck = [part: JobSimPart, description: string, input: string, expected: string | { rubric: string[] }];
+// A check: the part it belongs to, what it looks for, how it's read off the desktop, the answer (or a rubric), and the
+// AI-at-work capability it shows (src/lib/capabilities.ts), if it's not about the job's own skills
+export type JobSimCheck = [part: JobSimPart, description: string, input: string, expected: string | { rubric: string[] }, capability?: Capability];
 
-// The work environments besides Mail, Files and the AI assistant (which every desktop may have)
-const SUPPORTING_APPS = ['mail', 'files', 'ai'];
+// The work environments besides Mail, Files, the AI assistant and the AI agents (which every desktop may have)
+const SUPPORTING_APPS = ['mail', 'files', 'ai', 'agents', 'people'];
 
 export interface JobSimSpec {
   testId: string;
@@ -79,9 +80,9 @@ export function jobSimulation(spec: JobSimSpec): AssessmentTest {
   if (problems.length) throw new Error(`${spec.testId}: ${problems.join('; ')}`);
 
   const seen: Partial<Record<JobSimPart, number>> = {};
-  const testCases = spec.checks.map(([part, d, input, e], i) => {
+  const testCases = spec.checks.map(([part, d, input, e, capability], i) => {
     const n = (seen[part] = (seen[part] ?? 0) + 1);
-    return { ...tc(`tc-${spec.questionId}-${i + 1}`, `${PART_NUMBER[part]}.${n} · ${d}`, input, typeof e === 'string' ? e : ''), ...(typeof e !== 'string' && { rubric: e.rubric }) };
+    return { ...tc(`tc-${spec.questionId}-${i + 1}`, `${PART_NUMBER[part]}.${n} · ${d}`, input, typeof e === 'string' ? e : ''), ...(typeof e !== 'string' && { rubric: e.rubric }), ...(capability && { capability }) };
   });
 
   const plan = phases.map((p, i) => `${i + 1}. ${p.title}: ${p.minutes} min${p.scored ? '' : ' (not marked)'}`).join('\n');
@@ -94,7 +95,7 @@ export function jobSimulation(spec: JobSimSpec): AssessmentTest {
 ${plan}
 Plus ${JOB_SIM_BUFFER_MINUTES} min to read, switch between apps and check your work.
 
-Your files and data are already on the computer. People reply to your emails.`,
+Your files and data are already on the computer. People reply to your emails.${desktop.apps.includes('agents') ? '\n\nAI agents work alongside you (the Agents app): hand them work with a clear brief, check what they send back, flag what\'s wrong and approve only what you\'d put your name to.' : ''}`,
     starterCode: '',
     desktop,
     testCases,

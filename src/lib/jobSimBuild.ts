@@ -1,6 +1,7 @@
 import { AssessmentTest, Business, SkillCategory, TEST_DIFFICULTIES, TestDifficulty } from '../types';
 import { DeskBlock, DeskPage, DesktopConfig, desktopApps, desktopValue, emptyDesktop } from './desktop';
-import type { BoardConfig, CalendarConfig, ChatConfig, CrmConfig, DeskAppsConfig, DeskWorkApp, FormsConfig, HelpdeskConfig, KbConfig, Ticket } from './deskApps';
+import type { AgentsConfig, BoardConfig, CalendarConfig, ChatConfig, CrmConfig, DeskAppsConfig, DeskWorkApp, FormsConfig, HelpdeskConfig, KbConfig, Ticket } from './deskApps';
+import { isCapability } from './capabilities';
 import { checkSheet, parseWorkbook, workbookStarter } from './spreadsheet';
 import { JobSimCheck, JobSimPart, jobSimulation } from '../data/modules/jobSimKit';
 import { categoriesFor, companySector } from './sectors';
@@ -56,7 +57,7 @@ export interface RawJobSim {
   project: { name: string; files: { name: string; content: string; readonly: boolean }[]; testFile: string; checks: { id: string; code: string }[] };
   inbox: (RawMail & { id: string; phase: string; to: string[]; cc: string[]; date: string })[];
   replies: { id: string; to: string; mustMention: string[][]; mustAttach: string; reply: RawMail; otherwise: RawMail }[];
-  checks: { part: JobSimPart; description: string; input: string; expected: string; rubric: string[] }[];
+  checks: { part: JobSimPart; description: string; input: string; expected: string; rubric: string[]; capability?: string }[];
   // Apps from Corprax's app library on the desktop, as the world asked for them, and software to build for the day
   libraryApps?: { id: string; label: string; brief: string }[];
   newApp?: { app: string; product: string; label: string; brief: string };
@@ -156,7 +157,7 @@ function desktopOf(raw: RawJobSim): Omit<DesktopConfig, 'phases'> {
 }
 
 const BASIC_APPS = ['sheet', 'browser', 'sql', 'code'];
-const WORK_APPS: DeskWorkApp[] = ['chat', 'helpdesk', 'crm', 'docs', 'bi', 'forms', 'calendar', 'kb', 'board'];
+const WORK_APPS: DeskWorkApp[] = ['chat', 'helpdesk', 'crm', 'docs', 'bi', 'forms', 'calendar', 'kb', 'board', 'agents'];
 
 // The built-in apps' data the AI wrote, kept only for the apps on the desktop, with the shapes the apps need
 function workOf(raw: RawJobSim): DeskAppsConfig {
@@ -197,6 +198,25 @@ function workOf(raw: RawJobSim): DeskAppsConfig {
       case 'kb':
         out.kb = { ...(d as object), articles: arr(d.articles) } as KbConfig;
         break;
+      case 'agents': {
+        const words = (v: unknown) => arr<unknown[]>(v).map((g) => arr<string>(g).map(String).filter((w) => w.trim())).filter((g) => g.length);
+        out.agents = {
+          name: typeof d.name === 'string' ? d.name : undefined,
+          agents: arr<AgentsConfig['agents'][number]>(d.agents).filter((a) => a?.id && a?.name),
+          tasks: arr<AgentsConfig['tasks'][number]>(d.tasks)
+            .filter((t) => t?.id && arr(t.runs).length)
+            .map((t) => ({
+              ...t,
+              id: String(t.id),
+              agent: t.agent || undefined,
+              brief: t.brief || undefined,
+              phase: t.phase || undefined,
+              runs: arr<AgentsConfig['tasks'][number]['runs'][number]>(t.runs).map((r) => ({ ...r, id: String(r.id), when: words(r.when), steps: arr<string>(r.steps), output: String(r.output ?? ''), file: r.file?.name?.trim() ? { name: r.file.name.trim(), content: String(r.file.content ?? '') } : undefined, action: r.action || undefined })),
+              issues: arr<NonNullable<AgentsConfig['tasks'][number]['issues']>[number]>(t.issues).filter((i) => i?.id && i?.quote).map((i) => ({ ...i, run: i.run || undefined })),
+            })),
+        };
+        break;
+      }
       case 'board':
         out.board = { boards: arr<BoardConfig['boards'][number]>(d.boards).map((b) => ({ ...b, statuses: arr<string>(b.statuses).length ? arr<string>(b.statuses) : ['To Do', 'In Progress', 'Done'], items: arr<BoardConfig['boards'][number]['items'][number]>(b.items).map((i) => ({ ...i, id: String(i.id), status: i.status || arr<string>(b.statuses)[0] || 'To Do' })) })) };
         break;
@@ -224,15 +244,29 @@ function workProblems(raw: RawJobSim, w: DeskAppsConfig): string[] {
   if (apps.includes('calendar') && (!w.calendar?.weekOf || !/^\d{4}-\d{2}-\d{2}$/.test(w.calendar.weekOf))) p.push('apps has calendar but work.calendar.weekOf is not a YYYY-MM-DD date.');
   if (apps.includes('kb') && !w.kb?.articles.length) p.push('apps has kb but work.kb has no articles.');
   if (apps.includes('board') && !w.board?.boards.some((b) => b.items.length)) p.push('apps has board but work.board has no items.');
+  if (apps.includes('agents')) {
+    const a = w.agents;
+    if (!a?.agents.length || !a.tasks.length) p.push('apps has agents but work.agents has no agents or no tasks.');
+    for (const t of a?.tasks ?? []) {
+      if (t.agent && !a!.agents.some((x) => x.id === t.agent)) p.push(`Agent task ${t.id} is given to an agent (${t.agent}) that isn't in work.agents.agents.`);
+      if (!t.agent && !t.runs.some((r) => !r.when?.length)) p.push(`Agent task ${t.id}: its last run (for a vague brief) must have no "when" words.`);
+      for (const i of t.issues ?? []) {
+        const runs = t.runs.filter((r) => !i.run || r.id === i.run);
+        const lines = runs.flatMap((r) => [...(r.steps ?? []), ...r.output.split('\n')]);
+        if (!runs.length) p.push(`Agent task ${t.id}, issue ${i.id}: run ${i.run} doesn't exist.`);
+        else if (!lines.some((l) => l.toLowerCase().includes(i.quote.toLowerCase()))) p.push(`Agent task ${t.id}, issue ${i.id}: its quote "${i.quote}" isn't the exact words of any line of ${i.run ? `run ${i.run}` : 'its runs'}.`);
+      }
+    }
+  }
   if (apps.includes('bi') && !(raw.files ?? []).some((f) => /\.csv$/i.test(f.name)) && !(raw.tables ?? []).length && !(raw.inbox ?? []).some((m) => (m.attachments ?? []).some((f) => /\.csv$/i.test(f.name))))
     p.push('apps has bi but there is no CSV file or database table for its data.');
   return p;
 }
 
-const WORK_APP_OF: Record<string, DeskWorkApp> = { chat: 'chat', chatcount: 'chat', chatreceived: 'chat', ticket: 'helpdesk', tickets: 'helpdesk', record: 'crm', recordwhere: 'crm', records: 'crm', crmnote: 'crm', event: 'calendar', eventwith: 'calendar', eventat: 'calendar', response: 'calendar', form: 'forms', formcount: 'forms', kbviewed: 'kb', item: 'board', itemwhere: 'board', items: 'board', chart: 'bi', charts: 'bi' };
+const WORK_APP_OF: Record<string, DeskWorkApp> = { agent: 'agents', agentflag: 'agents', agentcaught: 'agents', agentopened: 'agents', chat: 'chat', chatcount: 'chat', chatreceived: 'chat', ticket: 'helpdesk', tickets: 'helpdesk', record: 'crm', recordwhere: 'crm', records: 'crm', crmnote: 'crm', event: 'calendar', eventwith: 'calendar', eventat: 'calendar', response: 'calendar', form: 'forms', formcount: 'forms', kbviewed: 'kb', item: 'board', itemwhere: 'board', items: 'board', chart: 'bi', charts: 'bi' };
 // The built-in apps' check kinds, and those that read writing (so may have a rubric)
-const WORK_CHECKS = ['file', 'filerows', 'chat', 'chatcount', 'chatreceived', 'ticket', 'tickets', 'record', 'recordwhere', 'records', 'crmnote', 'event', 'eventwith', 'eventat', 'response', 'form', 'formcount', 'kbviewed', 'item', 'itemwhere', 'items', 'chart', 'charts'];
-const writingCheck = (kind: string, rest: string) => ['chat', 'file', 'crmnote'].includes(kind) || (kind === 'ticket' && /:(reply|note)$/.test(rest)) || (kind === 'item' && /:comments$/.test(rest)) || kind === 'form';
+const WORK_CHECKS = ['agent', 'agentflag', 'agentcaught', 'agentopened', 'file', 'filerows', 'chat', 'chatcount', 'chatreceived', 'ticket', 'tickets', 'record', 'recordwhere', 'records', 'crmnote', 'event', 'eventwith', 'eventat', 'response', 'form', 'formcount', 'kbviewed', 'item', 'itemwhere', 'items', 'chart', 'charts'];
+const writingCheck = (kind: string, rest: string) => ['chat', 'file', 'crmnote'].includes(kind) || (kind === 'agent' && /:(note|brief|flagnotes)$/.test(rest)) || (kind === 'ticket' && /:(reply|note)$/.test(rest)) || (kind === 'item' && /:comments$/.test(rest)) || kind === 'form';
 
 export interface AssembledJobSim {
   test?: AssessmentTest;
@@ -243,11 +277,14 @@ export interface AssembledJobSim {
 // The AI's day as a test, with what's wrong with it. With lenient, checks that can't be marked are left out rather
 // than reported, so a day that's otherwise sound is still made
 // initial: each app's state as it starts (tried in a hidden frame), so a check that passes before any work is found
-export function assembleJobSim(raw: RawJobSim, business?: Business, lenient = false, initial: Record<string, Record<string, unknown>> = {}): AssembledJobSim {
+// aiLayer: the company's switch for the AI-at-work layer (agents with planted mistakes, capability-tagged checks)
+export function assembleJobSim(raw: RawJobSim, business?: Business, lenient = false, initial: Record<string, Record<string, unknown>> = {}, aiLayer = true): AssembledJobSim {
   const problems: string[] = [];
   if (!raw || typeof raw !== 'object') return { problems: ['Nothing came back.'] };
   const desktop = desktopOf(raw);
-  const work = desktop.apps.filter((a) => !['mail', 'files', 'ai'].includes(a));
+  const work = desktop.apps.filter((a) => !['mail', 'files', 'ai', 'agents'].includes(a));
+  if (aiLayer && !desktop.apps.includes('agents')) problems.push('The AI-at-work layer is on, but apps has no "agents" (and work no agents data).');
+  if (!aiLayer && desktop.apps.includes('agents')) problems.push('The AI-at-work layer is off: take "agents" out of apps and work.');
   if (!work.length) problems.push('The desktop has no work app: pick two of sheet, browser, sql, code and the built-in apps (or a library app).');
   if (work.includes('sheet') && !desktop.workbook) problems.push('apps has sheet but the workbook has no sheets.');
   if (work.includes('browser') && !desktop.pages?.length) problems.push('apps has browser but there are no pages.');
@@ -348,6 +385,10 @@ export function assembleJobSim(raw: RawJobSim, business?: Business, lenient = fa
             problem = `${name} has no expected value.`;
             break;
           }
+          if (kind.startsWith('agent') && !desktop.work?.agents?.tasks.some((t) => lower(t.id) === lower(rest.split(':')[0]))) {
+            problem = `${name} is about an agent task that isn't in work.agents.tasks.`;
+            break;
+          }
           // It mustn't pass before the candidate does anything
           if (typeof expected === 'string') {
             const before = desktopValue(desktop as DesktopConfig, emptyDesktop(desktop as DesktopConfig), input);
@@ -359,10 +400,16 @@ export function assembleJobSim(raw: RawJobSim, business?: Business, lenient = fa
       if (!lenient) problems.push(problem);
       continue;
     }
-    checks.push([c.part, c.description, input, expected]);
+    checks.push([c.part, c.description, input, expected, ...(isCapability(c.capability) ? [c.capability] : [])] as JobSimCheck);
   }
   for (const part of PARTS) if (!checks.some((c) => c[0] === part)) problems.push(`Nothing is marked in the ${part} part.`);
   if (!checks.some((c) => c[0] === 'report' && typeof c[3] !== 'string')) problems.push('The report back has no rubric-marked email to the manager.');
+  if (aiLayer && desktop.apps.includes('agents')) {
+    if (!checks.some((c) => c[2].startsWith('agentcaught:'))) problems.push('The AI-at-work layer has no agentcaught: check on the agent\'s draft with five planted mistakes.');
+    if (!checks.some((c) => c[2].startsWith('agent:') && /:(run|approved)$/.test(c[2]))) problems.push('The AI-at-work layer has no check on the delegated task (agent:<task>:run or :approved).');
+    if (!checks.some((c) => c[2].startsWith('agent:') && c[2].endsWith(':decision'))) problems.push('The AI-at-work layer has no check on the judgement task (agent:<task>:decision).');
+    if (checks.filter((c) => c[4]).length < 5) problems.push('Fewer than five checks have a capability: tag them (orchestrate, verify, judgement, adapt, own, fluency).');
+  }
 
   const category = (categoriesFor(companySector(business)) as string[]).includes(raw.category) ? (raw.category as SkillCategory) : categoriesFor(companySector(business))[0] ?? ('Consulting' as SkillCategory);
   let test: AssessmentTest | undefined;

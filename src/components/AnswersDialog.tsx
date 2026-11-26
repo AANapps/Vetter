@@ -8,6 +8,7 @@ import { Desktop } from './Desktop';
 import { usePlan } from '../lib/plan';
 import { AnswerRecord, Submission, loadSubmissions } from '../lib/submissions';
 import { QUESTION_STYLES } from '../lib/questionTypes';
+import { CAPABILITIES, capabilityScores } from '../lib/capabilities';
 
 interface AnswersDialogProps {
   businessId: string;
@@ -165,6 +166,30 @@ const opens = (text: string) => {
   }
 };
 
+// How they worked with AI in a job simulation: a score for each capability its checks were tagged with
+const AiAtWork: React.FC<{ checks: NonNullable<AnswerRecord['checks']> }> = ({ checks }) => {
+  const scores = capabilityScores(checks);
+  if (!scores.length) return null;
+  return (
+    <div className="rounded-lg border border-violet-200 bg-violet-50/40 px-3 py-2.5">
+      <div className="text-[11px] font-bold uppercase tracking-wider text-violet-800">Working with AI</div>
+      <ul className="mt-1.5 grid sm:grid-cols-2 gap-x-6 gap-y-1.5">
+        {scores.map((c) => (
+          <li key={c.id} className="text-xs" title={CAPABILITIES[c.id].question}>
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="font-semibold text-slate-800">{CAPABILITIES[c.id].label}</span>
+              <span className={`font-mono font-bold tabular-nums ${scoreTone(c.score)}`}>{c.score}</span>
+            </div>
+            <div className="mt-0.5 h-1.5 rounded-full bg-violet-100 overflow-hidden" aria-hidden>
+              <div className="h-full rounded-full bg-violet-600" style={{ width: `${c.score}%` }} />
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+
 const Answer: React.FC<{ a: AnswerRecord; onOpenDesktop?: () => void }> = ({ a, onOpenDesktop }) => {
   const [showRaw, setShowRaw] = useState(false);
   return (
@@ -193,6 +218,8 @@ const Answer: React.FC<{ a: AnswerRecord; onOpenDesktop?: () => void }> = ({ a, 
           {a.correct && <Block label={a.type === 'written' || a.type === 'email' ? 'What a strong answer covers' : 'Right answer'} tone="neutral" text={a.correct} />}
         </div>
       )}
+
+      {a.checks && <AiAtWork checks={a.checks} />}
 
       {a.checks && a.checks.length > 0 && (
         <div className="space-y-1.5">
