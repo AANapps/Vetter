@@ -189,8 +189,10 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   // industries is under both, so each heading's count matches the menu's. Tests for no listed role go last
   const sections: { heading: string | null; tests: AssessmentTest[] }[] = grouped
     ? [
+        // The AI competency tests are for every job, so first and under their own heading
+        { heading: 'AI at Work (every job)', tests: shownTests.filter((t) => t.category === 'AI at Work') },
         ...roleGroups.map((g) => ({ heading: g.industry, tests: shownTests.filter((t) => inField(t, g.roles)) })),
-        { heading: 'Other', tests: shownTests.filter((t) => !roleGroups.some((g) => inField(t, g.roles))) },
+        { heading: 'Other', tests: shownTests.filter((t) => t.category !== 'AI at Work' && !roleGroups.some((g) => inField(t, g.roles))) },
       ].filter((sec) => sec.tests.length > 0)
     : [{ heading: null, tests: shownTests }];
   // The Candidates tab: the leads pipeline, or everyone on Corprax ranked for a job

@@ -360,6 +360,7 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
   // The job simulations, the one for the job they're after first
   const sims = library.filter(isJobSim).sort((a, b) => Number(!!b.roles?.includes(candidate.targetRole as TestRole)) - Number(!!a.roles?.includes(candidate.targetRole as TestRole)));
   const everything = library.filter(matches).sort((a, b) => easiest(a) - easiest(b));
+  const aiTests = library.filter((t) => t.category === 'AI at Work');
   return (
     <div className="tl-aurora space-y-10">
       <section className="text-center max-w-2xl mx-auto pt-6 space-y-5">
@@ -475,6 +476,13 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
                   );
                 })}
               </ul>
+            </section>
+          )}
+          {/* The AI competency tests: for every job, so above the roles */}
+          {kind === 'tests' && aiTests.length > 0 && (
+            <section className="space-y-4">
+              {sectionTitle('AI at Work', 'For every job: how well you work with AI. Brief and check AI agents, catch their mistakes and keep data safe. About 20 minutes each.')}
+              <ul className={grid}>{aiTests.map((t) => card(t, { label: 'AI at Work · every job' }))}</ul>
             </section>
           )}
           {kind === 'tests' && groups.map((g) => (
