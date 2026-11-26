@@ -12,7 +12,7 @@ const MAX_LINKS = 4;
 const thisMonth = () => new Date().toISOString().slice(0, 7);
 
 // A candidate's own account of their work: jobs they've had, how they want to work and links to more. Skills
-// aren't typed in here; they come from Praxa's test scores
+// aren't typed in here; they come from Granyt's test scores
 export const ExperienceEditor: React.FC<{ candidate: User; onSave: (details: ExperienceDetails) => void; onClose: () => void }> = ({ candidate, onSave, onClose }) => {
   const [jobs, setJobs] = useState<WorkExperience[]>(() => sortExperience(candidate.experience ?? []));
   const [links, setLinks] = useState<ProfileLink[]>(candidate.links ?? []);
@@ -70,7 +70,7 @@ export const ExperienceEditor: React.FC<{ candidate: User; onSave: (details: Exp
             <X className="w-5 h-5" />
           </button>
           <h2 className="text-lg font-bold text-slate-900 tracking-tight">Experience</h2>
-          <p className="text-xs text-slate-500">The jobs you've done, as on a CV. Your skills come from Praxa's tests, so there's no need to list them.</p>
+          <p className="text-xs text-slate-500">The jobs you've done, as on a CV. Your skills come from Granyt's tests, so there's no need to list them.</p>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6">

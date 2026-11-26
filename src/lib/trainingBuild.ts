@@ -4,8 +4,8 @@ import { Progress, buildAppPage } from './testChat';
 
 /**
  * Guided training, built in two steps: the AI plans the lessons and the spec of the app (/api/write-training), then the
- * app is built like any simulation (buildAppPage). That reuses Praxa's app library when it has the software, and sends
- * a new app, or what this one added to a library app, to the Praxa team's review queue, so later training and job
+ * app is built like any simulation (buildAppPage). That reuses Granyt's app library when it has the software, and sends
+ * a new app, or what this one added to a library app, to the Granyt team's review queue, so later training and job
  * simulations are built on it. The result is saved as the company's training, never among its tests.
  */
 
@@ -33,10 +33,10 @@ export async function planTraining(brief: string, business?: Business, change?: 
     });
     if (res.status === 402) return { needsCredit: true, error: "You've used the AI included in your plan and any credit. Top up or upgrade to carry on." };
     const body = await res.json().catch(() => ({}));
-    if (!res.ok || body.error) return { error: body.error === 'not-configured' ? "Praxa's AI isn't set up on this server." : body.error || "Couldn't plan the training." };
+    if (!res.ok || body.error) return { error: body.error === 'not-configured' ? "Granyt's AI isn't set up on this server." : body.error || "Couldn't plan the training." };
     return { plan: body as TrainingPlan };
   } catch (err) {
-    return { error: (err as Error)?.name === 'AbortError' ? 'Stopped.' : "Couldn't reach Praxa's AI. Check your connection." };
+    return { error: (err as Error)?.name === 'AbortError' ? 'Stopped.' : "Couldn't reach Granyt's AI. Check your connection." };
   }
 }
 
@@ -93,7 +93,7 @@ ${refs}`;
     undefined,
     { training: true, sector: business?.sector },
     progress,
-    { owner: business?.name ? `${business.name} (training)` : 'Praxa (training)' }
+    { owner: business?.name ? `${business.name} (training)` : 'Granyt (training)' }
   );
   if (!page.appHtml || page.appHtml === brief) return { ok: false, error: "The app for this training couldn't be built. Try again in a moment." };
   // The builder may rename state paths to match what it built: each step follows its check

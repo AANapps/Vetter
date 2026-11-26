@@ -35,17 +35,17 @@ const Chips: React.FC<{ items: string[]; tone?: 'new' | 'plain'; max?: number }>
 );
 
 /**
- * The Praxa team's simulation library: every simulation built (for companies' tests and by the Praxa team) waits
+ * The Granyt team's simulation library: every simulation built (for companies' tests and by the Granyt team) waits
  * here to be tried and approved before it joins the library or becomes an app's next version. The team can also build
  * an app for the library, look through the library, and take an app out of it.
  */
 export const SimulationLibraryAdmin: React.FC = () => {
   const { environments: saved, submissions, loading, error } = useLibrary('all');
-  // The library: the apps in Firestore, and Praxa's own apps in the repo (library-apps/) that aren't pushed yet or are
+  // The library: the apps in Firestore, and Granyt's own apps in the repo (library-apps/) that aren't pushed yet or are
   // newer there, so the team sees every app (npm run apps -- push <id> puts one in Firestore)
   const repoOnly: SavedEnvironment[] = Object.values(LIBRARY_APPS)
     .filter(({ manifest: m }) => !saved.some((e) => e.id === m.id && e.version >= m.version))
-    .map(({ manifest: m }) => ({ id: m.id, app: m.name, name: m.name, product: m.product, summary: m.summary, features: m.features, version: m.version, builtFor: 'Praxa', createdAt: '', updatedAt: '', uses: 0 }));
+    .map(({ manifest: m }) => ({ id: m.id, app: m.name, name: m.name, product: m.product, summary: m.summary, features: m.features, version: m.version, builtFor: 'Granyt', createdAt: '', updatedAt: '', uses: 0 }));
   const environments = [...repoOnly, ...saved.filter((e) => !repoOnly.some((r) => r.id === e.id))];
   const inRepoOnly = (env: SavedEnvironment) => repoOnly.some((r) => r.id === env.id);
   const [view, setView] = useState<'pending' | 'library' | 'decided'>('library');
@@ -84,7 +84,7 @@ export const SimulationLibraryAdmin: React.FC = () => {
     const page = await loadSubmissionPage(sub.id);
     setOpen({ kind: 'sub', sub, page: filled(page, parseData(page?.data)) });
   };
-  // Some data to try a library app with: Praxa's own sample, else the data of the latest test it was built for
+  // Some data to try a library app with: Granyt's own sample, else the data of the latest test it was built for
   const dataFor = async (envId: string): Promise<unknown> => {
     if (LIBRARY_APPS[envId]) return LIBRARY_APPS[envId].sample;
     const app = environments.find((e) => e.id === envId)?.app.trim().toLowerCase();
@@ -98,7 +98,7 @@ export const SimulationLibraryAdmin: React.FC = () => {
     versions?.envId === env.id ? setVersions(null) : setVersions({ envId: env.id, list: await loadVersions(env.id) });
   const openVersion = async (env: SavedEnvironment, v: EnvironmentVersion) =>
     setOpen({ kind: 'env', env: { ...env, version: v.version }, page: filled({ html: v.html }, env.dataDriven || LIBRARY_APPS[env.id] ? await dataFor(env.id) : undefined) });
-  // Praxa's own apps hold no data, so they open with their sample data
+  // Granyt's own apps hold no data, so they open with their sample data
   const openEnv = async (env: SavedEnvironment) => {
     const repo = LIBRARY_APPS[env.id];
     const page = inRepoOnly(env) ? { html: repo.html } : await loadEnvironmentPage(env.id);
@@ -220,7 +220,7 @@ export const SimulationLibraryAdmin: React.FC = () => {
         </h3>
       </div>
       <p className="text-xs text-slate-500">
-        One simulation per app. Every simulation Praxa builds, for a company's test or here, waits for you to try it. Approve a new app to add it to the library,
+        One simulation per app. Every simulation Granyt builds, for a company's test or here, waits for you to try it. Approve a new app to add it to the library,
         or new features to make them the app's next version. Every later test of that app is built on the latest version and adds to it.
       </p>
 
@@ -298,7 +298,7 @@ export const SimulationLibraryAdmin: React.FC = () => {
                   <h4 className="text-sm font-semibold text-slate-900">{env.app}</h4>
                   <p className="text-[11px] text-slate-500">
                     {inRepoOnly(env)
-                      ? `Version ${env.version} · ${env.features.length} features · Praxa's own app, in the repo (not pushed to the library yet)`
+                      ? `Version ${env.version} · ${env.features.length} features · Granyt's own app, in the repo (not pushed to the library yet)`
                       : `Version ${env.version} · ${env.features.length} features · built on ${env.uses} ${env.uses === 1 ? 'time' : 'times'} · updated ${when(env.updatedAt)}`}
                   </p>
                 </div>

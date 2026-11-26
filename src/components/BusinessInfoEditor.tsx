@@ -10,7 +10,7 @@ export type BusinessInfo = Pick<Business, 'name' | 'logo' | 'industry' | 'headqu
 
 const SIZES = ['1–10', '11–50', '51–200', '201–500', '501–1,000', '1,001–5,000', '5,000+'];
 
-// A company's public details: what candidates see on its page and its jobs. Its owner or the Praxa team changes them
+// A company's public details: what candidates see on its page and its jobs. Its owner or the Granyt team changes them
 export const BusinessInfoEditor: React.FC<{ business: Business; onSave: (info: BusinessInfo) => void; onClose: () => void }> = ({ business, onSave, onClose }) => {
   const [info, setInfo] = useState<BusinessInfo>({
     name: business.name,

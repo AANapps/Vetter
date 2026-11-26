@@ -3,7 +3,7 @@ import { meter } from './meter.js';
 import { apiFailure } from './generateTest.js';
 
 /**
- * Praxa's environment library keeps one simulation per app, and each test that uses the app builds on it and adds
+ * Granyt's environment library keeps one simulation per app, and each test that uses the app builds on it and adds
  * features. This works out which app a new simulation copies and finds it in the library, if it's there. A quick model
  * is enough; it only reads short summaries.
  */
@@ -22,7 +22,7 @@ const schema = {
   additionalProperties: false,
 };
 
-const SYSTEM = `You find the app a new simulation page copies in Praxa's library. Praxa keeps one simulation per app (Meta Ads
+const SYSTEM = `You find the app a new simulation page copies in Granyt's library. Granyt keeps one simulation per app (Meta Ads
 Manager, Salesforce, Square POS...), and every test that uses an app builds on the library's copy of it and adds the
 features it needs, so the app grows. First work out which app the new page copies, from its task and spec. Then pick
 the library entry for THAT app: the same product, whatever it is called (Facebook Ads Manager is Meta Ads Manager; the

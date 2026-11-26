@@ -3,7 +3,7 @@ import { QuestionRunResult } from './grading';
 import { codeAnswer, languageById } from './languages';
 import { ASSISTANT_RESULT_SHARE, assistantAnswer, emailAnswer, emailMark } from './questionTypes';
 
-// A second marking by Praxa's AI for code, SQL and short answers that the automatic checks didn't give full marks.
+// A second marking by Granyt's AI for code, SQL and short answers that the automatic checks didn't give full marks.
 // It can only raise a score, never lower it, and code that still fails its checks can't reach full marks.
 
 const MARKED_BY_AI: Question['type'][] = ['text', 'written', 'email', 'assistant', 'code', 'sql', 'schema', 'app', 'desktop'];

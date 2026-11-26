@@ -5,7 +5,7 @@ import { DesktopConfig } from '../../lib/desktop';
 import { jobSimulation } from './jobSimKit';
 
 /**
- * The Data Analyst job simulation: a Monday at Ridgeway Coffee, in the five timed parts every Praxa job simulation
+ * The Data Analyst job simulation: a Monday at Ridgeway Coffee, in the five timed parts every Granyt job simulation
  * has (jobSimKit.ts), on the desktop with two environments: the Spreadsheet and the intranet in the Browser.
  *
  * Core task: Q1 sales against target for every store on the Summary sheet (the data is pre-loaded), then why stores

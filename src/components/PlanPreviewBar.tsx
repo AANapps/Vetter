@@ -5,7 +5,7 @@ import { pounds } from '../lib/aiRequest';
 
 const CHOICES: PlanId[] = ['free', 'per-job', 'starter', 'growth', 'scale', 'enterprise'];
 
-// For the Praxa team in the company view: see the site as a company on any plan, subscribed or not, with its AI used
+// For the Granyt team in the company view: see the site as a company on any plan, subscribed or not, with its AI used
 // up to any level and any credit, to try every paywall and the out-of-AI messages. Nothing is charged; AI requests are
 // refused by the server just as they would be for that plan
 export const PlanPreviewBar: React.FC<{ preview: PlanPreview | null; onChange: (p: PlanPreview | null) => void }> = ({ preview, onChange }) => {
@@ -64,7 +64,7 @@ export const PlanPreviewBar: React.FC<{ preview: PlanPreview | null; onChange: (
           <label className="block space-y-1">
             <span className="font-semibold text-slate-700">Plan</span>
             <select value={plan ?? ''} onChange={(e) => pick(e.target.value as PlanId | '')} className="w-full px-2 py-1.5 border border-slate-300 rounded-lg bg-white">
-              <option value="">Praxa team (everything open)</option>
+              <option value="">Granyt team (everything open)</option>
               {CHOICES.map((id) => (
                 <option key={id} value={id}>
                   {PLANS[id].name}

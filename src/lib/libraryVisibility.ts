@@ -5,8 +5,8 @@ import { AssessmentTest, TestRole } from '../types';
 import { ROLE_GROUPS } from './testRoles';
 
 /**
- * What the Praxa team has hidden from the library: whole industries (categories), single roles, and single tests (a
- * test's every level). Hidden ones aren't listed to candidates or companies; the Praxa team still sees everything.
+ * What the Granyt team has hidden from the library: whole industries (categories), single roles, and single tests (a
+ * test's every level). Hidden ones aren't listed to candidates or companies; the Granyt team still sees everything.
  * Kept in one Firestore document, settings/library, that anyone can read and only an admin can change. Without
  * Firebase (local work) it's kept in the browser.
  */
@@ -34,7 +34,7 @@ const readLocal = (): LibraryVisibility => {
   }
 };
 
-// Everyone using the page sees changes as soon as the Praxa team saves them
+// Everyone using the page sees changes as soon as the Granyt team saves them
 export function useLibraryVisibility(): LibraryVisibility {
   const [v, setV] = useState<LibraryVisibility>(() => (firebaseEnabled ? EMPTY_VISIBILITY : readLocal()));
   useEffect(() => {

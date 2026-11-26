@@ -5,7 +5,7 @@ import { Course, coursePriceLabel } from '../data/courses';
 import { submitCourseSignup, validEmail, validPhone } from '../lib/courseSignups';
 import { User } from '../types';
 
-// Signing up for a career switch course: email and phone are required, and the Praxa team gets in touch
+// Signing up for a career switch course: email and phone are required, and the Granyt team gets in touch
 export const CourseSignupDialog: React.FC<{ course: Course; candidate?: User; uid?: string; onClose: () => void }> = ({ course, candidate, uid, onClose }) => {
   const { money } = useCurrency();
   const [name, setName] = useState(candidate?.name ?? '');
@@ -60,7 +60,7 @@ export const CourseSignupDialog: React.FC<{ course: Course; candidate?: User; ui
           <div className="mt-4 space-y-4">
             <p className="flex gap-2 text-sm text-slate-600">
               <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-              Thanks, {name.trim().split(/\s+/)[0]}. Someone from the Praxa team will call or email you to talk through the course, start dates and payment.
+              Thanks, {name.trim().split(/\s+/)[0]}. Someone from the Granyt team will call or email you to talk through the course, start dates and payment.
             </p>
             <button onClick={onClose} className="w-full py-2.5 rounded-full bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700">
               Done

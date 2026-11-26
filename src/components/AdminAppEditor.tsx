@@ -12,9 +12,9 @@ import { startAiRun } from '../lib/aiRequest';
 import { AppWindow } from './AppWindow';
 
 /**
- * The admin panel's app editor: the Praxa team picks any app (one in the library, one waiting for review, or one inside
- * a company's saved test), tries it, and changes it by chatting with Praxa's AI. Each change is made as small edits to
- * the page (the same as the test builder's chat: what Praxa finds clicking through the page goes with it, and a change
+ * The admin panel's app editor: the Granyt team picks any app (one in the library, one waiting for review, or one inside
+ * a company's saved test), tries it, and changes it by chatting with Granyt's AI. Each change is made as small edits to
+ * the page (the same as the test builder's chat: what Granyt finds clicking through the page goes with it, and a change
  * that breaks the page is sent back), shown straight away, and can be undone. Nothing is kept until Save: a library
  * app saves as its next version, a submission's page is replaced, and a company's test gets the new page.
  */
@@ -85,14 +85,14 @@ export const AdminAppEditor: React.FC = () => {
         .catch((e) => (setCompanyTests([]), setProblem(`Couldn't load companies' tests: ${e instanceof Error ? e.message : String(e)}`)));
   }, [source, companyTests]);
 
-  // The library: Firestore's apps, and Praxa's own (library-apps/) not pushed yet
+  // The library: Firestore's apps, and Granyt's own (library-apps/) not pushed yet
   const library: Editable[] = useMemo(() => {
     const repoOnly = Object.values(LIBRARY_APPS).filter(({ manifest: m }) => !saved.some((e) => e.id === m.id && e.version >= m.version));
     const fromRepo: Editable[] = repoOnly.map(({ manifest: m, html, sample }) => ({
       key: `repo:${m.id}`,
       source: 'library',
       label: m.name,
-      detail: `Version ${m.version} · Praxa's own app (saving adds it to the library as the next version)`,
+      detail: `Version ${m.version} · Granyt's own app (saving adds it to the library as the next version)`,
       load: async () => withData(html, sample),
       save: async (page) => `Saved as version ${await publishRepoApp({ ...m, version: m.version + 1 }, splitData(page).app)}.`,
     }));
@@ -176,7 +176,7 @@ export const AdminAppEditor: React.FC = () => {
           <Bot className="w-4 h-4 text-indigo-600" />
           App editor
         </h2>
-        <p className="text-sm text-slate-600">Open any app, in the library, waiting for review or inside a company's saved test, and change it by telling Praxa's AI what you want.</p>
+        <p className="text-sm text-slate-600">Open any app, in the library, waiting for review or inside a company's saved test, and change it by telling Granyt's AI what you want.</p>
       </div>
       <div role="tablist" className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1 text-xs font-semibold">
         {tabs.map(({ id, label, Icon }) => (

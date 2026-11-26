@@ -1,9 +1,9 @@
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 
 /**
- * Praxa's code runner: runs a candidate's program in any language that isn't run in the browser (Java, C#, C++, Go,
+ * Granyt's code runner: runs a candidate's program in any language that isn't run in the browser (Java, C#, C++, Go,
  * Rust, PHP, Ruby, TypeScript and the rest), once per test case with that case's input on standard input. The running
- * is done by Judge0 (judge0.com), in its own sandbox, never on Praxa's server:
+ * is done by Judge0 (judge0.com), in its own sandbox, never on Granyt's server:
  *
  * - JUDGE0_URL: a self-hosted Judge0, or leave it out for Judge0 CE on RapidAPI
  * - JUDGE0_KEY: the RapidAPI key, or a self-hosted Judge0's auth token
@@ -48,7 +48,7 @@ function languageList(env: Env) {
   return languages;
 }
 
-// The Judge0 language for one of Praxa's: of the ones whose names match, the newest (Judge0 numbers newer versions higher)
+// The Judge0 language for one of Granyt's: of the ones whose names match, the newest (Judge0 numbers newer versions higher)
 async function languageId(env: Env, names: string[]): Promise<number | undefined> {
   const list = await languageList(env);
   const found = list.filter((l) => names.some((prefix) => l.name.startsWith(prefix)) && !/archived|deprecated/i.test(l.name)).sort((a, b) => b.id - a.id);

@@ -37,7 +37,7 @@ const schema = {
 };
 
 function instructions(req: WriteRequest): string {
-  return `You write questions for Praxa, a skills-testing platform for hiring. A test designer has planned a ${req.plan.difficulty}-level
+  return `You write questions for Granyt, a skills-testing platform for hiring. A test designer has planned a ${req.plan.difficulty}-level
 test, "${req.plan.title}". Write the items you're given in full, so that whoever passes can really do the job and whoever
 can't is found out.
 
@@ -92,7 +92,7 @@ export async function writeQuestions(body: unknown, apiKey: string | undefined, 
     const price = PRICES[model];
     const { input_tokens, output_tokens } = message.usage;
     if (price) console.log(`[write-questions] ${req.write.length} items, ${input_tokens} in, ${output_tokens} out: $${((input_tokens * price.input + output_tokens * price.output) / 1e6).toFixed(3)}`);
-    if (message.stop_reason === 'refusal') return { status: 422, json: { error: 'Praxa declined to write part of this test.' } };
+    if (message.stop_reason === 'refusal') return { status: 422, json: { error: 'Granyt declined to write part of this test.' } };
     if (message.stop_reason === 'max_tokens') return { status: 502, json: { error: 'A section came back incomplete.' } };
     return { status: 200, json: JSON.parse(message.content.flatMap((b) => (b.type === 'text' ? [b.text] : [])).join('')) };
   } catch (err) {

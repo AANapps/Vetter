@@ -93,13 +93,13 @@ export const CreditsDialog: React.FC<CreditsDialogProps> = ({ credit, onUpdated,
           ) : mustUpgrade ? (
             <div className="space-y-3">
               <p className="text-sm text-slate-600">
-                The free plan includes {pounds(PLANS.free.aiAllowance)} of AI to try Praxa. Choose a plan to keep building tests and job simulations: Starter includes{' '}
+                The free plan includes {pounds(PLANS.free.aiAllowance)} of AI to try Granyt. Choose a plan to keep building tests and job simulations: Starter includes{' '}
                 {pounds(PLANS.starter.aiAllowance)} a month, Growth {pounds(PLANS.growth.aiAllowance)}, and you can top up any time.
               </p>
               <button
                 onClick={() => {
                   onClose();
-                  plan.upgrade('Keep building with Praxa’s AI');
+                  plan.upgrade('Keep building with Granyt’s AI');
                 }}
                 className="w-full px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg"
               >
@@ -125,7 +125,7 @@ export const CreditsDialog: React.FC<CreditsDialogProps> = ({ credit, onUpdated,
           ) : (
             <>
               <p className="text-sm text-slate-600">
-                Writing and changing tests with Praxa's AI uses credit: a full test with interactive tasks is usually around £1 to £3, a change a few pence to 50p. Credit doesn't expire.
+                Writing and changing tests with Granyt's AI uses credit: a full test with interactive tasks is usually around £1 to £3, a change a few pence to 50p. Credit doesn't expire.
               </p>
               <div className="grid grid-cols-3 gap-2">
                 {packs.map((p) => (

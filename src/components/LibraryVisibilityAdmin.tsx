@@ -10,7 +10,7 @@ import { STANDARD_ASSESSMENTS } from '../data/mockData';
 
 /**
  * Admin panel > Library visibility: hide whole categories (industries), single roles, or single tests from the library.
- * Hidden ones aren't listed to candidates or companies; the Praxa team still sees everything. Each change is saved at
+ * Hidden ones aren't listed to candidates or companies; the Granyt team still sees everything. Each change is saved at
  * once and reaches everyone's open page.
  */
 
@@ -40,7 +40,7 @@ export const LibraryVisibilityAdmin: React.FC = () => {
   const [industry, setIndustry] = useState('');
   const [onlyHidden, setOnlyHidden] = useState(false);
 
-  // Every library test, one row per test (its levels go with it): Praxa's built-in ones (with the team's edits), tests
+  // Every library test, one row per test (its levels go with it): Granyt's built-in ones (with the team's edits), tests
   // the team made in the app, and companies' tests approved for the library
   const [saved, setSaved] = useState<AssessmentTest[]>([]);
   useEffect(() => {
@@ -83,7 +83,7 @@ export const LibraryVisibilityAdmin: React.FC = () => {
         <div>
           <h2 id="visibility-heading" className="font-bold">Library visibility</h2>
           <p className="text-xs text-slate-500 max-w-2xl">
-            Hide categories, roles or single tests from candidates and companies. The Praxa team still sees everything, and nothing is deleted.
+            Hide categories, roles or single tests from candidates and companies. The Granyt team still sees everything, and nothing is deleted.
           </p>
         </div>
         <span className="text-xs text-slate-500 tabular-nums">

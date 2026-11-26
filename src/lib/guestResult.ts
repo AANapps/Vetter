@@ -21,7 +21,7 @@ const KEY = 'praxa-guest-result';
 // Kept a day: long enough to sign up and verify the email, short enough not to surprise someone sharing the computer
 const KEEP_MS = 24 * 60 * 60 * 1000;
 
-// Parts that need an account: the AI assistant and the server code runner are signed-in only (Praxa pays for them)
+// Parts that need an account: the AI assistant and the server code runner are signed-in only (Granyt pays for them)
 export const guestCanTake = (test: AssessmentTest) =>
   !test.questions.some(
     (q) => q.aiAllowed || q.type === 'assistant' || (!!q.language && q.language !== 'any' && (languageById(q.language)?.runtime ?? 'browser') === 'server')

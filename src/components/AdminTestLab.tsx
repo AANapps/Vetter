@@ -13,7 +13,7 @@ import { AppWindow } from './AppWindow';
 import { TestRunner } from './TestRunner';
 
 /**
- * The admin panel's test lab: the Praxa team tries anything at once, and nothing is saved. Every test runs straight
+ * The admin panel's test lab: the Granyt team tries anything at once, and nothing is saved. Every test runs straight
  * in (no intro, signing, countdown, full screen or retake gap); the desktop opens untimed with every app on it, or any
  * one app, or any job simulation's own desktop; and each library app opens on its own with its sample data.
  */
@@ -42,7 +42,7 @@ const untimed = (cfg: DesktopConfig): DesktopConfig => ({ ...cfg, phases: undefi
 
 const desktopOf = (test: AssessmentTest) => hydrateTest(test).questions.find((q) => q.type === 'desktop' && q.desktop)?.desktop;
 
-// Every app on one desktop: the built-in ones filled from Praxa's job simulations (their pages, workbook, tables and
+// Every app on one desktop: the built-in ones filled from Granyt's job simulations (their pages, workbook, tables and
 // code), and every library app with its sample data
 function sandboxDesktop(sims: AssessmentTest[]): DesktopConfig {
   const desks = sims.map(desktopOf).filter((d): d is DesktopConfig => !!d);
@@ -50,8 +50,8 @@ function sandboxDesktop(sims: AssessmentTest[]): DesktopConfig {
   const withPages = desks.find((d) => d.pages?.length);
   const unique = <T,>(items: T[], key: (t: T) => string) => items.filter((t, i) => items.findIndex((u) => key(u) === key(t)) === i);
   return {
-    user: { name: 'Praxa Admin', email: 'admin@praxa.test', role: 'Admin' },
-    company: 'Praxa test lab',
+    user: { name: 'Granyt Admin', email: 'admin@praxa.test', role: 'Admin' },
+    company: 'Granyt test lab',
     time: 'Mon 09:00',
     // The basic apps on the taskbar; every other app in the Start menu, joining the taskbar while open
     apps: ['mail', 'files', 'ai'],
@@ -61,11 +61,11 @@ function sandboxDesktop(sims: AssessmentTest[]): DesktopConfig {
     inbox: [
       {
         id: 'lab-welcome',
-        from: 'Praxa test lab <lab@praxa.test>',
+        from: 'Granyt test lab <lab@praxa.test>',
         to: ['admin@praxa.test'],
         date: 'Mon 08:55',
         subject: 'The test lab desktop',
-        body: 'Every app is here with data from Praxa’s job simulations and each library app’s sample data. Nothing is saved: close the desktop and it starts fresh.',
+        body: 'Every app is here with data from Granyt’s job simulations and each library app’s sample data. Nothing is saved: close the desktop and it starts fresh.',
       },
       ...desks.flatMap((d, i) => d.inbox.slice(0, 2).map(({ phase: _phase, ...m }) => ({ ...m, id: `lab-${i}-${m.id}` }))),
     ],

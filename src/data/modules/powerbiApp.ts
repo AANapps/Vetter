@@ -1,5 +1,5 @@
 /**
- * A Power BI Desktop-style workspace, hand-built for Praxa's Data Analyst tests: a modern copy of how Power BI Desktop
+ * A Power BI Desktop-style workspace, hand-built for Granyt's Data Analyst tests: a modern copy of how Power BI Desktop
  * looks and works, under another name, with only what the tasks need. Two kinds of task:
  *
  * - query: the Power Query editor (a table's preview with column type icons, Data type, Filter rows, Remove blank rows,
@@ -10,7 +10,7 @@
  *   SUMX, AVERAGEX, IF, ROUND, ABS, measure references), the Visualizations pane (bar, column, line, card, table) with
  *   its field wells, and the visual drawn on the canvas. Table view shows the data.
  *
- * State, as Praxa marks it:
+ * State, as Granyt marks it:
  * query:  { query: { steps: [...], types: { col: type }, rows, distinct: { col: n }, values: { col: [..] }, sum: { col } },
  *           model: { rel: { 'A[x]>B[y]': 'Many to one, Single' } } }
  * report: { measures: { name: { expr, value, error, live, calc } }, visual: { type, axis, values: [], legend } }

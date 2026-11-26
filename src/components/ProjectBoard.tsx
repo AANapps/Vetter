@@ -1073,7 +1073,7 @@ const AskAi: React.FC<{
       });
       const body = (await res.json().catch(() => ({}))) as { reply?: string; actions?: CrmAction[]; error?: string };
       if (res.status === 402) setError('Your AI credit has run out. Top it up from the home chat to keep asking.');
-      else if (!res.ok || typeof body.reply !== 'string') setError(body.error === 'not-configured' ? 'Praxa’s AI isn’t switched on here yet.' : body.error || 'The AI couldn’t answer. Try again.');
+      else if (!res.ok || typeof body.reply !== 'string') setError(body.error === 'not-configured' ? 'Granyt’s AI isn’t switched on here yet.' : body.error || 'The AI couldn’t answer. Try again.');
       else {
         const actions = Array.isArray(body.actions) ? body.actions.filter((a) => a && typeof a.op === 'string') : [];
         setMessages([...next, { role: 'assistant', text: body.reply || 'Here’s what I’d change.', ...(actions.length && { actions, picked: actions.map(() => true) }) }]);
@@ -2316,7 +2316,7 @@ const FormulaEditor: React.FC<{
         const res = await aiFetch('/api/write-formula', { ...payload, ...(problemWas && { problem: problemWas, previous }) });
         const body = (await res.json().catch(() => ({}))) as { formula?: string; title?: string; currency?: string; explanation?: string; error?: string };
         if (res.status === 402) return setAiError('Your AI credit has run out. Top it up from the home chat to keep using AI.');
-        if (!res.ok || !body.formula) return setAiError(body.error === 'not-configured' ? 'Praxa’s AI isn’t switched on here yet.' : body.error || 'The AI couldn’t write it. Try again.');
+        if (!res.ok || !body.formula) return setAiError(body.error === 'not-configured' ? 'Granyt’s AI isn’t switched on here yet.' : body.error || 'The AI couldn’t write it. Try again.');
         const wrong = checkFormula(body.formula, ctx);
         if (wrong && round === 0) {
           previous = body.formula;

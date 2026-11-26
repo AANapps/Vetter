@@ -1,11 +1,11 @@
 import { TestRole } from '../types';
 
 /**
- * Praxa Training for companies: live, tutor-led training a company books for its team. Two kinds:
+ * Granyt Training for companies: live, tutor-led training a company books for its team. Two kinds:
  * - Mini modules: one skill in a half day or a day (Excel PivotTables, handling angry customers, React hooks)
  * - Job bootcamps: a role from Junior to Mid-level to Advanced, each level a few weeks of live sessions
- * Every item is taught by a Praxa tutor, online or at the company's office, to a group from the company's team.
- * A company searches and books it (src/lib/trainingBookings.ts); the Praxa team confirms the dates and the tutor.
+ * Every item is taught by a Granyt tutor, online or at the company's office, to a group from the company's team.
+ * A company searches and books it (src/lib/trainingBookings.ts); the Granyt team confirms the dates and the tutor.
  */
 
 export type TrainingKind = 'Mini module' | 'Bootcamp';
@@ -35,7 +35,7 @@ export interface TrainingItem {
   // Per person, in pounds excluding VAT (see PRICING below); groups of up to maxGroup
   price: number;
   maxGroup: number;
-  // Praxa tests that check it stuck afterwards
+  // Granyt tests that check it stuck afterwards
   testIds?: string[];
 }
 

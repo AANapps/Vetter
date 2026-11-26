@@ -75,7 +75,7 @@ export const FieldSlider: React.FC<{ tests: AssessmentTest[]; onOpenField: (fiel
     glide.current = { from, to: from + by, start: performance.now() };
   };
   const mains = tests.filter((t) => isPublic(t) && isMainVersion(t));
-  // Only the fields in the sector Praxa is focused on, when it is
+  // Only the fields in the sector Granyt is focused on, when it is
   const fields = HOME_FIELDS.filter((f) => !FOCUS_SECTOR || f.roles.some(roleInSector(FOCUS_SECTOR))).map((f) => ({
     ...f,
     count: mains.filter((t) => t.roles?.some((r) => f.roles.includes(r))).length,

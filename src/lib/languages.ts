@@ -1,7 +1,7 @@
 /**
  * The programming languages a coding task can be set in. A task with a language is a whole program: each test case's
  * input is fed to it on standard input, and what it prints is compared with the expected output, so any language works
- * the same way. JavaScript and Python run in the candidate's browser; every other language runs on Praxa's code
+ * the same way. JavaScript and Python run in the candidate's browser; every other language runs on Granyt's code
  * runner (server/runCode.ts). A task with no language is the older kind: a JavaScript function called solution, given
  * each test case's arguments.
  */

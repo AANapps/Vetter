@@ -1,5 +1,5 @@
 /**
- * Praxa's legal pages: privacy policy, terms of service and the candidate-data terms for companies. Written for the UK
+ * Granyt's legal pages: privacy policy, terms of service and the candidate-data terms for companies. Written for the UK
  * (UK GDPR, Data Protection Act 2018) and Australia (Privacy Act 1988 and the Australian Privacy Principles, Australian
  * Consumer Law). Turned into plain pages at /privacy/, /terms/ and /candidate-data/ by seoPages.ts.
  *
@@ -8,7 +8,7 @@
  */
 
 export const LEGAL_DETAILS = {
-  // The company that runs Praxa, as registered
+  // The company that runs Granyt, as registered
   entity: '[Company legal name]',
   address: '[Registered address]',
   companyNumber: '[Company number]',
@@ -37,14 +37,14 @@ const UPDATED = '2026-11-25';
 export const PRIVACY: LegalPage = {
   path: '/privacy/',
   title: 'Privacy policy',
-  description: 'What personal information Praxa collects, why, who sees it, where it goes and your rights, for candidates, companies and visitors.',
+  description: 'What personal information Granyt collects, why, who sees it, where it goes and your rights, for candidates, companies and visitors.',
   updated: UPDATED,
   sections: [
     {
       heading: 'Who we are',
       paragraphs: [
-        `Praxa is run by ${D.entity}, ${D.address} (company number ${D.companyNumber}), registered with the UK Information Commissioner's Office (${D.icoNumber}). In this policy "Praxa", "we" and "us" mean ${D.entity}.`,
-        `We decide how your personal information is used on Praxa (we are the "controller"). When a company uses Praxa to hire or train people, that company also decides how it uses what it receives: see "Companies you apply to or work with". Questions and requests: ${D.email}.`,
+        `Granyt is run by ${D.entity}, ${D.address} (company number ${D.companyNumber}), registered with the UK Information Commissioner's Office (${D.icoNumber}). In this policy "Granyt", "we" and "us" mean ${D.entity}.`,
+        `We decide how your personal information is used on Granyt (we are the "controller"). When a company uses Granyt to hire or train people, that company also decides how it uses what it receives: see "Companies you apply to or work with". Questions and requests: ${D.email}.`,
       ],
     },
     {
@@ -63,11 +63,11 @@ export const PRIVACY: LegalPage = {
     {
       heading: 'Why we use it, and our legal basis',
       list: [
-        'To run your account and Praxa itself: to provide the service you signed up for (contract).',
+        'To run your account and Granyt itself: to provide the service you signed up for (contract).',
         'To mark your tests and show your results and work to companies you apply to, or that invite you: to provide the service (contract).',
         'To show your public profile and your place on leaderboards, so companies can find you: our legitimate interest in helping candidates be found. You can hide individual test results from your public profile.',
         'Integrity monitoring: our legitimate interest, and companies\', in fair tests and results that can be trusted.',
-        'Check-ins after a hire: our legitimate interest in showing whether Praxa\'s scores predict how people do in the job, and improving our tests. We use these in summary across many hires.',
+        'Check-ins after a hire: our legitimate interest in showing whether Granyt\'s scores predict how people do in the job, and improving our tests. We use these in summary across many hires.',
         'Payments and tax records: to provide paid plans (contract) and to meet tax law (legal obligation).',
         'Emails about your account, such as verifying your address: to provide the service (contract). We do not send marketing emails without your consent.',
       ],
@@ -85,8 +85,8 @@ export const PRIVACY: LegalPage = {
         'Anyone, including people not signed in: your public profile (name, location, headline, work history, education, test scores, skills proven in tests, and leaderboard places). Never your email address.',
         'Companies you apply to, or that invite you to a test: your profile, every result including ones you hid from your public profile, your answers and work, the integrity report, and suggested interview questions drawn from your work.',
         'A company whose team you join: the tests, simulations and training it gives you, and how you did.',
-        'The Praxa team: to run, support and improve Praxa, and to check tests are fair.',
-        'Our service providers, only to run Praxa for us: Google (Firebase sign-in and database, and web fonts, which means your browser\'s IP address reaches Google), Vercel (hosting), Anthropic (the AI that marks written answers, reads CVs, powers the AI assistant in tests and builds tests), Stripe (payments) and Judge0 via RapidAPI (running code you write in coding tests).',
+        'The Granyt team: to run, support and improve Granyt, and to check tests are fair.',
+        'Our service providers, only to run Granyt for us: Google (Firebase sign-in and database, and web fonts, which means your browser\'s IP address reaches Google), Vercel (hosting), Anthropic (the AI that marks written answers, reads CVs, powers the AI assistant in tests and builds tests), Stripe (payments) and Judge0 via RapidAPI (running code you write in coding tests).',
         'Authorities, when the law requires it.',
       ],
       paragraphs: ['We do not sell your personal information.'],
@@ -101,7 +101,7 @@ export const PRIVACY: LegalPage = {
       heading: 'How long we keep it',
       list: [
         'Your account, profile and results: while your account is open. When you ask us to delete your account, we delete it within 30 days.',
-        'Applications and work a company received: while the company uses Praxa, until you ask us to delete them, or until the company deletes them.',
+        'Applications and work a company received: while the company uses Granyt, until you ask us to delete them, or until the company deletes them.',
         'Billing records: six years, as tax law requires.',
         'A test taken before signing up: on your own device for up to 24 hours.',
       ],
@@ -128,7 +128,7 @@ export const PRIVACY: LegalPage = {
     },
     {
       heading: 'Age',
-      paragraphs: ['Praxa is for people aged 16 and over. If you are under 16, please do not create an account.'],
+      paragraphs: ['Granyt is for people aged 16 and over. If you are under 16, please do not create an account.'],
     },
     {
       heading: 'Security',
@@ -138,7 +138,7 @@ export const PRIVACY: LegalPage = {
     },
     {
       heading: 'Changes to this policy',
-      paragraphs: ['If we change this policy in a way that matters, we will tell you by email or in Praxa before it takes effect. The date at the top shows when it last changed.'],
+      paragraphs: ['If we change this policy in a way that matters, we will tell you by email or in Granyt before it takes effect. The date at the top shows when it last changed.'],
     },
   ],
 };
@@ -146,14 +146,14 @@ export const PRIVACY: LegalPage = {
 export const TERMS: LegalPage = {
   path: '/terms/',
   title: 'Terms of service',
-  description: 'The terms for using Praxa, for candidates and for companies.',
+  description: 'The terms for using Granyt, for candidates and for companies.',
   updated: UPDATED,
   sections: [
     {
       heading: 'About these terms',
       paragraphs: [
-        `These terms are an agreement between you and ${D.entity} (${D.address}, company number ${D.companyNumber}), which runs Praxa. By creating an account or using Praxa you agree to them, to our privacy policy, and, if you use Praxa for a company, to the candidate data terms. If you use Praxa for a company, you confirm you may agree on its behalf, and "you" includes the company.`,
-        'You must be 16 or over to use Praxa.',
+        `These terms are an agreement between you and ${D.entity} (${D.address}, company number ${D.companyNumber}), which runs Granyt. By creating an account or using Granyt you agree to them, to our privacy policy, and, if you use Granyt for a company, to the candidate data terms. If you use Granyt for a company, you confirm you may agree on its behalf, and "you" includes the company.`,
+        'You must be 16 or over to use Granyt.',
       ],
     },
     {
@@ -175,18 +175,18 @@ export const TERMS: LegalPage = {
       ],
     },
     {
-      heading: 'Using Praxa to hire or train',
+      heading: 'Using Granyt to hire or train',
       list: [
-        'Praxa\'s scores and reports help you decide; they do not decide for you. You are responsible for your hiring decisions and for making them lawfully and fairly, including under equality and anti-discrimination law.',
+        'Granyt\'s scores and reports help you decide; they do not decide for you. You are responsible for your hiring decisions and for making them lawfully and fairly, including under equality and anti-discrimination law.',
         'Make reasonable adjustments for candidates who need them, such as more time. Contact us if you need help doing so.',
         'You must follow the candidate data terms when you use candidates\' information.',
-        'You keep ownership of what you add (job ads, your own tests, company details) and let us host, show and process it to run Praxa for you. Do not add anything you do not have the right to use, or other people\'s confidential information.',
+        'You keep ownership of what you add (job ads, your own tests, company details) and let us host, show and process it to run Granyt for you. Do not add anything you do not have the right to use, or other people\'s confidential information.',
       ],
     },
     {
       heading: 'AI features',
       paragraphs: [
-        'Praxa uses AI to build tests, mark written answers, read CVs and help in some tests. AI can make mistakes: check what it produces before relying on it. AI use on company plans counts against your plan\'s allowance and then your prepaid credit.',
+        'Granyt uses AI to build tests, mark written answers, read CVs and help in some tests. AI can make mistakes: check what it produces before relying on it. AI use on company plans counts against your plan\'s allowance and then your prepaid credit.',
       ],
     },
     {
@@ -203,33 +203,33 @@ export const TERMS: LegalPage = {
       heading: 'What you must not do',
       list: [
         'Copy, scrape or download tests, answers, profiles or other content in bulk, or try to get at answers or other people\'s information.',
-        'Reverse engineer, overload or interfere with Praxa, or get around its limits or security.',
+        'Reverse engineer, overload or interfere with Granyt, or get around its limits or security.',
         'Upload anything unlawful, harmful or misleading, or pretend to be someone else.',
         'Use candidates\' information for anything other than hiring or training, as the candidate data terms set out.',
       ],
     },
     {
-      heading: 'Praxa\'s content',
-      paragraphs: ['Praxa\'s software, tests, job simulations and other content belong to us or our licensors. You may use them only through Praxa, as these terms allow.'],
+      heading: 'Granyt\'s content',
+      paragraphs: ['Granyt\'s software, tests, job simulations and other content belong to us or our licensors. You may use them only through Granyt, as these terms allow.'],
     },
     {
       heading: 'Availability and changes',
       paragraphs: [
-        'We work to keep Praxa running but cannot promise it will always be available or free of errors. Features marked beta may change or be removed. We may change Praxa and these terms; if a change to the terms matters, we will tell you before it takes effect.',
+        'We work to keep Granyt running but cannot promise it will always be available or free of errors. Features marked beta may change or be removed. We may change Granyt and these terms; if a change to the terms matters, we will tell you before it takes effect.',
       ],
     },
     {
       heading: 'Our liability',
       list: [
         'Nothing in these terms limits liability for death or personal injury caused by negligence, for fraud, or anything else the law does not allow us to limit.',
-        'If you use Praxa as a consumer, you keep your legal rights. In Australia, nothing in these terms excludes the guarantees you have under the Australian Consumer Law.',
+        'If you use Granyt as a consumer, you keep your legal rights. In Australia, nothing in these terms excludes the guarantees you have under the Australian Consumer Law.',
         'For companies: we are not liable for lost profits, lost business or indirect losses, or for hiring decisions you make, and our total liability in any 12 months is limited to what you paid us in those 12 months.',
       ],
     },
     {
       heading: 'Ending your use',
       paragraphs: [
-        `You can stop using Praxa at any time and ask us to delete your account at ${D.email}. We may suspend or close an account that breaks these terms, telling you why unless the law or safety prevents it.`,
+        `You can stop using Granyt at any time and ask us to delete your account at ${D.email}. We may suspend or close an account that breaks these terms, telling you why unless the law or safety prevents it.`,
       ],
     },
     {
@@ -244,15 +244,15 @@ export const TERMS: LegalPage = {
 export const CANDIDATE_DATA: LegalPage = {
   path: '/candidate-data/',
   title: 'Candidate data terms for companies',
-  description: 'How companies may use the candidate information they receive through Praxa, and how Praxa handles it for them.',
+  description: 'How companies may use the candidate information they receive through Granyt, and how Granyt handles it for them.',
   updated: UPDATED,
   sections: [
     {
       heading: 'Who is responsible for what',
       list: [
-        'Praxa is responsible (the controller) for candidates\' accounts, profiles and results on Praxa.',
+        'Granyt is responsible (the controller) for candidates\' accounts, profiles and results on Granyt.',
         'When candidates apply to your job or take a test you sent, you are responsible (an independent controller) for how you use what you receive for your hiring.',
-        'For your own team on Praxa (people you invite, the work and training you give them, and their results), we handle that information on your behalf (as your processor), under the section "When we handle data for you" below.',
+        'For your own team on Granyt (people you invite, the work and training you give them, and their results), we handle that information on your behalf (as your processor), under the section "When we handle data for you" below.',
       ],
     },
     {
@@ -260,8 +260,8 @@ export const CANDIDATE_DATA: LegalPage = {
       list: [
         'Only to recruit for the role the candidate applied to or was invited for, or for training your own team.',
         'Share it only with people in your organisation, or advisers, who need it for that decision.',
-        'Do not sell it, use it for unrelated marketing, or copy candidates\' profiles or results out of Praxa in bulk.',
-        'Keep it only as long as you need it for hiring, and delete copies you made outside Praxa when you no longer need them.',
+        'Do not sell it, use it for unrelated marketing, or copy candidates\' profiles or results out of Granyt in bulk.',
+        'Keep it only as long as you need it for hiring, and delete copies you made outside Granyt when you no longer need them.',
         'Tell candidates how you use their information, as the law requires, for example in your own recruitment privacy notice.',
       ],
     },
@@ -276,13 +276,13 @@ export const CANDIDATE_DATA: LegalPage = {
     {
       heading: 'Check-ins after a hire',
       paragraphs: [
-        'If you mark a candidate as hired, Praxa asks you 30 and 90 days later how they are doing. Answer only with what you would be comfortable telling them, and make sure your own notices to staff cover sharing this with Praxa. We use the answers, in summary across many hires, to check our tests predict how people do in the job.',
+        'If you mark a candidate as hired, Granyt asks you 30 and 90 days later how they are doing. Answer only with what you would be comfortable telling them, and make sure your own notices to staff cover sharing this with Granyt. We use the answers, in summary across many hires, to check our tests predict how people do in the job.',
       ],
     },
     {
       heading: 'When we handle data for you',
       list: [
-        'We process it only to provide Praxa to you and on your instructions, which these terms and your use of Praxa set out.',
+        'We process it only to provide Granyt to you and on your instructions, which these terms and your use of Granyt set out.',
         'Our staff and providers are bound to keep it confidential.',
         'We protect it with appropriate security, and tell you without undue delay if a breach affects it.',
         'We use the service providers named in our privacy policy, under contracts that protect the information, and tell you before adding new ones.',
@@ -293,7 +293,7 @@ export const CANDIDATE_DATA: LegalPage = {
     {
       heading: 'Requests and problems',
       paragraphs: [
-        `If a candidate asks you about information Praxa holds, or you suspect information has been misused, contact us at ${D.email}. If either of us becomes aware of a breach involving the other's candidate information, we will tell each other without undue delay.`,
+        `If a candidate asks you about information Granyt holds, or you suspect information has been misused, contact us at ${D.email}. If either of us becomes aware of a breach involving the other's candidate information, we will tell each other without undue delay.`,
       ],
     },
   ],

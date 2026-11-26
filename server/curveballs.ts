@@ -1,5 +1,5 @@
 /**
- * Praxa's curveball library: proven ways a job simulation's day changes or goes wrong, by kind of job. The planner
+ * Granyt's curveball library: proven ways a job simulation's day changes or goes wrong, by kind of job. The planner
  * picks one that fits the role and adapts it to the company, so curveballs are realistic and markable rather than
  * invented from scratch each time. Add to it as real customers' simulations show what works.
  */

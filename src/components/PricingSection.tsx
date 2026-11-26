@@ -30,7 +30,7 @@ const ai = (id: PlanId) => `£${PRICES[id].aiAllowance / 100} of AI test buildin
 // What each card lists, from the tier as it is now: its limits, then what it adds over the plan before it
 const SHORT: Record<Feature, string> = {
   'full-reports': 'Full candidate reports',
-  'library-job-sims': 'Praxa’s ready-made job simulations',
+  'library-job-sims': 'Granyt’s ready-made job simulations',
   'pool-search': 'Search and invite tested candidates',
   'csv-export': 'CSV export',
   branding: 'Your branding on tests',
@@ -45,7 +45,7 @@ function highlights(id: PlanId): string[] {
   return [
     count(t.jobs, 'open job', 'open jobs'),
     Number.isFinite(t.applicantsPerJob) ? `First ${t.applicantsPerJob} candidates per job` : 'Unlimited candidates',
-    ...(id === 'free' ? ['Praxa’s library of skills tests', 'Ranked by score'] : []),
+    ...(id === 'free' ? ['Granyt’s library of skills tests', 'Ranked by score'] : []),
     ...added,
     count(t.seats, 'team seat', 'team seats'),
     ai(id),
@@ -53,12 +53,12 @@ function highlights(id: PlanId): string[] {
   ];
 }
 
-// Built when drawn, so the Praxa team's changes to the tiers (settings/plans) show
+// Built when drawn, so the Granyt team's changes to the tiers (settings/plans) show
 const plansNow = (): Plan[] => [
   {
     id: 'free',
     name: 'Free',
-    tagline: 'Try Praxa on a real role',
+    tagline: 'Try Granyt on a real role',
     ...priced('free'),
     unit: 'forever',
     highlights: highlights('free'),
@@ -106,16 +106,16 @@ const comparisonNow = (): { group: string; rows: { label: string; cells: [Cell, 
     rows: [
       { label: 'Open jobs', cells: COLUMNS.map((id) => lim(PRICES[id].jobs)) as [Cell, Cell, Cell, Cell] },
       { label: 'Candidates per job', cells: COLUMNS.map((id) => lim(PRICES[id].applicantsPerJob)) as [Cell, Cell, Cell, Cell] },
-      { label: 'Job listed on Praxa and Google Jobs', cells: [true, true, true, true] },
+      { label: 'Job listed on Granyt and Google Jobs', cells: [true, true, true, true] },
       { label: 'Invite candidates by email or link', cells: [true, true, true, true] },
-      { label: 'Search and invite Praxa’s tested candidates', cells: has('pool-search') },
+      { label: 'Search and invite Granyt’s tested candidates', cells: has('pool-search') },
     ],
   },
   {
     group: 'Tests',
     rows: [
-      { label: 'Praxa’s library of skills tests', cells: [true, true, true, true] },
-      { label: 'Praxa’s ready-made job simulations', cells: has('library-job-sims') },
+      { label: 'Granyt’s library of skills tests', cells: [true, true, true, true] },
+      { label: 'Granyt’s ready-made job simulations', cells: has('library-job-sims') },
       { label: 'AI-built tests and job simulations', cells: ['Trial', true, true, true] },
       {
         label: 'AI included',
@@ -148,7 +148,7 @@ const comparisonNow = (): { group: string; rows: { label: string; cells: [Cell, 
 const faqsNow = () => [
   {
     q: 'Do candidates pay anything?',
-    a: 'No. Praxa is free for candidates, always. They keep their scores and can use them for other jobs.',
+    a: 'No. Granyt is free for candidates, always. They keep their scores and can use them for other jobs.',
   },
   {
     q: 'What counts as an open job?',
@@ -160,7 +160,7 @@ const faqsNow = () => [
   },
   {
     q: 'What is the AI allowance?',
-    a: 'Building tests and job simulations with Praxa’s AI uses it. A full test is usually £1–£4. It resets each month; if you run out you can top up, and bought credit never expires.',
+    a: 'Building tests and job simulations with Granyt’s AI uses it. A full test is usually £1–£4. It resets each month; if you run out you can top up, and bought credit never expires.',
   },
   {
     q: 'Hiring just once?',
@@ -294,7 +294,7 @@ export const PricingSection: React.FC<{ onChoosePlan: (planId: string, interval:
         <div className="flex-1">
           <h2 className="text-lg font-bold">Enterprise</h2>
           <p className="mt-1 text-sm text-slate-300">
-            Tests written for your roles by the Praxa team, single sign-on, ATS integration and invoicing. Priced for your hiring volume.
+            Tests written for your roles by the Granyt team, single sign-on, ATS integration and invoicing. Priced for your hiring volume.
           </p>
         </div>
         <button

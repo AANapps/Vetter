@@ -136,7 +136,7 @@ export function useProfileProgress(input: {
     { id: 'experience', label: 'Add your experience', hint: 'Jobs, internships and placements. Or fill it in from your CV.', weight: 10, done: !!candidate.experience?.length, cta: 'Add', action: 'experience' },
     { id: 'education', label: 'Add your education', hint: 'Your degree, qualifications or certifications.', weight: 5, done: !!(candidate.education?.length || candidate.certifications?.length), cta: 'Add', action: 'education' },
     { id: 'links', label: 'Add a link', hint: 'LinkedIn, GitHub or a portfolio.', weight: 5, done: !!candidate.links?.length, cta: 'Add', action: 'details' },
-    { id: 'first', label: 'Take your first test', hint: 'Your score on any Praxa test goes on your profile.', weight: 25, done: scoredAny, cta: 'Take a test', action: 'next-test', test: true },
+    { id: 'first', label: 'Take your first test', hint: 'Your score on any Granyt test goes on your profile.', weight: 25, done: scoredAny, cta: 'Take a test', action: 'next-test', test: true },
     { id: 'three', label: 'Get scores on 3 tests', hint: 'Companies shortlist candidates with several test scores first.', weight: 30, done: candidate.verifiedSkills.length >= 3, cta: 'Next test', action: 'next-test', test: true },
     { id: 'sim', label: 'Do a job simulation', hint: 'A whole working day on a desktop. The strongest proof you can do the job.', weight: 15, done: simDone, cta: 'See it', action: 'sim', test: true },
   ];

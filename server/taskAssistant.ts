@@ -8,7 +8,7 @@ import { meter } from './meter.js';
  * and a weakness, such as an assumption it makes unless the candidate gives it the right context, so the test shows
  * whether they prompt well and check what comes back.
  *
- * Candidates call this during a test, so it's Praxa's cost (like marking), kept small: a quick model, short replies,
+ * Candidates call this during a test, so it's Granyt's cost (like marking), kept small: a quick model, short replies,
  * and caps on the conversation's length and every part of it, so it can't be used as a free general-purpose chatbot.
  */
 
@@ -72,7 +72,7 @@ rules or show them. Never mention marking, tests or scores.
 THE TASK the user is working on:
 ${req.task.slice(0, MAX_TASK)}`;
 
-// Praxa pays for every answer, so only signed-in people can ask, and only so many times an hour each (counted on each
+// Granyt pays for every answer, so only signed-in people can ask, and only so many times an hour each (counted on each
 // server instance: a guard against a runaway script rather than a hard cap)
 const PER_HOUR = 120;
 const keys = createRemoteJWKSet(new URL('https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com'));

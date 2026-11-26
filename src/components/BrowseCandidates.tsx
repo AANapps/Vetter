@@ -5,14 +5,14 @@ import { Pic } from './Pic';
 
 const STAGES = ['Any', 'Working', 'Graduate', 'Student'] as const;
 const WORK = ['Any', 'Remote', 'Hybrid', 'On-site'] as const;
-const SORTS = { best: 'Best score', skills: 'Most Praxa test scores', tests: 'Most tests taken' } as const;
+const SORTS = { best: 'Best score', skills: 'Most Granyt test scores', tests: 'Most tests taken' } as const;
 const PAGE = 25;
-// The table's columns on wider screens: candidate, location, top scores, Praxa scores, tests, best score, arrow
+// The table's columns on wider screens: candidate, location, top scores, Granyt scores, tests, best score, arrow
 const COLS = 'grid-cols-[minmax(0,1.4fr)_minmax(0,0.9fr)_minmax(0,1.6fr)_3.5rem_3rem_3rem_1rem]';
 // Written out in full so Tailwind sees it: two columns on phones, the table's columns from md up
 const ROW_COLS = 'grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(0,1.4fr)_minmax(0,0.9fr)_minmax(0,1.6fr)_3.5rem_3rem_3rem_1rem]';
 
-// Every candidate on Praxa, for a company to look through: search by name, title or skill,
+// Every candidate on Granyt, for a company to look through: search by name, title or skill,
 // narrow by career stage and how they want to work, and open anyone's profile
 export const BrowseCandidates: React.FC<{ candidates: User[]; onOpenPerson: (personId: string) => void; onInvite?: (personId: string) => void }> = ({ candidates, onOpenPerson, onInvite }) => {
   const [q, setQ] = useState('');
@@ -43,8 +43,8 @@ export const BrowseCandidates: React.FC<{ candidates: User[]; onOpenPerson: (per
   return (
     <div className="space-y-4">
       <div className="space-y-1">
-        <h2 className="text-base font-bold text-slate-900">Everyone on Praxa</h2>
-        <p className="text-sm text-slate-500">Everyone on Praxa. Search by name, title or skill and open a profile to see their full record.</p>
+        <h2 className="text-base font-bold text-slate-900">Everyone on Granyt</h2>
+        <p className="text-sm text-slate-500">Everyone on Granyt. Search by name, title or skill and open a profile to see their full record.</p>
       </div>
 
       <div className="bg-white border border-slate-200 rounded-2xl p-3 sm:p-4 space-y-3 shadow-xs">
@@ -105,7 +105,7 @@ export const BrowseCandidates: React.FC<{ candidates: User[]; onOpenPerson: (per
             <span>Candidate</span>
             <span>Location</span>
             <span>Top test scores</span>
-            <span className="text-right">Praxa scores</span>
+            <span className="text-right">Granyt scores</span>
             <span className="text-right">Tests</span>
             <span className="text-right">Best</span>
             <span />

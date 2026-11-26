@@ -20,7 +20,7 @@ import { DA_JOB_SIM } from './daJobSim';
 import { DATA_FUNDAMENTALS_TEST, DATA_FUNDAMENTALS_MODULE } from './dataFundamentals';
 
 // Tests for the 2026 role tracks (data analyst, SOC analyst, AI engineer, AI consultant, software developer, data
-// scientist): for each, a fundamentals test per core skill and a final project. Where Praxa already had a test for a
+// scientist): for each, a fundamentals test per core skill and a final project. Where Granyt already had a test for a
 // skill, that test is tagged with the role below instead of a second one being written.
 
 export const ROLE_TRACK_TESTS: AssessmentTest[] = [

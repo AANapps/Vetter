@@ -3,9 +3,9 @@ import { collection, doc, onSnapshot, query, setDoc, updateDoc, where } from 'fi
 import { db, firebaseEnabled } from './firebase';
 
 /**
- * A company's booking of live, tutor-led training (src/data/trainingCatalogue.ts). The company asks; the Praxa team
+ * A company's booking of live, tutor-led training (src/data/trainingCatalogue.ts). The company asks; the Granyt team
  * confirms it, sets the dates and the tutor, and marks it done. Kept in Firestore trainingBookings (the company and the
- * Praxa team read them; the company creates and can cancel a request; the Praxa team does the rest), or in the browser
+ * Granyt team read them; the company creates and can cancel a request; the Granyt team does the rest), or in the browser
  * without Firebase.
  */
 
@@ -29,7 +29,7 @@ export interface TrainingBooking {
   pricePerPerson: number;
   total: number;
   status: BookingStatus;
-  // Set by the Praxa team
+  // Set by the Granyt team
   tutor?: string;
   schedule?: string;
   createdAt: string;
@@ -52,7 +52,7 @@ const writeLocal = (list: TrainingBooking[]) => {
   window.dispatchEvent(new Event('vetter-bookings'));
 };
 
-// A company's bookings, or every booking for the Praxa team ('all'), newest first, kept up to date
+// A company's bookings, or every booking for the Granyt team ('all'), newest first, kept up to date
 export function useTrainingBookings(businessId: string | 'all' | null): TrainingBooking[] {
   const [list, setList] = useState<TrainingBooking[]>([]);
   useEffect(() => {

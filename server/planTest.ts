@@ -89,36 +89,36 @@ const schema = {
   additionalProperties: false,
 };
 
-// Praxa's app library: apps already built (help desks, CRMs...) that a simulation can be done in, filled with its own
+// Granyt's app library: apps already built (help desks, CRMs...) that a simulation can be done in, filled with its own
 // data. One that fits is used: it's ready, quicker and cheaper than building one
 type AppsRequest = { apps?: { id: string; name: string; product: string; summary: string }[] };
 const appLibrary = (req: AppsRequest, jobSim: boolean) => {
   const apps = (req.apps ?? []).slice(0, 40);
   return `SOFTWARE: for every ${jobSim ? 'part done in the job\'s own software (a help desk, a CRM, a booking system)' : 'app item'}, software names the product it's done in, as the
 company would say it ("Zendesk", "Xero", "NinjaOne"; the kind, e.g. "a help desk", when no product is named), and appId
-is the id of the app from PRAXA'S APP LIBRARY below that it's done in. You decide whether one fits:
+is the id of the app from GRANYT'S APP LIBRARY below that it's done in. You decide whether one fits:
 - When the company named the product (in its messages, the job description or what it said earlier, e.g. "we use
   NinjaOne"), only a library app that IS that product fits: candidates are tested in what they'll really use. If the
-  library has no copy of it, appId is "" and Praxa builds an exact copy (the company can still pick a ready app of the
+  library has no copy of it, appId is "" and Granyt builds an exact copy (the company can still pick a ready app of the
   same kind instead, to save time and credit).
 - When it only described the work ("handles support tickets"), another app of the same kind fits when the work done
   in it is the same (ticket triage works in any help desk), since it's ready, quicker and cheaper. One missing the
   screens or the way of working the job depends on doesn't fit.
-appId "" when none fits, and Praxa builds the software. softwareKind: the kind of software in one to three words, as the library names kinds ("help desk",
+appId "" when none fits, and Granyt builds the software. softwareKind: the kind of software in one to three words, as the library names kinds ("help desk",
 "CRM", "ads manager"). Every other item has software "", softwareKind "" and appId "".${jobSim ? ' Parts in the Spreadsheet, Browser, Database or Code apps: software "", softwareKind "" and appId "".' : ''}
-PRAXA'S APP LIBRARY:
+GRANYT'S APP LIBRARY:
 ${apps.length ? apps.map((a) => `- ${a.id}: ${String(a.name).slice(0, 80)} (${String(a.product).slice(0, 60)}). ${String(a.summary).slice(0, 240)}`).join('\n') : '(empty)'}`;
 };
 
 function instructions(req: ChatRequest, research: string): string {
-  return `You are Praxa's test designer, talking with a company on Praxa, a skills-based hiring platform. You are planning
+  return `You are Granyt's test designer, talking with a company on Granyt, a skills-based hiring platform. You are planning
 one skills test for a job, so that whoever passes it can really do the job and whoever can't is found out.
 
 HOW TO TALK
 - Reply like a sharp, friendly hiring consultant: short, plain British English, no em dashes, no markdown. 1 to 4 sentences.
 - If the conversation is too vague to plan a useful test (no idea of the role or what matters), ask up to 2 short
   questions in reply and leave out "plan". Otherwise plan straight away; don't interrogate.
-- ALREADY SETTLED, when given, is what the company told Praxa before this chat: never ask again about anything it covers; plan straight away.
+- ALREADY SETTLED, when given, is what the company told Granyt before this chat: never ask again about anything it covers; plan straight away.
 ${
     req.kind === 'training'
       ? `- This is TRAINING for the company's own people. Until the company has said which areas they want training in,
@@ -163,7 +163,7 @@ difficulty is one of: ${req.levels.join(', ')}; ${levelPick(req)}.
 ${stylesNote(req)}${styleGuide(req)}
 software: the one product, device or equipment the app items copy (e.g. "Xero" or "iPhone 13"), or "".
 ${appLibrary(req as AppsRequest, false)}
-lookUp: when the plan needs an app copying a product, device or equipment that the RESEARCH below doesn't cover${research ? '' : ' (there is no research yet)'}, put its name here (with the procedure for a device, e.g. "iPhone 13 screen replacement") and send only reply "" and existing, with no plan; Praxa researches it and asks you again. Otherwise "".
+lookUp: when the plan needs an app copying a product, device or equipment that the RESEARCH below doesn't cover${research ? '' : ' (there is no research yet)'}, put its name here (with the procedure for a device, e.g. "iPhone 13 screen replacement") and send only reply "" and existing, with no plan; Granyt researches it and asks you again. Otherwise "".
 
 ${
   req.wantExisting
@@ -175,10 +175,10 @@ ${research ? `RESEARCH on the job and what the simulations copy. Every task, fig
 ${req.library.map((t) => `- ${t.id}: ${t.title} (${t.category}, ${t.difficulty}; skills: ${t.skills.join(', ')}; roles: ${t.roles.join(', ')}). ${t.description}`).join('\n')}`;
 }
 
-// A job simulation is planned as the one shape every Praxa job simulation has (src/data/modules/jobSimKit.ts): a day on
+// A job simulation is planned as the one shape every Granyt job simulation has (src/data/modules/jobSimKit.ts): a day on
 // the desktop in five timed parts, made for this company and this job. server/writeJobSim.ts writes it out
 function jobSimInstructions(req: ChatRequest, research: string): string {
-  return `You are Praxa's job simulation designer, talking with a company on Praxa, a skills-based hiring platform. You
+  return `You are Granyt's job simulation designer, talking with a company on Granyt, a skills-based hiring platform. You
 are planning one job simulation: a 40-minute working day on a desktop computer (Mail, Files, an AI assistant, and the
 job's own work apps) for someone applying to this job, so whoever does well can really do it and whoever can't is found out.
 
@@ -186,7 +186,7 @@ HOW TO TALK
 - Reply like a sharp, friendly hiring consultant: short, plain British English, no em dashes, no markdown. 1 to 4 sentences.
 - If the conversation is too vague to plan (no idea of the role or what matters), ask up to 2 short questions in reply
   and leave out "plan". Otherwise plan straight away; don't interrogate.
-- ALREADY SETTLED, when given, is what the company told Praxa before this chat: never ask again about anything it covers.
+- ALREADY SETTLED, when given, is what the company told Granyt before this chat: never ask again about anything it covers.
 - With a plan, say in a sentence or two what the day covers and why, then offer one specific way to sharpen it. The
   company sees the plan under your reply and presses Build once it's happy, so never say it has been built.
 
@@ -276,7 +276,7 @@ export async function planTest(body: unknown, apiKey: string | undefined, model:
     const parse = (m: Anthropic.Beta.BetaMessage) => JSON.parse(m.content.flatMap((b) => (b.type === 'text' ? [b.text] : [])).join(''));
     const failed = (m: Anthropic.Beta.BetaMessage) =>
       m.stop_reason === 'refusal'
-        ? { status: 422, json: { error: 'Praxa declined to write this. Try describing the job differently.' } }
+        ? { status: 422, json: { error: 'Granyt declined to write this. Try describing the job differently.' } }
         : m.stop_reason === 'max_tokens'
         ? { status: 502, json: { error: 'The plan came back incomplete. Try again.' } }
         : null;

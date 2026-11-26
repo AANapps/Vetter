@@ -1,7 +1,7 @@
 import { AssessmentTest, JobPosting, TestResult, User } from '../types';
 import { isMainVersion } from './testLevels';
 
-// Stands in for other people taking tests while you're on Praxa, so the Discover column on Home and the leaderboards keep moving
+// Stands in for other people taking tests while you're on Granyt, so the Discover column on Home and the leaderboards keep moving
 // until there's a real backend. Returns who took which test and how they did.
 export function simulateAttempt(
   others: User[],

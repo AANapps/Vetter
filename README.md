@@ -31,14 +31,14 @@ View your app in AI Studio: https://ai.studio/apps/98dedbef-fe5a-411c-840c-6b597
 ## Running in production and the AI test writer
 
 `npm run build` builds the site and `server.js`; `npm start` serves it (port 3000, or `PORT`). The server also
-answers `/api/generate-test`, which companies use to have Praxa suggest tests for a job and write new ones.
+answers `/api/generate-test`, which companies use to have Granyt suggest tests for a job and write new ones.
 
 - Set `ANTHROPIC_API_KEY` (in `.env.local` or `.env`, or the host's environment). It stays on the server.
 - Optionally set `CLAUDE_MODEL` (defaults to `claude-sonnet-5-5`; `claude-opus-5-5` writes stronger questions at about twice the cost, `claude-haiku-5-5` is the cheapest). Each test written logs its token use and cost in the server output.
 - Candidates' code, SQL and short answers that the automatic checks don't give full marks are marked again by
   Claude, which gives partial credit for near misses and ignores typos (`/api/grade-answers`; set `GRADING_MODEL`
   to use a different model). It can only raise a score. Without a key, the automatic marks stand.
-- The key is optional. Without it, Praxa still suggests library tests and still creates a new test, by
+- The key is optional. Without it, Granyt still suggests library tests and still creates a new test, by
   putting together the best-fitting questions from its own tests. With it, the new test's questions are written fresh.
 - `npm run dev` answers the same endpoint, using the same settings.
 
@@ -55,11 +55,11 @@ pay for writing and changing tests with credit they buy in advance. Without it, 
 - Companies buy £10, £25 or £50 packs in the test creator (Credit · Top up). Stripe Checkout opens in a new tab so
   their test and conversation stay open; the credit shows as soon as it's paid, and the message that ran out is sent
   again. No webhook is needed: paid sessions are credited when the tab returns, and on any later balance check.
-- The Praxa team (admin accounts) is never charged.
+- The Granyt team (admin accounts) is never charged.
 - Sign-ins are checked on the server with the Firebase project id (`VITE_FIREBASE_PROJECT_ID`, or `FIREBASE_PROJECT_ID`).
 - Set `SITE_URL` so Stripe sends people back to the right address.
 - Keep the Anthropic account topped up (turn on auto-reload in the Anthropic Console): companies' credit pays you,
-  but every request still runs on Praxa's own Anthropic balance.
+  but every request still runs on Granyt's own Anthropic balance.
 
 ### Plans and paywalls
 
@@ -73,12 +73,12 @@ nothing is locked.
 - Subscriptions are on a second Stripe customer per company (`metadata.praxaBilling`), apart from the AI credit one:
   Stripe always spends a customer's credit on its next invoice, which would let bought AI credit pay the subscription.
 - The plan is read from Stripe on each request (cached 20s), so there's no webhook, and companies can't set their own
-  plan. A plan the Praxa team sets on the company record (`plan`, e.g. `enterprise`) counts too, whichever is higher.
+  plan. A plan the Granyt team sets on the company record (`plan`, e.g. `enterprise`) counts too, whichever is higher.
 - Each plan includes AI each month (Free: £2 once). It's spent before bought credit; free companies can't top up.
 - Only the company's owner can pay or change the plan.
 - Admins: plan preview in the company view, tier editor and per-company plan, credit and usage on /admin (docs/payments.md).
 - **Set up in the Stripe dashboard once:** switch on the customer portal (Settings → Billing → Customer portal), used by
-  Manage billing for cards, invoices and cancelling. Optional: Stripe Tax, if Praxa charges VAT.
+  Manage billing for cards, invoices and cancelling. Optional: Stripe Tax, if Granyt charges VAT.
 - Job, applicant, seat and feature limits are checked in the browser (Firestore can't see Stripe); AI spending is
   enforced on the server. Server-side checks for the rest need the Firebase admin key (anti-cheat step 1).
 
@@ -92,25 +92,25 @@ Rust, PHP, Ruby, TypeScript...) runs on [Judge0](https://judge0.com), which need
 - `JUDGE0_KEY` alone: a RapidAPI key for Judge0 CE (subscribe to "Judge0 CE" on rapidapi.com; there's a free tier).
 - `JUDGE0_URL` (and `JUDGE0_KEY` as its auth token if it has one): your own Judge0 server.
 
-Without either, those languages show "can't be run on Praxa yet", and the AI test writer can't check its own answers
+Without either, those languages show "can't be run on Granyt yet", and the AI test writer can't check its own answers
 in them. Only signed-in people can run code, at most 60 runs a minute each.
 
 ### The environment library
 
-Praxa keeps one simulation per app (Meta Ads Manager, Salesforce, a till), and the app grows with every test that
+Granyt keeps one simulation per app (Meta Ads Manager, Salesforce, a till), and the app grows with every test that
 uses it:
 
 - When a test needs an app simulation, a quick model (`MATCH_MODEL`, default Haiku) works out which app it copies and
   looks for it in the library. If it's there, the page builder starts from the app's latest approved version. It keeps
   every feature it has, puts in this test's data, and adds the features this test needs. If not, the page is designed
   from nothing.
-- Every simulation built (for a company's test, by a company asking for a change, or by the Praxa team) goes to the
-  Praxa team for review: Admin panel > Simulation library > To review, also in the Praxa team view under Tests.
+- Every simulation built (for a company's test, by a company asking for a change, or by the Granyt team) goes to the
+  Granyt team for review: Admin panel > Simulation library > To review, also in the Granyt team view under Tests.
   Approving a new app adds it to the library. Approving one built on an app makes it that app's next version, with its
   added features. Nothing reaches the library unreviewed.
 - If two versions are built on the same version, the second shows "Merge onto version N", which copies its features
   onto the latest version for another try before approving.
-- The Praxa team can build an app for the library from the admin panel (the app's name and the features it should
+- The Granyt team can build an app for the library from the admin panel (the app's name and the features it should
   have).
 - Firestore: `environments` and `environmentPages` (each app's latest approved version), `environmentSubmissions` and
   `submissionPages` (the review queue and history). Deploy `firestore.rules` for them.
@@ -129,15 +129,15 @@ and set the same environment variables.
 
 ## Accounts (Firebase)
 
-Without Firebase settings Praxa runs as a demo with a view switcher. With them, people sign up and sign in:
+Without Firebase settings Granyt runs as a demo with a view switcher. With them, people sign up and sign in:
 
 - Candidates use any email and verify it.
 - Companies use a work email. The first verified person from a domain creates the company and approves
-  colleagues from the same domain. Sign-ups without a work email wait for the Praxa team to approve them.
+  colleagues from the same domain. Sign-ups without a work email wait for the Granyt team to approve them.
 - Google sign-in works the same way: a work Google account counts as a work email, a personal Gmail one goes to
   review. First-time Google users say whether they're looking for work or hiring.
 - Everything real lives in Firestore (`src/lib/cloud.ts`): jobs and who they were sent to, company-made tests,
-  applications, candidates' public profiles and results, the feed, follows and notifications. Praxa's test library
+  applications, candidates' public profiles and results, the feed, follows and notifications. Granyt's test library
   stays in the code. Visitors see real jobs, tests, profiles and companies; the demo's example data and simulated
   activity are only in demo mode.
 - Profiles are public (like the leaderboards) but never include email addresses or where someone applied. Companies
@@ -150,8 +150,8 @@ add a web app and put its settings in `.env.local` (and on the host) as `VITE_FI
 `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID` and `VITE_FIREBASE_APP_ID`. Publish the rules and
 indexes with `npx firebase deploy --only firestore --project <project-id>`. With Firebase set, `npm run build` writes
 the job pages from the jobs in Firestore.
-Add the site's domain under **Authentication > Settings > Authorised domains**. To make someone part of the Praxa
-team, set `role` to `admin` (and `status` to `active`) on their document in the `users` collection. The Praxa team signs in
+Add the site's domain under **Authentication > Settings > Authorised domains**. To make someone part of the Granyt
+team, set `role` to `admin` (and `status` to `active`) on their document in the `users` collection. The Granyt team signs in
 at `/admin` for the admin panel (approvals for companies without a work email and for tests asking to join the public library, plus course sign-ups); anyone else who signs in there is told
 they are not an admin.
 

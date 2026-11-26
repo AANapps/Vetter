@@ -15,7 +15,7 @@ interface EditAppRequest {
   // What the company asked for, in their words, and what the chat made of it
   change: string;
   html: string;
-  // What Praxa found loading the page and clicking every control
+  // What Granyt found loading the page and clicking every control
   problems?: string[];
   // The task or day the page is for, and its checks (paths into the saved state), which must keep working
   prompt?: string;
@@ -38,7 +38,7 @@ const schema = {
   additionalProperties: false,
 };
 
-const SYSTEM = `You change an app page in a Praxa test, as the company asked. Praxa is a skills-testing platform for hiring;
+const SYSTEM = `You change an app page in a Granyt test, as the company asked. Granyt is a skills-testing platform for hiring;
 candidates work in these pages (copies of real software) and are marked on what they save with praxa.save(state).
 
 Make exactly the change asked for, and nothing else, as the smallest edits to the page's code: find/replace pairs where
@@ -48,7 +48,7 @@ what it becomes (to insert, repeat the find text and add before or after it).
 - A look change (a colour, a size, a font, spacing): change the styles that draw it, everywhere it shows, keeping the
   text readable against it.
 - A problem the company reports (a blank screen, a button that does nothing, something missing): find its cause in the
-  code, using WHAT PRAXA FOUND (errors when loading, controls that do nothing), and fix that cause. A blank screen is
+  code, using WHAT GRANYT FOUND (errors when loading, controls that do nothing), and fix that cause. A blank screen is
   almost always a script error before anything is drawn, or the page reading data it doesn't have: make it draw.
 - Keep everything else exactly as it is: every feature, data-ref attribute, praxa.save call and the shape of the state,
   so the checks still read the same paths. If the page reads window.praxaData, never write records or figures into the
@@ -66,7 +66,7 @@ export async function editApp(body: unknown, apiKey: string | undefined, model: 
     req.prompt ? `WHAT IT'S FOR:\n${String(req.prompt).slice(0, 6000)}` : '',
     req.checks?.length ? `ITS CHECKS (must keep working):\n${JSON.stringify(req.checks.slice(0, 10))}` : '',
     `THE CHANGE THE COMPANY ASKED FOR:\n${String(req.change).slice(0, 4000)}`,
-    req.problems?.length ? `WHAT PRAXA FOUND loading the page and clicking every control:\n${req.problems.slice(0, 20).map((p) => `- ${String(p).slice(0, 300)}`).join('\n')}` : 'WHAT PRAXA FOUND: the page loads and every control works.',
+    req.problems?.length ? `WHAT GRANYT FOUND loading the page and clicking every control:\n${req.problems.slice(0, 20).map((p) => `- ${String(p).slice(0, 300)}`).join('\n')}` : 'WHAT GRANYT FOUND: the page loads and every control works.',
     req.fix?.problems?.length
       ? `YOUR LAST TRY${req.fix.edits?.length ? `, with these edits:\n${JSON.stringify(req.fix.edits).slice(0, 30000)}\n` : ' '}had these problems. Write the edits again with every one fixed:\n${req.fix.problems.slice(0, 20).map((p) => `- ${String(p).slice(0, 300)}`).join('\n')}`
       : '',
@@ -95,7 +95,7 @@ export async function editApp(body: unknown, apiKey: string | undefined, model: 
     const price = PRICES[model];
     const { input_tokens, output_tokens, cache_read_input_tokens } = message.usage;
     if (price) console.log(`[edit-app] ${input_tokens} in (+${cache_read_input_tokens ?? 0} cached), ${output_tokens} out: $${((input_tokens * price.input + (cache_read_input_tokens ?? 0) * price.input * 0.1 + output_tokens * price.output) / 1e6).toFixed(3)}`);
-    if (message.stop_reason === 'refusal') return { status: 422, json: { error: 'Praxa declined to make this change.' } };
+    if (message.stop_reason === 'refusal') return { status: 422, json: { error: 'Granyt declined to make this change.' } };
     if (message.stop_reason === 'max_tokens') return { status: 502, json: { error: 'The change came back incomplete.' } };
     return { status: 200, json: JSON.parse(message.content.flatMap((b) => (b.type === 'text' ? [b.text] : [])).join('')) };
   } catch (err) {

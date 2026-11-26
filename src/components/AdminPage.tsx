@@ -44,7 +44,7 @@ import { AdminAppEditor } from "./AdminAppEditor";
 import { CompanyPlansAdmin, PlanTiersAdmin } from "./PlansAdmin";
 
 /**
- * /admin: the Praxa team's own page. Signed out, it's a sign-in screen; the panel only shows for an account whose
+ * /admin: the Granyt team's own page. Signed out, it's a sign-in screen; the panel only shows for an account whose
  * users/{uid} record has role "admin" and status "active" (firestore.rules enforces the same on every read and write).
  * Anyone else is told they're not an admin, and nothing more.
  */
@@ -62,7 +62,7 @@ const Shell: React.FC<{
           className="font-bold text-slate-900 flex items-center gap-2"
         >
           <ShieldCheck className="w-5 h-5 text-indigo-600" />
-          Praxa admin
+          Granyt admin
         </a>
         {onSignOut && (
           <div className="flex items-center gap-3 min-w-0">
@@ -106,7 +106,7 @@ const SignInForm: React.FC = () => {
     <div className="max-w-sm mx-auto bg-white border border-slate-200 rounded-2xl p-6 space-y-4">
       <div>
         <h1 className="text-lg font-bold">Sign in to the admin panel</h1>
-        <p className="text-sm text-slate-600 mt-1">For the Praxa team only.</p>
+        <p className="text-sm text-slate-600 mt-1">For the Granyt team only.</p>
       </div>
       <button
         type="button"
@@ -544,7 +544,7 @@ export const AdminPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    document.title = "Praxa admin";
+    document.title = "Granyt admin";
     const meta = document.createElement("meta");
     meta.name = "robots";
     meta.content = "noindex";
@@ -594,7 +594,7 @@ export const AdminPage: React.FC = () => {
               href="/"
               className="text-sm font-semibold text-indigo-700 hover:underline flex items-center gap-1"
             >
-              Open the Praxa team view
+              Open the Granyt team view
               <ArrowRight className="w-4 h-4" />
             </a>
           </div>
@@ -616,7 +616,7 @@ export const AdminPage: React.FC = () => {
                 <PlanTiersAdmin />
                 <CompanyPlansAdmin />
                 <p className="text-xs text-slate-500">
-                  To see the company side as any plan, open the Praxa team view
+                  To see the company side as any plan, open the Granyt team view
                   as a company and use Preview a plan (bottom left).
                 </p>
               </div>

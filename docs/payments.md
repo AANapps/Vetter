@@ -15,7 +15,7 @@ as before for now.
 
 - **Yearly** costs 10 months' price and is the default on the pricing page.
 - **Full reports** (integrity report, answers, job sim replay, why they fit) come with every paid plan.
-- **Growth and above** add searching and inviting tested candidates, and Praxa's ready-made job simulations.
+- **Growth and above** add searching and inviting tested candidates, and Granyt's ready-made job simulations.
 - **Scale** adds CSV export.
 
 ## Why it's set up this way
@@ -36,7 +36,7 @@ as before for now.
 - "Manage billing" opens Stripe's own page for cards, invoices and cancelling.
 - The server reads the plan from Stripe on every request, so no webhook is needed and companies can't give themselves a plan.
 - Only the company's owner can pay or change the plan.
-- A plan the Praxa team sets on the company record (e.g. `enterprise`) still counts, whichever is higher.
+- A plan the Granyt team sets on the company record (e.g. `enterprise`) still counts, whichever is higher.
 
 ## Things to know
 
@@ -67,14 +67,14 @@ Sources: [G2 – TestGorilla pricing](https://www.g2.com/products/testgorilla/pr
 
 - **Plan preview** (company view, bottom left, admins only): switch between unsubscribed and subscribed, pick any
   plan, set AI used this month (slider, 0/50/90%/used up) and bought credit. Every paywall and limit acts as that plan.
-  AI requests send the preview to the server (`X-Praxa-Preview`), which refuses them as that plan would once the AI is
+  AI requests send the preview to the server (`X-Granyt-Preview`), which refuses them as that plan would once the AI is
   used up, and never charges. Works without Stripe set up.
 - **Plan tiers** (admin page → Plans and billing): edit each tier's price, open jobs, candidates per job, seats, AI
   allowance and which features it unlocks. Saved in `settings/plans`; the site follows at once, the server within a
   minute. A price change applies to new subscribers only.
 - **Companies: plans and credit** (admin page): for any company, see its plan and AI as Stripe has them, give it a
   plan (the record's `plan`, the higher of that and what it pays for wins), give AI credit (shows to them as "Credit
-  from Praxa"), and set this period's AI usage (reset, 50%, used up, or any amount). Credit and usage need Stripe set up.
+  from Granyt"), and set this period's AI usage (reset, 50%, used up, or any amount). Credit and usage need Stripe set up.
 - Saving tiers and plans needs the Firestore rules for `settings` and `companies` deployed (both are admin-only writes).
 
 ## Test run 2026-11-23 (paused)
@@ -82,7 +82,7 @@ Sources: [G2 – TestGorilla pricing](https://www.g2.com/products/testgorilla/pr
 - Firestore rules deployed (121/121 rule tests passed first).
 - `STRIPE_SECRET_KEY` (sk_test) in `.env.local`; Stripe customer portal is on (cancel at period end, card and invoices).
 - `scripts/stripe-check.ts` (how to run is at its top): `auto` ran 16/16 checks against real Stripe test mode: £2 trial counted
-  and used up, Praxa credit, Starter £99 limits, allowance before credit, switch to Growth charged the difference, AI credit
+  and used up, Granyt credit, Starter £99 limits, allowance before credit, switch to Growth charged the difference, AI credit
   never pays the subscription, portal link, cancel at period end, pass and top-up links, usage list.
 - Real Checkout, paid with 4242 on test company `checkout-test-1`: Starter ✅, job pass ✅ (jobs 3→4), £10 top-up ✅ after fix 2.
   Without `SITE_URL` locally, Checkout returns to localhost:3000 (expected).

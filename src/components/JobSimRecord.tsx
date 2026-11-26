@@ -4,7 +4,7 @@ import { AssessmentTest, User, isJobSim, isPublic } from '../types';
 
 /**
  * A candidate's job simulations on their profile, apart from their skills tests: each day they've done, their best
- * score and how many tries, the strongest proof on Praxa that someone can do the job. On their own profile, with
+ * score and how many tries, the strongest proof on Granyt that someone can do the job. On their own profile, with
  * none done yet, it invites them to do the one for the job they're after.
  */
 export const JobSimRecord: React.FC<{
@@ -34,7 +34,7 @@ export const JobSimRecord: React.FC<{
         Job simulations
       </h2>
       <p className="text-xs text-slate-500">
-        {own ? 'A real working day in the role, marked by Praxa: the strongest proof you can do the job.' : `A real working day in the role, marked by Praxa: proof ${first} can do the job, not just a CV line.`}
+        {own ? 'A real working day in the role, marked by Granyt: the strongest proof you can do the job.' : `A real working day in the role, marked by Granyt: proof ${first} can do the job, not just a CV line.`}
       </p>
       {done.length ? (
         <ul className="mt-3 divide-y divide-slate-100">

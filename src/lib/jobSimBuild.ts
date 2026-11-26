@@ -8,7 +8,7 @@ import { matchesExpected, readPath } from './appSimulation';
 import { withData } from './libraryApps';
 
 /**
- * A job simulation written by Praxa's AI (server/writeJobSim.ts), turned into a test with jobSimulation(), so every
+ * A job simulation written by Granyt's AI (server/writeJobSim.ts), turned into a test with jobSimulation(), so every
  * one a company makes in the chat has the shape of the Data Analyst's day at Ridgeway Coffee: 40 minutes on the
  * desktop in five timed parts, its data pre-loaded, two work apps, and checks numbered 2.1 … 5.x.
  *
@@ -57,7 +57,7 @@ export interface RawJobSim {
   inbox: (RawMail & { id: string; phase: string; to: string[]; cc: string[]; date: string })[];
   replies: { id: string; to: string; mustMention: string[][]; mustAttach: string; reply: RawMail; otherwise: RawMail }[];
   checks: { part: JobSimPart; description: string; input: string; expected: string; rubric: string[] }[];
-  // Apps from Praxa's app library on the desktop, as the world asked for them, and software to build for the day
+  // Apps from Granyt's app library on the desktop, as the world asked for them, and software to build for the day
   libraryApps?: { id: string; label: string; brief: string }[];
   newApp?: { app: string; product: string; label: string; brief: string };
   // The apps as fitted to the day (added by the browser, not the AI): the library app, its version, its code with any
@@ -336,7 +336,7 @@ export function assembleJobSim(raw: RawJobSim, business?: Business, lenient = fa
         }
         default: {
           if (!WORK_CHECKS.includes(input.includes(':') ? kind : input)) {
-            problem = `${name} isn't a kind of check Praxa can mark.`;
+            problem = `${name} isn't a kind of check Granyt can mark.`;
             break;
           }
           const app = WORK_APP_OF[input.includes(':') ? kind : input];
@@ -410,7 +410,7 @@ export function finishJobSim(test: AssessmentTest, raw: RawJobSim, business: Bus
 export const isJobSimDraft = (test?: AssessmentTest) => !!test && test.questions.length === 1 && test.questions[0].type === 'desktop' && !!test.questions[0].desktop?.phases?.length;
 
 // A skills test's task on the built-in work apps (server/generateTest.ts WORKSPACE_RULES, type "desktop"): the AI's
-// work JSON, the CSV files handed over and its checks, made into the task's own desktop. Checks Praxa can't mark, or
+// work JSON, the CSV files handed over and its checks, made into the task's own desktop. Checks Granyt can't mark, or
 // that already pass before the candidate does anything, are dropped; with fewer than two left the task goes
 export interface RawDesktopTask {
   work?: string;

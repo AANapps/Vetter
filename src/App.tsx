@@ -101,15 +101,15 @@ const BUSINESS_SECTIONS: Partial<Record<AppTab, BusinessSection>> = {
   'business-candidates': 'candidates',
 };
 
-// Praxa's own talent team, who post and fill jobs on companies' behalf
+// Granyt's own talent team, who post and fill jobs on companies' behalf
 const PRAXA_TEAM: User = {
   ...INITIAL_RECRUITER,
   id: 'vetter-team',
-  name: 'Praxa Talent Team',
+  name: 'Granyt Talent Team',
   email: 'talent@vetter.dev',
   role: 'admin',
-  avatarUrl: initialsAvatar('Praxa Team'),
-  title: 'Talent Partner, Praxa',
+  avatarUrl: initialsAvatar('Granyt Team'),
+  title: 'Talent Partner, Granyt',
   businessId: undefined,
 };
 
@@ -150,7 +150,7 @@ const jobIdFromUrl = () => {
   return jobIdFromPath(window.location.pathname) ?? idFromHash('jobs');
 };
 
-const SITE_TITLE = 'Praxa - Skills-Based Hiring';
+const SITE_TITLE = 'Granyt - Skills-Based Hiring';
 
 // A company's link to a test carries ?ref=<business id>, like an affiliate link
 const refFromHash = () => new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('ref');
@@ -247,7 +247,7 @@ export default function App() {
   const [localOthers, setOtherCandidates] = useState<User[]>(initialData.otherCandidates);
   const candidateRef = useRef(candidate);
   candidateRef.current = candidate;
-  // Accounts, when Firebase is set up: who's signed in decides what they see. Without it, Praxa is a demo with a view switcher
+  // Accounts, when Firebase is set up: who's signed in decides what they see. Without it, Granyt is a demo with a view switcher
   const { loading: accountLoading, user, account, company } = useAccount();
   const [authDialog, setAuthDialog] = useState<{ mode: AuthMode; reason?: string; role?: 'candidate' | 'recruiter' } | null>(null);
   const isVisitor = firebaseEnabled && !user;
@@ -279,7 +279,7 @@ export default function App() {
   const [localJobs, setLocalJobs] = useState<JobPosting[]>(initialData.jobs);
   const [localTests, setLocalTests] = useState<AssessmentTest[]>(initialData.tests);
   const [localSocial, setLocalSocial] = useState<SocialState>(initialData.social);
-  // A test the Praxa team is trying (nothing saved)
+  // A test the Granyt team is trying (nothing saved)
   const [adminRun, setAdminRun] = useState<AssessmentTest | null>(null);
   // The job simulation practice is open (from a job simulation's start screen)
   const [practiceOpen, setPracticeOpen] = useState(false);
@@ -302,7 +302,7 @@ export default function App() {
   const cloud = useCloudData(viewer, firebaseEnabled && !accountLoading, reportCloudError);
   // Every job loaded; what this viewer may see of them is `jobs`, below
   const allJobs = cloud ? cloud.jobs : localJobs;
-  // Praxa's library is in the code; the Praxa team's edits to it and tests made in the app come from Firebase
+  // Granyt's library is in the code; the Granyt team's edits to it and tests made in the app come from Firebase
   const tests = cloud
     ? [...STANDARD_ASSESSMENTS.map((t) => cloud.tests.find((c) => c.id === t.id) ?? t), ...cloud.tests.filter((c) => !STANDARD_ASSESSMENTS.some((t) => t.id === c.id))]
     : localTests;
@@ -471,13 +471,13 @@ export default function App() {
     document.title = job
       ? jobPageTitle(job)
       : course
-        ? `${course.title} | Praxa Learn`
+        ? `${course.title} | Granyt Learn`
         : guide
-          ? `${guide.title} | Praxa Guides`
+          ? `${guide.title} | Granyt Guides`
           : currentTab === 'guides'
-            ? 'How-to guides | Praxa'
+            ? 'How-to guides | Granyt'
             : currentTab === 'ranked'
-            ? 'Leaderboards | Praxa'
+            ? 'Leaderboards | Granyt'
             : SITE_TITLE;
     if (job && /^#\/(jobs|exams)\//.test(window.location.hash)) replacePage(jobPath(job));
   }, [jobPageId, coursePageId, guideSlug, currentTab, allJobs]);
@@ -514,10 +514,10 @@ export default function App() {
   const [activeTest, setActiveTest] = useState<AssessmentTest | null>(null);
   // Which try at the job's test this is, and the job's limit, when it has one
   const [activeAttempt, setActiveAttempt] = useState<{ number: number; limit?: number } | null>(null);
-  // A company or the Praxa team taking a test themselves, as a candidate would; the score is saved for their team
+  // A company or the Granyt team taking a test themselves, as a candidate would; the score is saved for their team
   const [trialTest, setTrialTest] = useState<{ test: AssessmentTest; jobId?: string } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  // Asking Praxa's AI for tests, for a job or on their own; and the builder opened on what it wrote
+  // Asking Granyt's AI for tests, for a job or on their own; and the builder opened on what it wrote
   // seed: a first message ready to send, e.g. to rebuild a library test in depth
   // autoSend: the seed is sent as the chat opens, so building starts at once
   // editTestId: a saved test reopened in the chat, to change it by asking
@@ -545,7 +545,7 @@ export default function App() {
   const [shareJobId, setShareJobId] = useState<string | null>(null);
   // The job form opened to send a test (not from a test plan, which posting then closes)
   const [jobForSend, setJobForSend] = useState(false);
-  // A job ad pasted on the company home: the job form opens with its title, text and Praxa's ready tests
+  // A job ad pasted on the company home: the job form opens with its title, text and Granyt's ready tests
   const [planJobAd, setPlanJobAd] = useState<{ title: string; description: string } | null>(null);
   const planToBuilder = useRef(false);
   const markPlanBuilt = (testId: string) => {
@@ -556,7 +556,7 @@ export default function App() {
   };
   // draft: what the builder starts from; none for a blank test written by hand
   const [draftBuilder, setDraftBuilder] = useState<{ draft?: AssessmentTest; isCopy?: boolean; jobId?: string; alsoAdd: string[]; record?: TestDraft } | null>(null);
-  // The company home's chat with Praxa, kept while moving between pages
+  // The company home's chat with Granyt, kept while moving between pages
   const [advisorTurns, setAdvisorTurns] = useState<AdvisorTurn[]>([]);
   // The test the home chat is building or changing, and something to start the chat with from elsewhere
   const [homeBuild, setHomeBuild] = useState<HomeBuild | null>(null);
@@ -568,7 +568,7 @@ export default function App() {
   const setPlansOpen = (open: boolean) => setPlansReason(open ? '' : null);
   // What the candidate's Tests page is narrowed to, e.g. a field picked on Home
   const [testField, setTestField] = useState<TestField | null>(null);
-  // Praxa's tests each company took off its own lists, kept in this browser too, so it works before the rule allowing
+  // Granyt's tests each company took off its own lists, kept in this browser too, so it works before the rule allowing
   // it on the company's record is published
   const [hiddenLocal, setHiddenLocal] = useState<Record<string, string[]>>(() => {
     try {
@@ -589,7 +589,7 @@ export default function App() {
   const [profilePersonId, setProfilePersonId] = useState<string | null>(null);
   const [companiesQuery, setCompaniesQuery] = useState('');
 
-  // The Praxa team in the company view picks a real company to see it as (the demo company isn't one on the live
+  // The Granyt team in the company view picks a real company to see it as (the demo company isn't one on the live
   // site), kept on this device
   const adminAsCompany = firebaseEnabled && account?.role === 'admin';
   const [adminCompanyId, setAdminCompanyIdState] = useState(() => {
@@ -612,18 +612,18 @@ export default function App() {
     ? businesses.find((b) => b.id === adminCompanyId) ?? businesses.find((b) => b.id === recruiter.businessId) ?? businesses[0]
     : businesses.find((b) => b.id === recruiter.businessId);
   // The company's plan, read from Stripe by the server: its limits are kept here and its paywalls below (src/lib/plan.tsx)
-  // The Praxa team's changes to the tiers, and an admin previewing the company side as any plan
+  // The Granyt team's changes to the tiers, and an admin previewing the company side as any plan
   useTiers();
   const previewing = adminAsCompany && activeRole === 'recruiter';
   const [planPreview, setPlanPreview] = usePlanPreview(previewing);
   const planAccess = useCompanyPlan(activeRole === 'recruiter' && !adminAsCompany ? recruiterBusiness?.id ?? null : null, (reason) => setPlansReason(reason ?? ''), planPreview);
-  // Praxa's ready-made job simulations come with Growth and above; ones already on a job stay
+  // Granyt's ready-made job simulations come with Growth and above; ones already on a job stay
   const libraryJobSimHit = (testIds: string[], before: string[] = []) => {
     if (planAccess.can('library-job-sims')) return false;
     const added = testIds.filter((id) => !before.includes(id)).map((id) => tests.find((t) => t.id === id));
     const sim = added.find((t) => t && t.type === 'standard' && isJobSim(t));
     if (!sim) return false;
-    setPlansReason(`${sim.title} is one of Praxa’s ready-made job simulations, which come with Growth and above. Your own AI-built simulations work on every plan.`);
+    setPlansReason(`${sim.title} is one of Granyt’s ready-made job simulations, which come with Growth and above. Your own AI-built simulations work on every plan.`);
     return true;
   };
   // Jobs open at once, against the plan's limit; editing one already open never counts twice
@@ -636,7 +636,7 @@ export default function App() {
     );
     return true;
   };
-  // The jobs this viewer sees. Invite-only jobs are for the company that posted them, the Praxa team, people invited
+  // The jobs this viewer sees. Invite-only jobs are for the company that posted them, the Granyt team, people invited
   // to them or who applied, and whoever opens one's link (the open job page)
   const jobs = allJobs.filter(
     (j) =>
@@ -675,12 +675,12 @@ export default function App() {
       // Private windows can refuse storage; the chat then lasts for this visit
     }
   }, [advisorTurns, homeChatKey]);
-  // Tests written by AI: the Praxa team always has them; companies spend their plan's AI allowance
+  // Tests written by AI: the Granyt team always has them; companies spend their plan's AI allowance
   // Every company can build with AI: the server spends the plan's AI allowance (a £2 trial on Free), then bought credit,
   // and asks for a plan or a top-up when it's gone (server/billing.ts)
   const AI_TESTS_FOR_ALL = true;
   const aiAllowed = AI_TESTS_FOR_ALL || activeRole === 'admin' || hasAiTests(recruiterBusiness);
-  // A company's own test made with Praxa's AI is edited in the test chat (asking, editing by hand, the full builder);
+  // A company's own test made with Granyt's AI is edited in the test chat (asking, editing by hand, the full builder);
   // one made by hand is edited in the builder, and enhanced with AI to move it to the chat. Without AI tests on the
   // plan, everything is by hand
   const editOwnTest = (testId: string, jobId?: string) => {
@@ -706,7 +706,7 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [templateId, tests, activeRole]);
 
-  // A copy of one of Praxa's tests made to edit: the chat opens on it once it's saved (with Firebase on, a new test only
+  // A copy of one of Granyt's tests made to edit: the chat opens on it once it's saved (with Firebase on, a new test only
   // shows once the database has it, and the chat must open on the copy, not a blank test)
   const [editWhenSaved, setEditWhenSaved] = useState<string | null>(null);
   useEffect(() => {
@@ -723,7 +723,7 @@ export default function App() {
   // Tests are made and changed in the home chat: this starts it with a message (and the job the test is for)
   const startInChat = (text: string, jobId?: string) => {
     if (!aiAllowed) return setPlansOpen(true);
-    if (homeBuild?.working) return showToast('Praxa is still planning a test in the chat. Wait for it, or press Stop there.');
+    if (homeBuild?.working) return showToast('Granyt is still planning a test in the chat. Wait for it, or press Stop there.');
     setHomeSeed({ text, ...(jobId && { jobId }) });
     goToTab('business-home');
   };
@@ -734,11 +734,11 @@ export default function App() {
     builtInCreator.current = null;
     setGenerator(g);
   };
-  // The home chat as the creator is told it: what the company said and picked, in order, and what Praxa asked
+  // The home chat as the creator is told it: what the company said and picked, in order, and what Granyt asked
   const homeChatSummary = (turns: AdvisorTurn[]) =>
     turns
       .slice(-16)
-      .map((t) => (t.role === 'user' ? `Company: ${t.text}` : `Praxa: ${t.text}${t.brief ? `\n(The role: ${t.brief})` : ''}`))
+      .map((t) => (t.role === 'user' ? `Company: ${t.text}` : `Granyt: ${t.text}${t.brief ? `\n(The role: ${t.brief})` : ''}`))
       .join('\n')
       .slice(-5000);
   // Back in the home chat after the creator: one short message saying what was made and where it is, then simply asking
@@ -782,7 +782,7 @@ export default function App() {
   // Until it's known who's looking and the app is on their side, the menu shows only the logo, so a page load never
   // flashes the signed-out, candidate or business menu before the right one
   const [roleSettledFor, setRoleSettledFor] = useState<string | null>(null);
-  // A signed-in account sees its own side of Praxa; the Praxa team keeps the view switcher
+  // A signed-in account sees its own side of Granyt; the Granyt team keeps the view switcher
   // Once it's known who's looking, the address is checked against their side: another side's page sends them to their own
   useEffect(() => {
     if (firebaseEnabled && accountLoading) return;
@@ -793,7 +793,7 @@ export default function App() {
       : account.role === 'recruiter'
       ? 'recruiter'
       : account.role === 'admin'
-      ? // The Praxa team have a candidate profile too: a candidate-only page (Work mode opened in a new tab, their
+      ? // The Granyt team have a candidate profile too: a candidate-only page (Work mode opened in a new tab, their
         // profile) opens in the candidate view, not the business one
         window.location.pathname !== '/' && !SIDE_TABS.staff.includes(tabFromUrl('candidate')) && SIDE_TABS.candidate.includes(tabFromUrl('candidate'))
         ? 'candidate'
@@ -814,7 +814,7 @@ export default function App() {
   // it has loaded, nothing is saved back (a blank profile mustn't overwrite theirs); saving stays off if it can't load
   const [profileSync, setProfileSync] = useState<{ uid: string; canSave: boolean } | null>(null);
   const candidateAccountUid =
-    // The Praxa team have a candidate profile of their own too, for the candidate view
+    // The Granyt team have a candidate profile of their own too, for the candidate view
     firebaseEnabled && user?.emailVerified && (account?.role === 'candidate' || account?.role === 'admin') && account.status === 'active' ? account.uid : null;
   useEffect(() => {
     if (!candidateAccountUid || !account) return;
@@ -940,7 +940,7 @@ export default function App() {
     jobIds.slice(1).forEach((id) => notifyInvited(id, [candidate.id]));
   }, [isCandidateAccount, cloud?.emailedJobIds.join(), cloud?.jobs.length]);
 
-  // Before a signed-in person can use Praxa: verifying their email, and for companies, being let in
+  // Before a signed-in person can use Granyt: verifying their email, and for companies, being let in
   const accountGate =
     firebaseEnabled &&
     (accountLoading ||
@@ -955,9 +955,9 @@ export default function App() {
     ) : firebaseEnabled && user && (!user.emailVerified || !account || account.status !== 'active') ? (
       <AccountGate user={user} account={account} company={company} />
     ) : null;
-  // The Praxa team tries any test straight away: no intro, retake gap, attempt or saving (TestRunner's instant run)
+  // The Granyt team tries any test straight away: no intro, retake gap, attempt or saving (TestRunner's instant run)
   const isPraxaAdmin = account?.role === 'admin' || (!firebaseEnabled && activeRole === 'admin');
-  // Workspaces are in beta: only the Praxa team sees them
+  // Workspaces are in beta: only the Granyt team sees them
   const workspacesOn = WORKSPACES_OPEN || isPraxaAdmin;
   // Home's way to their team: the workspace in a new tab, or (in beta) the team page here
   const openWork = () => (workspacesOn ? window.open('/work/', '_blank', 'noopener') : goToTab('work'));
@@ -1105,7 +1105,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
     window.scrollTo(0, 0);
   };
 
-  // Sending a job's tests to people on Praxa emails them at their login address, puts the job on their Home and notifies them
+  // Sending a job's tests to people on Granyt emails them at their login address, puts the job on their Home and notifies them
   const handleInviteToJob = (jobId: string, candidateIds: string[]) => {
     const emailOf = (id: string) => allCandidates.find((c) => c.id === id)?.email || undefined;
     setJobs((prev) =>
@@ -1124,7 +1124,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
     notifyInvited(jobId, candidateIds);
   };
 
-  // Emailing the link: people with a Praxa account are tracked from now, the rest once they sign up
+  // Emailing the link: people with a Granyt account are tracked from now, the rest once they sign up
   const handleEmailJob = (jobId: string, emails: string[]) => {
     const job = jobs.find((j) => j.id === jobId);
     if (!job) return;
@@ -1184,7 +1184,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
       following: prev.following.includes(id) ? prev.following.filter((f) => f !== id) : [...prev.following, id],
     }));
 
-  // Switch between the candidate, business and Praxa team views
+  // Switch between the candidate, business and Granyt team views
   // A page the new side has stays open, so signing in or refreshing keeps your place; otherwise its first page
   const handleRoleChange = (nextRole: UserRole) => {
     setActiveRole(nextRole);
@@ -1194,7 +1194,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
     if (onPage && SIDE_TABS[sideOf(nextRole)].includes(here)) syncPagesFromUrl();
     else goToTab(NAV_TABS[nextRole === 'candidate' ? 'candidate' : 'recruiter'][0].id, true);
   };
-  // The business and Praxa team views share the same pages
+  // The business and Granyt team views share the same pages
   const staffUser = activeRole === 'admin' ? PRAXA_TEAM : recruiter;
   // The company's Team page: on its own and inside the workspace's sidebar
   const teamPageFor = (b: Business) => (
@@ -1229,9 +1229,9 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
         .catch(reportCloudError);
     } else showToast('Name saved.');
   };
-  // A company's public details: its owner, or the Praxa team for any company
+  // A company's public details: its owner, or the Granyt team for any company
   const canEditBusiness = (b?: Business) => !!b && (!firebaseEnabled || account?.role === 'admin' || (!!company && company.id === b.id && company.ownerUid === account?.uid));
-  // A company takes one of Praxa's tests off its own lists; it stays in Praxa's library for everyone else
+  // A company takes one of Granyt's tests off its own lists; it stays in Granyt's library for everyone else
   const hiddenTestsOf = (b?: Business) => (b ? [...new Set([...(b.hiddenTests ?? []), ...(hiddenLocal[b.id] ?? [])])] : []);
   const hideTest = (testId: string) => {
     const b = recruiterBusiness;
@@ -1248,7 +1248,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
     });
     if (firebaseEnabled) setHiddenTests(b.id, next).catch((err) => console.warn("Couldn't save the hidden test on the company's record", err));
     const t = tests.find((x) => x.id === testId);
-    showToast(`${t?.title ?? 'That test'} is off your list. It's still in Praxa's library if you want it back.`);
+    showToast(`${t?.title ?? 'That test'} is off your list. It's still in Granyt's library if you want it back.`);
   };
 
   const editBusiness = (businessId: string, info: BusinessInfo) => {
@@ -1383,7 +1383,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
     // The runner stays open on the result (saved already); closing it clears these
   };
 
-  // Whose trials these are: the company's, or the Praxa team's
+  // Whose trials these are: the company's, or the Granyt team's
   const trialOwner = activeRole === 'admin' ? PRAXA_TEAM.id : recruiterBusiness?.id;
   const ourTrials = trialOwner ? trials.filter((t) => t.businessId === trialOwner) : [];
   // The team's tries as a candidate's results, so a job seen as a candidate shows the team's scores on its tests
@@ -1436,8 +1436,8 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
     else setTeam((prev) => [...prev.filter((m) => m.id !== id), member]);
     showToast(
       'email' in invitee
-        ? `Invited ${invitee.email}. They'll see it on their Praxa home and in their notifications once they sign in with that address.`
-        : `Invited ${member.name}. They'll see it on their Praxa home and in their notifications.`
+        ? `Invited ${invitee.email}. They'll see it on their Granyt home and in their notifications once they sign in with that address.`
+        : `Invited ${member.name}. They'll see it on their Granyt home and in their notifications.`
     );
   };
   const assignWork = (members: TeamMember[], test: AssessmentTest, dueDate?: string, note?: string) => {
@@ -1668,7 +1668,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
   };
 
   // A test's content changed: its place in the public library stays with it, except that a company's change to an
-  // approved test sends it back for the Praxa team to approve again (firestore.rules insists on it)
+  // approved test sends it back for the Granyt team to approve again (firestore.rules insists on it)
   const handleUpdateTest = (test: AssessmentTest) => {
     const before = tests.find((t) => t.id === test.id);
     const recheck = before?.publicStatus === 'approved' && activeRole !== 'admin';
@@ -1679,18 +1679,18 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
       publicNote: before?.publicNote,
     };
     setTests((prev) => prev.map((t) => (t.id === test.id ? kept : t)));
-    if (recheck) showToast(`"${test.title}" was changed, so it's waiting for Praxa to approve it again before it's public.`);
+    if (recheck) showToast(`"${test.title}" was changed, so it's waiting for Granyt to approve it again before it's public.`);
   };
 
   // The public library: a company offers its test (filed under the roles the library's tests of its category are
-  // for, as its own has none), takes it back, and the Praxa team decides
+  // for, as its own has none), takes it back, and the Granyt team decides
   const setPublic = (testId: string, change: (t: AssessmentTest) => AssessmentTest) => setTests((prev) => prev.map((t) => (t.id === testId ? change(t) : t)));
   const askToPublish = (testId: string) => {
     const test = tests.find((t) => t.id === testId);
     if (!test) return;
     const roles = test.roles?.length ? test.roles : [...new Set(tests.filter((t) => t.type === 'standard' && t.category === test.category).flatMap((t) => t.roles ?? []))];
     setPublic(testId, (t) => ({ ...t, roles, publicStatus: 'pending', publicAskedAt: new Date().toISOString(), publicNote: undefined }));
-    showToast(`"${test.title}" is waiting for Praxa to approve it. Once approved, other companies can use it and candidates can take it.`);
+    showToast(`"${test.title}" is waiting for Granyt to approve it. Once approved, other companies can use it and candidates can take it.`);
   };
   const withdrawPublic = (testId: string) => {
     setPublic(testId, (t) => ({ ...t, publicStatus: undefined, publicAskedAt: undefined, publicNote: undefined }));
@@ -1699,7 +1699,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
   const decidePublic = (testId: string, approve: boolean, note?: string) =>
     setPublic(testId, (t) => ({ ...t, publicStatus: approve ? 'approved' : 'rejected', publicNote: approve ? undefined : note?.trim() || undefined }));
 
-  // Who a new test belongs to: the job's company, or the company signed in, or the Praxa library
+  // Who a new test belongs to: the job's company, or the company signed in, or the Granyt library
   const testOwnerFor = (jobId?: string) => {
     const job = jobId ? jobs.find((j) => j.id === jobId) : undefined;
     if (job) return businesses.find((b) => b.id === job.businessId);
@@ -1742,7 +1742,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
   const deleteTestDraft = (id?: string) => {
     if (id && testDraftsRef.current.some((d) => d.id === id)) setTestDrafts((prev) => prev.filter((d) => d.id !== id));
   };
-  // A company's drafts; the Praxa team sees every one
+  // A company's drafts; the Granyt team sees every one
   // Training drafts live with the training, not the tests
   const isTrainingDraft = (d: TestDraft) => d.kind === 'training' || d.test.purpose === 'training';
   const visibleDrafts = (activeRole === 'admin' ? testDrafts : testDrafts.filter((d) => d.businessId === recruiterBusiness?.id)).filter((d) => !isTrainingDraft(d));
@@ -1758,7 +1758,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
   const allCandidates = firebaseEnabled ? (isCandidateAccount ? [candidate, ...otherCandidates] : otherCandidates) : [candidate, ...otherCandidates];
   const testPageTest = testPageId ? tests.find((t) => t.id === testPageId) : undefined;
   const coursePage = COURSES.find((c) => c.id === coursePageId);
-  // What the Praxa team hid from the library (Admin panel > Library visibility) isn't listed to candidates, visitors or
+  // What the Granyt team hid from the library (Admin panel > Library visibility) isn't listed to candidates, visitors or
   // companies; a company still sees its own tests, and a hidden test still opens from a job or a direct link
   const libraryVisibility = useLibraryVisibility();
   const listed = (t: AssessmentTest) => activeRole === 'admin' || (!!recruiterBusiness && t.businessId === recruiterBusiness.id) || !testHidden(libraryVisibility, t);
@@ -1770,7 +1770,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
   const detailPage = testPageTest;
   // The company home: a chat that fills the window (src/components/BusinessHome.tsx)
   const chatHome = !detailPage && activeRole !== 'candidate' && currentTab === 'business-home';
-  // Companies and the Praxa team get the chat-app layout: the menu down the left (Navigation's StaffNav)
+  // Companies and the Granyt team get the chat-app layout: the menu down the left (Navigation's StaffNav)
   const staffLayout = !navPending && !isVisitor && activeRole !== 'candidate';
   const candidateNotifications = notifications
     .filter((n) => n.userId === candidate.id)
@@ -1822,13 +1822,13 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
   const candidatePagePerson = activeRole !== 'candidate' && candidatePageId ? allCandidates.find((c) => c.id === candidatePageId) : undefined;
   // A candidate's page is titled after them; runs after the title effect above, so it wins while the page is open
   useEffect(() => {
-    if (candidatePagePerson) document.title = `${candidatePagePerson.name} | Praxa`;
+    if (candidatePagePerson) document.title = `${candidatePagePerson.name} | Granyt`;
   }, [candidatePagePerson?.id, currentTab]);
   const businessSection = BUSINESS_SECTIONS[currentTab];
-  // A company's leads across its own jobs; the Praxa team's across every company's
+  // A company's leads across its own jobs; the Granyt team's across every company's
   const leadsBusiness = activeRole === 'admin' ? undefined : recruiterBusiness;
   const leadsJobs = leadsBusiness ? jobs.filter((j) => j.businessId === leadsBusiness.id) : jobs;
-  // A company (or the Praxa team as one) can invite candidates to its jobs
+  // A company (or the Granyt team as one) can invite candidates to its jobs
   const canInviteToJobs = activeRole !== 'candidate' && !!recruiterBusiness && planAccess.can('pool-search');
   const invitePerson = inviteFor ? allCandidates.find((c) => c.id === inviteFor) : undefined;
   const inviteJobPerson = inviteJobFor ? allCandidates.find((c) => c.id === inviteJobFor) : undefined;
@@ -2117,7 +2117,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
               sendLabel={activeRole === 'recruiter' && testPageTest.businessId === recruiterBusiness?.id ? 'Send to candidates' : undefined}
               onSendToStaff={activeRole !== 'candidate' && recruiterBusiness ? () => setStaffTestId(testPageTest.id) : undefined}
               onCustomize={
-                // Any test in the library, Praxa's or another company's approved one, can start a test of their own
+                // Any test in the library, Granyt's or another company's approved one, can start a test of their own
                 activeRole === 'recruiter' &&
                 recruiterBusiness &&
                 (testPageTest.type === 'standard' || (testPageTest.publicStatus === 'approved' && testPageTest.businessId !== recruiterBusiness.id))
@@ -2125,7 +2125,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
                   : undefined
               }
               {...((activeRole === 'admin' || account?.role === 'admin') && testPageTest.type !== 'custom' && {
-                // Any library test, for the Praxa team (in either view): back to the AI chat if made with AI, else the builder
+                // Any library test, for the Granyt team (in either view): back to the AI chat if made with AI, else the builder
                 onEdit: () => (madeWithAI(testPageTest) ? enhanceTest(testPageTest.id) : setDraftBuilder({ draft: testPageTest, alsoAdd: [] })),
               })}
               {...(activeRole === 'recruiter' && recruiterBusiness && testPageTest.type === 'custom' && testPageTest.businessId === recruiterBusiness.id && {
@@ -2266,7 +2266,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
                   allCandidates={allCandidates}
                   businesses={businesses}
                   following={social.following}
-                  onToggleFollow={(id) => requireAccount('Join Praxa to follow people and companies.', () => toggleFollow(id))}
+                  onToggleFollow={(id) => requireAccount('Join Granyt to follow people and companies.', () => toggleFollow(id))}
                 />
               </div>
               )}
@@ -2297,7 +2297,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
                 onSocialChange={setSocial}
                 onOpenTest={openTestPage}
                 onOpenJob={openJobPage}
-                onJoin={isVisitor ? () => setAuthDialog({ mode: 'sign-up', reason: 'Join Praxa to post, comment and follow people.' }) : undefined}
+                onJoin={isVisitor ? () => setAuthDialog({ mode: 'sign-up', reason: 'Join Granyt to post, comment and follow people.' }) : undefined}
                 onOpenField={(field) => {
                   setTestField(field);
                   goToTab('tests');
@@ -2331,7 +2331,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
               aiAllowed={aiAllowed}
               planName={
                 activeRole === 'admin'
-                  ? 'Praxa team'
+                  ? 'Granyt team'
                   : planAccess.status.billing
                   ? `${planAccess.info.name} plan`
                   : hasAiTests(recruiterBusiness)
@@ -2355,7 +2355,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
                     rows={allLeadRows}
                     onSave={(row, c) => {
                       handleUpdateLead(row, { checkIns: [...(row.lead?.checkIns ?? []).filter((x) => x.day !== c.day), c] });
-                      showToast(`Saved. Thanks: this is how Praxa shows which scores predict good hires.`);
+                      showToast(`Saved. Thanks: this is how Granyt shows which scores predict good hires.`);
                     }}
                   />
                 ) : activeRole === 'admin' ? (
@@ -2363,12 +2363,12 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
                 ) : undefined
               }
               onJobAd={(ad, text) => {
-                // Praxa's ready-made job simulation only where the plan has it; the skills tests on every plan
+                // Granyt's ready-made job simulation only where the plan has it; the skills tests on every plan
                 const ids = ad.testIds.filter((id) => tests.some((t) => t.id === id && listed(t)) && (planAccess.can('library-job-sims') || !isJobSim(tests.find((t) => t.id === id)!)));
                 setPlanJobAd({ title: ad.title, description: text });
                 setJobForSend(true);
                 setPlanJobTests(ids);
-                showToast(`This looks like a ${ad.role === 'Customer Support Agent' ? 'Customer Support' : ad.role} job. Praxa picked ${ids.length} ready tests from your ad: check them and post.`, 6000);
+                showToast(`This looks like a ${ad.role === 'Customer Support Agent' ? 'Customer Support' : ad.role} job. Granyt picked ${ids.length} ready tests from your ad: check them and post.`, 6000);
               }}
               onUpdateTest={(test) => {
                 // A change keeps the saved test's place: its id, owner, level family and kind
@@ -2434,7 +2434,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
               onEditCopy={(test) => setDraftBuilder({ draft: test, isCopy: true, alsoAdd: [] })}
               onBuildWithAI={(brief, kind) =>
                 // Everything is settled in the chat by now (the role, the kind, what to focus on), so building starts at
-                // once, and Praxa is told what was said so it doesn't ask again
+                // once, and Granyt is told what was said so it doesn't ask again
                 openGenerator({ ...(brief && { seed: brief, autoSend: true }), ...(kind && { kind }), fromHome: true, background: homeChatSummary(advisorTurns) })
               }
               onCreateOwn={() => setDraftBuilder({ alsoAdd: [] })}
@@ -2627,7 +2627,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
                 planAccess.can('pool-search') ? (
                   <BrowseCandidates candidates={allCandidates} onOpenPerson={openPerson} onInvite={canInviteToJobs ? setInviteFor : undefined} />
                 ) : (
-                  <Locked feature="pool-search" title="Search Praxa’s pool of tested candidates">
+                  <Locked feature="pool-search" title="Search Granyt’s pool of tested candidates">
                     Find people who already scored well on the tests your role needs, and invite them to apply.
                   </Locked>
                 )
@@ -2918,7 +2918,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
           onEnhance={(() => {
             const saved = tests.find((t) => t.id === draftBuilder.draft?.id);
             const companys = saved?.type === 'custom' && !!saved.businessId && saved.businessId === recruiterBusiness?.id;
-            // The Praxa team's own library tests, made in the app, too
+            // The Granyt team's own library tests, made in the app, too
             const vetters = (activeRole === 'admin' || account?.role === 'admin') && !!saved && saved.type !== 'custom';
             if (!saved || draftBuilder.isCopy || !(companys || vetters)) return undefined;
             return (test: AssessmentTest) => {
@@ -3075,7 +3075,7 @@ const roleOfTest = (test?: AssessmentTest) => (test ? /^(.+?) Job Simulation\b/.
           business={recruiterBusiness}
           existing={trainingBuild.existing}
           onClose={() => setTrainingBuild(null)}
-          onNeedCredit={() => setPlansReason('Keep building with Praxa’s AI')}
+          onNeedCredit={() => setPlansReason('Keep building with Granyt’s AI')}
           onSaved={(test) => {
             if (tests.some((t) => t.id === test.id)) handleUpdateTest(test);
             else handleCreateTest(test);

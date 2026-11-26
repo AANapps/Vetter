@@ -131,14 +131,14 @@ export function seoPages(siteUrl: string, firebase?: { projectId: string; apiKey
               (open ? `${seo.jsonLdScript(seo.jobPostingJsonLd(job, siteUrl, businessOf(job)))}\n` : '') +
               `${crumbs([{ name: 'Jobs', path: '/jobs/' }, { name: job.title, path: seo.jobPath(job) }])}\n`,
             body:
-              `<nav><a href="/">Praxa</a> &rsaquo; <a href="/jobs/">Jobs</a></nav><main><article>` +
+              `<nav><a href="/">Granyt</a> &rsaquo; <a href="/jobs/">Jobs</a></nav><main><article>` +
               `<h1>${esc(job.title)}</h1><p class="seo-company">${esc(job.companyName)}${job.department ? ` &middot; ${esc(job.department)}` : ''}</p>` +
               `<p>${facts.join(' &middot; ')}</p>` +
               `<p>Posted ${esc(job.postedDate)}${job.closingDate ? ` &middot; Closes ${esc(job.closingDate)}` : ''}${job.startDate ? ` &middot; Starts ${esc(job.startDate)}` : ''}</p>` +
               (open ? '' : '<p><strong>This job is no longer taking applications.</strong></p>') +
               seo.jobDescriptionHtml(job) +
-              (open ? `<p><a class="seo-apply" href="${seo.jobPath(job)}">Apply on Praxa</a></p>` : '') +
-              `</article>${others.length ? `<aside><h2>More jobs on Praxa</h2><ul>${others.map(jobCard).join('')}</ul></aside>` : ''}</main>`,
+              (open ? `<p><a class="seo-apply" href="${seo.jobPath(job)}">Apply on Granyt</a></p>` : '') +
+              `</article>${others.length ? `<aside><h2>More jobs on Granyt</h2><ul>${others.map(jobCard).join('')}</ul></aside>` : ''}</main>`,
           })
         );
       }
@@ -147,12 +147,12 @@ export function seoPages(siteUrl: string, firebase?: { projectId: string; apiKey
         'jobs/index.html',
         page({
           path: '/jobs/',
-          title: `${listable.length} tech jobs hiring now: apply with a verified skills test | Praxa`,
-          description: `Browse ${listable.length} open engineering, data and analyst jobs at ${[...new Set(listable.map((j) => j.companyName))].join(', ')}. Prove your skills with one test and apply on Praxa.`,
+          title: `${listable.length} tech jobs hiring now: apply with a verified skills test | Granyt`,
+          description: `Browse ${listable.length} open engineering, data and analyst jobs at ${[...new Set(listable.map((j) => j.companyName))].join(', ')}. Prove your skills with one test and apply on Granyt.`,
           head: crumbs([{ name: 'Jobs', path: '/jobs/' }]),
           body:
-            `<nav><a href="/">Praxa</a> &rsaquo; Jobs</nav><main><h1>Jobs on Praxa</h1>` +
-            `<p>Every job on Praxa is filled on skill: take the job's test, and your verified score goes straight to the company.</p>` +
+            `<nav><a href="/">Granyt</a> &rsaquo; Jobs</nav><main><h1>Jobs on Granyt</h1>` +
+            `<p>Every job on Granyt is filled on skill: take the job's test, and your verified score goes straight to the company.</p>` +
             `<ul>${listable.map(jobCard).join('')}</ul></main>`,
         })
       );
@@ -164,7 +164,7 @@ export function seoPages(siteUrl: string, firebase?: { projectId: string; apiKey
           `guides/${g.slug}/index.html`,
           page({
             path: guidePath(g),
-            title: `${g.title} | Praxa Guides`,
+            title: `${g.title} | Granyt Guides`,
             description: g.summary,
             head:
               `${seo.jsonLdScript({
@@ -176,7 +176,7 @@ export function seoPages(siteUrl: string, firebase?: { projectId: string; apiKey
                 step: g.steps.map((st, i) => ({ '@type': 'HowToStep', position: i + 1, name: st.title, text: st.text })),
               })}\n` + `${crumbs([{ name: 'Guides', path: '/guides/' }, { name: g.title, path: guidePath(g) }])}\n`,
             body:
-              `<nav><a href="/">Praxa</a> &rsaquo; <a href="/guides/">Guides</a></nav><main><article>` +
+              `<nav><a href="/">Granyt</a> &rsaquo; <a href="/guides/">Guides</a></nav><main><article>` +
               `<h1>${esc(g.title)}</h1><p>${esc(g.summary)}</p><ol>` +
               g.steps.map((st) => `<li><strong>${esc(st.title)}.</strong> ${esc(st.text)}</li>`).join('') +
               `</ol>${g.tips ? `<h2>Tips</h2><ul>${g.tips.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}</article></main>`,
@@ -187,11 +187,11 @@ export function seoPages(siteUrl: string, firebase?: { projectId: string; apiKey
         'guides/index.html',
         page({
           path: '/guides/',
-          title: 'How-to guides | Praxa',
-          description: 'Step-by-step guides to hiring on skills with Praxa: build tests, invite candidates, read results and anti-cheat, and take tests as a candidate.',
+          title: 'How-to guides | Granyt',
+          description: 'Step-by-step guides to hiring on skills with Granyt: build tests, invite candidates, read results and anti-cheat, and take tests as a candidate.',
           head: crumbs([{ name: 'Guides', path: '/guides/' }]),
           body:
-            `<nav><a href="/">Praxa</a> &rsaquo; Guides</nav><main><h1>How to use Praxa</h1>` +
+            `<nav><a href="/">Granyt</a> &rsaquo; Guides</nav><main><h1>How to use Granyt</h1>` +
             GUIDE_AUDIENCES.map(
               (a) =>
                 `<h2>${esc(a.label)}</h2><ul>` +
@@ -205,11 +205,11 @@ export function seoPages(siteUrl: string, firebase?: { projectId: string; apiKey
       );
 
       // ---------- Pages for search engines and AI assistants: plain HTML, no app ----------
-      // Praxa's name always comes with what it does, the same words everywhere, so the name can't be confused
+      // Granyt's name always comes with what it does, the same words everywhere, so the name can't be confused
       const ORG = {
         '@context': 'https://schema.org',
         '@type': 'Organization',
-        name: 'Praxa',
+        name: 'Granyt',
         url: `${siteUrl}/`,
         description: PRAXA_DESCRIPTION,
         logo: `${siteUrl}/praxa-logo.svg`,
@@ -217,25 +217,25 @@ export function seoPages(siteUrl: string, firebase?: { projectId: string; apiKey
       const APP = {
         '@context': 'https://schema.org',
         '@type': 'SoftwareApplication',
-        name: 'Praxa',
+        name: 'Granyt',
         applicationCategory: 'BusinessApplication',
         operatingSystem: 'Web browser',
         url: `${siteUrl}/`,
         description: PRAXA_DESCRIPTION,
         offers: { '@type': 'Offer', price: '0', priceCurrency: 'GBP', description: 'Free plan: one open job' },
-        publisher: { '@type': 'Organization', name: 'Praxa', url: `${siteUrl}/` },
+        publisher: { '@type': 'Organization', name: 'Granyt', url: `${siteUrl}/` },
       };
       await write('praxa-logo.svg', LOGO_SVG);
       const site = (p: { path: string; title: string; description: string; head?: string; body: string; type?: string }) =>
         `<!doctype html>\n<html lang="en"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />` +
         `<title>${esc(p.title)}</title><meta name="description" content="${esc(p.description)}" />` +
         `<link rel="canonical" href="${siteUrl}${p.path}" /><meta property="og:url" content="${siteUrl}${p.path}" />` +
-        `<meta property="og:title" content="${esc(p.title)}" /><meta property="og:description" content="${esc(p.description)}" /><meta property="og:type" content="${p.type ?? 'website'}" /><meta property="og:site_name" content="Praxa" />` +
+        `<meta property="og:title" content="${esc(p.title)}" /><meta property="og:description" content="${esc(p.description)}" /><meta property="og:type" content="${p.type ?? 'website'}" /><meta property="og:site_name" content="Granyt" />` +
         `<link rel="icon" type="image/svg+xml" href="/praxa-logo.svg" />${p.head ?? ''}${SITE_STYLE}</head><body>` +
-        `<header class="top"><a class="brand" href="/"><img src="/praxa-logo.svg" alt="" width="26" height="26" />Praxa</a><nav>` +
+        `<header class="top"><a class="brand" href="/"><img src="/praxa-logo.svg" alt="" width="26" height="26" />Granyt</a><nav>` +
         `<a href="/tests/">Tests</a><a href="/resources/">Resources</a><a href="/pricing/">Pricing</a><a href="/about/">About</a><a href="/guides/">Guides</a>` +
         `<a class="cta" href="/">Start free</a></nav></header><main class="wrap">${p.body}</main>` +
-        `<footer class="foot"><div class="wrap"><p><strong>Praxa</strong>: ${esc(PRAXA_DESCRIPTION)}</p>` +
+        `<footer class="foot"><div class="wrap"><p><strong>Granyt</strong>: ${esc(PRAXA_DESCRIPTION)}</p>` +
         `<p><a href="/tests/">Test library</a> &middot; <a href="/resources/">Resources</a> &middot; <a href="/pricing/">Pricing</a> &middot; <a href="/about/">About</a> &middot; <a href="/guides/">Guides</a> &middot; <a href="/jobs/">Jobs</a> &middot; <a href="/llms.txt">llms.txt</a></p><p><a href="/privacy/">Privacy</a> &middot; <a href="/terms/">Terms</a> &middot; <a href="/candidate-data/">Candidate data terms</a></p></div></footer></body></html>`;
 
       // Articles
@@ -254,7 +254,7 @@ export function seoPages(siteUrl: string, firebase?: { projectId: string; apiKey
           `resources/${a.slug}/index.html`,
           site({
             path: articlePath(a),
-            title: `${a.title} | Praxa`,
+            title: `${a.title} | Granyt`,
             description: a.description,
             type: 'article',
             head:
@@ -265,8 +265,8 @@ export function seoPages(siteUrl: string, firebase?: { projectId: string; apiKey
                 description: a.description,
                 dateModified: a.updated,
                 datePublished: a.updated,
-                author: { '@type': 'Organization', name: 'Praxa', url: `${siteUrl}/` },
-                publisher: { '@type': 'Organization', name: 'Praxa', url: `${siteUrl}/`, logo: { '@type': 'ImageObject', url: `${siteUrl}/praxa-logo.svg` } },
+                author: { '@type': 'Organization', name: 'Granyt', url: `${siteUrl}/` },
+                publisher: { '@type': 'Organization', name: 'Granyt', url: `${siteUrl}/`, logo: { '@type': 'ImageObject', url: `${siteUrl}/praxa-logo.svg` } },
                 mainEntityOfPage: `${siteUrl}${articlePath(a)}`,
               }) +
               seo.jsonLdScript({
@@ -276,12 +276,12 @@ export function seoPages(siteUrl: string, firebase?: { projectId: string; apiKey
               }) +
               crumbs([{ name: 'Resources', path: '/resources/' }, { name: a.title, path: articlePath(a) }]),
             body:
-              `<nav class="crumbs"><a href="/">Praxa</a> &rsaquo; <a href="/resources/">Resources</a></nav><article>` +
-              `<h1>${esc(a.title)}</h1><p class="meta">Last updated <time datetime="${a.updated}">${esc(niceDate(a.updated))}</time> &middot; by the Praxa team</p>` +
+              `<nav class="crumbs"><a href="/">Granyt</a> &rsaquo; <a href="/resources/">Resources</a></nav><article>` +
+              `<h1>${esc(a.title)}</h1><p class="meta">Last updated <time datetime="${a.updated}">${esc(niceDate(a.updated))}</time> &middot; by the Granyt team</p>` +
               `<p class="answer">${esc(a.answer)}</p>` +
               a.sections.map(sectionHtml).join('') +
               `<h2>Frequently asked questions</h2><dl class="faq">${a.faqs.map((f) => `<dt>${esc(f.q)}</dt><dd>${esc(f.a)}</dd>`).join('')}</dl>` +
-              `<div class="cta-box"><p><strong>Try it on a real role.</strong> Praxa's free plan includes one open job and the library of skills tests.</p><a class="button" href="/">Start free</a></div>` +
+              `<div class="cta-box"><p><strong>Try it on a real role.</strong> Granyt's free plan includes one open job and the library of skills tests.</p><a class="button" href="/">Start free</a></div>` +
               `<h2>Read next</h2><ul>${a.related
                 .map((slug) => ARTICLES.find((x) => x.slug === slug))
                 .filter((x): x is Articles.Article => !!x)
@@ -294,7 +294,7 @@ export function seoPages(siteUrl: string, firebase?: { projectId: string; apiKey
         'resources/index.html',
         site({
           path: '/resources/',
-          title: 'Skills-based hiring resources: tests, job simulations and AI | Praxa',
+          title: 'Skills-based hiring resources: tests, job simulations and AI | Granyt',
           description: 'Practical articles on testing candidates before hiring, job simulations, skills tests, and hiring when CVs are written by AI.',
           head: crumbs([{ name: 'Resources', path: '/resources/' }]),
           body:
@@ -303,7 +303,7 @@ export function seoPages(siteUrl: string, firebase?: { projectId: string; apiKey
         })
       );
 
-      // The test library: one page per Praxa test, describing the tasks (never the answers)
+      // The test library: one page per Granyt test, describing the tasks (never the answers)
       const { STANDARD_ASSESSMENTS } = await load<{ STANDARD_ASSESSMENTS: AssessmentTest[] }>('src/data/mockData.ts');
       const LISTED = /^test-(da-(?!01$)|sd-|fe-dom|fe-react|cs-(comms|refunds|troubleshoot)|support-triage|sim-support|sim-dev|sim-fe)/;
       const libTests = STANDARD_ASSESSMENTS.filter((t) => LISTED.test(t.id) && !t.familyId && t.purpose !== 'training');
@@ -320,11 +320,11 @@ export function seoPages(siteUrl: string, firebase?: { projectId: string; apiKey
           `tests/${testSlug(t)}/index.html`,
           site({
             path: testPath(t),
-            title: `${t.title}: ${isDay(t) ? 'job simulation' : 'skills test'} for ${testRole(t)} hiring | Praxa`,
+            title: `${t.title}: ${isDay(t) ? 'job simulation' : 'skills test'} for ${testRole(t)} hiring | Granyt`,
             description: `${t.estimatedMinutes}-minute ${isDay(t) ? 'job simulation' : 'skills test'} for ${testRole(t)} candidates. ${t.description}`.slice(0, 300),
             head: crumbs([{ name: 'Tests', path: '/tests/' }, { name: t.title, path: testPath(t) }]),
             body:
-              `<nav class="crumbs"><a href="/">Praxa</a> &rsaquo; <a href="/tests/">Tests</a></nav><article><h1>${esc(t.title)}</h1>` +
+              `<nav class="crumbs"><a href="/">Granyt</a> &rsaquo; <a href="/tests/">Tests</a></nav><article><h1>${esc(t.title)}</h1>` +
               `<p class="meta">${esc(isDay(t) ? 'Job simulation' : 'Skills test')} &middot; ${esc(testRole(t))} &middot; ${t.estimatedMinutes} minutes &middot; ${simShare}% of the marks on hands-on tasks</p>` +
               `<p class="answer">${esc(t.description)}</p>` +
               `<h2>${isDay(t) ? 'How the day runs' : 'The tasks'}</h2><ol>${parts.map((x) => `<li>${esc(x)}</li>`).join('')}</ol>` +
@@ -332,7 +332,7 @@ export function seoPages(siteUrl: string, firebase?: { projectId: string; apiKey
               `<h2>How it works</h2><ul><li>Candidates work in realistic tools on a desktop (${esc([...new Set(tasks.map((q) => TOOL[q.type] ?? q.type))].join(', '))}), not a quiz.</li>` +
               `<li>Every candidate gets the same tasks, marked automatically on the work they leave behind, so scores are comparable.</li>` +
               `<li>You see each candidate's score, how each part went, and their work itself.</li></ul>` +
-              `<div class="cta-box"><p><strong>Use this test for a job.</strong> Add it to a job on Praxa and every applicant takes it before you shortlist.</p><a class="button" href="/">Start free</a></div></article>`,
+              `<div class="cta-box"><p><strong>Use this test for a job.</strong> Add it to a job on Granyt and every applicant takes it before you shortlist.</p><a class="button" href="/">Start free</a></div></article>`,
           })
         );
       }
@@ -341,11 +341,11 @@ export function seoPages(siteUrl: string, firebase?: { projectId: string; apiKey
         'tests/index.html',
         site({
           path: '/tests/',
-          title: 'Skills tests and job simulations for hiring: the Praxa library',
+          title: 'Skills tests and job simulations for hiring: the Granyt library',
           description: `Ready-made, simulation-based skills tests and job simulations for ${byRole.join(', ')} roles. Candidates do the real work in realistic tools; you compare them on the same tasks.`,
           head: crumbs([{ name: 'Tests', path: '/tests/' }]),
           body:
-            `<h1>Praxa's test library</h1><p class="answer">Ready-made skills tests (about 20 minutes each) and job simulations (about 40 minutes) where candidates do real work in realistic tools: spreadsheets, databases, help desks, code editors and more.</p>` +
+            `<h1>Granyt's test library</h1><p class="answer">Ready-made skills tests (about 20 minutes each) and job simulations (about 40 minutes) where candidates do real work in realistic tools: spreadsheets, databases, help desks, code editors and more.</p>` +
             byRole
               .map(
                 (role) =>
@@ -366,8 +366,8 @@ export function seoPages(siteUrl: string, firebase?: { projectId: string; apiKey
         'pricing/index.html',
         site({
           path: '/pricing/',
-          title: 'Pricing | Praxa',
-          description: `Praxa pricing: Free for one job, then from £${PLANS.starter.monthly} a month. Or £${PLANS['per-job'].monthly} for a single job. Skills tests and job simulations for hiring.`,
+          title: 'Pricing | Granyt',
+          description: `Granyt pricing: Free for one job, then from £${PLANS.starter.monthly} a month. Or £${PLANS['per-job'].monthly} for a single job. Skills tests and job simulations for hiring.`,
           head:
             crumbs([{ name: 'Pricing', path: '/pricing/' }]) +
             seo.jsonLdScript({
@@ -388,23 +388,23 @@ export function seoPages(siteUrl: string, firebase?: { projectId: string; apiKey
         })
       );
 
-      // About: what Praxa is, in the same words as everywhere else
+      // About: what Granyt is, in the same words as everywhere else
       await write(
         'about/index.html',
         site({
           path: '/about/',
-          title: 'About Praxa: job simulations and skills tests for hiring',
+          title: 'About Granyt: job simulations and skills tests for hiring',
           description: PRAXA_DESCRIPTION,
           head: seo.jsonLdScript(ORG) + seo.jsonLdScript(APP) + crumbs([{ name: 'About', path: '/about/' }]),
           body:
-            `<h1>About Praxa</h1><p class="answer">${esc(PRAXA_DESCRIPTION)}</p>` +
-            `<h2>What Praxa does</h2><ul>` +
-            `<li><strong>For companies:</strong> add ready-made skills tests and job simulations to a job, or describe a role and have Praxa build one. Every applicant does the same realistic tasks, and you see them ranked by score with their work.</li>` +
+            `<h1>About Granyt</h1><p class="answer">${esc(PRAXA_DESCRIPTION)}</p>` +
+            `<h2>What Granyt does</h2><ul>` +
+            `<li><strong>For companies:</strong> add ready-made skills tests and job simulations to a job, or describe a role and have Granyt build one. Every applicant does the same realistic tasks, and you see them ranked by score with their work.</li>` +
             `<li><strong>For candidates:</strong> take tests once, keep the scores on your profile, and apply to jobs with them. Your profile lists only skills you have proven in a test.</li></ul>` +
-            `<h2>How Praxa tests</h2><ul><li>Hands-on tasks in realistic tools on a desktop: spreadsheet, SQL workbench, code editor, help desk, CRM, chat, documents and more.</li>` +
+            `<h2>How Granyt tests</h2><ul><li>Hands-on tasks in realistic tools on a desktop: spreadsheet, SQL workbench, code editor, help desk, CRM, chat, documents and more.</li>` +
             `<li>Skills modules take about 20 minutes; job simulations take about 40 minutes in five timed parts: briefing, core task, curveball, juggling, report back.</li>` +
             `<li>Companies choose whether candidates can use an AI assistant in job simulations, and see how they used it.</li></ul>` +
-            `<h2>The name</h2><p>Praxa comes from praxis: knowledge put into practice. It is a hiring product, not related to other organisations that share the name.</p>` +
+            `<h2>The name</h2><p>Granyt comes from praxis: knowledge put into practice. It is a hiring product, not related to other organisations that share the name.</p>` +
             `<p><a href="/tests/">Browse the test library</a> &middot; <a href="/resources/">Read the resources</a> &middot; <a href="/pricing/">See pricing</a></p>`,
         })
       );
@@ -416,7 +416,7 @@ export function seoPages(siteUrl: string, firebase?: { projectId: string; apiKey
           `${page.path.slice(1)}index.html`,
           site({
             path: page.path,
-            title: `${page.title} | Praxa`,
+            title: `${page.title} | Granyt`,
             description: page.description,
             body:
               `<h1>${esc(page.title)}</h1><p><em>Last updated ${esc(page.updated)}</em></p>` +
@@ -436,20 +436,20 @@ export function seoPages(siteUrl: string, firebase?: { projectId: string; apiKey
       await write(
         'index.html',
         template
-          .replace(/<title>.*?<\/title>/, `<title>Praxa: job simulations and skills tests for hiring</title>`)
+          .replace(/<title>.*?<\/title>/, `<title>Granyt: job simulations and skills tests for hiring</title>`)
           .replace(/(<meta name="description" content=")[^"]*/, `$1${esc(PRAXA_DESCRIPTION)}`)
           .replace(/(<meta property="og:title" content=")[^"]*/, `$1Praxa: job simulations and skills tests for hiring`)
           .replace(/(<meta property="og:description" content=")[^"]*/, `$1${esc(PRAXA_DESCRIPTION)}`)
           .replace(
             '</head>',
             `<link rel="canonical" href="${siteUrl}/" />\n<meta property="og:url" content="${siteUrl}/" />\n` +
-              `${seo.jsonLdScript({ '@context': 'https://schema.org', '@type': 'WebSite', name: 'Praxa', url: `${siteUrl}/`, description: PRAXA_DESCRIPTION })}\n` +
+              `${seo.jsonLdScript({ '@context': 'https://schema.org', '@type': 'WebSite', name: 'Granyt', url: `${siteUrl}/`, description: PRAXA_DESCRIPTION })}\n` +
               `${seo.jsonLdScript(ORG)}\n${seo.jsonLdScript(APP)}\n${STATIC_STYLE}</head>`
           )
           .replace(
             '<div id="root"></div>',
-            `<div id="root"><div class="seo-page"><h1>Praxa: job simulations and skills tests for hiring</h1><p>${esc(PRAXA_DESCRIPTION)}</p>` +
-              `<h2>How it works</h2><ol><li>Pick ready-made tests for the role, or describe the job and Praxa builds a test or job simulation.</li><li>Every applicant does the same realistic tasks in working tools: spreadsheets, databases, help desks, code editors.</li><li>You see candidates ranked by score, with their work, before you interview.</li></ol>` +
+            `<div id="root"><div class="seo-page"><h1>Granyt: job simulations and skills tests for hiring</h1><p>${esc(PRAXA_DESCRIPTION)}</p>` +
+              `<h2>How it works</h2><ol><li>Pick ready-made tests for the role, or describe the job and Granyt builds a test or job simulation.</li><li>Every applicant does the same realistic tasks in working tools: spreadsheets, databases, help desks, code editors.</li><li>You see candidates ranked by score, with their work, before you interview.</li></ol>` +
               `<p><a href="/tests/">Test library</a> &middot; <a href="/resources/">Resources</a> &middot; <a href="/pricing/">Pricing</a> &middot; <a href="/about/">About</a> &middot; <a href="/jobs/">Jobs</a> &middot; <a href="/guides/">Guides</a></p></div></div>`
           )
       );
@@ -485,9 +485,9 @@ export function seoPages(siteUrl: string, firebase?: { projectId: string; apiKey
       // https://llmstxt.org: a plain summary AI assistants can read in one go
       await write(
         'llms.txt',
-        `# Praxa\n\n> ${PRAXA_DESCRIPTION}\n\n` +
-          `Praxa is for hiring teams that want to see what candidates can do before interviewing them. Skills tests take about 20 minutes and are mostly hands-on tasks in realistic tools (spreadsheet, SQL workbench, code editor, help desk, CRM); job simulations take about 40 minutes on a realistic desktop in five timed parts. Companies choose whether candidates can use an AI assistant in job simulations. Pricing: free for one open job; paid plans from £${PLANS.starter.monthly} a month; £${PLANS['per-job'].monthly} for a single job.\n\n` +
-          `## Key pages\n\n- [About Praxa](${siteUrl}/about/)\n- [Test library](${siteUrl}/tests/)\n- [Pricing](${siteUrl}/pricing/)\n- [Resources](${siteUrl}/resources/)\n\n` +
+        `# Granyt\n\n> ${PRAXA_DESCRIPTION}\n\n` +
+          `Granyt is for hiring teams that want to see what candidates can do before interviewing them. Skills tests take about 20 minutes and are mostly hands-on tasks in realistic tools (spreadsheet, SQL workbench, code editor, help desk, CRM); job simulations take about 40 minutes on a realistic desktop in five timed parts. Companies choose whether candidates can use an AI assistant in job simulations. Pricing: free for one open job; paid plans from £${PLANS.starter.monthly} a month; £${PLANS['per-job'].monthly} for a single job.\n\n` +
+          `## Key pages\n\n- [About Granyt](${siteUrl}/about/)\n- [Test library](${siteUrl}/tests/)\n- [Pricing](${siteUrl}/pricing/)\n- [Resources](${siteUrl}/resources/)\n\n` +
           `## Resources\n\n` +
           ARTICLES.map((a) => `- [${a.title}](${siteUrl}${articlePath(a)}): ${a.answer}`).join('\n') +
           `\n\n## Test library\n\n` +
@@ -504,7 +504,7 @@ export function seoPages(siteUrl: string, firebase?: { projectId: string; apiKey
       // The full text of the resources, for assistants that read one file
       await write(
         'llms-full.txt',
-        `# Praxa: resources in full\n\n> ${PRAXA_DESCRIPTION}\n\n` +
+        `# Granyt: resources in full\n\n> ${PRAXA_DESCRIPTION}\n\n` +
           ARTICLES.map(
             (a) =>
               `## ${a.title}\n\nSource: ${siteUrl}${articlePath(a)} (updated ${a.updated})\n\n${a.answer}\n\n` +
@@ -525,9 +525,9 @@ export function seoPages(siteUrl: string, firebase?: { projectId: string; apiKey
   };
 }
 
-// What Praxa is, in the same words on every page, directory and listing
+// What Granyt is, in the same words on every page, directory and listing
 const PRAXA_DESCRIPTION =
-  'Praxa is a job simulation and skills testing platform for hiring. Candidates do realistic, hands-on work in the tools the job uses, and companies compare them on the same tasks before interviewing.';
+  'Granyt is a job simulation and skills testing platform for hiring. Candidates do realistic, hands-on work in the tools the job uses, and companies compare them on the same tasks before interviewing.';
 
 const niceDate = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
 

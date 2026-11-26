@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 // Which courses someone has started and which lessons they've finished, kept in this browser.
-// Learning progress isn't a result anyone hires on (the course's Praxa tests are), so it doesn't need the server
+// Learning progress isn't a result anyone hires on (the course's Granyt tests are), so it doesn't need the server
 export type CourseProgress = Record<string, { startedAt: string; done: string[] }>;
 
 const KEY = 'vetter-course-progress';

@@ -1,8 +1,8 @@
 import React, { useId } from 'react';
 
 /**
- * Praxa's brand: a clean synapse, white on the AI gradient (blue, violet, pink) in a rounded square: one cell's
- * terminal passing a signal across the gap to the next, the way Praxa connects people and work. The name is set in a rounded geometric sans (Outfit) in the same gradient. The AI chat
+ * Granyt's brand: a clean synapse, white on the AI gradient (blue, violet, pink) in a rounded square: one cell's
+ * terminal passing a signal across the gap to the next, the way Granyt connects people and work. The name is set in a rounded geometric sans (Outfit) in the same gradient. The AI chat
  * has its own mark (AiMark, an animated +).
  */
 
@@ -62,9 +62,8 @@ export const AiMark: React.FC<{ className?: string; busy?: boolean; title?: stri
   );
 };
 
-// The name in the logo. Trying "Corprax" (2026-11-26): only the logo shows it; everything else still says Praxa.
-// Set back to 'Praxa' to undo
-export const LOGO_NAME = 'Corprax';
+// The name in the logo
+export const LOGO_NAME = 'Granyt';
 
 // The mark and the name. size: the text size class; the mark follows it
 export const BrandWordmark: React.FC<{ size?: 'sm' | 'md' | 'lg'; className?: string; showMark?: boolean }> = ({ size = 'md', className = '', showMark = true }) => {

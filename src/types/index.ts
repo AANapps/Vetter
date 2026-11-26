@@ -27,7 +27,7 @@ export type SkillCategory =
   | 'Hospitality'
   | 'Retail'
   | 'Customer Support'
-  // Praxa's skills games: general abilities, for every sector
+  // Granyt's skills games: general abilities, for every sector
   | 'Aptitude';
 
 // The jobs a test is relevant to; grouped by industry on the Tests page
@@ -66,7 +66,7 @@ export type TestRole =
   | 'Retail Assistant'
   | 'Any role';
 
-// A score on one of Praxa's tests, shown on the candidate's profile (named before pass marks went: there's no pass or
+// A score on one of Granyt's tests, shown on the candidate's profile (named before pass marks went: there's no pass or
 // verification, just the best score). verifiedAt is when that best score was set
 export interface VerifiedSkill {
   skillId: string;
@@ -119,14 +119,14 @@ export interface User {
   activeProfileId?: string;
   // The profile each application was sent with, by job id
   applicationProfiles?: Record<string, string>;
-  // What they've done, in their own words: jobs, most recent first. Skills aren't typed in; they come from Praxa's test scores
+  // What they've done, in their own words: jobs, most recent first. Skills aren't typed in; they come from Granyt's test scores
   experience?: WorkExperience[];
   // Skills they list themselves, in their own words; shown as their claim, apart from their test scores
   skills?: string[];
   // Where to see more of them: LinkedIn, GitHub, a portfolio
   links?: ProfileLink[];
   // Their schooling and qualifications, most recent first, and certifications they hold (in their own words, unlike
-  // their Praxa test scores)
+  // their Granyt test scores)
   education?: Education[];
   certifications?: Certification[];
 }
@@ -183,8 +183,8 @@ export interface TestReferral {
   at: string; // ISO date
 }
 
-// Every test a candidate completes, Praxa-made or company-made
-// A company (or the Praxa team) taking a test themselves to see it as a candidate would. Saved for their team,
+// Every test a candidate completes, Granyt-made or company-made
+// A company (or the Granyt team) taking a test themselves to see it as a candidate would. Saved for their team,
 // never on a leaderboard or among a job's candidates
 export interface TrialResult {
   id: string;
@@ -309,7 +309,7 @@ export interface TestCase {
   expectedOutput: string;
   isHidden?: boolean;
   // A check on writing done inside a simulated app (a reply, a note, a bug report): the text at the input path is marked
-  // against these points by Praxa's AI, with a rough first mark from matching words until then
+  // against these points by Granyt's AI, with a rough first mark from matching words until then
   rubric?: string[];
 }
 
@@ -352,7 +352,7 @@ export interface Question {
   tables?: DataTable[];
   // App simulations: the simulated product as one HTML page (its name is in contextData). Checks read its saved state
   appHtml?: string;
-  // The app from Praxa's app library this page was built on, and its version then
+  // The app from Granyt's app library this page was built on, and its version then
   libraryApp?: { id: string; version: number };
   // Stored (src/lib/appRefs.ts): a page that is that library version unchanged plus its data keeps only the data
   // (JSON), and appHtml is filled back in from the library when the test is read
@@ -390,18 +390,18 @@ export interface TestAspect {
 
 export type TestDifficulty = 'Beginner' | 'Junior' | 'Professional' | 'Senior';
 
-// In the public library, for every company to use and every candidate to take: Praxa's own tests, and companies'
-// tests the Praxa team approved
+// In the public library, for every company to use and every candidate to take: Granyt's own tests, and companies'
+// tests the Granyt team approved
 // Training is never in the library: it's a company's own, for its team
 export const isPublic = (test: Pick<AssessmentTest, 'type' | 'publicStatus'> & { purpose?: TestPurpose }) =>
   test.purpose !== 'training' && test.purpose !== 'hiring' && (test.type === 'standard' || test.publicStatus === 'approved');
 export const isTraining = (test: { purpose?: TestPurpose }) => test.purpose === 'training';
-// A job simulation: a timed day on the desktop (Praxa's library ones and any made in the AI builder)
+// A job simulation: a timed day on the desktop (Granyt's library ones and any made in the AI builder)
 export const isJobSim = (test: { questions: { type: string; desktop?: { phases?: unknown[] } }[] }) => test.questions.some((q) => q.type === 'desktop' && !!q.desktop?.phases?.length);
 // A job simulation the company saved to send to candidates, rather than as a test in its library
 export const isHiringSim = (test: { purpose?: TestPurpose }) => test.purpose === 'hiring';
 
-// Whether a test is changed by asking Praxa (made in the test chat) or by hand. Tests saved before this was recorded
+// Whether a test is changed by asking Granyt (made in the test chat) or by hand. Tests saved before this was recorded
 // are told apart by what only the chat leaves: a blueprint (which the builder used to drop on saving), or question ids
 // from the chat's id maker, q-<time>-<5 characters>; the builder's have 4
 const CHAT_QUESTION_ID = /^q-[a-z0-9]+-[a-z0-9]{5}$/;
@@ -456,7 +456,7 @@ export interface AssessmentTest {
   module?: { skill: string; field: string };
   category: SkillCategory;
   difficulty: TestDifficulty;
-  // 'standard' tests are made by Praxa; 'custom' tests are made by a company for its own jobs
+  // 'standard' tests are made by Granyt; 'custom' tests are made by a company for its own jobs
   type: 'standard' | 'custom';
   // Versions of one test at different levels share a familyId: the id of its main version
   familyId?: string;
@@ -467,18 +467,18 @@ export interface AssessmentTest {
   // The timer the company set: minutes for the whole test, or 'none' for no time limit. Without it the timer is
   // estimatedMinutes, what the questions add up to
   timeLimit?: number | 'none';
-  // Written (or since enhanced) in the test chat with Praxa's AI, or in the builder by hand
+  // Written (or since enhanced) in the test chat with Granyt's AI, or in the builder by hand
   madeWith?: 'ai' | 'hand';
-  // A job simulation Praxa's AI wrote (src/lib/jobSimBuild.ts): its own copy of the day, kept so a change asked for in
+  // A job simulation Granyt's AI wrote (src/lib/jobSimBuild.ts): its own copy of the day, kept so a change asked for in
   // the chat rewrites the day from it
   jobSimSource?: string;
-  // A company's test offered to everyone: the company asks (pending), the Praxa team approves it or turns it down
+  // A company's test offered to everyone: the company asks (pending), the Granyt team approves it or turns it down
   // (with why). Approved, it's in every company's library and on the candidates' Tests page. Changing it sends it back
   // for approval
   publicStatus?: 'pending' | 'approved' | 'rejected';
   publicAskedAt?: string;
   publicNote?: string;
-  // Only training uses it (to mark someone done); hiring tests and Praxa's library just give a score
+  // Only training uses it (to mark someone done); hiring tests and Granyt's library just give a score
   passingScore: number;
   totalQuestions: number;
   questions: Question[];
@@ -545,9 +545,9 @@ export interface Business {
   techStack: string[];
   // The sector it hires in, picked at sign-up (src/lib/sectors.ts); its jobs start in it
   sector?: SectorId;
-  // The plan it pays for; unset or 'free' has no AI test creation. Only the Praxa team sets it
+  // The plan it pays for; unset or 'free' has no AI test creation. Only the Granyt team sets it
   plan?: BusinessPlan;
-  // Praxa's ready-made tests and job simulations the company took off its own lists (they stay in Praxa's library)
+  // Granyt's ready-made tests and job simulations the company took off its own lists (they stay in Granyt's library)
   hiddenTests?: string[];
 }
 
@@ -572,7 +572,7 @@ export interface JobPosting {
   companyName: string;
   companyLogo: string;
   businessId?: string;
-  // Who wrote the listing: the company itself, or the Praxa team on its behalf
+  // Who wrote the listing: the company itself, or the Granyt team on its behalf
   postedBy?: 'company' | 'vetter';
   location: string;
   workType: 'Remote' | 'Hybrid' | 'On-site';
@@ -593,7 +593,7 @@ export interface JobPosting {
   niceToHave?: string[];
   benefits?: string[];
   requirements: JobRequirement[];
-  // The job's tests, in order (Praxa-made or the company's own). Each is an ordinary test: a score on it counts here
+  // The job's tests, in order (Granyt-made or the company's own). Each is an ordinary test: a score on it counts here
   // however it was taken
   testIds: string[];
   // No longer used (no pass marks: companies see the scores); kept so saved jobs still load
@@ -605,7 +605,7 @@ export interface JobPosting {
   // Whether candidates get the AI assistant in the job's simulations (the desktop's AI app). On unless the company turns
   // it off: AI is part of everyday work, so the simulation shows how well they use it
   aiInSimulations?: boolean;
-  // Everyone the job's tests have been sent to, and addresses emailed that have no Praxa account yet
+  // Everyone the job's tests have been sent to, and addresses emailed that have no Granyt account yet
   invitations: JobInvitation[];
   invitedEmails?: string[];
   applicantCount: number;
@@ -656,7 +656,7 @@ export interface FeedPost {
   authorId: string;
   text: string;
   createdAt: string; // ISO timestamp
-  sharedTestId?: string; // A Praxa test the author is sharing their result on
+  sharedTestId?: string; // A Granyt test the author is sharing their result on
 }
 
 export interface FeedComment {
@@ -679,14 +679,14 @@ export interface SocialState {
 export interface JobInvitation {
   candidateId: string;
   invitedAt: string; // ISO date
-  // How they got it: from the job's link or page, emailed it, or picked from Praxa's candidates
+  // How they got it: from the job's link or page, emailed it, or picked from Granyt's candidates
   via?: 'link' | 'email' | 'invite';
   // When they first opened the job, and first started one of its tests
   openedAt?: string; // ISO timestamp
   startedAt?: string; // ISO timestamp
   // Every time they began one of the job's tests; one with no finishedAt was left without submitting
   attempts?: JobTestAttempt[];
-  // The login address the invitation was emailed to, for people picked from Praxa's candidates
+  // The login address the invitation was emailed to, for people picked from Granyt's candidates
   emailedTo?: string;
 }
 
@@ -714,7 +714,7 @@ export type LeadStage = 'invited' | 'applied' | 'screening' | 'interview' | 'off
 export type ArchiveReason = 'Not a fit' | 'Low score' | 'Suspected cheating' | 'Withdrew' | 'No response' | 'Hired elsewhere' | 'Role filled' | 'Other';
 
 // What the company has recorded about one candidate for one job; anyone without one is at their starting stage
-// A test still being written: kept only for its company (and the Praxa team) until it's saved as a test
+// A test still being written: kept only for its company (and the Granyt team) until it's saved as a test
 // What the AI writes: a skills test of separate questions, a job simulation (a working day at the company, with its
 // people, emails and tools), or a training simulation that teaches the team an app or a way of working
 // A skills test, a gamified test (every kind of question mixed with simulations), one standalone simulation marked on
@@ -722,7 +722,7 @@ export type ArchiveReason = 'Not a fit' | 'Low score' | 'Suspected cheating' | '
 export type TestKind = 'test' | 'simulation' | 'standalone' | 'training';
 export type TestPurpose = 'training' | 'hiring';
 
-// Someone a company asked to join its team on Praxa, by their account (picked from candidates) or by email. Once they
+// Someone a company asked to join its team on Granyt, by their account (picked from candidates) or by email. Once they
 // accept, the company can assign them tests, job simulations and training. Kept in teamMembers/<businessId>__<key>,
 // where key is their uid, or their email for someone invited by address
 export interface TeamMember {
@@ -870,23 +870,23 @@ export interface TestDraft {
   // What the company had already settled in the home chat before this build, so the creator doesn't ask again
   background?: string;
   kind?: TestKind;
-  // The company it's for; '' for the Praxa library
+  // The company it's for; '' for the Granyt library
   businessId: string;
   // The job it was being written for, if any
   jobId?: string;
   // When it holds unsaved changes to a test already saved, that test's id; saving it updates that test
   editsTestId?: string;
   test: AssessmentTest;
-  // The conversation with Praxa's AI it came from, to carry on where it left off; none if written by hand
+  // The conversation with Granyt's AI it came from, to carry on where it left off; none if written by hand
   messages?: { role: 'user' | 'assistant'; text: string; note?: string }[];
   // Library tests the AI suggested alongside it, and why
   existing?: { testId: string; reason: string }[];
   research?: string;
   researchedFor?: string;
   // The question types the company allowed, how many questions it asked for and the levels it picked; none of one means
-  // Praxa decides. questionCount and difficulty are the single picks drafts saved before several could be ticked
+  // Granyt decides. questionCount and difficulty are the single picks drafts saved before several could be ticked
   styles?: QuestionType[];
-  // The timer picked; none means Praxa decides
+  // The timer picked; none means Granyt decides
   timeLimit?: number | 'none';
   questionCounts?: number[];
   difficulties?: TestDifficulty[];
@@ -911,7 +911,7 @@ export interface Lead {
   tags?: string[];
   updatedAt: string; // ISO timestamp
   history: { stage: LeadStage; at: string }[];
-  // After a hire: how they're doing 30 and 90 days in, to show whether Praxa's scores predict good hires
+  // After a hire: how they're doing 30 and 90 days in, to show whether Granyt's scores predict good hires
   // (src/lib/outcomes.ts)
   checkIns?: HireCheckIn[];
 }

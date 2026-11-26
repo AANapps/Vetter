@@ -111,7 +111,7 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ initialMode, reason, ini
     }
   };
 
-  const title = mode === 'sign-in' ? 'Sign in to Praxa' : mode === 'reset' ? 'Reset your password' : 'Create your Praxa account';
+  const title = mode === 'sign-in' ? 'Sign in to Granyt' : mode === 'reset' ? 'Reset your password' : 'Create your Granyt account';
 
   const jobSelect = (
     <select id="auth-job" value={jobWanted} onChange={(e) => setJobWanted(e.target.value)} className={inputClass}>
@@ -327,7 +327,7 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ initialMode, reason, ini
                 <label className="flex items-start gap-2 text-xs text-slate-700 cursor-pointer">
                   <input type="checkbox" checked={noWorkEmail} onChange={(e) => setNoWorkEmail(e.target.checked)} className="mt-0.5 accent-indigo-600" />
                   <span>
-                    I don't have a work email. <span className="text-slate-500">Praxa's team will check your company before you can post jobs, usually within a working day.</span>
+                    I don't have a work email. <span className="text-slate-500">Granyt's team will check your company before you can post jobs, usually within a working day.</span>
                   </span>
                 </label>
               )}
@@ -352,7 +352,7 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ initialMode, reason, ini
           </button>
           {mode !== 'reset' && (
             <p className="text-[11px] text-slate-500 text-center">
-              By continuing you agree to Praxa's{' '}
+              By continuing you agree to Granyt's{' '}
               <a href="/terms/" target="_blank" rel="noopener" className="underline hover:text-slate-900">terms</a> and{' '}
               <a href="/privacy/" target="_blank" rel="noopener" className="underline hover:text-slate-900">privacy policy</a>
               {mode === 'sign-up' && (
@@ -368,14 +368,14 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ initialMode, reason, ini
           <p className="text-xs text-slate-500 text-center">
             {mode === 'sign-up' ? (
               <>
-                Already on Praxa?{' '}
+                Already on Granyt?{' '}
                 <button type="button" onClick={() => setMode('sign-in')} className="font-semibold text-indigo-700 hover:underline">
                   Sign in
                 </button>
               </>
             ) : (
               <>
-                New to Praxa?{' '}
+                New to Granyt?{' '}
                 <button type="button" onClick={() => setMode('sign-up')} className="font-semibold text-indigo-700 hover:underline">
                   Create an account
                 </button>

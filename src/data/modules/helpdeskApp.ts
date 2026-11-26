@@ -1,11 +1,11 @@
 /**
- * Deskly, the help desk app in Praxa's app library (library-apps/deskly/app.html): the data a test gives it. A help
- * desk agent workspace, hand-built for Praxa's customer support tests: a modern, 1:1 copy of how today's help
+ * Deskly, the help desk app in Granyt's app library (library-apps/deskly/app.html): the data a test gives it. A help
+ * desk agent workspace, hand-built for Granyt's customer support tests: a modern, 1:1 copy of how today's help
  * desks look and work (views with live counts and SLA countdowns, a ticket with its properties, conversation, reply
  * composer with macros and internal notes, the customer's orders, and the knowledge base), with only what support
  * tasks need. Built from data, so every test gets its own queue.
  *
- * State, as Praxa marks it: { tickets: { <id>: { priority, type, group, status, tags: [], tagSet: { <tag>: true },
+ * State, as Granyt marks it: { tickets: { <id>: { priority, type, group, status, tags: [], tagSet: { <tag>: true },
  * replies: [{ public, text, status }], replied, noted, macros: [], fields: {}, refund, issue, lastPublic, lastNote } },
  * opened: [ids], read: [article titles], replyOrder: [ids in the order first replied to], chat }
  */

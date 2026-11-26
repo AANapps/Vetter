@@ -1,7 +1,7 @@
 import { AssessmentTest } from '../types';
 
 /**
- * Praxa tests built for specific roles: Backend and QA. Data Analyst tests are simulations (analysisSimulations.ts).
+ * Granyt tests built for specific roles: Backend and QA. Data Analyst tests are simulations (analysisSimulations.ts).
  * Every task is hands-on and auto-graded: SQL against a sample database, JavaScript against
  * test cases, schemas against inserts that must be accepted or rejected, and, for QA, the
  * candidate's own tests run against a correct implementation and several broken ones.

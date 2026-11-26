@@ -1,5 +1,5 @@
 /**
- * Praxa's company plans: what each costs and what it unlocks. One list, read by the server (what Stripe charges, the
+ * Granyt's company plans: what each costs and what it unlocks. One list, read by the server (what Stripe charges, the
  * AI allowance) and the site (the pricing page and every paywall), so the two can't disagree.
  *
  * Agreed 2026-11-21 (docs/pricing.md, "Recommended plan for launch"). Candidates are always free.
@@ -12,9 +12,9 @@ export type Interval = 'month' | 'year';
 export type Feature =
   // Integrity report, answer-by-answer review, job simulation replay and why they fit; free sees the score only
   | 'full-reports'
-  // Praxa's ready-made job simulations on a job
+  // Granyt's ready-made job simulations on a job
   | 'library-job-sims'
-  // Searching Praxa's pool of tested candidates and inviting them to a job
+  // Searching Granyt's pool of tested candidates and inviting them to a job
   | 'pool-search'
   | 'csv-export'
   | 'branding'
@@ -63,7 +63,7 @@ export const PLANS: Record<PlanId, PlanInfo> = {
     aiAllowance: 6000,
     features: [...PAID, 'library-job-sims', 'pool-search', 'csv-export', 'branding'],
   },
-  // Set by the Praxa team after a sales call; everything, with an allowance agreed per company
+  // Set by the Granyt team after a sales call; everything, with an allowance agreed per company
   enterprise: {
     id: 'enterprise',
     name: 'Enterprise',
@@ -91,7 +91,7 @@ export const cheapestWith = (feature: Feature): PlanId => RANK.find((p) => p !==
 
 // What the site is told about a company's plan (the /api/billing answer)
 export interface PlanStatus {
-  // false when the site doesn't take payments (no Stripe key) or for the Praxa team: nothing is locked
+  // false when the site doesn't take payments (no Stripe key) or for the Granyt team: nothing is locked
   billing: boolean;
   plan: PlanId;
   interval?: Interval;
@@ -107,7 +107,7 @@ export interface PlanStatus {
   ai: { allowance: number; used: number; credit: number; resets?: string };
 }
 
-// Firestore keeps a plan only the Praxa team can set ('per-job' there means a pass with no end); the older names are
+// Firestore keeps a plan only the Granyt team can set ('per-job' there means a pass with no end); the older names are
 // read as the nearest plan now
 export function planFromRecord(value: unknown): PlanId {
   return typeof value === 'string' && (RANK as string[]).includes(value) ? (value as PlanId) : 'free';
@@ -115,7 +115,7 @@ export function planFromRecord(value: unknown): PlanId {
 
 export const higher = (a: PlanId, b: PlanId): PlanId => (RANK.indexOf(a) >= RANK.indexOf(b) ? a : b);
 
-// --- What the Praxa team changed (settings/plans in Firestore) ---
+// --- What the Granyt team changed (settings/plans in Firestore) ---
 
 // The team can change each tier's price, limits, AI allowance and features from the admin page. Kept in one
 // Firestore document anyone can read; -1 or null means no limit (Firestore can't store Infinity everywhere)
@@ -127,7 +127,7 @@ export const DEFAULT_PLANS: Record<PlanId, PlanInfo> = Object.fromEntries(Object
 export const ALL_FEATURES: Feature[] = ['full-reports', 'library-job-sims', 'pool-search', 'csv-export', 'branding', 'ai-top-ups'];
 export const FEATURE_NAMES: Record<Feature, string> = {
   'full-reports': 'Full reports (integrity, answers, replay, fit)',
-  'library-job-sims': 'Praxa’s ready-made job simulations',
+  'library-job-sims': 'Granyt’s ready-made job simulations',
   'pool-search': 'Search and invite tested candidates',
   'csv-export': 'CSV export',
   branding: 'Branding on tests',

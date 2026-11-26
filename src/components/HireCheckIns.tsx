@@ -76,12 +76,12 @@ const CheckInCard: React.FC<{ row: LeadRow; day: 30 | 90; onSave: (row: LeadRow,
   );
 };
 
-// For the Praxa team: do higher scores mean better hires? From every company's answered check-ins
+// For the Granyt team: do higher scores mean better hires? From every company's answered check-ins
 export const OutcomeSummary: React.FC<{ rows: LeadRow[] }> = ({ rows }) => {
   const s = outcomeSummary(rows);
   return (
     <div className="max-w-3xl mx-auto text-left ai-glass rounded-2xl border border-slate-200 p-4 text-xs text-slate-700">
-      <p className="text-sm font-bold text-slate-900">Hiring outcomes (Praxa team only)</p>
+      <p className="text-sm font-bold text-slate-900">Hiring outcomes (Granyt team only)</p>
       {s.hires === 0 ? (
         <p className="mt-1">No 30 or 90-day check-ins answered yet. They appear on a company's home 30 days after it marks someone Hired.</p>
       ) : (

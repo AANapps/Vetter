@@ -8,7 +8,7 @@ import { IntegrityBadge } from './IntegrityBadge';
 
 /**
  * For one applicant on one of the company's jobs: the job's own tests (its skills tests, then its job simulation), each
- * with their best score or Not done, then other Praxa tests they've taken that check the same skills.
+ * with their best score or Not done, then other Granyt tests they've taken that check the same skills.
  */
 
 // The same skill, by name (ignoring case and spacing), so a job about SQL doesn't pull in every skill with "SQL" in it
@@ -34,7 +34,7 @@ export const ApplicantSummary: React.FC<{
       <div className="divide-y divide-slate-100">
         {rows.map((r) => {
           const jobTests = r.job.testIds.map((id) => tests.find((t) => t.id === id)).filter((t): t is AssessmentTest => !!t);
-          // Other Praxa tests they've taken that check exactly a skill the job's tests check
+          // Other Granyt tests they've taken that check exactly a skill the job's tests check
           const relevant = jobTests.flatMap((t) => t.skillsTested);
           const proven = person.verifiedSkills
             .filter((v) => !r.job.testIds.includes(v.testId) && relevant.some((n) => sameName(n, v.skillName)))
@@ -113,10 +113,10 @@ export const ApplicantSummary: React.FC<{
               <div className="space-y-2">
                 <h3 className="text-xs font-bold text-slate-800 inline-flex items-center gap-1.5">
                   <BadgeCheck className="w-3.5 h-3.5 text-indigo-600" />
-                  Other Praxa test scores
+                  Other Granyt test scores
                 </h3>
                 {proven.length === 0 ? (
-                  <p className="text-xs text-slate-500">No other Praxa test they've taken covers this job's skills.</p>
+                  <p className="text-xs text-slate-500">No other Granyt test they've taken covers this job's skills.</p>
                 ) : (
                   <ul className="flex flex-wrap gap-2">
                     {proven.map((v) => {
@@ -128,7 +128,7 @@ export const ApplicantSummary: React.FC<{
                             <span className="block text-xs font-semibold text-slate-900">
                               {v.skillName} <span className="font-mono">{v.score}</span>
                             </span>
-                            <span className="block text-[10px] text-slate-500">{rank ? `#${rank} of ${board.length}` : 'Praxa test'}</span>
+                            <span className="block text-[10px] text-slate-500">{rank ? `#${rank} of ${board.length}` : 'Granyt test'}</span>
                           </button>
                         </li>
                       );

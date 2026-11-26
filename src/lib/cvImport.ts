@@ -3,9 +3,9 @@ import { aiFetch } from './aiRequest';
 import { safeUrl, sortExperience } from './experience';
 
 /**
- * Filling a candidate's profile from their CV: the file (a PDF, or text) or pasted text goes to Praxa's AI
+ * Filling a candidate's profile from their CV: the file (a PDF, or text) or pasted text goes to Granyt's AI
  * (server/readCv.ts), and what comes back is tidied into profile fields for the candidate to check before saving.
- * Skills aren't taken from the CV: a profile's skills are only the ones Praxa's tests have proven.
+ * Skills aren't taken from the CV: a profile's skills are only the ones Granyt's tests have proven.
  */
 
 export type ProfilePatch = Pick<User, 'title' | 'bio' | 'location' | 'yearsExperience' | 'careerStage' | 'experience' | 'education' | 'certifications' | 'links'>;
@@ -90,11 +90,11 @@ export async function readCv(input: { file?: File; text?: string }): Promise<{ p
   try {
     const res = await aiFetch('/api/read-cv', payload);
     const body = await res.json().catch(() => ({}));
-    if (!res.ok) return { error: body.error === 'not-configured' || res.status === 404 ? "Reading CVs isn't available here yet. Fill your profile in by hand." : body.error || "Praxa couldn't read that CV. Try again." };
+    if (!res.ok) return { error: body.error === 'not-configured' || res.status === 404 ? "Reading CVs isn't available here yet. Fill your profile in by hand." : body.error || "Granyt couldn't read that CV. Try again." };
     if (!body.found) return { error: "That doesn't look like a CV. Try another file, or paste the text from your CV or LinkedIn." };
     return { patch: tidy(body) };
   } catch {
-    return { error: "Couldn't reach Praxa. Check your connection and try again." };
+    return { error: "Couldn't reach Granyt. Check your connection and try again." };
   }
 }
 

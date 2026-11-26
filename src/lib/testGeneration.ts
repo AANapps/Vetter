@@ -16,7 +16,7 @@ import { databaseStarter } from './databaseWork';
 import { openTaskDatabase, queryRows } from './sqlEngine';
 import { aiFetch } from './aiRequest';
 
-// Asking Praxa for a job's tests: library tests that fit, and a new test written for it (by the server's AI).
+// Asking Granyt for a job's tests: library tests that fit, and a new test written for it (by the server's AI).
 // Everything the AI returns is checked here: unknown tests dropped, coding and SQL answers run, broken questions removed.
 
 export interface Suggestion {
@@ -31,7 +31,7 @@ export interface GenerationResult {
   dropped: number;
   // Why there's no new test, when one was asked for
   newTestError?: string;
-  // Where the new test came from: written by the AI, or put together from Praxa's own questions
+  // Where the new test came from: written by the AI, or put together from Granyt's own questions
   source?: 'ai' | 'bank';
   // Why the AI didn't write it, when it came from the question bank
   aiNote?: string;
@@ -63,7 +63,7 @@ export const jobBrief = (job: JobPosting) =>
     .filter(Boolean)
     .join('\n\n');
 
-// The tests a company can use: Praxa's library in the company's sector, plus its own
+// The tests a company can use: Granyt's library in the company's sector, plus its own
 export const libraryFor = (tests: AssessmentTest[], business?: Business) =>
   tests.filter(
     (t) =>
@@ -128,7 +128,7 @@ export function matchExisting(prompt: string, library: AssessmentTest[], limit =
     .map(({ test, reason }) => ({ test, reason }));
 }
 
-// A new test without the AI: the questions across Praxa's tests that best fit the brief, at the level asked for,
+// A new test without the AI: the questions across Granyt's tests that best fit the brief, at the level asked for,
 // drawn from several tests so it isn't one test renamed. Returns undefined when too little fits.
 export function assembleFromBank(opts: GenerationOptions, library: AssessmentTest[], allTests: AssessmentTest[], business?: Business): AssessmentTest | undefined {
   const brief = briefOf(opts.prompt);
@@ -177,7 +177,7 @@ export function assembleFromBank(opts: GenerationOptions, library: AssessmentTes
     difficulty: opts.level,
     type: business ? 'custom' : 'standard',
     ...(business && { businessId: business.id, companyName: business.name }),
-    description: `${questions.length} questions picked for this role from Praxa's tests on ${usedTests.map((t) => t.title).slice(0, 3).join(', ')}.`,
+    description: `${questions.length} questions picked for this role from Granyt's tests on ${usedTests.map((t) => t.title).slice(0, 3).join(', ')}.`,
     estimatedMinutes: questions.reduce((sum, q) => sum + q.timeLimitMinutes, 0),
     passingScore: 70,
     totalQuestions: questions.length,
@@ -340,7 +340,7 @@ export async function checkQuestion(raw: RawQuestion): Promise<Question | null> 
       // Open to any language: the reference solution is in Python, and the candidate starts from their language's template
       const runAs = languageById(language === ANY_LANGUAGE ? 'python' : language)!;
       q.starterCode = language === ANY_LANGUAGE ? '' : q.starterCode?.trim() ? q.starterCode : runAs.starter;
-      // Keep only the cases the AI's own solution passes. A language Praxa can't run yet (no code runner set up) keeps
+      // Keep only the cases the AI's own solution passes. A language Granyt can't run yet (no code runner set up) keeps
       // its cases as written
       const run = await runProgramTests(runAs, q.solutionCode ?? '', cases);
       q.testCases = runnerMissing(run) ? cases : cases.filter((_, i) => run.testCaseResults[i]?.passed);
@@ -415,7 +415,7 @@ export async function checkQuestion(raw: RawQuestion): Promise<Question | null> 
     q.testCases = checks.map((tc, i) => ({ id: uid('tc'), description: tc.description || `Check ${i + 1}`, input: tc.input.trim(), expectedOutput: '' }));
     return q.title && q.prompt ? q : null;
   }
-  // A task on Praxa's built-in work apps (help desk, CRM, chat, docs, BI…), on its own desktop
+  // A task on Granyt's built-in work apps (help desk, CRM, chat, docs, BI…), on its own desktop
   if (type === 'desktop') {
     const task = desktopTask(raw);
     if (!task) return null;
@@ -467,7 +467,7 @@ export async function generateTests(opts: GenerationOptions, tests: AssessmentTe
     // No endpoint at all (a static host) is the same as the AI not being set up
     if (!res.ok) failure = body.error === 'not-configured' || res.status === 404 ? 'not-configured' : body.error || `The AI request failed (${res.status}).`;
   } catch {
-    failure = "Couldn't reach Praxa's AI. Check your connection and try again.";
+    failure = "Couldn't reach Granyt's AI. Check your connection and try again.";
   }
 
   // The AI's picks when it answered, otherwise the matches made here
@@ -478,11 +478,11 @@ export async function generateTests(opts: GenerationOptions, tests: AssessmentTe
   const existing = opts.wantExisting ? (picked.length ? picked : local) : [];
 
   if (!opts.wantNewTest) return { existing, dropped: 0 };
-  // No AI, or it failed: build the test from Praxa's own questions instead, and say why the AI wasn't used
+  // No AI, or it failed: build the test from Granyt's own questions instead, and say why the AI wasn't used
   if (failure || !body.test) {
     const aiNote =
       failure === 'not-configured'
-        ? "Praxa's AI isn't available on this site: it runs on Praxa's own server (npm run dev or npm start) with an ANTHROPIC_API_KEY."
+        ? "Granyt's AI isn't available on this site: it runs on Granyt's own server (npm run dev or npm start) with an ANTHROPIC_API_KEY."
         : failure ?? "The AI didn't send back a test.";
     const fromBank = assembleFromBank(opts, library, tests, business);
     return fromBank
@@ -490,7 +490,7 @@ export async function generateTests(opts: GenerationOptions, tests: AssessmentTe
       : {
           existing,
           dropped: 0,
-          newTestError: `${aiNote} Praxa's own question bank doesn't cover this yet either, so write the test in the builder for now.`,
+          newTestError: `${aiNote} Granyt's own question bank doesn't cover this yet either, so write the test in the builder for now.`,
         };
   }
 
@@ -499,7 +499,7 @@ export async function generateTests(opts: GenerationOptions, tests: AssessmentTe
   const asked = ((raw.questions ?? []) as RawQuestion[]).filter((q) => opts.styles.includes(q.type as QuestionType));
   const questions = linkTasks(asked, await Promise.all(asked.map(checkQuestion)));
   const dropped = asked.length - questions.length;
-  if (questions.length === 0) return { existing, dropped, newTestError: "None of the AI's questions passed Praxa's checks. Try again." };
+  if (questions.length === 0) return { existing, dropped, newTestError: "None of the AI's questions passed Granyt's checks. Try again." };
 
   const total = questions.reduce((sum, q) => sum + q.weight, 0) || 1;
   const allowed = categoriesFor(companySector(business));

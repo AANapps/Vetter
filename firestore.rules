@@ -63,7 +63,7 @@ service cloud.firestore {
           || (request.resource.data.status == 'pending-approval' && request.resource.data.companyId == emailDomain()
             && exists(/databases/$(database)/documents/companies/$(emailDomain()))
             && getAfter(/databases/$(database)/documents/companies/$(emailDomain())/members/$(uid())).data.status == 'pending-approval')
-          // No work email: waiting for the Praxa team
+          // No work email: waiting for the Granyt team
           || (request.resource.data.status == 'pending-review' && request.resource.data.companyId == 'review-' + uid()
             && companyAfter('review-' + uid()).ownerUid == uid())
         ))
@@ -79,14 +79,14 @@ service cloud.firestore {
     match /profiles/{userId} {
       allow read: if true;
       allow create, update: if signedIn() && uid() == userId && verified()
-        // Candidates, and the Praxa team's own candidate profile (their candidate view)
+        // Candidates, and the Granyt team's own candidate profile (their candidate view)
         && userDoc(userId).data.role in ['candidate', 'admin']
         && request.resource.data.id == userId && request.resource.data.role == 'candidate'
         && !request.resource.data.keys().hasAny(['email', 'appliedJobIds', 'applicationProfiles']);
       allow delete: if isAdmin();
     }
 
-    // Jobs are public. A company posts and edits its own; the Praxa team any. Applying adds one to the count
+    // Jobs are public. A company posts and edits its own; the Granyt team any. Applying adds one to the count
     match /jobs/{jobId} {
       allow read: if true;
       allow create: if isAdmin() || worksAt(request.resource.data.businessId);
@@ -139,9 +139,9 @@ service cloud.firestore {
         || (verified() && resource.data.email == request.auth.token.email.lower()));
     }
 
-    // Where a candidate is in a company's hiring for one job (stage, rating, notes). Only that company and the Praxa
+    // Where a candidate is in a company's hiring for one job (stage, rating, notes). Only that company and the Granyt
     // team can see or change it; the candidate never sees it
-    // Tests still being written: only their company and the Praxa team see them; '' is the Praxa library's
+    // Tests still being written: only their company and the Granyt team see them; '' is the Granyt library's
     match /testDrafts/{draftId} {
       allow read: if signedIn() && (isAdmin() || worksAt(resource.data.businessId));
       allow create, update: if (isAdmin() || worksAt(request.resource.data.businessId))
@@ -151,7 +151,7 @@ service cloud.firestore {
     }
 
     // What a candidate answered on a test taken for a company (src/lib/submissions.ts): the candidate, that company and
-    // the Praxa team can read it; nobody else, as the answers would give the test away. Written once, by the candidate
+    // the Granyt team can read it; nobody else, as the answers would give the test away. Written once, by the candidate
     match /submissions/{submissionId} {
       allow read: if signedIn() && (isAdmin() || worksAt(resource.data.businessId) || resource.data.candidateId == uid());
       allow create: if signedIn() && request.resource.data.candidateId == uid()
@@ -182,7 +182,7 @@ service cloud.firestore {
       allow delete: if isAdmin() || worksAt(resource.data.businessId) || invitedPerson(resource.data);
     }
 
-    // Work given to someone on a company's team, and how they got on: only the company, that person and the Praxa
+    // Work given to someone on a company's team, and how they got on: only the company, that person and the Granyt
     // team see it. Only people who joined the team can be given work; they record starting and finishing it
     function teamMemberDoc(memberId) { return get(/databases/$(database)/documents/teamMembers/$(memberId)).data; }
     // Someone on a company's team, joined (their membership is companyId__uid, or companyId__email when they were invited
@@ -213,7 +213,7 @@ service cloud.firestore {
       allow delete: if isAdmin() || worksAt(resource.data.businessId);
     }
 
-    // A company's projects on its team board, like monday.com boards: only the company and the Praxa team
+    // A company's projects on its team board, like monday.com boards: only the company and the Granyt team
     // The company's boards. Someone on its team (Work mode) has the same workspace: they see every board, make boards and
     // work on them (items, columns and views), as on monday; deleting a board stays with the company
     match /projects/{projectId} {
@@ -236,7 +236,7 @@ service cloud.firestore {
       allow delete: if isAdmin() || worksAt(resource.data.businessId) || onTeamOf(resource.data.businessId);
     }
 
-    // A company's own tries at tests, seen only by its team and the Praxa team
+    // A company's own tries at tests, seen only by its team and the Granyt team
     match /trials/{trialId} {
       allow read: if signedIn() && (isAdmin() || worksAt(resource.data.businessId));
       allow create: if (isAdmin() || worksAt(request.resource.data.businessId))
@@ -259,7 +259,7 @@ service cloud.firestore {
       allow delete: if isAdmin() || worksAt(resource.data.businessId);
     }
 
-    // Career switch course sign-ups: anyone can leave their details (signed in or not), only the Praxa team reads
+    // Career switch course sign-ups: anyone can leave their details (signed in or not), only the Granyt team reads
     // them. See src/lib/courseSignups.ts
     match /courseSignups/{signupId} {
       allow read, update, delete: if isAdmin();
@@ -286,17 +286,17 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Tests made in the app: a company's own, or the Praxa team's. Anyone can open a test page
+    // Tests made in the app: a company's own, or the Granyt team's. Anyone can open a test page
     // A company's test in the public library (publicStatus): the company may ask (pending) or take it back, and only
-    // the Praxa team approves or turns it down. Any change a company makes to an approved test takes it out of
+    // the Granyt team approves or turns it down. Any change a company makes to an approved test takes it out of
     // 'approved', so nothing reaches other companies and candidates without being checked
     function publicAskOnly() {
       let now = request.resource.data.get('publicStatus', null);
       return now == null || now == 'pending'
         || (now == 'rejected' && resource != null && resource.data.get('publicStatus', null) == 'rejected');
     }
-    // Live, tutor-led training a company books: the company and the Praxa team read it; the company asks for it and can
-    // cancel its request; the Praxa team confirms it, sets the tutor and dates, and marks it done
+    // Live, tutor-led training a company books: the company and the Granyt team read it; the company asks for it and can
+    // cancel its request; the Granyt team confirms it, sets the tutor and dates, and marks it done
     match /trainingBookings/{bookingId} {
       allow read: if signedIn() && (isAdmin() || worksAt(resource.data.businessId));
       allow create: if signedIn() && worksAt(request.resource.data.businessId) && request.resource.data.id == bookingId
@@ -307,7 +307,7 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // What the Praxa team has hidden from the library (categories, roles, tests): everyone reads it, only admins change it
+    // What the Granyt team has hidden from the library (categories, roles, tests): everyone reads it, only admins change it
     match /settings/{settingId} {
       allow read: if true;
       allow write: if isAdmin();
@@ -322,8 +322,8 @@ service cloud.firestore {
       allow delete: if isAdmin() || worksAt(resource.data.businessId);
     }
 
-    // Praxa's environment library (src/lib/environments.ts): one simulation per app, which grows with every test that
-    // uses the app. Every simulation built is a submission the Praxa team reviews; only the Praxa team puts one in the
+    // Granyt's environment library (src/lib/environments.ts): one simulation per app, which grows with every test that
+    // uses the app. Every simulation built is a submission the Granyt team reviews; only the Granyt team puts one in the
     // library (a new app, or an app's next version). Company accounts read the library to build on it, and count a use
     function staff() {
       return isAdmin() || (signedIn() && exists(/databases/$(database)/documents/users/$(uid()))
@@ -348,7 +348,7 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     // Waiting for review, and the history of what was approved: sent as oneself, pending; read by the sender and the
-    // Praxa team; decided by the Praxa team
+    // Granyt team; decided by the Granyt team
     match /environmentSubmissions/{subId} {
       allow read: if isAdmin() || (staff() && resource.data.createdBy == uid());
       allow create: if staff() && request.resource.data.createdBy == uid() && request.resource.data.status == 'pending'
@@ -397,8 +397,8 @@ service cloud.firestore {
       // told it's joining an existing one
       allow read: if resource.data.status == 'active' || signedIn();
 
-      // The plan is set by the Praxa team only, never by the company that pays for it
-      // The Praxa team can also create one, to repair a sign-up whose company record went missing
+      // The plan is set by the Granyt team only, never by the company that pays for it
+      // The Granyt team can also create one, to repair a sign-up whose company record went missing
       allow create: if isAdmin() || (signedIn() && verified() && request.resource.data.ownerUid == uid() && !('plan' in request.resource.data) && (
         // A company's id is its email domain, claimed only by a verified address at that domain
         (companyId == emailDomain() && !(emailDomain() in freeDomains())

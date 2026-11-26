@@ -30,7 +30,7 @@ export interface CompanySetup {
  * - Candidates sign up with any email and are active once they verify it.
  * - Companies sign up with a work email. Once it's verified, the first person from a domain creates the company
  *   (its id is the domain) and runs it; colleagues from the same domain ask to join and the owner approves them.
- * - Sign-ups without a work email go to the Praxa team for review.
+ * - Sign-ups without a work email go to the Granyt team for review.
  */
 
 export type AccountRole = 'candidate' | 'recruiter' | 'admin';
@@ -56,12 +56,12 @@ export interface Company {
   domain?: string;
   ownerUid: string;
   ownerName: string;
-  // Only for the Praxa team's review queue, from the owner's account; companies' records are public, so it isn't kept there
+  // Only for the Granyt team's review queue, from the owner's account; companies' records are public, so it isn't kept there
   ownerEmail?: string;
   status: 'active' | 'pending-review' | 'rejected';
   // The sector it hires in, picked at sign-up and changed on Your jobs
   sector?: SectorId;
-  // The plan it pays for, set by the Praxa team
+  // The plan it pays for, set by the Granyt team
   plan?: 'free' | 'per-job' | 'starter' | 'growth' | 'scale' | 'enterprise';
 }
 
@@ -87,11 +87,11 @@ export function accountError(err: unknown): string {
     'auth/wrong-password': "That email and password don't match an account.",
     'auth/user-not-found': "That email and password don't match an account.",
     'auth/too-many-requests': 'Too many attempts. Wait a few minutes and try again.',
-    'auth/network-request-failed': "Couldn't reach Praxa. Check your connection.",
+    'auth/network-request-failed': "Couldn't reach Granyt. Check your connection.",
     'permission-denied': "You don't have permission to do that.",
     'auth/popup-closed-by-user': 'The Google window was closed before signing in finished.',
-    'auth/popup-blocked': 'Your browser blocked the Google window. Allow pop-ups for Praxa and try again.',
-    'auth/account-exists-with-different-credential': 'This email already has a Praxa password. Sign in with your password instead.',
+    'auth/popup-blocked': 'Your browser blocked the Google window. Allow pop-ups for Granyt and try again.',
+    'auth/account-exists-with-different-credential': 'This email already has a Granyt password. Sign in with your password instead.',
   };
   return messages[code] ?? (err instanceof Error ? err.message : 'Something went wrong. Try again.');
 }
@@ -110,7 +110,7 @@ export async function signUp(input: {
   await sendEmailVerification(user);
 }
 
-// The Praxa account for someone just signed up: a candidate, or a company sign-up waiting to set up its company
+// The Granyt account for someone just signed up: a candidate, or a company sign-up waiting to set up its company
 export const createAccount = (
   user: FirebaseUser,
   input: { role: 'candidate' | 'recruiter'; name: string; company?: CompanySetup }
@@ -124,7 +124,7 @@ export const createAccount = (
     createdAt: serverTimestamp(),
   });
 
-// Signing in or up with a Google account. Its email comes verified; whether there's a Praxa account yet is returned
+// Signing in or up with a Google account. Its email comes verified; whether there's a Granyt account yet is returned
 export async function continueWithGoogle() {
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: 'select_account' });
@@ -219,7 +219,7 @@ export async function decideMember(companyId: string, uid: string, approve: bool
   return batch.commit();
 }
 
-// The Praxa team's queue: companies that signed up without a work email. Taken from both sides, so nobody waiting is
+// The Granyt team's queue: companies that signed up without a work email. Taken from both sides, so nobody waiting is
 // missed: companies marked for review, and accounts marked for review whatever state their company record is in
 // (missing, or out of step). `needsFix` says which record the approval has to repair
 export type ReviewCompany = Company & { needsFix?: 'missing-company' | 'company-status' };
@@ -276,8 +276,8 @@ export const renameAccount = (uid: string, name: string) => updateDoc(userRef(ui
 // Your own name, on your account (the rules let anyone change only their name)
 export const updateAccountName = (uid: string, name: string) => updateDoc(userRef(uid), { name: name.trim() });
 
-// A company's public details, changed by its owner or the Praxa team. The plan and status are never touched here
+// A company's public details, changed by its owner or the Granyt team. The plan and status are never touched here
 export type CompanyInfo = Pick<Company, 'name' | 'website'> & { logo: string; industry: string; headquarters: string; companySize: string; description: string };
 export const updateCompanyInfo = (companyId: string, info: CompanyInfo) => updateDoc(companyRef(companyId), { ...info });
-// Praxa's tests the company took off its own lists
+// Granyt's tests the company took off its own lists
 export const setHiddenTests = (companyId: string, ids: string[]) => updateDoc(companyRef(companyId), { hiddenTests: ids });

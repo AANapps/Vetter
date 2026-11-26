@@ -11,13 +11,13 @@ import { RETAKE_DAYS } from '../lib/results';
 
 export const INTEGRITY_RULES = [
   'The test runs full screen. Stay in full screen, on this tab, for the whole test: leaving full screen, or switching tabs, windows or apps, is recorded, with how long you were away.',
-  'Use one screen. Praxa records how many screens are connected, and when your window is resized or made small enough to leave room beside it.',
+  'Use one screen. Granyt records how many screens are connected, and when your window is resized or made small enough to leave room beside it.',
   'Copying, cutting and pasting are recorded. Pasting in text from outside the test counts heavily against you.',
   'Activity is recorded: when you stop moving the mouse and typing, for how long, and how your answers are typed in.',
   'Work alone. No help from other people, and no AI assistants, code generators or web searches.',
   'Your data is your own: the numbers in the tasks are different for every candidate, so someone else’s answers won’t fit yours.',
   'Don’t screenshot, copy or share the questions, during or after the test. One attempt at a time, on your own account.',
-  `Starting is recorded as an attempt. On a Praxa test, once you’ve opened every question, quitting without submitting means you can’t retake it for ${RETAKE_DAYS} days.`,
+  `Starting is recorded as an attempt. On a Granyt test, once you’ve opened every question, quitting without submitting means you can’t retake it for ${RETAKE_DAYS} days.`,
 ];
 
 // Shown before and during every test
@@ -41,7 +41,7 @@ interface TestIntroProps {
   attempt?: { number: number; limit?: number };
   // A job simulation: a 3-minute practice on the desktop first, not scored or saved
   onPractice?: () => void;
-  // The hiring company's own name and logo on the test (Scale plan), in place of Praxa's
+  // The hiring company's own name and logo on the test (Scale plan), in place of Granyt's
   brand?: { name: string; logo?: string };
 }
 
@@ -151,7 +151,7 @@ export const TestIntro: React.FC<TestIntroProps> = ({ test, onBegin, onClose, on
             <BrandSparkle className="w-8 h-8" />
           )}
           <div className="min-w-0">
-            <div className="text-[10px] uppercase tracking-[0.2em] text-slate-500">{brand ? `${brand.name} assessment` : 'Praxa assessment'}</div>
+            <div className="text-[10px] uppercase tracking-[0.2em] text-slate-500">{brand ? `${brand.name} assessment` : 'Granyt assessment'}</div>
             <div className="text-sm font-bold text-slate-900 truncate">{test.title}</div>
           </div>
           <div className="ml-auto hidden sm:block text-right">

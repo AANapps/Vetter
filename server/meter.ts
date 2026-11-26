@@ -1,7 +1,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 
 /**
- * What one request to Praxa's AI cost, added up across every call to Claude it makes (a test written in one go, a
+ * What one request to Granyt's AI cost, added up across every call to Claude it makes (a test written in one go, a
  * chat turn that researched software first...). Each handler reports its calls with meter(); routes.ts runs billed
  * requests inside metered() and charges the company for the total (server/credits.ts).
  */

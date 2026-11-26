@@ -68,7 +68,7 @@ export const CertificateDialog: React.FC<{ cert: CertificateDetails; onClose: ()
               </div>
             </div>
             <p className="text-[10px] text-slate-400 font-mono">
-              Praxa · {ref}
+              Granyt · {ref}
             </p>
           </div>
         </div>

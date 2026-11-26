@@ -1,4 +1,4 @@
-# Render blueprint: runs Praxa's server (the site, each job's page, and the AI endpoints).
+# Render blueprint: runs Granyt's server (the site, each job's page, and the AI endpoints).
 # On render.com: New > Blueprint > pick this repository. Fill in ANTHROPIC_API_KEY and SITE_URL when asked.
 services:
   - type: web

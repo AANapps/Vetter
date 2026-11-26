@@ -3,7 +3,7 @@ import { STATUS_LABEL, PRIORITY_LABEL, withLog } from './projectAutomations';
 import { FormulaContext, formulaResult, showFormula } from './boardFormula';
 
 /**
- * Praxa's CRM, built the way monday CRM is: linked boards. Leads come in and are worked; a qualified lead is converted
+ * Granyt's CRM, built the way monday CRM is: linked boards. Leads come in and are worked; a qualified lead is converted
  * into a contact, its company's account and a deal, all linked to each other; deals move through a pipeline of stages
  * with a value, a close probability and the forecast worked out from them. Calls, emails, meetings and notes are
  * logged on any item.

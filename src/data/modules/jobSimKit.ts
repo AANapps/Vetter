@@ -5,7 +5,7 @@ import { DeskPhase, DesktopConfig } from '../../lib/desktop';
 import { tc } from '../simulationKit';
 
 /**
- * The shape of every job simulation Praxa makes (not the tests a company designs for itself): 40 minutes on the
+ * The shape of every job simulation Granyt makes (not the tests a company designs for itself): 40 minutes on the
  * desktop (src/components/Desktop.tsx), in five parts.
  *
  *   1. Briefing                2 min (not marked)  Company, role, manager, tools
@@ -69,7 +69,7 @@ export function jobSimulation(spec: JobSimSpec): AssessmentTest {
   const phases: DeskPhase[] = JOB_SIM_PHASES.map((p) => ({ ...p, brief: p.id === 'briefing' ? spec.briefing : spec.briefs[p.id as JobSimPart] }));
   const desktop: DesktopConfig = { ...spec.desktop, phases };
 
-  // The rules every Praxa job simulation keeps, checked when the library loads so a new one can't drift from them
+  // The rules every Granyt job simulation keeps, checked when the library loads so a new one can't drift from them
   const problems: string[] = [];
   const environments = desktop.apps.filter((a) => !SUPPORTING_APPS.includes(a));
   if (environments.length > 3) problems.push(`${environments.length} environments (at most 3: ${environments.join(', ')})`);

@@ -1,7 +1,7 @@
 import { Question } from '../types';
 
 /**
- * Short builders for Praxa's own questions. Tests mix them: fundamentals (choice, select-all, match, order), worked
+ * Short builders for Granyt's own questions. Tests mix them: fundamentals (choice, select-all, match, order), worked
  * answers (short answer), and a case study whose follow-ups ask the candidate to analyse and decide (written answers
  * are marked by the AI against their points).
  */

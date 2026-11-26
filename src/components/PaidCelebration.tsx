@@ -38,7 +38,7 @@ export const PaidCelebration: React.FC<{ plan: PlanId | null; onClose: () => voi
         `${pounds(info.aiAllowance)} of AI ${pass ? 'with this pass' : 'included every month'}`,
         `${many(info.seats)} people on your account`,
         ...(info.features.includes('pool-search') ? ['Search and invite tested candidates'] : []),
-        ...(info.features.includes('library-job-sims') ? ['Praxa’s ready-made job simulations'] : []),
+        ...(info.features.includes('library-job-sims') ? ['Granyt’s ready-made job simulations'] : []),
         ...(info.features.includes('csv-export') ? ['CSV export'] : []),
       ]
     : [];
@@ -78,7 +78,7 @@ export const PaidCelebration: React.FC<{ plan: PlanId | null; onClose: () => voi
         </div>
         <h2 className="mt-4 text-2xl font-extrabold text-slate-900">Congratulations!</h2>
         <p className="mt-2 text-sm text-slate-600">
-          {info ? (pass ? 'Your job pass is ready.' : `You’re now on ${info.name}.`) : 'Your payment went through.'} Thanks for choosing Praxa.
+          {info ? (pass ? 'Your job pass is ready.' : `You’re now on ${info.name}.`) : 'Your payment went through.'} Thanks for choosing Granyt.
         </p>
         {perks.length > 0 && (
           <ul className="mt-5 space-y-2 text-left text-sm text-slate-700">

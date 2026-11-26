@@ -5,7 +5,7 @@ import { Interval, PASS_DAYS, PLANS, PlanId, PlanStatus, RANK, SUBSCRIPTIONS, Ti
  * Plans paid online with Stripe: Starter, Growth and Scale as subscriptions, Per job as a one-off 30-day pass.
  *
  * Nothing is copied into Firestore (the server has no Firebase admin key): each request reads the company's plan from
- * Stripe, so a company can't give itself a plan, and there's no webhook to miss. The plan the Praxa team sets on the
+ * Stripe, so a company can't give itself a plan, and there's no webhook to miss. The plan the Granyt team sets on the
  * company record (an Enterprise deal, a free month) counts too, whichever is higher.
  *
  * Subscriptions live on their own Stripe customer per company, apart from the one holding AI credit: Stripe spends a
@@ -37,7 +37,7 @@ async function priceFor(env: Env, plan: PlanId, interval: Interval): Promise<str
       currency: 'gbp',
       unit_amount: amount,
       'recurring[interval]': interval,
-      'product_data[name]': `Praxa ${PLANS[plan].name}`,
+      'product_data[name]': `Granyt ${PLANS[plan].name}`,
       'product_data[metadata][plan]': plan,
       lookup_key: key,
       transfer_lookup_key: 'true',
@@ -84,7 +84,7 @@ async function passesOf(env: Env, customer: Customer): Promise<{ id: string; end
     .filter((p) => p.endsAt > now);
 }
 
-// The plan the Praxa team set on the company's record, read with the person's own sign-in
+// The plan the Granyt team set on the company's record, read with the person's own sign-in
 async function recordOf(env: Env, token: string, companyId: string): Promise<{ plan: PlanId; ownerUid: string; name: string }> {
   const project = env.FIREBASE_PROJECT_ID || env.VITE_FIREBASE_PROJECT_ID || '';
   const res = await fetch(`https://firestore.googleapis.com/v1/projects/${project}/databases/(default)/documents/companies/${encodeURIComponent(companyId)}`, {
@@ -103,7 +103,7 @@ export interface Billing extends PlanStatus {
   customer: Customer;
 }
 
-// The Praxa team's changes to the tiers (settings/plans, readable by anyone), a minute at a time
+// The Granyt team's changes to the tiers (settings/plans, readable by anyone), a minute at a time
 let tiersAt = 0;
 type Value = { stringValue?: string; integerValue?: string; doubleValue?: number; nullValue?: null; booleanValue?: boolean; arrayValue?: { values?: Value[] }; mapValue?: { fields?: Record<string, Value> } };
 const decode = (v: Value): unknown =>
@@ -266,7 +266,7 @@ export async function buyPass(env: Env, companyId: string, b: Billing, origin: s
     'line_items[0][quantity]': 1,
     'line_items[0][price_data][currency]': 'gbp',
     'line_items[0][price_data][unit_amount]': PLANS['per-job'].monthly * 100,
-    'line_items[0][price_data][product_data][name]': `Praxa job pass (${PASS_DAYS} days)`,
+    'line_items[0][price_data][product_data][name]': `Granyt job pass (${PASS_DAYS} days)`,
     'metadata[praxaPass]': 'true',
     'metadata[companyId]': companyId,
     'invoice_creation[enabled]': 'true',

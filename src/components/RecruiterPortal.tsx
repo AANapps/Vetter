@@ -18,7 +18,7 @@ interface RecruiterPortalProps {
   section: BusinessSection;
   onOpenTest: (testId: string) => void;
   recruiter: User;
-  // The company being managed; without one, this is the Praxa team managing every company's jobs
+  // The company being managed; without one, this is the Granyt team managing every company's jobs
   business?: Business;
   businesses: Business[];
   jobs: JobPosting[];
@@ -28,14 +28,14 @@ interface RecruiterPortalProps {
   onUpdateTest: (test: AssessmentTest) => void;
   // Deletes a saved test and takes it off every job
   onDeleteTest: (testId: string) => void;
-  // Praxa's AI writes a test from a description, or from a first message filled in for it
+  // Granyt's AI writes a test from a description, or from a first message filled in for it
   onGenerateTest: (seed?: string) => void;
   // Sends a test to candidates: the job it's on, or a new job for it
   onSendTest?: (testId: string) => void;
-  // Praxa's tests the company took off its lists, and taking one off
+  // Granyt's tests the company took off its lists, and taking one off
   hiddenTests?: string[];
   onHideTest?: (testId: string) => void;
-  // Saves a copy of one of Praxa's tests as the company's own and opens it in the AI chat once it's saved
+  // Saves a copy of one of Granyt's tests as the company's own and opens it in the AI chat once it's saved
   onCopyAndEdit?: (copy: AssessmentTest) => void;
   // Tests still being written, newest first
   drafts: TestDraft[];
@@ -46,9 +46,9 @@ interface RecruiterPortalProps {
   onEditDraftByHand: (draft: TestDraft) => void;
   // Opens one of the company's saved tests where it's edited: the test chat if made with AI, the builder if by hand
   onEditOwnTest: (testId: string) => void;
-  // The Praxa team in the company view: which company it's seeing the page as
+  // The Granyt team in the company view: which company it's seeing the page as
   companyPicker?: { onPick: (businessId: string) => void };
-  // Saves the company's public details; set for its owner and the Praxa team
+  // Saves the company's public details; set for its owner and the Granyt team
   onEditBusiness?: (info: BusinessInfo) => void;
   // One of the company's saved tests opened in the test chat to change by asking, however it was made
   onEditWithAI: (testId: string) => void;
@@ -56,7 +56,7 @@ interface RecruiterPortalProps {
   onEditByHand: (testId: string) => void;
   // The company's leads pipeline, shown first in the Candidates tab
   leads?: React.ReactNode;
-  // Every candidate on Praxa, to browse (src/components/BrowseCandidates.tsx)
+  // Every candidate on Granyt, to browse (src/components/BrowseCandidates.tsx)
   browse?: React.ReactNode;
 }
 
@@ -93,7 +93,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   leads,
   browse,
 }) => {
-  // A business only manages its own jobs and its own tests; the Praxa team sees every company's jobs
+  // A business only manages its own jobs and its own tests; the Granyt team sees every company's jobs
   const isPraxa = !business;
   const jobs = isPraxa ? allJobs : allJobs.filter((j) => j.businessId === business.id);
   const ownTests = isPraxa ? [] : tests.filter((t) => t.type === 'custom' && t.businessId === business.id && t.purpose !== 'training');
@@ -101,11 +101,11 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   const isSim = (t: AssessmentTest) => isHiringSim(t) || isJobSim(t);
   const companySims = ownTests.filter(isSim);
   const companyTests = ownTests.filter((t) => !isSim(t));
-  // A company doesn't see what the Praxa team has hidden from the library; the Praxa team sees everything
+  // A company doesn't see what the Granyt team has hidden from the library; the Granyt team sees everything
   const visibility = useLibraryVisibility();
-  // Praxa's own job simulations, which any company can send as they are
+  // Granyt's own job simulations, which any company can send as they are
   const praxaSims = tests.filter((t) => isJobSim(t) && isPublic(t) && isMainVersion(t) && !hiddenTests.includes(t.id) && (isPraxa || !testHidden(visibility, t)));
-  // For the Praxa team: every company's own tests, company by company, the busiest first
+  // For the Granyt team: every company's own tests, company by company, the busiest first
   const byCompany = isPraxa
     ? [
         ...tests
@@ -115,24 +115,24 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
         .map(([id, own]) => ({ id, name: businesses.find((b) => b.id === id)?.name ?? own[0].companyName ?? 'A company', tests: [...own].sort((a, b) => madeAt(b) - madeAt(a)) }))
         .sort((a, b) => b.tests.length - a.tests.length || a.name.localeCompare(b.name))
     : [];
-  // The public library: Praxa's tests and other companies' approved ones (a company's own are in companyTests)
-  // (for the Praxa team, companies' tests are listed on their own, so the library is Praxa's alone)
-  // A company sees its own sector's tests only (picked at sign-up); the Praxa team sees every sector
+  // The public library: Granyt's tests and other companies' approved ones (a company's own are in companyTests)
+  // (for the Granyt team, companies' tests are listed on their own, so the library is Granyt's alone)
+  // A company sees its own sector's tests only (picked at sign-up); the Granyt team sees every sector
   const sector = isPraxa ? undefined : companySector(business);
-  // A company doesn't see what the Praxa team has hidden from the library; the Praxa team sees everything
+  // A company doesn't see what the Granyt team has hidden from the library; the Granyt team sees everything
   const vetterTests = tests.filter(
     (t) => isPublic(t) && isMainVersion(t) && (isPraxa ? t.type !== 'custom' : t.businessId !== business.id) && inCompanySector(sector)(t) && (isPraxa || !testHidden(visibility, t))
   );
   const roleGroups = industriesFor(sector)
     .map((g) => (isPraxa ? g : { ...g, roles: g.roles.filter((r) => !roleHidden(visibility, r)) }))
     .filter((g) => g.roles.length > 0);
-  // For the Praxa team, Your tests starts with the library tests it made in the app (with the AI or by hand), newest
+  // For the Granyt team, Your tests starts with the library tests it made in the app (with the AI or by hand), newest
   // first, then every company's own
   const madeHere = isPraxa ? tests.filter((t) => t.type !== 'custom' && isEditable(t) && t.purpose !== 'training').sort((a, b) => madeAt(b) - madeAt(a)) : [];
-  const yourGroups = [...(madeHere.length ? [{ id: 'vetter', name: 'Made by the Praxa team (in the library)', tests: madeHere }] : []), ...byCompany];
+  const yourGroups = [...(madeHere.length ? [{ id: 'vetter', name: 'Made by the Granyt team (in the library)', tests: madeHere }] : []), ...byCompany];
 
   const [selectedJobId, setSelectedJobId] = useState<string>(jobs[0]?.id || '');
-  // The Tests page: one list of the company's tests and Praxa's, browsed by industry and role (as candidates browse
+  // The Tests page: one list of the company's tests and Granyt's, browsed by industry and role (as candidates browse
   // them), narrowed by source and a search
   const [testQuery, setTestQuery] = useState('');
   const [testSource, setTestSource] = useState<'all' | 'yours' | 'vetter' | 'on-jobs'>('all');
@@ -160,7 +160,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   ) as [typeof testSource, string][];
   const inSource = (t: AssessmentTest, src: typeof testSource) =>
     src === 'all' || (src === 'yours' ? t.type === 'custom' : src === 'vetter' ? vetterTests.includes(t) : usedByOf(t).length > 0);
-  // For the Praxa team, Your tests is every company's own tests, listed company by company
+  // For the Granyt team, Your tests is every company's own tests, listed company by company
   const countFor = (src: typeof testSource) => (isPraxa && src === 'yours' ? yourGroups.reduce((n, c) => n + c.tests.length, 0) : allTests.filter((t) => inSource(t, src)).length);
   // A test's roles: its own, or for a company's test (which has none) the roles the library's tests of its category
   // are for, so it's filed beside them
@@ -193,7 +193,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
         { heading: 'Other', tests: shownTests.filter((t) => !roleGroups.some((g) => inField(t, g.roles))) },
       ].filter((sec) => sec.tests.length > 0)
     : [{ heading: null, tests: shownTests }];
-  // The Candidates tab: the leads pipeline, or everyone on Praxa ranked for a job
+  // The Candidates tab: the leads pipeline, or everyone on Granyt ranked for a job
   const [candidatesView, setCandidatesView] = useState<'leads' | 'browse' | 'ranked'>(leads ? 'leads' : browse ? 'browse' : 'ranked');
   const showRanked = section === 'candidates' && (candidatesView === 'ranked' || (candidatesView === 'leads' && !leads) || (candidatesView === 'browse' && !browse));
   const selectedJob = jobs.find((j) => j.id === selectedJobId) || jobs[0];
@@ -226,8 +226,8 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   };
 
   // Every job simulation in the list can be edited and deleted. A job simulation is always changed in the AI chat. One
-  // of Praxa's is first copied as the company's own (the shared one is left as it is for everyone else), and deleting
-  // one of Praxa's takes it off the company's list only
+  // of Granyt's is first copied as the company's own (the shared one is left as it is for everyone else), and deleting
+  // one of Granyt's takes it off the company's list only
   const editSim = (t: AssessmentTest) => {
     if (t.businessId === business?.id) return onEditWithAI(t.id);
     if (!business || !onCopyAndEdit) return onEditWithAI(t.id);
@@ -237,7 +237,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   };
   const deleteSim = (t: AssessmentTest) => {
     if (t.businessId === business?.id || !onHideTest) return deleteTest(t);
-    if (window.confirm(`Take ${t.title} off your list? It stays in Praxa's library for other companies, and any of your jobs using it keep it.`)) onHideTest(t.id);
+    if (window.confirm(`Take ${t.title} off your list? It stays in Granyt's library for other companies, and any of your jobs using it keep it.`)) onHideTest(t.id);
   };
 
   const [editingBusiness, setEditingBusiness] = useState(false);
@@ -261,14 +261,14 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
           <div className="w-14 h-14 rounded-2xl overflow-hidden border border-slate-200 shrink-0 bg-slate-100 shadow-xs">
             <Pic
               src={business ? business.logo : recruiter.avatarUrl}
-              alt={business ? business.name : 'Praxa'}
+              alt={business ? business.name : 'Granyt'}
               referrerPolicy="no-referrer"
               className="w-full h-full object-cover"
             />
           </div>
           <div className="space-y-1 min-w-0 flex-1">
             <div className="flex items-center gap-2 min-w-0">
-              <h1 className="text-xl font-bold text-slate-900 tracking-tight truncate">{business ? business.name : 'Praxa Talent Team'}</h1>
+              <h1 className="text-xl font-bold text-slate-900 tracking-tight truncate">{business ? business.name : 'Granyt Talent Team'}</h1>
               {business && onEditBusiness && (
                 <button
                   onClick={() => setEditingBusiness(true)}
@@ -294,7 +294,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
             ['Open jobs', jobs.filter((j) => j.status === 'active').length, 'text-slate-900'],
             ['Total applicants', jobs.reduce((acc, j) => acc + j.applicantCount, 0), 'text-indigo-600'],
             [business ? 'Your tests' : 'Companies', business ? companyTests.length : businesses.length, 'text-emerald-600'],
-            ['Candidates on Praxa', allCandidates.length, 'text-indigo-700'],
+            ['Candidates on Granyt', allCandidates.length, 'text-indigo-700'],
           ] as const
         ).map(([label, value, colour]) => (
           <div key={label} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex flex-col justify-center min-w-0">
@@ -311,7 +311,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
           {(
             [
               ...(leads ? [['leads', 'Your pipeline'] as const] : []),
-              ...(browse ? [['browse', 'Everyone on Praxa'] as const] : []),
+              ...(browse ? [['browse', 'Everyone on Granyt'] as const] : []),
               ['ranked', 'Best fit for a job'] as const,
             ] as const
           ).map(([id, label]) => (
@@ -329,14 +329,14 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
           ))}
         </div>
       )}
-      {/* What each view is: the company's own people across its jobs, everyone on Praxa, or everyone ranked for one job */}
+      {/* What each view is: the company's own people across its jobs, everyone on Granyt, or everyone ranked for one job */}
       {section === 'candidates' && (
         <p className="text-xs text-slate-500 -mt-1">
           {candidatesView === 'leads' && leads
             ? 'Everyone in your hiring, across all your jobs: who applied, who you sent tests to, and the stage they’re at. Each job’s page has just its own.'
             : candidatesView === 'browse' && browse
-            ? 'Every candidate on Praxa, whether or not they’ve applied to you. Send any of them a job’s tests.'
-            : 'Everyone on Praxa ranked for one of your jobs by their scores on its tests, applied or not.'}
+            ? 'Every candidate on Granyt, whether or not they’ve applied to you. Send any of them a job’s tests.'
+            : 'Everyone on Granyt ranked for one of your jobs by their scores on its tests, applied or not.'}
         </p>
       )}
       {section === 'candidates' && leads && candidatesView === 'leads' && leads}
@@ -365,7 +365,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
         </div>
       )}
 
-      {/* Tests: the company's own and Praxa's library in one list */}
+      {/* Tests: the company's own and Granyt's library in one list */}
       {section === 'tests' && (
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
@@ -373,8 +373,8 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
               <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Tests and job simulations</h1>
               <p className="text-sm text-slate-500 max-w-xl">
                 {isPraxa
-                  ? 'The Praxa library. Tests you write join it for every candidate.'
-                  : `Yours and Praxa's library. Add any of them to a job from the job.`}
+                  ? 'The Granyt library. Tests you write join it for every candidate.'
+                  : `Yours and Granyt's library. Add any of them to a job from the job.`}
               </p>
             </div>
             {kindTab === 'sims' ? (
@@ -433,7 +433,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
             })}
           </div>
 
-          {/* The Praxa team in the company view sees the page as one company, picked here */}
+          {/* The Granyt team in the company view sees the page as one company, picked here */}
           {companyPicker && business && (
             <label className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
               <span className="font-semibold">Viewing as</span>
@@ -452,7 +452,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
           )}
 
           {/* Job simulations, under their own label: a timed day doing the job rather than a test. The company's own (made
-              to send to candidates) and Praxa's ready-made ones, each ready to send */}
+              to send to candidates) and Granyt's ready-made ones, each ready to send */}
           {kindTab === 'sims' && (
           <section aria-labelledby="job-sims" className="space-y-3">
             <h2 id="job-sims" className="sr-only">Job simulations</h2>
@@ -466,13 +466,13 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                   <SimRow key={t.id} test={t} tag="Yours" usedBy={usedByOf(t)} onOpen={() => onOpenTest(t.id)} onSend={onSendTest && (() => onSendTest(t.id))} onEdit={() => editSim(t)} onDelete={() => deleteSim(t)} />
                 ))}
               {praxaSims.map((t) => (
-                <SimRow key={t.id} test={t} tag="Praxa" usedBy={usedByOf(t)} onOpen={() => onOpenTest(t.id)} onSend={onSendTest && !isPraxa ? () => onSendTest(t.id) : undefined} onEdit={() => editSim(t)} onDelete={isPraxa ? undefined : () => deleteSim(t)} />
+                <SimRow key={t.id} test={t} tag="Granyt" usedBy={usedByOf(t)} onOpen={() => onOpenTest(t.id)} onSend={onSendTest && !isPraxa ? () => onSendTest(t.id) : undefined} onEdit={() => editSim(t)} onDelete={isPraxa ? undefined : () => deleteSim(t)} />
               ))}
             </ul>
           </section>
           )}
 
-          {/* The company's own tests first, each ready to change by asking Praxa or by hand */}
+          {/* The company's own tests first, each ready to change by asking Granyt or by hand */}
           {kindTab === 'tests' && !isPraxa && (
             <section aria-labelledby="your-tests" className="space-y-3">
               <h2 id="your-tests" className="text-lg font-bold text-slate-900">
@@ -537,7 +537,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
             <div className="space-y-3">
               <div>
                 <h2 className="text-sm font-bold text-slate-900">Drafts</h2>
-                <p className="text-xs text-slate-500">Only {business ? 'your company' : 'the Praxa team'} can see these. Candidates can't take them until they're saved.</p>
+                <p className="text-xs text-slate-500">Only {business ? 'your company' : 'the Granyt team'} can see these. Candidates can't take them until they're saved.</p>
               </div>
               <ul className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {shownDrafts.map((d) => (
@@ -557,8 +557,8 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
 
           {kindTab === 'tests' && (<>
           <div className="pt-2">
-            <h2 className="text-lg font-bold text-slate-900">{isPraxa ? "Praxa's library" : 'All tests'}</h2>
-            <p className="text-xs text-slate-500">{isPraxa ? 'The tests every candidate can take.' : "Yours and Praxa's library together, to add to any job."}</p>
+            <h2 className="text-lg font-bold text-slate-900">{isPraxa ? "Granyt's library" : 'All tests'}</h2>
+            <p className="text-xs text-slate-500">{isPraxa ? 'The tests every candidate can take.' : "Yours and Granyt's library together, to add to any job."}</p>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-[15rem_minmax(0,1fr)] gap-6 items-start">
           {/* Browse by industry and role, as candidates do */}
@@ -644,7 +644,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
 
           {isPraxa && testSource === 'yours' ? (
             <div className="space-y-2">
-              <p className="text-xs text-slate-500">Tests made here, newest first: the Praxa team's own (saved to the library), then each company's for its jobs.</p>
+              <p className="text-xs text-slate-500">Tests made here, newest first: the Granyt team's own (saved to the library), then each company's for its jobs.</p>
               {yourGroups.length === 0 ? (
                 <p className="bg-white border border-dashed border-slate-300 rounded-xl px-5 py-6 text-center text-sm text-slate-500">No tests made here yet.</p>
               ) : (
@@ -728,9 +728,9 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                         usedBy={usedByOf(t)}
                         ranked={getTestStats(t, allCandidates).candidatesRanked}
                         onOpen={() => onOpenTest(t.id)}
-                        // The Praxa team edits any library test; Enhance with AI is in the builder for one made by hand
+                        // The Granyt team edits any library test; Enhance with AI is in the builder for one made by hand
                         onEdit={own || isPraxa ? () => editTest(t) : undefined}
-                        // The Praxa team can delete library tests written in the builder; the built-in ones stay
+                        // The Granyt team can delete library tests written in the builder; the built-in ones stay
                         onDelete={own ? () => deleteTest(t) : isPraxa && isEditable(t) ? () => deleteTest(t) : undefined}
                       />
                     );
@@ -850,10 +850,10 @@ const TestRow: React.FC<{
 
 // When a company's test was made, from its id (test-custom-<ms>); 0 when the id doesn't say
 const madeAt = (t: AssessmentTest) => Number(t.id.match(/-(\d{12,})$/)?.[1] ?? 0);
-// "Created 24 Nov 2026, 14:32" for a test the company (or the Praxa team) made in the app; Praxa's built-in tests say so
+// "Created 24 Nov 2026, 14:32" for a test the company (or the Granyt team) made in the app; Granyt's built-in tests say so
 const createdLabel = (t: AssessmentTest) => {
   const ms = madeAt(t);
-  if (!ms) return t.type === 'standard' ? 'Praxa library' : null;
+  if (!ms) return t.type === 'standard' ? 'Granyt library' : null;
   const d = new Date(ms);
   return `Created ${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}, ${d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`;
 };
@@ -863,7 +863,7 @@ const createdLabel = (t: AssessmentTest) => {
 // A job simulation in a list: its day in short, the jobs it's on, and sending it to candidates
 const SimRow: React.FC<{
   test: AssessmentTest;
-  // Whose it is: the company's own or Praxa's
+  // Whose it is: the company's own or Granyt's
   tag?: string;
   usedBy: JobPosting[];
   onOpen: () => void;

@@ -110,7 +110,7 @@ function gradeAppQuestion(q: Question, answer: string): QuestionRunResult {
 
 // A desktop job simulation: its checks on the emails sent, pages visited, files saved and the workbook, and its writing
 async function gradeDesktopQuestion(q: Question, answer: string): Promise<QuestionRunResult> {
-  // Praxa's tests on the Code app's files, when the desktop has a project and the checks ask for them
+  // Granyt's tests on the Code app's files, when the desktop has a project and the checks ask for them
   let testsPassed: Record<string, boolean> = {};
   const project = q.desktop?.project;
   if (project && q.testCases.some((tc) => tc.input.startsWith('test:'))) {

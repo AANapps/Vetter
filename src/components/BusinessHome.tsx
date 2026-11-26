@@ -26,7 +26,7 @@ interface BusinessHomeProps {
   // How many tests the company has written, and drafts it's still writing
   ownTestCount: number;
   draftCount: number;
-  // AI test creation comes with a paid plan (the Praxa team always has it); the advice here doesn't need one
+  // AI test creation comes with a paid plan (the Granyt team always has it); the advice here doesn't need one
   aiAllowed: boolean;
   planName: string;
   // The conversation, kept by the app so it survives moving between pages
@@ -41,7 +41,7 @@ interface BusinessHomeProps {
   onEditWithAI: (testId: string) => void;
   // Sends a saved test to candidates: through the job it's on, or a new job made for it
   onSendTest: (testId: string) => void;
-  // A pasted job ad for a launch role (src/lib/jobAdClassifier.ts): the job opens with Praxa's ready tests, to post
+  // A pasted job ad for a launch role (src/lib/jobAdClassifier.ts): the job opens with Granyt's ready tests, to post
   onJobAd?: (ad: JobAdReading, text: string) => void;
   // Shown above the starters, e.g. check-ins on people hired 30 and 90 days ago
   notice?: React.ReactNode;
@@ -65,7 +65,7 @@ interface BusinessHomeProps {
   onGoTo: (tab: 'business-jobs' | 'business-tests' | 'business-candidates') => void;
   // Opens an item of the live training catalogue on the Training page, to read and book
   onOpenTraining?: (id: string) => void;
-  // Everyone on Praxa, for the chat to suggest when the company asks to see candidates
+  // Everyone on Granyt, for the chat to suggest when the company asks to see candidates
   candidates: User[];
   // A candidate's profile in a pop-up over the chat
   renderProfile: (personId: string, onClose: () => void) => React.ReactNode;
@@ -73,14 +73,14 @@ interface BusinessHomeProps {
   onInvite: (jobId: string, candidateId: string) => void;
 }
 
-// Outside tech the AI writes every kind of question but app simulations (those come from Praxa's library)
+// Outside tech the AI writes every kind of question but app simulations (those come from Granyt's library)
 const NO_APP_STYLES: QuestionType[] = ['choice', 'multi', 'text', 'written', 'order', 'match', 'email', 'assistant', 'case', 'sheet', 'database', 'code', 'sql'];
 
 // The chat so far as the test writer is told it, so it doesn't ask again what the company already said
 const chatSummary = (turns: AdvisorTurn[]) =>
   turns
     .slice(-16)
-    .map((t) => (t.role === 'user' ? `Company: ${t.text}` : `Praxa: ${t.text}${t.brief ? `\n(The role: ${t.brief})` : ''}`))
+    .map((t) => (t.role === 'user' ? `Company: ${t.text}` : `Granyt: ${t.text}${t.brief ? `\n(The role: ${t.brief})` : ''}`))
     .join('\n')
     .slice(-5000);
 
@@ -96,12 +96,12 @@ type Starter = {
 } & ({ ask: string } | { go: 'library' });
 const STARTERS: Starter[] = [
   { id: 'sim', art: 'sim', icon: Monitor, tone: 'from-indigo-500 to-violet-500', title: 'Create a job simulation', body: 'A day in the role on a real desktop: email, files, the apps they’d use. Built with AI for your job.', ask: 'I want to create a job simulation.' },
-  { id: 'job', art: 'job', icon: Briefcase, tone: 'from-sky-500 to-indigo-500', title: 'Create a job and pick the perfect tests', body: 'Tell Praxa the role or paste the description; it picks the tests that prove it, ready to post.', ask: 'I want to create a job. Help me pick the perfect tests for it.' },
-  { id: 'find', art: 'find', icon: UserSearch, tone: 'from-emerald-500 to-teal-500', title: 'Find the perfect candidate', body: 'Describe who you need. Praxa ranks people by the skills they’ve proven in tests.', ask: 'I’m looking for the perfect candidate. Help me find them.' },
+  { id: 'job', art: 'job', icon: Briefcase, tone: 'from-sky-500 to-indigo-500', title: 'Create a job and pick the perfect tests', body: 'Tell Granyt the role or paste the description; it picks the tests that prove it, ready to post.', ask: 'I want to create a job. Help me pick the perfect tests for it.' },
+  { id: 'find', art: 'find', icon: UserSearch, tone: 'from-emerald-500 to-teal-500', title: 'Find the perfect candidate', body: 'Describe who you need. Granyt ranks people by the skills they’ve proven in tests.', ask: 'I’m looking for the perfect candidate. Help me find them.' },
 ];
 
 
-// A company's home: a chat with Praxa about who they're hiring, which answers with a roadmap, the library tests that
+// A company's home: a chat with Granyt about who they're hiring, which answers with a roadmap, the library tests that
 // fit and custom pieces worth building. The menu sits on the left
 export const BusinessHome: React.FC<BusinessHomeProps> = ({
   business,
@@ -178,18 +178,18 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
     wantExisting: false,
     tests,
     business,
-    // Outside tech, app simulations come from Praxa's library, so the AI writes every other kind of question
+    // Outside tech, app simulations come from Granyt's library, so the AI writes every other kind of question
     styles: aiSimulationsFor(business) ? [] : NO_APP_STYLES,
     background: chatSummary(turns),
   });
-  // Before anything is written, Praxa plans the test and lists every question in the chat; each message after that
+  // Before anything is written, Granyt plans the test and lists every question in the chat; each message after that
   // changes the plan, until the company presses Build
   const runPlan = async (text: string, kind: TestKind, base: ChatState, current?: TestPlan) => {
     const signal = startAiRun().signal;
     onBuild({ chat: base, kind, planning: true, plan: current, working: true, stage: '' });
     const out = await proposePlan(base, text, testContext(kind), current, (stage) => {
       if (!signal.aborted) onBuild((b) => b && { ...b, stage });
-    }).catch(() => ({ state: base, plan: undefined, failure: "Couldn't reach Praxa's AI. Check your connection and try again." }));
+    }).catch(() => ({ state: base, plan: undefined, failure: "Couldn't reach Granyt's AI. Check your connection and try again." }));
     if (signal.aborted) {
       onBuild(current ? { chat: base, kind, planning: true, plan: current, working: false } : null);
       onTurns((prev) => [...prev, { role: 'assistant', text: current ? 'Stopped. The plan is as it was.' : 'Stopped. Nothing was planned.' }]);
@@ -242,12 +242,12 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
       runPlan(t, build.kind, build.chat, build.plan);
       return;
     }
-    // A pasted job ad for a launch role: straight to the job with Praxa's ready tests (no AI, no wait), then the link
+    // A pasted job ad for a launch role: straight to the job with Granyt's ready tests (no AI, no wait), then the link
     if (onJobAd && !turns.length && t.length >= 250) {
       const reading = readJobAd(t);
       if (reading.role) return onJobAd(reading, t);
     }
-    // Asking for training (not to build it): Praxa's live, tutor-led catalogue answers straight away, without AI
+    // Asking for training (not to build it): Granyt's live, tutor-led catalogue answers straight away, without AI
     const found = asksForTraining(t) && !/\b(create|build|make|write|generate|design)\b/i.test(t) ? searchTraining(t, 4) : [];
     if (found.length) {
       onTurns((prev) => [
@@ -255,7 +255,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
         { role: 'user', text: t },
         {
           role: 'assistant',
-          text: `Here's live training taught by a Praxa tutor that fits. Open one to see the sessions, the price per person and to book it for your team${found.some((f) => f.kind === 'Bootcamp') ? '; bootcamps run from Junior to Mid-level to Advanced' : ''}.`,
+          text: `Here's live training taught by a Granyt tutor that fits. Open one to see the sessions, the price per person and to book it for your team${found.some((f) => f.kind === 'Bootcamp') ? '; bootcamps run from Junior to Mid-level to Advanced' : ''}.`,
           training: found.map((f) => f.id),
           options: ['Show me bootcamps', 'Show me short mini modules', 'Create custom training with AI'],
         },
@@ -269,7 +269,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
     onTurns((prev) => [...prev, reply]);
     setThinking(false);
     inputRef.current?.focus();
-    // Once the chat knows what to make, Praxa plans it straight away and lists every question
+    // Once the chat knows what to make, Granyt plans it straight away and lists every question
     if (aiAllowed && !reply.error && reply.brief && reply.intent === 'training') onCreateTraining(reply.brief);
     else if (aiAllowed && !reply.error && reply.brief && (reply.intent === 'test' || reply.intent === 'both'))
       runPlan(buildBrief(reply), 'simulation', { messages: [], existing: [] });
@@ -326,7 +326,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
               <div className="space-y-2">
                 <BrandWordmark size="lg" className="mx-auto w-fit" />
                 <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">What do you want to do?</h1>
-                <p className="text-sm text-slate-500 max-w-md mx-auto">Paste your job ad below and Praxa sets up the tests and a link to send. Or pick one to start.</p>
+                <p className="text-sm text-slate-500 max-w-md mx-auto">Paste your job ad below and Granyt sets up the tests and a link to send. Or pick one to start.</p>
               </div>
               {/* The three starters, side by side */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-3xl mx-auto text-left">
@@ -417,7 +417,7 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
           {thinking && (
             <div className="flex items-center gap-2 text-sm text-slate-500">
               <AiMark className="w-7 h-7" busy />
-              <span className="ai-shimmer font-medium">Looking through Praxa…</span>
+              <span className="ai-shimmer font-medium">Looking through Granyt…</span>
             </div>
           )}
           <div ref={endRef} />
@@ -498,11 +498,11 @@ export const BusinessHome: React.FC<BusinessHomeProps> = ({
               }}
               rows={1}
               placeholder={build?.planning ? 'Ask for a change, e.g. "swap question 4 for a SQL task"' : turns.length ? 'Answer, or ask a follow-up, e.g. make it more senior' : 'Describe the role, or paste the job description'}
-              aria-label="Message Praxa"
+              aria-label="Message Granyt"
               className="flex-1 resize-none max-h-40 px-2 py-1.5 text-sm bg-transparent focus:outline-none"
             />
             {build?.working ? (
-              <button type="button" onClick={stop} aria-label="Stop" title="Stop Praxa making any more" className="w-9 h-9 shrink-0 rounded-xl bg-slate-800 hover:bg-slate-900 text-white flex items-center justify-center">
+              <button type="button" onClick={stop} aria-label="Stop" title="Stop Granyt making any more" className="w-9 h-9 shrink-0 rounded-xl bg-slate-800 hover:bg-slate-900 text-white flex items-center justify-center">
                 <Square className="w-3.5 h-3.5 fill-current" />
               </button>
             ) : (
@@ -807,7 +807,7 @@ const AdvisorReply: React.FC<{
         </div>
       )}
 
-      {/* Last, the job simulation Praxa suggests and what it will contain; Praxa then plans every question in it */}
+      {/* Last, the job simulation Granyt suggests and what it will contain; Granyt then plans every question in it */}
       {turn.brief && (turn.intent === 'test' || turn.intent === 'both') && (
         <div className="p-4 bg-white border border-indigo-200 rounded-xl space-y-3 shadow-sm shadow-indigo-100/60">
           <div>
@@ -828,7 +828,7 @@ const AdvisorReply: React.FC<{
               ))}
             </ul>
           )}
-          {/* With AI tests on the plan, Praxa plans every question next, under this reply */}
+          {/* With AI tests on the plan, Granyt plans every question next, under this reply */}
           {!aiAllowed && (
             <button onClick={onSeePlans} className="px-4 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg inline-flex items-center gap-1.5">
               <Lock className="w-4 h-4" />
@@ -842,9 +842,9 @@ const AdvisorReply: React.FC<{
   </div>
 );
 
-// The plan Praxa will build from, before anything is written: what the hire needs, then a checklist of every question,
+// The plan Granyt will build from, before anything is written: what the hire needs, then a checklist of every question,
 // case and task in the order the candidate meets them, each just its number and title. Opening one shows its type,
-// time, the software it's done in (picked by Praxa: an app from its library when one fits, or built new) and the prompt
+// time, the software it's done in (picked by Granyt: an app from its library when one fits, or built new) and the prompt
 // it's written from, which the company can change while the plan can still be built. Messages change it too
 const PlanCard: React.FC<{ plan: TestPlan; canBuild: boolean; onBuild: () => void; onChange: (plan: TestPlan) => void }> = ({ plan, canBuild, onBuild, onChange }) => {
   const label = (type: string) => QUESTION_STYLES.find((s) => s.type === type)?.label ?? type;
@@ -965,7 +965,7 @@ const PromptBox: React.FC<{ value: string; label: string; onSave: (v: string) =>
   );
 };
 
-// The software a task is done in, as Praxa picked it: an app from its library (ready, quicker and cheaper) or an exact
+// The software a task is done in, as Granyt picked it: an app from its library (ready, quicker and cheaper) or an exact
 // copy built for this test. The company can switch to another app of the same kind, or to building the exact copy
 const norm = (s = '') => s.trim().toLowerCase().replace(/^(a|an|the)\s+/, '');
 const SoftwarePick: React.FC<{ item: TestPlan['items'][number]; apps: ReusableApp[]; editable: boolean; onChange: (c: { appId: string }) => void }> = ({ item, apps, editable, onChange }) => {

@@ -283,7 +283,7 @@ export const JobCandidates: React.FC<JobCandidatesProps> = ({ job, allCandidates
         <div>
           <h4 className="text-sm font-bold text-slate-900">Candidates</h4>
           <p className="text-xs text-slate-500">
-            {ranked.length} on Praxa ranked for this job &middot; {applicants} applied. Open a candidate to see their fit.
+            {ranked.length} on Granyt ranked for this job &middot; {applicants} applied. Open a candidate to see their fit.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">

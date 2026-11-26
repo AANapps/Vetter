@@ -10,7 +10,7 @@ import { categoriesFor, companySector, rolesFor } from './sectors';
 import { DayApp, RawJobSim, assembleJobSim, finishJobSim, isJobSimDraft } from './jobSimBuild';
 import { ALL_ROLES, RawQuestion, Suggestion, assembleFromBank, checkQuestion, libraryFor, linkTasks, matchExisting } from './testGeneration';
 
-// Building a test by talking to Praxa (server/testChat.ts does the AI side). Each turn sends the conversation and the
+// Building a test by talking to Granyt (server/testChat.ts does the AI side). Each turn sends the conversation and the
 // draft; what comes back is checked here like any AI-written test: new questions are run and broken ones left out.
 
 export interface ChatMessage {
@@ -43,19 +43,19 @@ export interface ChatContext {
   job?: string;
   // The job's title, to name a test put together without the AI
   jobTitle?: string;
-  // The level the test is named at: the highest the company ticked, or none for Praxa to pick
+  // The level the test is named at: the highest the company ticked, or none for Granyt to pick
   level?: TestDifficulty;
   // Every level ticked; several means questions pitched across them
   levels: TestDifficulty[];
   wantExisting: boolean;
   tests: AssessmentTest[];
   business?: Business;
-  // The question types the company picked; Praxa uses only these, or any when none are
+  // The question types the company picked; Granyt uses only these, or any when none are
   styles: QuestionType[];
   // How many questions the company wants, counting sub-questions: exactly one number, or a range when it ticked several
   questionCount?: number;
   questionRange?: [number, number];
-  // The timer the company picked, or none for Praxa to size it
+  // The timer the company picked, or none for Granyt to size it
   timeLimit?: number | 'none';
   // The app task open beside the chat, which "this" and "the app" mean
   viewing?: { id: string; label: string; app: string };
@@ -129,7 +129,7 @@ export const pageModeOf = (ctx: ChatContext): PageMode => ({
   sector: ctx.business?.sector,
 });
 
-// What Praxa is doing right now, told to the company as it happens (each call is a real step starting). The major
+// What Granyt is doing right now, told to the company as it happens (each call is a real step starting). The major
 // steps come along as a checklist when it changes; a call without one leaves the last checklist as it was
 export interface BuildStep {
   id: string;
@@ -186,14 +186,14 @@ type BuiltPage = {
   data?: string;
   catalog?: { app?: string; name?: string; product?: string; summary?: string; features?: string[]; added?: string[]; dataShape?: string; stateShape?: string };
 };
-// An app from Praxa's app library to build on, with its code
+// An app from Granyt's app library to build on, with its code
 type LibraryBase = ReusableApp & { html: string };
 
 // Building on the app library (since 2026-11-18): a test whose app is in the library is built on it, writing only its
 // data and small edits for anything the app lacks (/api/fit-app), so apps never have to be written out again whole
 const BUILD_ON_LIBRARY = true;
 
-// The app this page copies, from Praxa's app library (only apps kept apart from their data): a quick model works out
+// The app this page copies, from Granyt's app library (only apps kept apart from their data): a quick model works out
 // which app the page copies and finds it there. Null when the app isn't in the library (or it can't be read)
 async function libraryBase(item: RawQuestion, mode: PageMode): Promise<LibraryBase | null> {
   if (!BUILD_ON_LIBRARY) return null;
@@ -228,7 +228,7 @@ async function libraryAppById(id: string): Promise<LibraryBase | null> {
   }
 }
 
-// Who a simulation is built for, and whether the build waits until it's been sent for review (the Praxa team's own
+// Who a simulation is built for, and whether the build waits until it's been sent for review (the Granyt team's own
 // builds do, so the review queue shows it straight away)
 interface PageOwner {
   owner?: string;
@@ -358,7 +358,7 @@ export async function buildAppPage(item: RawQuestion, research?: string, mode: P
     let base: LibraryBase | null = null;
     if (planned?.appId) base = await libraryAppById(planned.appId);
     else if (!planned) {
-      step("looking for this app in Praxa's app library…");
+      step("looking for this app in Granyt's app library…");
       base = await libraryBase(item, mode);
     }
     if (base) {
@@ -374,7 +374,7 @@ export async function buildAppPage(item: RawQuestion, research?: string, mode: P
         };
         const saving = remember(final, { base, mode, owner: who.owner, app: fitted.app, data: fitted.data, added: fitted.added, dataShape: fitted.dataShape, stateShape: fitted.stateShape });
         if (who.awaitSave) {
-          step('sending it to the Praxa team for review…');
+          step('sending it to the Granyt team for review…');
           await saving;
         }
         return final;
@@ -418,7 +418,7 @@ export async function buildAppPage(item: RawQuestion, research?: string, mode: P
     }
     const saving = remember(final, { catalog, mode, owner: who.owner, ...(data && { app, data, dataShape: catalog?.dataShape, stateShape: catalog?.stateShape }) });
     if (who.awaitSave) {
-      step('sending it to the Praxa team for review…');
+      step('sending it to the Granyt team for review…');
       await saving;
     }
     return final;
@@ -427,7 +427,7 @@ export async function buildAppPage(item: RawQuestion, research?: string, mode: P
   }
 }
 
-// A page that loads is sent to the Praxa team for review: a new app for the library, or the next version of the app it
+// A page that loads is sent to the Granyt team for review: a new app for the library, or the next version of the app it
 // was built on, with the features it added. An app kept apart from its data goes to the library as the app alone (the
 // test's data stays with the submission, for the team to try it). Never holds up the test
 interface Remembered {
@@ -444,7 +444,7 @@ interface Remembered {
   stateShape?: string;
 }
 async function remember(page: RawQuestion, r: Remembered): Promise<void> {
-  const { catalog, mode, owner = 'Praxa' } = r;
+  const { catalog, mode, owner = 'Granyt' } = r;
   let base = r.base;
   // An app still waiting for review (sub:<id>) isn't in the library yet: what's built on it goes for review as that
   // app again (matched by its name when approved)
@@ -479,21 +479,21 @@ async function remember(page: RawQuestion, r: Remembered): Promise<void> {
 }
 
 /**
- * The Praxa team builds an app for the library from the admin panel: the app and the features it should have. Built
+ * The Granyt team builds an app for the library from the admin panel: the app and the features it should have. Built
  * on the library's copy when the app is there already (so it gains those features), otherwise designed from nothing,
  * then sent for review like any other. Returns an error to show, or null once it's waiting for review
  */
 export async function buildLibrarySimulation(app: string, wants: string, progress: (stage: string) => void): Promise<string | null> {
   const brief = `A working copy of ${app}, as people in the job use it day to day: its real layout, navigation and look. It must include, fully working: ${wants.trim() || 'its main screens and everyday features'}. Fill it with realistic sample records for every screen. The state object records what the user creates and changes.`;
   const item: RawQuestion = { type: 'app', title: app, prompt: `Explore ${app} and use its features.`, appHtml: brief, testCases: [], points: 1, timeLimitMinutes: 10 } as RawQuestion;
-  const built = await buildAppPage(item, undefined, {}, progress, { owner: 'Praxa', awaitSave: true });
+  const built = await buildAppPage(item, undefined, {}, progress, { owner: 'Granyt', awaitSave: true });
   return built.appHtml && built.appHtml !== brief ? null : "The simulation couldn't be built. Try again, or describe it differently.";
 }
 
 /**
  * Two versions of an app built on the same library version: once one is approved, the other would lose its features if
  * approved as it is. This copies its added features onto the library's latest version, and the submission becomes that
- * merged page, built on the latest version, for the Praxa team to try again before approving
+ * merged page, built on the latest version, for the Granyt team to try again before approving
  */
 export async function mergeSubmission(sub: EnvironmentSubmission, progress: (stage: string) => void): Promise<string | null> {
   const env = (await loadEnvironments()).find((e) => e.id === sub.envId);
@@ -541,7 +541,7 @@ async function pageHealth(html: string | undefined): Promise<string> {
 // A page that won't load counts more than a dead control when comparing before and after a change
 const breaks = (problems: string[]) => problems.filter((p) => !/^The control|^Clicking/.test(p)).length;
 
-// A change to an app page as small edits to its code (a colour, a fix, a button), never a rewrite: what Praxa finds
+// A change to an app page as small edits to its code (a colour, a fix, a button), never a rewrite: what Granyt finds
 // clicking through the page goes with the change, so a reported problem is fixed at its cause. The edits are applied
 // and the page tried again; edits that don't apply, or a page left worse than before, go back once. Null when nothing
 // usable came back; unchanged when the AI said the change can't be made in this page
@@ -592,7 +592,7 @@ async function editAppPage(question: Question, change: string, taskPrompt: strin
       const checked = await checkQuestion({ type: 'app', title: question.title, prompt, appHtml: quick.html, testCases: checks as RawQuestion['testCases'], callouts: question.callouts, points: question.weight, timeLimitMinutes: question.timeLimitMinutes });
       if (checked) return { ...question, prompt, appHtml: checked.appHtml, contextData: checked.contextData, starterCode: checked.starterCode, testCases: checked.testCases, callouts: checked.callouts };
     }
-    // The app's library copy, so the features this change adds go to the Praxa team as its next version
+    // The app's library copy, so the features this change adds go to the Granyt team as its next version
     const base = await libraryBase({ type: 'app', title: question.title, prompt, appHtml: change } as RawQuestion, mode).catch(() => null);
     step('rewriting the page with your change…');
     const res = await aiFetch('/api/build-app', { title: question.title, prompt, brief: change, testCases: checks, research, ...mode, quick: true, edit: { html: question.appHtml ?? '', change }, ...(base && { libraryFeatures: base.features }) });
@@ -694,7 +694,7 @@ async function buildDraft(raw: RawTest, previous: AssessmentTest | undefined, ct
       if (!isSpec(item)) return checkQuestion(item);
       const i = pages.indexOf(item);
       const step = tracker.step(i);
-      const ready = await buildAppPage(item, research, pageModeOf(ctx), step, { owner: ctx.business?.name || 'Praxa' });
+      const ready = await buildAppPage(item, research, pageModeOf(ctx), step, { owner: ctx.business?.name || 'Granyt' });
       step('checking its tasks start unfinished, so they can be marked…');
       const checked = await checkQuestion(ready);
       tracker.done(i);
@@ -740,10 +740,10 @@ async function buildDraft(raw: RawTest, previous: AssessmentTest | undefined, ct
   };
 }
 
-const NOT_CONFIGURED = "Praxa's AI isn't available on this site: it runs on Praxa's own server (npm run dev or npm start) with an ANTHROPIC_API_KEY.";
+const NOT_CONFIGURED = "Granyt's AI isn't available on this site: it runs on Granyt's own server (npm run dev or npm start) with an ANTHROPIC_API_KEY.";
 
-// One turn: the company's message in, Praxa's reply and the draft's new version out
-// Posts to one of Praxa's AI endpoints; a failure comes back as the reason, 'not-configured' when there's no AI
+// One turn: the company's message in, Granyt's reply and the draft's new version out
+// Posts to one of Granyt's AI endpoints; a failure comes back as the reason, 'not-configured' when there's no AI
 async function post(path: string, payload: unknown): Promise<{ body: Record<string, any>; failure?: string }> {
   try {
     const res = await aiFetch(path, payload);
@@ -754,7 +754,7 @@ async function post(path: string, payload: unknown): Promise<{ body: Record<stri
     if (!res.ok) return { body, failure: body.error === 'not-configured' || res.status === 404 ? 'not-configured' : body.error || `The AI request failed (${res.status}).` };
     return { body };
   } catch {
-    return { body: {}, failure: "Couldn't reach Praxa's AI. Check your connection and try again." };
+    return { body: {}, failure: "Couldn't reach Granyt's AI. Check your connection and try again." };
   }
 }
 
@@ -808,7 +808,7 @@ export interface TestPlan extends Record<string, any> {
 }
 export type { PlanItem };
 
-// The plan step: asks Praxa for the plan (researching the job first when it can have simulations), and keeps only items
+// The plan step: asks Granyt for the plan (researching the job first when it can have simulations), and keeps only items
 // in the allowed styles, each with its own ref
 async function fetchPlan(ctx: ChatContext, request: Record<string, unknown>) {
   // The app library, so app items (and a job simulation's software) use an app that's already built when one fits
@@ -941,7 +941,7 @@ async function writeJobSimDay(
     const out: DayApp[] = [];
     for (const want of wanted) {
       const app = library.find((l) => l.id === want.id)!;
-      list.start('apps', `Filling ${want.label || app.name} from Praxa's app library with the day's data…`);
+      list.start('apps', `Filling ${want.label || app.name} from Granyt's app library with the day's data…`);
       const html = await reusableAppCode(app);
       if (!html) continue;
       const libBase = { ...app, html };
@@ -962,7 +962,7 @@ async function writeJobSimDay(
     }
     const n = raw.newApp;
     if (n?.app?.trim() && n.brief?.trim() && out.length < 2) {
-      list.start('apps', `Building ${n.label || n.app} for the day (it isn't in Praxa's app library yet, so it's added there after)… a few minutes`);
+      list.start('apps', `Building ${n.label || n.app} for the day (it isn't in Granyt's app library yet, so it's added there after)… a few minutes`);
       const brief = `A working copy of ${n.app} (${n.product}), called ${n.label || n.app}, as people in this job use it day to day: its real layout, navigation and look, with the screens the day needs. What it must hold for the day:\n${n.brief}`;
       const built = await buildAppPage({ type: 'app', title: n.label || n.app, prompt: day, appHtml: brief, testCases: [], points: 1, timeLimitMinutes: 40 } as RawQuestion, extra.research, {}, () => {}, { owner: ctx.business?.name });
       if (built.appHtml && built.appHtml !== brief) {
@@ -995,7 +995,7 @@ async function writeJobSimDay(
   list.start('check', 'Working out every answer from the data and checking each part can be marked…');
   let made = assembleJobSim(raw, ctx.business, false, initial);
   if (made.problems.length) {
-    list.start('check', `Fixing ${made.problems.length === 1 ? 'one problem' : `${made.problems.length} problems`} Praxa's checks found…`);
+    list.start('check', `Fixing ${made.problems.length === 1 ? 'one problem' : `${made.problems.length} problems`} Granyt's checks found…`);
     // Problems with the computer itself (no data for an app) are the world's; the rest are the script's
     const inWorld = made.problems.some((p) => /^(The desktop has no work app|apps has )/.test(p));
     let fixedWorld = world;
@@ -1029,7 +1029,7 @@ async function writeJobSimDay(
   if (!made.test) {
     console.warn('[job sim] still failing its checks after the fix:', made.problems);
     const why = made.problems.slice(0, 3).map((p) => p.replace(/^:?\s*/, '')).join(' ');
-    return { failure: `Praxa couldn't make a job simulation that passes its checks${why ? ` (${why})` : ''}. Try Build again.` };
+    return { failure: `Granyt couldn't make a job simulation that passes its checks${why ? ` (${why})` : ''}. Try Build again.` };
   }
   const plan = extra.plan;
   const test = finishJobSim(made.test, raw, ctx.business, ctx.level, plan?.difficulty ?? extra.current?.difficulty);
@@ -1040,7 +1040,7 @@ async function writeJobSimDay(
 }
 const JOB_SIM_STEPS: [string, string][] = [
   ['world', 'Write the people, data and pages for the day'],
-  ['apps', "Put the job's software on the desktop, from Praxa's app library"],
+  ['apps', "Put the job's software on the desktop, from Granyt's app library"],
   ['script', 'Write the emails, briefs and marks against that data'],
   ['check', 'Work out every answer and check each part is marked'],
 ];
@@ -1175,7 +1175,7 @@ function chatRequest(state: ChatState, messages: ChatMessage[], ctx: ChatContext
   };
 }
 
-// The first half of a new test: Praxa plans it from the conversation and lists every question for the company to
+// The first half of a new test: Granyt plans it from the conversation and lists every question for the company to
 // look over, and each message after that changes the plan, until the company presses Build (buildPlan). Nothing is
 // written yet
 export async function proposePlan(
@@ -1222,7 +1222,7 @@ export async function buildPlan(state: ChatState, plan: TestPlan, ctx: ChatConte
     const day = await writeJobSimDay(request, ctx, { plan, research: state.research }, list);
     return {
       ...state,
-      messages: [...messages, { role: 'assistant', text: day.test ? 'Built.' : day.failure ?? "Praxa couldn't build that. Try again.", ...(!day.test && { failed: true }) }],
+      messages: [...messages, { role: 'assistant', text: day.test ? 'Built.' : day.failure ?? "Granyt couldn't build that. Try again.", ...(!day.test && { failed: true }) }],
       draft: day.test,
     };
   }
@@ -1230,17 +1230,17 @@ export async function buildPlan(state: ChatState, plan: TestPlan, ctx: ChatConte
   const built = await writePlan(plan, state.research, messages, ctx, request, progress, list);
   const note = built.dropped
     ? built.test
-      ? `${built.dropped} ${built.dropped === 1 ? 'question' : 'questions'} failed Praxa's checks and ${built.dropped === 1 ? 'was' : 'were'} left out.`
-      : "None of the questions passed Praxa's checks, so nothing was made. Try Build again."
+      ? `${built.dropped} ${built.dropped === 1 ? 'question' : 'questions'} failed Granyt's checks and ${built.dropped === 1 ? 'was' : 'were'} left out.`
+      : "None of the questions passed Granyt's checks, so nothing was made. Try Build again."
     : undefined;
   return {
     ...state,
-    messages: [...messages, { role: 'assistant', text: built.test ? 'Built.' : "Praxa couldn't build that. Try again.", ...(note && { note }), ...(!built.test && { failed: true }) }],
+    messages: [...messages, { role: 'assistant', text: built.test ? 'Built.' : "Granyt couldn't build that. Try again.", ...(note && { note }), ...(!built.test && { failed: true }) }],
     draft: built.test,
   };
 }
 
-// One turn: the company's message in, Praxa's reply and the draft's new version out. A first draft (or a rewrite of
+// One turn: the company's message in, Granyt's reply and the draft's new version out. A first draft (or a rewrite of
 // most of it) is planned and written in stages; other changes are made in one go
 // --- Changes to a written draft: planned first, made only when the company presses Build
 
@@ -1414,7 +1414,7 @@ async function runTurn(state: ChatState, text: string, ctx: ChatContext, progres
     list = checklist(progress, [read]);
     list.start('read', 'Reading your message and working out the changes…');
     ({ body, failure } = await post('/api/test-chat', request));
-    // Praxa judged the change too big to make in one go: plan and write the test afresh
+    // Granyt judged the change too big to make in one go: plan and write the test afresh
     if (!failure && body.lookUp === 'REPLAN') {
       list = undefined;
       const out = await planAndWrite(state, asked, ctx, request, progress, [read]);
@@ -1425,14 +1425,14 @@ async function runTurn(state: ChatState, text: string, ctx: ChatContext, progres
   }
 
   if (failure) {
-    // Without the AI, the first turn still gets a start from Praxa's own tests and questions
+    // Without the AI, the first turn still gets a start from Granyt's own tests and questions
     if (failure === 'not-configured' && !state.draft) {
       const brief = [ctx.job, ...messages.filter((m) => m.role === 'user').map((m) => m.text)].filter(Boolean).join('\n\n');
       const draft = assembleFromBank({ prompt: brief, wantNewTest: true, wantExisting: ctx.wantExisting, questionCount: ctx.questionCount ?? ctx.questionRange?.[1] ?? 10, styles: ctx.styles.length ? ctx.styles : QUESTION_TYPES, level: ctx.level ?? 'Junior', title: ctx.jobTitle }, library, ctx.tests, ctx.business);
       const existing = ctx.wantExisting ? matchExisting(brief, library) : [];
       const reply = draft
-        ? `I can't write new questions here, so I've put a draft together from the best-fitting questions in Praxa's tests. ${NOT_CONFIGURED} You can still edit every question in the builder.`
-        : `${NOT_CONFIGURED} Praxa's own question bank doesn't cover this yet either, so write the test in the builder for now.`;
+        ? `I can't write new questions here, so I've put a draft together from the best-fitting questions in Granyt's tests. ${NOT_CONFIGURED} You can still edit every question in the builder.`
+        : `${NOT_CONFIGURED} Granyt's own question bank doesn't cover this yet either, so write the test in the builder for now.`;
       return { ...state, messages: [...messages, { role: 'assistant', text: reply }], draft, existing };
     }
     const reply = failure === 'not-configured' ? `${NOT_CONFIGURED} Open the draft in the builder to change it by hand.` : failure;
@@ -1463,7 +1463,7 @@ async function runTurn(state: ChatState, text: string, ctx: ChatContext, progres
   if (staged || body.test) {
     const built = staged ?? (await buildDraft(body.test, state.draft, ctx, body.research ?? state.research, progress, list));
     if (built.test) draft = built.test;
-    if (built.dropped) note = built.test ? `${built.dropped} ${built.dropped === 1 ? 'question' : 'questions'} failed Praxa's checks and ${built.dropped === 1 ? 'was' : 'were'} left out.` : "None of the new questions passed Praxa's checks, so the draft wasn't changed. Try asking again.";
+    if (built.dropped) note = built.test ? `${built.dropped} ${built.dropped === 1 ? 'question' : 'questions'} failed Granyt's checks and ${built.dropped === 1 ? 'was' : 'were'} left out.` : "None of the new questions passed Granyt's checks, so the draft wasn't changed. Try asking again.";
   }
   // Changes to app pages in the draft, made in place by the page builder, side by side
   const edits = appEditsOn(draft);
@@ -1474,14 +1474,14 @@ async function runTurn(state: ChatState, text: string, ctx: ChatContext, progres
     const tracker = pageTracker(targets.map((q) => q.title), progress);
     const changed = await Promise.all(
       edits.map(async (e, i) => {
-        const out = await editAppPage(targets[i], e.change, e.taskPrompt, research, pageModeOf(ctx), tracker.step(i), { owner: ctx.business?.name || 'Praxa' });
+        const out = await editAppPage(targets[i], e.change, e.taskPrompt, research, pageModeOf(ctx), tracker.step(i), { owner: ctx.business?.name || 'Granyt' });
         tracker.done(i);
         return out;
       })
     );
     const failed = changed.filter((q) => !q).length;
     draft = withChangedQuestions(draft, changed.filter((q): q is Question => !!q));
-    if (failed) note = [note, `${failed === 1 ? "One app change didn't" : `${failed} app changes didn't`} pass Praxa's checks, so ${failed === 1 ? 'that app was' : 'those apps were'} left as ${failed === 1 ? 'it was' : 'they were'}. Try asking again.`].filter(Boolean).join(' ');
+    if (failed) note = [note, `${failed === 1 ? "One app change didn't" : `${failed} app changes didn't`} pass Granyt's checks, so ${failed === 1 ? 'that app was' : 'those apps were'} left as ${failed === 1 ? 'it was' : 'they were'}. Try asking again.`].filter(Boolean).join(' ');
   }
   list?.finish();
   return {

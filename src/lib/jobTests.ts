@@ -127,7 +127,7 @@ export const TRACKING_LABELS: Record<TrackingStatus, string> = {
 export const VIA_LABELS: Record<NonNullable<JobInvitation['via']>, string> = {
   link: 'Job link',
   email: 'Email',
-  invite: 'Sent on Praxa',
+  invite: 'Sent on Granyt',
 };
 
 export function trackingStatus(invitation: JobInvitation, progress: JobTestProgress): TrackingStatus {

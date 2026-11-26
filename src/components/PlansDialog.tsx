@@ -59,7 +59,7 @@ export const PlansDialog: React.FC<{ reason: string; access: PlanAccess; onClose
   };
 
   const choose = (id: string, interval: 'month' | 'year') => {
-    if (id === 'enterprise') return setNote('Email the Praxa team about Enterprise and we’ll set it up for you.');
+    if (id === 'enterprise') return setNote('Email the Granyt team about Enterprise and we’ll set it up for you.');
     if (onPreview && id !== 'enterprise') {
       onPreview(id as PlanId);
       onDone(`Previewing ${PLANS[id as PlanId].name}. Nothing was charged.`);
@@ -67,7 +67,7 @@ export const PlansDialog: React.FC<{ reason: string; access: PlanAccess; onClose
     }
     if (id === 'free') return;
     if (!status.billing && access.loadError) return setError(`Couldn’t load your plan: ${access.loadError}`);
-    if (!status.billing) return setNote(`Online payment isn’t switched on yet. Ask the Praxa team to set your company to ${PLANS[id as PlanId].name}.`);
+    if (!status.billing) return setNote(`Online payment isn’t switched on yet. Ask the Granyt team to set your company to ${PLANS[id as PlanId].name}.`);
     if (id === 'per-job') return open(id, buyJobPass);
     if (status.plan !== 'free' && status.plan !== 'per-job' && !window.confirm(`Switch to ${PLANS[id as PlanId].name}? The difference for this month is charged or credited now.`)) return;
     open(id, () => subscribeTo(id as PlanId, interval));

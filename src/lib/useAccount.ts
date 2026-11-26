@@ -11,7 +11,7 @@ export interface AccountState {
   company: Company | null;
 }
 
-// Who's signed in, their Praxa account and their company, kept up to date as they change
+// Who's signed in, their Granyt account and their company, kept up to date as they change
 export function useAccount(): AccountState {
   const [state, setState] = useState<AccountState>({ loading: firebaseEnabled, user: null, account: null, company: null });
 

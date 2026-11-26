@@ -17,7 +17,7 @@ import { testSector } from '../../lib/sectors';
 import { COMBINED_TESTS, CombinedTest } from './combined';
 
 /**
- * Praxa's module tests. From each module's bank (see kit.ts) come four tests, Beginner to Senior, each asking every
+ * Granyt's module tests. From each module's bank (see kit.ts) come four tests, Beginner to Senior, each asking every
  * level up to its own.
  */
 export const MODULES: ModuleSkeleton[] = [

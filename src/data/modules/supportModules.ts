@@ -9,7 +9,7 @@ import { QUEUE_P, TALLYHUB_GROUPS, TALLYHUB_KB, TALLYHUB_SLA, TALLYHUB_TAGS } fr
  * The Customer Support modules, built like the Data Analyst ones: one Mid-level test per pair of core skills, about 20
  * minutes. First two question sets (a piece of the job in front of you, with four questions about it of different
  * kinds), then two tasks in a working help desk (Deskly), each with four numbered questions marked on their own checks.
- * Writing done in the help desk (replies, notes, bug reports, a chat message) is marked against its points by Praxa's AI.
+ * Writing done in the help desk (replies, notes, bug reports, a chat message) is marked against its points by Granyt's AI.
  *
  * Prioritising & Escalation · Customer Communication (angry customers, clear writing) · Policies & Refunds (applying
  * policy, attention to detail) · Listening & Troubleshooting. The Bloomvale job simulation follows them.

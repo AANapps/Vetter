@@ -7,7 +7,7 @@ import { LIBRARY_APPS, splitData, withData } from './libraryApps';
 /**
  * Tests store library apps by reference. A test page that is a library app's version unchanged, plus the test's data,
  * is saved as { libraryApp: { id, version }, appData } with no code; the code is loaded back from the library when the
- * test is read: from the repo's bundle (Praxa's own apps, library-apps/) or from Firestore's environmentVersions (which
+ * test is read: from the repo's bundle (Granyt's own apps, library-apps/) or from Firestore's environmentVersions (which
  * anyone signed in can read for data-driven apps). So a test is its data, apps are kept once, and the tests everyone
  * downloads stay small. A page with its own edits, or built before this, keeps its whole page as before.
  */

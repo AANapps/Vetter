@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Praxa's app library between the repo (library-apps/<id>/) and Firestore. See library-apps/README.md.
+// Granyt's app library between the repo (library-apps/<id>/) and Firestore. See library-apps/README.md.
 //   npm run apps -- list | pull <id> | push <id>
 // Uses the Firebase CLI's login (npx firebase-tools login) as the project's owner, so it isn't held to the
 // security rules. The project comes from VITE_FIREBASE_PROJECT_ID in .env.local (or FIREBASE_PROJECT).
@@ -165,7 +165,7 @@ async function push(id) {
     summary: manifest.summary,
     features: manifest.features,
     version,
-    builtFor: env?.builtFor ?? 'Praxa',
+    builtFor: env?.builtFor ?? 'Granyt',
     createdAt: env?.createdAt ?? at,
     updatedAt: at,
     createdBy: env?.createdBy ?? 'praxa-repo',

@@ -11,11 +11,11 @@ import { TestPickerDialog, fieldOf } from './TestPickerDialog';
 import { Suggestion, matchExisting } from '../lib/testGeneration';
 
 interface JobFormProps {
-  // The companies the job can be posted for: a company posts for itself, the Praxa team for any company
+  // The companies the job can be posted for: a company posts for itself, the Granyt team for any company
   businesses: Business[];
   postedBy: NonNullable<JobPosting['postedBy']>;
   tests: AssessmentTest[];
-  // Whether a library test may be offered (what the Praxa team hid isn't); every test when left out
+  // Whether a library test may be offered (what the Granyt team hid isn't); every test when left out
   isListed?: (t: AssessmentTest) => boolean;
   onSave: (job: JobPosting) => void;
   onCancel: () => void;
@@ -41,7 +41,7 @@ interface JobFormProps {
 const inputClass =
   'w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100';
 
-// The one job form, used by companies and by the Praxa team
+// The one job form, used by companies and by the Granyt team
 export const JobForm: React.FC<JobFormProps> = ({
   businesses,
   postedBy,
@@ -74,7 +74,7 @@ export const JobForm: React.FC<JobFormProps> = ({
   // Starts in the company's sector; a job can be listed under another
   const [pickedSector, setSector] = useState<SectorId | ''>(init?.sector ?? '');
   const sector = FOCUS_SECTOR || pickedSector || business?.sector || '';
-  // Each Praxa test once, in the job's sector only; its level is chosen when it's ticked
+  // Each Granyt test once, in the job's sector only; its level is chosen when it's ticked
   const vetterTests = tests.filter((t) => isPublic(t) && isMainVersion(t) && t.businessId !== business?.id && inCompanySector(sector)(t) && isListed(t));
   // Every field the job board filters on is asked for here, so new jobs filter like the seeded ones
   const [location, setLocation] = useState(init?.location ?? (CITIES[business?.headquarters ?? ''] ? business!.headquarters : 'San Francisco, CA'));
@@ -116,7 +116,7 @@ export const JobForm: React.FC<JobFormProps> = ({
   const updatePick = (testId: string, change: Partial<Pick>) => {
     setPicked((prev) => ({ ...prev, [testId]: { ...prev[testId], ...change } }));
   };
-  // Posting first asks Praxa's AI which tests fit the job description, and the company says whether to include them.
+  // Posting first asks Granyt's AI which tests fit the job description, and the company says whether to include them.
   // Asked once per title and description, so posting again after answering doesn't ask again
   const [suggested, setSuggested] = useState<Suggestion[] | null>(null);
   const [include, setInclude] = useState<string[]>([]);
@@ -255,7 +255,7 @@ export const JobForm: React.FC<JobFormProps> = ({
                   </option>
                 ))}
               </select>
-              <p className="text-[11px] text-slate-500 mt-1">The job is listed under this company, marked as posted by Praxa.</p>
+              <p className="text-[11px] text-slate-500 mt-1">The job is listed under this company, marked as posted by Granyt.</p>
             </div>
           )}
 
@@ -502,12 +502,12 @@ export const JobForm: React.FC<JobFormProps> = ({
           </fieldset>
 
           {suggested ? (
-            // Praxa's suggestions from the job description: the company decides whether they go on the job
+            // Granyt's suggestions from the job description: the company decides whether they go on the job
             <div className="p-3 border border-indigo-200 bg-indigo-50 rounded-xl space-y-2.5" role="dialog" aria-label="Suggested tests">
               <div className="flex items-start gap-2">
                 <Sparkles className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
                 <p className="text-xs text-slate-800">
-                  <span className="font-semibold">Praxa read your job description and suggests {suggested.length === 1 ? 'this test' : 'these tests'}.</span>{' '}
+                  <span className="font-semibold">Granyt read your job description and suggests {suggested.length === 1 ? 'this test' : 'these tests'}.</span>{' '}
                   Do you want to include {suggested.length === 1 ? 'it' : 'them'}?
                 </p>
               </div>
@@ -578,7 +578,7 @@ export const JobForm: React.FC<JobFormProps> = ({
         <TestPickerDialog
           groups={[
             { label: businesses.length === 1 ? 'Your tests' : `${business?.name}'s tests`, list: companyTests },
-            { label: 'Praxa tests', list: vetterTests },
+            { label: 'Granyt tests', list: vetterTests },
           ].filter((g) => g.list.length > 0)}
           allTests={tests}
           isPicked={(t) => !!picked[t.id]}

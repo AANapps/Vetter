@@ -237,7 +237,7 @@ export const INITIAL_RECRUITER: User = {
   appliedJobIds: [],
 };
 
-// Praxa-made tests, each followed by its versions at other levels
+// Granyt-made tests, each followed by its versions at other levels
 function withAllExtras(tests: AssessmentTest[]): AssessmentTest[] {
   return tests.map((t) => {
     const extras = EXTRA_QUESTIONS[t.familyId ?? t.id];
@@ -245,7 +245,7 @@ function withAllExtras(tests: AssessmentTest[]): AssessmentTest[] {
   });
 }
 
-// Every level of every Praxa test has ten questions: hands-on tasks topped up with fundamentals and real problems.
+// Every level of every Granyt test has ten questions: hands-on tasks topped up with fundamentals and real problems.
 // Tests with a module skeleton (src/data/modules) are then rebuilt as four levels that each cover every core area
 export const STANDARD_ASSESSMENTS: AssessmentTest[] = [...withRoleTracks(withModules(withAllExtras(withLevelVersions([
   {

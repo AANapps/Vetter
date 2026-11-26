@@ -9,23 +9,23 @@ import { IntegrityBadge } from './IntegrityBadge';
 interface TestHistoryProps {
   person: User;
   tests: AssessmentTest[];
-  // Everyone, to rank them on Praxa's tests
+  // Everyone, to rank them on Granyt's tests
   candidates: User[];
   businesses: Business[];
-  // Which company results the viewer may see: 'all' (the person themselves and the Praxa team), one company's, or none
+  // Which company results the viewer may see: 'all' (the person themselves and the Granyt team), one company's, or none
   companyResultsFor: 'all' | string | null;
   onOpenTest?: (testId: string) => void;
   emptyText?: string;
   // The person's own list: hides a test from their public profile, or shows it again. Nothing is ever deleted, and
   // companies always see every attempt
   onToggleHidden?: (testId: string) => void;
-  // Companies and the Praxa team see the integrity label on each test; candidates don't
+  // Companies and the Granyt team see the integrity label on each test; candidates don't
   showIntegrity?: boolean;
 }
 
 const formatDay = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
-// Every test someone has taken, best score first: Praxa's tests with their rank, and company tests where the viewer may see them
+// Every test someone has taken, best score first: Granyt's tests with their rank, and company tests where the viewer may see them
 export const TestHistory: React.FC<TestHistoryProps> = ({ person, tests, candidates, businesses, companyResultsFor, onOpenTest, emptyText, onToggleHidden, showIntegrity }) => {
   const hiddenIds = person.hiddenTestIds ?? [];
   // Everyone but the public sees every attempt and every start left unfinished
@@ -39,7 +39,7 @@ export const TestHistory: React.FC<TestHistoryProps> = ({ person, tests, candida
       if (hidden && !fullRecord) return [];
       const unfinished = fullRecord ? unfinishedStarts(person, testId) : 0;
       const attempts = person.testResults.filter((r) => r.testId === testId);
-      // Praxa's tests are public; a company's own test is seen only by that company. Which company a result
+      // Granyt's tests are public; a company's own test is seen only by that company. Which company a result
       // was sent to is seen only by that company too.
       const sentTo = [...new Set(attempts.map((r) => r.referredBy ?? (test.type === 'custom' ? test.businessId : undefined)))].filter(
         (id): id is string => !!id

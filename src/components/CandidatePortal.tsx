@@ -474,7 +474,7 @@ export const CandidatePortal: React.FC<CandidatePortalProps> = ({
         </div>
       )}
 
-      {/* Praxa's tests: pick a role, then its tests in order */}
+      {/* Granyt's tests: pick a role, then its tests in order */}
       {view === 'tests' && (
         <TestsBrowser
           candidate={candidate}

@@ -5,7 +5,7 @@ import { MAX_PROMPT, PRICES, SimulationCompany, apiFailure } from './generateTes
 import { WORK_APP_CHECKS, WORK_APP_FORMATS } from './deskAppRules.js';
 
 /**
- * Writes a whole AI-made job simulation as one day on the desktop, in the five timed parts every Praxa job simulation
+ * Writes a whole AI-made job simulation as one day on the desktop, in the five timed parts every Granyt job simulation
  * has (src/data/modules/jobSimKit.ts), the way the Data Analyst's day at Ridgeway Coffee is built (daJobSim.ts):
  * Briefing 2 min, Core task 12, Curveball 6, Juggling and judgement 10, Report back 7, plus a 3-minute buffer.
  *
@@ -34,7 +34,7 @@ export interface JobSimRequest {
   // Which step to write: the setting (world), the computer's contents for it (desk), or the script for both
   stage: 'world' | 'desk' | 'script';
   world?: unknown;
-  // Praxa's app library: apps the day can put on the desktop (a help desk, a CRM), each filled with the day's data
+  // Granyt's app library: apps the day can put on the desktop (a help desk, a CRM), each filled with the day's data
   library?: { id: string; name: string; product: string; summary: string; features?: string[] }[];
   // For the script: the library apps on the desktop, fitted to the day (their data, what they save, what's planted)
   appsInDay?: { id: string; label: string; state: string; data: string; planted: string[] }[];
@@ -154,7 +154,7 @@ const DESK_KEYS = ['workbookName', 'sheets', 'databaseName', 'tables', 'homepage
 const SCRIPT_KEYS = ['reply', 'briefs', 'inbox', 'replies', 'checks'];
 // planted: for the script's writer, each issue in the data and where it is, and the facts and figures the day turns on
 // libraryApps: apps from the library on the desktop, each with what it must hold for the day; newApp: software the job
-// uses that the library doesn't have yet, which Praxa builds (empty strings when there's none)
+// uses that the library doesn't have yet, which Granyt builds (empty strings when there's none)
 const appBrief = { type: 'object', properties: { id: str, label: str, brief: str }, required: ['id', 'label', 'brief'], additionalProperties: false };
 const newApp = { type: 'object', properties: { app: str, product: str, label: str, brief: str }, required: ['app', 'product', 'label', 'brief'], additionalProperties: false };
 const STAGE_SCHEMAS = {
@@ -179,11 +179,11 @@ above, used exactly as written: every sheet name, cell, column, page url, file n
 figure must match it. Every planted issue is handled by a check, and the report back's rubric names them.`,
 };
 
-const RULES = `You write job simulations for Praxa, a skills-based hiring platform. A job simulation is ONE working day on a
+const RULES = `You write job simulations for Granyt, a skills-based hiring platform. A job simulation is ONE working day on a
 desktop computer, 40 minutes, for someone applying to the job described. Whoever does well can really do this job;
 whoever can't is found out. Plain British English, no em dashes.
 
-THE STRUCTURE (fixed; every Praxa job simulation has exactly these five timed parts)
+THE STRUCTURE (fixed; every Granyt job simulation has exactly these five timed parts)
 1. Briefing, 2 min, not marked: who they are, the company, their manager, their tools. (briefing)
 2. Core task, 12 min: the most important work of THIS job, simple first, then harder. (briefs.core)
 3. Curveball, 6 min: something changes or goes wrong (a corrected figure, a new requirement, a bug report, a client
@@ -208,17 +208,17 @@ MADE FOR THIS COMPANY AND THIS JOB
   plausible one). Use what the company told you: its products, customers, sector, location, tools, team names, and
   the duties, tools and seniority in the job description. Every task is one the job description says this person does.
 - THE JOB'S OWN SOFTWARE: when the job is done in a particular kind of software (a help desk for support, a CRM for
-  sales, a booking system, an ads manager), the day happens in it. If PRAXA'S APP LIBRARY (below) has it, list it in
+  sales, a booking system, an ads manager), the day happens in it. If GRANYT'S APP LIBRARY (below) has it, list it in
   libraryApps: its id, label (the name on the taskbar, e.g. "Deskly") and brief: everything it must hold for the day
   (the records, how many, the planted issues and exactly where they are, the curveball's effect), consistent with the
-  rest of the world. Praxa writes its data from that brief. If the job's main software isn't in the library, describe
+  rest of the world. Granyt writes its data from that brief. If the job's main software isn't in the library, describe
   it in newApp: app (the real product, or "Generic <kind>"), product (its kind in a few words), label (an invented
-  name for the taskbar) and brief (its screens and what it must hold for the day); Praxa builds it. Otherwise newApp
+  name for the taskbar) and brief (its screens and what it must hold for the day); Granyt builds it. Otherwise newApp
   has empty strings and libraryApps is []. A library or new app counts as one of the two or three work environments.
 - Pick the other environments from the tools the job really uses: sheet (Spreadsheet: Excel-style, formulas), browser (an
   intranet, a client portal, a supplier site, documentation: pages with text, tables, links and downloads), sql (a
   database to query with SQL; data only, its results reach the marks through the sheet or emails), code (a small
-  JavaScript project with tests), and Praxa's BUILT-IN work apps: chat (Slack/Teams), helpdesk (Zendesk-style tickets),
+  JavaScript project with tests), and Granyt's BUILT-IN work apps: chat (Slack/Teams), helpdesk (Zendesk-style tickets),
   crm (Salesforce/HubSpot-style records), docs (Word/Google Docs), bi (Power BI-style report from any CSV or table),
   forms (internal forms: refunds, incidents), calendar (meetings and invites), kb (help centre or policies, read only),
   board (monday.com or Jira project board). PREFER A BUILT-IN APP over libraryApps or newApp whenever the job's software
@@ -230,7 +230,7 @@ MADE FOR THIS COMPANY AND THIS JOB
   or pasted in another (Spreadsheet Import CSV, Database Import flat file, CRM and board Import, BI Get data, Mail and
   Chat attachments, Docs paste as a table). A good day makes the candidate carry work across apps (e.g. export the
   tickets, analyse them in the spreadsheet, chart them in BI, attach the chart to the report).
-- The cast: the candidate (user; their email is first.last@domain, made by Praxa) and 3 to 6 colleagues in contacts,
+- The cast: the candidate (user; their email is first.last@domain, made by Granyt) and 3 to 6 colleagues in contacts,
   each "First Last", their role and first.last@domain. Everyone who writes or is written to is in contacts.
 - The figures must be consistent everywhere: emails, pages, files and data say the same thing.
 
@@ -255,7 +255,7 @@ THE DESKTOP'S CONTENT
   the work needs there (a policy, a notice explaining a dip, a price list, the API docs). Otherwise pages [] and "".
 - project (when apps has code): name, files (small: 2 to 4 files, plain JavaScript functions, no imports or modules,
   each under 80 lines; one readonly file allowed), testFile (a file of the candidate's own tests, written
-  test("name", () => { expect(fn(1)).toBe(2); })), checks: Praxa's hidden tests, each a test body using the project's
+  test("name", () => { expect(fn(1)).toBe(2); })), checks: Granyt's hidden tests, each a test body using the project's
   functions with expect(x).toBe / toEqual / toBeCloseTo / toThrow, that FAIL on the code as given and pass once the
   work is done right. Otherwise {"name":"","files":[],"testFile":"","checks":[]}.
 - files: anything else handed over at the start (often []). A Word document handed over is a file named "*.docx"
@@ -285,7 +285,7 @@ for, short ("Q1 sales are right for every store"). input is one of:
 ${WORK_APP_CHECKS}
 expected: for sheet checks, the right value; when it depends on the data, write it as a formula starting with "="
   on the pre-loaded workbook (a value from the curveball's email written in as a number), e.g.
-  =SUMIF(q1_sales!A:A,"S01",q1_sales!D:D)&" / "&SUMIF(q1_sales!A:A,"S02",q1_sales!D:D): Praxa works it out, so never
+  =SUMIF(q1_sales!A:A,"S01",q1_sales!D:D)&" / "&SUMIF(q1_sales!A:A,"S02",q1_sales!D:D): Granyt works it out, so never
   compute a total yourself. A sheet check must NOT already pass on the workbook as given. Several right answers: "a|b".
   For mail checks expected is "" and rubric lists 2 to 4 things a strong answer does, specific to the day (the figures,
   the names, the planted issue); otherwise rubric is [].
@@ -342,15 +342,15 @@ export async function writeJobSim(body: unknown, apiKey: string | undefined, mod
     plan,
     req.current ? `THE DAY AS WRITTEN:\n${JSON.stringify(req.current).slice(0, 60000)}` : '',
     req.change ? `THE COMPANY WANTS THIS CHANGED (write your half again with exactly that change, everything else kept):\n${req.change.slice(0, MAX_TEXT)}` : '',
-    req.problems?.length ? `PRAXA'S CHECKS FOUND THESE PROBLEMS. Write your half again with every one fixed and everything else kept:\n${req.problems.map((p) => `- ${p}`).join('\n')}` : '',
+    req.problems?.length ? `GRANYT'S CHECKS FOUND THESE PROBLEMS. Write your half again with every one fixed and everything else kept:\n${req.problems.map((p) => `- ${p}`).join('\n')}` : '',
     req.stage === 'desk' && req.world ? `THE SETTING, ALREADY WRITTEN:\n${JSON.stringify(req.world).slice(0, 30000)}` : '',
     req.stage === 'world' && req.library?.length
-      ? `PRAXA'S APP LIBRARY (apps the desktop can have):\n${req.library
+      ? `GRANYT'S APP LIBRARY (apps the desktop can have):\n${req.library
           .slice(0, 40)
           .map((a) => `- id ${a.id}: ${String(a.name).slice(0, 80)} (${String(a.product).slice(0, 60)}). ${String(a.summary).slice(0, 300)} Features: ${(a.features ?? []).slice(0, 25).join('; ').slice(0, 900)}`)
           .join('\n')}`
       : req.stage === 'world'
-        ? "PRAXA'S APP LIBRARY is empty: libraryApps is []; use newApp if the job's main software is needed."
+        ? "GRANYT'S APP LIBRARY is empty: libraryApps is []; use newApp if the job's main software is needed."
         : '',
     req.stage === 'script' && req.world ? `THE WORLD, ALREADY WRITTEN:\n${JSON.stringify(req.world).slice(0, 60000)}` : '',
     req.stage === 'script' && req.appsInDay?.length
@@ -380,7 +380,7 @@ export async function writeJobSim(body: unknown, apiKey: string | undefined, mod
     const price = PRICES[model];
     const { input_tokens, output_tokens } = message.usage;
     if (price) console.log(`[write-job-sim ${stage}] ${input_tokens} in, ${output_tokens} out: $${((input_tokens * price.input + output_tokens * price.output) / 1e6).toFixed(3)}`);
-    if (message.stop_reason === 'refusal') return { status: 422, json: { error: 'Praxa declined to write this. Try describing the job differently.' } };
+    if (message.stop_reason === 'refusal') return { status: 422, json: { error: 'Granyt declined to write this. Try describing the job differently.' } };
     if (message.stop_reason === 'max_tokens') return { status: 502, json: { error: 'The job simulation came back incomplete. Try again.' } };
     return { status: 200, json: JSON.parse(message.content.flatMap((b) => (b.type === 'text' ? [b.text] : [])).join('')) };
   } catch (err) {

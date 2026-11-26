@@ -5,18 +5,18 @@ import { auth, db, firebaseEnabled } from './firebase';
 import { LANGUAGES } from './languages';
 
 /**
- * Praxa's environment library: the places candidates work in during a test.
+ * Granyt's environment library: the places candidates work in during a test.
  *
  * - Built in: the spreadsheet, database workbench, SQL editor, code editor, inbox and AI assistant.
  * - Saved simulations, one per app (Meta Ads Manager, Salesforce, a till): a working copy of the app that grows. Every
- *   simulation Praxa builds, for a company's test or by the Praxa team, is sent to the Praxa team for review as a
+ *   simulation Granyt builds, for a company's test or by the Granyt team, is sent to the Granyt team for review as a
  *   submission. Approved, a new app joins the library; a page built on an app already there becomes that app's next
  *   version, with the features it added. When a later test needs the same app, the page builder starts from its latest
  *   version and adds what that test needs on top, so each app gains features with every test.
  *
  * Firestore: environments (each app's latest approved version, small enough to list), environmentPages (its page),
  * environmentSubmissions (everything waiting for review, and the history of what was approved) and submissionPages.
- * Only the Praxa team approves or changes the library. Without accounts (the demo) it's kept in this browser.
+ * Only the Granyt team approves or changes the library. Without accounts (the demo) it's kept in this browser.
  */
 
 export interface BuiltInEnvironment {
@@ -61,7 +61,7 @@ export interface SavedEnvironment {
   createdBy?: string;
   // How many later simulations were built on it
   uses: number;
-  // Reads its data from window.praxaData (Praxa's own apps, library-apps/), so a test only writes data for it; and
+  // Reads its data from window.praxaData (Granyt's own apps, library-apps/), so a test only writes data for it; and
   // what that data and its saved state look like
   dataDriven?: boolean;
   data?: string;
@@ -70,7 +70,7 @@ export interface SavedEnvironment {
 
 export type SubmissionStatus = 'pending' | 'approved' | 'rejected';
 
-// A simulation waiting for the Praxa team: a new app, or a new version of one in the library
+// A simulation waiting for the Granyt team: a new app, or a new version of one in the library
 export interface EnvironmentSubmission {
   id: string;
   // The library app it was built on, and that app's version then; unset for a new app
@@ -84,7 +84,7 @@ export interface EnvironmentSubmission {
   // What it adds to the version it was built on (everything, for a new app)
   added: string[];
   builtFor: string;
-  // Who it was built for: a company's name, or Praxa
+  // Who it was built for: a company's name, or Granyt
   owner: string;
   sector?: string;
   game?: 'gamified' | 'standalone';
@@ -105,7 +105,7 @@ export interface EnvironmentPage {
   html: string;
   callouts?: AppCallout[];
   // A data-driven app's page holds the app only; a submission keeps the data of the test it was built for (JSON), so
-  // the Praxa team can try it. The library's own pages never hold a company's data
+  // the Granyt team can try it. The library's own pages never hold a company's data
   data?: string;
 }
 
@@ -203,7 +203,7 @@ async function readPage(collectionName: 'environmentPages' | 'submissionPages', 
 export const loadEnvironmentPage = (id: string) => readPage('environmentPages', id);
 export const loadSubmissionPage = (id: string) => readPage('submissionPages', id);
 
-// Submissions, newest first: all of them for the Praxa team, otherwise the ones this person sent
+// Submissions, newest first: all of them for the Granyt team, otherwise the ones this person sent
 export async function loadSubmissions(all: boolean): Promise<EnvironmentSubmission[]> {
   let list: EnvironmentSubmission[];
   if (!firebaseEnabled) list = local().subs;
@@ -228,7 +228,7 @@ const unique = (list: string[]) => {
 
 export type NewSubmission = Omit<EnvironmentSubmission, 'id' | 'createdAt' | 'createdBy' | 'status' | 'reviewedAt' | 'note' | 'version'>;
 
-// A newly built simulation, sent to the Praxa team for review. Never holds up the test it was built for: a failure is
+// A newly built simulation, sent to the Granyt team for review. Never holds up the test it was built for: a failure is
 // only logged
 export async function submitEnvironment(entry: NewSubmission, page: EnvironmentPage): Promise<void> {
   if (!entry.app.trim() || !page.html.trim()) return;
@@ -253,14 +253,14 @@ export async function submitEnvironment(entry: NewSubmission, page: EnvironmentP
   }
 }
 
-// The Praxa team approves a submission: a new app joins the library, or the app it was built on moves to its next
+// The Granyt team approves a submission: a new app joins the library, or the app it was built on moves to its next
 // version (its page replaced, its features added to). Returns the library app's id
 export async function approveSubmission(sub: EnvironmentSubmission, page: EnvironmentPage): Promise<string> {
   const at = now();
   // Built on an app in the library, or built new for an app that's there already (same name): that app's next version
   const all = await loadEnvironments();
   const existing = sub.envId ? all.find((e) => e.id === sub.envId) : all.find((e) => e.app.trim().toLowerCase() === sub.app.trim().toLowerCase());
-  // An app of Praxa's own (library-apps/) that isn't in Firestore yet keeps its id, and this is its next version
+  // An app of Granyt's own (library-apps/) that isn't in Firestore yet keeps its id, and this is its next version
   const envId = existing?.id ?? sub.envId ?? newId('env');
   const version = existing ? existing.version + 1 : (sub.baseVersion ?? 0) + 1;
   const env: SavedEnvironment = existing
@@ -298,7 +298,7 @@ export async function approveSubmission(sub: EnvironmentSubmission, page: Enviro
   return envId;
 }
 
-// One of Praxa's own apps (library-apps/, LibraryApp in libraryApps.ts) put in the library as its next version, from the
+// One of Granyt's own apps (library-apps/, LibraryApp in libraryApps.ts) put in the library as its next version, from the
 // admin panel; npm run apps -- push does the same from the repo
 export async function publishRepoApp(app: { id: string; name: string; product: string; summary: string; version: number; features: string[]; data: string; state: string }, html: string): Promise<number> {
   const at = now();
@@ -312,7 +312,7 @@ export async function publishRepoApp(app: { id: string; name: string; product: s
     summary: app.summary,
     features: unique(app.features),
     version,
-    builtFor: existing?.builtFor ?? 'Praxa',
+    builtFor: existing?.builtFor ?? 'Granyt',
     createdAt: existing?.createdAt ?? at,
     updatedAt: at,
     createdBy: existing?.createdBy ?? auth().currentUser?.uid ?? 'praxa',
@@ -359,12 +359,12 @@ export async function updateSubmission(sub: EnvironmentSubmission, change: Parti
   changed();
 }
 
-// The Praxa team changed a library app in the admin panel's app editor: its page becomes the app's next version (the
+// The Granyt team changed a library app in the admin panel's app editor: its page becomes the app's next version (the
 // versions before it are kept, so tests built on them keep working). Returns the new version
 export async function saveEditedVersion(env: SavedEnvironment, html: string, note: string): Promise<number> {
   const at = now();
   const version = env.version + 1;
-  const by = auth().currentUser?.email ?? 'Praxa team';
+  const by = auth().currentUser?.email ?? 'Granyt team';
   const next: SavedEnvironment = { ...env, version, updatedAt: at };
   if (!firebaseEnabled) {
     const data = local();
@@ -396,7 +396,7 @@ export async function markEnvironmentUsed(id: string): Promise<void> {
   }
 }
 
-// The Praxa team takes an app out of the library (its submissions stay, as history)
+// The Granyt team takes an app out of the library (its submissions stay, as history)
 export async function deleteEnvironment(id: string): Promise<void> {
   if (!firebaseEnabled) {
     const data = local();
