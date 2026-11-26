@@ -172,11 +172,13 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   };
   const inField = (t: AssessmentTest, roles: TestRole[]) => rolesOf(t).some((r) => roles.includes(r));
   const sourced = allTests.filter((t) => inSource(t, testSource));
+  const aiCount = sourced.filter(isAiTest).length;
+  const aiLibrary = vetterTests.filter(isAiTest);
   const tq = testQuery.trim().toLowerCase();
   const grouped = !testField && !tq;
   // Tests on the company's jobs first, then its own, then the library
   const shownTests = sourced
-    .filter((t) => !testField || inField(t, testField.roles))
+    .filter((t) => !testField || (testField.label === AI_FIELD ? isAiTest(t) : inField(t, testField.roles)))
     .filter((t) => !tq || `${t.title} ${t.category} ${t.skillsTested.join(' ')}`.toLowerCase().includes(tq))
     .sort(
       (a, b) =>
@@ -190,9 +192,9 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
   const sections: { heading: string | null; tests: AssessmentTest[] }[] = grouped
     ? [
         // The AI competency tests are for every job, so first and under their own heading
-        { heading: 'AI at Work (every job)', tests: shownTests.filter((t) => t.category === 'AI at Work') },
+        { heading: 'AI at Work (every job)', tests: shownTests.filter(isAiTest) },
         ...roleGroups.map((g) => ({ heading: g.industry, tests: shownTests.filter((t) => inField(t, g.roles)) })),
-        { heading: 'Other', tests: shownTests.filter((t) => t.category !== 'AI at Work' && !roleGroups.some((g) => inField(t, g.roles))) },
+        { heading: 'Other', tests: shownTests.filter((t) => !isAiTest(t) && !roleGroups.some((g) => inField(t, g.roles))) },
       ].filter((sec) => sec.tests.length > 0)
     : [{ heading: null, tests: shownTests }];
   // The Candidates tab: the leads pipeline, or everyone on Corprax ranked for a job
@@ -558,9 +560,65 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
           )}
 
           {kindTab === 'tests' && (<>
+          {/* AI at Work: one row that slides sideways, and the rest on their own list */}
+          {!testField && !tq && aiLibrary.length > 0 && (
+            <section className="pt-2 space-y-3" aria-label="AI at Work tests">
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900 inline-flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-violet-600" />
+                    AI at Work
+                  </h2>
+                  <p className="text-xs text-slate-500">For every job: how well candidates work with AI. Send one on its own or add it to any job.</p>
+                </div>
+                <button onClick={() => setTestField({ label: AI_FIELD, roles: [] })} className="text-xs font-semibold text-indigo-700 hover:underline" data-ref="biz-ai-explore">
+                  Explore all {aiLibrary.length} AI at Work tests →
+                </button>
+              </div>
+              <ul className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 [scrollbar-width:thin]">
+                {aiLibrary.map((t) => (
+                  <li key={t.id} className="w-72 shrink-0 snap-start bg-white border border-slate-200 rounded-xl p-4 flex flex-col gap-2">
+                    <button onClick={() => onOpenTest(t.id)} className="text-left group">
+                      <span className="block text-[11px] font-medium text-violet-700">AI at Work · every job</span>
+                      <span className="block text-sm font-semibold text-slate-900 group-hover:text-indigo-700">{t.title}</span>
+                    </button>
+                    <p className="text-xs text-slate-600 line-clamp-3">{t.description}</p>
+                    <div className="mt-auto flex items-center justify-between gap-2 pt-1">
+                      <span className="text-[11px] text-slate-500">~{t.estimatedMinutes} min · {t.totalQuestions} tasks</span>
+                      {onSendTest && !isPraxa ? (
+                        <button onClick={() => onSendTest(t.id)} className="px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg inline-flex items-center gap-1.5">
+                          <Send className="w-3.5 h-3.5" />
+                          Send
+                        </button>
+                      ) : (
+                        <button onClick={() => onOpenTest(t.id)} className="px-3 py-1.5 text-xs font-semibold text-indigo-700 border border-indigo-200 rounded-lg">
+                          Open
+                        </button>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
           <div className="pt-2">
-            <h2 className="text-lg font-bold text-slate-900">{isPraxa ? "Corprax's library" : 'All tests'}</h2>
-            <p className="text-xs text-slate-500">{isPraxa ? 'The tests every candidate can take.' : "Yours and Corprax's library together, to add to any job."}</p>
+            {testField?.label === AI_FIELD ? (
+              <>
+                <button onClick={() => setTestField(null)} className="text-xs font-semibold text-slate-500 hover:text-slate-800">
+                  ← All tests
+                </button>
+                <h2 className="text-lg font-bold text-slate-900 inline-flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-violet-600" />
+                  AI at Work tests
+                </h2>
+                <p className="text-xs text-slate-500">For every job: briefing and checking AI agents, automations, APIs and AI tools, and keeping data safe. Each about 20 minutes, scored on Corprax’s AI competencies. Send one to candidates or add it to a job.</p>
+              </>
+            ) : (
+              <>
+                <h2 className="text-lg font-bold text-slate-900">{isPraxa ? "Corprax's library" : 'All tests'}</h2>
+                <p className="text-xs text-slate-500">{isPraxa ? 'The tests every candidate can take.' : "Yours and Corprax's library together, to add to any job."}</p>
+              </>
+            )}
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-[15rem_minmax(0,1fr)] gap-6 items-start">
           {/* Browse by industry and role, as candidates do */}
@@ -569,6 +627,13 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
               <h2 className="text-sm font-bold text-slate-900 mb-2">Browse by role</h2>
               <RoleButton label="All tests" count={sourced.length} active={!testField} onClick={() => setTestField(null)} />
             </div>
+            {/* The AI competency tests: for every job, so above the roles */}
+            {aiCount > 0 && (
+              <div className="space-y-1">
+                <div className="text-[10px] font-mono uppercase tracking-wider font-semibold px-2 text-violet-600">For every job</div>
+                <RoleButton label={AI_FIELD} count={aiCount} active={testField?.label === AI_FIELD} onClick={() => setTestField({ label: AI_FIELD, roles: [] })} />
+              </div>
+            )}
             {roleGroups.map((group) => (
               <div key={group.industry} className="space-y-1">
                 <button
@@ -625,12 +690,13 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
               onChange={(e) => {
                 const v = e.target.value;
                 const group = roleGroups.find((g) => g.industry === v);
-                setTestField(!v ? null : group ? { label: v, roles: group.roles } : { label: v, roles: [v as TestRole] });
+                setTestField(!v ? null : v === AI_FIELD ? { label: v, roles: [] } : group ? { label: v, roles: group.roles } : { label: v, roles: [v as TestRole] });
               }}
               aria-label="Role"
               className="lg:hidden px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm self-start"
             >
               <option value="">All roles</option>
+              {aiCount > 0 && <option value={AI_FIELD}>AI at Work (every job)</option>}
               {roleGroups.map((g) => (
                 <optgroup key={g.industry} label={g.industry}>
                   <option value={g.industry}>All of {g.industry}</option>
@@ -698,7 +764,7 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
             </div>
           ) : (
           <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-            <div className="hidden md:grid grid-cols-[minmax(0,1fr)_4.5rem_3.5rem_2.5rem_3.5rem] gap-3 px-5 py-2.5 bg-slate-50 border-b border-slate-200 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+            <div className="hidden md:grid grid-cols-[minmax(0,1fr)_4.5rem_3.5rem_2.5rem_5rem] gap-3 px-5 py-2.5 bg-slate-50 border-b border-slate-200 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
               <span>Test</span>
               <span>Length</span>
               <span className="text-right">Ranked</span>
@@ -734,6 +800,8 @@ export const RecruiterPortal: React.FC<RecruiterPortalProps> = ({
                         onEdit={own || isPraxa ? () => editTest(t) : undefined}
                         // The Corprax team can delete library tests written in the builder; the built-in ones stay
                         onDelete={own ? () => deleteTest(t) : isPraxa && isEditable(t) ? () => deleteTest(t) : undefined}
+                        // An AI at Work test goes straight to candidates (onto a job, or a new one), like a job simulation
+                        onSend={isAiTest(t) && onSendTest && !isPraxa ? () => onSendTest(t.id) : undefined}
                       />
                     );
                   }),
@@ -781,7 +849,9 @@ const TestRow: React.FC<{
   onDeepen?: () => void;
   // Opens it in the test chat to change by asking
   onAiEdit?: () => void;
-}> = ({ test, own, usedBy, ranked, onOpen, onEdit, onDelete, onDeepen, onAiEdit }) => {
+  // Sends it to candidates (on a job)
+  onSend?: () => void;
+}> = ({ test, own, usedBy, ranked, onOpen, onEdit, onDelete, onDeepen, onAiEdit, onSend }) => {
   const stop = (fn: () => void) => (e: React.MouseEvent) => {
     e.stopPropagation();
     fn();
@@ -789,7 +859,7 @@ const TestRow: React.FC<{
   return (
     <li
       onClick={onOpen}
-      className="grid grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(0,1fr)_4.5rem_3.5rem_2.5rem_3.5rem] gap-x-3 gap-y-1 items-center px-5 py-3.5 cursor-pointer hover:bg-slate-50/80 transition-colors"
+      className="grid grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(0,1fr)_4.5rem_3.5rem_2.5rem_5rem] gap-x-3 gap-y-1 items-center px-5 py-3.5 cursor-pointer hover:bg-slate-50/80 transition-colors"
     >
       <div className="min-w-0">
         {/* The name in full, wrapping if it's long; the badges follow it */}
@@ -835,6 +905,12 @@ const TestRow: React.FC<{
         )}
       </div>
       <div className="flex items-center justify-end gap-2">
+        {onSend && (
+          <button onClick={stop(onSend)} title="Send to candidates" aria-label={`Send ${test.title} to candidates`} className="px-2 py-1 text-[11px] font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md inline-flex items-center gap-1">
+            <Send className="w-3 h-3" />
+            Send
+          </button>
+        )}
         {onEdit && (
           <button onClick={stop(onEdit)} title="Edit" aria-label={`Edit ${test.title}`} className="text-slate-400 hover:text-indigo-700">
             <Pencil className="w-3.5 h-3.5" />
@@ -849,6 +925,10 @@ const TestRow: React.FC<{
     </li>
   );
 };
+
+// The standalone AI competency tests (src/data/modules/aiAtWork.ts): for every job, browsed under their own heading
+const AI_FIELD = 'AI at Work';
+const isAiTest = (t: AssessmentTest) => t.category === 'AI at Work';
 
 // When a company's test was made, from its id (test-custom-<ms>); 0 when the id doesn't say
 const madeAt = (t: AssessmentTest) => Number(t.id.match(/-(\d{12,})$/)?.[1] ?? 0);

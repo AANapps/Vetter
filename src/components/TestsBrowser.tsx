@@ -8,6 +8,7 @@ import { SectorId, industryInSector, testInSector } from '../lib/sectors';
 import { getBestTestScore } from '../lib/matchingAlgorithm';
 import { getTestStats } from '../lib/leaderboard';
 import { jobsUsing } from '../lib/demand';
+import { CAPABILITIES } from '../lib/capabilities';
 import { LevelPicker } from './LevelPicker';
 
 /**
@@ -30,6 +31,10 @@ interface TestsBrowserProps {
 }
 
 type Status = 'all' | 'todo' | 'done';
+
+// The AI competency tests (src/data/modules/aiAtWork.ts): for every job, with their own page
+const AI_FIELD = 'AI at Work';
+const isAiTest = (t: AssessmentTest) => t.category === 'AI at Work';
 
 const levelLabel = (d: TestDifficulty | string) => (d === 'Junior' ? 'Beginner' : levelName(d));
 const isSim = (t: AssessmentTest, sec?: TestSection) => /simulation/i.test(sec?.label ?? '') || /simulation/i.test(t.title);
@@ -100,7 +105,7 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
   const path = role ? pathFor(role) : [];
 
   // ---------- One test's card: the same frosted card everywhere on these pages ----------
-  const card = (main: AssessmentTest, opts: { step?: number; label?: string; blurb?: string; sim?: boolean } = {}) => {
+  const card = (main: AssessmentTest, opts: { step?: number; label?: string; blurb?: string; sim?: boolean; slide?: boolean } = {}) => {
     const versions = levelsOf(main, tests);
     const t = versions.find((v) => v.id === cardLevels[main.id]) ?? versions.find((v) => levels.includes(v.difficulty)) ?? main;
     const score = getBestTestScore(candidate, t.id);
@@ -110,7 +115,7 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
     const wanted = jobsUsing(main, tests, jobs);
     const sim = opts.sim ?? isSim(main);
     return (
-      <li key={main.id} id={`test-card-${main.id}`} className="scroll-mt-24">
+      <li key={main.id} id={`test-card-${main.id}`} className={`scroll-mt-24 ${opts.slide ? 'w-[19rem] sm:w-[21rem] shrink-0 snap-start' : ''}`}>
         <div className="tl-glass tl-card h-full p-5 flex flex-col gap-4">
           <div className="flex items-start gap-3">
             <span className={`tl-tile ${ok ? 'tl-tile-done' : sim ? 'tl-tile-sim' : ''}`} aria-hidden="true">
@@ -328,6 +333,36 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
     );
   }
 
+  // ======================= AI at Work: the AI competency tests, for every job =======================
+  if (testField?.label === AI_FIELD) {
+    const list = library.filter(isAiTest).filter(matches);
+    return (
+      <div className="tl-aurora space-y-6">
+        {back}
+        <section className="tl-glass p-6 sm:p-8 space-y-3">
+          <span className="tl-pill inline-flex items-center gap-1.5 h-7 px-3 rounded-full text-xs font-medium text-violet-700">
+            <Sparkles className="w-3.5 h-3.5" />
+            For every job
+          </span>
+          <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-slate-900">AI at Work</h1>
+          <p className="text-sm text-slate-600 max-w-2xl">
+            How well you work with AI: briefing and checking AI agents, catching their mistakes, building automations and AI tools, and keeping data safe. Each is
+            about 20 minutes of hands-on work with real AI, scored on the skills employers now look for.
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {Object.values(CAPABILITIES).map((c) => (
+              <span key={c.label} className="tl-chip" title={c.question}>
+                {c.label}
+              </span>
+            ))}
+          </div>
+        </section>
+        {toolbar()}
+        {list.length ? <ul className={grid}>{list.map((t) => card(t, { label: 'AI at Work · every job' }))}</ul> : empty}
+      </div>
+    );
+  }
+
   // ======================= A group of roles (an industry, or a field from Home) =======================
   if (testField) {
     const list = library.filter((t) => t.roles?.some((r) => testField.roles.includes(r))).filter(matches).sort((a, b) => easiest(a) - easiest(b));
@@ -360,7 +395,7 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
   // The job simulations, the one for the job they're after first
   const sims = library.filter(isJobSim).sort((a, b) => Number(!!b.roles?.includes(candidate.targetRole as TestRole)) - Number(!!a.roles?.includes(candidate.targetRole as TestRole)));
   const everything = library.filter(matches).sort((a, b) => easiest(a) - easiest(b));
-  const aiTests = library.filter((t) => t.category === 'AI at Work');
+  const aiTests = library.filter(isAiTest);
   return (
     <div className="tl-aurora space-y-10">
       <section className="text-center max-w-2xl mx-auto pt-6 space-y-5">
@@ -482,7 +517,16 @@ export const TestsBrowser: React.FC<TestsBrowserProps> = ({ candidate, allCandid
           {kind === 'tests' && aiTests.length > 0 && (
             <section className="space-y-4">
               {sectionTitle('AI at Work', 'For every job: how well you work with AI. Brief and check AI agents, catch their mistakes and keep data safe. About 20 minutes each.')}
-              <ul className={grid}>{aiTests.map((t) => card(t, { label: 'AI at Work · every job' }))}</ul>
+              {/* One row that slides sideways; the rest are on their own page */}
+              <ul className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-3 -mx-1 px-1 [scrollbar-width:thin]" aria-label="AI at Work tests">
+                {aiTests.map((t) => card(t, { label: 'AI at Work · every job', slide: true }))}
+              </ul>
+              <div className="flex justify-center">
+                <button onClick={() => onTestFieldChange({ label: AI_FIELD, roles: [] })} className="tl-ghost h-10 px-5 rounded-full text-sm font-semibold inline-flex items-center gap-1.5" data-ref="ai-explore">
+                  Explore all {aiTests.length} AI at Work tests
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
             </section>
           )}
           {kind === 'tests' && groups.map((g) => (
