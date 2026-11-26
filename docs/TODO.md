@@ -2,6 +2,38 @@
 
 Kept up to date as work is asked for and finished. Newest items at the bottom of each section.
 
+## The 15 target roles (user, 2026-11-26; analysed, not started)
+Corprax is built for: Software Developer, Data Analyst, Cybersecurity Analyst, IT Support Specialist, Systems Analyst, Business Analyst, AI/ML Engineer, Cloud Engineer, UX/UI Designer, Project Manager, Financial Analyst, Accountant, Digital Marketing Specialist, Network Engineer, QA Engineer / Tester.
+"Done" = the Data Analyst shape: role sections, skills tests (2 question sets + 2 sim tasks, 20 min), a 40-min desktop job sim with the AI overlay.
+
+Where each stands (library count 2026-11-26):
+| Role | Now | Gap |
+|---|---|---|
+| Data Analyst | 11 tests, 11 sections, desktop job sim + AI overlay | Try live (pilot) |
+| Software Developer | 4 skills tests + desktop job sim | AI-assisted dev: AI overlay (coding-agent review) |
+| Cybersecurity Analyst | "SOC Analyst": 7 old-style tests + non-desktop project | Rename, rebuild in DA shape, log/SIEM app, desktop sim, prompt-injection task |
+| AI/ML Engineer | "AI Engineer": 8 LLM tests + project; ML sits under Data Scientist | Rename, add model evaluation/ML from Data Scientist, sections, desktop sim |
+| Business Analyst | 27 tests (mostly shared), 2 sims, no sections | Curate into sections, desktop sim (Docs, Board, BI, Forms) |
+| Project Manager | 6 tests, no sections or sim | Sections, desktop sim (Board, Calendar, Chat); business sector hidden |
+| Financial Analyst | 8 tests, no sections or sim | Sections, spreadsheet sims, desktop sim; business sector hidden |
+| QA Engineer | 3 tests, no sim | Test cases, bug reports, API testing (API console exists), desktop sim with a bug tracker |
+| Cloud Engineer | "Platform & DevOps": 4 tests, no sim | Rename, simulated cloud console + terminal, desktop sim |
+| Accountant | 3 tests | Ledger/bookkeeping app (journals, reconciliation, VAT), skills tests, desktop sim |
+| Digital Marketing | "Digital Marketer": 4 tests; marketing sector hidden | Ads manager + web analytics app (or BI), skills tests, desktop sim |
+| IT Support Specialist | Nothing (Help desk app exists) | New role: admin console (users, devices, resets), troubleshooting tests, desktop sim |
+| Systems Analyst | Nothing | New role: requirements, process/data diagrams, systems thinking; reuse BA content |
+| UX/UI Designer | Nothing | New role: design canvas/prototype app, usability findings, heuristics, desktop sim |
+| Network Engineer | Nothing | New role: network topology + device CLI simulator (hardest app), diagnostics tests |
+
+To do, in order:
+1. **Decide the line-up** (user): what happens to roles outside the 15 (Frontend, Backend, Full Stack, Data Scientist, Data Engineer, AI Consultant, Customer Support Agent, Consultant, Sales, healthcare, trades, hospitality, retail): keep, fold in, or hide with library visibility.
+2. **Focus on the 15**: replace FOCUS_SECTOR='tech' with a focus list of these roles, so Finance, Accountant, PM and Marketing show; rename SOC Analyst / AI Engineer / Platform & DevOps / Digital Marketer; add the 4 new roles to ROLE_GROUPS, sign-up target role, job-ad classifier, leaderboards.
+3. **Finish what's close**: Data Analyst live check; AI overlay into the SD sim (covers AI-assisted development).
+4. **Reuse-only roles** (no new app; about 3–5 days each): Business Analyst, Project Manager, Financial Analyst, QA Engineer, Systems Analyst.
+5. **Rebuild old-style roles**: Cybersecurity Analyst, AI/ML Engineer.
+6. **Roles needing a new desktop app** (about 1–2 weeks each): IT Support (admin console), Cloud (cloud console + terminal), Accountant (ledger), Digital Marketing (ads/analytics), UX/UI (design canvas), Network (topology + CLI).
+7. **Across all**: AI overlay in every job sim; capability scores on profiles; Judge0 key for coding (SD, AI/ML, QA, Cloud); courses/training per role; a sample job ad per role.
+
 ## Launch to-do list (agreed 2026-11-24)
 
 The user confirmed on 2026-11-24 that the Firestore rules are deployed (latest) and the Anthropic credit is topped up: older notes below saying "deploy the rules" or "credit out" are out of date. The user chose to set aside for now: the 5 sample candidates, test answers being public (anti-cheat step 1) and similar trust items.
