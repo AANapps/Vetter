@@ -533,7 +533,7 @@ const niceDate = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateStrin
 
 const TOOL: Record<string, string> = { sheet: 'spreadsheet', database: 'SQL workbench', sql: 'SQL', code: 'code editor', app: 'app simulation', desktop: 'full work desktop' };
 
-const LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><defs><linearGradient id="g" x1="3" y1="21" x2="21" y2="3" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#3b6fe0"/><stop offset=".55" stop-color="#8b5cf6"/><stop offset="1" stop-color="#db5a9e"/></linearGradient></defs><rect x="1" y="1" width="22" height="22" rx="6.5" fill="url(#g)"/><path fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" d="M4.6 4.6 7.7 7.7M16 9.6A6.4 6.4 0 0 1 9.6 16M14.13 14.13 19.4 19.4"/><g fill="#fff"><circle cx="9.6" cy="9.6" r="3"/><circle cx="13.92" cy="11.17" r=".95"/><circle cx="12.85" cy="12.85" r=".95"/><circle cx="11.17" cy="13.92" r=".95"/></g></svg>`;
+const LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><defs><linearGradient id="g" x1="1" y1="20" x2="23" y2="4" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#3b6fe0"/><stop offset=".55" stop-color="#8b5cf6"/><stop offset="1" stop-color="#db5a9e"/></linearGradient></defs><path fill="url(#g)" d="M9 1.5H23.2C22 5 19.6 8.3 16 8.3H9C4.9 8.3 1.6 11.1 0.6 14.6C0.4 13.9 0.3 12.9 0.3 12C0.3 6.2 4.2 1.5 9 1.5Z"/><path fill="url(#g)" opacity=".92" d="M0.6 15.2H16C19.2 15.2 22 18.6 23.6 22.5H9C4.9 22.5 1.6 19.4 0.6 15.2Z"/></svg>`;
 
 // The static pages' look: readable on any screen, light and quick
 const SITE_STYLE = `<style>

@@ -1,9 +1,9 @@
 import React, { useId } from 'react';
 
 /**
- * Corprax's brand: a clean synapse, white on the AI gradient (blue, violet, pink) in a rounded square: one cell's
- * terminal passing a signal across the gap to the next, the way Corprax connects people and work. The name is set in a rounded geometric sans (Outfit) in the same gradient. The AI chat
- * has its own mark (AiMark, an animated +).
+ * Corprax's brand: a geometric C made of two blades (a full upper blade and a lower one, split by a thin gap), on the
+ * site's AI gradient (blue, violet, pink). The name is set in a rounded geometric sans (Outfit) in the same gradient.
+ * The AI chat has its own mark (AiMark, an animated +).
  */
 
 export const BrandSparkle: React.FC<{ className?: string; busy?: boolean; title?: string }> = ({ className = 'w-6 h-6', busy, title }) => {
@@ -11,24 +11,14 @@ export const BrandSparkle: React.FC<{ className?: string; busy?: boolean; title?
   return (
     <svg viewBox="0 0 24 24" className={`${className} shrink-0 ${busy ? 'brand-spin' : ''}`} role={title ? 'img' : undefined} aria-label={title} aria-hidden={title ? undefined : true}>
       <defs>
-        <linearGradient id={`bs-${id}`} x1="3" y1="21" x2="21" y2="3" gradientUnits="userSpaceOnUse">
+        <linearGradient id={`bs-${id}`} x1="1" y1="20" x2="23" y2="4" gradientUnits="userSpaceOnUse">
           <stop offset="0" stopColor="#3b6fe0" />
           <stop offset="0.55" stopColor="#8b5cf6" />
           <stop offset="1" stopColor="#db5a9e" />
         </linearGradient>
       </defs>
-      {/* A clean synapse on one diagonal: a line into a round terminal, three dots crossing the gap, and the next cell's
-          cup facing it with a line out */}
-      <rect x="1" y="1" width="22" height="22" rx="6.5" fill={`url(#bs-${id})`} />
-      <g fill="none" stroke="#fff" strokeWidth="2.3" strokeLinecap="round">
-        <path d="M4.6 4.6 7.7 7.7M16 9.6A6.4 6.4 0 0 1 9.6 16M14.13 14.13 19.4 19.4" />
-      </g>
-      <g fill="#fff">
-        <circle cx="9.6" cy="9.6" r="2.9" />
-        <circle cx="13.92" cy="11.17" r="0.85" />
-        <circle cx="12.85" cy="12.85" r="0.85" />
-        <circle cx="11.17" cy="13.92" r="0.85" />
-      </g>
+      <path fill={`url(#bs-${id})`} d="M9 1.5H23.2C22 5 19.6 8.3 16 8.3H9C4.9 8.3 1.6 11.1 0.6 14.6C0.4 13.9 0.3 12.9 0.3 12C0.3 6.2 4.2 1.5 9 1.5Z" />
+      <path fill={`url(#bs-${id})`} opacity="0.92" d="M0.6 15.2H16C19.2 15.2 22 18.6 23.6 22.5H9C4.9 22.5 1.6 19.4 0.6 15.2Z" />
     </svg>
   );
 };
