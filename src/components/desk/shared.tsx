@@ -23,6 +23,10 @@ export interface DeskCtx {
   setWork: <K extends keyof DeskAppsState>(app: K, next: DeskAppsState[K]) => void;
   // Whether the day has reached a phase
   reached: (phase?: string) => boolean;
+  // The desktop's state now (after an await, ctx.state may be out of date)
+  latest: () => DesktopState;
+  // The company looking back at the candidate's desktop: nothing changes and nothing is sent
+  readOnly?: boolean;
   me: { name: string; email: string };
 }
 

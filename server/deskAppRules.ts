@@ -55,51 +55,47 @@ export const WORK_APP_CHECKS = `  file:<file name>        the text of a file the
 // The AI-at-work layer of a job simulation (src/lib/capabilities.ts): scripted AI agents in the Agents app, with
 // planted mistakes. Only for a job simulation the company builds with the layer on
 export const AI_LAYER_RULES = `THE AI-AT-WORK LAYER (ON for this day): the day also measures how the candidate works with AI, not AI trivia.
-Put "agents" in apps (it doesn't count as a work environment) and its data in work under "agents":
+Put "agents" in apps (it doesn't count as a work environment) and its data in work under "agents". The agents are LIVE
+AI: they do the work for real on the day's data and answer whatever the candidate writes. You write only each task and
+the agent's BLIND SPOTS (pitfalls): mistakes it makes unless the candidate's brief or later instructions cover that point.
   "agents": {"name":"<company> AI agents","agents":[{"id":"ada","name":"Ada","role":"Insight agent: analysis, summaries
     and drafts"},{"id":"dex","name":"Dex","role":"Data agent: cleaning, merging and exporting data"}],
-    "tasks":[{"id":"till","phase":"juggling","title":"...","context":"who asked and why, one or two sentences",
+    "tasks":[{"id":"tidy","phase":"juggling","title":"...","context":"who asked and why, one or two sentences",
       "agent":"","brief":"","bestAgent":"dex",
-      "runs":[{"id":"good","when":[["duplicate","twice","dupe"]],"steps":["what it did, one line each"],
-        "output":"what it hands back, one line per point","file":{"name":"x_clean.csv","content":"..."},
-        "action":"what approving does"},
-       {"id":"weak","when":[],"steps":[...],"output":"...","file":{"name":"x_clean.csv","content":"..."},"action":"..."}],
-      "issues":[{"id":"dropped","run":"weak","quote":"exact words from one step or output line","why":"what's wrong"}]},
-     {"id":"draft","phase":"report","title":"Draft: ...","context":"...","agent":"ada","brief":"the brief it was given",
-      "runs":[{"id":"draft","when":[],"steps":[],"output":"the draft, one line per point","file":{"name":"","content":""},"action":""}],
-      "issues":[...five issues...]}]}
-  Agents are 2 (names and roles to suit the job). Tasks are scripted: no live AI. A task with "agent" and "brief" set is
-  already run (its first run shows); with them "" the candidate picks an agent and writes a brief, and gets the first run
-  whose "when" word groups the brief has (any one word of each group), else the LAST run, which is the vague-brief result
-  with planted mistakes. Each issue's quote is exact words from one line of that run (case doesn't matter).
+      "goal":"what the work is, neutrally (not hinting at the blind spots)","facts":"what the agent knows: figures, names,
+      dates, the right answers","data":["<file names on the computer it works from>"],"file":"x_clean.csv",
+      "action":"what approving does",
+      "pitfalls":[{"id":"dropped","mistake":"exactly what it gets wrong, with the wrong figure where there is one",
+        "avoidWhen":"what the instructions must make clear, in any words","why":"what's wrong, for the company"}]}]}
+  Agents are 2 (names and roles to suit the job). A task with "agent" and "brief" set was handed out by a colleague: the
+  agent does it when the candidate opens it, falling into every blind spot. With them "" the candidate picks the agent and
+  writes the brief. data names files in files or email attachments (the agent reads them); file is the CSV it hands back
+  ("" for none; approving saves it to Files). Plain text everywhere; facts may use newlines.
 Build in THREE agent tasks, each tied into the parts (and the emails mention them):
-  1. DELEGATE (juggling, or core): a piece of the work for the candidate to hand to the right agent. A brief that names
-     the planted issue gets a clean run; a vague brief gets a run that quietly does damage (deletes real records, drops
-     a condition, misses the planted issue) and says it's fine. The file, when there is one, is what the candidate then
-     uses (Spreadsheet Import CSV makes a new sheet named after the file, e.g. x_clean; check that sheet with
-     IF(ISERROR(COUNTIF(x_clean!A:A,"*")),<formula on the original>,<same formula on x_clean>)).
-  2. JUDGEMENT (juggling): an agent's recommendation, already run, that is technically plausible but commercially or
+  1. DELEGATE (juggling, or core): a piece of the work for the candidate to hand to the right agent, with 2 pitfalls that
+     do quiet damage (delete real records, drop a condition, miss the planted data issue) unless the brief covers them.
+     Its file is what the candidate then uses (Spreadsheet Import CSV makes a new sheet named after the file, e.g. x_clean;
+     check that sheet with IF(ISERROR(COUNTIF(x_clean!A:A,"*")),<formula on the original>,<same formula on x_clean>)).
+  2. JUDGEMENT (juggling): handed out already: a recommendation that is technically plausible but commercially or
      ethically wrong (hides a miss from leadership, breaks a policy or promise to a customer, treats people unfairly,
-     shares private data), with an approval "action". Someone leans on the candidate to approve it (the grey-area
-     email). The right call is to reject or send it back.
-  3. VERIFY (report): the agent's draft of the report back, already run, with EXACTLY FIVE planted mistakes, each on its
-     own line: a figure that ignores the curveball, a wrong date or count, a made-up source or statistic (a
-     hallucination), a number that includes the planted data issue, and one more specific to the day. Other lines are
-     right. The candidate flags them, then writes their own report.
-  Also one AI-generated figure someone quotes in an email (e.g. "the agent says revenue was £X, OK to use?") that's
-  wrong because of the planted issue: the reply is marked on giving the right figure.
-Agent checks (in checks, like the others):
-  agent:<task id>:run       the run showing, e.g. expected "good" (the delegate task's clean run)
-  agent:<task id>:approved  the run approved ("good" for the delegate task)
-  agent:<task id>:decision  approved|rejected|returned, e.g. expected "rejected|returned" for the judgement task
-  agent:<task id>:agent     who it was given to
+     shares private data), as 2 to 3 pitfalls, with an "action". Someone leans on the candidate to approve it (the
+     grey-area email).
+  3. VERIFY (report): handed out already: the agent's draft of the report back, with EXACTLY FIVE pitfalls, each one line
+     of the draft: a figure that ignores the curveball, a wrong date or count, a made-up source or statistic, a number that
+     includes the planted data issue, and one more specific to the day. facts hold every right figure.
+  Also one AI-generated figure someone quotes in an email (e.g. "the agent says revenue was £X, OK to use?") that's wrong
+  because of the planted issue: the reply is marked on giving the right figure.
+Agent checks (in checks, like the others; each run reports which blind spots it fell into):
+  agent:<task id>:clean     its latest run fell into no blind spot: expected "true" (the delegate task: briefed well)
+  agent:<task id>:approved  "clean" (approved only work without the mistakes) or "flawed": expected "clean"
+  agent:<task id>:handled   rejected, sent back, or approved only clean work: expected "true" (the judgement task)
   agent:<task id>:note      the note with their decision (rubric)
-  agentcaught:<task id>     planted mistakes caught on the verify task: expected "5" (marked with partial credit)
+  agentcaught:<task id>     the verify task's planted mistakes caught: expected "5" (marked with partial credit)
 Each check has capability: "orchestrate" (briefing and directing agents), "verify" (checking AI output: the delegate
-approval, the quoted figure's reply, agentcaught), "judgement" (the judgement task's decision and the grey-area reply),
-"adapt" (the curveball checks), "own" (the report back's email), "fluency" (using AI to get the core work done), or ""
-for the job's own skills. Tag every check; at least five have a capability.
-The setting's planted lines list the three agent tasks and every mistake planted in them, so the desk and script match.`;
+approval, the quoted figure's reply, agentcaught), "judgement" (the judgement task and the grey-area reply), "adapt" (the
+curveball checks), "own" (the report back's email), "fluency" (using AI to get the core work done), or "" for the job's
+own skills. Tag every check; at least five have a capability.
+The setting's planted lines list the three agent tasks and their blind spots, so the desk and script match.`;
 
 export const NO_AI_LAYER = `THE AI-AT-WORK LAYER is OFF for this day: no "agents" app or work data, and every check's capability is "" except
 the curveball's checks ("adapt"), the grey-area reply ("judgement") and the report back's email ("own").`;

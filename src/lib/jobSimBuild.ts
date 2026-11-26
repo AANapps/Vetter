@@ -199,20 +199,21 @@ function workOf(raw: RawJobSim): DeskAppsConfig {
         out.kb = { ...(d as object), articles: arr(d.articles) } as KbConfig;
         break;
       case 'agents': {
-        const words = (v: unknown) => arr<unknown[]>(v).map((g) => arr<string>(g).map(String).filter((w) => w.trim())).filter((g) => g.length);
         out.agents = {
           name: typeof d.name === 'string' ? d.name : undefined,
           agents: arr<AgentsConfig['agents'][number]>(d.agents).filter((a) => a?.id && a?.name),
           tasks: arr<AgentsConfig['tasks'][number]>(d.tasks)
-            .filter((t) => t?.id && arr(t.runs).length)
+            .filter((t) => t?.id && t?.goal)
             .map((t) => ({
               ...t,
               id: String(t.id),
               agent: t.agent || undefined,
               brief: t.brief || undefined,
               phase: t.phase || undefined,
-              runs: arr<AgentsConfig['tasks'][number]['runs'][number]>(t.runs).map((r) => ({ ...r, id: String(r.id), when: words(r.when), steps: arr<string>(r.steps), output: String(r.output ?? ''), file: r.file?.name?.trim() ? { name: r.file.name.trim(), content: String(r.file.content ?? '') } : undefined, action: r.action || undefined })),
-              issues: arr<NonNullable<AgentsConfig['tasks'][number]['issues']>[number]>(t.issues).filter((i) => i?.id && i?.quote).map((i) => ({ ...i, run: i.run || undefined })),
+              file: t.file || undefined,
+              action: t.action || undefined,
+              data: arr<string>(t.data).filter((n) => String(n).trim()),
+              pitfalls: arr<AgentsConfig['tasks'][number]['pitfalls'][number]>(t.pitfalls).filter((p) => p?.id && p?.mistake),
             })),
         };
         break;
@@ -249,12 +250,11 @@ function workProblems(raw: RawJobSim, w: DeskAppsConfig): string[] {
     if (!a?.agents.length || !a.tasks.length) p.push('apps has agents but work.agents has no agents or no tasks.');
     for (const t of a?.tasks ?? []) {
       if (t.agent && !a!.agents.some((x) => x.id === t.agent)) p.push(`Agent task ${t.id} is given to an agent (${t.agent}) that isn't in work.agents.agents.`);
-      if (!t.agent && !t.runs.some((r) => !r.when?.length)) p.push(`Agent task ${t.id}: its last run (for a vague brief) must have no "when" words.`);
-      for (const i of t.issues ?? []) {
-        const runs = t.runs.filter((r) => !i.run || r.id === i.run);
-        const lines = runs.flatMap((r) => [...(r.steps ?? []), ...r.output.split('\n')]);
-        if (!runs.length) p.push(`Agent task ${t.id}, issue ${i.id}: run ${i.run} doesn't exist.`);
-        else if (!lines.some((l) => l.toLowerCase().includes(i.quote.toLowerCase()))) p.push(`Agent task ${t.id}, issue ${i.id}: its quote "${i.quote}" isn't the exact words of any line of ${i.run ? `run ${i.run}` : 'its runs'}.`);
+      if (t.agent && !t.brief) p.push(`Agent task ${t.id} is handed out already (agent ${t.agent}) but has no brief.`);
+      if (!t.pitfalls.length) p.push(`Agent task ${t.id} has no pitfalls (the agent's blind spots).`);
+      for (const name of t.data ?? []) {
+        const known = (raw.files ?? []).some((f) => lower(f.name) === lower(name)) || (raw.inbox ?? []).some((m) => (m.attachments ?? []).some((f) => lower(f.name) === lower(name)));
+        if (!known) p.push(`Agent task ${t.id} works from ${name}, which isn't a file on the computer or attached to an email.`);
       }
     }
   }
@@ -266,7 +266,7 @@ function workProblems(raw: RawJobSim, w: DeskAppsConfig): string[] {
 const WORK_APP_OF: Record<string, DeskWorkApp> = { agent: 'agents', agentflag: 'agents', agentcaught: 'agents', agentopened: 'agents', chat: 'chat', chatcount: 'chat', chatreceived: 'chat', ticket: 'helpdesk', tickets: 'helpdesk', record: 'crm', recordwhere: 'crm', records: 'crm', crmnote: 'crm', event: 'calendar', eventwith: 'calendar', eventat: 'calendar', response: 'calendar', form: 'forms', formcount: 'forms', kbviewed: 'kb', item: 'board', itemwhere: 'board', items: 'board', chart: 'bi', charts: 'bi' };
 // The built-in apps' check kinds, and those that read writing (so may have a rubric)
 const WORK_CHECKS = ['agent', 'agentflag', 'agentcaught', 'agentopened', 'file', 'filerows', 'chat', 'chatcount', 'chatreceived', 'ticket', 'tickets', 'record', 'recordwhere', 'records', 'crmnote', 'event', 'eventwith', 'eventat', 'response', 'form', 'formcount', 'kbviewed', 'item', 'itemwhere', 'items', 'chart', 'charts'];
-const writingCheck = (kind: string, rest: string) => ['chat', 'file', 'crmnote'].includes(kind) || (kind === 'agent' && /:(note|brief|flagnotes)$/.test(rest)) || (kind === 'ticket' && /:(reply|note)$/.test(rest)) || (kind === 'item' && /:comments$/.test(rest)) || kind === 'form';
+const writingCheck = (kind: string, rest: string) => ['chat', 'file', 'crmnote'].includes(kind) || (kind === 'agent' && /:(note|notes|brief|flagnotes)$/.test(rest)) || (kind === 'ticket' && /:(reply|note)$/.test(rest)) || (kind === 'item' && /:comments$/.test(rest)) || kind === 'form';
 
 export interface AssembledJobSim {
   test?: AssessmentTest;
@@ -406,8 +406,12 @@ export function assembleJobSim(raw: RawJobSim, business?: Business, lenient = fa
   if (!checks.some((c) => c[0] === 'report' && typeof c[3] !== 'string')) problems.push('The report back has no rubric-marked email to the manager.');
   if (aiLayer && desktop.apps.includes('agents')) {
     if (!checks.some((c) => c[2].startsWith('agentcaught:'))) problems.push('The AI-at-work layer has no agentcaught: check on the agent\'s draft with five planted mistakes.');
-    if (!checks.some((c) => c[2].startsWith('agent:') && /:(run|approved)$/.test(c[2]))) problems.push('The AI-at-work layer has no check on the delegated task (agent:<task>:run or :approved).');
-    if (!checks.some((c) => c[2].startsWith('agent:') && c[2].endsWith(':decision'))) problems.push('The AI-at-work layer has no check on the judgement task (agent:<task>:decision).');
+    if (!checks.some((c) => c[2].startsWith('agent:') && /:(clean|approved)$/.test(c[2]))) problems.push('The AI-at-work layer has no check on the delegated task (agent:<task>:clean or :approved).');
+    if (!checks.some((c) => c[2].startsWith('agent:') && /:(handled|decision)$/.test(c[2]))) problems.push('The AI-at-work layer has no check on the judgement task (agent:<task>:handled).');
+    for (const c of checks.filter((x) => x[2].startsWith('agentcaught:'))) {
+      const t = desktop.work?.agents?.tasks.find((x) => lower(x.id) === lower(c[2].slice(12)));
+      if (t && (!t.agent || t.pitfalls.length !== 5)) problems.push(`Agent task ${t.id} is checked with agentcaught, so it must be handed out already (agent and brief set) with exactly five pitfalls.`);
+    }
     if (checks.filter((c) => c[4]).length < 5) problems.push('Fewer than five checks have a capability: tag them (orchestrate, verify, judgement, adapt, own, fluency).');
   }
 

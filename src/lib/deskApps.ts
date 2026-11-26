@@ -255,33 +255,21 @@ export interface BoardConfig {
 }
 
 // ---------- Agents ----------
-// The AI-at-work layer of a job simulation: AI agents that do part of the work. Scripted, so it costs nothing and marks
-// the same for everyone. A task is either already run (an agent's draft waiting for review) or the candidate's to hand
-// to an agent with a brief; what comes back depends on the brief (a run whose words the brief has, else the last run).
-// Each run's steps and output lines can be flagged; the planted issues are the lines a careful person flags.
+// The AI-at-work layer of a job simulation: AI agents that do part of the work, answered live by a quick model
+// (server/deskAgent.ts) on the day's data, whatever the candidate writes. The day sets only each task and the agent's
+// blind spots: mistakes it makes unless the brief, or what the candidate tells it later, covers that point. Each run
+// reports which blind spots it fell into and on which line, so marking reads what the candidate did about them.
 export interface AgentDef {
   id: string;
   name: string; // "Ada"
   role: string; // "Insight agent: analysis, summaries and drafts"
 }
-export interface AgentRun {
-  id: string; // "good", "weak"
-  // The brief has a word from each group (any one of each); the last run has none and is what a vague brief gets
-  when?: string[][];
-  // What the agent did, in order (its activity log), and what it hands back: text, and a file saved to Files on approval
-  steps?: string[];
-  output: string;
-  file?: CaseFile;
-  // What approving does, shown on the button's confirmation ("Replace the till export with the cleaned file")
-  action?: string;
-}
-export interface AgentIssue {
+export interface AgentPitfall {
   id: string;
-  // Text in one of the run's steps or output lines: flagging that line catches it
-  quote: string;
-  // The run it's in (any run when left out)
-  run?: string;
-  // What's wrong, shown to the company with the results
+  // The mistake the agent makes by default, what the instructions must make clear to avoid it, and (for the company's
+  // view) what's wrong when it happens
+  mistake: string;
+  avoidWhen: string;
   why: string;
 }
 export interface AgentTask {
@@ -289,13 +277,20 @@ export interface AgentTask {
   title: string;
   // Who asked for it and why, shown on the task
   context?: string;
-  // Handed out already (the agent ran it on its own, or a colleague asked it): the candidate reviews what came back
+  // Handed out already (a colleague asked the agent): its first run is made when the task is first opened, with every
+  // blind spot in it, for the candidate to review
   agent?: string;
   brief?: string;
-  // The agent the work fits, for a task the candidate hands out (checked with agent:<task>:agent)
+  // The agent the work fits, for a task the candidate hands out
   bestAgent?: string;
-  runs: AgentRun[];
-  issues?: AgentIssue[];
+  // What the work is, what the agent knows, the files on the computer it works from, and the file it hands back
+  goal: string;
+  facts?: string;
+  data?: string[];
+  file?: string;
+  // What approving does ("Save the cleaned file to Files")
+  action?: string;
+  pitfalls: AgentPitfall[];
   phase?: string;
 }
 export interface AgentsConfig {
@@ -303,8 +298,18 @@ export interface AgentsConfig {
   agents: AgentDef[];
   tasks: AgentTask[];
 }
+// A run as the agent handed it back: its activity, output and file, and the blind spots whose problem is in it, each
+// pinned to the lines it shows on or throws off ("s:<i>" a step, "o:<i>" an output line)
+export interface AgentRun {
+  id: string;
+  agent: string;
+  steps: string[];
+  output: string;
+  file?: CaseFile;
+  slips: { id: string; lines: string[] }[];
+  at: number;
+}
 export interface AgentFlag {
-  // "s:<index>" for a step, "o:<index>" for an output line, in the run that was showing
   line: string;
   run: string;
   text: string;
@@ -314,13 +319,16 @@ export interface AgentFlag {
 export interface AgentTaskWork {
   agent?: string;
   brief?: string;
-  // Runs made, in order (their ids); the last one is what's showing
-  runs?: string[];
+  // What they told the agent since the brief (with work sent back)
+  notes?: string[];
+  runs?: AgentRun[];
   decision?: 'approved' | 'rejected' | 'returned';
-  // The run approved, if any, and the note given with the last decision
-  approved?: string;
+  // Whether the run they approved was clean, and the note with their last decision
+  approved?: 'clean' | 'flawed';
   note?: string;
   flags?: AgentFlag[];
+  // Questions asked and the agent's answers
+  chat?: { role: 'user' | 'assistant'; text: string }[];
   // Every step taken, in order, for the company's view of how they worked
   log?: { what: string; at: number }[];
 }
@@ -418,32 +426,20 @@ export function calendarEvents(cfg: CalendarConfig, work: CalendarWork | undefin
   return [...cfg.events, ...(work?.events ?? [])].filter((e) => !removed.has(e.id));
 }
 
-// The agent tasks that have reached the day, and the run showing on each: the candidate's last, else the one an
-// already-run task came with (its first)
+// The agent tasks that have reached the day, and the run showing on each (the latest)
 export const agentTasksNow = (cfg: AgentsConfig, reached: Reached) => cfg.tasks.filter((t) => reached(t.phase));
-export function agentRunShowing(t: AgentTask, w?: AgentTaskWork): AgentRun | undefined {
-  const last = w?.runs?.[w.runs.length - 1];
-  if (last) return t.runs.find((r) => r.id === last);
-  return t.agent && t.brief ? t.runs[0] : undefined;
-}
-// The run a brief earns: the first whose word groups it has (any one word of each), else the last
-export function agentRunFor(t: AgentTask, brief: string): AgentRun {
-  const text = brief.toLowerCase();
-  return t.runs.find((r) => r.when?.length && r.when.every((g) => g.some((w) => text.includes(w.toLowerCase())))) ?? t.runs[t.runs.length - 1];
-}
+export const agentRunShowing = (w?: AgentTaskWork): AgentRun | undefined => w?.runs?.[w.runs.length - 1];
 // The lines of a run that can be flagged, with their keys
-export const agentLines = (r: AgentRun) => [...(r.steps ?? []).map((text, i) => ({ key: `s:${i}`, text })), ...r.output.split('\n').map((text, i) => ({ key: `o:${i}`, text })).filter((l) => l.text.trim())];
-// Which planted issues the candidate caught (a flag on the line holding the issue's quote), and the flags that caught
-// nothing (false alarms)
+export const agentLines = (r: AgentRun) => [...r.steps.map((text, i) => ({ key: `s:${i}`, text })), ...r.output.split('\n').map((text, i) => ({ key: `o:${i}`, text })).filter((l) => l.text.trim())];
+// The planted mistakes in the work as first handed over (a draft already run, or the candidate's first run) that they
+// caught (flagged the line), the flags on it that caught nothing, and how many there were to catch
 export function agentCatches(t: AgentTask, w?: AgentTaskWork) {
-  const flags = w?.flags ?? [];
-  const has = (f: AgentFlag, i: AgentIssue) => (!i.run || i.run === f.run) && f.text.toLowerCase().includes(i.quote.toLowerCase());
-  const caught = (t.issues ?? []).filter((i) => flags.some((f) => has(f, i)));
-  const wrong = flags.filter((f) => !(t.issues ?? []).some((i) => has(f, i)));
-  // Only the issues in runs the candidate saw count towards the total
-  const seen = new Set([...(w?.runs ?? []), ...(t.agent && t.brief ? [t.runs[0].id] : [])]);
-  const total = (t.issues ?? []).filter((i) => !i.run || seen.has(i.run)).length;
-  return { caught, wrong, total };
+  const first = w?.runs?.[0];
+  if (!first) return { caught: [] as string[], wrong: [] as AgentFlag[], total: t.pitfalls.length };
+  const flags = (w?.flags ?? []).filter((f) => f.run === first.id);
+  const caught = first.slips.filter((s) => flags.some((f) => s.lines.includes(f.line))).map((s) => s.id);
+  const wrong = flags.filter((f) => !first.slips.some((s) => s.lines.includes(f.line)));
+  return { caught, wrong, total: first.slips.length };
 }
 
 // ---------- BI: a chart's numbers ----------
@@ -525,12 +521,14 @@ export function chartData(ch: BiChart, ds: Dataset | undefined): { labels: strin
  *   items:<board>:<status>           how many items have that status
  *   chart:<words>                    the chart with those words in its title, as "kind x by agg y" (filters too)
  *   charts                           how many charts the dashboard has
- *   agent:<task>:<field>             an agent task: agent (who it was given to), brief, run (the run showing), runs
- *                                    (every run, " > " between), decision (approved/rejected/returned or ''), approved
- *                                    (the run approved, '' if none), note (the note with the decision), flags (how
- *                                    many lines flagged), flagnotes (what they wrote on their flags)
- *   agentflag:<task>:<issue id>      whether they flagged the line with that planted issue
- *   agentcaught:<task>               planted issues caught, "n/total" (partial credit, less for false alarms)
+ *   agent:<task>:<field>             an agent task: agent (who has it), brief, clean (its latest run fell into no blind
+ *                                    spot: true/false), slips (the latest run's blind spots, comma-joined), runs (how
+ *                                    many), decision (approved/rejected/returned or ''), approved (clean/flawed or ''),
+ *                                    note (with the decision), notes (everything they told it), flags, flagnotes, asked,
+ *                                    handled (rejected, sent back, or approved only clean work: for a judgement call)
+ *   agentflag:<task>:<pitfall id>    whether they flagged a line where the agent fell into that blind spot
+ *   agentcaught:<task>               the first run's planted mistakes caught, "n/total" (partial credit, less for false
+ *                                    alarms)
  *   agentopened:<task>               whether they opened the task
  */
 export function deskAppValue(
@@ -639,25 +637,29 @@ export function deskAppValue(
       const t = apps.agents?.tasks.find((x) => lower(x.id) === lower(id));
       if (!t) return { known: true, value: undefined };
       const w = work.agents?.tasks?.[t.id];
+      const last = agentRunShowing(w);
       if (kind === 'agentopened') return { known: true, value: (work.agents?.opened ?? []).includes(t.id) };
       if (kind === 'agentcaught') {
         const c = agentCatches(t, w);
         return { known: true, value: `${c.caught.length}/${c.total}` };
       }
-      if (kind === 'agentflag') {
-        const issue = t.issues?.find((i) => lower(i.id) === lower(field ?? ''));
-        return { known: true, value: !!issue && agentCatches(t, w).caught.includes(issue) };
-      }
+      if (kind === 'agentflag')
+        return { known: true, value: (w?.runs ?? []).some((r) => r.slips.some((sl) => lower(sl.id) === lower(field ?? '') && (w?.flags ?? []).some((f) => f.run === r.id && sl.lines.includes(f.line)))) };
       const v: Record<string, unknown> = {
         agent: w?.agent ?? t.agent ?? '',
         brief: w?.brief ?? '',
-        run: agentRunShowing(t, w)?.id ?? '',
-        runs: (w?.runs ?? []).join(' > '),
+        clean: !!last && !last.slips.length,
+        // A judgement call handled: they rejected it, sent it back, or approved only clean work
+        handled: w?.decision === 'rejected' || w?.decision === 'returned' || (w?.decision === 'approved' && w.approved === 'clean'),
+        slips: (last?.slips ?? []).map((x) => x.id).join(', '),
+        runs: (w?.runs ?? []).length,
         decision: w?.decision ?? '',
         approved: w?.approved ?? '',
         note: w?.note ?? '',
+        notes: (w?.notes ?? []).join('\n'),
         flags: (w?.flags ?? []).length,
         flagnotes: (w?.flags ?? []).map((f) => `${f.text} — ${f.note}`).join('\n'),
+        asked: (w?.chat ?? []).filter((m) => m.role === 'user').length,
       };
       return { known: true, value: v[field ?? ''] };
     }

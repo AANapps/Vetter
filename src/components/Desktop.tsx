@@ -295,6 +295,8 @@ export const Desktop: React.FC<{ question: Question; answer: string; onChange: (
     toast: setToast,
     setWork: (app, next) => save({ desk: { ...(latest.current.desk ?? {}), [app]: next } }),
     reached,
+    latest: () => latest.current,
+    readOnly,
     me: { name: cfg.user.name, email: cfg.user.email },
   };
   const work = cfg.work ?? {};

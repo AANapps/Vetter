@@ -85,18 +85,14 @@ const allowed = (uid: string) => {
   return true;
 };
 
-export async function taskAssistant(body: unknown, env: Record<string, string | undefined>, authorization: string | undefined, model: string): Promise<{ status: number; json: unknown }> {
-  const apiKey = env.ANTHROPIC_API_KEY;
-  const req = body as AssistantRequest;
-  if (req && req.mode === 'helper' && typeof req.brief !== 'string') req.brief = '';
-  if (!req || typeof req.task !== 'string' || typeof req.brief !== 'string' || !Array.isArray(req.messages)) return { status: 400, json: { error: 'Nothing to answer.' } };
-  if (!apiKey) return { status: 503, json: { error: 'not-configured' } };
-  // Signed in, with accounts on: checked against Google's keys
+// Whether the caller may use AI Corprax pays for: signed in (with accounts on, checked against Google's keys) and under
+// the hourly limit. Undefined when they may; otherwise the answer to send. Shared with the desktop's AI agents
+export async function mayAsk(env: Record<string, string | undefined>, authorization: string | undefined, what: string): Promise<{ status: number; json: unknown } | undefined> {
   let uid = 'demo';
   const project = env.FIREBASE_PROJECT_ID || env.VITE_FIREBASE_PROJECT_ID || '';
   if (project) {
     const token = authorization?.match(/^Bearer (.+)$/)?.[1];
-    if (!token) return { status: 401, json: { error: 'Sign in to use the AI assistant.' } };
+    if (!token) return { status: 401, json: { error: `Sign in to ${what}.` } };
     try {
       const { payload } = await jwtVerify(token, keys, { issuer: `https://securetoken.google.com/${project}`, audience: project });
       uid = String(payload.sub ?? '');
@@ -105,6 +101,17 @@ export async function taskAssistant(body: unknown, env: Record<string, string | 
     }
   }
   if (!allowed(uid)) return { status: 429, json: { error: "You've sent a lot of messages in the last hour. Wait a while and try again." } };
+  return undefined;
+}
+
+export async function taskAssistant(body: unknown, env: Record<string, string | undefined>, authorization: string | undefined, model: string): Promise<{ status: number; json: unknown }> {
+  const apiKey = env.ANTHROPIC_API_KEY;
+  const req = body as AssistantRequest;
+  if (req && req.mode === 'helper' && typeof req.brief !== 'string') req.brief = '';
+  if (!req || typeof req.task !== 'string' || typeof req.brief !== 'string' || !Array.isArray(req.messages)) return { status: 400, json: { error: 'Nothing to answer.' } };
+  if (!apiKey) return { status: 503, json: { error: 'not-configured' } };
+  const caller = await mayAsk(env, authorization, 'use the AI assistant');
+  if (caller) return caller;
   const turns = req.messages
     .slice(-MAX_TURNS)
     .filter((m) => (m.role === 'user' || m.role === 'assistant') && typeof m.text === 'string' && m.text.trim())

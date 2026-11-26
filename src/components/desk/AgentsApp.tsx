@@ -1,31 +1,41 @@
-import React, { useEffect, useState } from 'react';
-import { Bot, Check, Copy, Flag, Loader2, Play, RotateCcw, Sparkles, X } from 'lucide-react';
-import { AgentRun, AgentTask, AgentTaskWork, AgentsConfig, agentLines, agentRunFor, agentRunShowing, agentTasksNow } from '../../lib/deskApps';
+import React, { useEffect, useRef, useState } from 'react';
+import { Bot, Check, ChevronDown, Copy, Flag, Loader2, MessageSquare, Play, RotateCcw, Send, Sparkles, X } from 'lucide-react';
+import { AgentRun, AgentTask, AgentTaskWork, AgentsConfig, agentLines, agentRunShowing, agentTasksNow } from '../../lib/deskApps';
+import { signedInHeaders } from '../../lib/aiRequest';
 import { DeskCtx, btn, primary } from './shared';
 
-// How long an agent "works" before its run shows, so a run feels like one
-const RUN_MS = 1400;
-
 /**
- * AI agents at work, the AI-at-work layer of a job simulation: the candidate hands work to an agent with a brief, reads
- * its activity and output, flags lines that are wrong (what's wrong with each), and approves, sends back or rejects.
- * Scripted (src/lib/deskApps.ts AgentsConfig): what comes back depends on the brief, and each run has planted mistakes.
- * Everything they do is kept, with when, for the company's view of how they worked (agent: checks).
+ * AI agents at work, the AI-at-work layer of a job simulation. Each agent is live AI (server/deskAgent.ts): the
+ * candidate hands it work with a brief in their own words, asks it questions, reads its activity and output, flags
+ * lines that are wrong (and what's wrong), and approves, sends back with what to change (it does the work again) or
+ * rejects. The day sets only the agent's blind spots; each run says which it fell into and where, which is what's
+ * marked (src/lib/deskApps.ts agent: checks). Everything they do is kept, with when.
  */
+
+type Work = { tasks: Record<string, AgentTaskWork>; opened?: string[] };
+
+async function callAgent(body: Record<string, unknown>): Promise<{ run?: Omit<AgentRun, 'id' | 'agent' | 'at'>; reply?: string }> {
+  const res = await fetch('/api/desk-agent', { method: 'POST', headers: await signedInHeaders(), body: JSON.stringify(body) });
+  const out = await res.json().catch(() => ({}));
+  if (!res.ok || out.error) throw new Error(out.error === 'not-configured' ? "The AI agents aren't available on this site." : out.error || "The agent couldn't answer. Try again.");
+  return out;
+}
+
 export const AgentsApp: React.FC<{ ctx: DeskCtx; cfg: AgentsConfig }> = ({ ctx, cfg }) => {
-  const work = ctx.state.desk?.agents ?? { tasks: {} };
+  const work: Work = ctx.state.desk?.agents ?? { tasks: {} };
   const tasks = agentTasksNow(cfg, ctx.reached);
   const [openId, setOpenId] = useState<string | null>(tasks[0]?.id ?? null);
   const task = tasks.find((t) => t.id === openId);
   useEffect(() => {
-    if (task && !(work.opened ?? []).includes(task.id)) ctx.setWork('agents', { ...work, opened: [...(work.opened ?? []), task.id] });
+    if (!ctx.readOnly && task && !(work.opened ?? []).includes(task.id)) ctx.setWork('agents', { ...work, opened: [...(work.opened ?? []), task.id] });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [task?.id]);
+  // Changes one task's work on the desktop as it is now (an agent's answer arrives after the state it was asked from)
   const update = (id: string, change: (w: AgentTaskWork) => AgentTaskWork, what: string) => {
-    const cur = ctx.state.desk?.agents ?? { tasks: {} };
+    if (ctx.readOnly) return;
+    const cur: Work = ctx.latest().desk?.agents ?? { tasks: {} };
     const w = cur.tasks[id] ?? {};
-    const next = change(w);
-    ctx.setWork('agents', { ...cur, tasks: { ...cur.tasks, [id]: { ...next, log: [...(w.log ?? []), { what, at: Date.now() }] } } });
+    ctx.setWork('agents', { ...cur, tasks: { ...cur.tasks, [id]: { ...change(w), log: [...(w.log ?? []), { what, at: Date.now() }] } } });
   };
   return (
     <div className="h-full flex text-[13px] text-slate-800 bg-white" data-ref="agents" style={{ ['--accent' as string]: '#7c3aed', ['--accent-soft' as string]: '#ede9fe' }}>
@@ -52,71 +62,100 @@ export const AgentsApp: React.FC<{ ctx: DeskCtx; cfg: AgentsConfig }> = ({ ctx, 
         </ul>
         <div className="px-3 pt-4 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Tasks</div>
         <ul className="px-2 pb-3 space-y-0.5">
-          {tasks.map((t) => {
-            const w = work.tasks[t.id];
-            return (
-              <li key={t.id}>
-                <button
-                  onClick={() => setOpenId(t.id)}
-                  className={`w-full text-left px-2 py-2 rounded-md ${openId === t.id ? 'bg-violet-100/70' : 'hover:bg-slate-100'}`}
-                  data-ref={`agent-task-${t.id}`}
-                >
-                  <span className="block font-medium leading-snug">{t.title}</span>
-                  <span className="mt-0.5 block">
-                    <Status t={t} w={w} />
-                  </span>
-                </button>
-              </li>
-            );
-          })}
+          {tasks.map((t) => (
+            <li key={t.id}>
+              <button onClick={() => setOpenId(t.id)} className={`w-full text-left px-2 py-2 rounded-md ${openId === t.id ? 'bg-violet-100/70' : 'hover:bg-slate-100'}`} data-ref={`agent-task-${t.id}`}>
+                <span className="block font-medium leading-snug">{t.title}</span>
+                <span className="mt-0.5 block">
+                  <Status w={work.tasks[t.id]} />
+                </span>
+              </button>
+            </li>
+          ))}
           {tasks.length === 0 && <li className="px-2 py-2 text-slate-500">No tasks yet.</li>}
         </ul>
       </aside>
-      <main className="flex-1 min-w-0 overflow-y-auto">{task ? <TaskView key={task.id} ctx={ctx} cfg={cfg} t={task} w={work.tasks[task.id]} update={(c, what) => update(task.id, c, what)} /> : <p className="p-6 text-slate-500">Pick a task.</p>}</main>
+      <main className="flex-1 min-w-0 overflow-y-auto">
+        {task ? <TaskView key={task.id} ctx={ctx} cfg={cfg} t={task} w={work.tasks[task.id]} update={(c, what) => update(task.id, c, what)} /> : <p className="p-6 text-slate-500">Pick a task.</p>}
+      </main>
     </div>
   );
 };
 
-const Status: React.FC<{ t: AgentTask; w?: AgentTaskWork }> = ({ t, w }) => {
-  const run = agentRunShowing(t, w);
+const Status: React.FC<{ w?: AgentTaskWork }> = ({ w }) => {
+  const run = agentRunShowing(w);
   const [label, tone] =
     w?.decision === 'approved'
       ? ['Approved', 'bg-emerald-100 text-emerald-800']
       : w?.decision === 'rejected'
         ? ['Rejected', 'bg-rose-100 text-rose-800']
-        : w?.decision === 'returned'
-          ? ['Sent back', 'bg-amber-100 text-amber-800']
-          : run
-            ? ['Needs review', 'bg-violet-100 text-violet-800']
-            : ['Not started', 'bg-slate-200 text-slate-700'];
-  return <span className={`inline-block px-1.5 py-px rounded text-[10.5px] font-semibold ${tone}`}>{label}{(w?.flags?.length ?? 0) > 0 && ` · ${w!.flags!.length} flagged`}</span>;
+        : run
+          ? ['Needs review', 'bg-violet-100 text-violet-800']
+          : ['Not started', 'bg-slate-200 text-slate-700'];
+  const flagged = (w?.flags ?? []).filter((f) => f.run === run?.id).length;
+  return (
+    <span className={`inline-block px-1.5 py-px rounded text-[10.5px] font-semibold ${tone}`}>
+      {label}
+      {flagged > 0 && ` · ${flagged} flagged`}
+    </span>
+  );
 };
 
 const TaskView: React.FC<{ ctx: DeskCtx; cfg: AgentsConfig; t: AgentTask; w?: AgentTaskWork; update: (change: (w: AgentTaskWork) => AgentTaskWork, what: string) => void }> = ({ ctx, cfg, t, w, update }) => {
-  const run = agentRunShowing(t, w);
+  const run = agentRunShowing(w);
   const agentId = w?.agent ?? t.agent ?? '';
   const agent = cfg.agents.find((a) => a.id === agentId);
-  // Briefing: a task not handed out yet, or one sent back to brief again
-  const [briefing, setBriefing] = useState(!run);
+  const [briefing, setBriefing] = useState(!run && !t.agent);
   const [pick, setPick] = useState(agentId || '');
   const [brief, setBrief] = useState(w?.brief ?? '');
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
   const [flagging, setFlagging] = useState<string | null>(null);
   const [flagNote, setFlagNote] = useState('');
   const [deciding, setDeciding] = useState<'returned' | 'rejected' | null>(null);
   const [note, setNote] = useState('');
   const decided = w?.decision === 'approved' || w?.decision === 'rejected';
+  const locked = decided || !!ctx.readOnly;
 
-  const start = () => {
-    if (!pick || !brief.trim()) return;
-    setBusy(true);
-    setTimeout(() => {
-      const r = agentRunFor(t, brief);
-      update((cur) => ({ ...cur, agent: pick, brief: brief.trim(), runs: [...(cur.runs ?? []), r.id], decision: undefined, note: cur.note }), `Gave it to ${cfg.agents.find((a) => a.id === pick)?.name ?? pick} with the brief: ${brief.trim()}`);
-      setBusy(false);
-      setBriefing(false);
-    }, RUN_MS);
+  // The work handed to the agent: the task, the files it works from (as on the computer now), the brief and notes
+  const request = (who: string, briefText: string, notes: string[], previous?: AgentRun) => {
+    const a = cfg.agents.find((x) => x.id === who);
+    return {
+      company: ctx.cfg.company,
+      agent: { name: a?.name ?? who, role: a?.role ?? '' },
+      task: { title: t.title, context: t.context, goal: t.goal, facts: t.facts, pitfalls: t.pitfalls.map(({ id, mistake, avoidWhen }) => ({ id, mistake, avoidWhen })), file: t.file, action: t.action },
+      data: (t.data ?? []).flatMap((name) => ctx.files.filter((f) => f.name.toLowerCase() === name.toLowerCase()).map((f) => ({ name: f.name, content: f.content }))),
+      brief: briefText,
+      notes,
+      ...(previous && { previous: { steps: previous.steps, output: previous.output } }),
+    };
   };
+  const doRun = async (who: string, briefText: string, notes: string[], what: string, opts: { previous?: AgentRun; allSlips?: boolean } = {}) => {
+    if (ctx.readOnly) return;
+    setBusy(true);
+    setError('');
+    try {
+      const out = await callAgent({ mode: 'run', ...request(who, briefText, notes, opts.previous), ...(opts.allSlips && { allSlips: true }) });
+      if (!out.run) throw new Error("The agent couldn't answer. Try again.");
+      const r: AgentRun = { ...out.run, id: `r${Date.now().toString(36)}`, agent: who, at: Date.now() };
+      update((cur) => ({ ...cur, agent: who, brief: briefText, notes, runs: [...(cur.runs ?? []), r], decision: undefined }), what);
+      setBriefing(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "The agent couldn't answer. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  // Work a colleague already handed out: the agent does it when the task is first opened
+  const started = useRef(false);
+  useEffect(() => {
+    if (t.agent && t.brief && !run && !started.current && !ctx.readOnly) {
+      started.current = true;
+      doRun(t.agent, t.brief, [], `${agent?.name ?? t.agent} did the work it was given`, { allSlips: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const flags = (w?.flags ?? []).filter((f) => f.run === run?.id);
   const flagOf = (key: string) => flags.find((f) => f.line === key);
   const saveFlag = (key: string, text: string) => {
@@ -128,17 +167,19 @@ const TaskView: React.FC<{ ctx: DeskCtx; cfg: AgentsConfig; t: AgentTask; w?: Ag
   const unflag = (key: string, text: string) => run && update((cur) => ({ ...cur, flags: (cur.flags ?? []).filter((f) => !(f.run === run.id && f.line === key)) }), `Removed the flag on “${text}”`);
   const approve = () => {
     if (!run) return;
-    update((cur) => ({ ...cur, decision: 'approved', approved: run.id, note: '' }), `Approved${run.action ? `: ${run.action}` : ''}`);
+    update((cur) => ({ ...cur, decision: 'approved', approved: run.slips.length ? 'flawed' : 'clean', note: '' }), `Approved${t.action ? `: ${t.action}` : ''}`);
     if (run.file) ctx.saveFile(run.file, `${run.file.name} saved to Files`);
     else ctx.toast('Approved');
   };
   const decide = () => {
-    if (!deciding || !note.trim()) return;
-    update((cur) => ({ ...cur, decision: deciding, note: note.trim() }), `${deciding === 'returned' ? 'Sent back' : 'Rejected'}: ${note.trim()}`);
-    if (deciding === 'returned') {
-      setBriefing(true);
-      setPick(agentId);
-      setBrief(w?.brief || t.brief || '');
+    if (!deciding || !note.trim() || !run) return;
+    const text = note.trim();
+    if (deciding === 'rejected') update((cur) => ({ ...cur, decision: 'rejected', note: text }), `Rejected: ${text}`);
+    else {
+      // Sent back: the agent does it again with what they said
+      const notes = [...(w?.notes ?? []), text];
+      update((cur) => ({ ...cur, decision: 'returned', note: text, notes }), `Sent back: ${text}`);
+      doRun(agentId, w?.brief || t.brief || '', notes, `${agent?.name ?? agentId} did it again`, { previous: run });
     }
     setDeciding(null);
     setNote('');
@@ -159,11 +200,17 @@ const TaskView: React.FC<{ ctx: DeskCtx; cfg: AgentsConfig; t: AgentTask; w?: Ag
           <div className="mt-2 rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-[12.5px]">
             <span className="font-semibold text-slate-500">Brief: </span>
             {w?.brief || t.brief}
+            {(w?.notes ?? []).map((n, i) => (
+              <p key={i} className="mt-1 text-slate-600">
+                <span className="font-semibold text-slate-500">Then: </span>
+                {n}
+              </p>
+            ))}
           </div>
         )}
       </header>
 
-      {briefing && (
+      {briefing && !ctx.readOnly && (
         <section className="rounded-xl border border-violet-200 bg-violet-50/40 p-4 space-y-3" aria-label="Brief an agent">
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-semibold">Give it to</span>
@@ -185,7 +232,7 @@ const TaskView: React.FC<{ ctx: DeskCtx; cfg: AgentsConfig; t: AgentTask; w?: Ag
             />
           </label>
           <div className="flex items-center gap-2">
-            <button className={primary} disabled={!pick || !brief.trim() || busy} onClick={start} data-ref="agent-run">
+            <button className={primary} disabled={!pick || !brief.trim() || busy} onClick={() => doRun(pick, brief.trim(), [], `Gave it to ${cfg.agents.find((a) => a.id === pick)?.name ?? pick} with the brief: ${brief.trim()}`)} data-ref="agent-run">
               {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
               {busy ? 'Working…' : 'Run'}
             </button>
@@ -198,17 +245,36 @@ const TaskView: React.FC<{ ctx: DeskCtx; cfg: AgentsConfig; t: AgentTask; w?: Ag
         </section>
       )}
 
+      {busy && !briefing && (
+        <p className="flex items-center gap-2 text-violet-700 font-medium" role="status">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          {agent?.name ?? 'The agent'} is working…
+        </p>
+      )}
+      {error && (
+        <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-rose-800 flex items-center justify-between gap-3" role="alert">
+          {error}
+          {t.agent && t.brief && !run && (
+            <button className={btn} onClick={() => doRun(t.agent!, t.brief!, [], `${agent?.name ?? t.agent} did the work it was given`, { allSlips: true })}>
+              Try again
+            </button>
+          )}
+        </div>
+      )}
+      {ctx.readOnly && !run && <p className="text-slate-500">{briefing ? 'They didn’t hand this to an agent.' : 'They didn’t open this task.'}</p>}
+
       {run && !briefing && (
         <>
-          <p className="text-[12px] text-slate-500">Click any line that's wrong to flag it and say what's wrong. Flags go with your decision.</p>
-          {(run.steps?.length ?? 0) > 0 && (
+          {(w?.runs?.length ?? 0) > 1 && <Earlier runs={w!.runs!.slice(0, -1)} />}
+          <p className="text-[12px] text-slate-500">Click any line that's wrong to flag it and say what's wrong.</p>
+          {run.steps.length > 0 && (
             <section aria-label="What the agent did">
               <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Activity</h2>
               <ol className="rounded-lg border border-slate-200 divide-y divide-slate-100 font-mono text-[12px]">
                 {agentLines(run)
                   .filter((l) => l.key.startsWith('s:'))
                   .map((l, i) => (
-                    <Line key={l.key} n={i + 1} text={l.text} flag={flagOf(l.key)} open={flagging === l.key} locked={decided} onOpen={() => (setFlagging(l.key), setFlagNote(flagOf(l.key)?.note ?? ''))} onClose={() => setFlagging(null)} note={flagNote} onNote={setFlagNote} onSave={() => saveFlag(l.key, l.text)} onRemove={() => unflag(l.key, l.text)} />
+                    <Line key={l.key} n={i + 1} text={l.text} flag={flagOf(l.key)} open={flagging === l.key} locked={locked} onOpen={() => (setFlagging(l.key), setFlagNote(flagOf(l.key)?.note ?? ''))} onClose={() => setFlagging(null)} note={flagNote} onNote={setFlagNote} onSave={() => saveFlag(l.key, l.text)} onRemove={() => unflag(l.key, l.text)} />
                   ))}
               </ol>
             </section>
@@ -235,15 +301,115 @@ const TaskView: React.FC<{ ctx: DeskCtx; cfg: AgentsConfig; t: AgentTask; w?: Ag
               {agentLines(run)
                 .filter((l) => l.key.startsWith('o:'))
                 .map((l) => (
-                  <Line key={l.key} text={l.text} flag={flagOf(l.key)} open={flagging === l.key} locked={decided} onOpen={() => (setFlagging(l.key), setFlagNote(flagOf(l.key)?.note ?? ''))} onClose={() => setFlagging(null)} note={flagNote} onNote={setFlagNote} onSave={() => saveFlag(l.key, l.text)} onRemove={() => unflag(l.key, l.text)} />
+                  <Line key={l.key} text={l.text} flag={flagOf(l.key)} open={flagging === l.key} locked={locked} onOpen={() => (setFlagging(l.key), setFlagNote(flagOf(l.key)?.note ?? ''))} onClose={() => setFlagging(null)} note={flagNote} onNote={setFlagNote} onSave={() => saveFlag(l.key, l.text)} onRemove={() => unflag(l.key, l.text)} />
                 ))}
             </ol>
           </section>
 
-          <Decision run={run} w={w} decided={decided} deciding={deciding} setDeciding={setDeciding} note={note} setNote={setNote} onApprove={approve} onDecide={decide} onBrief={() => (setBriefing(true), setPick(agentId), setBrief(w?.brief || t.brief || ''))} />
+          {!ctx.readOnly && (
+            <Decision
+              action={t.action}
+              w={w}
+              decided={decided}
+              busy={busy}
+              deciding={deciding}
+              setDeciding={setDeciding}
+              note={note}
+              setNote={setNote}
+              onApprove={approve}
+              onDecide={decide}
+              onBrief={() => (setBriefing(true), setPick(agentId), setBrief(w?.brief || t.brief || ''))}
+            />
+          )}
+          {ctx.readOnly && w?.decision && (
+            <p className="text-slate-700">
+              <span className="font-semibold">{w.decision === 'approved' ? `Approved (${w.approved === 'clean' ? 'clean work' : 'with mistakes in it'})` : w.decision === 'rejected' ? 'Rejected' : 'Sent back'}</span>
+              {w.note && `: ${w.note}`}
+            </p>
+          )}
         </>
       )}
+
+      {agent && (run || (w?.chat?.length ?? 0) > 0) && <Ask ctx={ctx} agentName={agent.name} w={w} request={() => request(agentId, w?.brief || t.brief || '', w?.notes ?? [])} update={update} />}
     </div>
+  );
+};
+
+// Earlier attempts, folded away
+const Earlier: React.FC<{ runs: AgentRun[] }> = ({ runs }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <details open={open} onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+      <summary className="cursor-pointer text-[12px] font-semibold text-slate-600 flex items-center gap-1">
+        <ChevronDown className={`w-3.5 h-3.5 transition-transform ${open ? '' : '-rotate-90'}`} />
+        Earlier attempts ({runs.length})
+      </summary>
+      {runs.map((r, i) => (
+        <div key={r.id} className="mt-2 text-[12px] text-slate-600 whitespace-pre-wrap border-t border-slate-200 pt-2">
+          <span className="font-semibold">Attempt {i + 1}: </span>
+          {r.output}
+        </div>
+      ))}
+    </details>
+  );
+};
+
+// Questions for the agent, answered live
+const Ask: React.FC<{ ctx: DeskCtx; agentName: string; w?: AgentTaskWork; request: () => Record<string, unknown>; update: (change: (w: AgentTaskWork) => AgentTaskWork, what: string) => void }> = ({ ctx, agentName, w, request, update }) => {
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const chat = w?.chat ?? [];
+  const send = async () => {
+    const q = text.trim();
+    if (!q || busy) return;
+    const next = [...chat, { role: 'user' as const, text: q }];
+    update((cur) => ({ ...cur, chat: next }), `Asked ${agentName}: ${q}`);
+    setText('');
+    setBusy(true);
+    setError('');
+    try {
+      const out = await callAgent({ mode: 'ask', ...request(), messages: next });
+      update((cur) => ({ ...cur, chat: [...(cur.chat ?? []), { role: 'assistant', text: out.reply ?? '' }] }), `${agentName} answered`);
+    } catch (err) {
+      update((cur) => ({ ...cur, chat: (cur.chat ?? []).slice(0, -1) }), 'Question not answered');
+      setText(q);
+      setError(err instanceof Error ? err.message : "The agent couldn't answer. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <section className="rounded-xl border border-slate-200 p-3 space-y-2" aria-label={`Ask ${agentName}`}>
+      <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+        <MessageSquare className="w-3.5 h-3.5" />
+        Ask {agentName}
+      </h2>
+      {chat.length > 0 && (
+        <ul className="space-y-1.5">
+          {chat.map((m, i) => (
+            <li key={i} className={`rounded-lg px-3 py-1.5 whitespace-pre-wrap ${m.role === 'user' ? 'bg-violet-50 ml-10' : 'bg-slate-50 mr-10'}`}>
+              {m.text}
+            </li>
+          ))}
+        </ul>
+      )}
+      {busy && (
+        <p className="flex items-center gap-1.5 text-slate-500">
+          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          {agentName} is typing…
+        </p>
+      )}
+      {error && <p className="text-rose-700">{error}</p>}
+      {!ctx.readOnly && (
+        <div className="flex gap-2">
+          <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && send()} placeholder={`Ask ${agentName} about this work`} className="flex-1 h-8 px-2.5 rounded-md border border-slate-300 focus:outline-none focus:border-violet-500" data-ref="agent-ask" />
+          <button className={primary} disabled={!text.trim() || busy} onClick={send} aria-label="Send">
+            <Send className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+    </section>
   );
 };
 
@@ -286,9 +452,10 @@ const Line: React.FC<{
 );
 
 const Decision: React.FC<{
-  run: AgentRun;
+  action?: string;
   w?: AgentTaskWork;
   decided: boolean;
+  busy: boolean;
   deciding: 'returned' | 'rejected' | null;
   setDeciding: (d: 'returned' | 'rejected' | null) => void;
   note: string;
@@ -296,39 +463,42 @@ const Decision: React.FC<{
   onApprove: () => void;
   onDecide: () => void;
   onBrief: () => void;
-}> = ({ run, w, decided, deciding, setDeciding, note, setNote, onApprove, onDecide, onBrief }) => {
+}> = ({ action, w, decided, busy, deciding, setDeciding, note, setNote, onApprove, onDecide, onBrief }) => {
   if (decided)
     return (
       <div className={`rounded-lg border px-3 py-2.5 ${w?.decision === 'approved' ? 'border-emerald-200 bg-emerald-50' : 'border-rose-200 bg-rose-50'}`}>
-        <p className="font-semibold">{w?.decision === 'approved' ? `Approved${run.action ? `: ${run.action}` : ''}` : 'Rejected'}</p>
+        <p className="font-semibold">{w?.decision === 'approved' ? `Approved${action ? `: ${action}` : ''}` : 'Rejected'}</p>
         {w?.note && <p className="text-slate-700 mt-0.5">{w.note}</p>}
       </div>
     );
   return (
     <section className="rounded-xl border border-slate-200 p-3 space-y-2.5" aria-label="Your decision">
-      {run.action && <p className="text-[12.5px] text-slate-600">Approving will: <span className="font-semibold text-slate-800">{run.action}</span></p>}
-      {w?.decision === 'returned' && w.note && <p className="text-[12.5px] text-amber-800">You sent it back: {w.note}</p>}
+      {action && (
+        <p className="text-[12.5px] text-slate-600">
+          Approving will: <span className="font-semibold text-slate-800">{action}</span>
+        </p>
+      )}
       <div className="flex flex-wrap gap-2">
-        <button className="h-8 px-3 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold inline-flex items-center gap-1.5" onClick={onApprove} data-ref="agent-approve">
+        <button disabled={busy} className="h-8 px-3 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold inline-flex items-center gap-1.5 disabled:opacity-40" onClick={onApprove} data-ref="agent-approve">
           <Check className="w-3.5 h-3.5" />
           Approve
         </button>
-        <button className={btn} onClick={() => setDeciding(deciding === 'returned' ? null : 'returned')} data-ref="agent-return">
+        <button disabled={busy} className={btn} onClick={() => setDeciding(deciding === 'returned' ? null : 'returned')} data-ref="agent-return">
           <RotateCcw className="w-3.5 h-3.5" />
           Send back
         </button>
-        <button className={btn} onClick={() => setDeciding(deciding === 'rejected' ? null : 'rejected')} data-ref="agent-reject">
+        <button disabled={busy} className={btn} onClick={() => setDeciding(deciding === 'rejected' ? null : 'rejected')} data-ref="agent-reject">
           <X className="w-3.5 h-3.5" />
           Reject
         </button>
-        <button className={btn} onClick={onBrief}>
+        <button disabled={busy} className={btn} onClick={onBrief}>
           <Play className="w-3.5 h-3.5" />
           Brief again
         </button>
       </div>
       {deciding && (
         <div className="space-y-2">
-          <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder={deciding === 'returned' ? 'What it must change' : 'Why not'} className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-violet-500" data-ref="agent-note" />
+          <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder={deciding === 'returned' ? 'What it must change (it will do the work again)' : 'Why not'} className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-violet-500" data-ref="agent-note" />
           <button className={primary} disabled={!note.trim()} onClick={onDecide} data-ref="agent-decide">
             {deciding === 'returned' ? 'Send back' : 'Reject'}
           </button>
@@ -337,4 +507,3 @@ const Decision: React.FC<{
     </section>
   );
 };
-

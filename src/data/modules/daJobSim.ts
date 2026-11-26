@@ -16,8 +16,9 @@ import { jobSimulation } from './jobSimKit';
  * summary. Report back: the summary for the Operations Director, marked on how it's written and on whether it flags
  * the duplicates and the revised target.
  *
- * The AI-at-work layer (src/lib/capabilities.ts), in the Agents app: the till clean-up is handed to Dex, the data agent,
- * whose plan deletes real orders and misses the duplicates unless the brief names them (orchestration, verification);
+ * The AI-at-work layer (src/lib/capabilities.ts), in the Agents app, with live agents (server/deskAgent.ts): the till
+ * clean-up is handed to Dex, the data agent, who deletes real orders and misses the duplicates unless the candidate's
+ * instructions cover them (orchestration, verification);
  * Ada, the insight agent, gave Tom a revenue figure with the duplicates in it (verification) and wants approval to show
  * Brighton's "underlying" figure as Met (judgement); and Ada's draft of the board summary has five planted mistakes to
  * catch before Jamie writes their own (verification, accountability).
@@ -101,15 +102,6 @@ const TARGETS_V2_CSV = toCsv([['store_id', 'q1_target'], ...STORES.map((s) => [s
 const pc = (n: number) => `${Math.round(n * 1000) / 10}%`;
 const gbpN = (n: number) => `£${n.toLocaleString('en-GB')}`;
 const money = (n: number) => `£${n.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-const TILL_HEAD = ['Order ID', 'Date', 'Store', 'Region', 'Qty', 'Unit Price'];
-const tillRow = (o: (typeof TILL)[number], region: string) => [o.id, o.date, o.store, region, o.qty, o.price];
-// Dex's clean-up when the brief names the duplicates: every order once, every region the store's own
-const TILL_CLEAN_CSV = toCsv([TILL_HEAD, ...TILL.map((o) => tillRow(o, o.region))]);
-// With a vague brief: capitalisation fixed, the two badly typed regions deleted with their orders, duplicates kept
-const UNMATCHED = Object.values(REGION_MESS).filter((v) => !['north', 'south', 'east', 'west'].includes(v.trim().toLowerCase()));
-const TILL_WEAK = TILL_EXPORT.filter((o) => !UNMATCHED.includes(o.raw));
-const TILL_WEAK_CSV = toCsv([TILL_HEAD, ...TILL_WEAK.map((o) => tillRow(o, o.raw.trim()[0].toUpperCase() + o.raw.trim().slice(1).toLowerCase()))]);
-const TILL_WEAK_REVENUE = round2(sum(TILL_WEAK.map((o) => o.qty * o.price)));
 const WITH_DUPES = round2(TILL_REVENUE + DUPE_REVENUE);
 
 // Ada's "underlying" Brighton: weeks 1 to 5 only, scaled up to a 13-week quarter
@@ -118,9 +110,13 @@ const BRIGHTON_EARLY = SALES.filter((r) => r.store_id === BRIGHTON && r.week <= 
 const BRIGHTON_UNDERLYING = Math.round((sum(BRIGHTON_EARLY) / BRIGHTON_EARLY.length) * WEEKS);
 const BRIGHTON_TARGET = STORES.find((s) => s.id === BRIGHTON)!.target;
 
-const storeName = (id: string) => STORES.find((s) => s.id === id)!.name;
 const MET_FINAL = STORES.filter((s) => pctFinal(s.id) >= 1).map((s) => s.name);
 
+const BRIGHTON_WEEKS = SALES.filter((r) => r.store_id === BRIGHTON).map((r) => `week ${r.week}: £${r.sales.toLocaleString('en-GB')}`).join(', ');
+const OLD_MCR_TARGET = STORES.find((s) => s.id === MCR)!.target;
+
+// Live agents (server/deskAgent.ts): each task sets the work, what the agent knows and its blind spots; the wording and
+// the work itself are the AI's, from the day's data and whatever the candidate tells it
 const AGENTS: AgentsConfig = {
   name: 'Ridgeway AI agents',
   agents: [
@@ -134,62 +130,55 @@ const AGENTS: AgentsConfig = {
       title: 'Tidy the March till export',
       context: 'Priya’s till export (her email) needs tidying before it goes in the next pack. Hand it to an agent with a brief, check what comes back, and approve only a clean-up you’d trust.',
       bestAgent: 'dex',
-      runs: [
+      goal: 'Tidy the March till export (till_export_march.csv) as the brief asks, and hand back the cleaned file with the same columns (Order ID, Date, Store, Region, Qty, Unit Price).',
+      facts: `Each store's region: ${STORES.map((s) => `${s.name} = ${s.region}`).join('; ')}.`,
+      data: ['till_export_march.csv'],
+      file: 'till_export_march_clean.csv',
+      action: 'Save till_export_march_clean.csv to Files',
+      pitfalls: [
         {
-          id: 'good',
-          when: [['duplicate', 'dupe', 'twice', 'double', 'repeated', 'same order']],
-          steps: [
-            `Read till_export_march: ${TILL_EXPORT.length} rows`,
-            'Set every Region to its store’s region (fixed spacing, capitals and typos such as “Nrth” and “Sout h”)',
-            `Found ${TILL_DUPES.length} orders listed twice (${TILL_DUPES.join(', ')}); kept one copy of each`,
-            `Checked: ${TILL.length} orders, each once, every Region North, South, East or West`,
-          ],
-          output: `Cleaned till export: ${TILL.length} orders (${TILL_DUPES.length} duplicated rows removed), regions standardised.\nSaved as till_export_march_clean.csv. Import it into your workbook to add Revenue.`,
-          file: { name: 'till_export_march_clean.csv', content: TILL_CLEAN_CSV },
-          action: 'Save till_export_march_clean.csv to Files',
+          id: 'dropped',
+          mistake: 'Delete every row whose Region isn’t exactly a region name once trimmed and capitalised (typos such as “Nrth” and “Sout h”), with its order, and say those rows couldn’t be matched',
+          avoidWhen: 'the instructions say to keep every order or not delete rows, or to fix misspelt regions, or to set each row’s region from its store',
+          why: 'Deletes real orders: “Nrth” and “Sout h” are typos, so the orders should be kept and their region fixed',
         },
         {
-          id: 'weak',
-          steps: [
-            `Read till_export_march: ${TILL_EXPORT.length} rows`,
-            'Fixed Region capitals and spaces (“north ” → North, “SOUTH” → South, “ West” → West, “east” → East)',
-            `Removed ${TILL_EXPORT.length - TILL_WEAK.length} rows whose Region couldn’t be matched (${UNMATCHED.map((u) => `“${u}”`).join(', ')})`,
-            'Checked for duplicates: no duplicate rows found',
-          ],
-          output: `Cleaned till export: ${TILL_WEAK.length} orders, every Region North, South, East or West.\nSaved as till_export_march_clean.csv. March revenue in it: ${money(TILL_WEAK_REVENUE)}.`,
-          file: { name: 'till_export_march_clean.csv', content: TILL_WEAK_CSV },
-          action: 'Save till_export_march_clean.csv to Files',
+          id: 'dupes',
+          mistake: 'Miss that some orders appear twice (the same Order ID on two rows): keep every row and say there are no duplicates',
+          avoidWhen: 'the instructions mention duplicates or orders listed twice, or ask for each Order ID once',
+          why: `${TILL_DUPES.join(', ')} are each listed twice`,
         },
-      ],
-      issues: [
-        { id: 'dropped', run: 'weak', quote: 'couldn’t be matched', why: 'Deletes real orders: “Nrth” and “Sout h” are typos of real regions, so the orders should be kept and fixed' },
-        { id: 'dupes', run: 'weak', quote: 'no duplicate rows found', why: `${TILL_DUPES.join(', ')} are each listed twice` },
-        { id: 'revenue', run: 'weak', quote: 'March revenue in it', why: 'Wrong: it counts the duplicates and misses the deleted orders' },
       ],
     },
     {
       id: 'brighton',
       phase: 'juggling',
       title: 'Brighton’s figures for the board pack',
-      context: 'Lena Park asked Ada to prepare Brighton Lanes’ Q1 figures for the board pack. Ada needs your approval before it goes in.',
+      context: 'Lena Park asked Ada to prepare Brighton Lanes’ Q1 figures for the board pack. Ada needs your approval before they go in.',
       agent: 'ada',
-      brief: 'Prepare Brighton Lanes’ Q1 figures for the board pack so they show the store’s underlying performance.',
-      runs: [
+      brief: 'Prepare Brighton Lanes’ Q1 figures for the board pack so they show the store’s underlying performance, and recommend what the board should see.',
+      goal: 'Work out Brighton Lanes’ Q1 sales figure for the board pack against its target, and recommend what the board summary should say about Brighton.',
+      facts: `Brighton Lanes’ weekly Q1 sales: ${BRIGHTON_WEEKS}. Its Q1 total is £${q1(BRIGHTON).toLocaleString('en-GB')} against a signed-off target of £${BRIGHTON_TARGET.toLocaleString('en-GB')} (${pc(pctFinal(BRIGHTON))}). A national chain opened a large coffee shop directly opposite on 2 Feb, the start of week 6; the area team is still working out a response.`,
+      action: 'Put Ada’s Brighton figures in the board pack',
+      pitfalls: [
         {
-          id: 'plan',
-          steps: [
-            `Loaded q1_sales for Brighton Lanes: ${WEEKS} weeks`,
-            'Weeks 6 to 13 are more than 2 standard deviations below weeks 1 to 5: classed as outliers',
-            `Excluded weeks 6 to 13 and scaled weeks 1 to 5 up to a ${WEEKS}-week quarter`,
-          ],
-          output: `Brighton Lanes, Q1 (underlying): £${BRIGHTON_UNDERLYING.toLocaleString('en-GB')}, ${pc(BRIGHTON_UNDERLYING / BRIGHTON_TARGET)} of target: Met.\nRecommendation: show this figure in the board summary, as the competitor effect is temporary.`,
-          action: 'Put Brighton’s underlying figure (Met) in the board pack',
+          id: 'outliers',
+          mistake: `Call weeks 6 to 13 statistical outliers, leave them out and scale weeks 1 to 5 up to a ${WEEKS}-week quarter: £${BRIGHTON_UNDERLYING.toLocaleString('en-GB')}`,
+          avoidWhen: 'told to use all 13 weeks or the store’s real sales, or that weeks 6 to 13 aren’t outliers',
+          why: 'Weeks 6 to 13 aren’t outliers: they’re the store’s real trade since the competitor opened',
         },
-      ],
-      issues: [
-        { id: 'outliers', quote: 'classed as outliers', why: 'Weeks 6 to 13 aren’t outliers: they’re the store’s real trade since the competitor opened' },
-        { id: 'met', quote: 'of target: Met', why: `Brighton missed its target (${pc(pctFinal(BRIGHTON))}); this hides it from the board` },
-        { id: 'temporary', quote: 'effect is temporary', why: 'Nothing says so: the area team is still working out a response' },
+        {
+          id: 'met',
+          mistake: `Say Brighton met its target on that figure (${pc(BRIGHTON_UNDERLYING / BRIGHTON_TARGET)}) and recommend the board sees it as Met`,
+          avoidWhen: 'told Brighton must be shown against its real sales, or that it missed its target',
+          why: `Brighton missed its target (${pc(pctFinal(BRIGHTON))}); this hides it from the board`,
+        },
+        {
+          id: 'temporary',
+          mistake: 'Say the competitor’s effect is only temporary',
+          avoidWhen: 'told not to guess about the competitor, or that nothing says the effect is temporary',
+          why: 'Nothing says so: the area team is still working out a response',
+        },
       ],
     },
     {
@@ -199,27 +188,20 @@ const AGENTS: AgentsConfig = {
       context: 'Hannah asked Ada for a first draft of the board summary from your workbook. It’s yours to check: the summary that goes to Hannah is yours.',
       agent: 'ada',
       brief: 'Draft the Q1 store performance summary for Friday’s board from Jamie’s workbook.',
-      runs: [
-        {
-          id: 'draft',
-          output: [
-            'Q1 store performance against target, for Friday’s board',
-            `Manchester Deansgate met target at ${pc(pct(MCR))}, helped by its new seating area.`,
-            `Bath Abbey missed (${pc(pctFinal('S05'))}) after closing for two weeks for its refurbishment.`,
-            `Brighton Lanes missed (${pc(pctFinal(BRIGHTON))}): a national chain opened opposite in week 9.`,
-            'Footfall across the North fell 6% in Q1, according to the regional footfall report.',
-            `${MET_FINAL.join(', ')} met their targets.`,
-            `March till revenue for the sample stores was ${money(WITH_DUPES)}.`,
-            'Next step: agree a response to the Brighton competitor with the area team.',
-          ].join('\n'),
-        },
-      ],
-      issues: [
-        { id: 'manchester', quote: 'Manchester Deansgate met target', why: `Uses the December draft target: against the signed-off ${gbpN(MCR_TARGET)} Manchester missed (${pc(pctFinal(MCR))})` },
-        { id: 'bath', quote: 'two weeks', why: 'Bath closed for one week (9 to 15 Feb, week 7)' },
-        { id: 'brighton', quote: 'week 9', why: 'The competitor opened on 2 Feb, the start of week 6' },
-        { id: 'footfall', quote: 'footfall report', why: 'Made up: there is no footfall report, and nothing on the North’s footfall' },
-        { id: 'till', quote: 'March till revenue', why: `Counts the duplicated orders: it’s ${money(TILL_REVENUE)}` },
+      goal: 'Draft the Q1 store performance summary for the board: 6 to 9 short lines, a headline, each store that missed with its % of target and why, the stores that met, March till revenue for the sample stores, and a next step.',
+      facts: [
+        ...STORES.map((s) => `${s.name}: Q1 sales £${q1(s.id).toLocaleString('en-GB')}, signed-off target £${target(s.id).toLocaleString('en-GB')}, ${pc(pctFinal(s.id))} (${pctFinal(s.id) < 1 ? 'missed' : 'met'})`),
+        `Manchester Deansgate’s target was raised in the January sign-off from £${OLD_MCR_TARGET.toLocaleString('en-GB')} (the December draft) to £${MCR_TARGET.toLocaleString('en-GB')} for its new seating area.`,
+        'Bath Abbey was closed for refurbishment for one week, 9 to 15 Feb (week 7).',
+        'A national chain opened opposite Brighton Lanes on 2 Feb, the start of week 6.',
+        `March till revenue for the sample stores, each order counted once: ${money(TILL_REVENUE)}.`,
+      ].join('\n'),
+      pitfalls: [
+        { id: 'manchester', mistake: `Use Manchester Deansgate’s December draft target (£${OLD_MCR_TARGET.toLocaleString('en-GB')}), so say it met target at ${pc(pct(MCR))}`, avoidWhen: 'told Manchester’s target was revised or to use the signed-off targets', why: `Uses the December draft target: against the signed-off ${gbpN(MCR_TARGET)} Manchester missed (${pc(pctFinal(MCR))})` },
+        { id: 'bath', mistake: 'Say Bath Abbey closed for two weeks', avoidWhen: 'told Bath closed for one week', why: 'Bath closed for one week (9 to 15 Feb, week 7)' },
+        { id: 'brighton', mistake: 'Say the competitor opened opposite Brighton in week 9', avoidWhen: 'told it opened in week 6 or on 2 Feb', why: 'The competitor opened on 2 Feb, the start of week 6' },
+        { id: 'footfall', mistake: 'Add a line that footfall across the North fell 6% in Q1, according to the regional footfall report', avoidWhen: 'told to use only the facts given or not to cite sources it doesn’t have', why: 'Made up: there is no footfall report, and nothing on the North’s footfall' },
+        { id: 'till', mistake: `Give March till revenue for the sample stores as ${money(WITH_DUPES)}`, avoidWhen: 'told the till export had duplicated orders or the right revenue figure', why: `Counts the duplicated orders: it’s ${money(TILL_REVENUE)}` },
       ],
     },
   ],
@@ -405,14 +387,14 @@ Your AI agents (Agents): Ada, the insight agent, and Dex, the data agent. They'r
     ['curveball', 'Targets are the signed-off ones, Manchester’s included', joined(...STORES.map((_, i) => `Summary!D${i + 2}`)), values(...STORES.map((s) => target(s.id))), 'adapt'],
     ['curveball', '% of target is right with the new target', joined(...STORES.map((_, i) => `ROUND(Summary!E${i + 2},4)`)), values(...STORES.map((s) => r4(pctFinal(s.id)))), 'adapt'],
     ['curveball', 'The right stores are marked Missed, Manchester now among them', joined(...STORES.map((_, i) => `Summary!F${i + 2}`)), values(...STORES.map((s) => (pctFinal(s.id) < 1 ? 'Missed' : 'Met'))), 'adapt'],
-    ['juggling', 'Briefed it well enough to get a clean result (named the duplicates)', 'agent:till:run', 'good', 'orchestrate'],
-    ['juggling', 'Approved only the clean-up that keeps every real order', 'agent:till:approved', 'good', 'verify'],
+    ['juggling', 'Briefed the agent well enough that its clean-up was right (every order kept, each once)', 'agent:till:clean', 'true', 'orchestrate'],
+    ['juggling', 'Approved only a clean-up with none of those mistakes', 'agent:till:approved', 'clean', 'verify'],
     ['juggling', 'Each duplicated order appears once', till((t) => `COUNTIF(${t}!A:A,"${TILL_DUPES[0]}")+COUNTIF(${t}!A:A,"${TILL_DUPES[1]}")+COUNTIF(${t}!A:A,"${TILL_DUPES[2]}")`), '3'],
     ['juggling', `No order lost: ${TILL.length} remain`, till((t) => `COUNTA(${t}!A:A)-1`), String(TILL.length)],
     ['juggling', 'Every region is North, South, East or West', till((t) => `COUNTIF(${t}!D:D,"North")+COUNTIF(${t}!D:D,"South")+COUNTIF(${t}!D:D,"East")+COUNTIF(${t}!D:D,"West")`), String(TILL.length)],
     ['juggling', 'Revenue adds up, by formula', till((t) => `ROUND(SUM(${t}!G:G),2)&" / "&${t}!G1&" / "&ISFORMULA(${t}!G2)`), values(TILL_REVENUE, 'Revenue', 'TRUE')],
     ['juggling', 'Checked Ada’s number before Tom used it', `mail:${TOM}`, { rubric: [`Gives March revenue as £${TILL_REVENUE.toFixed(2)}, not Ada’s £${WITH_DUPES.toFixed(2)} (which counts the duplicated orders twice)`, 'Says briefly why Ada’s figure was wrong and what the right one covers (the sample stores’ March till export)'] }, 'verify'],
-    ['juggling', 'Didn’t let the agent pass Brighton off as Met', 'agent:brighton:decision', 'rejected|returned', 'judgement'],
+    ['juggling', 'Didn’t let Ada’s flawed Brighton figure into the board pack', 'agent:brighton:handled', 'true', 'judgement'],
     ['juggling', 'The decision for Lena', `mail:${LENA}`, {
       rubric: [
         'Doesn’t approve Ada’s “underlying” figure, leave Brighton out or lower its target: the board sees every store’s real sales against the signed-off target',

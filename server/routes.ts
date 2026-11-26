@@ -11,6 +11,7 @@ import { readCv } from './readCv.js';
 import { testAdvisor } from './testAdvisor.js';
 import { suggestTests } from './suggestTests.js';
 import { taskAssistant } from './taskAssistant.js';
+import { deskAgent } from './deskAgent.js';
 import { crmAssistant } from './crmAssistant.js';
 import { writeFormula } from './writeFormula.js';
 import { fitApp } from './fitApp.js';
@@ -246,6 +247,8 @@ export const API_ROUTES: Record<string, Handler> = {
   '/api/suggest-tests': logged('suggest-tests', (body, env) => suggestTests(body, env.ANTHROPIC_API_KEY, env.ADVISOR_MODEL || 'claude-sonnet-5-5')),
   // The assistant candidates work with in an AI-assisted task: Corprax's cost, like marking, on a quick model by default
   '/api/task-assistant': logged('task-assistant', (body, env, meta) => taskAssistant(body, env, meta?.authorization, env.ASSISTANT_MODEL || 'claude-haiku-5-5')),
+  // The AI agents on a job simulation's desktop: live, on Haiku, with the day's blind spots (server/deskAgent.ts)
+  '/api/desk-agent': logged('desk-agent', (body, env, meta) => deskAgent(body, env, meta?.authorization, env.AGENT_MODEL || 'claude-haiku-5-5')),
   // Programs in languages the browser can't run (Java, C#, C++, Go...), on Judge0; signed-in people only, rate-limited
   '/api/run-code': logged('run-code', (body, env, meta) => runCode(body, env, meta?.authorization)),
   // Ask AI on the company's project and CRM boards: questions about the board and the process; the company's credit
